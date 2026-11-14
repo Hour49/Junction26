@@ -106,7 +106,7 @@ function MarkList(props: {
 }
 
 // Golden's certified gate (backend #98): plan-level, on held-out CubiCasa test plans, 95% bound.
-const SURE_TIP =
+export const SURE_TIP =
   'Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact';
 
 const TONE: Record<Row['status'], string> = {

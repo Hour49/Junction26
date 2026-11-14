@@ -14,7 +14,8 @@ Every step was run by hand on the no-keys backend of main 5092dc3 (sample archiv
 
 ## Vellum redesign: how the path walks the new screens
 
-Header tabs on a project (chat round, 12:58): Ingest, Conflicts, Chat, Surveyor; no Engineer tab, so the path reaches
+Header tabs on every project route (chat round, 13:14): Ingest, Conflicts, Chat (current on the chat page), and Surveyor
+on a drawing; no Engineer tab, so the path reaches
 the engineer view through the chat's "Show it on <file>" (V6) and, after the surveyor steps, by its URL (V13).
 
 Round 2 (frontend-orch, 2026-11-14 11:00): the app is restyled to Tudor's Vellum canvas, screens 1-5 and 9-12. The
@@ -31,7 +32,7 @@ checks on every screenshot (offline strip, no horizontal scroll, no console erro
 | V4 | File trace, `#/p/<id>/f/<fid>` | open `plans/flat-b.pdf` | as GP-4: "flagged", "1 conflict(s) between the two methods", the second-count line, the write stage |
 | V5 | Settle the conflicts, `#/p/<id>/conflicts` (3) | header "Conflicts"; on the "Küche · 1.01" card Modify, tap A, then "Use the rule's value" (CF-22) | "1 conflict found" (#131: one per room); the card on `plans/flat-b.pdf` "Settled by rule", then "Your choice" with Modify (never "Change"), then "Settled by rule"; "Start a new chat" (below the cards) is the primary link, "Open the workspace" a quiet link; no "Ask anything …" line |
 | V5a | New chat, `#/p/<id>/chat` (chat.md) | "Start a new chat" | the project name, the ask bar in the upper middle and the group "Suggested questions": "How many doors are there?", "What is the net floor area of all indoor rooms in m²?", "How many windows are there?"; no "Ask anything …" line, no plan, image or marks |
-| V5b | (chat) | click the chip "How many doors are there?" (the chips go, the bar moves to the bottom) | one card: several drawings answer, so no total and a note that they may show the same rooms; a line per drawing ("plans/flat-b.pdf: 2"), each with "Show it on <file>"; no image |
+| V5b | (chat) | click the chip "How many doors are there?" (the chips go, the bar moves to the bottom) | one card from one `POST /api/projects/{pid}/ask` (#135): several drawings answer, so no total and the backend's note "… they may show the same rooms, so the numbers are not added up"; a line per drawing ("plans/flat-b.pdf: 2"), each with "Show it on <file>"; no image |
 | V6 | Ask, with proof, `…/d/<did>/engineer` (4) | "Show it on plans/flat-b.pdf" | as GP-5: the page, its credit, the suggested questions |
 | V7-V9 | (4) | the door count, the room 1.01 area, the roof refusal | as GP-6, GP-7, GP-8 |
 | V10-V12 | Surveyor, `…/surveyor` (restyle) | settle 1.01 on 22.40 m², sign off as "Ana" | as GP-9, GP-10, GP-11 |
@@ -57,7 +58,8 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
   `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 0 and Signed off matching `/^1 of \d+$/` (one per room).
   [e2e]
 - GP-34 V15: the history starts "Uploaded sample-project.zip", "Analysis done"; later "Conflict settled: area of room
-  (name Küche · 1.01)" comes before "Signed off: area of room (name Küche · 1.01)" (with "by Ana"), the only "Signed off" event; no "Settled by a
+  (name Küche · 1.01)" comes before "Signed off: area of room (name Küche · 1.01)" (with "by Ana"), the only "Signed off" event; "Asked: How many doors are there?" twice (the chat's one
+  grouped entry and the engineer's ask); no "Settled by a
   rule" event is left (#131: the one conflict was settled by a person). [e2e]
 - GP-35 Fifteen screenshots per width, named as above, each with the offline strip and no horizontal scroll.
   [e2e]
@@ -68,9 +70,9 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
 - GP-39 V5a: `#/p/<id>/chat` shows the `h1` project name, the textbox "Question", "Ask" and the group "Suggested
   questions" with exactly the three chips above; no "Ask anything …" line; inside `main` no `img`, `figure` or
   canvas. Clicking the doors chip asks it (V5b), and the group is gone after the first ask. [e2e]
-- GP-40 V5b: "How many doors are there?" gives one turn with no `answer-value` (several drawings answer), the note
-  "These drawings may show the same rooms, so the numbers are not added up.", "plans/flat-b.pdf: 2" and the
-  link "Show it on plans/flat-b.pdf", and no `img` or `figure` in the turn (CH-4/CH-5, CH-10). [e2e]
+- GP-40 V5b: the doors question gives one turn with no `answer-value`, text matching "may show the same rooms, so
+  the numbers are not added up", "plans/flat-b.pdf: 2", the link "Show it on plans/flat-b.pdf", and no `img` or
+  `figure` in the turn. The Chat tab is `aria-current="page"` on the chat page. [e2e]
 - GP-36 No screen on the path shows a user name, initials, avatar or country picker, and no mock value from the
   canvas ("harbour-block-archive.zip", "Beatrice", "Hour49"). [e2e: text checks on every screenshot step]
 

@@ -30,6 +30,9 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect(row('plans/flat-b.pdf')).toContainText('flagged');
     await expect(row('photos/site.jpg')).toContainText('set aside');
     await expect(row('docs/notes.txt')).toContainText('text only');
+    await expect(
+      page.getByRole('banner').getByRole('link', { name: 'Chat', exact: true }),
+    ).toBeVisible();
     await shot(page, testInfo, '02-project', offline);
   });
 
@@ -83,6 +86,10 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
   await test.step('GP-39 GP-40: a new, empty chat over the project, then one question', async () => {
     await page.getByRole('link', { name: 'Start a new chat' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/chat$/);
+    // The Chat tab shows on every project route; here it is the current one.
+    await expect(
+      page.getByRole('banner').getByRole('link', { name: 'Chat', exact: true }),
+    ).toHaveAttribute('aria-current', 'page');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: 'sample-project.zip' })).toBeVisible();
     // Empty (chat.md, Tudor 12:58): the heading, the ask bar and 3 suggestion chips; no plan, image or marks.
@@ -103,9 +110,8 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     const answer = turn(DOORS);
     // Several drawings answer: no total (they may show the same rooms), a note, then one line per drawing.
     await expect(answer.getByTestId('answer-value')).toHaveCount(0);
-    await expect(answer).toContainText(
-      'These drawings may show the same rooms, so the numbers are not added up.',
-    );
+    // The backend's note (#135, one project ask), e.g. "3 drawings answered; they may show the same rooms, …".
+    await expect(answer).toContainText(/may show the same rooms, so the numbers are not added up/);
     await expect(answer).toContainText('plans/flat-b.pdf: 2');
     await expect(answer.getByRole('link', { name: 'Show it on plans/flat-b.pdf' })).toBeVisible();
     await expect(answer.locator('img, figure')).toHaveCount(0);
@@ -265,6 +271,8 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     expect(settled).toBeGreaterThan(1);
     expect(at(/^Signed off: area of room \(name Küche · 1\.01\)$/)).toBeGreaterThan(settled);
     expect(all.filter((t) => t.startsWith('Signed off: ')).length).toBe(1);
+    // The chat's one question over all drawings is one entry; the engineer's ask on flat-b is the other.
+    expect(all.filter((t) => t === 'Asked: How many doors are there?').length).toBe(2);
     expect(at(/^Settled by a rule: /)).toBe(-1);
     await expect(panel).toContainText('by Ana');
     // GP-36: no user, no canvas sample data (the drawing credit names the team, so not 'Hour49').

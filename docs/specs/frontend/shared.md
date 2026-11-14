@@ -68,12 +68,13 @@ As in every design's `<header>`, without the avatar (common brief: not built). T
   | Route | Links (current one marked) |
   | --- | --- |
   | home, account, not-found | none |
-  | project, file | Ingest (current), Conflicts |
-  | conflicts | Ingest, Conflicts (current) |
-  | chat | Ingest, Conflicts (neither current: the chat is reached from the conflicts screen's "Start a new chat") |
+  | project, file | Ingest (current), Conflicts, Chat |
+  | conflicts | Ingest, Conflicts (current), Chat |
+  | chat | Ingest, Conflicts, Chat (current) |
   | workspace | Ingest, Conflicts, Chat, Surveyor (Surveyor current on the surveyor route; on the engineer route none: no Engineer tab, Tudor 12:46 "remove the engineer tab") |
 
-  Hrefs: Ingest `#/p/<pid>`, Conflicts `#/p/<pid>/conflicts`, Chat `#/p/<pid>/chat`, Surveyor as SH-13 (keeps
+  The chat is project-level, so Chat shows wherever a project is in the route (frontend-orch 13:06); Surveyor only
+  on drawing routes. Hrefs: Ingest `#/p/<pid>`, Conflicts `#/p/<pid>/conflicts`, Chat `#/p/<pid>/chat`, Surveyor as SH-13 (keeps
   `?q=`). The engineer route itself stays (the chat's "Show it on <file>" and drawing links go there); only its tab is
   gone.
 - Right (`margin-left: auto`): the project picker, the country picker, then a "Workspaces" link to `#/workspaces`.
@@ -684,9 +685,9 @@ Vellum round (round 2)
 - SH-55 The header has one link named "Vellum" to `#/` holding the logo image (`alt=""`, `src` the bundled
   `vellum-logo.png`) and the text "Vellum"; a "Workspaces" link to `#/workspaces` with `aria-current="page"` only
   on that route; the project picker; the country picker; no user name or avatar. [component]
-- SH-56 The view links per route are those of the Header table (none on home, account and not-found; Ingest and
-  Conflicts on project, file, conflicts and chat; Ingest, Conflicts, Chat, Surveyor on workspace), with the hrefs
-  given, and at most the current one has `aria-current="page"` (none on chat and on the engineer route). Supersedes SH-14. [component]
+- SH-56 The view links per route are those of the Header table (none on home, account and not-found; Ingest,
+  Conflicts and Chat on project, file, conflicts and chat; Ingest, Conflicts, Chat, Surveyor on workspace), with the
+  hrefs given, and at most the current one has `aria-current="page"` (Chat on chat; none on the engineer route). Supersedes SH-14. [component]
 - SH-57 Base classes exist in `shell.css` with the designs' values: `.v-card` (radius `var(--v-radius)`, shadow
   `var(--v-shadow)`), `.v-btn` (accent background, `border-radius: 980px`, `min-height: 44px`),
   `.v-btn--secondary` (`--v-fill`), `.v-pill` and its four tones, `.v-segmented`, `.v-page` and its three widths,
@@ -705,7 +706,7 @@ Vellum round (round 2)
   engineer content does not show through it; at 390 the header scrolls away. [unit: parse the CSS; live check]
 - SH-64 (fe-chat) `parseRoute('#/p/5e0c1a2b3d4f/chat')` (and with a trailing `/`) → `chat` with that `projectId`;
   `#/p/XYZ/chat` and `#/p/5e0c1a2b3d4f/chat/x` → not-found; `routeHref` round-trips it. `App` mounts `ProjectChat`
-  with `projectId` on it; the header shows Ingest and Conflicts there, neither marked current. [unit + component]
+  with `projectId` on it; the header shows Ingest, Conflicts and Chat there, Chat marked current. [unit + component]
 - SH-65 (checks) `getDrawingChecks('adeefbbcc17559fc', {pack: 'fi', project: '5e0c1a2b3d4f'})` sends
   `GET /api/drawings/adeefbbcc17559fc/checks?pack=fi&project=5e0c1a2b3d4f`; `getProjectChecks(pid, {pack: 'fi'})`,
   `getIssues(pid)` and `getIssues(pid, {pack: 'fi'})` send their table rows; each resolves with its hand-made fixture
