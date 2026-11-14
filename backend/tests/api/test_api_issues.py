@@ -283,7 +283,7 @@ def test_the_project_list_counts_issues_once_and_again_after_a_refused_ask(
     calls: list[str] = []
     open_count = projects.open_count
 
-    def counted(status: Any, *args: Any) -> int:
+    def counted(status: Any, *args: Any) -> tuple[int, int]:
         calls.append(status.id)
         return open_count(status, *args)
 

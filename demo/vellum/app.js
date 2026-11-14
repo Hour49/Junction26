@@ -21,7 +21,7 @@
     if (V.resetReadAsPlan) V.resetReadAsPlan();
     // calls / rap: a person's relevance calls and "read it as a floor plan" per triaged file (triage.js)
     S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], chat: [], chatRef: {}, di: 0, checks: {},
-      calls: {}, rap: {}, rapDone: {}, issueFilter: { kind: null, state: null }, issues: {} };
+      calls: {}, rap: {}, rapDone: {}, issueFilter: { kind: null, state: null }, issues: {}, srcOpen: {} };
     log(S.p.started, 'up', 'Uploaded the archive', `${V.ARCHIVE} · ${V.FILES.length} files`);
     logDone();
   }
@@ -382,8 +382,13 @@
     return `<div class="src" style="aspect-ratio:${(vw * src.ratio / vh).toFixed(3)}"><img src="${esc(f.image)}" alt="${esc(f.path)}" loading="lazy" style="left:${pct(-vx / vw * 100)};top:${pct(-vy / vh * 100)};width:${pct(10000 / vw)}">${src.marks.map((m, n) => `<span class="hl" style="${pos(m.box)}"><b>${n + 1}</b></span>`).join('')}</div>`;
   }
   const legend = (src) => `<ol class="hl-legend">${src.marks.map((m, n) => `<li><b>${n + 1}</b><span>${esc(m.label)}</span></li>`).join('')}</ol>`;
-  const srcFigure = (k, id, src) => `<figure class="c-plan"><div>${sourceFig(src, 0)}</div><figcaption>${legend(src)}
-    <button class="btn btn-soft press" data-act="src-open" data-k="${k}" data-id="${id}">Show source</button></figcaption></figure>`;
+  // starts minimized (a thumbnail); the thumbnail or Expand opens it in place, Show source opens the large preview
+  function srcFigure(k, id, src) {
+    const key = k + id, open = !!S.p.srcOpen[key], what = open ? 'Minimize the drawing' : 'Expand the drawing';
+    return `<figure class="c-plan${open ? '' : ' min'}"><div class="press" role="button" tabindex="0" data-act="src-toggle" data-key="${key}" aria-expanded="${open}" aria-label="${what}">${sourceFig(src, 0)}</div>
+      <figcaption>${legend(src)}<span class="src-btns"><button class="btn btn-plain press" data-act="src-toggle" data-key="${key}" aria-expanded="${open}">${open ? 'Minimize' : 'Expand'}</button>
+      <button class="btn btn-soft press" data-act="src-open" data-k="${k}" data-id="${id}">Show source</button></span></figcaption></figure>`;
+  }
 
   function srcModal() {
     if (!S.src) return '';
@@ -472,6 +477,7 @@
     'src-open': (el) => { S.src = { k: el.dataset.k, id: el.dataset.id, i: 0 }; },
     'src-move': (el) => { S.src.i += Number(el.dataset.d); },
     'src-close': () => { S.src = null; },
+    'src-toggle': (el) => { const k = el.dataset.key; S.p.srcOpen[k] = !S.p.srcOpen[k]; },
     noop: () => false,
     'issue-edit': (el) => { S.p.issues[el.dataset.id] = { ...S.p.issues[el.dataset.id], editing: true }; },
     'issue-cancel': (el) => { S.p.issues[el.dataset.id] = { ...S.p.issues[el.dataset.id], editing: false }; },
