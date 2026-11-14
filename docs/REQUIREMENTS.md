@@ -63,6 +63,7 @@ Priority: **M** must have for the demo, **S** should, **C** could.
 | I11 | Precompute the known question types with their marks. | M |
 | I12 | Show ingest progress per file and per stage, with a readable trace of what each stage found. | M |
 | I13 | Open encrypted PDFs that have an empty password; convert DWG to DXF. | S |
+| I14 | Triage every uploaded image before any reader: a floor plan or not (unsure = plan). A non-plan is kept and set aside, described in words, and judged against the project's plans (related, unrelated, unsure) as a suggestion a person can overrule; never deleted (decision 0010; Bogdan 2026-11-14). | S |
 
 ### Answering (engineer)
 

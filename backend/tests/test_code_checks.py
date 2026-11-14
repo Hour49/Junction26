@@ -9,8 +9,9 @@ from typing import Any
 import pytest
 
 from app.adapters.rule_packs import load_packs
-from app.core.checks.check import check_drawing, check_rule, overall
-from app.core.checks.model import AppliesTo, CodeRule, RulePack
+from app.core.checks import check as engine
+from app.core.checks.check import overall
+from app.core.checks.model import AppliesTo, CodeRule, RuleCheck, RulePack
 from app.core.drawing.model import (
     Conflict,
     Drawing,
@@ -21,6 +22,7 @@ from app.core.drawing.model import (
     Subject,
 )
 from app.core.errors import InvalidInputError
+from app.core.pipeline.model import Route
 from app.settings import Settings
 
 RULES = Path(__file__).parent / "fixtures" / "rules"
@@ -28,6 +30,16 @@ PACK = load_packs(RULES)[0]
 # A 10 m x 10 m page at 1 cm per unit: a fraction 0.1 is 1 m.
 PAGE = Page(page=1, width=1000, height=1000, unit="pt")
 SCALED = Scale(status="scaled", m_per_unit=0.01)
+
+
+def check_rule(*args: Any, route: Route | None = "vector", **more: Any) -> RuleCheck:
+    """The engine's check_rule on a drawing read off its lines unless `route` says otherwise:
+    the engine takes an unknown route as a picture (S2)."""
+    return engine.check_rule(*args, route=route, **more)
+
+
+def check_drawing(*args: Any, route: Route | None = "vector", **more: Any) -> tuple[RuleCheck, ...]:
+    return engine.check_drawing(*args, route=route, **more)
 
 
 def rule(rule_id: str) -> CodeRule:
@@ -391,6 +403,25 @@ def test_a_building_models_window_count_decides(windows: int, status: str) -> No
     )
 
 
+@pytest.mark.parametrize(("doors", "status"), [([], "fail"), ([ON_WALL], "cannot_tell")])
+def test_a_building_models_windowless_room_with_a_door_outside_cannot_tell(
+    doors: list[tuple[float, float, float, float]], status: str
+) -> None:
+    """The model's 0 is held as a drawn 0 is (decision 0009, D511): tuwien's "Zimmer" rooms have
+    no IfcWindow but a 2.36 m door straight to the outside, which may be glazed."""
+    model = [{"id": "m1", "class": "space", "element": "r1", "attrs": {"windows": 0}}]
+    out = [element(1, "door", box) for box in doors]
+    plan = drawing(rooms=[room(1)], elements=out, model_objects=model)
+    found = check_rule(plan, rule("bedroom-window"))
+    assert statuses(found) == [status]
+    assert found.results[0].value == 0
+    if status == "cannot_tell":
+        assert found.results[0].why.endswith(
+            "the building model gives it no window, but a door opens from it straight to the "
+            "outside, and that door may be glazed."
+        )
+
+
 def test_windows_link_to_their_marks_in_the_window_row() -> None:
     plan = drawing(
         rooms=[room(1)],
@@ -628,3 +659,103 @@ def test_a_drawing_is_checked_against_every_rule_and_the_same_way_twice() -> Non
         ("test-wc-count", "pass"),
     ]
     assert check_drawing(plan, PACK) == first
+
+
+# --- qa-a's review of #150 (S1-S3, N1-N3; orchestrator's decisions, 2026-11-14) -----------------
+
+
+def test_rooms_of_a_kind_we_could_not_tell_make_a_room_rule_cannot_tell() -> None:
+    """S1: vitoria's HAB1/SAL rooms are typed other; "no bedroom" would be a wrong statement.
+    Rooms of a known kind the rule does not name (a store, a hall) stay not applicable."""
+    unknown = [room(1, "other"), room(2, "other", box=(0.5, 0.1, 0.8, 0.4)), HALL]
+    for rule_id in ("bedroom-area", "bedroom-window"):
+        found = check_rule(drawing(rooms=unknown), rule(rule_id))
+        assert (found.status, found.results) == ("cannot_tell", ())
+        assert "but 2 rooms are of a kind we could not tell, so they cannot be checked." in (
+            found.why
+        )
+        known = check_rule(drawing(rooms=[CLOSET, HALL]), rule(rule_id))
+        assert known.status == "not_applicable"
+
+
+def test_a_scoped_door_rule_on_rooms_of_no_kind_we_tell_cannot_tell() -> None:
+    """S1 for doors: with no room of the kinds it names but one we could not tell, the door
+    rule cannot say there is no door to a bedroom; with a bedroom there, it can."""
+    door = element(1, "door", (0.2, 0.38, 0.27, 0.42))
+    unknown = check_rule(drawing(rooms=[room(1, "other"), HALL], elements=[door]), SCOPED)
+    assert unknown.status == "cannot_tell"
+    assert unknown.why.endswith(
+        "but 1 room is of a kind we could not tell, so they cannot be checked."
+    )
+    to_closet = element(2, "door", (0.38, 0.2, 0.42, 0.26))
+    plan = drawing(rooms=[room(1), CLOSET, room(3, "other", box=(0.6, 0.6, 0.9, 0.9))])
+    with_bedroom = check_rule(plan.model_copy(update={"elements": ()}), SCOPED)
+    assert with_bedroom.status == "not_applicable"
+    assert check_rule(drawing(rooms=[room(1), CLOSET], elements=[to_closet]), SCOPED).status == (
+        "not_applicable"
+    )
+
+
+def test_a_drawing_read_by_a_route_not_known_is_taken_as_a_picture() -> None:
+    """S2: DrawingInfo.route may be None; an outline area under the limit fails only when the
+    route read the drawing's own lines."""
+    small = room(1, area_m2=6.0, area_source="geometry_x_scale")
+    plan = drawing(rooms=[small])
+    assert statuses(check_rule(plan, rule("bedroom-area"), route="vector")) == ["fail"]
+    for route in (None, "raster"):
+        found = check_rule(plan, rule("bedroom-area"), route=route)
+        assert statuses(found) == ["cannot_tell"]
+        assert "read off a picture" in found.results[0].why
+
+
+def test_off_a_picture_a_wide_door_cannot_tell_either() -> None:
+    """S3: a detector's door box is not a measurement in either direction, at any scale."""
+    wide = element(1, "door", (0.5, 0.5, 0.65, 0.55))  # 1.5 m at a printed scale
+    assert statuses(check_rule(drawing(elements=[wide]), rule("door-width"))) == ["pass"]
+    found = check_rule(drawing(elements=[wide]), rule("door-width"), route="raster")
+    assert statuses(found) == ["cannot_tell"]
+    assert found.results[0].value == pytest.approx(1.5)
+    assert found.results[0].why == (
+        "The door at the marked place: its symbol measures 1.5 m and the rule asks at least "
+        "0.85 m, but it was read off a picture, whose door boxes are not measurements, so it "
+        "cannot be told."
+    )
+
+
+def test_a_rooms_number_is_not_said_twice() -> None:
+    """N1: Warmond's label already holds its number ("Bedroom 414B-1-001-011")."""
+    held = room(1, label="Bedroom 414B-1-001-011", attrs={"number": "414B-1-001-011"})
+    other = room(2, label="Schlafzimmer", attrs={"number": "4.02"}, box=(0.5, 0.1, 0.8, 0.4))
+    found = check_rule(drawing(rooms=[held, other]), rule("bedroom-area"))
+    assert [result.subject.label for result in found.results] == [
+        "Bedroom 414B-1-001-011",
+        "Schlafzimmer 4.02",
+    ]
+
+
+def test_a_door_by_three_rooms_or_none_is_named_by_them_or_its_place() -> None:
+    """N2: never by its element id."""
+    corner = element(1, "door", (0.38, 0.38, 0.42, 0.42))  # where r1, the hall and the closet meet
+    plan = drawing(rooms=[room(1), HALL, CLOSET], elements=[corner])
+    (result,) = check_rule(plan, rule("door-width")).results
+    assert result.subject.label == (
+        'the door by the bedroom "MH 1", the hall "MH 9" and the storage room "MH 8"'
+    )
+    lone = check_rule(
+        drawing(elements=[element(2, "door", (0.5, 0.5, 0.6, 0.55))]), rule("door-width")
+    )
+    assert lone.results[0].subject.label == "the door at the marked place"
+    assert "e2" not in lone.results[0].why
+
+
+def test_a_building_model_checked_on_its_sheets_is_not_applicable() -> None:
+    """N3: a model file whose sheets are in the project is checked there; one without stays
+    cannot tell, as there is nothing to check it on."""
+    space = {"id": "m1", "class": "space", "attrs": {"windows": 0}}
+    model = drawing(pages=[], model_objects=[space])
+    alone = check_drawing(model, PACK, route="bim")
+    assert {check.status for check in alone} == {"cannot_tell"}
+    sheets = check_drawing(model, PACK, route="bim", on_sheets=True)
+    assert {(check.status, check.why) for check in sheets} == {
+        ("not_applicable", "The building model is checked on its sheets in this project.")
+    }

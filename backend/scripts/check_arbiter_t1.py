@@ -6,7 +6,8 @@ counts T1 was scored with (data/stoa/exp/local-dec/, gitignored).
 
 Every (page, family) with a val answer: reading_of() over the eight-view extraction
 (valsrc/Lv8), the one-view one (valsrc/L1v) and L1's val probabilities, then the core's pick()
-against T1's targets and confidences. Prints the mismatches (0 expected). --fixture N writes
+against T1's targets and confidences (the base where it is above L1's last class, which T1
+offline let L1 pull down: 1 val unit). Prints the mismatches (0 expected). --fixture N writes
 tests/fixtures/count_arbiter/parity.json: the model and N units per family (pages renamed val-<n>,
 the changed picks first), which tests/test_count_arbiter.py replays. --l1 also runs the ONNX L1
 on each val page (one view) against L1-v1's probabilities and times it on the CPU. --e2e N runs
@@ -77,7 +78,7 @@ def main() -> None:
     }
     targets = json.loads((LD / "T1.targets.json").read_text())
     confs = json.loads((LD / "T1.conf.json").read_text())
-    units, bad, worst, changed = [], 0, 0.0, Counter()
+    units, bad, worst, changed, above = [], 0, 0.0, Counter(), []
     for file in sorted(targets):
         for family in model.families:
             if family not in targets[file] or file not in base:
@@ -85,14 +86,20 @@ def main() -> None:
             reading = reading_of(family, base[file], second[file], probs[file])
             got = pick(model, family, reading)
             want = targets[file][family]
-            bad += got.count != want
-            worst = max(worst, abs(got.p - confs[file][family]))
+            if reading.base >= len(reading.probs):  # the base is kept above L1's last class
+                above.append(f"{file} {family}: base {reading.base}, T1 {want}, kept {got.count}")
+                bad += got.count != reading.base
+            else:
+                bad += got.count != want
+                worst = max(worst, abs(got.p - confs[file][family]))
             changed[family] += got.count != reading.base
             units.append((family, file, reading, want, confs[file][family]))
     print(
         f"units {len(units)}, pick mismatches {bad}, max |P diff| {worst:.2e}, "
-        f"changed vs base {dict(changed)}"
+        f"changed vs base {dict(changed)}; base above L1's last class {len(above)}"
     )
+    for line in above:
+        print("  " + line)
     if a.fixture:
         rows, names = [], {}
         for family in model.families:

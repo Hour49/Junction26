@@ -38,6 +38,7 @@ from app.core.pipeline.model import Quantity, Route
 from app.core.pipeline.rules import ROOM_NUMBERS
 from app.core.pipeline.takeoff import known_quantities, normalised, quantity_key, room_names
 from app.core.review.review import label
+from app.core.wording import count as count_of
 
 # A window or a door meets a room when its box is within this of the room's outline: it sits in a
 # wall, whose inner face the outline follows. On the dev split's gold sheets a bedroom's nearest
@@ -53,6 +54,11 @@ DOOR_BOX_TOLERANCE_M = 0.03
 # leaf's thickness when open take up to about this. The symbol (or a model's width) is therefore an
 # upper bound on the clear width: below the limit is a fail, within this above it cannot tell.
 DOOR_FRAME_M = 0.10
+
+# The routes that read a drawing's own lines or model; any other (raster, or not known) read it off
+# a picture, or may have: its outlines, windows and door boxes never decide a fail (S2, 2026-11-14)
+MEASURED: tuple[Route, ...] = ("vector", "bim", "cad")
+CHECKED_ON_SHEETS = "The building model is checked on its sheets in this project."
 
 NO_DECIDING = "no rule decides between them"
 MODEL_GIVES = "the building model gives"
@@ -71,9 +77,23 @@ Outcome = tuple[list[CheckResult], str, RuleStatus]
 
 
 def check_drawing(
-    drawing: Drawing, pack: RulePack, route: Route | None = None
+    drawing: Drawing, pack: RulePack, route: Route | None = None, on_sheets: bool = False
 ) -> tuple[RuleCheck, ...]:
-    """`route`: the route that read the drawing (DrawingInfo.route); None: not known."""
+    """`route`: the route that read the drawing (DrawingInfo.route); None: not known, taken as
+    read off a picture. `on_sheets`: the drawing is a building model whose sheets are in the same
+    project, so its rules are checked there and not on the model (N3, 2026-11-14)."""
+    if on_sheets and not drawing.pages:
+        return tuple(
+            RuleCheck(
+                rule_id=rule.id,
+                title=rule.title,
+                status="not_applicable",
+                why=CHECKED_ON_SHEETS,
+                clause=rule.clause,
+                results=(),
+            )
+            for rule in pack.rules
+        )
     quantities = known_quantities(drawing)
     return tuple(
         check_rule(drawing, rule, quantities, pack.fail_means, route) for rule in pack.rules
@@ -88,8 +108,9 @@ def check_rule(
     route: Route | None = None,
 ) -> RuleCheck:
     """`fail_means`: the pack's sentence on what a fail means, put after each fail's why.
-    `route` raster: the drawing was read off a picture, whose outlines and windows a reader can
-    get wrong, so they never make a fail on their own."""
+    `route` raster or None: the drawing was (or may have been) read off a picture, whose
+    outlines, windows and door boxes a reader can get wrong, so they never make a fail on their
+    own."""
     ops: dict[str, Callable[[Drawing, CodeRule, Quantities, bool], Outcome]] = {
         "room_area": _room_area,
         "room_windows": _room_windows,
@@ -97,7 +118,7 @@ def check_rule(
         "takeoff": _takeoff,
     }
     found = known_quantities(drawing) if quantities is None else quantities
-    results, why, status = ops[rule.op](drawing, rule, found, route == "raster")
+    results, why, status = ops[rule.op](drawing, rule, found, route not in MEASURED)
     if fail_means is not None:
         results = [
             result.model_copy(update={"why": f"{result.why} {fail_means}"})
@@ -196,13 +217,15 @@ def room_noun(kind: RoomType) -> str:
     return ROOM_NOUNS.get(kind, words(kind))
 
 
-def _rooms(drawing: Drawing, rule: CodeRule) -> list[Room]:
-    """The rooms a room op checks: of its types, indoor, and not labelled as one it skips."""
+def _rooms(drawing: Drawing, rule: CodeRule, types: Iterable[RoomType] | None = None) -> list[Room]:
+    """The rooms a room op checks: of its types (or `types`), indoor, and not labelled as one it
+    skips."""
     skipped = {normalised(text) for text in rule.applies_to.skip_labels}
+    kinds = set(rule.applies_to.room_types if types is None else types)
     return [
         room
         for room in drawing.rooms
-        if room.type in rule.applies_to.room_types
+        if room.type in kinds
         and not room.outdoor
         and (room.label is None or normalised(room.label) not in skipped)
     ]
@@ -213,13 +236,31 @@ def _none_of(rule: CodeRule) -> str:
     return f"The drawing shows no {kinds}, so there is nothing to check."
 
 
+def _nothing(drawing: Drawing, rule: CodeRule, why: str) -> tuple[str, RuleStatus]:
+    """Why nothing was checked, and its status: not applicable only when no room of the drawing
+    could be of a kind the rule names. A room whose kind we could not tell (`other`: its label
+    matched no word) may be one, so the rule cannot tell (S1, 2026-11-14)."""
+    if "other" in rule.applies_to.room_types:
+        return why, "not_applicable"
+    unknown = len(_rooms(drawing, rule, ("other",)))
+    if not unknown:
+        return why, "not_applicable"
+    kinds = " or ".join(room_noun(kind) for kind in rule.applies_to.room_types)
+    are = "is" if unknown == 1 else "are"
+    return (
+        f"No {kinds} was recognised, but {count_of(unknown, 'room')} {are} of a kind we could not "
+        "tell, so they cannot be checked.",
+        "cannot_tell",
+    )
+
+
 def _printed(room: Room) -> str | None:
     """The room as the sheet writes it: its label, and its number when that is another text
     ("Schlafzimmer 4.02"), so two rooms of one name are told apart."""
     numbers = [value for key in ROOM_NUMBERS if isinstance(value := room.attrs.get(key), str)]
-    parts = [text for text in (room.label, *numbers[:1]) if text]
-    unique = [text for at, text in enumerate(parts) if text not in parts[:at]]
-    return " ".join(unique) or None
+    written = (room.label or "").split()
+    extra = [number for number in numbers[:1] if number not in written]  # not said twice
+    return " ".join([*written, *extra]) or None
 
 
 def _room_name(room: Room) -> str:
@@ -354,7 +395,7 @@ def _room_area(drawing: Drawing, rule: CodeRule, quantities: Quantities, picture
                 "not printed, so a fail cannot be told."
             )
         results.append(_result(rule, subject, status, area, why, [mark], row))
-    return results, _none_of(rule), "not_applicable"
+    return results, *_nothing(drawing, rule, _none_of(rule))
 
 
 def _room_windows(
@@ -386,6 +427,10 @@ def _room_windows(
                 f"{name}: the building model gives it {_windows(count)}, {len(found)} drawn on "
                 f"this sheet; the rule asks {_limit(rule)}."
             )
+            # A door to the outside may be glazed, in a model as on a drawn plan (decision 0009)
+            if status == "fail" and (held := _door_out(drawing, room, pages)) is not None:
+                status = "cannot_tell"
+                why = f"{name}: the building model gives it {_windows(count)}, but {held}."
         else:
             count = len(found)
             status = "pass" if holds(count, rule.comparison, rule.limit) else "fail"
@@ -396,7 +441,7 @@ def _room_windows(
                     status = "cannot_tell"
                     why = f"{name} has {_windows(count)} on its outline, but {held}."
         results.append(_result(rule, subject, status, float(count), why, marks, mark.quantity))
-    return results, _none_of(rule), "not_applicable"
+    return results, *_nothing(drawing, rule, _none_of(rule))
 
 
 def _windows(count: int) -> str:
@@ -413,6 +458,19 @@ def _window_hold(
     """Why a room with too few windows on its outline may still have them, or None."""
     if any(window.page == room.page and not _located(window) for window in windows):
         return "some windows on the sheet have no position, so they may be in it"
+    if (held := _door_out(drawing, room, pages)) is not None:
+        return held
+    if picture:
+        # On the dev drawings 1 of 10 window fails read off a picture was real (decision 0009)
+        return "windows read from a picture can be missed"
+    if drawing.model_objects is not None:
+        # The model's IfcWindows without a shape are not drawn on its sheets (decision 0009)
+        return "a sheet drawn from a building model does not draw all its windows"
+    return None
+
+
+def _door_out(drawing: Drawing, room: Room, pages: Mapping[int, Page]) -> str | None:
+    """Why a door of the room may light it (to a balcony or straight outside), or None."""
     outside = [other for other in drawing.rooms if other.type in OUTSIDE or other.outdoor]
     for door in drawing.elements:
         if door.class_ != "door" or not _located(door) or not _meets(door, room, pages, drawing):
@@ -422,12 +480,6 @@ def _window_hold(
             return "a door opens from it to a balcony or the outside, and that door may be glazed"
         if not any(_meets(door, other, pages, drawing) for other in others):
             return "a door opens from it straight to the outside, and that door may be glazed"
-    if picture:
-        # On the dev drawings 1 of 10 window fails read off a picture was real (decision 0009)
-        return "windows read from a picture can be missed"
-    if drawing.model_objects is not None:
-        # The model's IfcWindows without a shape are not drawn on its sheets (decision 0009)
-        return "a sheet drawn from a building model does not draw all its windows"
     return None
 
 
@@ -558,13 +610,13 @@ def _door_width(drawing: Drawing, rule: CodeRule, quantities: Quantities, pictur
             continue
         # The clear opening is at most the width measured, and up to DOOR_FRAME_M less.
         status = _within(width - spread - DOOR_FRAME_M, width + spread, rule)
-        if status == "fail" and picture and how != MODEL_GIVES:
-            # A fail stands only on reliable inputs (orchestrator, 2026-11-14 12:51): a box a
-            # detector drew round a door on a picture may be off by more than the tolerance
+        if picture and how != MODEL_GIVES:
+            # A box a detector drew round a door on a picture is not a measurement, either way
+            # (orchestrator, 2026-11-14 12:51 for a fail; S3, 2026-11-14 for a pass)
             why = (
                 f"{name}: its symbol measures {_num(width, 'm')} m and the rule asks "
-                f"{_limit(rule)}, but it was read off a picture, whose door boxes can be off, so a "
-                "fail cannot be told."
+                f"{_limit(rule)}, but it was read off a picture, whose door boxes are not "
+                "measurements, so it cannot be told."
             )
             results.append(_result(rule, subject, "cannot_tell", width, why, [mark], mark.quantity))
             continue
@@ -583,11 +635,10 @@ def _door_width(drawing: Drawing, rule: CodeRule, quantities: Quantities, pictur
                 f"so it may or may not be {_limit(rule)}."
             )
         results.append(_result(rule, subject, status, width, why, [mark], mark.quantity))
-    return (
-        results,
-        f"The drawing shows no {_doors_of(rule)}, so there is nothing to check.",
-        ("not_applicable"),
-    )
+    why = f"The drawing shows no {_doors_of(rule)}, so there is nothing to check."
+    if not rule.applies_to.room_types or _rooms(drawing, rule):
+        return results, why, "not_applicable"  # a room it names is there: its doors are not
+    return results, *_nothing(drawing, rule, why)
 
 
 def _door_applies(
@@ -612,7 +663,9 @@ def _door_name(item: Element, drawing: Drawing, pages: Mapping[int, Page]) -> st
         return f"the door between {met[0]} and {met[1]}"
     if len(met) == 1:
         return f"the door of {met[0]}"
-    return f"door {item.id}"
+    if met:  # three or more: a door the outlines put by several rooms
+        return f"the door by {', '.join(met[:-1])} and {met[-1]}"
+    return "the door at the marked place"
 
 
 def _doors_of(rule: CodeRule) -> str:

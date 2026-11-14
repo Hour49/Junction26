@@ -228,6 +228,10 @@ verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
 - The button: flag (inline SVG for `FI` and `CH` by the pack's ISO `country`, none for others), the chosen pack's
   `country_name`, chevron; accessible name "Country rules: <country_name>", or "Country rules: none" with no pack
   (no pack is preselected and "no pack" is a valid choice, 13:44). No `data-pending`.
+- The button stays on one line at every width (QA 13:30: "No checks" wrapped at 1440): `white-space: nowrap`; it does
+  not shrink (`.country` `flex: 0 0 auto`; the project picker, already ellipsised, gives way first: shrinking both
+  cut "No checks" to "No ch…"), it is at most 240px wide and a long `country_name` ends in an ellipsis; flag and
+  chevron never shrink.
 - The popover (group "Building rules the agent follows"): first "No checks" (pressed when the route has no `?pack`),
   then one button per pack (flag, `country_name`, under it the pack `name` · `version` in `--v-muted`, check on the
   chosen one, `aria-pressed`). Its closing line is the chosen pack's `note`, verbatim ("A pre-check of a few rules, not a
@@ -717,6 +721,9 @@ Vellum round (round 2)
 - SH-70 (checks) At 390x844, 768x1024, 1024x768 and 1440x900 on a drawing route with a pack (six tabs): no horizontal
   page scroll, every tab ≥44 px high below 1100 px; the header is sticky only above 1100 px (`--v-header-h` 76px
   there, 0px below). [unit: parse the CSS; e2e fe-golden]
+- SH-71 (follow-up) The country button never wraps: `.country-button` has `white-space: nowrap`, `.country` does
+  not shrink (`flex: 0 0 auto`) and caps at `max-width: 240px`, `.country-name` ends in an ellipsis (`overflow: hidden`,
+  `text-overflow: ellipsis`); at 1440x900, 1024x768 and 390x844 it is one line high. [unit: parse the CSS; browser]
 - SH-63 `index.html`'s `<title>` equals `PRODUCT_NAME` ("Vellum"). [unit]
 - SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
   `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland

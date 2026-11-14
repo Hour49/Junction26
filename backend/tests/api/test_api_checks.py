@@ -1,6 +1,6 @@
 """Building-code pre-checks over HTTP (decision 0009): the packs in GET /api/info, a drawing's
 checks and a project's, with the TEST pack (tests/fixtures/rules/test.json) on the synthetic
-swiss sheet (2 doors of 0.71 m at 1:100, no bedroom, no WC)."""
+swiss sheet (2 doors of 0.71 m at 1:100, no bedroom, no WC; its "Zimmer" is of no kind we tell)."""
 
 from pathlib import Path
 from typing import Any
@@ -12,8 +12,10 @@ from pdf_sheets import SheetPdf, rect
 from test_vector_pdf import DOOR_GREY, swiss_room, swiss_window
 
 from app.adapters.rule_packs import load_packs
+from app.api.checks import on_sheets
 from app.composition import build_ingest
 from app.core.errors import InvalidInputError
+from app.core.ingest.model import FileStatus, ProjectStatus
 from app.main import create_app
 from app.settings import Settings
 
@@ -95,11 +97,12 @@ def test_a_drawings_checks_in_its_project(checked: TestClient, project: dict[str
     assert found["note"].startswith("A pre-check")
     by_rule = {rule["rule_id"]: rule for rule in found["rules"]}
     assert {rule_id: rule["status"] for rule_id, rule in by_rule.items()} == {
-        "test-bedroom-area": "not_applicable",
-        "test-bedroom-window": "not_applicable",
+        "test-bedroom-area": "cannot_tell",  # no bedroom, but a room of a kind we could not tell
+        "test-bedroom-window": "cannot_tell",
         "test-door-width": "fail",
         "test-wc-count": "fail",
     }
+    assert "of a kind we could not tell" in by_rule["test-bedroom-area"]["why"]
     assert found["status"] == "fail"
     door = by_rule["test-door-width"]["results"][0]
     assert door["value"] == pytest.approx(0.706, abs=0.001)
@@ -191,3 +194,27 @@ def test_a_pack_without_its_clause_stops_the_app(settings: Settings, tmp_path: P
     (folder / "test.json").write_text(text)
     with pytest.raises(InvalidInputError, match=r"clause\.quote"):
         create_app(settings.model_copy(update={"rule_packs_dir": folder}))
+
+
+def test_a_model_is_on_its_sheets_when_a_sheet_of_the_project_was_read_from_it() -> None:
+    """N3: warmond's zip (an IFC with its plan PDFs): each PDF's group holds the model, which it
+    was read from (`source`); the sample's lone IFC has no sheet in its project."""
+    model = FileStatus(id="f1", path="m/house.ifc", size=1, source="m/house.ifc", drawing_id="d0")
+    sheet = FileStatus(id="f2", path="p/plan-02.pdf", size=1, source="m/house.ifc", drawing_id="d2")
+    flat = FileStatus(id="f3", path="p/flat.pdf", size=1, source="p/flat.pdf", drawing_id="d3")
+
+    def status(*files: FileStatus) -> ProjectStatus:
+        return ProjectStatus(id="p", name="p", state="done", created_at="2026-11-14", files=files)
+
+    assert on_sheets(status(model, sheet, flat), "d0")
+    assert not on_sheets(status(model, flat), "d0")
+    assert not on_sheets(status(model, sheet, flat), "d2")  # a sheet is not a model
+    assert not on_sheets(status(model, sheet, flat), "d3")
+
+
+def test_the_samples_lone_model_still_cannot_tell(client: TestClient) -> None:
+    project = client.get(client.post("/api/projects/sample").json()["url"]).json()
+    found = get(client, f"/api/projects/{project['id']}/checks", pack="fi")
+    (model,) = [drawing for drawing in found["drawings"] if drawing["file"].endswith(".ifc")]
+    assert model["status"] == "cannot_tell"
+    assert model["rules"][0]["why"] == "The drawing is a building model with no sheet to check."

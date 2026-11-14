@@ -135,11 +135,26 @@ def file_id_of(status: ProjectStatus, drawing_id: str, path: str) -> str | None:
     )
 
 
+def on_sheets(status: ProjectStatus, drawing_id: str) -> bool:
+    """Whether a sheet of the project was read from this drawing's file: a building model whose
+    sheets are checked in the project (their group holds the model, their `source` is it)."""
+    paths = {file.path for file in status.files if file.drawing_id == drawing_id}
+    return any(
+        file.source in paths and file.drawing_id not in (None, drawing_id) for file in status.files
+    )
+
+
 def drawing_checks(
-    ingest: Ingest, drawing_id: str, file: str, file_id: str | None, pack: RulePack
+    ingest: Ingest,
+    drawing_id: str,
+    file: str,
+    file_id: str | None,
+    pack: RulePack,
+    sheets: bool = False,
 ) -> DrawingChecks:
-    route = ingest.drawing_info(drawing_id).route  # raster: read off a picture
-    rules = check_drawing(ingest.drawing(drawing_id), pack, route)
+    """`sheets`: a building model whose sheets are in the project (`on_sheets`)."""
+    route = ingest.drawing_info(drawing_id).route  # raster or unknown: read off a picture
+    rules = check_drawing(ingest.drawing(drawing_id), pack, route, sheets)
     return DrawingChecks(
         drawing_id=drawing_id,
         file=file,
@@ -165,8 +180,10 @@ def checks(
     if project is None:
         return drawing_checks(ingest, drawing_id, found.file, None, chosen)
     named = as_uploaded(ingest, ingest.drawing_info(drawing_id), project)
-    file_id = file_id_of(ingest.status(project), drawing_id, named.path)
-    return drawing_checks(ingest, drawing_id, named.path, file_id, chosen)
+    status = ingest.status(project)
+    file_id = file_id_of(status, drawing_id, named.path)
+    sheets = on_sheets(status, drawing_id)
+    return drawing_checks(ingest, drawing_id, named.path, file_id, chosen, sheets)
 
 
 @router.get("/projects/{project_id}/checks")
@@ -186,6 +203,7 @@ def project_checks(
             entry.file,
             file_id_of(status, entry.drawing_id, entry.file),
             chosen,
+            on_sheets(status, entry.drawing_id),
         )
         for entry in drawings_of(status)
     ]

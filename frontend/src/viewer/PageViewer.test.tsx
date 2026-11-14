@@ -640,10 +640,10 @@ const onDrawing = (page: object = {}, extra: Partial<Parameters<typeof PageViewe
 
 describe('PageViewer: Vellum (screen 4)', () => {
   it('VW-48 file in .vw-name, meta at the end of the page meta line, no "Drawing" label', () => {
-    const c = onDrawing({}, { meta: 'PDF vector · vector route' });
+    const c = onDrawing({}, { meta: 'PDF vector · drawn PDF route' });
     expect(c.querySelector('.vw')?.hasAttribute('aria-label')).toBe(false);
     expect(c.querySelector('.vw-name')?.textContent).toBe('plans/flat-a.pdf');
-    expect(meta(c).endsWith('Page 1 · PDF vector · vector route')).toBe(true);
+    expect(meta(c).endsWith('Page 1 · PDF vector · drawn PDF route')).toBe(true);
     cleanup();
     expect(meta(onDrawing({}, { meta: '' })).endsWith('Page 1')).toBe(true);
     cleanup();
