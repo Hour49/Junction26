@@ -81,8 +81,8 @@ def test_the_demo_config_ships_config_c1_t1() -> None:
     config = found.stdout.split()
     assert shipped in config
     assert "DOUBLE_CHECK_READERS=l1=detector:C-yolo26l,m1=detector:C-yolo26m" in config
-    check = "CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small.json"
-    assert check in config  # golden's frozen copy (#215), the one certified on test
+    check = "CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json"
+    assert check in config  # #215's certified policy + confidence levels (#233), same thresholds
     assert (SCRIPT.parents[1] / "backend" / check.split("=")[1]).is_file()
     assert any(line.startswith("LOCAL_GATES=") for line in config)
 
