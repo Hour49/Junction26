@@ -26,6 +26,8 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
+from app.adapters.carbon import CarbonClient, CarbonExtractor, CarbonReader, CarbonSwitch
+from app.adapters.carbon.contract import READER_SHA, SOURCE
 from app.adapters.check_policy import load_check
 from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
@@ -147,6 +149,9 @@ class Pipeline:
     confidence: AnswerConfidence | None = None
     # GATE_POLICY: family -> the confidence at or above which an answer is sure; None: ungated
     sure_at: Mapping[str, float] | None = None
+    # CARBON_READER: whether the raster route's drawing of a file (by path) is read by Carbon
+    # alone, the same yes/no its switch uses; ingest flags those drawings. None: no file is
+    carbon_read: Callable[[str], bool] | None = None
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -203,11 +208,7 @@ def build_pipeline(
             # A precomputed arm finds an uploaded sheet in the Stoa dataset by its content. A PDF
             # whose page 1 is not a vector plan is read here, so its schedules are read (and its
             # schedule checks noted) as on the vector route.
-            "raster": _tables(
-                settings.tables,
-                _scaled(settings, _raster(settings, files, decisions, kind_of)),
-                files,
-            ),
+            "raster": _tables(settings.tables, _raster(settings, files, decisions, kind_of), files),
         },
         second_counter=_checked(
             settings.tables, _second_counter(settings.second_counter, files, models), files
@@ -222,7 +223,14 @@ def build_pipeline(
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
+        carbon_read=_carbon_read(settings),
     )
+
+
+def _carbon_read(settings: Settings) -> Callable[[str], bool] | None:
+    """CARBON_READER's choice of the files Carbon reads alone (advanced: not built, refused by
+    `_raster`)."""
+    return (lambda _: True) if settings.carbon_reader == "all" else None
 
 
 def _probed_kinds(settings: Settings, files: DrawingFiles) -> Callable[[str], str | None]:
@@ -373,7 +381,9 @@ def readers(settings: Settings) -> dict[str, str]:
 DECISIONS_SIGNAL = "g1main"
 # Raster sources that call a service with a key (Gemini or our EU model server, the Verda
 # detector), in RASTER_COMPONENTS, RASTER_PHOTO_COMPONENTS and DOUBLE_CHECK_READERS
-KEYED_SOURCES = frozenset({"gemini", "regionrooms", "verda", "decisions", "decisions-s1536"})
+KEYED_SOURCES = frozenset(
+    {"gemini", "regionrooms", "verda", "decisions", "decisions-s1536", "carbon"}
+)
 
 
 def uses_keys(settings: Settings) -> bool:
@@ -386,7 +396,8 @@ def uses_keys(settings: Settings) -> bool:
     )
     sources = [part.partition("=")[2] for spec in specs for part in spec.split(",") if part]
     keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
-    raster = settings.extractor_raster == "composite" and keyed
+    carbon = settings.carbon_reader != "off"
+    raster = settings.extractor_raster == "composite" and (keyed or carbon)
     # the describer is built only when triage is on (`_triage`)
     describer = settings.triage_classifier != "off" and settings.triage_describer == "gemini"
     return raster or settings.decisions_confidence or settings.decisions_kind or describer
@@ -425,6 +436,9 @@ def build_ingest(
         names["room_policy"] = settings.room_policy
     if settings.double_check_readers:  # the same
         names["double_check_readers"] = settings.double_check_readers
+    if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
+        # contract's hash, so a changed prompt or rule reads the files again
+        names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -474,9 +488,11 @@ def _raster(
         case "hello":
             if photo:
                 raise InvalidInputError("RASTER_PHOTO_COMPONENTS needs EXTRACTOR_RASTER=composite")
+            if settings.carbon_reader != "off":
+                raise InvalidInputError("CARBON_READER needs EXTRACTOR_RASTER=composite")
             if settings.double_check_readers:
                 raise InvalidInputError("DOUBLE_CHECK_READERS needs EXTRACTOR_RASTER=composite")
-            return HelloExtractor()
+            return _scaled(settings, HelloExtractor())
         case "composite":
             built = cache(lambda source: _raster_component(source, settings, files, decisions))
             policy = _room_policy(settings.room_policy)
@@ -484,13 +500,22 @@ def _raster(
             shipped = _composite(
                 "RASTER_COMPONENTS", settings.raster_components, built, policy, checks
             )
-            if not photo:
+            if photo:
+                shipped = PhotoSwitch(
+                    shipped,
+                    _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
+                    kind_of,
+                )
+            shipped = _scaled(settings, shipped)  # PriorScale's door constants fit the detector
+            if settings.carbon_reader == "advanced":
+                raise InvalidInputError(
+                    "CARBON_READER=advanced needs SHEET_KIND's `advanced` flag (brief r8 AS-1), "
+                    "which this build does not have: use off or all"
+                )
+            use_carbon = _carbon_read(settings)
+            if use_carbon is None:
                 return shipped
-            return PhotoSwitch(
-                shipped,
-                _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
-                kind_of,
-            )
+            return CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
 
 
 def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:
@@ -571,6 +596,13 @@ def _raster_component(
             return RemoteReader(files, client)
         case "gemini" if not where:
             return _gemini_rooms(settings, files)
+        case "carbon":  # carbon, or carbon:<READER_SHA[:12]> to pin the contract it reads by
+            if where not in ("", READER_SHA[:12]):
+                raise InvalidInputError(
+                    f"RASTER_COMPONENTS: {source} is not the Carbon reader this build has "
+                    f"({SOURCE}, or carbon)"
+                )
+            return _carbon(settings, files)
         case "regionrooms" if not where:
             if not settings.region_model_dir:
                 raise InvalidInputError("RASTER_COMPONENTS: regionrooms needs REGION_MODEL_DIR")
@@ -601,7 +633,8 @@ def _raster_component(
                 f"RASTER_COMPONENTS: unknown source {source!r}; sources are "
                 "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], "
                 "detector-v<2|4|8>:<arm>, photo:<arm>, "
-                "region:<arm>, verda, gemini, regionrooms, decisions:<source>, "
+                "region:<arm>, verda, gemini, regionrooms, carbon[:<reader hash>], "
+                "decisions:<source>, "
                 "arbiter-t1:<arm>[:<one-view tune run>], "
                 "decisions-s1536:<source> and one-plan"
             )
@@ -618,6 +651,27 @@ def _gemini_rooms(settings: Settings, files: DrawingFiles) -> Extractor:
         budget=spend_guard(settings),
     )
     return GeminiRoomExtractor(files, GeminiRoomReader(client, settings.gemini_cache_dir))
+
+
+def _carbon(
+    settings: Settings, files: DrawingFiles, policy: RoomPolicy | None = None
+) -> CarbonExtractor:
+    """The Carbon reader (app/adapters/carbon/) on the process's spend guard. `policy`: ROOM_POLICY
+    when it reads a drawing on its own (as a composite's source, the composite applies it)."""
+    key = settings.gemini_api_key.get_secret_value()
+    client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
+    return CarbonExtractor(files, CarbonReader(client, settings.carbon_cache_dir), policy)
+
+
+def _names_carbon(settings: Settings) -> bool:
+    """Whether a raster spec names the `carbon` source."""
+    specs = (
+        settings.raster_components,
+        settings.raster_photo_components,
+        settings.double_check_readers,
+    )
+    sources = (part.partition("=")[2].strip() for spec in specs for part in spec.split(","))
+    return any(source.partition(":")[0] == "carbon" for source in sources)
 
 
 def decisions_reader(settings: Settings) -> G1MainReader:

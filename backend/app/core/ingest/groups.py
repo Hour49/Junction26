@@ -154,6 +154,8 @@ class Groups:
             takeoff: dict[str, int | float] = {}
             flags: tuple[str, ...] = ()
             if file.path in sheets and drawing is not None:
+                carbon_read = readers.carbon_read
+                carbon = route_name == "raster" and bool(carbon_read and carbon_read(file.path))
                 stages = pipeline_stages(
                     sheets[file.path].trace,
                     timer.ms.get(file.path, {}),
@@ -168,9 +170,10 @@ class Groups:
                     route_name,
                     self._readers.get(route_name),
                     self._frames.get(file.path),
+                    carbon,
                 )
                 takeoff = sheets[file.path].takeoff
-                flags = reading_flags(run.kinds[file.path], self._frames.get(file.path))
+                flags = reading_flags(run.kinds[file.path], self._frames.get(file.path), carbon)
             elif file.path in aside:
                 state, reason = "set_aside", aside[file.path]
             elif file == source:
