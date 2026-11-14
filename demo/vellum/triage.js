@@ -144,7 +144,7 @@
         <p class="small">If it is a floor plan after all, it is read like any drawing. This can't be undone.</p></div>` : '';
     return `<section class="card tri" aria-label="Is it a floor plan?"><div class="tri-top">${head}${pill}</div>
       <p class="small">What triage saw: ${esc(kindWords(t.register.kind))}</p>
-      <figure class="tri-fig">${picture(path, `${path} as uploaded`)}${t.credit ? `<figcaption class="small credit">Credit: ${esc(t.credit)}</figcaption>` : ''}</figure>
+      <figure class="tri-fig">${picture(path, `${path} as uploaded`)}</figure>
       <div class="tri-part"><h3>What is on it</h3><p>${esc(d.text)}</p>${seen}
         <details class="tri-more"><summary>Full description (${t.example ? EXAMPLE : 'a model\'s description, not checked by a person'})</summary><p class="small">${esc(d.detail)}</p></details></div>
       ${belong}${callHtml}${read}</section>`;

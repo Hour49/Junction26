@@ -71,9 +71,9 @@ def archive(dataset, out, picks_path):
         if p["source"] not in ARCHIVES or not re.fullmatch(r"[\w.-]+\.(jpg|png)", p["file"]):  # it becomes a path
             sys.exit(f"bad pick {p['source']}/{p['file']}")
         src = dataset / "data" / p["source"] / p["file"]
-        shutil.copyfile(src, out / "archive" / p["file"])
         path = f"archive/{p['file']}"
-        entry = {"path": path, "size": size_text(src.stat().st_size), "kind": "JPG scan", "image": path,
+        entry = {"path": path, "size": size_text(src.stat().st_size), "kind": "JPG scan",
+                 "image": "archive/" + optimized(src, out / "archive", p["file"]),
                  "credit": file_credit(dataset / "data" / p["source"], p["file"])}
         register = {**p["register"], "method": PICK_METHOD}
         if register["kind"] == "floor_plan":
@@ -82,6 +82,21 @@ def archive(dataset, out, picks_path):
             entry.update(lane=None, role="not a floor plan", triage={"register": register, "description": p["description"]})
         files.append(entry)
     return files
+
+
+def optimized(src, dest_dir, name):
+    """A web copy of an image: at most 1600 px on its long side, WebP; a plain copy without Pillow. Returns its name."""
+    try:
+        from PIL import Image
+    except ImportError:
+        shutil.copyfile(src, dest_dir / name)
+        return name
+    webp = Path(name).with_suffix(".webp").name
+    with Image.open(src) as im:
+        im = im.convert("RGBA" if im.mode in ("RGBA", "LA", "P") else "RGB")
+        im.thumbnail((1600, 1600))
+        im.save(dest_dir / webp, "WEBP", quality=80, method=6)
+    return webp
 
 
 def render_pdf(pdf, out):
@@ -93,7 +108,10 @@ def render_pdf(pdf, out):
     name = pdf.name + ".png"
     page = pypdfium2.PdfDocument(str(pdf))[0]
     page.render(scale=2).to_pil().save(out / name)
-    return {"image": name}
+    small = optimized(out / name, out, name)
+    if small != name:
+        (out / name).unlink()
+    return {"image": small}
 
 
 KINDS = {".pdf":("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
@@ -113,8 +131,7 @@ def build(dataset, out, stem, picks):
         entry = {"path": f.name, "size": size_text(f.stat().st_size), "kind": kind, "lane": lane,
                  "role": "source" if f.name in asked else "same"}
         if f.suffix == ".png":  # only the image is copied; the PDF and DXF are listed, not shipped
-            shutil.copyfile(f, out / f.name)
-            entry["image"] = f.name  # relative to stoa/index.html
+            entry["image"] = optimized(f, out, f.name)  # relative to stoa/index.html
         elif f.suffix == ".pdf":
             entry.update(render_pdf(f, out))
         files.append(entry)
