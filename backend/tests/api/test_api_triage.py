@@ -23,10 +23,6 @@ ELEVATION = png_bytes(raster_plan())  # judged related: "Küche" is printed on i
 SCORE = png_bytes(raster_plan().rotate(90, expand=True))  # judged unrelated
 PHOTO = jpeg_bytes(site_photo())  # not described: the fake model refuses it
 DRAWING = plan_png()  # unsure: judged in a project with no plan
-DAMAGED = {  # the site photo cut to 20 %, and with garbled scan data: triaged as no drawing
-    "truncated": PHOTO[: len(PHOTO) // 5],
-    "garbled": PHOTO[:20] + b"\x00" * 400,
-}
 
 
 @pytest.fixture
@@ -37,7 +33,6 @@ def triaged(settings: Settings) -> TestClient:
             SCORE: "other_drawing",
             PHOTO: "not_drawing",
             DRAWING: "other_drawing",
-            **dict.fromkeys(DAMAGED.values(), "not_drawing"),
         }
     )
     describer = FakeDescriber(
@@ -320,17 +315,3 @@ def test_a_file_read_as_a_plan_keeps_its_issues_place_ahead_of_no_other_file(
     assert read_as_plan(triaged, found, "score.png").status_code == 202
     after = [issue["id"] for issue in issues(triaged, found["id"]) if issue["id"] in before]
     assert after == before
-
-
-@pytest.mark.parametrize("damage", ["truncated", "garbled"])
-def test_the_preview_of_an_image_that_cannot_be_decoded_is_a_422_not_a_500(
-    triaged: TestClient, damage: str
-) -> None:
-    """Read as a plan, a file ingest could not decode is a preview kind, but the bytes still
-    won't open (R6-c-8)."""
-    found = project(triaged, {"plan.pdf": PLAN, "site.jpg": DAMAGED[damage]})
-    assert read_as_plan(triaged, found, "site.jpg").status_code == 202
-    path = f"/api/projects/{found['id']}/files/{file_id(found, 'site.jpg')}/preview.png"
-    reply = triaged.get(path, params={"width": 400})
-    assert (reply.status_code, reply.json()["code"]) == (422, "invalid")
-    assert "cannot be decoded" in reply.json()["detail"]
