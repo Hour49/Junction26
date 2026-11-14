@@ -306,6 +306,45 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .sweep { animation: sweep 2.8s linear infinite; } .find-g { animation: find 7s ease-out infinite both; }
 .travel-bar, .pair-link span { animation: travel 1.4s cubic-bezier(0.23,1,0.32,1) infinite; }
 .live { animation: fadein 240ms ease-out both; }
+/* v2: project lists, file trace, triage card (preview), issues */
+.lists { display: flex; flex-direction: column; gap: 20px; }
+.list-h { font-size: 20px; margin: 4px 0 10px; }
+.dwg-list, .file-list, .iss { list-style: none; margin: 0; padding: 0; }
+.dwg-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.dwg-card { padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; overflow-wrap: anywhere; }
+.file-list > li + li { border-top: 1px solid #f0f1f0; }
+.file-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 12px 18px; color: inherit; text-decoration: none; min-height: 44px; }
+.file-row:hover { background: #f6f7f6; }
+.file-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 280px; overflow-wrap: anywhere; }
+.file-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.file-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.facts dd { font-size: 15px; overflow-wrap: anywhere; }
+.trace-h { font-size: 28px; overflow-wrap: anywhere; }
+.tri { padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+.tri p { margin: 0; }
+.tri-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.tri-h { font-size: 22px; margin: 0; }
+.tri-fig { margin: 0; max-width: 480px; border-radius: 14px; overflow: hidden; border: 1px solid var(--v-line); }
+.tri-fig .plan { display: block; width: 100%; height: auto; }
+.tri-part { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #f0f1f0; padding-top: 14px; }
+.tri-part h3 { margin: 0; font-size: 15px; }
+.tri-part > p:first-of-type { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tri-call { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.tri-call .signas { flex: 1 1 220px; }
+.tri-more summary { cursor: pointer; font-size: 14px; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.tri-more ul { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
+.iss-filters { display: flex; flex-wrap: wrap; gap: 12px; }
+.iss-filters select { font: inherit; font-size: 15px; margin-left: 6px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--v-line); background: var(--v-surface); min-height: 44px; }
+.iss-group h2 { font-size: 17px; margin: 8px 0; }
+.iss { display: flex; flex-direction: column; gap: 10px; }
+.iss-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; padding: 14px 18px; }
+.iss-n { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 22px; padding-top: 4px; }
+.iss-body { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+.iss-body p { margin: 0; }
+.iss-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.iss-go { align-self: center; }
+
 @media (prefers-reduced-motion: reduce) {
   .spin, .pulse, .film, .chip-f, .sweep, .find-g, .travel-bar, .pair-link span, .live, .sheet { animation: none !important; }
   .sweep { display: none; } .press, .chev, .rail a, .tip-body { transition: none; } .press:active { transform: none; }
@@ -325,6 +364,7 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rail { grid-template-columns: repeat(4, minmax(0, 1fr)); } .rail a { padding: 8px; font-size: 12px; }
   .nfigs { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: minmax(0, 1fr); } .file-meta { align-items: flex-start; flex-direction: row; flex-wrap: wrap; } .iss-go { width: 100%; } .tri { padding: 18px 16px; }
   .panel { padding: 20px; gap: 20px; } .prog-top { padding: 22px 20px; } .done-row { padding: 0 20px 22px; }
   .vars { grid-template-columns: minmax(0, 1fr); }
   .c-head { flex-direction: column; } .title-row .btn { width: 100%; }
@@ -337,3 +377,5 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 }
 .mark.hot circle:first-child { stroke: var(--v-accent-strong); stroke-width: 6; }
 .mark.hot rect:first-child { stroke-width: 5; }
+.tri-text { white-space: pre-wrap; }
+.tri-part > .btn { align-self: flex-start; }

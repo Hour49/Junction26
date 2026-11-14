@@ -43,6 +43,13 @@
         ['w5', 'window', 93, 240], ['w6', 'window', 183, 240],
       ],
     },
+    // the faint pencil sketch triage set aside; it becomes a drawing only when a person has it read as a floor plan
+    annex: {
+      view: [-10, -10, 300, 200], scale: 30,
+      rooms: [['x-kitchen', 'Kitchen', 0, 0, 150, 105], ['x-room', 'Room', 150, 0, 130, 180], ['x-store', 'Store', 0, 105, 150, 75]],
+      outdoor: [],
+      openings: [['xd1', 'door', 150, 50], ['xd2', 'door', 75, 105], ['xw1', 'window', 60, 0], ['xw2', 'window', 220, 0], ['xw3', 'window', 280, 90]],
+    },
     groundFloor: {
       view: [140, 130, 490, 280], scale: 26,
       rooms: [
@@ -68,15 +75,20 @@
     ['plans/floor-01.dxf', '1.2 MB', 'DXF', 'CAD', 'floor-01', 'read'],
     ['model/harbour-block.ifc', '9.6 MB', 'IFC model', 'CAD', 'floor-01', 'second'],
     ['plans/floor-02.dxf', '1.4 MB', 'DXF', 'CAD', 'floor-02', 'read'],
-    ['plans/floor-02.pdf', '880 kB', 'Vector PDF', 'CAD', 'floor-02', 'shown'],
+    ['plans/floors.pdf', '1.1 MB', 'Vector PDF', 'CAD', 'floor-02', 'shown', 'page 2 holds a drawing, read as a file of its own'],
+    ['plans/floors#p2.pdf', '540 kB', 'Vector PDF', 'CAD', 'floor-03', 'shown'],
     ['plans/floor-02.png', '413 kB', 'PNG scan', 'Vision', 'floor-02', 'second'],
     ['plans/floor-03.dwg', '517 kB', 'DWG', 'CAD', 'floor-03', 'read'],
     ['scans/flat-b12-scan.png', '2.1 MB', 'PNG scan', 'Vision', 'flat-b12', 'read'],
     ['scans/flat-c03-photo.jpg', '38 kB', 'JPG photo', 'Vision', 'flat-c03', 'read'],
     ['scans/ground-floor-scan.jpg', '554 kB', 'JPG scan', 'Vision', 'ground-floor', 'read'],
-    ['readme.txt', '2 kB', 'Text', null, null, 'not a drawing'],
-    ['__MACOSX/._floor-01.dxf', '4 kB', 'System file', null, null, 'system file, skipped'],
-  ].map(([path, size, kind, lane, drawing, role]) => ({ path, size, kind, lane, drawing, role }));
+    ['elevations/south-elevation.png', '690 kB', 'PNG scan', null, null, 'not a floor plan'],
+    ['photos/site.jpg', '1.8 MB', 'JPG photo', null, null, 'not a floor plan'],
+    ['misc/poster.jpg', '420 kB', 'JPG photo', null, null, 'not a floor plan'],
+    ['scans/annex-sketch.jpg', '310 kB', 'JPG scan', null, null, 'not a floor plan'],
+    ['readme.txt', '2 kB', 'Text', null, null, 'not a drawing', 'not a drawing'],
+    ['__MACOSX/._floor-01.dxf', '4 kB', 'System file', null, null, 'system file, skipped', 'a system file, skipped'],
+  ].map(([path, size, kind, lane, drawing, role, reason]) => ({ path, size, kind, lane, drawing, role, reason: reason || null }));
 
   // Drawings: a layout, extra or changed openings, and the check items: places the readers do not agree on, in the
   // shape of the API's answer.check (#14): mark_id (null: a place a reader saw that the answer did not count), why,
@@ -343,7 +355,27 @@
     return { drawing: d, rooms: rooms(d), doors: valueOf(marksFor(d, 'door', {}), 'door'), windows: valueOf(marksFor(d, 'window', {}), 'window') };
   }
 
-  const API = { extractFacts, askProject, LAYOUTS, ARCHIVE, FILES, DRAWINGS, CONFLICTS, QUANTITIES, STEPS, drawing, layoutOf, rooms, openings,
+  // "Read it as a floor plan" (decision 0010, POST …/triage): the annex sketch has a layout, so reading it gives drawing
+  // 7; the other set-aside images have none, so their reading finds nothing and they get no drawing.
+  const READ_AS_PLAN = {
+    'scans/annex-sketch.jpg': { id: 'annex', name: 'scans/annex-sketch', layout: 'annex', lane: 'Vision', meta: 'JPG scan · faint pencil', extra: [],
+      check: [{ mark_id: 'xw3', why: 'Counted, but the pencil line is faint and may be a crack in the paper.', readers: said('a window', 'a window', 'nothing') }] },
+  };
+  const BASE_DRAWINGS = DRAWINGS.length;
+  // Returns the new drawing, or null when the file has no layout to read. Idempotent.
+  function readAsPlan(path) {
+    const d = READ_AS_PLAN[path], f = FILES.find((x) => x.path === path);
+    if (!d || !f) return null;
+    if (!DRAWINGS.includes(d)) { DRAWINGS.push(d); Object.assign(f, { drawing: d.id, lane: d.lane, role: 'read' }); }
+    return d;
+  }
+  // A new workspace starts from the sample as uploaded.
+  function resetReadAsPlan() {
+    DRAWINGS.length = BASE_DRAWINGS;
+    for (const path of Object.keys(READ_AS_PLAN)) Object.assign(FILES.find((x) => x.path === path), { drawing: null, lane: null, role: 'not a floor plan' });
+  }
+
+  const API = { readAsPlan, resetReadAsPlan, READ_AS_PLAN, extractFacts, askProject, LAYOUTS, ARCHIVE, FILES, DRAWINGS, CONFLICTS, QUANTITIES, STEPS, drawing, layoutOf, rooms, openings,
     marksFor, valueOf, disputed, parseQuestion, answer, ruleOf, noun, formatValue, variantLabels, crossChecks, progress, readingOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.VData = API;
