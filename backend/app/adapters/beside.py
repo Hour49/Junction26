@@ -14,6 +14,7 @@ reads its result then, an error it ends with is logged (review-306 S2)."""
 import logging
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Any
 
 from app.core import cost
 
@@ -46,7 +47,7 @@ def beside[A, B](here: Callable[[], A], there: Callable[[], B]) -> tuple[A, B]:
     return first, future.result()
 
 
-def _log_dropped(future: "Future[object]") -> None:
+def _log_dropped(future: "Future[Any]") -> None:
     """The error of a read whose partner failed first: nobody reads it, so it is logged."""
     if future.cancelled():
         return
