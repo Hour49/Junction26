@@ -7,12 +7,15 @@ from typing import Protocol
 from app.core.laws.model import ClauseView, Pack, SearchHit, TocEntry, Topic
 
 WORD = re.compile(r"\w+")
-# Words a question is made of but no clause is about ("when do I need a building permit"). Other
-# 2-letter words stay: "WC", "m2"
+# Words a question is made of but no clause is about ("when do I need a building permit", "what
+# does Zürich say about daylight"), and the packs' place names, which every clause of a pack shares
+# and which match only prose ("cantonal"). Other 2-letter words stay: "WC", "m2"
 STOPWORDS = frozenset(
     {"the", "for", "when", "what", "how", "need", "an", "do", "is", "to", "of", "in", "on", "my",
      "we", "it", "at", "be", "or", "as", "by", "if", "so", "no", "me", "us", "am", "ja", "se",
-     "ei", "zu", "im", "es"}
+     "ei", "zu", "im", "es", "does", "say", "says", "about", "tell", "rule", "rules", "law",
+     "laws", "zürich", "zurich", "zuerich", "switzerland", "swiss", "canton", "kanton",
+     "finland", "finnish", "suomi"}
 )  # fmt: skip
 MAX_TERMS = 20  # a long query stays one cheap MATCH
 

@@ -768,7 +768,7 @@ Ingest's project status, plus `drawings`:
   "skipped": [
     {
       "path": "photos/site.jpg",
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))"
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))"
     },
     {
       "path": "cad/detail.dxf",
@@ -2800,7 +2800,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink (2.2% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo of a drawing",
           "failure": null,
@@ -2874,7 +2874,7 @@ upload lists the files, instead of one request per file.
         "sha256": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
         "kind": "photo",
         "state": "set_aside",
-        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+        "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
         "group": null,
         "route": null,
         "source": null,
@@ -2905,7 +2905,7 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "identify",
-          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+          "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
           "ms": 12.5,
           "output": "photo",
           "failure": null,
@@ -4452,10 +4452,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1)).",
+      "why": "Set aside at ingest: a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1)).",
       "quantity": null,
       "question": null,
-      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink, camera EXIF (SyntheticPhone Model 1))",
+      "reason": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
       "check": null,
       "links": {
         "drawing": null,

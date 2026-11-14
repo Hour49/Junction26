@@ -64,8 +64,9 @@ RoomPolicyName = Literal["furniture", "gold-labels"]
 ChatModelName = Literal["gemini", "rules", "off"]
 # The Carbon reader of raster drawings (app/adapters/carbon/). off; all: every raster drawing;
 # advanced: the drawings the sheet-kind step (SHEET_KIND=carbon) called advanced
-# large: on raster images over 4,000 px on their long side (from the file's header), Carbon counts
-# the things drawn and the shipped reader the rooms
+# large: on raster images over 4,000 px on their long side (from the file's header), and on smaller
+# raster pages where the shipped reader found fewer than 3 elements, Carbon counts the things drawn
+# and the shipped reader the rooms
 CarbonReaderName = Literal["off", "advanced", "all", "large"]
 # The Carbon check of the levels (CARBON_LEVELS): off; demote: Carbon reads every raster drawing
 # beside its reader, and a Medium answer it counts differently becomes Low
