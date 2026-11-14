@@ -66,6 +66,47 @@ def test_a_group_is_read_before_a_later_file_s_check_has_ended(make_service: Mak
     assert sorted(reader.paths) == ["a.png", "b.png"]
 
 
+def test_a_slow_check_holds_up_only_its_own_file(make_service: MakeService) -> None:
+    """a.png's check is slow: b.png, after it in the upload, is identified and read first."""
+    a, b = plans(2)
+    gate = Gated(slow=a)
+    reader = Reads(gate, "b.png")
+    ingest = make_service(probe=gate, raster=lambda files: reader, groups_in_flight=2)
+    status = ingest.status(ingest.start("two.zip", zipped({"a.png": a, "b.png": b})))
+    assert gate.waited == [True]
+    assert [file.path for file in status.files] == ["a.png", "b.png"]  # upload order
+    assert [file.state for file in status.files] == ["ready", "ready"]
+
+
+class FirstSlow:
+    """A probe whose first call for `data` takes 0.6 s, so a later copy's check ends first."""
+
+    def __init__(self, data: bytes) -> None:
+        self.data, self.calls, self.lock = data, 0, threading.Lock()
+
+    def probe(self, data: bytes) -> Probed:
+        if data == self.data:
+            with self.lock:
+                self.calls += 1
+                first = self.calls == 1
+            if first:
+                threading.Event().wait(0.6)
+        return FileProbe().probe(data)
+
+
+def test_a_copy_is_named_after_the_file_first_in_the_upload(make_service: MakeService) -> None:
+    """The copy's check ends first, but the earlier upload is still the one it copies."""
+    a, b = plans(2)
+    ingest = make_service(probe=FirstSlow(a))
+    status = ingest.status(ingest.start("c.zip", zipped({"a.png": a, "b.png": b, "c.png": a})))
+    hashes = {
+        file.path: next(s.did for s in ingest.trace(status.id, file.id).stages if s.stage == "hash")
+        for file in status.files
+    }
+    assert hashes["c.png"].endswith("same content as a.png")
+    assert "same content" not in hashes["a.png"]
+
+
 def test_a_group_waits_for_a_later_file_of_its_name(make_service: MakeService) -> None:
     """a.png is identified first, a.jpg (the same drawing) last, its check slow and its entry
     unpacked only after a.png's check: group a is read with both files, after a.jpg's check."""

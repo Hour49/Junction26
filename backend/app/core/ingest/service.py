@@ -13,7 +13,7 @@ import logging
 import threading
 from collections import deque
 from collections.abc import Callable, Mapping
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import PurePosixPath
 
 from app.core import cost
@@ -427,13 +427,19 @@ class IngestService:
     ) -> None:
         """Stages 1-3 for every file, each told to `feed` (pending, then identified) for the
         pipeline, which reads a group as soon as its files are identified."""
-        first_of: dict[str, str] = {}  # sha256 -> the first path with that content
+        first_of: dict[str, str] = {}  # sha256 -> the first path with that content, as unpacked
         entries = self._unpacker.entries(name, data)
-        # Probed ahead in a bounded window, identified in upload order.
+        # Probed ahead in a bounded window, each identified once its probe has ended (the first
+        # in upload order of those that have), so a slow check holds up only its own file.
         probing: deque[tuple[str, bytes, Future[tuple[Probed, float, float, Triaged]]]] = deque()
 
         def identify_next() -> None:
-            path, read, probed = probing.popleft()
+            ended = [at for at, (_, _, probed) in enumerate(probing) if probed.done()]
+            if not ended:
+                wait([probed for _, _, probed in probing], return_when=FIRST_COMPLETED)
+                ended = [at for at, (_, _, probed) in enumerate(probing) if probed.done()]
+            path, read, probed = probing[ended[0]]
+            del probing[ended[0]]
             found = self._identify(run, path, read, probed, first_of, frames)
             pages = probed.result()[0].pages if probed.exception() is None else ()
             later: list[str] = []  # a failed probe was set aside by `_identify`
@@ -470,6 +476,7 @@ class IngestService:
                 self._store.put_file(run.id, entry.path, entry.data)
                 run.stage(entry.path, "unpack", f"path checked, {entry.size} bytes",
                           unpacked + self._ms(started), output=entry.path)  # fmt: skip
+                first_of.setdefault(hashlib.sha256(entry.data).hexdigest(), entry.path)
                 feed.pending(entry.path)
                 probing.append((entry.path, entry.data, pool.submit(self._probed, entry.data)))
                 if len(probing) >= probes:
