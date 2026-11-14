@@ -2,9 +2,13 @@
 by the detector tile by tile; a small page is read whole, as before. Fake ONNX session, no
 weights."""
 
+import io
+
 import numpy as np
+from PIL import Image
 
 from app.adapters.raster_detector import OnnxDetector, tiles
+from app.adapters.raster_detector.sessions import SharedSession
 from tests.test_raster_detector import FakeSession, Files, config, png, sheet
 
 
@@ -59,3 +63,35 @@ def test_overlapping_finds_of_one_class_or_group_merge_to_the_best() -> None:
     d = tiles.Found("door", 0.6, (20, 20, 30, 30))  # elsewhere: kept
     assert tiles.merge([b, d, c, a], groups=[("door", "door_none")]) == [a, c, d]
     assert tiles.merge([a, b]) == [a, b]  # without the group the two kinds don't compete
+
+
+class Counting(FakeSession):
+    def __init__(self) -> None:
+        base = session()
+        super().__init__([n.name for n in base.inputs], base.outputs)
+        self.runs = 0
+
+    def run(self, output_names: list[str], input_feed: dict) -> list[np.ndarray]:
+        self.runs += 1
+        return super().run(output_names, input_feed)
+
+
+def test_the_second_detector_of_a_tiled_page_reuses_every_tile_run() -> None:
+    """The shipping config reads a page with C-yolo26l's eight views twice (the elements source
+    and the count arbiter): with tiles that is 6 tiles x 8 views + the whole page's 8, which the
+    shared session must remember until the second reader asks (sessions.py MEMO)."""
+    yy, xx = np.mgrid[0:2100, 0:4200]
+    pattern = np.stack([xx % 251, yy % 241, (xx * 7 + yy * 3) % 239], axis=-1).astype(np.uint8)
+    buffer = io.BytesIO()
+    Image.fromarray(pattern).save(buffer, "PNG")  # every tile and view a distinct input
+    network = Counting()
+    shared = SharedSession(network)
+    first, second = (
+        OnnxDetector(Files(buffer.getvalue()), config(), shared, "B", views=8, tiles=True)
+        for _ in range(2)
+    )
+    assert len(tiles.grid(4200, 2100)) == 6
+    found = first.extract(*sheet(4200, 2100))
+    assert network.runs == (6 + 1) * 8
+    assert second.extract(*sheet(4200, 2100)) == found
+    assert network.runs == (6 + 1) * 8  # nothing read again
