@@ -1,0 +1,725 @@
+{
+  "id": "fi-477-2014",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "477/2014",
+  "title": "Ympäristöministeriön asetus kantavista rakenteista",
+  "title_en": "Ministry of the Environment Decree on load-bearing structures",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2014/477",
+  "language": "fi",
+  "in_force": "2014-09-01",
+  "checked": "2026-11-14",
+  "status_note": "In force. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced. Design details are in the Eurocodes and national annexes (not quoted).",
+  "clauses": [
+    {
+      "id": "fi-477-2014-1-1",
+      "ref": "1 §",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Tätä asetusta sovelletaan rakennusten kantavien ja jäykistävien rakenteiden suunnitteluun ja toteutukseen, rakenteiden korjaus- ja muutostyöhön sekä rakenteiden rakenteellisten vahvistusten suunnitteluun ja toteutukseen. Tätä asetusta sovelletaan myös rakennelmien ja käyttöturvallisuuden kannalta merkittävien rakenteiden suunnitteluun ja toteutukseen sekä niiden korjaus- ja muutostyöhön, kun niiden mahdollisesta vauriosta voi aiheutua vaaraa henkilöturvallisuudelle.",
+      "text_en": "This decree applies to the design and execution of the load-bearing and bracing structures of buildings, to repair and alteration work on those structures, and to the design and execution of structural reinforcements. This decree also applies to the design and execution of structures other than buildings (rakennelmat) and of structures significant to safety in use, and to their repair and alteration work, where their possible damage could pose a danger to personal safety.",
+      "summary_en": "The decree covers the design and execution of load-bearing and bracing structures, their repair and reinforcement, and structures whose failure could endanger personal safety.",
+      "keywords": [
+        "load-bearing structure",
+        "bracing structure",
+        "structural design",
+        "kantava rakenne",
+        "jäykistävä rakenne",
+        "rakennelma",
+        "korjaus- ja muutostyö",
+        "rakenteellinen vahvistus"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-2-1",
+      "ref": "2 §",
+      "heading": "Rakenteiden lujuus ja vakaus",
+      "heading_en": "Structural strength and stability",
+      "text": "Rakennushankkeeseen ryhtyvän on huolehdittava, että rakenteet suunnitellaan ja toteutetaan siten, että niillä säilyy riittävä lujuus ja vakaus koko suunnitellun käyttöiän ajan. Käytön aikana rakenteella on oltava riittävä luotettavuus sen käyttötarkoitukseen ja sijaintiin nähden haitallisten muodonmuutosten, halkeamien, värähtelyjen, painumien ja muiden haitallisten vaikutusten syntymistä vastaan.",
+      "text_en": "The party undertaking a building project must ensure that the structures are designed and executed so that they retain sufficient strength and stability throughout the planned service life. During use, a structure must have sufficient reliability for its intended use and location against the occurrence of harmful deformations, cracks, vibrations, settlements and other harmful effects.",
+      "summary_en": "Structures must be designed and built to keep sufficient strength and stability over their planned service life and to resist harmful deformation, cracking, vibration and settlement.",
+      "keywords": [
+        "structural strength",
+        "stability",
+        "service life",
+        "deformation",
+        "cracks",
+        "vibration",
+        "settlement",
+        "rakenteen lujuus",
+        "vakaus",
+        "käyttöikä",
+        "painuma",
+        "värähtely"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Kantavien ja jäykistävien rakenteiden suunnittelu ja toteutus",
+      "heading_en": "Design and execution of load-bearing and bracing structures",
+      "text": "Rakennuksen kantavia ja jäykistäviä rakenteita koskevat olennaiset tekniset vaatimukset täyttyvät, kun rakenteet suunnitellaan ja toteutetaan eurokoodien sekä niitä koskevien ympäristöministeriön asetuksina annettujen kansallisten valintojen mukaan. Suunnittelijan on lisäksi otettava huomioon rakennuspaikasta johtuvat olosuhteet.",
+      "text_en": "The essential technical requirements for the load-bearing and bracing structures of a building are met when the structures are designed and executed according to the Eurocodes and the national choices made in the Ministry of the Environment decrees on them. The designer must also take into account the conditions arising from the building site.",
+      "summary_en": "Load-bearing and bracing structures meet the essential requirements when designed and built to the Eurocodes and their Finnish national choices, taking site conditions into account.",
+      "keywords": [
+        "Eurocode",
+        "load-bearing structure",
+        "bracing structure",
+        "national choices",
+        "eurokoodi",
+        "kantava rakenne",
+        "jäykistävä rakenne",
+        "rakennuspaikka"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Kantavien ja jäykistävien rakenteiden suunnittelu ja toteutus",
+      "heading_en": "Design and execution of load-bearing and bracing structures",
+      "text": "Sovellettaessa muuta kuin 1 momentissa esitettyä suunnittelu- ja toteutusjärjestelmää, tulee rakennushankkeeseen ryhtyvän osoittaa rakennusvalvontaviranomaiselle rakennusvalvontaviranomaisen niin edellyttäessä, että suunnittelu ja toteutus johtaa rakenteiden lujuuden ja vakauden, käyttökelpoisuuden ja käyttöiän kannalta olennaisten teknisten vaatimusten täyttymiseen.",
+      "text_en": "When a design and execution system other than the one in subsection 1 is applied, the party undertaking the building project must show the building control authority, when the authority so requires, that the design and execution lead to meeting the essential technical requirements for the strength, stability, usability and service life of the structures.",
+      "summary_en": "If a design system other than the Eurocodes is used, the building control authority may require proof that it meets the essential requirements for strength, stability, usability and service life.",
+      "keywords": [
+        "alternative design method",
+        "building control authority",
+        "rakennusvalvontaviranomainen",
+        "suunnittelujärjestelmä",
+        "käyttöikä",
+        "lujuus",
+        "vakaus"
+      ],
+      "topics": [
+        "structure",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-3-3",
+      "ref": "3 § 3 mom.",
+      "heading": "Kantavien ja jäykistävien rakenteiden suunnittelu ja toteutus",
+      "heading_en": "Design and execution of load-bearing and bracing structures",
+      "text": "Rakenteellisesti yhtenä kokonaisuutena toimivissa uusissa rakenteissa saa käyttää vain yhtenäistä suunnittelu- ja toteutusjärjestelmää.",
+      "text_en": "In new structures that act structurally as one whole, only a single, unified design and execution system may be used.",
+      "summary_en": "New structures that act as one structural whole must be designed and executed with a single design and execution system only.",
+      "keywords": [
+        "single design system",
+        "structural whole",
+        "yhtenäinen suunnittelujärjestelmä",
+        "rakenteellinen kokonaisuus",
+        "kantava rakenne"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Seuraamusten vakavuus",
+      "heading_en": "Severity of consequences",
+      "text": "Rakenteen suunnittelussa ja toteutuksessa on otettava huomioon rakennuksen tai rakenteen riskialttius sekä mahdollisen vaurion tai vian otaksutut seuraamukset.",
+      "text_en": "In designing and executing a structure, the risk level of the building or structure and the presumed consequences of any possible damage or fault must be taken into account.",
+      "summary_en": "Structure design must account for the risk level of the building or structure and the presumed consequences of any damage or fault.",
+      "keywords": [
+        "consequence class",
+        "risk level",
+        "seuraamusluokka",
+        "riskialttius",
+        "vaurio",
+        "vika",
+        "rakenne"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Seuraamusten vakavuus",
+      "heading_en": "Severity of consequences",
+      "text": "Seuraamukset ovat vakavia, kun rakenteen mahdollisesta viasta tai vauriosta voi aiheutua suuria henkilövahinkoja tai hyvin suuria yhteiskunnallisia vaikutuksia. Vakavien seuraamusten ryhmään kuuluvat maankäyttö- ja rakennuslain (132/1999) 150 d §:n mukaiset erittäin vaativat rakenteet ja 120 d §:n mukaiset poikkeuksellisen vaativat rakenteet. Erittäin vaativiksi ja poikkeuksellisen vaativiksi rakenteiksi voidaan katsoa rakenteet, joissa vaatimus teoreettisten perusteiden ja suunnittelumenetelmien poikkeuksellisen syvällisestä hallinnasta korostuu ja uudet innovatiiviset rakenteet, joiden suunnittelusta ei ole aikaisempaa kokemusta. Seuraamukset ovat keskisuuria, kun ne eivät ole vakavia eivätkä vähäisiä. Näitä ovat vaativat rakenteet, joiden rakenteiden suunnittelu ja mitoitus edellyttää teoreettisten perusteiden hyvää hallintaa. Seuraamukset ovat vähäisiä, kun tavanomaisen rakenteen mahdollisesta viasta tai vauriosta aiheutuvat seuraamukset henkilövahinkojen osalta ovat vähäisiä tai yhteiskunnallisten vaikutusten osalta pieniä tai merkityksettömiä.",
+      "text_en": "The consequences are serious when a possible fault or damage to a structure may cause major personal injury or very large societal effects. The serious consequence group includes especially demanding structures under section 150 d of the Land Use and Building Act (132/1999) and exceptionally demanding structures under section 120 d. Structures where the requirement for exceptionally deep mastery of theoretical foundations and design methods is emphasised, and new innovative structures for which there is no earlier design experience, may be regarded as especially demanding and exceptionally demanding structures. The consequences are medium when they are neither serious nor minor; these include demanding structures whose design and dimensioning require good command of theoretical foundations. The consequences are minor when the consequences of a possible fault or damage to an ordinary structure are minor in terms of personal injury, or small or insignificant in terms of societal effects.",
+      "summary_en": "Consequences are serious for especially and exceptionally demanding structures or where failure could cause major injury, medium for demanding structures, and minor for ordinary structures.",
+      "keywords": [
+        "consequence class",
+        "serious consequences",
+        "especially demanding structure",
+        "exceptionally demanding structure",
+        "seuraamusluokka",
+        "vakava seuraamus",
+        "erittäin vaativa rakenne",
+        "poikkeuksellisen vaativa rakenne",
+        "maankäyttö- ja rakennuslaki"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Seuraamusten vakavuus",
+      "heading_en": "Severity of consequences",
+      "text": "Rakennuksen tai rakenteiden koostuessa rakenteellisesti toistaan riippumattomista osista voidaan kunkin osan seuraamusten vakavuus määrittää erikseen.",
+      "text_en": "Where a building or structure consists of parts that are structurally independent of one another, the severity of consequences may be determined separately for each part.",
+      "summary_en": "For a building made of structurally independent parts, the consequence class may be set separately for each part.",
+      "keywords": [
+        "consequence class",
+        "independent parts",
+        "structurally independent part",
+        "seuraamusluokka",
+        "rakenteellisesti riippumaton osa"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-5-1",
+      "ref": "5 § 1 mom.",
+      "heading": "Rakennesuunnitelmat",
+      "heading_en": "Structural drawings",
+      "text": "Rakennesuunnitelmissa esitetään suunnittelutehtävään soveltuvassa laajuudessa seuraavat asiat:\n1) rakennejärjestelmän rakenteellista toimintaa ja jäykistämistä kuvaavat rakennemallit;\n2) seuraamusten vakavuus, toteutusta koskevat vaatimukset tai toteutusluokka, ympäristöolosuhteiden rasitusta kuvaava luokka sekä tarvittaessa toleranssiluokka;\n3) kuormat ja kuormien yhdistelyt;\n4) voimasuureet;\n5) rakennustuotteiden ominaisuuksille asetetut vaatimukset;\n6) murtorajatila- ja käyttörajatilatarkastelut sekä kyseeseen tulevat onnettomuusmitoitustarkastelut sekä mitoitus palotilanteessa;\n7) rakenteiden ja rakenteiden toiminnallisten osien ja kiinnitysten sekä liitosten mitat sekä nostettavien elementtien paino ja painopisteen paikka;\n8) säilyvyys- ja käyttöikätarkastelut;\n9) toteutuksen aikaisen ja valmiin rakenteen jäykistys- ja vakavuustarkastelu;\n10) korjaus- ja muutostyössä säilytettävät ja purettavat rakenteet;\n11) uusien ja säilytettävien rakenteiden käyttöön ja huoltoon vaikuttavat tiedot.",
+      "text_en": "Structural drawings must show, to the extent suitable for the design task, the following:\n1) structural models describing the structural behaviour and bracing of the structural system;\n2) the severity of consequences, requirements for execution or the execution class, the exposure class describing environmental loading and, where necessary, the tolerance class;\n3) loads and load combinations;\n4) internal forces;\n5) requirements for the properties of building products;\n6) ultimate limit state and serviceability limit state checks, the accidental action checks where relevant, and design for fire conditions;\n7) dimensions of structures, their functional parts, fixings and connections, and the weight and centre of gravity of elements to be lifted;\n8) durability and service life checks;\n9) stability and bracing checks of the structure during execution and of the finished structure;\n10) structures to be retained and structures to be demolished in repair and alteration work;\n11) information affecting the use and maintenance of new and retained structures.",
+      "summary_en": "Structural drawings must show the structural model, consequence class, loads and combinations, internal forces, product requirements, limit state and fire checks, dimensions, durability and stability checks, retained or demolished parts and maintenance information.",
+      "keywords": [
+        "structural drawings",
+        "structural model",
+        "load combinations",
+        "internal forces",
+        "limit state",
+        "fire design",
+        "rakennesuunnitelma",
+        "kuormayhdistelmä",
+        "voimasuure",
+        "murtorajatila",
+        "käyttörajatila",
+        "palotilanne"
+      ],
+      "topics": [
+        "structure",
+        "fire"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-5-2",
+      "ref": "5 § 2 mom.",
+      "heading": "Rakennesuunnitelmat",
+      "heading_en": "Structural drawings",
+      "text": "Edellä 1 momentin 2 kohdassa tarkoitettu toteutusluokka on luokiteltu kokoelma toteutukselle eriteltyjä vaatimuksia, jotka voivat koskea koko rakennuskohdetta, yksittäistä rakenneosaa tai tiettyä yksityiskohtaa.",
+      "text_en": "The execution class referred to in subsection 1, point 2 is a classified collection of execution requirements, which may apply to the whole building project, to an individual structural component, or to a specific detail.",
+      "summary_en": "An execution class is a classified set of execution requirements that may apply to the whole project, a single structural component or a detail.",
+      "keywords": [
+        "execution class",
+        "toteutusluokka",
+        "execution requirements",
+        "toteutus",
+        "rakenneosa",
+        "yksityiskohta"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-6-1",
+      "ref": "6 § 1 mom.",
+      "heading": "Rakenteiden toteutusasiakirjat",
+      "heading_en": "Structural execution documents",
+      "text": "Rakennesuunnittelijan on laadittava rakenteiden toteuttamiseksi tarvittavat tekniset tiedot ja vaatimukset sisältävät toteutusasiakirjat ennen kunkin rakennusosan toteutusta. Toteutusasiakirjoihin kuuluvat laskelmat, piirustukset, työselostus, laadittu rakenteiden kuntotutkimus sekä mahdolliset muut tarvittavat selvitykset. Jos suunnittelussa ja toteutuksessa käytetään eurokoodia, toteutuseritelmä katsotaan toteutusasiakirjaksi.",
+      "text_en": "The structural designer must prepare, before each building component is executed, the execution documents containing the technical information and requirements needed to execute the structures. Execution documents include calculations, drawings, a work description, a prepared condition survey of the structures and any other necessary investigations. Where Eurocodes are used in design and execution, the execution specification is regarded as an execution document.",
+      "summary_en": "The structural designer must prepare execution documents (calculations, drawings, work description, condition survey and other investigations) before each component is built.",
+      "keywords": [
+        "execution documents",
+        "toteutusasiakirja",
+        "work description",
+        "työselostus",
+        "condition survey",
+        "kuntotutkimus",
+        "calculations",
+        "laskelma",
+        "piirustus",
+        "toteutuseritelmä"
+      ],
+      "topics": [
+        "structure",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-6-2",
+      "ref": "6 § 2 mom.",
+      "heading": "Rakenteiden toteutusasiakirjat",
+      "heading_en": "Structural execution documents",
+      "text": "Silloin, kun rakenteen suunnitelmien mukaisen toiminnan varmistaminen edellyttää rakenteen käytön aikaisia määrävälein tehtäviä tarkastuksia, tulee suunnitelmissa sekä rakennuksen käyttö- ja huolto-ohjeessa osoittaa tarkastettavat kohdat ja tarkastusten määräväli.",
+      "text_en": "Where ensuring that a structure performs as planned requires inspections at set intervals during its use, the plans and the building's operation and maintenance instructions must indicate the points to be inspected and the inspection interval.",
+      "summary_en": "Where a structure needs periodic inspections during use, the plans and operation and maintenance instructions must name the points to inspect and the inspection interval.",
+      "keywords": [
+        "periodic inspection",
+        "inspection interval",
+        "operation and maintenance instructions",
+        "käyttö- ja huolto-ohje",
+        "tarkastusväli",
+        "tarkastettava kohta",
+        "määräväli"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "Rakennesuunnitelmien tarkastussuunnitelma",
+      "heading_en": "Quality assurance of structural drawings",
+      "text": "Rakennesuunnittelijan on huolehdittava rakennesuunnitelmien laadunvarmistuksesta siten, että rakennesuunnitelmat tarkastetaan ennen niiden toimittamista rakennusvalvontaviranomaiselle. Suunnitelmien laadunvarmistus kohdistuu rakennesuunnittelijan laatimiin laskelmiin, piirustuksiin ja tekstiasiakirjoihin sekä suunnittelijan tuottamiin muihin suunnitelmatietoihin.",
+      "text_en": "The structural designer must ensure the quality assurance of the structural drawings by checking them before they are submitted to the building control authority. The quality assurance covers the calculations, drawings and text documents prepared by the structural designer and the other design information produced by the designer.",
+      "summary_en": "The structural designer must check structural drawings, calculations and documents for quality before submitting them to the building control authority.",
+      "keywords": [
+        "quality assurance",
+        "design review",
+        "structural drawings",
+        "laadunvarmistus",
+        "rakennesuunnitelma",
+        "tarkastus",
+        "rakennusvalvontaviranomainen"
+      ],
+      "topics": [
+        "structure",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "Rakennesuunnitelmien tarkastussuunnitelma",
+      "heading_en": "Quality assurance of structural drawings",
+      "text": "Rakennesuunnitelmien tarkastussuunnitelman laajuus määräytyy rakennuksen tai yksittäisen rakenneosan seuraamusten sekä suunnittelutehtävän vaativuuden perusteella. Suunnitelmien laadun varmistamisesta tulee laatia rakennesuunnitelmien tarkastussuunnitelma, jossa kuvataan suunnitelmien tarkastusmenettely, tarkastuksen vastuuhenkilöt ja vastuuhenkilöiden suhde rakennesuunnittelun projektiorganisaatioon, rakennuksen tai yksittäisen rakenneosan mahdollisten seuraamusten ollessa vakavia tai keskisuuria.",
+      "text_en": "The scope of the quality assurance plan for structural drawings is determined by the consequences for the building or an individual structural component and by how demanding the design task is. Where the possible consequences for the building or a structural component are serious or medium, a quality assurance plan must be drawn up, describing the checking procedure, the persons responsible for checking and their relation to the design project organisation.",
+      "summary_en": "Where the consequences are serious or medium, the structural designer must write a quality assurance plan describing the checking procedure, the responsible checkers and their place in the project organisation.",
+      "keywords": [
+        "quality assurance plan",
+        "checking procedure",
+        "responsible person",
+        "laadunvarmistussuunnitelma",
+        "tarkastussuunnitelma",
+        "seuraamusluokka",
+        "projektiorganisaatio"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-7-3",
+      "ref": "7 § 3 mom.",
+      "heading": "Rakennesuunnitelmien tarkastussuunnitelma",
+      "heading_en": "Quality assurance of structural drawings",
+      "text": "Seuraamusten ollessa vakavia tai suunnittelutehtävän vaativuusluokan ollessa poikkeuksellisen vaativa tai erittäin vaativa laadunvarmistuksen suorittaa suunnitteluorganisaation menettelytavan mukaisesti hankkeen ulkopuolinen tai hankkeelle vain laadunvarmistustyöhön erikseen nimetty henkilö, jolla on suunnittelutehtävän vaativuusluokan mukainen kelpoisuus. Seuraamusten ollessa keskisuuria tai suunnittelutehtävän vaativuusluokan ollessa vaativa laadunvarmistuksen suorittaa henkilö, jolla on suunnittelutehtävän vaativuusluokan mukainen kelpoisuus.",
+      "text_en": "Where the consequences are serious, or the design task is classified as exceptionally demanding or especially demanding, quality assurance is carried out, in accordance with the design organisation's procedure, by a person from outside the project or a person appointed to the project solely for quality assurance work, who has qualifications corresponding to the demand class of the design task. Where the consequences are medium, or the design task is classified as demanding, quality assurance is carried out by a person who has qualifications corresponding to the demand class of the design task.",
+      "summary_en": "For serious consequences or exceptionally or especially demanding tasks, quality assurance must be done by an independent qualified checker; for medium consequences or demanding tasks, by a qualified checker.",
+      "keywords": [
+        "independent checker",
+        "quality assurance",
+        "qualification",
+        "demand class",
+        "vaativuusluokka",
+        "laadunvarmistus",
+        "pätevyys",
+        "erittäin vaativa",
+        "poikkeuksellisen vaativa",
+        "vaativa"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Suunniteltu käyttöikä",
+      "heading_en": "Design service life",
+      "text": "Suunnittelijan on määritettävä rakenteen suunniteltu käyttöikä, joka on suunnittelussa oletettu ajanjakso, jolloin rakennetta tai sen osaa käytetään suunniteltuun tarkoitukseensa ennakoiduin kunnossapitotoimenpitein, ja ympäristö-olosuhteita kuvaavat rasitusluokat.",
+      "text_en": "The designer must determine the design service life of the structure, meaning the period assumed in design during which the structure or its part is used for its intended purpose with the anticipated maintenance measures, and the exposure classes describing the environmental conditions.",
+      "summary_en": "The designer must set the structure's design service life and the exposure classes that describe its environmental conditions.",
+      "keywords": [
+        "design service life",
+        "exposure class",
+        "suunniteltu käyttöikä",
+        "rasitusluokka",
+        "ympäristöolosuhteet",
+        "kunnossapito"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Suunniteltu käyttöikä",
+      "heading_en": "Design service life",
+      "text": "Rakennushankkeeseen ryhtyvän on huolehdittava, että rakenne suunnitellaan ja toteutetaan siten, että rakenne ja sen valmistamiseen käytetyt rakennusaineet säilyttävät suunnitelmissa edellytetyt ominaisuutensa koko suunnitellun käyttöiän ajan.",
+      "text_en": "The party undertaking a building project must ensure that the structure is designed and built so that the structure and the building products used to make it keep the properties stated in the plans for the whole planned service life.",
+      "summary_en": "The structure and its building products must keep the properties assumed in the plans throughout the design service life.",
+      "keywords": [
+        "service life",
+        "durability",
+        "building products",
+        "käyttöikä",
+        "säilyvyys",
+        "rakennusaine",
+        "ominaisuus"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-9-1",
+      "ref": "9 § 1 mom.",
+      "heading": "Rakenteiden toteutuksen työsuunnitelma",
+      "heading_en": "Work plan for structural execution",
+      "text": "Rakennushankkeeseen ryhtyvän on huolehdittava, että rakenteiden toteutusta varten laaditaan toteutuksen työsuunnitelma ja että työsuunnitelma sisältää riittävät tiedot toteutusta varten.",
+      "text_en": "The party undertaking a building project must ensure that a work plan for the execution of the structures is drawn up and that the work plan contains sufficient information for execution.",
+      "summary_en": "A work plan with sufficient information for execution must be prepared for the structures.",
+      "keywords": [
+        "work plan",
+        "execution plan",
+        "työsuunnitelma",
+        "toteutuksen työsuunnitelma",
+        "rakenteiden toteutus"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-9-2",
+      "ref": "9 § 2 mom.",
+      "heading": "Rakenteiden toteutuksen työsuunnitelma",
+      "heading_en": "Work plan for structural execution",
+      "text": "Rakennuksen tai rakenteen mahdollisesta viasta tai vauriosta aiheutuvien seuraamusten ollessa vakavia tai keskisuuria on rakennukselle osana rakenteiden toteutuksen työsuunnitelmaa laadittava toteutuksen laatusuunnitelma, joka sisältää toteuttajan osaamisen ja voimavarojen arvioinnin asetettuihin vaatimuksiin nähden, toteuttajan hankeorganisaation kuvauksen ja sen vastuuhenkilöt, tarkastuksen periaatteet vastuineen sekä suunnitelman laadunvalvonnan toimenpiteistä ja tallenteista.",
+      "text_en": "Where the consequences of a possible fault or damage to the building or structure are serious or medium, an execution quality plan must be drawn up for the building as part of the work plan for the structures. It must contain an assessment of the contractor's competence and resources against the set requirements, a description of the contractor's project organisation and its responsible persons, the principles of inspection with their responsibilities, and the quality control measures and records of the plan.",
+      "summary_en": "Where consequences are serious or medium, the work plan must include an execution quality plan covering contractor competence, organisation, inspection principles and quality-control records.",
+      "keywords": [
+        "execution quality plan",
+        "contractor competence",
+        "inspection principles",
+        "toteutuksen laatusuunnitelma",
+        "työsuunnitelma",
+        "laadunvalvonta",
+        "tallenne",
+        "seuraamusluokka"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-10-1",
+      "ref": "10 § 1 mom.",
+      "heading": "Rakenteiden kantavuus rakennuksen korjaus- ja muutostyössä sekä käyttötarkoituksen muutoksessa",
+      "heading_en": "Load-bearing capacity in repair, alteration and change of use",
+      "text": "Rakennuksen korjaus- ja muutostyön sekä käyttötarkoituksen muutoksen suunnittelussa ja toteutuksessa on otettava huomioon ja erityisestä syystä selvitettävä rakennuksen ja sen rakenteiden ominaispiirteet ja kunto sekä selvitettävä rakenteen kuormituksen mahdollinen lisääntyminen. Rakenteiden osittaisen muutoksen yhteydessä on varmistettava, että siitä rakennejärjestelmälle aiheutuvat muutokset eivät vaikeuta tämän asetuksen 3 §:n mukaisten vaatimusten täyttymistä.",
+      "text_en": "In designing and executing repair and alteration work on a building and a change of use, the characteristics and condition of the building and its structures must be taken into account and, where there is a particular reason, investigated, and any possible increase in the load on the structures must be investigated. In connection with a partial alteration of structures, it must be ensured that the resulting changes to the structural system do not make it harder to meet the requirements of section 3 of this decree.",
+      "summary_en": "In repairs, alterations and changes of use, the building's characteristics and condition must be considered, any load increase investigated, and partial changes must not hinder compliance with section 3.",
+      "keywords": [
+        "repair and alteration",
+        "change of use",
+        "load increase",
+        "existing structure",
+        "kuormitus",
+        "korjaus- ja muutostyö",
+        "käyttötarkoituksen muutos",
+        "kunto",
+        "rakenteen kantavuus"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-10-2",
+      "ref": "10 § 2 mom.",
+      "heading": "Rakenteiden kantavuus rakennuksen korjaus- ja muutostyössä sekä käyttötarkoituksen muutoksessa",
+      "heading_en": "Load-bearing capacity in repair, alteration and change of use",
+      "text": "Kun rakenteen kuormitus ei lisäänny rakennuksen korjaus- ja muutostyön tai käyttötarkoituksen muutoksen johdosta mutta rakenteiden kunto edellyttää niiden vahvistamista, voidaan soveltaa rakennuksen rakentamisajankohtana voimassa olleita säännöksiä sekä kyseisenä ajankohtana vallinnutta hyvää rakentamistapaa.",
+      "text_en": "Where the load on a structure does not increase due to repair and alteration work or a change of use, but the condition of the structures requires strengthening them, the provisions in force when the building was constructed, and the good building practice prevailing at that time, may be applied.",
+      "summary_en": "If loads do not increase but the structures need strengthening, the rules in force when the building was constructed and the good practice of that time may be applied.",
+      "keywords": [
+        "strengthening",
+        "existing building",
+        "construction date rules",
+        "good building practice",
+        "vahvistaminen",
+        "rakentamisajankohta",
+        "hyvä rakentamistapa",
+        "kantavuus"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-10-3",
+      "ref": "10 § 3 mom.",
+      "heading": "Rakenteiden kantavuus rakennuksen korjaus- ja muutostyössä sekä käyttötarkoituksen muutoksessa",
+      "heading_en": "Load-bearing capacity in repair, alteration and change of use",
+      "text": "Kun rakenteen kuormitus lisääntyy rakennuksen korjaus- ja muutostyön tai käyttötarkoituksen muutoksen johdosta, on kantavien rakenteiden suunnittelussa ja toteutuksessa sovellettava tämän asetuksen 2–5 §:ää uusien ja vahvistettavien rakenteiden osalta.",
+      "text_en": "Where the load on a structure increases due to repair and alteration work or a change of use, sections 2 to 5 of this decree must be applied to the design and execution of the load-bearing structures that are new or to be strengthened.",
+      "summary_en": "Where loads increase due to repair or change of use, sections 2 to 5 apply to the new and strengthened structures.",
+      "keywords": [
+        "load increase",
+        "change of use",
+        "strengthened structure",
+        "new structure",
+        "kuormituksen lisääntyminen",
+        "vahvistettava rakenne",
+        "käyttötarkoituksen muutos"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-11-1",
+      "ref": "11 § 1 mom.",
+      "heading": "Rakennustuotteet",
+      "heading_en": "Building products",
+      "text": "Rakennustuotteiden ominaisuuksien on vastattava suunnitelmissa esitettyjä vaatimuksia ja rakennustuotteiden tulee olla rakennuspaikan olosuhteisiin soveltuvia.",
+      "text_en": "The properties of building products must correspond to the requirements set out in the plans, and building products must be suitable for the conditions at the building site.",
+      "summary_en": "Building products must have the properties required by the plans and must suit the conditions at the building site.",
+      "keywords": [
+        "building products",
+        "product properties",
+        "site conditions",
+        "rakennustuote",
+        "ominaisuus",
+        "rakennuspaikka",
+        "olosuhteet"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-11-2",
+      "ref": "11 § 2 mom.",
+      "heading": "Rakennustuotteet",
+      "heading_en": "Building products",
+      "text": "Rakennustuotteista on voitava suunnitelmia noudattaen ja suunnitelmien mukaisia työmenetelmiä käyttäen rakentaa suunnitelmien mukainen rakenne.",
+      "text_en": "It must be possible to build the structure shown in the plans from the building products, using work methods that follow the plans.",
+      "summary_en": "Building products and work methods must allow the structure to be built as specified in the plans.",
+      "keywords": [
+        "building products",
+        "work methods",
+        "as-designed construction",
+        "rakennustuote",
+        "työmenetelmä",
+        "suunnitelma",
+        "rakenne"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-11-3",
+      "ref": "11 § 3 mom.",
+      "heading": "Rakennustuotteet",
+      "heading_en": "Building products",
+      "text": "Rakennuskohteessa on käytettävä rakennustuotteita, joiden ominaisuudet ovat säilyneet muuttumattomina riippumatta siirroista, kuljetuksista, varastoinnista tai asennuksesta.",
+      "text_en": "Building products used on the building site must have properties that remain unchanged regardless of transfers, transport, storage or installation.",
+      "summary_en": "Building products on site must keep their properties unchanged through handling, transport, storage and installation.",
+      "keywords": [
+        "storage",
+        "transport",
+        "product integrity",
+        "varastointi",
+        "kuljetus",
+        "asennus",
+        "rakennustuote",
+        "ominaisuus"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-11-4",
+      "ref": "11 § 4 mom.",
+      "heading": "Rakennustuotteet",
+      "heading_en": "Building products",
+      "text": "Rakennushankkeeseen ryhtyvän on huolehdittava, että rakennustuotteiden kelpoisuus tarkastetaan ennen niiden käyttöä toteutukseen.",
+      "text_en": "The party undertaking a building project must ensure that the eligibility of building products is checked before they are used in execution.",
+      "summary_en": "The builder must check that building products are eligible for use before they are installed.",
+      "keywords": [
+        "product eligibility",
+        "eligibility check",
+        "rakennustuotteen kelpoisuus",
+        "tarkastus",
+        "käyttö",
+        "toteutus"
+      ],
+      "topics": [
+        "structure",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-12-1",
+      "ref": "12 §",
+      "heading": "Rakenteiden kelpoisuus",
+      "heading_en": "Eligibility of structures",
+      "text": "Rakennushankkeeseen ryhtyvä huolehtii, että rakenteille ja rakennustuotteille asetettujen vaatimusten täyttyminen todetaan.",
+      "text_en": "The party undertaking a building project must ensure that the fulfilment of the requirements set for structures and building products is verified.",
+      "summary_en": "The builder must verify that structures and building products meet the set requirements.",
+      "keywords": [
+        "verification",
+        "compliance",
+        "structures",
+        "building products",
+        "todentaminen",
+        "vaatimustenmukaisuus",
+        "rakennustuote",
+        "rakenne"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-13-1",
+      "ref": "13 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä syyskuuta 2014.",
+      "text_en": "This decree enters into force on 1 September 2014.",
+      "summary_en": "The decree enters into force on 1 September 2014.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "asetus",
+        "1.9.2014"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-13-2",
+      "ref": "13 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tällä asetuksella kumotaan seuraavat ympäristöministeriön antamat määräykset ja asetukset:\n1) Suomen rakentamismääräyskokoelman osa B1 (1998) Rakenteiden varmuus ja kuormitukset, määräykset;\n2) Suomen rakentamismääräyskokoelman osa B2 (1990) Kantavat rakenteet, määräykset;\n3) Suomen rakentamismääräyskokoelman osa B4 (2005), betonirakenteista annettu ympäristöministeriön asetus;\n4) Suomen rakentamismääräyskokoelman osa B5 (2007) kevytbetoniharkkorakenteista annettu ympäristöministeriön asetus;\n5) Suomen rakentamismääräyskokoelman osa B6 (1989) teräsohutlevyrakenteista annettu ympäristöministeriön asetus;\n6) Suomen rakentamismääräyskokoelman osa B7 (1996) teräsrakenteista annettu ympäristöministeriön asetus;\n7) Suomen rakentamismääräyskokoelman osa B8 (2007) tiilirakenteista annettu ympäristöministeriön asetus;\n8) Suomen rakentamismääräyskokoelman osa B10 (2001) annettu ympäristöministeriön asetus.",
+      "text_en": "By this decree the following regulations and decrees issued by the Ministry of the Environment are repealed:\n1) Finland's National Building Code, part B1 (1998), Structural safety and loads, regulations;\n2) part B2 (1990), Load-bearing structures, regulations;\n3) part B4 (2005), Ministry of the Environment decree on concrete structures;\n4) part B5 (2007), Ministry of the Environment decree on lightweight concrete block structures;\n5) part B6 (1989), Ministry of the Environment decree on thin steel sheet structures;\n6) part B7 (1996), Ministry of the Environment decree on steel structures;\n7) part B8 (2007), Ministry of the Environment decree on masonry structures;\n8) part B10 (2001), Ministry of the Environment decree.",
+      "summary_en": "This decree repeals eight earlier Ministry of the Environment regulations and decrees on structural safety, loads and specific structural materials (National Building Code parts B1, B2, B4, B5, B6, B7, B8 and B10).",
+      "keywords": [
+        "repealed regulations",
+        "National Building Code",
+        "rakentamismääräyskokoelma",
+        "kumottu",
+        "kantavat rakenteet",
+        "betonirakenne",
+        "teräsrakenne",
+        "tiilirakenne",
+        "kevytbetoni",
+        "ympäristöministeriö"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-477-2014-13-3",
+      "ref": "13 § 3 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Ennen tämän asetuksen voimaantuloa vireille tulleisiin hankkeisiin sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "Projects that were initiated before this decree entered into force are subject to the provisions that were in force when this decree entered into force.",
+      "summary_en": "Projects started before this decree took effect are judged under the rules that were in force when it took effect.",
+      "keywords": [
+        "transitional provision",
+        "pending project",
+        "vireille tullut hanke",
+        "voimaantulo",
+        "siirtymäsäännös"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

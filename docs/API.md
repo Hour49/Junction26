@@ -130,9 +130,9 @@ An edit of a signed-off quantity (409):
 | `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=` | The takeoff as CSV | #32 |
 | `GET /api/drawings/{drawing_id}/checks?pack=&project=` | Building-code pre-check of a drawing: pass, fail or cannot tell per room or door | #139 |
 | `GET /api/projects/{project_id}/checks?pack=` | The same for every drawing of a project | #139 |
-| `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0011 |
-| `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0011 |
-| `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0011 |
+| `GET /api/laws` | The building-law knowledge base: each pack's laws (table of contents) | 0014 |
+| `GET /api/laws/{pack}/search?q=&topic=&limit=` | Search one pack's law clauses, best first | 0014 |
+| `GET /api/laws/clauses/{clause_id}` | One clause, verbatim and in our English, with its law | 0014 |
 
 ## `GET /api/info`
 
@@ -7772,7 +7772,7 @@ unknown pack, `not-found` for an unknown project.
 ## Building law
 
 The law knowledge base the AI searches instead of carrying the laws in its prompt (decision
-[0011](decisions/0011-law-knowledge-base.md)): one file per law in `backend/app/laws/<pack>/`, one clause per
+[0014](decisions/0014-law-knowledge-base.md)): one file per law in `backend/app/laws/<pack>/`, one clause per
 subsection, `text` verbatim from the official source and `text_en` our unofficial translation. Packs are `fi` and
 `ch-zh` (Swiss federal law and the Canton of Zürich), the rule packs' ids. The examples are the test laws of
 `backend/tests/fixtures/laws/` (made up).
@@ -7800,7 +7800,8 @@ order.
 ### `GET /api/laws/{pack}/search?q=<words>&topic=<topic>&limit=<1-20>`
 
 `q` 1-500 characters, words only (quotes, `*`, `NEAR`, `-` are plain words); a word also finds longer words it
-starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. `topic` one of `rooms accessibility fire
+starts ("Fluchtweg" finds "Fluchtwege"), case and accents ignored. Clauses with every word come first, then
+clauses with any word fill `limit`, each group by score. `topic` one of `rooms accessibility fire
 escape-routes stairs-railings doors-windows ventilation energy sound moisture structure daylight parking outdoor
 distances-heights permits-procedure general`; `limit` default 5. `title_en` and `url` are the law's; `score` is
 -BM25, higher is better. An unknown pack is 404 `unknown-pack`; a bad `q`, `topic` or `limit` 422 `validation`.
@@ -7851,7 +7852,7 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
-- 2026-11-14, additive (decision 0011): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
+- 2026-11-14, additive (decision 0014): new `GET /api/laws`, `GET /api/laws/{pack}/search?q=&topic=&limit=` and
   `GET /api/laws/clauses/{clause_id}`, the building-law knowledge base. An unknown pack is 404 `unknown-pack`.
 - 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
   kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);

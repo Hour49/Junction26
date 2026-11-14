@@ -1,4 +1,4 @@
-"""The building-law knowledge base (decision 0011, docs/API.md "Building law"): each pack's table
+"""The building-law knowledge base (decision 0014, docs/API.md "Building law"): each pack's table
 of contents, search in one pack, and one clause with its law. The same index the model's tools
 read (app/adapters/law_tools.py)."""
 

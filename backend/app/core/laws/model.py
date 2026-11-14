@@ -1,4 +1,4 @@
-"""A law of the knowledge base: one file per law, one clause per subsection (decision 0011).
+"""A law of the knowledge base: one file per law, one clause per subsection (decision 0014).
 
 A law is data (backend/app/laws/<pack>/<law id>.json). Validating it here refuses a clause nobody
 could cite or find: no verbatim text, no English summary, too few keywords, a topic outside the

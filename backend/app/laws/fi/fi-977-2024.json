@@ -1,0 +1,357 @@
+{
+  "id": "fi-977-2024",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "977/2024",
+  "title": "Sisäministeriön asetus rakennusten poistumisreittien merkitsemisestä ja valaisemisesta",
+  "title_en": "Ministry of the Interior Decree on the marking and lighting of escape routes in buildings",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2024/977",
+  "language": "fi",
+  "in_force": "2025-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force since 2025-01-01, issued under the Rescue Act 379/2011.",
+  "clauses": [
+    {
+      "id": "fi-977-2024-1-1",
+      "ref": "1 § 1 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Tässä asetuksessa säädetään uuden rakennuksen poistumisreittien merkitsemisestä ja valaisemisesta. Asetus koskee myös rakennuksen laajennusta ja rakennuksen käyttötarkoituksen muutosta. Rakennuksen korjaus- ja muutostyössä asetusta on sovellettava, jos korjaus- ja muutostyöt vaikuttavat rakennuksen poistumisjärjestelyihin.",
+      "text_en": "This decree prescribes the marking and lighting of escape routes in a new building. The decree also applies to an extension of a building and to a change of use of a building. In repair and alteration work on a building, the decree must be applied if the repair and alteration work affects the escape arrangements of the building.",
+      "summary_en": "The decree governs marking and lighting of escape routes in new buildings, extensions and changes of use, and in repairs that affect escape arrangements.",
+      "keywords": [
+        "escape routes",
+        "marking",
+        "lighting",
+        "poistumisreitti",
+        "poistumisreittien merkitseminen",
+        "valaistus",
+        "laajennus",
+        "käyttötarkoituksen muutos",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-1-2",
+      "ref": "1 § 2 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Asetuksessa säädetään myös pelastuslain (379/2011) 12 §:ssä tarkoitetut poistumisreittien opasteiden ja valaistuksen toimintakunnossa pitämiseen liittyvät vaatimukset.",
+      "text_en": "The decree also contains the requirements for keeping escape route signs and escape route lighting in working order, as referred to in section 12 of the Rescue Act (379/2011).",
+      "summary_en": "The decree also sets upkeep requirements for escape route signs and lighting, as referred to in section 12 of the Rescue Act (379/2011).",
+      "keywords": [
+        "escape route signs",
+        "escape route lighting",
+        "pelastuslaki",
+        "poistumisopaste",
+        "toimintakunto",
+        "kunnossapito",
+        "valaistus",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes",
+        "fire"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-2-1",
+      "ref": "2 §",
+      "heading": "Määritelmät",
+      "heading_en": "Definitions",
+      "text": "Tässä asetuksessa tarkoitetaan:\n1) poistumisreitillä rakennuksen kustakin kohdasta ulos maan pinnalle tai muulle turvalliselle paikalle johtavaa poistumiseen tarkoitettua reittiä;\n2) poistumisopasteella erityistä kilpeä, jota käytetään uloskäytävän sijainnin ja poistumiseen käytettävän kulkureitin osoittamiseen.",
+      "text_en": "In this decree, the following is meant:\n1) an escape route is a route intended for escape, leading from each point of the building out to ground level or to another safe place;\n2) an escape sign is a special sign used to show the location of an exit and the route to be used for escape.",
+      "summary_en": "An escape route runs from every point in the building out to ground level or another safe place, and an escape sign is a special sign showing an exit and the escape route.",
+      "keywords": [
+        "escape route",
+        "escape sign",
+        "definitions",
+        "poistumisreitti",
+        "poistumisopaste",
+        "uloskäytävä",
+        "maan pinta",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Poistumisreittien merkitseminen",
+      "heading_en": "Marking of escape routes",
+      "text": "Rakennuksen poistumisreitit on merkittävä poistumisopasteilla:\n1) majoitustiloissa;\n2) hoitolaitoksissa;\n3) kokoontumis- ja liiketiloissa;\n4) työpaikkatiloissa;\n5) tuotantotiloissa;\n6) varastotiloissa, joissa työskennellään;\n7) sellaisissa muissa tiloissa, joista poistuminen on vaikeaa tai joissa poistumisjärjestelyt ovat tavanomaisesta poikkeavat.",
+      "text_en": "The escape routes of the building must be marked with escape signs:\n1) in accommodation premises;\n2) in care institutions;\n3) in assembly and retail premises;\n4) in workplace premises;\n5) in production premises;\n6) in storage premises where work is carried out;\n7) in other premises from which escape is difficult or where the escape arrangements differ from the usual.",
+      "summary_en": "Escape routes must be marked with escape signs in accommodation, care, assembly and retail, workplace, production and staffed storage premises, and in other premises where escape is difficult.",
+      "keywords": [
+        "escape signs",
+        "escape route marking",
+        "poistumisopaste",
+        "poistumisreitti",
+        "majoitustila",
+        "hoitolaitos",
+        "kokoontumistila",
+        "liiketila",
+        "tuotantotila",
+        "varastotila",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-977-2024-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Poistumisreittien merkitseminen",
+      "heading_en": "Marking of escape routes",
+      "text": "Poistumisopasteet on sijoitettava havaitsemisen kannalta tarkoituksenmukaisella tavalla ja niin, että ne selvästi osoittavat poistumisreitin. Poistumisopasteiden näkyvyys on varmistettava riittävällä valaistuksella.",
+      "text_en": "Escape signs must be placed in a way that is appropriate for detecting them and so that they clearly show the escape route. The visibility of escape signs must be ensured with sufficient lighting.",
+      "summary_en": "Escape signs must be placed where they are easy to detect and clearly show the escape route, and they must stay visible under sufficient lighting.",
+      "keywords": [
+        "escape sign placement",
+        "visibility",
+        "lighting",
+        "poistumisopaste",
+        "näkyvyys",
+        "valaistus",
+        "poistumisreitti",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-977-2024-3-3",
+      "ref": "3 § 3 mom.",
+      "heading": "Poistumisreittien merkitseminen",
+      "heading_en": "Marking of escape routes",
+      "text": "Poistumisopasteita on tarvittaessa täydennettävä ääni- tai valosignaaliopasteilla, lattiaan tehtävillä merkinnöillä tai muulla havaittavuutta parantavalla tavalla.",
+      "text_en": "Where necessary, escape signs must be supplemented with audible or light signal signs, markings on the floor, or another means of improving detectability.",
+      "summary_en": "Where needed, escape signs must be supplemented with sound or light signals, floor markings or other means that improve detectability.",
+      "keywords": [
+        "audible signal",
+        "light signal",
+        "floor marking",
+        "escape signs",
+        "ääniopaste",
+        "valosignaali",
+        "lattiamerkintä",
+        "poistumisopaste",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-977-2024-4-1",
+      "ref": "4 §",
+      "heading": "Poistumisopasteet",
+      "heading_en": "Escape signs",
+      "text": "Käytettävien poistumisopasteiden on oltava selkeitä ja niiden merkitys on kyettävä tunnistamaan ja ymmärtämään helposti. Poistumisopasteiden on ulkonäöltään ja yleisiltä ominaisuuksiltaan oltava työpaikkojen turvamerkeistä ja niiden vähimmäisvaatimuksista annetun valtioneuvoston asetuksen (687/2015) mukaisia.",
+      "text_en": "The escape signs used must be clear, and their meaning must be easy to recognise and understand. In their appearance and general characteristics, the escape signs must conform to the Government decree on safety signs at workplaces and its minimum requirements (687/2015).",
+      "summary_en": "Escape signs must be clear and easy to understand, and must look and perform as the Government decree on workplace safety signs (687/2015) requires.",
+      "keywords": [
+        "escape signs",
+        "safety signs",
+        "workplace safety signs",
+        "poistumisopaste",
+        "turvamerkki",
+        "ulkonäkö",
+        "687/2015",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-5-1",
+      "ref": "5 § 1 mom.",
+      "heading": "Poistumisreittien valaiseminen",
+      "heading_en": "Lighting of escape routes",
+      "text": "Edellä 3 §:n 1 momentissa tarkoitetuissa tiloissa poistumisreitit on valaistava tavalla, joka mahdollistaa niiden turvallisen käytön. Valaistuksessa on otettava huomioon rakennuksen ja sen tilojen käyttötarkoitus, koko ja muoto sekä se, miten rakennuksesta poistuminen on järjestetty. Poistumisreitin ovien yhteydessä valaistuksen on oltava riittävä oven havaitsemiseen ja oven aukaisumekanismin käyttöön.",
+      "text_en": "In the premises referred to in section 3, subsection 1 above, escape routes must be lit in a way that enables their safe use. In the lighting, the purpose, size and shape of the building and its premises, and the way escape from the building is arranged, must be taken into account. Lighting at escape route doors must be sufficient to detect the door and to use the door opening mechanism.",
+      "summary_en": "Escape routes in the premises listed in section 3(1) must be lit for safe use, and lighting at escape doors must be enough to see the door and operate its opening mechanism.",
+      "keywords": [
+        "escape route lighting",
+        "emergency lighting",
+        "door lighting",
+        "poistumisreitti",
+        "valaistus",
+        "ovi",
+        "aukaisumekanismi",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-5-2",
+      "ref": "5 § 2 mom.",
+      "heading": "Poistumisreittien valaiseminen",
+      "heading_en": "Lighting of escape routes",
+      "text": "Poistumisopasteiden on oltava aina valaistuja. Poistumisreitin muun valaistuksen on käynnistyttävä, kun rakennukseen tai valaisinryhmään tulee sähkön syöttöhäiriöitä tai tavallinen valaistus joutuu epäkuntoon.",
+      "text_en": "Escape signs must always be lit. The rest of the escape route lighting must switch on when there are disturbances in the electricity supply to the building or a lighting group, or when ordinary lighting becomes faulty.",
+      "summary_en": "Escape signs must always be illuminated, and the other escape route lighting must switch on automatically when the power supply is disturbed or ordinary lighting fails.",
+      "keywords": [
+        "escape sign illumination",
+        "emergency lighting",
+        "power failure",
+        "sähkökatko",
+        "varavalaistus",
+        "valaisinryhmä",
+        "poistumisopaste",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-5-3",
+      "ref": "5 § 3 mom.",
+      "heading": "Poistumisreittien valaiseminen",
+      "heading_en": "Lighting of escape routes",
+      "text": "Valaistuksen on toimittava turvalliseen poistumiseen ja evakuointiin vaadittavan ajan, kuitenkin vähintään yksi tunti.",
+      "text_en": "The lighting must operate for the time required for safe escape and evacuation, however for at least one hour.",
+      "summary_en": "Escape route lighting must keep working for at least 60 minutes, or longer if safe escape and evacuation take longer.",
+      "keywords": [
+        "escape lighting duration",
+        "emergency lighting duration",
+        "evacuation time",
+        "varavalaistus",
+        "evakuointi",
+        "poistumisaika",
+        "1 h",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [
+        {
+          "what": "escape route lighting operating time",
+          "comparison": ">=",
+          "value": 60,
+          "unit": "min"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-6-1",
+      "ref": "6 §",
+      "heading": "Jälkivalaisevat poistumisopasteet",
+      "heading_en": "Photoluminescent escape signs",
+      "text": "Jälkivalaisevasta materiaalista tehtyjä poistumisopasteita voidaan käyttää täydentävinä opasteina. Poistumisreittien merkitsemistä ei voi kuitenkaan toteuttaa pelkästään jälkivalaisevilla poistumisopasteilla.",
+      "text_en": "Escape signs made of photoluminescent material may be used as supplementary signs. However, the marking of escape routes cannot be implemented with photoluminescent escape signs alone.",
+      "summary_en": "Photoluminescent escape signs may supplement but cannot replace the marking of escape routes.",
+      "keywords": [
+        "photoluminescent signs",
+        "glow-in-the-dark signs",
+        "jälkivalaiseva opaste",
+        "poistumisopaste",
+        "täydentävä opaste",
+        "poistumisreitti",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-7-1",
+      "ref": "7 §",
+      "heading": "Kunnossapito",
+      "heading_en": "Maintenance",
+      "text": "Poistumisreittien merkinnät ja valaistus on pidettävä toimintakunnossa, toimintakuntoa on tarkkailtava ja havaitut viat ja puutteet on korjattava. Tehdyt huolto- ja kunnossapitotoimenpiteet on kirjattava.",
+      "text_en": "The markings and lighting of escape routes must be kept in working order, their working condition must be monitored, and any faults and deficiencies found must be corrected. The maintenance and upkeep measures carried out must be recorded.",
+      "summary_en": "Escape route markings and lighting must be kept working, checked regularly, defects corrected, and all maintenance recorded.",
+      "keywords": [
+        "maintenance",
+        "escape sign upkeep",
+        "escape lighting maintenance",
+        "kunnossapito",
+        "huolto",
+        "toimintakunto",
+        "poistumisreitti",
+        "kirjaus",
+        "poistumistie"
+      ],
+      "topics": [
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2025.",
+      "text_en": "This decree enters into force on 1 January 2025.",
+      "summary_en": "The decree enters into force on 1 January 2025.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "asetus",
+        "1.1.2025"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-977-2024-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämän asetuksen voimaan tullessa vireillä olevaan hankkeeseen sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "Projects pending when this decree enters into force are subject to the provisions that were in force when this decree entered into force.",
+      "summary_en": "Building projects already pending when the decree enters into force are judged under the rules that were in force on that date.",
+      "keywords": [
+        "transitional provision",
+        "pending project",
+        "vireillä oleva hanke",
+        "voimaantulo",
+        "siirtymäsäännös"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

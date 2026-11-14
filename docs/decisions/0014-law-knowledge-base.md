@@ -1,4 +1,4 @@
-# 0011: The AI reads building law through search over a clause-level knowledge base, never the whole corpus
+# 0014: The AI reads building law through search over a clause-level knowledge base, never the whole corpus
 
 - Status: accepted (law-kb orchestrator, 2026-11-14)
 - Date: 2026-11-14 16:15 (Europe/Helsinki)
@@ -57,7 +57,8 @@ one in-memory SQLite FTS5 table, `tokenize='unicode61 remove_diacritics 2'` (cas
 "fluchtweg", "Flüchtweg" match), columns `summary_en`, `keywords`, `heading` (+ `heading_en`), `text_en`, `text`,
 `law` (titles and number), ranked by BM25 with column weights 4, 4, 2, 1, 1, 1: the English summary and keywords
 written for search count above the long statute text. The query is user or model text: each word (`\w+`) becomes
-a quoted prefix term `"word"*` joined with OR, passed as a bound parameter, so `"`, `*`, `NEAR`, `-`, `AND` are
+a quoted prefix term `"word"*`; clauses with every word (AND) come first, then any word (OR) fills the limit
+(a short clause sharing one common word must not outrank the one that has them all; fi-law, 2026-11-14); passed as a bound parameter, so `"`, `*`, `NEAR`, `-`, `AND` are
 plain words and can neither break nor steer the MATCH syntax; the prefix makes "Fluchtweg" find "Fluchtwege" and
 "bedroom" find "bedrooms". A search covers one pack (the project's country), optionally one topic.
 

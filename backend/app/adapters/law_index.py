@@ -1,4 +1,4 @@
-"""The building-law knowledge base (LAWS_DIR, decision 0011): `<pack>/<law id>.json`, each
+"""The building-law knowledge base (LAWS_DIR, decision 0014): `<pack>/<law id>.json`, each
 validated as `Law`. A file that does not validate, whose id is not its file name or whose pack is
 not its folder, or that repeats a clause id, stops the start, naming the file. The clauses go into
 an in-memory SQLite FTS5 index (stdlib), ranked by BM25 with the English summary and keywords
@@ -13,6 +13,7 @@ import sqlite3
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -103,19 +104,16 @@ class SqliteLawIndex:
         self, pack: str, query: str, topic: Topic | None = None, limit: int = 5
     ) -> list[SearchHit]:
         _known(pack)
-        match = match_query(query)
-        if match is None:
-            return []
-        weights = ", ".join(str(weight) for weight in COLUMNS.values())
-        sql = (
-            f"SELECT clause.id, -bm25(fts, {weights}) AS score FROM fts "
-            "JOIN clause ON clause.row = fts.rowid WHERE fts MATCH ? AND clause.pack = ? "
-            + ("AND clause.row IN (SELECT row FROM topic WHERE topic = ?) " if topic else "")
-            + "ORDER BY score DESC, clause.id LIMIT ?"
-        )
-        params = (match, pack, *([topic] if topic else []), limit)
-        with self._lock:
-            rows = self._db.execute(sql, params).fetchall()
+        # Clauses with every word first, then any word to fill `limit`: a short clause sharing
+        # one common word ("minimum") must not outrank the one that has them all
+        rows: list[tuple[str, float]] = []
+        for every in (True, False):
+            match = match_query(query, every)
+            if match is None or len(rows) >= limit:
+                break
+            seen = {clause_id for clause_id, _ in rows}
+            found = self._match(match, pack, topic, limit)
+            rows += [row for row in found if row[0] not in seen][: limit - len(rows)]
         hits: list[SearchHit] = []
         for clause_id, score in rows:
             law, clause = self._clauses[clause_id]
@@ -131,6 +129,18 @@ class SqliteLawIndex:
                 )
             )
         return hits
+
+    def _match(self, match: str, pack: str, topic: Topic | None, limit: int) -> list[Any]:
+        weights = ", ".join(str(weight) for weight in COLUMNS.values())
+        sql = (
+            f"SELECT clause.id, -bm25(fts, {weights}) AS score FROM fts "
+            "JOIN clause ON clause.row = fts.rowid WHERE fts MATCH ? AND clause.pack = ? "
+            + ("AND clause.row IN (SELECT row FROM topic WHERE topic = ?) " if topic else "")
+            + "ORDER BY score DESC, clause.id LIMIT ?"
+        )
+        params = (match, pack, *([topic] if topic else []), limit)
+        with self._lock:
+            return self._db.execute(sql, params).fetchall()
 
     def clause(self, clause_id: str) -> ClauseView:
         if clause_id not in self._clauses:

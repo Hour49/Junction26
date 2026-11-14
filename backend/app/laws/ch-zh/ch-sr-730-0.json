@@ -1,0 +1,309 @@
+{
+  "id": "ch-sr-730-0",
+  "pack": "ch-zh",
+  "jurisdiction": "CH",
+  "number": "SR 730.0",
+  "title": "Energiegesetz (EnG)",
+  "title_en": "Federal Energy Act",
+  "url": "https://www.fedlex.admin.ch/eli/cc/2017/762/de",
+  "language": "de",
+  "in_force": "2026-04-01",
+  "checked": "2026-11-14",
+  "status_note": "Consolidated version of 1 April 2026. Included: Art. 45-45b (buildings, solar energy obligation for new buildings over 300 m²); the rest of the act is about energy supply and subsidies.",
+  "clauses": [
+    {
+      "id": "ch-sr-730-0-45-1",
+      "ref": "Art. 45 Abs. 1",
+      "heading": "Gebäude",
+      "heading_en": "Buildings",
+      "text": "Die Kantone schaffen im Rahmen ihrer Gesetzgebung günstige Rahmenbedingungen für die sparsame und effiziente Energienutzung sowie die Nutzung erneuerbarer Energien. Sie unterstützen die Umsetzung von Verbrauchsstandards zur sparsamen und effizienten Energienutzung. Dabei vermeiden sie ungerechtfertigte technische Handelshemmnisse.",
+      "text_en": "Within their legislation, the cantons create favourable conditions for the economical and efficient use of energy and for the use of renewable energy. They support the implementation of consumption standards for the economical and efficient use of energy. In doing so, they avoid unjustified technical trade barriers.",
+      "summary_en": "Cantons must create conditions that favour efficient energy use and renewable energy in buildings.",
+      "keywords": [
+        "energy efficiency",
+        "Energieeffizienz",
+        "renewable energy",
+        "erneuerbare Energien",
+        "consumption standard",
+        "Verbrauchsstandard",
+        "Energienutzung"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-730-0-45-2",
+      "ref": "Art. 45 Abs. 2",
+      "heading": "Gebäude",
+      "heading_en": "Buildings",
+      "text": "Sie erlassen Vorschriften über die sparsame und effiziente Energienutzung in Neubauten und in bestehenden Gebäuden. Sie geben bei ihren Vorschriften den Anliegen der sparsamen und effizienten Energienutzung sowie der Nutzung erneuerbarer Energien und von Abwärme nach Möglichkeit den Vorrang. Die Kantone tragen den Anliegen des Ortsbild-, Heimat- und Denkmalschutzes angemessen Rechnung.",
+      "text_en": "They enact regulations on the economical and efficient use of energy in new buildings and in existing buildings. In their regulations they give priority, where possible, to the concerns of economical and efficient energy use, the use of renewable energy and waste heat. The cantons duly take into account the concerns of protection of townscapes, heritage and monuments.",
+      "summary_en": "Cantons must set energy rules for new and existing buildings, prioritising efficiency, renewables and waste heat while respecting townscape and monument protection.",
+      "keywords": [
+        "energy regulation",
+        "Energievorschriften",
+        "new building",
+        "Neubau",
+        "existing building",
+        "Gebäudebestand",
+        "waste heat",
+        "Abwärme",
+        "townscape",
+        "Ortsbildschutz",
+        "monument protection",
+        "Denkmalschutz"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-730-0-45-3",
+      "ref": "Art. 45 Abs. 3",
+      "heading": "Gebäude",
+      "heading_en": "Buildings",
+      "text": "Sie erlassen insbesondere Vorschriften über:\na. den maximal zulässigen Anteil nicht erneuerbarer Energien zur Deckung des Wärmebedarfs für Heizung und Warmwasser; beim erneuerbaren Anteil kann Abwärme angerechnet werden;\nb. die Neuinstallation und über den Ersatz von ortsfesten elektrischen Widerstandsheizungen;\nc. die verbrauchsabhängige Heiz- und Warmwasserkostenabrechnung bei Neubauten und bei wesentlichen Erneuerungen bestehender Gebäude;\nd. die Produktion erneuerbarer Energien und über die Energieeffizienz;\ne. die Grenzwerte für die graue Energie bei Neubauten und bei wesentlichen Erneuerungen bestehender Gebäude.",
+      "text_en": "They enact in particular regulations on:\na. the maximum permissible share of non-renewable energy used to cover the heat demand for heating and hot water; waste heat may be credited to the renewable share;\nb. the new installation of, and the replacement of, fixed electric resistance heating;\nc. consumption-based billing of heating and hot water costs for new buildings and for major renovations of existing buildings;\nd. the production of renewable energy and energy efficiency;\ne. the limit values for embodied energy (grey energy) in new buildings and in major renovations of existing buildings.",
+      "summary_en": "Cantonal energy rules cover the non-renewable share of heating, electric resistance heating, metering of heating costs, renewable production and grey energy limits.",
+      "keywords": [
+        "non-renewable energy",
+        "nicht erneuerbare Energie",
+        "heating",
+        "Heizung",
+        "hot water",
+        "Warmwasser",
+        "electric resistance heating",
+        "Widerstandsheizung",
+        "grey energy",
+        "graue Energie",
+        "waste heat",
+        "Abwärme"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-730-0-45-4",
+      "ref": "Art. 45 Abs. 4",
+      "heading": "Gebäude",
+      "heading_en": "Buildings",
+      "text": "Beim Erlass der Vorschriften nach Absatz 3 Buchstabe d beachten sie, dass bei beheizten Gebäuden, die mindestens den Minergiestandard, den Standard der Mustervorschriften der Kantone im Energiebereich (MuKEn) oder einen vergleichbaren Baustandard erreichen, eine durch die Wärmedämmung oder durch Anlagen zur besseren Nutzung einheimischer erneuerbarer Energien verursachte Überschreitung von maximal 20 cm bei der Berechnung insbesondere der Gebäudehöhe, der Gebäude-, Grenz-, Gewässer-, Strassen- oder Parkplatzabstände und bei Baulinien nicht mitgezählt wird.",
+      "text_en": "When enacting the regulations under paragraph 3 letter d, they shall note that for heated buildings that at least reach the Minergie standard, the standard of the Model Cantonal Energy Regulations (MuKEn) or a comparable building standard, an excess of at most 20 cm caused by thermal insulation or by installations for better use of local renewable energy is not counted in the calculation of, in particular, building height, building, boundary, watercourse, road or parking distances, and building lines.",
+      "summary_en": "Insulation or renewable-energy add-ons up to 20 cm do not count toward building height, setbacks or building lines for buildings meeting Minergie or MuKEn standards.",
+      "keywords": [
+        "insulation",
+        "Wärmedämmung",
+        "20 cm",
+        "building height",
+        "Gebäudehöhe",
+        "boundary distance",
+        "Grenzabstand",
+        "building line",
+        "Baulinie",
+        "Minergie",
+        "MuKEn",
+        "setback"
+      ],
+      "topics": [
+        "energy",
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "excess from insulation or renewable installations not counted toward building height and distances",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "cm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-730-0-45-5",
+      "ref": "Art. 45 Abs. 5",
+      "heading": "Gebäude",
+      "heading_en": "Buildings",
+      "text": "Sie erlassen einheitliche Vorschriften über die Angabe des Energieverbrauchs von Gebäuden (Gebäudeenergieausweis). Sie können für ihr Kantonsgebiet festlegen, dass der Energieausweis obligatorisch ist; sehen sie ein Obligatorium vor, so legen sie fest, in welchen Fällen der Ausweis obligatorisch ist.",
+      "text_en": "They enact uniform regulations on the disclosure of the energy consumption of buildings (building energy certificate). They may stipulate for their cantonal territory that the energy certificate is mandatory; if they provide for a requirement, they shall specify the cases in which the certificate is mandatory.",
+      "summary_en": "Cantons set uniform rules for building energy certificates and may make them mandatory, specifying when.",
+      "keywords": [
+        "energy certificate",
+        "Gebäudeenergieausweis",
+        "Energieausweis",
+        "energy consumption",
+        "Energieverbrauch",
+        "mandatory",
+        "obligatorisch"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-730-0-45a-1",
+      "ref": "Art. 45a Abs. 1",
+      "heading": "Pflicht zur Nutzung der Sonnenenergie bei Gebäuden",
+      "heading_en": "Obligation to use solar energy on buildings",
+      "text": "Beim Bau neuer Gebäude mit einer anrechenbaren Gebäudefläche von mehr als 300 m² ist auf den Dächern oder an den Fassaden eine Solaranlage, beispielsweise eine Photovoltaik- oder eine Solarthermieanlage, zu erstellen. Die Kantone können diese Pflicht auch bei Gebäuden mit einer anrechenbaren Gebäudefläche von 300 m² oder weniger vorsehen.",
+      "text_en": "When constructing new buildings with a chargeable building area of more than 300 m², a solar installation, for example a photovoltaic or solar thermal installation, must be built on the roofs or facades. The cantons may also provide for this obligation for buildings with a chargeable building area of 300 m² or less.",
+      "summary_en": "New buildings above 300 m² of chargeable area must have a solar installation on the roof or facade, and cantons may extend this to smaller buildings.",
+      "keywords": [
+        "solar installation",
+        "Solaranlage",
+        "photovoltaic",
+        "Photovoltaik",
+        "solar thermal",
+        "Solarthermie",
+        "300 m2",
+        "chargeable building area",
+        "anrechenbare Gebäudefläche",
+        "roof",
+        "Dach",
+        "facade"
+      ],
+      "topics": [
+        "energy",
+        "structure"
+      ],
+      "limits": [
+        {
+          "what": "chargeable building area above which a solar installation is mandatory on new buildings",
+          "comparison": ">",
+          "value": 300,
+          "unit": "m2"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-730-0-45a-2",
+      "ref": "Art. 45a Abs. 2",
+      "heading": "Pflicht zur Nutzung der Sonnenenergie bei Gebäuden",
+      "heading_en": "Obligation to use solar energy on buildings",
+      "text": "Die Kantone regeln die Ausnahmen, insbesondere wenn das Erstellen einer Solaranlage:\na. anderen öffentlich-rechtlichen Vorschriften widerspricht;\nb. technisch nicht möglich ist; oder\nc. wirtschaftlich unverhältnismässig ist.",
+      "text_en": "The cantons regulate the exceptions, in particular where erecting a solar installation:\na. conflicts with other public-law provisions;\nb. is technically impossible; or\nc. is economically disproportionate.",
+      "summary_en": "Cantons define when the solar obligation does not apply: conflicting public-law rules, technical impossibility or disproportionate cost.",
+      "keywords": [
+        "exception",
+        "Ausnahme",
+        "solar installation",
+        "Solaranlage",
+        "technically impossible",
+        "technisch nicht möglich",
+        "disproportionate",
+        "unverhältnismässig"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-730-0-45a-3",
+      "ref": "Art. 45a Abs. 3",
+      "heading": "Pflicht zur Nutzung der Sonnenenergie bei Gebäuden",
+      "heading_en": "Obligation to use solar energy on buildings",
+      "text": "Bis zum Inkrafttreten der kantonalen Gesetzesbestimmungen zu den Ausnahmen regeln die Kantonsregierungen diese auf Verordnungsstufe.",
+      "text_en": "Until the cantonal legal provisions on the exceptions enter into force, the cantonal governments regulate these at ordinance level.",
+      "summary_en": "Until cantonal laws on solar exceptions take effect, the cantonal governments set them by ordinance.",
+      "keywords": [
+        "transitional",
+        "Übergang",
+        "cantonal government",
+        "Regierungsrat",
+        "ordinance",
+        "Verordnungsstufe",
+        "solar exception"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-730-0-45a-4",
+      "ref": "Art. 45a Abs. 4",
+      "heading": "Pflicht zur Nutzung der Sonnenenergie bei Gebäuden",
+      "heading_en": "Obligation to use solar energy on buildings",
+      "text": "Kantone, welche Anforderungen zur Eigenstromerzeugung bei Neubauten gemäss MuKEn 2014 Teil E oder weitergehend bis am 1. Januar 2023 eingeführt haben, sind von der Umsetzung der Absätze 1−3 befreit.",
+      "text_en": "Cantons that, by 1 January 2023, introduced requirements for on-site electricity generation in new buildings under MuKEn 2014 Part E or requirements going further are exempt from implementing paragraphs 1–3.",
+      "summary_en": "Cantons with their own on-site electricity rules for new buildings from MuKEn 2014 or stricter do not need to apply the federal solar obligation.",
+      "keywords": [
+        "exemption",
+        "Befreiung",
+        "MuKEn 2014",
+        "on-site electricity",
+        "Eigenstromerzeugung",
+        "own electricity",
+        "solar obligation",
+        "1 January 2023"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "ch-sr-730-0-45b-1",
+      "ref": "Art. 45b Abs. 1",
+      "heading": "Nutzung der Sonnenenergie bei Infrastrukturen des Bundes",
+      "heading_en": "Use of solar energy on federal infrastructure",
+      "text": "An den Infrastrukturen der Bundesverwaltung und der bundesnahen Betriebe sind geeignete Flächen solaraktiv auszurüsten. Infrastrukturoberflächen, die nicht genutzt werden, sind privaten Organisationen, Unternehmen oder Personen zur Nutzung zur Verfügung zu stellen.",
+      "text_en": "Suitable areas of the federal administration's infrastructure and of federally related enterprises must be fitted for solar use. Infrastructure surfaces that are not used must be made available to private organisations, companies or persons for use.",
+      "summary_en": "Federal infrastructure must be made solar-ready where suitable, and unused surfaces must be offered for solar use.",
+      "keywords": [
+        "federal infrastructure",
+        "Bundesinfrastruktur",
+        "solar-active",
+        "solaraktiv",
+        "roof",
+        "Dachfläche",
+        "unused surface",
+        "Infrastrukturfläche"
+      ],
+      "topics": [
+        "energy",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "ch-sr-730-0-45b-2",
+      "ref": "Art. 45b Abs. 2",
+      "heading": "Nutzung der Sonnenenergie bei Infrastrukturen des Bundes",
+      "heading_en": "Use of solar energy on federal infrastructure",
+      "text": "Der Bundesrat regelt die Ausnahmen, insbesondere wenn das Erstellen einer Solaranlage:\na. anderen öffentlich-rechtlichen Vorschriften widerspricht;\nb. technisch nicht möglich ist; oder\nc. wirtschaftlich unverhältnismässig ist.",
+      "text_en": "The Federal Council regulates the exceptions, in particular where erecting a solar installation:\na. conflicts with other public-law provisions;\nb. is technically impossible; or\nc. is economically disproportionate.",
+      "summary_en": "The Federal Council sets when federal infrastructure is exempt from the solar requirement: conflicting rules, technical impossibility or disproportionate cost.",
+      "keywords": [
+        "exception",
+        "Ausnahme",
+        "federal infrastructure",
+        "Bundesinfrastruktur",
+        "solar installation",
+        "technically impossible",
+        "disproportionate",
+        "unverhältnismässig"
+      ],
+      "topics": [
+        "energy"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

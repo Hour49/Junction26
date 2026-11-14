@@ -1,4 +1,4 @@
-"""The building-law knowledge base (decision 0011): the loader refuses a law file that breaks the
+"""The building-law knowledge base (decision 0014): the loader refuses a law file that breaks the
 format, naming the file; search finds clauses across case, accents and word endings, in one pack,
 and treats the query as words only; the tools and the prompt's table of contents. On the made-up
 laws of tests/fixtures/laws."""
@@ -202,6 +202,7 @@ def test_the_query_is_words_only(index: SqliteLawIndex, query: str) -> None:
 
 def test_match_query_quotes_every_word() -> None:
     assert match_query('NEAR("x" -y*) Fluchtweg') == '"NEAR"* OR "x"* OR "y"* OR "Fluchtweg"*'
+    assert match_query("room area", every=True) == '"room"* AND "area"*'
     assert match_query("  ") is None
 
 
@@ -306,3 +307,18 @@ def test_the_prompt_says_what_it_left_out_past_the_budget(tmp_path: Path) -> Non
     text = law_prompt(SqliteLawIndex(load_laws(tmp_path)), "fi")
     assert len(text) / 4 <= 1500
     assert "more laws" in text
+
+
+def test_a_clause_with_every_word_ranks_above_one_with_a_common_word(tmp_path: Path) -> None:
+    """A short clause sharing only "minimum" must not beat the one about bedroom area (fi-law,
+    board 17:12): every word first, then any word to fill the limit."""
+    law = fi_law()
+    short, full = law["clauses"]
+    short.update(summary_en="Minimum.", keywords=["minimum", "minimum value", "least"], text="X.",
+                 text_en="X.", heading=None, heading_en=None)  # fmt: skip
+    full.update(text_en="A " + "long " * 40 + "bedroom has a floor area of 7 m2 at minimum.")
+    filler = {**short, "summary_en": "Unrelated.", "keywords": ["a", "b", "c"]}
+    law["clauses"] += [{**filler, "id": f"fi-test-1-x-{n}"} for n in range(8)]  # BM25 needs IDF
+    write(tmp_path, "fi", "fi-test-1", law)
+    hits = SqliteLawIndex(load_laws(tmp_path)).search("fi", "bedroom minimum area", limit=2)
+    assert ids(hits) == ["fi-test-1-9-1", "fi-test-1-4-2"]

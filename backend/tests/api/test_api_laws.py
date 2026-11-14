@@ -1,4 +1,4 @@
-"""The building-law API (decision 0011, docs/API.md "Building law") on the made-up laws of
+"""The building-law API (decision 0014, docs/API.md "Building law") on the made-up laws of
 tests/fixtures/laws."""
 
 from pathlib import Path

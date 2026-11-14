@@ -1,4 +1,4 @@
-"""The building-law tools a model calls (decision 0011), in the OpenAI function-calling shape that
+"""The building-law tools a model calls (decision 0014), in the OpenAI function-calling shape that
 app/adapters/openvlm/client.py sends (`body["tools"] = TOOLS`), and the short table of contents a
 system prompt carries instead of the laws themselves.
 
