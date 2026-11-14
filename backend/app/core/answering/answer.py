@@ -26,7 +26,7 @@ from app.core.answering.ports import (
 from app.core.answering.tables import answer_table
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
-from app.core.pipeline.takeoff import known_quantities, room_names
+from app.core.pipeline.takeoff import known_quantities, normalised, room_names
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +206,9 @@ class RoomByType:
 
     The same for a room asked by a printed label or name the parser has no word for ("the area
     of the Reduit"), when the parser refuses the question as typed: when one room on the drawing
-    carries that name (3 letters or more, no digits), the question is read with it as the room's
-    name, and answers when that is an area (R2-2-3)."""
+    carries that name (3 letters or more, no digits; a 2-letter one only in the capitals it is
+    printed in, "the MH"), the question is read with it as the room's name, and answers when that
+    is an area (R2-2-3, R3-qa-1-1)."""
 
     def __init__(
         self, parser: QuestionParser, drawing: Drawing, quantities: Mapping[str, Quantity]
@@ -241,10 +242,19 @@ class RoomByType:
         found: dict[str, list[Room]] = {}
         at: dict[str, re.Match[str]] = {}
         for room in self._drawing.rooms:
-            for name in room_names(room):
-                if len(name) < 3 or any(char.isdigit() for char in name):
+            names = [(name, name, re.IGNORECASE) for name in room_names(room) if len(name) > 2]
+            # a 2-letter label (MH, OH) only as printed, in capitals: never a word ("of", "is")
+            if (
+                room.label
+                and len(room.label) == 2
+                and room.label.isalpha()
+                and room.label.isupper()
+            ):
+                names.append((normalised(room.label), room.label, re.NOFLAG))
+            for name, printed, flags in names:
+                if any(char.isdigit() for char in name):
                     continue
-                match = re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.IGNORECASE)
+                match = re.search(rf"(?<!\w){re.escape(printed)}(?!\w)", text, flags)
                 if match is not None:
                     found.setdefault(name, []).append(room)
                     at[name] = match
