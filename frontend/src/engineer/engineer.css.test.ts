@@ -57,3 +57,19 @@ it('EN-80 the place row and the file name share the row without covering each ot
   expect(rulesFor('.en-plan:has(> .en-place) .vw-name')).toMatch(/max-width:\s*50%/);
   expect(rulesFor('.en-place')).toMatch(/max-width:\s*calc\(50% - 32px\)/);
 });
+
+it('CH-37 the chat answer card: figure and side in two columns (1.4 : 1), one column at 900 px or less', () => {
+  expect(rulesFor('.en-chatcard')).toMatch(
+    /grid-template-columns:\s*minmax\(0,\s*1\.4fr\)\s*minmax\(0,\s*1fr\)/,
+  );
+  // the phone rule must come after the base rule, or the base wins (same specificity)
+  const base = css.search(/\.en-chatcard\s*\{[^}]*1\.4fr/);
+  const phone = css.slice(base);
+  expect(phone).toMatch(
+    /@media \(max-width: 900px\)[^@]*\.en-chatcard\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+  );
+});
+
+it('CH-38 the chat column is the demo 820 px (868 px with the 24 px gutters)', () => {
+  expect(rulesFor('.en-chat')).toMatch(/max-width:\s*868px/);
+});

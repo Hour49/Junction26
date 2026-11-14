@@ -132,7 +132,10 @@ it('CH-11 a chip asks the project; then the thread, the bar at the bottom, no ch
   expect(posts(api).map((c) => c.body)).toEqual([{ question: q }]);
   expect(screen.queryByRole('group', { name: 'Suggested questions' })).toBeNull();
   expect(document.querySelector('.en-chat--empty')).toBeNull();
+  // CH-36 takes the starters' place after the thread
+  const follow = await screen.findByRole('group', { name: 'Follow-up questions' });
   const thread = screen.getByRole('region', { name: 'Chat' });
+  expect(thread.compareDocumentPosition(follow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const form = screen.getByRole('textbox', { name: 'Question' }).closest('form') as HTMLFormElement;
   expect(thread.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
@@ -180,7 +183,7 @@ async function answered(question: string) {
 const line = (turn: HTMLElement, name: string) =>
   within(turn).getByText(name, { selector: '.en-part-name' }).closest('li') as HTMLElement;
 
-it('CH-4 one drawing answers: the total, the note, one line <name>: <value> with Show it on <name>; no plan', async () => {
+it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row with Show it on <name>, its reference', async () => {
   open(oneAnswers);
   const turn = await answered('How many doors are there?');
   expect((await within(turn).findByTestId('answer-value')).textContent).toBe('2');
@@ -189,8 +192,10 @@ it('CH-4 one drawing answers: the total, the note, one line <name>: <value> with
   expect(li.textContent).toContain(`${flatA.name}: 2`);
   const show = within(li).getByRole('link', { name: `Show it on ${flatA.name}` });
   expect(show.getAttribute('href')).toMatch(`#/p/${PID}/d/${flatA.drawing_id}/engineer?ask=`);
-  expect(within(turn).getAllByRole('listitem')).toHaveLength(1);
-  expect(turn.querySelector('figure, img')).toBeNull();
+  expect(
+    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
+  ).toHaveLength(1);
+  expect(within(turn).getByRole('figure', { name: 'Reference 1 of 1' })).toBeTruthy();
   expect(turn.textContent).not.toContain("I can't answer");
   expect(within(turn).queryByText(/^Sure/)).toBeNull();
 });
@@ -206,7 +211,9 @@ it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line 
       within(line(turn, p.name)).getByRole('link', { name: `Show it on ${p.name}` }),
     ).toBeTruthy();
   }
-  expect(within(turn).getAllByRole('listitem')).toHaveLength(2);
+  expect(
+    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
+  ).toHaveLength(2);
 });
 
 it('CH-13 the total in total_unit; the Sure badge only when total_sure', async () => {
@@ -310,4 +317,36 @@ it('CH-16 Show it on <name> opens that drawing asking this question; ?pack= is k
   await answered(q);
   const query = new URLSearchParams(href(flatB.name).split('?')[1]);
   expect([query.get('ask'), query.get('pack')]).toEqual([q, 'fi']);
+});
+
+it('CH-36 follow-ups after an answer: up to 3 unasked questions, a click asks; hidden after a refusal', async () => {
+  const q = 'How many doors are there?';
+  const api = open(oneAnswers);
+  await answered(q);
+  const group = await screen.findByRole('group', { name: 'Follow-up questions' });
+  const offered = within(group)
+    .getAllByRole('button')
+    .map((b) => b.textContent);
+  expect(offered.length).toBeGreaterThan(0);
+  expect(offered.length).toBeLessThanOrEqual(3);
+  expect(offered).not.toContain(q);
+  const next = offered[0] ?? '';
+  fireEvent.click(within(group).getByRole('button', { name: next }));
+  await screen.findByRole('article', { name: next });
+  expect(posts(api).map((c) => c.body)).toEqual([{ question: q }, { question: next }]);
+  cleanup();
+  open(noneAnswers);
+  const turn = await ask('What colour is the roof?');
+  await within(turn).findByText("I can't answer that from these drawings.");
+  expect(screen.queryByRole('group', { name: 'Follow-up questions' })).toBeNull();
+});
+
+it('CH-38 once the thread starts the project name is for screen readers only', async () => {
+  open(oneAnswers);
+  const h1 = await screen.findByRole('heading', { level: 1, name: project.name });
+  expect(h1.className).not.toContain('en-sr');
+  await answered('How many doors are there?');
+  expect(screen.getByRole('heading', { level: 1, name: project.name }).className).toContain(
+    'en-sr',
+  );
 });
