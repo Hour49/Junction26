@@ -312,7 +312,8 @@ def build_answering(settings: Settings) -> Answering:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
         confidence = partial(DecisionsConfidence, reader=reader)
         signal = DECISIONS_SIGNAL
-    scorers = _scorers(settings.local_gates)
+    # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
+    scorers = _scorers(settings.local_gates) if settings.check_policy else {}
     return Answering(
         parser=_parser(settings.question_parser),
         prior=_prior(settings.answer_prior),

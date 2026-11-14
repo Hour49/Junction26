@@ -147,8 +147,9 @@ def ask(
     (ingest's) gets a double-check request with the places `disputes` finds; a family whose
     threshold is on a local gate's signal is scored by `scorers` (LOCAL_GATES), by signal name
     (app/core/review/check.py). With `check` on, it alone sets `sure`, in place of `sure_at`'s:
-    true exactly when it certifies the answer, None on an answer it does not rate (a refusal),
-    so an answer is never shown sure and asked about at once."""
+    true exactly when it certifies the answer, None on every answer it does not rate (a
+    refusal, a question with no takeoff row), so an answer is never shown sure and asked about
+    at once."""
     quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)

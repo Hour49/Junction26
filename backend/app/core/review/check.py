@@ -181,8 +181,8 @@ def unlabelled_bedrooms(row: Row, drawing: Drawing) -> list[Room]:
 def held(row: Row, drawing: Drawing) -> str | None:
     """Why `row`'s answer is never certified, whatever its score, as the request's sentence: two
     methods disagree (a rule's pick included), it is an estimate, a person changed its marks
-    and has not signed off, or it counts bedrooms with no printed label. None: nothing holds
-    it."""
+    (signed off or not: once signed, `double_check` asks nothing, but the answer is still not
+    certified), or it counts bedrooms with no printed label. None: nothing holds it."""
     what = row.noun or row.label
     if row.conflict is not None:
         if row.first is None or row.second is None:
@@ -195,7 +195,8 @@ def held(row: Row, drawing: Drawing) -> str | None:
         )
     if row.estimate is not None:
         return f"Please double-check the {what}: it is an estimate ({row.estimate})."
-    if row.status == "edited":
+    if row.status == "edited" or row.value != row.original_value:
+        # the score rated the pipeline's value; a signed row hides its edit from `status`
         return f"Please double-check the {what}: edited by you: sign off to confirm."
     if unlabelled := unlabelled_bedrooms(row, drawing):
         some = "1 room is" if len(unlabelled) == 1 else f"{len(unlabelled)} rooms are"

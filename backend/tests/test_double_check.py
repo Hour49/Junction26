@@ -335,6 +335,10 @@ def test_local_gates_are_built_by_signal_name_and_a_name_twice_is_refused(
     assert build_answering(Settings()).check == CheckPolicy(  # nothing scores it
         thresholds={}, routes=frozenset({"bim"})
     )
+    # with CHECK_POLICY off, LOCAL_GATES is not read: a bad path can't stop a feature that is off
+    monkeypatch.delenv("CHECK_POLICY")
+    monkeypatch.setenv("LOCAL_GATES", str(tmp_path / "missing.json"))
+    assert build_answering(Settings()).scorers == {}
 
 
 @pytest.mark.parametrize(
@@ -444,6 +448,11 @@ def test_an_edited_value_is_not_certified_on_the_pipeline_s_score() -> None:
     assert found.row is not None and found.row.value == 1
     assert found.check is not None
     assert found.check.reason == "Please double-check the door: edited by you: sign off to confirm."
+    # signed off: nothing more to ask, but the person's 1 is still not what the score certified
+    sign = SignOff(by="Ana", at="2026-11-14T12:00:00Z", value=1)
+    signed = asked(score=0.95, state=ReviewState(rejected={"door": ("m1",)}, signed={"door": sign}))
+    assert signed.row is not None and (signed.row.value, signed.row.status) == (1, "signed")
+    assert signed.check is None and signed.answer.sure is False
 
 
 def test_a_mark_the_person_rejected_is_never_pointed_at() -> None:

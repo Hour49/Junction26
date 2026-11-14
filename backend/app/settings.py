@@ -119,7 +119,8 @@ class Settings(BaseSettings):
     # takeoff answer asks for a double-check (app/core/review/check.py); "" off
     check_policy: str = ""
     # local-dec's local gate models (local_gate_v1, comma separated): a check policy family whose
-    # threshold is on one of their signals is scored by it (app/core/review/check.py); "" none
+    # threshold is on one of their signals is scored by it (app/core/review/check.py); read only
+    # with CHECK_POLICY set; "" none
     local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")

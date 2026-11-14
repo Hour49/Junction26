@@ -3632,7 +3632,9 @@ for the dispute finders: a door count certified at threshold 0.8, the same count
 0.9 (`marks` trimmed to two):
 
 With `CHECK_POLICY` on, the answer's `sure` follows it instead of `GATE_POLICY`: true exactly when the answer is
-certified, false when it is not (whether or not a person has since settled or signed it off), null on a refusal.
+certified, false when it is not (whether or not a person has since settled or signed it off; a value a person
+edited is never certified, signed or not), null on an answer it does not rate (a refusal, a question with no
+takeoff row).
 So the screen never shows Sure next to a double-check request. The policy is fit on CubiCasa val read with
 `ROOM_POLICY=gold-labels`; under `furniture` (the demo) room counts are certified outside those conditions, except
 that a bedroom count including a bedroom with no printed label always asks (docs/GOLDEN.md, "The double-check
