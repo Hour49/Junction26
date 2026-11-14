@@ -1,0 +1,207 @@
+{
+ "recorded_at": "2026-11-14T18:35:51+02:00",
+ "commit": "5507571",
+ "dirty": false,
+ "name": "product demo C1-T1 Gemini (final labels, all 48)",
+ "note": "main 4d17627 backend with the demo config (tools/qa-env.sh config) and the real key, in three runs of the same code and config: the first 30 files (0.1525 USD plus a 3-file pilot, about 0.02), 4 second-batch plans (0.0333 USD), the other 14 second-batch files (0.0410 USD); think-local's frozen labels plus the 4 inbox sheets, 48 files, all predicted",
+ "labels_sha256": [
+  "85afa954f0ea3e10b4a27097c7b12bfbca747e649cfe5355b34f6054e559da06",
+  "bc348a74b471f5fe518ce1c83a081350c0526e1d6fab3e9755aa0dba654fba61",
+  "bdc64df1e42b48c77369fe67371565d11b32e86aeabd0d14dff75aa5414e7cb8"
+ ],
+ "report": {
+  "files": 48,
+  "predicted": 48,
+  "kind": {
+   "labelled": 48,
+   "said": 0,
+   "right": 0,
+   "rate": null
+  },
+  "plan": {
+   "tp": 23,
+   "fp": 25,
+   "fn": 0,
+   "tn": 0,
+   "not_said": 0,
+   "recall": 1.0,
+   "precision": 0.4791666666666667
+  },
+  "takeoff": {
+   "labelled": 48,
+   "said": 0,
+   "right": 0,
+   "rate": null
+  },
+  "advanced": {
+   "labelled": 48,
+   "said": 0,
+   "right": 0,
+   "rate": null
+  },
+  "families": {
+   "plan": {
+    "labelled": 23,
+    "asked": 23,
+    "hit": 12,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.5217391304347826
+   },
+   "door": {
+    "labelled": 23,
+    "asked": 19,
+    "hit": 7,
+    "refused": 0,
+    "cannot_tell": 4,
+    "hit_rate": 0.3684210526315789
+   },
+   "window": {
+    "labelled": 23,
+    "asked": 17,
+    "hit": 11,
+    "refused": 0,
+    "cannot_tell": 6,
+    "hit_rate": 0.6470588235294118
+   },
+   "toilet": {
+    "labelled": 23,
+    "asked": 22,
+    "hit": 12,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": 0.5454545454545454
+   },
+   "sink": {
+    "labelled": 23,
+    "asked": 20,
+    "hit": 11,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": 0.55
+   },
+   "shower+bathtub": {
+    "labelled": 21,
+    "asked": 19,
+    "hit": 12,
+    "refused": 0,
+    "cannot_tell": 2,
+    "hit_rate": 0.631578947368421
+   },
+   "sauna": {
+    "labelled": 21,
+    "asked": 21,
+    "hit": 20,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.9523809523809523
+   },
+   "room:bedroom": {
+    "labelled": 21,
+    "asked": 21,
+    "hit": 18,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.8571428571428571
+   },
+   "room:bathroom": {
+    "labelled": 20,
+    "asked": 20,
+    "hit": 15,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.75
+   },
+   "room:kitchen": {
+    "labelled": 17,
+    "asked": 16,
+    "hit": 14,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": 0.875
+   },
+   "room:wc": {
+    "labelled": 19,
+    "asked": 16,
+    "hit": 12,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": 0.75
+   },
+   "room:balcony": {
+    "labelled": 21,
+    "asked": 21,
+    "hit": 20,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": 0.9523809523809523
+   },
+   "room:cell": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:classroom": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:group room": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:office": {
+    "labelled": 2,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:store": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "rooms_total": {
+    "labelled": 11,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   }
+  },
+  "pooled": {
+   "labelled": 272,
+   "asked": 235,
+   "hit": 164,
+   "refused": 0,
+   "cannot_tell": 20,
+   "hit_rate": 0.6978723404255319
+  },
+  "scale": {
+   "ratio_labelled": 22,
+   "ratio_read": 0,
+   "ratio_exact": 0,
+   "px_labelled": 5,
+   "px_median": 0.0668374812998476,
+   "px_within_10": 3,
+   "px_within_20": 3
+  },
+  "non_plan_counts": 300
+ }
+}

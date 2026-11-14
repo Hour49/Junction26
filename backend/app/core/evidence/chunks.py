@@ -29,6 +29,21 @@ KIND_WORDS = {
     "music": "sheet music",
     "map": "map",
     "drawing": "drawing",
+    # sources v2 (decision 0012): the sheet kinds the ones above lack, in #251's words
+    "mep_plan": "piping, plumbing, ventilation or electrical plan",
+    "structural_plan": "structural plan (foundation, slab, framing or reinforcement)",
+    "roof_or_ceiling_plan": "roof plan or ceiling plan",
+    "schedule_or_text": "schedule, table or text sheet",
+    "not_a_drawing": "not a drawing",
+    # text and listed sources
+    "text_document": "text document",
+    "text_file": "text file",
+    "dwg": "DWG drawing, not converted",
+    "office": "office document",
+    "ifc": "building model (IFC)",
+    "archive": "archive, not unpacked",
+    "pdf_encrypted": "encrypted PDF",
+    "unknown": "file of unknown type",
 }
 
 

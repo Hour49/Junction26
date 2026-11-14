@@ -11,7 +11,13 @@ from typing import Any
 import pytest
 from PIL import Image, ImageDraw
 
-from app.adapters.carbon import CarbonClient, CarbonExtractor, CarbonReader, CarbonSwitch
+from app.adapters.carbon import (
+    CarbonClient,
+    CarbonExtractor,
+    CarbonReader,
+    CarbonSwitch,
+    CarbonThings,
+)
 from app.adapters.carbon import contract as c
 from app.adapters.pdf_tables import PdfTables
 from app.adapters.raster_scale import PriorScale
@@ -737,3 +743,132 @@ def test_when_the_page_call_works_but_nothing_is_countable_the_reason_is_the_fir
     assert found.read == ()
     assert found.notes[0].startswith("carbon: nothing could be counted on this sheet: ")
     assert "rooms not read" in found.notes[0]
+
+
+# --- CARBON_READER=large: only images over 4,000 px go to Carbon (live test of #254) -----------
+
+
+def image_bytes(width: int, height: int, fmt: str = "PNG") -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (width, height), "white").save(buffer, format=fmt)
+    return buffer.getvalue()
+
+
+def test_carbon_reader_large_sends_only_images_over_4000_px_to_carbon(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The live test sent CubiCasa colour pages to Carbon under `advanced`; by size they stay."""
+    data = tmp_path / "data"
+    data.mkdir()
+    sizes = {"big.png": (4200, 300), "tall.jpg": (200, 5000), "edge.png": (4000, 300),
+             "cubicasa.png": (1200, 850)}  # fmt: skip
+    for name, (w, h) in sizes.items():
+        (data / name).write_bytes(image_bytes(w, h, "JPEG" if name.endswith(".jpg") else "PNG"))
+    (data / "scan.pdf").write_bytes(b"%PDF-1.7\n")
+    settings = carbon_settings(monkeypatch, tmp_path, CARBON_READER="large")
+    pipeline = build_pipeline(settings, data)  # no sheet-kind step needed
+    read = pipeline.carbon_read
+    assert read is not None
+    assert [name for name in [*sizes, "scan.pdf"] if read(name)] == ["big.png", "tall.jpg"]
+    things = pipeline.extractors["raster"]._inner  # pyright: ignore[reportAttributeAccessIssue]
+    assert isinstance(things, CarbonThings)
+    use = things._use_carbon  # pyright: ignore[reportPrivateUsage]
+    assert use("big.png") and not use("cubicasa.png")
+    assert uses_keys(settings)
+    names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
+    assert names["carbon_reader"] == f"large:{c.READER_SHA[:12]}"
+
+
+def test_carbon_reader_large_flags_the_big_sheet_and_leaves_the_small_one_alone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import zipfile
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    monkeypatch.chdir(tmp_path)
+    tile = tile_form(("door", [100, 100, 200, 130]))
+    monkeypatch.setattr(
+        "app.composition.CarbonClient", lambda *a, **k: FakeCarbon(page_form(), [tile, tile])
+    )
+    values = {"EXTRACTOR_RASTER": "composite", "GEMINI_API_KEY": KEY, "CHECK_POLICY": str(CHECK),
+              "PROJECTS_DIR": str(tmp_path / "p"), "RASTER_COMPONENTS": "plans=one-plan",
+              "CARBON_READER": "large"}  # fmt: skip
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    settings = Settings()
+    app = TestClient(
+        create_app(settings, build_ingest(settings, settings.projects_dir, background=False))
+    )
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as zipped:
+        zipped.writestr("school.png", png_bytes(raster_plan().resize((4200, 2975))))
+        zipped.writestr("flat.png", png_bytes(raster_plan()))
+    project = app.post("/api/projects", params={"name": "site.zip"}, content=archive.getvalue())
+    status = app.get(f"/api/projects/{project.json()['id']}").json()
+    files = {file["path"]: file for file in status["files"]}
+    assert CARBON_FLAG in files["school.png"]["reason"]
+    assert CARBON_FLAG not in files["flat.png"]["reason"]
+    drawing = files["school.png"]["drawing_id"]
+    model = app.get(f"/api/drawings/{drawing}/model").json()
+    assert {e["attrs"]["reader"] for e in model["elements"]} == {c.SOURCE}
+    asked = app.post("/api/ask", json={"drawing_id": drawing, "project_id": status["id"],
+                                       "question": "How many doors are there?"}).json()  # fmt: skip
+    assert asked["check"] is not None and asked["level"]["level"] == "low"
+
+
+def test_on_a_large_page_carbon_gives_the_things_drawn_and_the_shipped_reader_the_rooms(
+    tmp_path: Path,
+) -> None:
+    """confidence, 2026-11-14, 6 hard plans over 4,000 px: Carbon wins on things drawn and
+    refuses rooms, so `large` takes each from the reader that reads it."""
+    from app.core.drawing.model import ArbiterReading, Element, Plan, ReaderView, Room, Scale
+
+    class Shipped:
+        def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+            door = Element(id="e1", class_="door", page=1, plan="p1", box=(0.1, 0.1, 0.2, 0.2))
+            room = Room(id="r1", type="kitchen", page=1, plan="p1", box=(0.6, 0.6, 0.8, 0.8))
+            return Extracted(
+                method="detector", scale=Scale(status="estimated", m_per_unit=0.01,
+                                               uncertainty=0.2),
+                plans=(Plan(id="p1", page=1, box=(0.0, 0.0, 1.0, 1.0)),),
+                elements=(door, door.model_copy(update={"id": "e2"})), rooms=(room,),
+                read=("door", "window", "room"),
+                double_check={"l1": ReaderView(read=("door",), elements=(door,))},
+                count_arbiter={"door": ArbiterReading(probs=(0.1, 0.9), p=0.9)},
+                notes=("raster composite: shipped",),
+            )  # fmt: skip
+
+    class Files:
+        def read(self, path: str) -> bytes:
+            return png_bytes(page_image(900, 700))
+
+    two_plans = page_form(plans=[{"name": "A", "box_2d": [0, 0, 1000, 500]},
+                                 {"name": "B", "box_2d": [0, 500, 1000, 1000]}])  # fmt: skip
+    tile = tile_form(("door", [100, 100, 200, 130]), ("toilet", [700, 700, 750, 750]),
+                     unreadable=("window",))  # fmt: skip
+    carbon = CarbonExtractor(Files(), CarbonReader(FakeCarbon(two_plans, [tile]), tmp_path))
+    source = DrawingFile(path="big.png", size=1, sha256="0" * 64, kind="png")
+    sheet = Sheet(file=source, pages=(Page(page=1, width=900, height=700, unit="px"),))
+    found = CarbonThings(Shipped(), carbon, lambda _: True).extract(source, sheet)
+    assert [p.id for p in found.plans] == ["p1", "p2"]  # Carbon's two plans
+    assert [(e.class_, e.attrs["reader"]) for e in found.elements] == [
+        ("door", c.SOURCE), ("toilet", c.SOURCE)]  # fmt: skip
+    assert [(r.type, r.plan) for r in found.rooms] == [("kitchen", "p2")]  # placed on Carbon's
+    assert found.read == (*(k for k in c.CLASSES if k != "window"), "room")
+    assert "window" not in (found.read or ())  # Carbon could not count it: not the shipped one
+    assert found.scale.status == "estimated"  # the shipped reader's, with its rooms
+    assert found.double_check is not None and found.double_check["l1"].elements[0].plan == "p1"
+    assert found.count_arbiter is None
+    assert found.notes[0].startswith("carbon: carbon:")
+    small = CarbonThings(Shipped(), carbon, lambda _: False).extract(source, sheet)
+    assert small == Shipped().extract(source, sheet)  # every other page: the shipped reader's
+
+    failed = CarbonExtractor(Files(), CarbonReader(FakeCarbon(RuntimeError("HTTP 503"), [tile]),
+                                                   tmp_path / "f"))  # fmt: skip
+    found = CarbonThings(Shipped(), failed, lambda _: True).extract(source, sheet)
+    assert found.read == ("room",) and found.elements == ()  # no element fallback
+    assert [p.id for p in found.plans] == ["p1"] and len(found.rooms) == 1
+    assert "carbon: no plan read: the plans are the shipped reader's" in found.notes
