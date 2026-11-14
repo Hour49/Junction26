@@ -14,6 +14,7 @@ import {
   type Proposal,
 } from './agent';
 import { LawSection } from './LawSection';
+import { useServiceTabs } from './multi/ServiceTabs';
 
 type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
@@ -137,9 +138,10 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
   }, [hot]);
   const [load, setLoad] = useState<PageLoad>({ state: 'loading' });
   const [after, setAfter] = useState(true);
+  const services = useServiceTabs(p, after); // a tab per discipline (services-follow.md)
   const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
   const box = useRef<HTMLDivElement>(null);
-  const extent = extentOf(p);
+  const extent = services?.focus ?? extentOf(p);
   const zoom = zoomFor(extent);
   // Centre the change in the plan box once the page frame has its size.
   useLayoutEffect(() => {
@@ -147,8 +149,8 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
     if (!el) return;
     el.scrollLeft = ((extent[0] + extent[2]) / 2) * el.scrollWidth - el.clientWidth / 2;
     el.scrollTop = ((extent[1] + extent[3]) / 2) * el.scrollHeight - el.clientHeight / 2;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once the page is ready
-  }, [load.state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once the page is ready, and when a tab changes the extent
+  }, [load.state, ...extent]);
   useEffect(() => {
     const abort = new AbortController();
     getDrawing(p.drawing_id, { project: projectId, signal: abort.signal }).then(
@@ -185,6 +187,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
           </pattern>
         </defs>
       </svg>
+      {services?.tabs}
       <div className="v-segmented ag-toggle" role="group" aria-label="Show the plan">
         <button
           type="button"
@@ -222,6 +225,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
             page={p.page}
           >
             {after && <Overlay p={p} hatch={hatch} />}
+            {services?.layer}
             {hot && (
               <svg
                 className="vw-overlay ag-overlay"
@@ -253,6 +257,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
           <Swatch kind="room" hatch={hatch} /> Changed room (hatched)
         </span>
       </figcaption>
+      {services?.panel}
     </figure>
   );
 }
