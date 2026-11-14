@@ -4,8 +4,9 @@
 //   node edit.cjs <app URL> <drawn PDF> <frames dir>
 //
 // PACK (rule pack, default "ch-zh"), BOX (the dragged box as page fractions "x0,y0,x1,y1", wider
-// than 0.031 or the chat takes it for a click on a room; the default sits in Stanza 1.06 of the
-// README's floor), ASK (default "Put a storage room here").
+// than 0.031 or the chat takes it for a click on a room; the default sits in Zimmer 1.02 of
+// make_plan.py's flat), ZOOM (clicks on Zoom in before the drag, default 1), ASK (default "Put a
+// storage room here").
 const { start, upload } = require('./lib.cjs');
 
 const [base, pdf, out] = process.argv.slice(2);
@@ -14,8 +15,9 @@ if (!base || !pdf || !out) {
   process.exit(2);
 }
 const pack = process.env.PACK ?? 'ch-zh';
-const [x0, y0, x1, y1] = (process.env.BOX ?? '0.615,0.412,0.652,0.493').split(',').map(Number);
+const [x0, y0, x1, y1] = (process.env.BOX ?? '0.4775,0.108,0.5548,0.285').split(',').map(Number);
 const message = process.env.ASK ?? 'Put a storage room here';
+const zoom = Number(process.env.ZOOM ?? 1);
 
 (async () => {
   const rec = await start({ out });
@@ -35,16 +37,18 @@ const message = process.env.ASK ?? 'Put a storage room here';
   await scroll.evaluate((s) => s.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   await rec.hold(1200);
   const zoomIn = region.getByRole('button', { name: 'Zoom in' });
-  await rec.click(zoomIn);
-  await rec.hold(500);
-  await rec.click(zoomIn);
+  for (let i = 0; i < zoom; i++) {
+    await rec.click(zoomIn);
+    await rec.hold(500);
+  }
   await scroll.evaluate(
-    (s) =>
+    (s, k) =>
       new Promise((done) => {
         const wait = () =>
-          s.scrollWidth > s.clientWidth * 3 ? done() : requestAnimationFrame(wait);
+          s.scrollWidth > s.clientWidth * k ? done() : requestAnimationFrame(wait);
         wait();
       }),
+    0.75 * 2 ** zoom,
   );
   await scroll.evaluate(
     (s, [x0, y0, x1, y1]) => {

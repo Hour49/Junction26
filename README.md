@@ -19,14 +19,15 @@
 </p>
 
 <p align="center">
-  <img src="docs/media/hero.gif" width="100%" alt="An image of a floor plan is uploaded and read. The question How many toilets are there gets the answer 2 with Medium confidence and two marks on the plan. The plan view then shows the mark the readers disagree on.">
+  <img src="docs/media/hero.gif" width="100%" alt="A scan of a house's first floor plan is uploaded and read. In the chat, the question How many toilets are there gets 1 toilet with High confidence, marked on the plan beside the chat. The follow-up And how many doors gets 19 doors with Low confidence and three disputed places. The plan view then zooms in on the marks and opens the first place the readers disagree on.">
 </p>
 
 <p align="center">
-  <sub>The real app on a local build of main: upload an image of a plan, ask, see the marks, open the place the
-  readers disagree on. The wait for the reading is shortened in the GIF (4.7 s here, 16.6 s the first time this image
-  was read).<br>
-  Plan: Swiss Dwellings v3.0.0, Archilyse AG, CC BY 4.0 (<a href="#credits-and-licences">full credit</a>).</sub>
+  <sub>The real app on a local production build (main at e57d23f): upload a scan, ask in the chat, see the marks on
+  the plan beside it, open a place the readers disagree on. The wait for the reading is shortened in the GIF
+  (3.9 s here, about 29 s the first time this scan was read).<br>
+  Plan: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain
+  (<a href="#credits-and-licences">full credit</a>).</sub>
 </p>
 
 Vellum is team Hour49's entry for the Stoa challenge at Junction 2026 (Espoo, 13 to 15 November 2026). Stoa asks
@@ -51,28 +52,29 @@ from.
 
 ## A look at the app
 
-Every picture below is the real app, run from a production build of main with the demo settings. All of them use
-one apartment floor from the Swiss Dwellings dataset, once as a drawn PDF and once as an image.
+Every picture below is the real app, run from a production build of main with the demo settings. They use two
+drawings: a scanned sheet from the Historic American Buildings Survey, and a three-room flat we drew ourselves as a
+vector PDF.
 
 ### An answer you can check
 
-The same floor, two kinds of file. From the drawn PDF the answer is High: on our reference drawings of that kind
-794 of 794 answers were exact.
+A drawn PDF and a scan are read in different ways. From the drawn PDF the answer is High: the reader works from
+the vectors, and on our reference drawings of that kind 794 of 794 answers were exact.
 
 <p align="center">
-  <img src="docs/media/answer-high.png" width="100%" alt="The question How many doors are there on the drawn PDF: 13 doors, High confidence, with 13 numbered marks on the plan and the references the answer came from.">
+  <img src="docs/media/answer-high.png" width="100%" alt="The question How many doors are there on the drawn PDF: 8 doors, High confidence, with 8 numbered marks on the plan and the references the answer came from.">
 </p>
-<p align="center"><sub>Plan: Swiss Dwellings v3.0.0, Archilyse AG, CC BY 4.0.</sub></p>
+<p align="center"><sub>Plan: our own sample flat, drawn by code.</sub></p>
 
-From an image of the same floor the toilets come out Medium, because one of the two second readers saw nothing at
-mark 2.
-The card names the mark and asks a person to look. Doors are harder on an image: here the image reader finds 11
-where the drawn PDF has 13, rates its own answer Low and asks for a check.
+A scan is harder. On this sheet from 1973 the image reader counts 19 doors and rates the answer Low. At three
+places one of the two second readers does not agree with it, so the card names each place and asks a person to
+look. The toilet count on the same sheet is High: a second reader, a Gemini model that reads the sheet on its own,
+counted the same.
 
 <p align="center">
-  <img src="docs/media/answer-check.png" width="100%" alt="The question How many toilets are there on the image: 2 toilets with a double-check request. Mark 2 was counted as a toilet, but one of the two other readers sees nothing there.">
+  <img src="docs/media/answer-check.png" width="100%" alt="The question How many doors are there on the scan: 19 doors with a double-check request for 3 of them. The plan is zoomed in with numbered marks on the doors. Mark 19 was counted as a door, but one of the two other readers sees nothing there.">
 </p>
-<p align="center"><sub>Plan: Swiss Dwellings v3.0.0, Archilyse AG, CC BY 4.0.</sub></p>
+<p align="center"><sub>Plan: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain.</sub></p>
 
 ### A refusal that says why
 
@@ -80,29 +82,29 @@ Sheet A101 of a real house project (OpeningDesign, CC BY-SA 4.0; the sheet itsel
 the PDF reader has no rules for, so nothing was read from it. Asked about it, Vellum says so.
 
 <p align="center">
-  <img src="docs/media/refusal.png" width="88%" alt="Two questions about a sheet that could not be read. How many doors are there: I don't know, nothing was read from this sheet. Remove the wall between the kitchen and the hall: I don't know, I can't edit this plan, the rooms on this page have no outlines.">
+  <img src="docs/media/refusal.png" width="88%" alt="Two questions about a sheet that could not be read. How many doors are there: I don't know, none of the drawings could provide a door count because their reader found no elements or rooms on the sheets. Remove the wall between the kitchen and the hall: I don't know, I cannot propose removing that wall because the rooms on the sheet have no outlines.">
 </p>
 
 ### The agent chat: edit the plan, check the rules
 
 The chat is an agent that calls the same tools the app uses. It picks walls and rooms by id and never writes a
 coordinate or a number itself: geometry code works out the new outline and the areas. With a key the tools are
-driven by a Gemini model; the pictures here use the planner that needs no key, where keyword rules choose the
-tools. Here a box is dragged over
-part of a bedroom and the agent is asked for a storage room. The bedroom drops from 10.98 to 6.84 m², which would
-not meet the Canton of Zürich's 10 m² minimum, and the card says so and quotes the clause.
+driven by a Gemini model, as in these pictures; without one, keyword rules choose the tools. On a wide screen the
+plan sits beside the chat and follows each answer. Here a box is dragged over part of a bedroom and the agent is
+asked for a storage room. The bedroom drops from 12.00 to 8.76 m², which would not meet the Canton of Zürich's
+10 m² minimum, and the card says so and quotes the clause.
 
 <p align="center">
-  <img src="docs/media/agent-edit.gif" width="100%" alt="In the chat, a box is dragged on the plan inside the room Stanza 1.06 and the agent is asked to put a storage room there. The edit card shows the plan before and after, the changed areas, and the row Would not meet for the Canton of Zürich's minimum room area, with the clause in German and English.">
+  <img src="docs/media/agent-edit.gif" width="100%" alt="In the chat, a box is dragged on the plan inside the room Zimmer 1.02 and the agent is asked to put a storage room there. The edit card shows the plan before and after, the changed areas, and the row Would not meet for the Canton of Zürich's minimum room area, with the clause in German and English.">
 </p>
-<p align="center"><sub>Plan: Swiss Dwellings v3.0.0, Archilyse AG, CC BY 4.0.</sub></p>
+<p align="center"><sub>Plan: our own sample flat, drawn by code.</sub></p>
 
 An edit is a proposal: the drawing file is not changed, and a person accepts or rejects it. What the drawing does
 not say stays unknown, such as whether a wall carries load. Each turn lists the steps the agent took. The rule
 check covers a few rules and is not a permit check.
 
 <p align="center">
-  <img src="docs/media/agent-steps.png" width="88%" alt="The end of an edit card for a removed wall. Not known: whether wall W2 is load-bearing, this drawing does not say. Before building: a structural engineer has to confirm it. Accept and Reject buttons, then the agent's three steps.">
+  <img src="docs/media/agent-steps.png" width="88%" alt="The end of an edit card for a removed wall. Not known: whether wall W1 is load-bearing, this drawing does not say. Before building: a structural engineer has to confirm it. Accept and Reject buttons, then the agent's three steps.">
 </p>
 
 ### Sign-off, and on a phone
@@ -112,16 +114,16 @@ A surveyor gets every quantity of a drawing as a table to review, sign off and e
 <p align="center">
   <img src="docs/media/takeoff.png" width="100%" alt="The surveyor's view: the plan with numbered door marks beside the takeoff table of door, window, toilet, sink and room counts, with a sign-off count and Export CSV.">
 </p>
-<p align="center"><sub>Plan: Swiss Dwellings v3.0.0, Archilyse AG, CC BY 4.0.</sub></p>
+<p align="center"><sub>Plan: our own sample flat, drawn by code.</sub></p>
 
 The same screens at phone width:
 
 <p align="center">
   <img src="docs/media/phone-home.png" width="31%" alt="The start page on a phone: drop a drawing or a zip, or try the sample project.">&nbsp;
-  <img src="docs/media/phone-answer.png" width="31%" alt="A chat answer on a phone: 2 toilets, Medium confidence, with the marked plan.">&nbsp;
+  <img src="docs/media/phone-answer.png" width="31%" alt="A chat answer on a phone: 1 toilet, High confidence, with the marked plan.">&nbsp;
   <img src="docs/media/phone-rules.png" width="31%" alt="An edit card on a phone: the building rules of the Canton of Zürich, two rules met, each with its clause.">
 </p>
-<p align="center"><sub>Plan: Swiss Dwellings v3.0.0, Archilyse AG, CC BY 4.0.</sub></p>
+<p align="center"><sub>Plans: Isaac Franklin House, Historic American Buildings Survey, Library of Congress, public domain; our own sample flat.</sub></p>
 
 ## How it works
 
@@ -267,19 +269,25 @@ How it works: [docs/TEAM-AGENTS.md](docs/TEAM-AGENTS.md).
 
 The code is MIT licensed, see [LICENSE](LICENSE).
 
-The plan in the pictures is one apartment floor from Swiss Dwellings v3.0.0 by Matthias Standfest, Michael Franzen,
-Yvonne Schröder, Luis Gonzalez Medina, Yarilo Villanueva Hernandez, Jan Hendrik Buck, Yen-Ling Tan, Milena
-Niedzwiecka and Rachele Colmegna (Archilyse AG), [doi:10.5281/zenodo.7788422](https://doi.org/10.5281/zenodo.7788422),
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The drawing was rendered from the dataset's geometry for
-the Junction construction drawings dataset, with labels, language and numbering added. Our screenshots add the
-app's marks and overlays, and this credit applies to every picture in `docs/media/` that shows the plan.
+The scan in the pictures is sheet 2 of 6 of the Historic American Buildings Survey record of the Isaac Franklin
+House, U.S. Route 25 East, White Pine, Jefferson County, Tennessee (HABS TENN,45-WHIP,1-), drawn by Stephen Fildes
+in 1973. Credit: Historic American Buildings Survey, National Park Service; Library of Congress, Prints and
+Photographs Division, [the sheet's page](https://www.loc.gov/pictures/item/tn0085.sheet.00002a/). HABS drawings are
+in the public domain, and the credit is a courtesy. We took the Library's scan and scaled it down to 3000 pixels
+wide. Our screenshots add the app's marks and overlays.
+
+The drawn plan in the pictures is our own: a three-room flat that
+[tools/readme-media/make_plan.py](tools/readme-media/make_plan.py) draws as a vector PDF, in the drawing conventions
+the vector reader has rules for. It is under this repo's MIT licence.
 
 The house sheet in the refusal example comes from the public repositories of
 [OpeningDesign](https://github.com/OpeningDesign/New_2nd_Story), Madison, Wisconsin, and the project team named in
 each title block, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). No picture here shows it.
 
-Stoa's dataset is partner data for the challenge. None of it is in this repo, and the scripts that fetch it keep
-it in a gitignored folder.
+Stoa's dataset is partner data for the challenge. None of it is in this repo or in a picture here, and the scripts
+that fetch it keep it in a gitignored folder. Its drawn Swiss plans, which the vector reader's rules were fitted on,
+come from Swiss Dwellings v3.0.0 (Archilyse AG, [doi:10.5281/zenodo.7788422](https://doi.org/10.5281/zenodo.7788422),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
 
 The detectors were trained on CubiCasa5K (CC BY-NC-SA 4.0), on development-split images only. The trained weights
 stay on our machines and are not published ([decision 0003](docs/decisions/0003-training-data.md)). ifcopenshell

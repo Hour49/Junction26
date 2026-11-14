@@ -1,25 +1,27 @@
 // The README's still pictures, desktop at 2x and phone at 390 px.
 //
-//   node stills.cjs <app URL> <out dir> <image of the plan> <drawn PDF of the same plan> <unread sheets>
+//   node stills.cjs <app URL> <out dir> <scan of a plan> <drawn PDF> <unread sheets>
 //
 // <unread sheets> is a PDF or zip the readers get nothing from (the refusal example). The questions
-// below fit the README's floor (Swiss Dwellings site980_bldg2055_floor9178); change them with the
-// drawing. Look at every picture before it goes into docs/media/.
+// and places below fit the README's drawings: the HABS sheet of the Isaac Franklin House as the
+// scan and make_plan.py's flat as the drawn PDF; change them with the drawings. Look at every
+// picture before it goes into docs/media/.
 const fs = require('node:fs');
 const { chromium } = require('playwright');
 const { upload, pan, zoomed } = require('./lib.cjs');
 
 const [base, out, image, pdf, unread] = process.argv.slice(2);
 if (!base || !out || !image || !pdf || !unread) {
-  console.error('usage: node stills.cjs <app URL> <out dir> <image> <drawn PDF> <unread sheets>');
+  console.error('usage: node stills.cjs <app URL> <out dir> <scan> <drawn PDF> <unread sheets>');
   process.exit(2);
 }
 const HIGH = 'How many doors are there?'; // on the drawn PDF
-const CHECK = { ask: 'How many toilets are there?', mark: 'Mark 2' }; // on the image
+// on the scan: a count with a double-check request, the mark to open, where the plan sits on the sheet
+const CHECK = { ask: 'How many doors are there?', mark: 'Mark 19', at: [0.5, 0.5] };
+const PHONE = 'How many toilets are there?'; // on the scan, in the chat at phone width
 const REFUSED = ['How many doors are there?', 'Remove the wall between the kitchen and the hall'];
-const EDIT = 'Remove the wall between Bagno 1.01 and Stanza 1.02';
+const EDIT = 'Remove the wall between Zimmer 1.01 and Zimmer 1.02';
 const PACK = 'ch-zh';
-const PLAN_AT = [0.5, 0.42]; // where the plan sits on its sheet, as page fractions
 
 (async () => {
   fs.mkdirSync(out, { recursive: true });
@@ -44,15 +46,19 @@ const PLAN_AT = [0.5, 0.42]; // where the plan sits on its sheet, as page fracti
     await page.locator('.ag-card').nth(n).waitFor({ timeout: 120_000 });
     await page.waitForTimeout(1500);
   };
-  const engineer = async (project, question) => {
+  // the answer view of a drawing; with `zoomAt` the plan is zoomed in once on that place
+  const engineer = async (project, question, zoomAt) => {
     const at = `${base}/#/p/${project.id}/d/${project.drawings[0]}`;
     await p.goto(`${at}/engineer?ask=${encodeURIComponent(question)}`);
     await p.reload();
-    await p.getByRole('button', { name: 'Zoom in' }).first().waitFor();
+    const zoomIn = p.getByRole('button', { name: 'Zoom in' }).first();
+    await zoomIn.waitFor();
     await p.waitForTimeout(1500);
-    await p.getByRole('button', { name: 'Zoom in' }).first().click();
-    await zoomed(p);
-    await pan(p, ...PLAN_AT, { dy: 60 });
+    if (zoomAt) {
+      await zoomIn.click();
+      await zoomed(p);
+      await pan(p, ...zoomAt);
+    }
     return at;
   };
 
@@ -60,9 +66,13 @@ const PLAN_AT = [0.5, 0.42]; // where the plan sits on its sheet, as page fracti
   const drawnAt = await engineer(drawn, HIGH);
   await p.waitForTimeout(1500);
   await shot(p, 'answer-high');
-  // the same floor as an image: a double-check request that names the mark
-  await engineer(img, CHECK.ask);
+  // a scan: a double-check request that names the mark; the page is scrolled past the flag banner
+  await engineer(img, CHECK.ask, CHECK.at);
   await p.getByText(CHECK.mark, { exact: true }).click();
+  await p
+    .getByRole('button', { name: 'Zoom in' })
+    .first()
+    .evaluate((el) => window.scrollBy(0, el.getBoundingClientRect().top - 150));
   await p.waitForTimeout(1500);
   await shot(p, 'answer-check');
   // the surveyor's takeoff table
@@ -116,7 +126,7 @@ const PLAN_AT = [0.5, 0.42]; // where the plan sits on its sheet, as page fracti
   await m.waitForTimeout(1000);
   await shot(m, 'phone-home');
   await chat(m, img.id);
-  await ask(m, CHECK.ask, 0);
+  await ask(m, PHONE, 0);
   await shot(m, 'phone-answer');
   await chat(m, drawn.id, `?pack=${PACK}`);
   await ask(m, EDIT, 0);
