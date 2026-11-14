@@ -57,7 +57,8 @@ test('Stoa mode has one drawing, the demo conflicts its key supports, and rooms 
   const V = load();
   assert.equal(V.DRAWINGS.length, 1);
   assert.equal(V.CONFLICTS.length, 1);  // doors only: the fixture has no apartment A area or washbasin count
-  assert.equal(V.askProject('How many doors are there?', { c1: 1 }).total, 11);  // the picked variant wins
+  assert.equal(V.askProject('How many doors are there?', { c1: 0 }).total, 12);  // the picked variant wins
+  assert.equal(V.askProject('How many doors are there?', { c1: 1 }).total, 10);
   assert.equal(V.extractFacts().rooms.length, 2);
   assert.equal(V.extractFacts().doors, 12);
   assert.ok(V.CREDIT.includes('CC-BY-4.0'));
