@@ -213,6 +213,19 @@ class Mark(Frozen):
     box: Box
 
 
+class ReaderView(Frozen):
+    """What one double-check reader saw on the sheet (DOUBLE_CHECK_READERS). None of it is
+    counted: it is set against the counted marks to find the places a person should look at
+    again (app/core/pipeline/disputed_marks.py)."""
+
+    read: tuple[ElementClass, ...]  # the classes it looked for; of another it says nothing
+    elements: tuple[Element, ...] = ()
+
+
+def _absent(value: object) -> bool:
+    return value is None
+
+
 class Drawing(Frozen):
     file: str  # the path as the dataset's questions.jsonl gives it
     pages: tuple[Page, ...]  # none only for a model file, which has objects and no page
@@ -233,6 +246,9 @@ class Drawing(Frozen):
     # None: the drawing has no model. Sums over a storey and counts "in the model" read this;
     # what the sheet shows is `elements` and `rooms`.
     model_objects: tuple[ModelObject, ...] | None = None
+    # What each double-check reader saw, by the reader's name. None: none ran, and then no dump
+    # has the field, so a drawing without readers is written exactly as before there were any.
+    double_check: dict[str, ReaderView] | None = Field(default=None, exclude_if=_absent)
     notes: tuple[str, ...] = ()
 
     @model_validator(mode="after")

@@ -15,6 +15,7 @@ from app.core.drawing.model import (
     Page,
     Plan,
     ReadClass,
+    ReaderView,
     Resolution,
     Room,
     Scale,
@@ -89,6 +90,8 @@ class Extracted(Frozen):
     tables: tuple[Table, ...] | None = None
     read: tuple[ReadClass, ...] | None = None  # what it looked for; None: every class and rooms
     model_objects: tuple[ModelObject, ...] | None = None  # the model's objects; None: no model
+    # what each double-check reader saw, by its name, never counted; None: none ran
+    double_check: dict[str, ReaderView] | None = None
     notes: tuple[str, ...] = ()
 
 

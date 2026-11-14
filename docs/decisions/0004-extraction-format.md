@@ -125,3 +125,23 @@ no scale of such a file, since it has no image. Part 1 scoring doesn't change: e
 
 Alternative rejected: a nullable `Element.box`. It would change the Part 1 scorer and every consumer that assumes a
 box, and it would mix "drawn on this sheet" with "in the model".
+
+## Amendment, 2026-11-14 11:45: `double_check`
+
+- Decided by: the orchestrator (think-local-readers brief, 11:35: "store each reader's elements on the drawing in
+  a side field that the answer layer can read"); written by agent think-local (worker).
+
+An answer that is not sure keeps its value and asks for a second look at the places where other readers disagree
+with it (`backend/app/core/pipeline/disputed_marks.py`). Those readers run at ingest, and the answer is made later
+from the stored drawing, so the drawing has to carry what they saw. An extraction may now have the optional
+`double_check`: per reader name, `read` (the element classes that reader looked for) and `elements` (what it saw,
+the same shape as `elements`, with ids that are unique inside the reader's list only). Nothing in it is counted or
+scored: counts, the takeoff and Part 1 read `elements` and `rooms` as before. A reader that did not look for a
+class says nothing about it, which is why `read` is kept per reader. Null (left out) means no reader ran: every
+gold file, and every prediction made without `DOUBLE_CHECK_READERS`.
+
+The backend never writes the field when it is null, in any dump of a drawing, so files written without the setting
+are byte for byte what they were.
+
+Alternative rejected: a file next to the drawing. The project store, the CLI's extraction folder and the API would
+each need a second read and write path for one optional list.
