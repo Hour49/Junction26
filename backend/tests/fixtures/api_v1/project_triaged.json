@@ -142,6 +142,7 @@
           "judge": "word judge"
         },
         "overruled": null,
+        "read_as_plan": null,
         "verdict": "related",
         "note": null
       }
@@ -188,6 +189,7 @@
           "by": "Ana",
           "at": "2026-11-14T08:05:00Z"
         },
+        "read_as_plan": null,
         "verdict": "related",
         "note": null
       }
@@ -217,6 +219,7 @@
         "description": null,
         "relevance": null,
         "overruled": null,
+        "read_as_plan": null,
         "verdict": null,
         "note": "not described: the model refused"
       }

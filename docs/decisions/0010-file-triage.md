@@ -203,9 +203,19 @@ Overrule = { verdict: "related" | "unrelated", by: str, at: str }   # a person's
   `FileStatus`. `no-description` is a new code because the frontend's `ErrorBody.code` is a plain `string`, not
   a closed union (`frontend/src/api/errors.ts`; #152 item 3).
 - No new trace stage: triage is in the `identify` stage's line, and `Stage` is unchanged (#152 item 5).
-- Reserved (#152 item 12): `POST /api/projects/{project_id}/files/{file_id}/triage` `{class: "floor_plan", by}`
-  reads a file triage set aside as a floor plan and returns its `FileStatus`. A separate route; not built in this
-  version (amendment 2 below).
+- Read it as a floor plan (#152 item 12, shape posted on #152 c6876693460, built 2026-11-14):
+  `POST /api/projects/{project_id}/files/{file_id}/triage` `{class: "floor_plan", by}` -> 202 with the file's
+  `FileStatus` (`queued`). The ingest service rebuilds the finished project's live record (`Run.resumed`) and
+  reads that one file in the background through the usual group, route and readers; the project stays `done`.
+  - `Triage.read_as_plan: {by, at} | null` records the call; `class` stays the classifier's. The file leaves
+    `not_plans` (a class call; orchestrator, 2026-11-14), gets a `drawing_id` and is in `drawings`.
+  - Its `unrelated_file` issue stays, `settled`, same id, with "<by> had it read as a floor plan" in `why`; the
+    new drawing's own issues join the list and the others keep their order.
+  - 404 unknown file; 409 `not-allowed` until done, while a re-read runs, or for a file already read this way; 422
+    `not-triaged` for a file triage did not set aside (a new code); 422 `validation` for another `class`.
+  - No undo: a reading is not unread. A relevance call still works.
+  - A re-read cut off by a restart: the file is set aside at startup ("not read as a floor plan: the server
+    restarted during ingest") and the project stays done.
 - `openapi-v1.json` is regenerated. Fixtures are appended last: `project_triaged.json` (a project with a
   triaged file, made with the fakes) and `relevance_request.json`. Existing fixtures stay byte-identical: with
   triage off, `triage` and `not_plans` are left out of the JSON (`exclude_if` None, as `Drawing.double_check`
@@ -294,8 +304,8 @@ Orchestrator, 2026-11-14 13:11 (GO for Part B):
 1. The date is fixed (written 13:09). Board thread #152.
 2. Class overrule ("read it as a floor plan"): at 99% plan recall about 1 in 100 real plans is set aside with no
    way back. Assess re-reading one file inside a finished project; build `POST …/files/{file_id}/triage
-   {class: "floor_plan", by}` if it fits in about 2 hours, after its shape is posted to #152. The route is reserved
-   above; the assessment is in tables-fix's Part B report.
+   {class: "floor_plan", by}` if it fits in about 2 hours, after its shape is posted to #152. Assessed as fitting,
+   posted on #152 (c6876693460) and built (section 5).
 3. Default `off` everywhere; DEMO_ENV turns triage on only after eu-big's classifier passes its gate.
 4. Triage is per file entry, robust to the coming multi-page PDF entries.
 

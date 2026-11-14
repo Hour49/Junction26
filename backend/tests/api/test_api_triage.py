@@ -251,3 +251,52 @@ def test_the_rules_classifier_triages_what_ingest_set_aside_anyway_at_no_cost(
         issue for issue in issues(client, found["id"]) if issue["file"] == "photos/site.jpg"
     ]
     assert (issue["kind"], issue["severity"], issue["reason"]) == ("unrelated_file", "note", None)
+
+
+def read_as_plan(client: TestClient, found: dict[str, Any], path: str, body: Any = None) -> Any:
+    url = f"/api/projects/{found['id']}/files/{file_id(found, path)}/triage"
+    return client.post(url, json=body or {"class": "floor_plan", "by": "Ana"})
+
+
+def test_a_file_read_as_a_plan_gets_a_drawing_leaves_not_plans_and_its_issue_settles_in_place(
+    triaged: TestClient,
+) -> None:
+    found = site(triaged)
+    before = issues(triaged, found["id"])
+    reply = read_as_plan(triaged, found, "score.png")
+    assert reply.status_code == 202, reply.text
+    assert reply.json()["state"] == "queued"
+    assert reply.json()["triage"]["read_as_plan"]["by"] == "Ana"
+    after = triaged.get(f"/api/projects/{found['id']}").json()
+    score = next(file for file in after["files"] if file["path"] == "score.png")
+    assert after["state"] == "done" and score["drawing_id"] is not None
+    assert score["triage"]["class"] == "other_drawing"  # the classifier's call stays
+    assert score["drawing_id"] in {drawing["drawing_id"] for drawing in after["drawings"]}
+    assert (found["not_plans"], after["not_plans"]) == (3, 2)
+    listed = issues(triaged, found["id"])
+    # the reading adds the new drawing's own issues; the ones before keep their order
+    kept = [issue["id"] for issue in listed if issue["id"] in {seen["id"] for seen in before}]
+    assert kept == [issue["id"] for issue in before]
+    issue = next(
+        issue
+        for issue in listed
+        if issue["file"] == "score.png" and issue["kind"] == "unrelated_file"
+    )
+    assert (issue["state"], issue["drawing_id"]) == ("settled", None)
+    assert issue["why"].endswith("Ana had it read as a floor plan.")
+    assert call(triaged, after, "score.png", {"verdict": "related", "by": "Ana"}).status_code == 200
+    again = read_as_plan(triaged, after, "score.png")
+    assert (again.status_code, again.json()["code"]) == (409, "not-allowed")
+
+
+def test_reading_as_a_plan_refuses_a_file_triage_did_not_set_aside_and_a_body_outside_the_shape(
+    triaged: TestClient,
+) -> None:
+    found = site(triaged)
+    reply = read_as_plan(triaged, found, "plan.pdf")
+    assert (reply.status_code, reply.json()["code"]) == (422, "not-triaged")
+    for body in ({"class": "other_drawing", "by": "Ana"}, {"class": "floor_plan"}, {"by": "Ana"}):
+        reply = read_as_plan(triaged, found, "score.png", body)
+        assert (reply.status_code, reply.json()["code"]) == (422, "validation")
+    url = f"/api/projects/{found['id']}/files/f99/triage"
+    assert triaged.post(url, json={"class": "floor_plan", "by": "Ana"}).status_code == 404
