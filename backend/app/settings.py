@@ -165,6 +165,9 @@ class Settings(BaseSettings):
     # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
     # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
     rule_packs_dir: Path = Path(__file__).parent / "rules"
+    # The building-law knowledge base, <pack>/<law id>.json (decision 0014); the AI searches it.
+    # A law file that does not validate stops start, naming the file
+    laws_dir: Path = Path(__file__).parent / "laws"
     # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
     # aside, described and judged against the project. The describer and judge run only with a
     # classifier on (TRIAGE_CLASSIFIER, or SHEET_KIND below).

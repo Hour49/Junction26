@@ -1,0 +1,28 @@
+{
+  "id": "ch-zh-test-1",
+  "pack": "ch-zh",
+  "jurisdiction": "CH-ZH",
+  "number": "700.99",
+  "title": "Testverordnung über Gebäude",
+  "title_en": "Test ordinance on buildings",
+  "url": "https://www.zh.ch/de/test.html",
+  "language": "de",
+  "in_force": null,
+  "checked": "2026-11-14",
+  "status_note": null,
+  "clauses": [
+    {
+      "id": "ch-zh-test-1-12-1",
+      "ref": "§ 12 Abs. 1",
+      "heading": "Fluchtwege",
+      "heading_en": "Escape routes",
+      "text": "Fluchtwege in Gebäuden müssen jederzeit benützbar sein.",
+      "text_en": "Escape routes in buildings must be usable at all times.",
+      "summary_en": "Escape routes in a building are kept free and usable at all times.",
+      "keywords": ["escape route", "corridor", "Fluchtweg", "Korridor"],
+      "topics": ["escape-routes"],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

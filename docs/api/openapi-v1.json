@@ -965,6 +965,190 @@
         "title": "Clause",
         "type": "object"
       },
+      "ClauseView": {
+        "additionalProperties": false,
+        "description": "A clause with what citing it needs from its law.",
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "string"
+          },
+          "drawing_checkable": {
+            "title": "Drawing Checkable",
+            "type": "boolean"
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "heading_en": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading En"
+          },
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "keywords": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 3,
+            "title": "Keywords",
+            "type": "array"
+          },
+          "language": {
+            "enum": [
+              "fi",
+              "sv",
+              "de",
+              "fr",
+              "it",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "law_id": {
+            "title": "Law Id",
+            "type": "string"
+          },
+          "law_number": {
+            "title": "Law Number",
+            "type": "string"
+          },
+          "law_title": {
+            "title": "Law Title",
+            "type": "string"
+          },
+          "law_title_en": {
+            "title": "Law Title En",
+            "type": "string"
+          },
+          "limits": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Limit"
+            },
+            "title": "Limits",
+            "type": "array"
+          },
+          "ref": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Ref",
+            "type": "string"
+          },
+          "status_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Note"
+          },
+          "summary_en": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary En",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text",
+            "type": "string"
+          },
+          "text_en": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text En"
+          },
+          "topics": {
+            "items": {
+              "enum": [
+                "rooms",
+                "accessibility",
+                "fire",
+                "escape-routes",
+                "stairs-railings",
+                "doors-windows",
+                "ventilation",
+                "energy",
+                "sound",
+                "moisture",
+                "structure",
+                "daylight",
+                "parking",
+                "outdoor",
+                "distances-heights",
+                "permits-procedure",
+                "general"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Topics",
+            "type": "array"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ref",
+          "text",
+          "summary_en",
+          "keywords",
+          "topics",
+          "drawing_checkable",
+          "law_id",
+          "law_number",
+          "law_title",
+          "law_title_en",
+          "url",
+          "language",
+          "checked",
+          "status_note"
+        ],
+        "title": "ClauseView",
+        "type": "object"
+      },
       "ConflictEntry": {
         "additionalProperties": false,
         "properties": {
@@ -2788,6 +2972,72 @@
         "title": "IssueLinks",
         "type": "object"
       },
+      "LawPack": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "laws": {
+            "items": {
+              "$ref": "#/components/schemas/TocEntry"
+            },
+            "title": "Laws",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "laws"
+        ],
+        "title": "LawPack",
+        "type": "object"
+      },
+      "LawPacks": {
+        "additionalProperties": false,
+        "properties": {
+          "packs": {
+            "items": {
+              "$ref": "#/components/schemas/LawPack"
+            },
+            "title": "Packs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "packs"
+        ],
+        "title": "LawPacks",
+        "type": "object"
+      },
+      "LawSearch": {
+        "additionalProperties": false,
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "pack": {
+            "title": "Pack",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pack",
+          "query",
+          "hits"
+        ],
+        "title": "LawSearch",
+        "type": "object"
+      },
       "Level": {
         "additionalProperties": false,
         "description": "How far to trust an answer: one of three levels, what it rests on, and one plain sentence\nwith the measured counts behind it.",
@@ -2824,6 +3074,47 @@
           "text"
         ],
         "title": "Level",
+        "type": "object"
+      },
+      "Limit": {
+        "additionalProperties": false,
+        "description": "A number a drawing could be checked against: \"habitable room area >= 7 m2\".",
+        "properties": {
+          "comparison": {
+            "enum": [
+              ">=",
+              ">",
+              "<=",
+              "<",
+              "="
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "what": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "what",
+          "comparison",
+          "value",
+          "unit"
+        ],
+        "title": "Limit",
         "type": "object"
       },
       "Limits": {
@@ -5182,6 +5473,50 @@
         "title": "Scope",
         "type": "object"
       },
+      "SearchHit": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "law_id": {
+            "title": "Law Id",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "summary_en": {
+            "title": "Summary En",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "law_id",
+          "ref",
+          "title_en",
+          "summary_en",
+          "url",
+          "score"
+        ],
+        "title": "SearchHit",
+        "type": "object"
+      },
       "SecondCount": {
         "additionalProperties": false,
         "description": "What the second method did on a drawing: quantities it measured and where it disagreed.",
@@ -5655,6 +5990,63 @@
           "disputes"
         ],
         "title": "Takeoff",
+        "type": "object"
+      },
+      "TocEntry": {
+        "additionalProperties": false,
+        "description": "One line of a pack's table of contents: what exists, for the prompt and the screen.",
+        "properties": {
+          "clauses": {
+            "title": "Clauses",
+            "type": "integer"
+          },
+          "law_id": {
+            "title": "Law Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "topics": {
+            "items": {
+              "enum": [
+                "rooms",
+                "accessibility",
+                "fire",
+                "escape-routes",
+                "stairs-railings",
+                "doors-windows",
+                "ventilation",
+                "energy",
+                "sound",
+                "moisture",
+                "structure",
+                "daylight",
+                "parking",
+                "outdoor",
+                "distances-heights",
+                "permits-procedure",
+                "general"
+              ],
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          }
+        },
+        "required": [
+          "law_id",
+          "number",
+          "title_en",
+          "clauses",
+          "topics"
+        ],
+        "title": "TocEntry",
         "type": "object"
       },
       "Triage": {
@@ -6544,6 +6936,164 @@
           }
         },
         "summary": "Info"
+      }
+    },
+    "/api/laws": {
+      "get": {
+        "operationId": "law_packs_api_laws_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LawPacks"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Law Packs"
+      }
+    },
+    "/api/laws/clauses/{clause_id}": {
+      "get": {
+        "operationId": "law_clause_api_laws_clauses__clause_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clause_id",
+            "required": true,
+            "schema": {
+              "title": "Clause Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClauseView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Law Clause"
+      }
+    },
+    "/api/laws/{pack}/search": {
+      "get": {
+        "operationId": "law_search_api_laws__pack__search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack",
+            "required": true,
+            "schema": {
+              "title": "Pack",
+              "type": "string"
+            }
+          },
+          {
+            "description": "words to search for",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "words to search for",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "only clauses of this topic",
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "rooms",
+                    "accessibility",
+                    "fire",
+                    "escape-routes",
+                    "stairs-railings",
+                    "doors-windows",
+                    "ventilation",
+                    "energy",
+                    "sound",
+                    "moisture",
+                    "structure",
+                    "daylight",
+                    "parking",
+                    "outdoor",
+                    "distances-heights",
+                    "permits-procedure",
+                    "general"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only clauses of this topic",
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LawSearch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Law Search"
       }
     },
     "/api/projects": {

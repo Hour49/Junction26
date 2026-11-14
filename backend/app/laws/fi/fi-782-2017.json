@@ -1,0 +1,1098 @@
+{
+  "id": "fi-782-2017",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "782/2017",
+  "title": "Ympäristöministeriön asetus rakennusten kosteusteknisestä toimivuudesta",
+  "title_en": "Ministry of the Environment Decree on the moisture performance of buildings",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2017/782",
+  "language": "fi",
+  "in_force": "2018-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced.",
+  "clauses": [
+    {
+      "id": "fi-782-2017-1-1",
+      "ref": "1 §",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tämä asetus koskee uuden rakennuksen kosteusteknisen toimivuuden suunnittelua ja rakentamista. Asetus koskee myös rakennuksen laajennusta, kerrosalaan laskettavan tilan lisäämistä, korjaus- ja muutostyötä sekä rakennuksen käyttötarkoituksen muutosta.",
+      "text_en": "This decree concerns the design and construction of the moisture-technical performance of a new building. The decree also applies to extension of a building, addition of space that counts toward gross floor area, repair and alteration work, and change of use of a building.",
+      "summary_en": "The decree covers the moisture performance of new buildings and also extensions, added floor area, repair and alteration work and change of use.",
+      "keywords": [
+        "moisture performance",
+        "extension",
+        "floor area",
+        "repair work",
+        "alteration work",
+        "change of use",
+        "kosteustekninen toimivuus",
+        "laajennus",
+        "kerrosala",
+        "korjaus- ja muutostyö",
+        "käyttötarkoituksen muutos"
+      ],
+      "topics": [
+        "moisture",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-2-1",
+      "ref": "2 §",
+      "heading": "Määritelmät",
+      "heading_en": "Definitions",
+      "text": "Tässä asetuksessa tarkoitetaan:\n1) höyrynsululla ainekerrosta, joka estää haittaa aiheuttavan vesihöyryn diffuusion rakenteeseen tai rakenteessa,\n2) ilmansululla ainekerrosta, joka estää haittaa aiheuttavan ilmavirtauksen rakenteen läpi puolelta toiselle,\n3) kapillaarivirtauksella huokosalipaineen paikallisten erojen aiheuttamaa nesteen siirtymistä huokoisessa aineessa,\n4) kosteudella kemiallisesti sitoutumatonta vettä kaasumaisessa, nestemäisessä tai kiinteässä olomuodossa,\n5) märkätilalla huonetilaa, joka ei ole asuinhuone ja jonka lattiapinta on tilan käyttötarkoituksen vuoksi vedelle alttiina ja jonka seinäpinnoille voi normaalissa käyttötilanteessa roiskua tai tiivistyä vettä,\n6) rakennuskosteudella rakennusvaiheen aikana tai sitä ennen rakenteisiin tai rakennusmateriaaleihin joutunutta rakennuksen käytönaikaisen tasapainokosteuden ylittävää kosteutta, jonka on poistuttava,\n7) ryömintätilalla rakennuksen alapohjan, perusmuurin ja perusmaan rajoittamaa tarkoituksellisesti järjestettyä ulkoilmaan tuulettuvaa ilmatilaa,\n8) teknisellä käyttöiällä aikaa, jonka rakenne tai rakennusosa teknisesti kestää,\n9) tuuletusaukolla tai -raolla ulkopuolelta rakenteen tuuletusväliin tai -tilaan johtavaa tuuletusilmavirran sisäänmeno- tai poistumisaukkoa tai -rakoa,\n10) tuuletustilalla rakenteessa olevaa yhtenäistä ilmatilaa, jonka kautta rakennetta tuulettava ilmavirtaus kulkee ja jonka korkeus tai paksuus ilmavirran suuntaa vastaan kohtisuorassa suunnassa on yli 0,2 metriä,\n11) tuuletusvälillä rakenteessa olevaa yhtenäistä ilmaväliä, jonka kautta rakennetta tuulettava ilmavirtaus kulkee ja jonka korkeus tai paksuus ilmavirran suuntaa vastaan kohtisuorassa suunnassa on enintään 0,2 metriä,\n12) vedeneristyksellä ainekerrosta, joka kestää jatkuvaa kastumista ja estää veden haitallisen tunkeutumisen rakenteeseen,\n13) vedenpaineeneristyksellä ainekerrosta, joka saumoineen ja tukirakenteineen kestää rakenteelle asetetun jatkuvan vedenpainevaatimuksen ja estää veden haitallinen tunkeutuminen rakenteeseen vedenpaineen vaikutuksesta,\n14) vesihöyryn diffuusiolla kaasuseoksessa vakiokokonaispaineessa tapahtuvaa vesihöyrymolekyylien liikettä, joka pyrkii tasoittamaan kaasuseoksen höyrypitoisuus- tai höyryn osapaine-eroja,\n15) vesihöyryn konvektiolla kaasuseoksen sisältämän vesihöyryn siirtymistä kaasuseoksen mukana sen liikkuessa kokonaispaine-eron vaikutuksesta,\n16) vesihöyrynvastuksella tasapaksun ainekerroksen tai tällaisista muodostuvan tasapaksun kerroksellisen rakenteen pinnoilla eri puolilla vallitsevien vesihöyrypitoisuuksien tai vesihöyryn osapaineiden eron ja ainekerroksen tai rakenteen läpi jatkuvuustilassa pinta-alayksikköä kohti diffusoituvan vesihöyryvirran suhdetta,\n17) vesikatolla katteen ja mahdollisen aluskatteen ja näitä välittömästi kannattavien rakenneosien muodostamaa rakennetta.",
+      "text_en": "In this decree:\n1) vapour barrier means a material layer that prevents harmful diffusion of water vapour into or within a structure;\n2) air barrier means a material layer that prevents harmful airflow through a structure from one side to the other;\n3) capillary flow means movement of liquid in a porous material caused by local differences in pore suction pressure;\n4) moisture means water that is not chemically bound, in gaseous, liquid or solid form;\n5) wet room means a room other than a habitable room whose floor is exposed to water because of its use, and whose wall surfaces may be splashed or may condense water in normal use;\n6) construction moisture means moisture that entered structures or building materials during or before construction, above the building's equilibrium moisture content in use, and that must leave;\n7) crawl space means an intentionally designed air space bounded by the building's floor, foundation wall and ground, ventilated to outdoor air;\n8) technical service life means the time for which a structure or building part is technically able to last;\n9) ventilation opening or slot means an inlet or outlet opening or slot leading from outside into the ventilation space or cavity of a structure;\n10) ventilation space means a continuous air space in a structure through which the ventilation airflow passes, whose height or thickness perpendicular to the airflow direction is over 0.2 metres;\n11) ventilation cavity means a continuous air gap in a structure through which the ventilation airflow passes, whose height or thickness perpendicular to the airflow direction is at most 0.2 metres;\n12) waterproofing means a material layer that withstands continuous wetting and prevents harmful penetration of water into a structure;\n13) water pressure insulation means a material layer that, with its seams and supporting structures, withstands the continuous water pressure requirement set for the structure and prevents harmful penetration of water under water pressure;\n14) diffusion of water vapour means movement of water vapour molecules in a gas mixture at constant total pressure, tending to even out differences in vapour concentration or partial vapour pressure;\n15) convection of water vapour means transfer of water vapour carried by a gas mixture as it moves under a total pressure difference;\n16) water vapour resistance means, for a uniform material layer or a layered structure of such layers, the ratio of the difference in water vapour concentration or partial pressure between the two sides to the water vapour flow diffusing per unit area through the layer or structure in steady state;\n17) roof covering means the structure formed by the roof cover, any underlay and the structural parts directly supporting them.",
+      "summary_en": "The decree defines the moisture terms it uses, such as vapour barrier, air barrier, capillary flow, construction moisture, crawl space, ventilation space, waterproofing and water vapour resistance.",
+      "keywords": [
+        "vapour barrier",
+        "air barrier",
+        "capillary flow",
+        "construction moisture",
+        "crawl space",
+        "ventilation space",
+        "ventilation cavity",
+        "waterproofing",
+        "höyrynsulku",
+        "ilmansulku",
+        "ryömintätila",
+        "tuuletusväli"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [
+        {
+          "what": "height or thickness of a ventilation space (over)",
+          "comparison": ">",
+          "value": 0.2,
+          "unit": "m"
+        },
+        {
+          "what": "height or thickness of a ventilation cavity (at most)",
+          "comparison": "<=",
+          "value": 0.2,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Rakennuksen kosteusteknisen toimivuuden olennaiset tekniset vaatimukset",
+      "heading_en": "Essential technical requirements for the moisture performance of a building",
+      "text": "Pääsuunnittelijan, rakennussuunnittelijan ja erityissuunnittelijan on tehtäviensä mukaisesti huolehdittava rakennuksen suunnittelusta siten, että rakennus käyttötarkoituksensa mukaisesti täyttää sen kosteustekniselle toimivuudelle asetetut olennaiset tekniset vaatimukset. Suunnittelijan on rakennuksen korjaus- ja muutostyössä tai käyttötarkoituksen muutoksessa selvitettävä rakennuksen rakennusaikainen rakentamistapa ja rakenteen kosteustekninen toimivuus.",
+      "text_en": "The principal designer, building designer and specialist designer must, within their duties, ensure that the building is designed so that, for its intended use, it meets the essential technical requirements for its moisture performance. When repairing, altering or changing the use of a building, the designer must establish the building's construction method at the time of construction and the moisture performance of the structure.",
+      "summary_en": "Designers must design the building to meet the essential moisture-performance requirements for its use, and in repair or change of use must establish the original construction method and moisture performance.",
+      "keywords": [
+        "principal designer",
+        "building designer",
+        "specialist designer",
+        "moisture performance",
+        "essential technical requirement",
+        "pääsuunnittelija",
+        "rakennussuunnittelija",
+        "erityissuunnittelija",
+        "kosteustekninen toimivuus",
+        "rakentamistapa"
+      ],
+      "topics": [
+        "moisture",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Rakennuksen kosteusteknisen toimivuuden olennaiset tekniset vaatimukset",
+      "heading_en": "Essential technical requirements for the moisture performance of a building",
+      "text": "Rakennuksen, rakenteiden ja rakennusosien on oltava sisäiset ja ulkoiset kosteusrasitukset huomioon ottaen kosteusteknisesti toimiva niiden suunnitellun teknisen käyttöiän ajan. Rakennuksen liian suuri kosteuspitoisuus tai kosteuden kertyminen rakennuksen osiin tai sisäpinnoille ei saa vaurioittaa rakennusta eikä aiheuttaa rakennuksessa oleskeleville terveyshaittaa.",
+      "text_en": "The building, its structures and building parts must be moisture-technically functional for their planned technical service life, taking into account internal and external moisture loads. Excessive moisture content in the building, or accumulation of moisture in parts of the building or on interior surfaces, must not damage the building or cause health harm to people staying in it.",
+      "summary_en": "Building structures must work moisture-wise for their planned service life under internal and external loads, without damage or health harm from moisture.",
+      "keywords": [
+        "moisture performance",
+        "service life",
+        "moisture load",
+        "damage",
+        "health harm",
+        "kosteusrasitus",
+        "tekninen käyttöikä",
+        "terveyshaitta",
+        "kosteuspitoisuus"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-4-1",
+      "ref": "4 §",
+      "heading": "Rakennuksen kosteustekninen toimivuus rakennuksen korjaus- ja muutostyössä tai käyttötarkoituksen muutoksessa",
+      "heading_en": "Moisture performance of a building in repair and alteration work or change of use",
+      "text": "Rakennuksen korjaus- ja muutostyössä tai käyttötarkoituksen muutoksessa rakennuksen kosteustekniseen toimivuuteen ei tarvitse tehdä muutoksia, jos rakennus on kosteusteknisesti toimiva. Korjaus- ja muutostyössä tai käyttötarkoituksen muutoksessa kosteusteknisesti toiminut rakenne, jonka tekninen käyttöikä on loppunut tai joka on kosteustekniseltä toiminnaltaan vaurioitunut, voidaan korjata rakennusaikaista rakentamistapaa noudattaen. Jos rakenteessa ei ole kosteustekniseltä toimivuudeltaan muutosta vaativaa suunnittelu- tai toteutusvirhettä, on korjaus- ja muutostyössä tai käyttötarkoituksen muutoksessa ensisijaisesti noudatettava alkuperäisen rakenteen toimintatapaa. Korjaus- ja muutostyössä tai käyttötarkoituksen muutoksessa voidaan noudattaa tätä asetusta, jos tarkoituksena on parantaa rakennuksen kosteusteknistä toimivuutta. Jos rakenne on omiaan aiheuttamaan terveyshaittaa tai vaurioita rakennuksen kosteustekniselle toimivuudelle, on korjaus- ja muutostyössä tai käyttötarkoituksen muutoksessa noudatettava tätä asetusta.",
+      "text_en": "In repair and alteration work or change of use of a building, no changes to the building's moisture performance need to be made if the building is moisture-technically functional. A structure that functioned moisture-wise, whose technical service life has ended or that has been damaged in its moisture function, may be repaired following the construction-time method. If the structure has no design or construction error that requires a change to its moisture performance, the operating method of the original structure must primarily be followed in repair, alteration work or change of use. In repair and alteration work or change of use, this decree may be followed if the aim is to improve the building's moisture performance. If the structure is likely to cause health harm or damage to the building's moisture performance, this decree must be followed in repair and alteration work or change of use.",
+      "summary_en": "Repairs and changes of use need not alter a moisture-functional building, and the original structure's operating method is followed unless it causes harm, in which case this decree applies.",
+      "keywords": [
+        "repair work",
+        "change of use",
+        "moisture performance",
+        "original structure",
+        "technical service life",
+        "korjaus- ja muutostyö",
+        "käyttötarkoituksen muutos",
+        "kosteustekninen toimivuus",
+        "alkuperäinen rakenne",
+        "terveyshaitta"
+      ],
+      "topics": [
+        "moisture",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-5-1",
+      "ref": "5 § 1 mom.",
+      "heading": "Rakennuksen kosteustekninen toiminta",
+      "heading_en": "Moisture function of a building",
+      "text": "Sisäisistä ja ulkoisista kosteuslähteistä peräisin oleva vesihöyry, vesi, lumi tai jää ei saa haittaa aiheuttaen kulkeutua rakenteisiin. Sadevesi tai lumi ei saa kulkeutua eikä kosteus saa kerääntyä vaipparakenteeseen myöskään ikkunoiden, ovien tai muiden vaippaan liittyvien rakenteiden, rakennusosien ja laitteiden kautta. Rakennuksen vaipan ja sen rakennekerrosten ja liitosten on muodostettava kokonaisuus, joka estää tuulta, viistosadetta ja tuulenpainetta kuljettamasta vettä vaipan pintaa pitkin rakenteisiin.",
+      "text_en": "Water vapour, water, snow or ice from internal and external moisture sources must not be carried into structures in a way that causes harm. Rainwater or snow must not penetrate, and moisture must not accumulate, in the building envelope, including through windows, doors or other envelope-related structures, building parts and equipment. The layers and joints of the building envelope must form a whole that prevents wind, driving rain and wind pressure from carrying water along the surface of the envelope into structures.",
+      "summary_en": "The building envelope must keep water, snow, ice and water vapour out of structures, including at windows, doors and joints, so that moisture does not accumulate harmfully.",
+      "keywords": [
+        "building envelope",
+        "driving rain",
+        "wind pressure",
+        "windows",
+        "doors",
+        "joints",
+        "vaippa",
+        "viistosade",
+        "ikkuna",
+        "ovi",
+        "liitos",
+        "kosteuden kertyminen"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-5-2",
+      "ref": "5 § 2 mom.",
+      "heading": "Rakennuksen kosteustekninen toiminta",
+      "heading_en": "Moisture function of a building",
+      "text": "Rakennuskosteuden ja rakenteisiin ulko- tai sisäpuolelta satunnaisesti kulkeutuvan kosteuden on voitava poistua haittaa aiheuttamatta. Pinnoiltaan kastuvien rakenteiden on kestettävä veden vaikutus.",
+      "text_en": "Construction moisture, and moisture that occasionally enters structures from outside or inside, must be able to leave without causing harm. Structures whose surfaces get wet must withstand the effect of water.",
+      "summary_en": "Construction moisture and occasional moisture entry must be able to dry out without harm, and surface-wetted structures must tolerate water.",
+      "keywords": [
+        "construction moisture",
+        "drying",
+        "wetted structure",
+        "water resistance",
+        "rakennuskosteus",
+        "kuivuminen",
+        "kastuvat rakenteet"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-6-1",
+      "ref": "6 §",
+      "heading": "Rakenteiden ilmanpitävyys ja höyrytiiviys",
+      "heading_en": "Airtightness and vapour tightness of structures",
+      "text": "Rakennuksen vaipan liitoksineen sekä rakennuksen sisärakenteiden ilmanpitävyyden ja höyrytiiviyden on estettävä vesihöyryn rakenteiden kosteusteknisen toimivuuden kannalta haitallinen siirtyminen rakenteisiin.",
+      "text_en": "The airtightness and vapour tightness of the building envelope, including its joints, and of the building's interior structures must prevent water vapour from migrating into structures in a way that is harmful to their moisture performance.",
+      "summary_en": "The envelope and interior structures must be airtight and vapour-tight enough to stop harmful water vapour migration into structures.",
+      "keywords": [
+        "airtightness",
+        "vapour tightness",
+        "water vapour migration",
+        "joints",
+        "ilmanpitävyys",
+        "höyrytiiviys",
+        "vesihöyry",
+        "rakenteet"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-7-1",
+      "ref": "7 §",
+      "heading": "Rakenteiden tuuletustilat ja -välit",
+      "heading_en": "Ventilation spaces and cavities of structures",
+      "text": "Tuuletustilalla tai -välillä varustetun rakenteen tuuletustilaan tai -väliin johtavien tuuletusaukkojen tai -rakojen on sijaittava niin, että tuuletustila tai -väli on kokonaisuudessaan tuuletusilman virtausreittinä ja ettei tuuletustilaan tai -väliin jää kokonaan suljettuja, tuulettumattomia alueita.",
+      "text_en": "The openings or slots leading into the ventilation space or cavity of a structure that has one must be located so that the ventilation space or cavity forms a complete ventilation airflow path, and no completely closed, unventilated areas remain in it.",
+      "summary_en": "Ventilation openings must be placed so that the whole ventilation space or cavity is a continuous airflow path with no closed, unventilated pockets.",
+      "keywords": [
+        "ventilation space",
+        "ventilation cavity",
+        "ventilation opening",
+        "airflow path",
+        "unventilated area",
+        "tuuletustila",
+        "tuuletusväli",
+        "tuuletusaukko",
+        "tuuletusrako"
+      ],
+      "topics": [
+        "moisture",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Rakennuksen korkeusasema",
+      "heading_en": "Building elevation level",
+      "text": "Rakennussuunnittelijan ja erityissuunnittelijan on tehtäviensä mukaisesti otettava rakennuksen korkeusaseman valinnassa huomioon rakennuspaikan pinta- ja pohjavedenpinnan taso ja tulvariski.",
+      "text_en": "When choosing the building's elevation, the building designer and specialist designer must, within their duties, take into account the level of the site surface and of the groundwater table, and the flood risk of the site.",
+      "summary_en": "The building's elevation must be chosen with regard to the site surface level, the groundwater level and the flood risk.",
+      "keywords": [
+        "building elevation",
+        "groundwater level",
+        "flood risk",
+        "site surface",
+        "korkeusasema",
+        "pohjavesi",
+        "tulvariski",
+        "pinnan taso"
+      ],
+      "topics": [
+        "moisture",
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Rakennuksen korkeusasema",
+      "heading_en": "Building elevation level",
+      "text": "Kosteusvaurioriskien vähentämiseksi kosteudelle alttiiden rakenteiden ja rakennuspohjan kuivatusjärjestelmien on oltava toimintavarmoja niiden suunnitellun käyttöiän ajan.",
+      "text_en": "To reduce the risk of moisture damage, the drainage systems for moisture-sensitive structures and the building site must be reliable for their planned service life.",
+      "summary_en": "Drainage systems for moisture-sensitive structures and the building site must operate reliably for their planned service life to reduce the risk of moisture damage.",
+      "keywords": [
+        "moisture damage risk",
+        "drainage system",
+        "service life",
+        "kuivatusjärjestelmä",
+        "kosteusvaurio",
+        "toimintavarmuus"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-9-1",
+      "ref": "9 § 1 mom.",
+      "heading": "Rakennuksen alus- ja vierustäytöt",
+      "heading_en": "Sub-base and adjacent fill of a building",
+      "text": "Uuden rakennuksen alla, ryömintätilan alustäytössä ja rakennuksen vierellä salaojituskerroksena toimivassa vierustäytössä ei saa olla humusmaata, kosteuden vaikutuksesta hajoavia tai lahoavia orgaanisia aineita eikä rakennusjätettä.",
+      "text_en": "Under a new building, in the sub-base fill of a crawl space, and in the adjacent fill that acts as a drainage layer beside the building, there must be no topsoil, no organic material that decays or rots under moisture, and no building waste.",
+      "summary_en": "Fill under and beside a new building must not contain topsoil, rotting organic material or building waste.",
+      "keywords": [
+        "sub-base fill",
+        "adjacent fill",
+        "topsoil",
+        "organic material",
+        "building waste",
+        "crawl space",
+        "alustäyttö",
+        "vierustäyttö",
+        "humusmaa",
+        "rakennusjäte",
+        "ryömintätila"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-9-2",
+      "ref": "9 § 2 mom.",
+      "heading": "Rakennuksen alus- ja vierustäytöt",
+      "heading_en": "Sub-base and adjacent fill of a building",
+      "text": "Rakennuksen perustuksia, perusmuuria tai alapohjaa koskevassa korjaus- ja muutostyössä on noudatettava 1 momenttia ainoastaan korjattavilta tai muutettavilta osin.",
+      "text_en": "In repair or alteration work on the foundations, foundation wall or sub-floor of a building, subsection 1 must be followed only for the parts that are repaired or altered.",
+      "summary_en": "In repair of foundations or sub-floors, the fill rule applies only to the parts being repaired or altered.",
+      "keywords": [
+        "foundation repair",
+        "sub-floor",
+        "fill",
+        "foundation wall",
+        "perusmuuri",
+        "alapohja",
+        "korjaus",
+        "alustäyttö"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-10-1",
+      "ref": "10 § 1 mom.",
+      "heading": "Ilmanvaihto-, lämmitys- ja jäähdytyslaitteistojen ja muiden laitteistojen vesivuotojen havaitseminen, jäätyminen ja veden tiivistyminen",
+      "heading_en": "Detection of water leaks from ventilation, heating and cooling equipment and other installations, freezing and water condensation",
+      "text": "Rakenteellisten ratkaisujen on ohjattava uuden rakennuksen ilmanvaihto-, lämmitys- ja jäähdytyslaitteistosta tai muusta laitteistosta sekä niihin liitetystä laitteesta aiheutuva vesivuoto näkyville. Jos kyseisiin laitteistoihin tai laitteisiin liittyy vesivuodon mahdollisuus, on niiden oltava tarkastettavissa, korjattavissa ja uusittavissa. Rakennuksen korjaus- ja muutostyöhön ja käyttötarkoituksen muutokseen sovelletaan 4 §:n säännöksiä.",
+      "text_en": "The structural solutions must make water leakage from the ventilation, heating and cooling equipment of a new building, or from other installations and devices connected to them, visible. If these installations or devices have a possibility of water leakage, they must be inspectable, repairable and replaceable. Section 4 applies to repair and alteration work on a building and to change of use.",
+      "summary_en": "Structural design must make leaks from new ventilation, heating and cooling equipment visible, and where leaks are possible the equipment must be inspectable, repairable and replaceable.",
+      "keywords": [
+        "water leak",
+        "ventilation equipment",
+        "heating equipment",
+        "cooling equipment",
+        "inspectable",
+        "replaceable",
+        "vesivuoto",
+        "ilmanvaihto",
+        "lämmitys",
+        "jäähdytys",
+        "tarkastettava",
+        "uusittava"
+      ],
+      "topics": [
+        "moisture",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-10-2",
+      "ref": "10 § 2 mom.",
+      "heading": "Ilmanvaihto-, lämmitys- ja jäähdytyslaitteistojen ja muiden laitteistojen vesivuotojen havaitseminen, jäätyminen ja veden tiivistyminen",
+      "heading_en": "Detection of water leaks from ventilation, heating and cooling equipment and other installations, freezing and water condensation",
+      "text": "Vesi ei saa jäätyä laitteistojen putkistoissa, kanavissa ja laitteissa. Vettä ei saa tiivistyä haittaa aiheuttaen laitteistojen putkien, kanavien ja laitteiden pinnoille tai tiivistyvä vesi on oltava johdettavissa pois haittaa aiheuttamatta.",
+      "text_en": "Water must not freeze in the pipes, ducts and equipment of installations. Water must not condense on the surfaces of installation pipes, ducts and equipment in a way that causes harm, or condensed water must be drainable away without causing harm.",
+      "summary_en": "Installation pipes, ducts and equipment must not freeze, and condensation must not cause harm or must be drainable away.",
+      "keywords": [
+        "freezing",
+        "condensation",
+        "pipes",
+        "ducts",
+        "drain condensate",
+        "jäätyminen",
+        "tiivistyminen",
+        "putket",
+        "kanavat",
+        "lauhde"
+      ],
+      "topics": [
+        "moisture",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-11-1",
+      "ref": "11 §",
+      "heading": "Rakennustuotteiden olennaiset tekniset vaatimukset",
+      "heading_en": "Essential technical requirements for building products",
+      "text": "Rakenteissa käytettävien rakennustuotteiden ominaisuuksien on vastattava suunnitelmissa esitettyjä vaatimuksia ja rakennustuotteiden on oltava rakennuspaikan olosuhteisiin soveltuvia. Rakennustuotteen on oltava käyttötarkoituksensa mukaisessa kunnossa sitä asennettaessa. Rakennustuotteen on kestettävä asentamisen sekä asennus- ja käyttöolosuhteiden aiheuttamat rasitukset koko rakenteen käyttöiän tai suunnitellun huolto- ja korjausvälin ajan.",
+      "text_en": "The properties of building products used in structures must meet the requirements set out in the plans, and building products must suit the site conditions. A building product must be in a condition suited to its intended use when it is installed. A building product must withstand the stresses caused by installation and by installation and use conditions for the whole service life of the structure, or for the planned maintenance and repair interval.",
+      "summary_en": "Building products in structures must meet the plan requirements, suit site conditions, be fit for use when installed and withstand stresses for the planned service life.",
+      "keywords": [
+        "building products",
+        "essential technical requirement",
+        "site conditions",
+        "installation",
+        "service life",
+        "maintenance interval",
+        "rakennustuote",
+        "olennainen tekninen vaatimus",
+        "käyttöikä",
+        "huoltoväli"
+      ],
+      "topics": [
+        "moisture",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-12-1",
+      "ref": "12 § 1 mom.",
+      "heading": "Rakennushankkeen kosteudenhallintaselvityksen laatiminen ja sisältö",
+      "heading_en": "Preparation and content of the moisture management report for a building project",
+      "text": "Rakennushankkeeseen ryhtyvän on huolehdittava rakennushankkeen kosteudenhallintaselvityksen laatimisesta.",
+      "text_en": "The party undertaking a building project must ensure that a moisture management report for the building project is prepared.",
+      "summary_en": "The party undertaking a building project must have a moisture management report prepared.",
+      "keywords": [
+        "moisture management report",
+        "building project",
+        "kosteudenhallintaselvitys",
+        "rakennushanke"
+      ],
+      "topics": [
+        "moisture",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-12-2",
+      "ref": "12 § 2 mom.",
+      "heading": "Rakennushankkeen kosteudenhallintaselvityksen laatiminen ja sisältö",
+      "heading_en": "Preparation and content of the moisture management report for a building project",
+      "text": "Rakennushankkeen kosteudenhallintaselvitykseen on sisällyttävä hankkeen yleistiedot, vaatimukset kosteudenhallinnalle hankkeen eri vaiheissa, toimenpiteet ja menettelyt kosteudenhallinnan vaatimusten varmentamiseen sekä kosteudenhallinnan henkilöresurssit. Rakennushankkeen kosteudenhallintaselvitykseen on sisällyttävä myös tieto hankkeen kosteudenhallinnan valvonnasta vastaavasta henkilöstä.",
+      "text_en": "The moisture management report of a building project must include the general project information, the requirements for moisture management at the different project stages, the measures and procedures for verifying that the moisture management requirements are met, and the personnel resources for moisture management. It must also include information on the person responsible for supervising moisture management in the project.",
+      "summary_en": "The moisture management report must set out project details, moisture requirements per stage, verification procedures, staffing and the person supervising moisture management.",
+      "keywords": [
+        "moisture management report",
+        "verification procedure",
+        "moisture management supervisor",
+        "project staffing",
+        "kosteudenhallintaselvitys",
+        "kosteudenhallinnan valvonta",
+        "henkilöresurssit"
+      ],
+      "topics": [
+        "moisture",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-13-1",
+      "ref": "13 § 1 mom.",
+      "heading": "Työmaan kosteudenhallintasuunnitelman laatiminen ja sisältö",
+      "heading_en": "Preparation and content of the site moisture management plan",
+      "text": "Vastaavan työnjohtajan on huolehdittava työmaan kosteudenhallintasuunnitelman laatimisesta rakennushankkeen kosteudenhallintaselvitykseen pohjautuen.",
+      "text_en": "The responsible site foreman must ensure that a site moisture management plan is prepared, based on the moisture management report of the building project.",
+      "summary_en": "The responsible site foreman must have a site moisture management plan prepared, based on the project's moisture management report.",
+      "keywords": [
+        "site moisture management plan",
+        "responsible site foreman",
+        "vastaava työnjohtaja",
+        "työmaan kosteudenhallintasuunnitelma",
+        "kosteudenhallintaselvitys"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-13-2",
+      "ref": "13 § 2 mom.",
+      "heading": "Työmaan kosteudenhallintasuunnitelman laatiminen ja sisältö",
+      "heading_en": "Preparation and content of the site moisture management plan",
+      "text": "Työmaan kosteudenhallintasuunnitelman sisältöön sovelletaan rakentamisen suunnitelmista ja selvityksistä annetun ympäristöministeriön asetuksen (216/2015) 15 §:ää. Sen lisäksi työmaan kosteudenhallintasuunnitelmaan on sisällyttävä tiedot rakennustyömaan kosteudenhallinnasta vastaavista rakennusvaiheen vastuuhenkilöistä.",
+      "text_en": "The content of the site moisture management plan is subject to section 15 of the Ministry of the Environment decree on the preparation of construction plans and reports (216/2015). In addition, the site moisture management plan must include information on the building-phase persons responsible for moisture management on the construction site.",
+      "summary_en": "The site moisture management plan must follow section 15 of decree 216/2015 and also name the building-phase persons responsible for moisture management on site.",
+      "keywords": [
+        "site moisture management plan",
+        "decree 216/2015",
+        "responsible persons",
+        "construction plans and reports",
+        "työmaan kosteudenhallinta",
+        "vastuuhenkilö",
+        "rakentamisen suunnitelmista ja selvityksistä"
+      ],
+      "topics": [
+        "moisture",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-14-1",
+      "ref": "14 §",
+      "heading": "Rakennustuotteiden ja -osien suojaus",
+      "heading_en": "Protection of building products and parts",
+      "text": "Rakennusvaiheen vastuuhenkilön on huolehdittava rakennustuotteiden ja keskeneräisten rakennusosien suojaamisesta kastumiselta ja epäpuhtauksilta työmaavarastoinnin ja rakentamisen aikana.",
+      "text_en": "The building-phase responsible person must ensure that building products and unfinished building parts are protected from getting wet and from contamination during site storage and construction.",
+      "summary_en": "The building-phase responsible person must protect building products and unfinished parts from wetting and contamination on site.",
+      "keywords": [
+        "protection of building products",
+        "wetting",
+        "contamination",
+        "site storage",
+        "unfinished building parts",
+        "rakennusvaiheen vastuuhenkilö",
+        "suojaus",
+        "työmaavarastointi",
+        "kastuminen",
+        "epäpuhtaus"
+      ],
+      "topics": [
+        "moisture",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-15-1",
+      "ref": "15 §",
+      "heading": "Rakenteiden kuivuminen",
+      "heading_en": "Drying of structures",
+      "text": "Rakennusvaiheen vastuuhenkilön on huolehdittava siitä, että rakenteissa olevan kosteuden ja rakennuskosteuden kuivumisaste mahdollistaa rakenteiden peittämisen kuivumista hidastavalla ainekerroksella, pinnoitteella tai rakenteella vaurioita aiheuttamatta. Rakennusvaiheen vastuuhenkilön on huolehdittava kosteusmittauksin rakenteiden asianmukaisesta kosteuspitoisuudesta seuraavaan työvaiheeseen siirtymistä varten.",
+      "text_en": "The building-phase responsible person must ensure that the drying degree of moisture in the structures and of construction moisture allows the structures to be covered by a material layer, coating or structure that slows drying, without causing damage. The building-phase responsible person must also ensure, by moisture measurements, that the structures have an appropriate moisture content before moving to the next work stage.",
+      "summary_en": "Before covering structures, the building-phase responsible person must confirm by moisture measurement that they are dry enough, without damage, for the next work stage.",
+      "keywords": [
+        "drying",
+        "construction moisture",
+        "moisture measurement",
+        "moisture content",
+        "covering",
+        "next work stage",
+        "kuivuminen",
+        "rakennuskosteus",
+        "kosteusmittaus",
+        "peittäminen"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-16-1",
+      "ref": "16 §",
+      "heading": "Hulevesien poisjohtaminen",
+      "heading_en": "Drainage of surface water",
+      "text": "Rakennussuunnittelijan ja erityissuunnittelijan on tehtäviensä mukaisesti suunniteltava maanpinnan kuivatus ja hulevesien hallinta siten, että hulevedet johdetaan pois rakennuksen vierestä hulevesijärjestelmän avulla.",
+      "text_en": "The building designer and specialist designer must, within their duties, design ground surface drainage and surface water management so that surface water is led away from beside the building by a surface water system.",
+      "summary_en": "Ground drainage and surface water must be designed to lead rainwater away from the building through a surface water system.",
+      "keywords": [
+        "surface water",
+        "ground drainage",
+        "surface water system",
+        "hulevesi",
+        "hulevesijärjestelmä",
+        "maanpinnan kuivatus"
+      ],
+      "topics": [
+        "moisture",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-17-1",
+      "ref": "17 §",
+      "heading": "Rakennuspohjan salaojitus",
+      "heading_en": "Subsoil drainage of the building site",
+      "text": "Rakennussuunnittelijan ja erityissuunnittelijan on tehtäviensä mukaisesti suunniteltava rakennuspohjan salaojitus veden kapillaarivirtauksen katkaisemiseksi ja pohjavedenpinnan pitämiseksi riittävällä etäisyydellä rakennuksen alapohjasta sekä perustusten kuivatusvesien johtamiseksi pois perustusten vierestä ja rakennuksen alta. Rakennuspohja voidaan jättää salaojittamatta, jos erityissuunnittelija on varmistunut perustamis- ja pohjaolosuhdeselvityksen perusteella, että perusmaan vedenläpäisykyky ja pohjaveden korkeus eivät ole omiaan aiheuttamaan haittaa rakennuksen kosteustekniselle toimivuudelle.",
+      "text_en": "The building designer and specialist designer must, within their duties, design the subsoil drainage of the building site to cut off the capillary flow of water and keep the groundwater level at a sufficient distance from the building's sub-floor, and to lead foundation drainage water away from the foundations and from under the building. The building site may be left without subsoil drainage if the specialist designer has ascertained, on the basis of the foundation and ground condition survey, that the permeability of the subsoil and the groundwater level are not likely to cause harm to the building's moisture performance.",
+      "summary_en": "Subsoil drainage must keep groundwater well below the sub-floor, unless a foundation and ground condition survey shows it is not needed.",
+      "keywords": [
+        "subsoil drainage",
+        "capillary flow",
+        "groundwater level",
+        "foundation drainage",
+        "ground condition survey",
+        "salaojitus",
+        "pohjavesi",
+        "perustus",
+        "pohjaolosuhdeselvitys"
+      ],
+      "topics": [
+        "moisture",
+        "outdoor"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-18-1",
+      "ref": "18 § 1 mom.",
+      "heading": "Maanvastainen alapohja",
+      "heading_en": "Ground-contact sub-floor",
+      "text": "Maanvastaisen alapohjan lattian yläpinnan on oltava vähintään 0,3 metriä rakennuksen ulkopuolella olevan maanpinnan yläpuolella lukuun ottamatta osittain tai kokonaan maanpinnan alapuolella olevien tilojen lattioita.",
+      "text_en": "The upper surface of the floor of a ground-contact sub-floor must be at least 0.3 metres above the outdoor ground surface outside the building, except for floors of spaces that are partly or wholly below ground level.",
+      "summary_en": "The top surface of a ground-contact floor must be at least 0.3 m above the outside ground, except for floors of spaces that are partly or fully below ground.",
+      "keywords": [
+        "ground-contact floor",
+        "sub-floor",
+        "0.3 m",
+        "ground level",
+        "floor height",
+        "maanvastainen alapohja",
+        "lattian yläpinta",
+        "maanpinta"
+      ],
+      "topics": [
+        "moisture",
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "height of floor upper surface above outside ground surface (ground-contact floor)",
+          "comparison": ">=",
+          "value": 0.3,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-18-2",
+      "ref": "18 § 2 mom.",
+      "heading": "Maanvastainen alapohja",
+      "heading_en": "Ground-contact sub-floor",
+      "text": "Jos lattian yläpinta on erityisestä syystä viereiseen maanpintaan verrattuna alempana kuin 0,3 metriä maanpinnan yläpuolella, rakennussuunnittelijan ja erityissuunnittelijan on tehtäviensä mukaisesti kiinnitettävä erityistä huomiota rakenteen kosteustekniseen toimivuuteen.",
+      "text_en": "If, for a special reason, the upper surface of the floor is lower than 0.3 metres above the adjacent ground surface, the building designer and specialist designer must, within their duties, pay special attention to the moisture performance of the structure.",
+      "summary_en": "If a floor is set less than 0.3 m above adjacent ground for a special reason, the designers must pay special attention to its moisture performance.",
+      "keywords": [
+        "floor level",
+        "adjacent ground",
+        "0.3 m",
+        "special reason",
+        "moisture performance",
+        "lattian yläpinta",
+        "maanpinta",
+        "kosteustekninen toimivuus"
+      ],
+      "topics": [
+        "moisture",
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "height of floor upper surface above adjacent ground in special cases (below which special attention applies)",
+          "comparison": "<",
+          "value": 0.3,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-19-1",
+      "ref": "19 §",
+      "heading": "Ryömintätilainen alapohja",
+      "heading_en": "Crawl-space sub-floor",
+      "text": "Alapohjan alapuoliseen ryömintätilaan ei saa kerääntyä vettä. Ryömintätilan on tuuletuttava. Ryömintätilan kosteus ei saa aiheuttaa haittaa rakenteiden toiminnalle ja kestävyydelle.",
+      "text_en": "No water may collect in the crawl space below a sub-floor. The crawl space must be ventilated. Moisture in the crawl space must not cause harm to the operation or durability of structures.",
+      "summary_en": "Water must not collect in the crawl space under the sub-floor, and the crawl space must be ventilated so its moisture does not harm structures.",
+      "keywords": [
+        "crawl space",
+        "sub-floor",
+        "ventilation",
+        "water collection",
+        "durability",
+        "ryömintätila",
+        "alapohja",
+        "tuuletus",
+        "kosteus"
+      ],
+      "topics": [
+        "moisture",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-20-1",
+      "ref": "20 §",
+      "heading": "Ryömintätilan korkeus ja kulkuyhteys",
+      "heading_en": "Crawl-space height and access",
+      "text": "Uuden rakennuksen ryömintätilan korkeuden on oltava keskimäärin vähintään 0,8 metriä. Ryömintätilaan on oltava pääsy sen tarkastamista ja siellä sijaitsevien laitteiden ja järjestelmien huoltamista varten.",
+      "text_en": "The crawl space of a new building must be on average at least 0.8 metres high. The crawl space must have access for inspecting it and for maintaining the equipment and systems located there.",
+      "summary_en": "A new building's crawl space must average at least 0.8 m in height and have access for inspection and maintenance.",
+      "keywords": [
+        "crawl space height",
+        "0.8 m",
+        "access",
+        "inspection",
+        "maintenance",
+        "ryömintätila",
+        "korkeus",
+        "kulkuyhteys",
+        "tarkastus",
+        "huolto"
+      ],
+      "topics": [
+        "moisture",
+        "distances-heights"
+      ],
+      "limits": [
+        {
+          "what": "average height of crawl space",
+          "comparison": ">=",
+          "value": 0.8,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-21-1",
+      "ref": "21 §",
+      "heading": "Maanvastaiset seinärakenteet",
+      "heading_en": "Ground-contact wall structures",
+      "text": "Maanvastaisen ulkoseinän rakenteen on estettävä ympäröivän maan kosteuden sekä hulevesien haitallinen tunkeutuminen seinärakenteeseen vedeneristyksellä tai vedenpaineen eristyksellä taikka rakenteellisesti hallitulla vedenpoistolla, joka mahdollistaa kellarin seinän kuivumisen ulospäin. Vedeneristyksen tai vedenpaineen eristyksen on oltava maanvastaisen ulkoseinärakenteen ulkopinnassa tai ulkopuolisen, maata vasten olevan lämmöneristyksen sisäpuolella.",
+      "text_en": "A ground-contact external wall structure must prevent the moisture of the surrounding ground and the harmful penetration of surface water into the wall structure, by waterproofing or water pressure insulation, or by structurally controlled drainage that lets the basement wall dry outward. The waterproofing or water pressure insulation must be on the outer surface of the ground-contact external wall structure or on the inside of an external thermal insulation layer lying against the ground.",
+      "summary_en": "Ground-contact external walls must be protected from ground moisture and surface water by waterproofing, water-pressure insulation or controlled drainage, with the membrane on the outer face.",
+      "keywords": [
+        "ground-contact wall",
+        "waterproofing",
+        "water pressure insulation",
+        "basement wall",
+        "controlled drainage",
+        "thermal insulation",
+        "maanvastainen ulkoseinä",
+        "vedeneristys",
+        "vedenpaineen eristys",
+        "kellarin seinä"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-22-1",
+      "ref": "22 §",
+      "heading": "Perusmuurista ja alapohjasta siirtyvä kosteus",
+      "heading_en": "Moisture migrating from foundation wall and sub-floor",
+      "text": "Kosteus ei saa siirtyä haitallisesti perusmuurista ja alapohjan betonilaatasta alasidepuuhun eikä yläpuolisiin seinä- ja lattiarakenteisiin.",
+      "text_en": "Moisture must not migrate harmfully from the foundation wall and from the concrete slab of the sub-floor into the wooden sill beam, nor into the wall and floor structures above.",
+      "summary_en": "Moisture from the foundation wall and concrete sub-floor must not harmfully reach the wooden sill beam or the structures above.",
+      "keywords": [
+        "sill beam",
+        "foundation wall",
+        "concrete slab",
+        "sub-floor",
+        "moisture migration",
+        "alasidepuu",
+        "perusmuuri",
+        "betonilaatta",
+        "alapohja"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-23-1",
+      "ref": "23 §",
+      "heading": "Vedenpaineen alaiset rakenteet",
+      "heading_en": "Structures under water pressure",
+      "text": "Vedenpaineen alaisten rakenteiden on kestettävä jatkuvan vedenpaineen vaikutus rakenteen suunnitellun käyttöiän ajan. Tällaisissa rakenteissa on oltava vedenpaineeneristys, joka estää ulkopuolisen veden haitallisen tunkeutumisen rakenteeseen.",
+      "text_en": "Structures under water pressure must withstand the continuous effect of water pressure over the planned service life of the structure. Such structures must have water pressure insulation that prevents the harmful penetration of external water into the structure.",
+      "summary_en": "Structures subject to water pressure must withstand it for their planned service life and have water pressure insulation that keeps external water out.",
+      "keywords": [
+        "water pressure",
+        "water pressure insulation",
+        "service life",
+        "structure under water pressure",
+        "vedenpaine",
+        "vedenpaineeneristys",
+        "vedenpaineen alainen rakenne"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-24-1",
+      "ref": "24 §",
+      "heading": "Ulkoseinän rakenteet",
+      "heading_en": "External wall structures",
+      "text": "Ulkoseinän ja sen eri kerrosten on muodostettava kokonaisuus, joka estää veden haitallisen kulkeutumisen rakenteiden sisään. Ulkoseinän ja sen eri kerrosten sekä ulkoseinään liittyvien rakenteiden ja ulkoseinän liitosten vesihöyrynvastuksen ja ilmatiiviyden on oltava sellainen, ettei seinän kosteuspitoisuus sisäilman vesihöyryn diffuusion tai konvektion vuoksi muodostu rakenteen kosteusteknisen toimivuuden kannalta haitalliseksi. Jos rakenteessa on käytetty ilmansulkua tai höyrynsulkua, on saumojen, reunojen ja läpivientikohtien oltava tiiviitä.",
+      "text_en": "The external wall and its different layers must form a whole that prevents water from harmfully penetrating into the structures. The water vapour resistance and airtightness of the external wall and its layers, of the structures connected to it, and of the external wall joints must be such that the wall's moisture content does not become harmful to its moisture performance due to diffusion or convection of indoor water vapour. If an air barrier or vapour barrier is used in the structure, its seams, edges and penetrations must be tight.",
+      "summary_en": "External walls must keep water out and, with tight air and vapour barriers at seams and penetrations, must not accumulate indoor vapour moisture harmfully.",
+      "keywords": [
+        "external wall",
+        "water vapour resistance",
+        "airtightness",
+        "vapour barrier",
+        "air barrier",
+        "seams",
+        "penetrations",
+        "ulkoseinä",
+        "höyrynvastus",
+        "ilmatiiviys",
+        "höyrynsulku",
+        "läpivienti"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-25-1",
+      "ref": "25 §",
+      "heading": "Ulkoverhous",
+      "heading_en": "External cladding",
+      "text": "Seinärakenteen ulkoverhouksen taakse ei saa joutua vettä tai ulkoverhouksen taakse tunkeutuneen veden ja kosteuden on päästävä poistumaan rakenteita vahingoittamatta. Ulkoverhouksen taustan on oltava tuulettuva, ellei kosteus pääse muutoin poistumaan.",
+      "text_en": "No water may get behind the external cladding of a wall structure, and water and moisture that has penetrated behind the external cladding must be able to leave without damaging the structures. The back of the external cladding must be ventilated, unless moisture can otherwise leave.",
+      "summary_en": "Water must not get behind external cladding, and the cladding backing must be ventilated unless moisture can otherwise escape.",
+      "keywords": [
+        "external cladding",
+        "ventilated cladding",
+        "back ventilation",
+        "moisture escape",
+        "ulkoverhous",
+        "tuuletus",
+        "tuuletusrako"
+      ],
+      "topics": [
+        "moisture",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-26-1",
+      "ref": "26 §",
+      "heading": "Veden poisjohtaminen vesikatolta",
+      "heading_en": "Draining water from the roof",
+      "text": "Veden on poistuttava vesikatolta rakennusta vahingoittamatta. Vesikatolla on rakenteineen ja liitoksineen oltava katteelle sopiva kaltevuus ja tiiviys veden poisjohtamiseksi.",
+      "text_en": "Water must leave the roof without damaging the building. The roof, with its structures and joints, must have a slope and tightness suited to the roof covering so that water is drained away.",
+      "summary_en": "The roof must have a slope and tightness suited to its covering so that water drains away without damaging the building.",
+      "keywords": [
+        "roof drainage",
+        "roof slope",
+        "roof covering",
+        "tightness",
+        "vesikatto",
+        "kaltevuus",
+        "katteen tiiviys",
+        "veden poisjohtaminen"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-27-1",
+      "ref": "27 §",
+      "heading": "Yläpohjan rakenteet",
+      "heading_en": "Top-floor and roof structures",
+      "text": "Yläpohjan kerrosten ja katon tuuletuksen on estettävä vesihöyryn diffuusiosta tai ilmavirtauksista johtuva, haittaa aiheuttava kosteuden kertyminen yläpohjarakenteeseen. Jos rakenteessa on käytetty ilmansulkua tai höyrynsulkua, on saumojen, reunojen ja läpivientikohtien oltava tiiviitä.",
+      "text_en": "The layers of the top-floor structure and the roof ventilation must prevent harmful moisture build-up in the roof structure caused by water vapour diffusion or airflows. If an air barrier or vapour barrier is used in the structure, its seams, edges and penetrations must be tight.",
+      "summary_en": "Roof-level structures must ventilate to prevent harmful moisture build-up from vapour diffusion or airflow, and barrier seams must be tight.",
+      "keywords": [
+        "roof structure",
+        "attic",
+        "roof ventilation",
+        "vapour diffusion",
+        "airflow",
+        "vapour barrier",
+        "air barrier",
+        "yläpohja",
+        "tuuletus",
+        "höyrynsulku",
+        "ilmansulku",
+        "läpivienti"
+      ],
+      "topics": [
+        "moisture",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-28-1",
+      "ref": "28 § 1 mom.",
+      "heading": "Märkätilan vedeneristys ja rakenteet",
+      "heading_en": "Waterproofing and structures of wet rooms",
+      "text": "Vesi ei saa valua tai siirtyä kapillaarivirtauksena märkätilasta ympäröiviin rakenteisiin ja huonetiloihin. Valuvalle vedelle, toistuvalle roiskevedelle tai pintaan tiivistyvälle vedelle altistuvien pintojen takana olevan rakenteen on oltava vedeneristetty. Märkätilan lattiapäällysteen ja seinäpinnoitteen on toimittava vedeneristyksenä tai lattiassa päällysteen alla ja seinässä pinnoitteen takana on oltava erillinen vedeneristys. Vedeneristystä ei tarvita erillisen WC-tilan ja löylyhuoneen seinässä pinnoitteen takana. Märkätilan kattopinnoitteen on kestettävä tilan käytöstä johtuen roiskevesiä, ajoittaista korkeaa ilman suhteellista kosteutta ja tilapäisesti esiintyvää kosteuden tiivistymistä kattopinnoille.",
+      "text_en": "Water must not run or move by capillary flow from a wet room into the surrounding structures and habitable rooms. The structure behind surfaces exposed to running water, repeated splash water or water condensing on the surface must be waterproofed. The floor covering and wall coating of a wet room must act as waterproofing, or else the floor must have separate waterproofing under the covering and the wall must have separate waterproofing behind the coating. Waterproofing is not needed behind the wall coating of a separate WC space or a sauna room. The roof coating of a wet room must withstand splash water, occasional high relative air humidity and temporary condensation on the roof surfaces caused by use of the room.",
+      "summary_en": "Wet rooms must be waterproofed behind wet surfaces, with a separate membrane in floors and walls unless the covering itself is waterproof, and ceilings must resist splash water and condensation.",
+      "keywords": [
+        "wet room",
+        "waterproofing",
+        "floor covering",
+        "wall coating",
+        "capillary flow",
+        "splash water",
+        "sauna",
+        "WC",
+        "märkätila",
+        "vedeneristys",
+        "pinnoite",
+        "löylyhuone"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-28-2",
+      "ref": "28 § 2 mom.",
+      "heading": "Märkätilan vedeneristys ja rakenteet",
+      "heading_en": "Waterproofing and structures of wet rooms",
+      "text": "Märkätilan vedeneristyksen on muodostettava kokonaisuus, joka on tiivis kaikilta vedeneristetyiltä pinnoiltaan sekä niiden saumoista, läpivienneistä ja liittymistä. Märkätilojen vedeneristyksenä toimivan lattiapäällysteen tai lattiapäällysteen alla olevan vedeneristyksen on liityttävä vedenpitävästi seinän vedeneristykseen.",
+      "text_en": "The waterproofing of a wet room must form a whole that is watertight on all waterproofed surfaces and at their seams, penetrations and junctions. A floor covering that acts as waterproofing, or waterproofing under the floor covering, must join the wall waterproofing in a watertight way.",
+      "summary_en": "Wet-room waterproofing must be continuous and watertight at seams, penetrations and at the junction between floor and wall.",
+      "keywords": [
+        "wet room waterproofing",
+        "seams",
+        "penetrations",
+        "junction",
+        "floor-wall joint",
+        "watertight",
+        "märkätila",
+        "vedeneristys",
+        "läpivienti",
+        "liittymä",
+        "saumat"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-782-2017-28-3",
+      "ref": "28 § 3 mom.",
+      "heading": "Märkätilan vedeneristys ja rakenteet",
+      "heading_en": "Waterproofing and structures of wet rooms",
+      "text": "Märkätilan rakenteiden on oltava niin jäykkiä, että lämpö- ja kosteusliikkeet eivät vaurioita märkätilan vedeneristystä tai pintarakenteita. Jos märkätilan rakenteissa ei erityisestä syystä käytetä vedeneristystä, on rakennussuunnittelijan ja erityissuunnittelijan tehtäviensä mukaisesti osoitettava suunnitelmissa, että vedeneristyksen puuttuminen ei vaaranna maankäyttö- ja rakennuslain 117 c §:n mukaisten olennaisten teknisten vaatimusten täyttymistä.",
+      "text_en": "The structures of a wet room must be rigid enough that thermal and moisture movements do not damage the wet-room waterproofing or the surface structures. If, for a special reason, waterproofing is not used in a wet room's structures, the building designer and specialist designer must, within their duties, show in the plans that the absence of waterproofing does not endanger meeting the essential technical requirements under section 117 c of the Land Use and Building Act.",
+      "summary_en": "Wet-room structures must be stiff enough to avoid movement damage, and if waterproofing is omitted for a special reason, the plans must show it does not endanger the essential requirements.",
+      "keywords": [
+        "wet room",
+        "rigidity",
+        "movement damage",
+        "waterproofing omitted",
+        "Land Use and Building Act 117 c",
+        "essential technical requirements",
+        "märkätila",
+        "vedeneristys",
+        "jäykkyys"
+      ],
+      "topics": [
+        "moisture",
+        "structure",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-29-1",
+      "ref": "29 §",
+      "heading": "Märkätilan lattian kaltevuus ja läpiviennit",
+      "heading_en": "Floor slope and penetrations in wet rooms",
+      "text": "Märkätilan lattian kaltevuuden on mahdollistettava veden valuminen lattiakaivoon. Vedeneristyksen ja lattiakaivon liitoksen on oltava tiivis.",
+      "text_en": "The floor slope of a wet room must make it possible for water to run to the floor drain. The joint between the waterproofing and the floor drain must be watertight.",
+      "summary_en": "A wet room floor must slope so that water can run to the floor drain, and the joint between the waterproofing and the drain must be watertight.",
+      "keywords": [
+        "wet room floor slope",
+        "floor drain",
+        "lattiakaivo",
+        "märkätila",
+        "lattian kaltevuus",
+        "vedeneristys",
+        "läpivienti"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-30-1",
+      "ref": "30 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2018.",
+      "text_en": "This decree enters into force on 1 January 2018.",
+      "summary_en": "The decree enters into force on 1 January 2018.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "asetus",
+        "1.1.2018"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-782-2017-30-2",
+      "ref": "30 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämän asetuksen voimaan tullessa vireillä olevaan hankkeeseen sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "Projects pending when this decree enters into force are subject to the provisions that were in force when this decree entered into force.",
+      "summary_en": "Building projects already pending when the decree enters into force are judged under the rules that were in force on that date.",
+      "keywords": [
+        "transitional provision",
+        "pending project",
+        "vireillä oleva hanke",
+        "voimaantulo",
+        "siirtymäsäännös"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}
