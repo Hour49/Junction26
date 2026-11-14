@@ -278,7 +278,9 @@ class ExtraItem(BaseModel):
         return self
 
 
-ClaimUnit = Literal["count", "m", "cm", "mm", "ft", "in", "m2", "ft2", "min", "h"]
+ClaimUnit = Literal[
+    "count", "m", "cm", "mm", "ft", "in", "m2", "ft2", "m3", "ft3", "pct", "min", "h"
+]
 
 
 class NumberClaim(BaseModel):
@@ -288,7 +290,7 @@ class NumberClaim(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     value: StrictInt | StrictFloat = Field(ge=0)
-    unit: ClaimUnit = Field(description="count; m, cm, mm, ft, in; m2, ft2; min, h")
+    unit: ClaimUnit = Field(description="count; m, cm, mm, ft, in; m2, ft2; m3, ft3; pct; min, h")
     what: str | None = Field(default=None, description="what the number is, for the reader")
 
     @model_validator(mode="after")
