@@ -32,7 +32,7 @@ def _said(*parts: str) -> str:
 
 
 # quantity -> (the words that name it, the convention). A cue matches as a whole word (with a
-# plural ending), the longest matching cue wins ("water closet" is a toilet, "closet" a door), and
+# plural ending), the cue that ends last wins, the longest of those (`_score`), and
 # when the question names an area (AREA_WORDS) the area conventions come first ("the bathroom's
 # area" is a room's area, "does the area include the balcony" the floor area's). English, with
 # the common German and Finnish words.
@@ -48,8 +48,8 @@ CONVENTIONS: dict[str, tuple[tuple[str, ...], str]] = {
         ),
     ),
     "doors": (
-        ("door", "closet", "closet door", "double door", "sliding door", "doorway", "tür",
-         "türen", "ovi", "ovet"),
+        ("door", "closet", "closet door", "cupboard", "wardrobe", "double door", "sliding door",
+         "doorway", "tür", "türen", "ovi", "ovet"),
         _said(
             EACH_ONCE.text,
             "each door opening counts once: a double door, a sliding or folding door is one door",
@@ -77,7 +77,7 @@ CONVENTIONS: dict[str, tuple[tuple[str, ...], str]] = {
         ),
     ),
     "showers and bathtubs": (
-        ("shower", "bathtub", "bath tub", "tub", "dusche", "badewanne", "suihku", "kylpyamme"),
+        ("shower", "bathtub", "bath tub", "bath", "dusche", "badewanne", "suihku", "kylpyamme"),
         _said(
             "showers and bathtubs are counted apart when asked apart: a shower is a tray, a "
             "cubicle or a shower drawn in a wet room",
@@ -99,7 +99,7 @@ CONVENTIONS: dict[str, tuple[tuple[str, ...], str]] = {
         ),
     ),
     "apartment area": (
-        ("apartment", "dwelling", "flat", "wohnung", "asunto"),
+        ("apartment", "dwelling", "wohnung", "asunto"),
         _said(APARTMENT_AREA.text),
     ),
     # any other area question: a room's own area (`counting_rule` falls back to it)
@@ -151,11 +151,12 @@ def counting_rule(quantity: str) -> dict[str, Any]:
     if not asked:
         return {"conventions": {name: text for name, (_, text) in CONVENTIONS.items()}}
     area = AREA_WORDS.search(asked) is not None
-    scores = {name: _score(asked, cues) for name, (cues, _) in CONVENTIONS.items()}
+    # (an area convention in an area question, where its last cue ends, that cue's length)
+    scores = {name: (0, *_score(asked, cues)) for name, (cues, _) in CONVENTIONS.items()}
     if area:  # an area question: the area conventions first, a room's area when none is named
-        scores["room area"] = max(scores["room area"], 1)
-        scores |= {name: scores[name] + 1000 for name in AREAS if scores[name]}
-    found = {name: score for name, score in scores.items() if score % 1000}  # a cue matched
+        scores["room area"] = max(scores["room area"], (0, 0, 1))
+        scores |= {name: (1, *scores[name][1:]) for name in AREAS}
+    found = {name: score for name, score in scores.items() if score[-1]}  # a cue matched
     if not found:
         return {
             "quantity": quantity,
@@ -167,13 +168,17 @@ def counting_rule(quantity: str) -> dict[str, Any]:
     return {"quantity": name, "convention": CONVENTIONS[name][1]}
 
 
-def _score(asked: str, cues: tuple[str, ...]) -> int:
-    """The length of the longest cue in `asked` as whole words (a plural ending allowed); 0:
-    none."""
-    return max(
-        (len(cue) for cue in cues if re.search(rf"\b{re.escape(cue)}(?:s|es|n|en)?\b", asked)),
-        default=0,
-    )
+def _score(asked: str, cues: tuple[str, ...]) -> tuple[int, int]:
+    """Where the last cue found in `asked` (whole words, a plural ending allowed) ends, and the
+    longest cue ending there: the counted thing comes last ("living room door" is a door), and of
+    cues ending together the longest is the most specific ("water closet" over "closet").
+    (0, 0): none."""
+    ends = [
+        (found.end(), len(cue))
+        for cue in cues
+        for found in re.finditer(rf"\b{re.escape(cue)}(?:s|es|n|en)?\b", asked)
+    ]
+    return max(ends, default=(0, 0))
 
 
 def run_counting_tool(name: str, arguments: str) -> str:

@@ -64,7 +64,7 @@ def test_the_convention_for_each_quantity(asked: str, quantity: str, says: str) 
         ("Fenster", "windows"),
         ("ikkunat", "windows"),
         ("parveke pinta-ala", "floor area"),
-        ("Does the toilet count include the water closet room?", "toilets"),
+        ("Is a water closet a toilet?", "toilets"),
         ("closet doors", "doors"),
     ],
 )
@@ -72,7 +72,34 @@ def test_the_most_specific_cue_wins(asked: str, quantity: str) -> None:
     assert rule(asked)["quantity"] == quantity
 
 
-@pytest.mark.parametrize("asked", ["solar panels", "parking spaces", "glass panels"])
+# fail-1 on PR #353 (#14 c6883412999): the counted thing comes last, and of cues ending together
+# the longest is the most specific
+@pytest.mark.parametrize(
+    ("asked", "quantity"),
+    [
+        ("living room door", "doors"),
+        ("bedroom doors", "doors"),
+        ("water closet", "toilets"),
+        ("double bowl sink", "sinks"),
+        ("separate WC rooms", "toilets"),
+        ("door of the living room", "rooms"),
+        ("baths", "showers and bathtubs"),
+        ("cupboards", "doors"),
+    ],
+)
+def test_the_last_cue_wins_and_the_longest_of_those(asked: str, quantity: str) -> None:
+    assert rule(asked)["quantity"] == quantity
+
+
+def test_cupboard_doors_say_they_are_not_doors() -> None:
+    assert (
+        "cupboard and wardrobe doors (furniture) are not doors" in rule("cupboards")["convention"]
+    )
+
+
+@pytest.mark.parametrize(
+    "asked", ["solar panels", "parking spaces", "glass panels", "tubes", "flat roof"]
+)
 def test_a_cue_inside_another_word_does_not_match(asked: str) -> None:
     assert rule(asked)["convention"] is None
 
