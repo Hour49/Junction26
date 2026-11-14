@@ -42,15 +42,26 @@ from app.core.drawing.model import (
 )
 from app.core.model import Frozen
 from app.core.pipeline.model import Extracted, Measurement
-from app.core.pipeline.raster_scale import rooms_with_areas
+from app.core.pipeline.raster_scale import (
+    LABEL_NOTE,
+    REFUSED_NOTE,
+    label_area_checks,
+    rooms_with_areas,
+)
 from app.core.pipeline.second_count import ESTIMATE_RANGE, far_apart, mm_per_px
 
 INCH_M = 0.0254
+POINTS_PER_INCH = 72.0  # a PDF page's unit
 MIN_BAR_PX = 20.0  # a bar shorter than this on the image is not measured: a few px off is 10%
 DPI_RANGE = (100.0, 1200.0)  # a stated resolution outside it is not a scan's or an export's
 DEFAULT_DPI = (72.0, 96.0)  # what software writes when it knows nothing: never trusted
 MAX_PAPER_INCHES = 6.0  # an imperial scale draws at most half size, 6" to the foot
 COUNT_UNIT = "count"
+# A Finnish flat type: 4H+K is four rooms and a kitchen, 3h+k+s three rooms, kitchen and sauna. It
+# names the flat; it does not count the rooms a plan draws (live 2026-11-14: 4H+K against 18 read)
+FLAT_TYPE = re.compile(
+    r"(?<![^\W\d_])\d+\s*h\s*\+\s*[a-zåäö]+(?:\s*\+\s*[a-zåäö]+)*", re.IGNORECASE
+)
 
 
 class ScaleBar(Frozen):
@@ -158,8 +169,9 @@ def bar_m_per_px(bar: ScaleBar, pages: Sequence[Page]) -> float | None:
 
 
 def printed_scale(printed: PrintedSheet, pages: Sequence[Page], dpi: float | None) -> Scale | None:
-    """The sheet's scale as it prints it: its bars (median), else its ratio at `dpi` (a trusted
-    resolution, or None); None when neither gives metres per pixel."""
+    """The sheet's scale as it prints it, in metres per page unit: its bars (median), else its
+    ratio at `dpi` (a trusted resolution, or None) on a page in pixels, at 72 to the inch on a
+    page in points; None when neither gives one."""
     ratio = ratio_of(printed.printed_scale)
     shown = printed.printed_scale if ratio is not None else None
     measured = [m for m in (bar_m_per_px(bar, pages) for bar in printed.bars) if m is not None]
@@ -175,12 +187,19 @@ def printed_scale(printed: PrintedSheet, pages: Sequence[Page], dpi: float | Non
             source=f"printed scale bar ({_bars(len(measured))})",
         )
     if ratio is not None and dpi is not None:
+        # Metres per page unit. A scanned PDF's page is in points, 72 to the inch of its paper,
+        # whatever resolution its render states: `dpi` there only says the paper size is known.
+        points = bool(pages) and pages[0].unit == "pt"
         return Scale(
             status="scaled",
-            m_per_unit=ratio * INCH_M / dpi,
+            m_per_unit=ratio * INCH_M / (POINTS_PER_INCH if points else dpi),
             evidence=("scale_text",),
             text=shown,
-            source=f"printed scale {shown} at the image's {dpi:g} dpi",
+            source=(
+                f"printed scale {shown} on the page's paper size"
+                if points
+                else f"printed scale {shown} at the image's {dpi:g} dpi"
+            ),
         )
     return None
 
@@ -214,12 +233,15 @@ def scale_measurements(printed: Scale, before: Scale) -> list[Measurement]:
 
 def fact_measurements(facts: Sequence[PrintedFact]) -> list[Measurement]:
     """Each printed count of an element class, a room type or all rooms, as a second value of
-    that count (method `printed_total`). Areas, storeys and other facts are not compared. When
-    the sheet prints one count twice, the first is kept."""
+    that count (method `printed_total`). Areas, storeys and other facts are not compared, nor a
+    flat type (4H+K) read as a room count. When the sheet prints one count twice, the first is
+    kept."""
     out: dict[tuple[str, Subject], Measurement] = {}
     for fact in facts:
         if fact.unit != COUNT_UNIT or fact.value < 0 or fact.value != int(fact.value):
             continue
+        if fact.subject.startswith("room") and FLAT_TYPE.search(fact.text):
+            continue  # it stays in the notes, "printed on the sheet: 4H+K"
         if fact.subject in ELEMENT_CLASSES:
             quantity, subject = "element_count", Subject(kind="class", ref=fact.subject)
         elif fact.subject == "room":
@@ -246,7 +268,8 @@ def with_printed(
 ) -> Extracted:
     """`found` with what the sheet prints: its printed scale in place of an estimated one (or of
     none), every room area the estimate gave measured again at it, and the printed scale and
-    counts as stage-8 values against the reading. A scale the reading measured itself is kept."""
+    counts as stage-8 values against the reading. A scale the reading measured itself is kept.
+    Every area printed in a room's label is then checked at the sheet's final scale."""
     notes = [*found.notes, *printed.notes]
     measurements = [
         *_room_types_counted(found, printed.printed_facts),
@@ -297,13 +320,34 @@ def with_printed(
             if room.area_source == "geometry_x_estimate" else room
             for room in found.rooms
         ]  # fmt: skip
+        measured, refused = rooms_with_areas(rooms, scale, pages)
         update |= {
             "scale": scale,
-            "rooms": tuple(rooms_with_areas(rooms, scale, pages)),
+            "rooms": tuple(measured),
             "printed": (*found.printed, *measurements),
-            "notes": (*notes, f"scale: {scale.source}"),
+            "notes": (  # the rooms are measured again: the estimate's refusals go
+                *(note for note in notes if not note.startswith(REFUSED_NOTE)),
+                f"scale: {scale.source}",
+                *refused,
+            ),
         }
-    return found.model_copy(update=update)
+    return _label_checked(found.model_copy(update=update), pages)
+
+
+def _label_checked(found: Extracted, pages: Sequence[Page]) -> Extracted:
+    """`found` with its printed room areas checked at its (final) scale: an earlier check, at
+    the scale it replaced, goes (`label_area_checks`)."""
+    checks, said = label_area_checks(found.rooms, found.scale, pages)
+    earlier = [
+        m for m in found.printed
+        if m.quantity == "room_area" and m.value.method in ("printed_label", "detector")
+    ]  # fmt: skip
+    return found.model_copy(
+        update={
+            "printed": (*(m for m in found.printed if m not in earlier), *checks),
+            "notes": (*(n for n in found.notes if not n.startswith(LABEL_NOTE)), *said),
+        }
+    )
 
 
 def _room_types_counted(found: Extracted, facts: Sequence[PrintedFact]) -> list[Measurement]:

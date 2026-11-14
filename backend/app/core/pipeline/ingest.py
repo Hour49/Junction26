@@ -2,6 +2,7 @@
 sheet file to the sink. The CLI and the API both call this (through app/composition.py)."""
 
 from collections.abc import Callable, Collection, Iterable, Mapping
+from functools import partial
 
 from app.core.drawing.model import Drawing
 from app.core.pipeline.extract import extract
@@ -36,6 +37,13 @@ from app.core.wording import SCALE_WORDS, count, kind_words, route_words
 
 NO_SHEET = "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
 MODEL_ROUTE: Route = "bim"  # the one route whose source can be asked about without a page
+FALLBACK_ROUTE: Route = "raster"  # VECTOR_FALLBACK reads a page the vector route can't as an image
+
+
+def nothing_read(drawing: Drawing) -> bool:
+    """Whether the route's reader read nothing of the drawing: no class looked for, no schedule
+    (judge.read_nothing says why)."""
+    return drawing.read == () and not drawing.tables
 
 
 def ingest(
@@ -49,13 +57,17 @@ def ingest(
     sink: DrawingSink,
     readable: Collection[Route] = RICHEST_FIRST,
     scanned: Callable[[bytes], bool] | None = None,
+    fallback: Callable[[str], bool] | None = None,
 ) -> IngestReport:
     """A drawing model is written for every sheet among `paths`, and for a building model among
     them when its extractor lists its objects. A source the finder adds (a sheet's building
     model) is read from, and gets no drawing model of its own. `readable`: the routes whose
     extractor reads something; stage 5 routes a group only to one of them when it can.
     `scanned`: whether a PDF's bytes are a scan (no drawn content), which stage 5 routes to the
-    raster reader; None: every PDF is drawn."""
+    raster reader; None: every PDF is drawn. `fallback` (VECTOR_FALLBACK=raster): whether a
+    vector-route source, by path, is read again as an image on the raster route when the vector
+    reader read nothing of it; that reading is kept only when it finds an element or a room, so a
+    sheet with no plan on it still reads nothing (think-local r10 section 4); None: never."""
     inventory: dict[str, DrawingFile | SetAside] = {}
     scans: set[str] = set()
 
@@ -85,19 +97,32 @@ def ingest(
             file for file in members.files if file.path in given and key_of(file) == members.key
         ]
         sheet_files = [file for file in asked if file.kind in SHEET_KINDS]
+        image_of = Routed(route=FALLBACK_ROUTE, source=routed.source)
+        may_fall_back = (
+            fallback is not None and routed.route == "vector" and FALLBACK_ROUTE in extractors
+        )
         for file in asked:
             if file.kind in SHEET_KINDS:
-                sheets.append(
-                    _ingest_sheet(
-                        file,
-                        members,
-                        routed,
-                        pages=pages,
-                        extractors=extractors,
-                        second_counter=second_counter,
-                        sink=sink,
-                    )
+                read = partial(
+                    _read_sheet,
+                    file,
+                    members,
+                    pages=pages,
+                    extractors=extractors,
+                    second_counter=second_counter,
                 )
+                drawing, report = read(routed)
+                if (
+                    may_fall_back
+                    and fallback is not None
+                    and nothing_read(drawing)
+                    and fallback(routed.source.path)  # asked only when the vector read nothing
+                ):
+                    image = read(image_of)
+                    if image[0].elements or image[0].rooms:
+                        drawing, report = image
+                sink.write(drawing)
+                sheets.append(report)
             elif (
                 model := _ingest_model(file, members, routed, extractors=extractors, sink=sink)
             ) is not None:
@@ -162,7 +187,7 @@ def _found(file: DrawingFile, members: DrawingGroup, routed: Routed) -> tuple[st
     )
 
 
-def _ingest_sheet(
+def _read_sheet(
     file: DrawingFile,
     members: DrawingGroup,
     routed: Routed,
@@ -170,10 +195,10 @@ def _ingest_sheet(
     pages: PageReader,
     extractors: Mapping[Route, Extractor],
     second_counter: SecondCounter,
-    sink: DrawingSink,
-) -> SheetReport:
-    """Stages 6-10 for one sheet of a group. One drawing model per sheet file: a PDF and a PNG of
-    the same plan have different page frames (decision 0004)."""
+) -> tuple[Drawing, SheetReport]:
+    """Stages 6-10 for one sheet of a group, up to its drawing model (the caller writes it). One
+    drawing model per sheet file: a PDF and a PNG of the same plan have different page frames
+    (decision 0004)."""
     sheet = normalise(file, pages.pages(file))
     found = extract(routed, sheet, extractors)
     again = [*second_counter.measure(routed.source, sheet), *found.printed]
@@ -197,12 +222,11 @@ def _ingest_sheet(
     )
     counted = apply_rules(drawing.marks_by_quantity())
     quantities = take_off(drawing, counted)
-    sink.write(drawing)
     first_page = sheet.pages[0]
     rules = sorted({found.rule.id for found in counted.values()})
     above_zero = sum(quantity.value > 0 for quantity in quantities.values())
     conflicts = sum(entry.status == "conflict" for entry in compared)
-    return SheetReport(
+    return drawing, SheetReport(
         file=file.path,
         sha256=file.sha256,
         kind=file.kind,

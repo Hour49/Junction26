@@ -511,3 +511,33 @@
     align-items: stretch;
   }
 }
+
+/* The upload on its way, failed, received (IN-89). */
+.ingest-sending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 420px);
+}
+.ingest-sending progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--v-accent);
+}
+.ingest-failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+}
+.ingest-failed p,
+.ingest-sending p,
+.ingest-received {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ingest-received {
+  color: var(--v-text-2);
+}

@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { project, projectFailed, projectRunning } from '../api/fixtures';
 import type { StageTrace } from '../api';
 import {
+  STAGE_LABEL,
+  amount,
+  sizeText,
   STEPS,
   activeStep,
   elapsedMs,
@@ -36,13 +39,13 @@ describe('ingest.ts', () => {
     expect(progressOf(project.files)).toEqual({ done: 3, total: 3 });
   });
 
-  it('IN-56 stepOf maps the 11 stages (and null) to the 8 steps; activeStep is the lowest unfinished', () => {
+  it('IN-56 stepOf maps the 11 stages (and null) to steps 1-8; Index (9) has none; activeStep is the lowest unfinished', () => {
     const map: [Stage | null, number][] = [
       ['unpack', 1],
       ['hash', 1],
       [null, 1],
       ['identify', 2],
-      ['group', 2],
+      ['group', 3],
       ['route', 3],
       ['cache', 3],
       ['normalise', 4],
@@ -58,13 +61,35 @@ describe('ingest.ts', () => {
       'Route',
       'Normalise',
       'Extract',
-      'Cross-check',
+      'Second count',
+      'Takeoff',
+      'Store',
       'Index',
-      'Drawing model',
     ]);
     expect(activeStep(variants.running.files)).toBe(5);
     expect(activeStep(variants.queued.files)).toBe(1);
     expect(activeStep([])).toBe(1);
+  });
+
+  it('IN-89/IN-90 Index is the last step, reached once every file is finished; names follow the stages', () => {
+    const running = { ...variants.running, files: project.files };
+    expect(activeStep(running.files)).toBe(STEPS.length);
+    expect(must(STEPS.at(-1))).toMatchObject({ name: 'Index', stages: [] });
+    expect(STEPS.slice(0, 8).map((s) => s.name)).toEqual(
+      (
+        [
+          'unpack',
+          'identify',
+          'route',
+          'normalise',
+          'extract',
+          'second_count',
+          'takeoff',
+          'write',
+        ] as const
+      ).map((s) => STAGE_LABEL[s]),
+    );
+    expect(STAGE_LABEL.write).toBe('Store');
   });
 
   it('IN-59 stepFiles: through leaves out files finished earlier; passed is later or finished here', () => {
@@ -183,4 +208,13 @@ describe('ingest.ts', () => {
     expect(plural(1, 'quantity', 'quantities')).toBe('1 quantity');
     expect(plural(2, 'quantity', 'quantities')).toBe('2 quantities');
   });
+});
+
+it('IN-89 sizes: KB under 1 MB (never 0 KB for a total), MB with one decimal above; a part in its total unit', () => {
+  expect(sizeText(30_000)).toBe('29 KB');
+  expect(sizeText(10)).toBe('1 KB');
+  expect(sizeText(2.5 * 2 ** 20)).toBe('2.5 MB');
+  expect(amount(15_000, 30_000)).toBe('15');
+  expect(amount(0, 30_000)).toBe('0');
+  expect(amount(2 ** 19, 2 ** 21)).toBe('0.5');
 });

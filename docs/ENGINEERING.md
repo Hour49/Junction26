@@ -160,6 +160,8 @@ force-push.
 - Test what can break the demo: core logic, the contracts, each adapter against its fake, and one end-to-end test of
   the golden demo path ([QA.md §1](QA.md#1-golden-demo-path)) on the fakes. No coverage percentage this weekend.
 - Deterministic: no sleeps, no real clock (inject it), no network, fixed seeds, temp dirs for files.
+- A test that needs an API key uses exactly `test-key-0123456789`: `.gitleaks.toml` allows that one value and
+  nothing else, so any other made-up key turns CI's secret scan red.
 - If the demo uses Postgres or another real database, the SQL that matters is tested against that engine in CI.
   SQLite accepts types and constraints the real one rejects.
 - Generated files (an API client, docs built from code) have a `--check` mode or a test that fails when they are

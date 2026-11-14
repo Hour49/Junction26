@@ -151,7 +151,8 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   `/ask` chat stays (ProjectChat unchanged). Keeps `chat_id` from the first turn; one turn pending at a time;
   reuses `AskBox`. Empty start as today (title, ask bar, starter chips).
 - AC-31 Turn card: the text with `[n]` as links to its source; sources list `n · label · drawing name, page p ·
-  Show it` (opens the drawing at that place with the existing viewer focus); a disclosure "N steps · 1.2 s · $0.01"
+  Show it` (opens the drawing at that place with the existing viewer focus), also under an ask chat card, whose
+  References number drawings, not the text's `[n]` (Tudor's smoke 3, 2026-11-14); a disclosure "N steps · 1.2 s · $0.01"
   listing each step's label and an error mark for failed ones; kind look: `dont_know` uses the refusal look ("I
   don't know" headline + the reason), `conflict` shows both values with their sources, `needs_input` shows its
   options as chips that send `option.message`.
@@ -169,6 +170,43 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-34 API client: `chatTurn(projectId, {chat_id?, message, selection?})` and `decideProposal(projectId, chatId,
   proposalId, action)` in `src/api/client.ts`; types from `npm run api:gen`.
 - AC-35 Phone width (390): the edit card's plan is full width, the change list below; no horizontal scroll.
+- AC-36 (chat-ux #1, orch 20:30; shapes in `.agents/chat/contract.md` A) The plan beside the chat, at 1200 px and
+  wider: the chat column left, a sticky pane right (`aside` "Plan") with the drawing's name, "Open in workspace"
+  (at the view's page and box) and, with several askable drawings, a switcher. Before any place it shows the first
+  askable drawing. Each turn with a `view` opens its drawing and page, draws its marks numbered as the sources
+  (polygon when sent, else box), focuses `view.box` and shows `view.caption`; a turn without one leaves the plan as
+  it was. A server without `view`: the turn's view is the page of `[1]` with every source on that page (contract
+  A's "evidence" rule). `[n]` and a source's "Show it" focus that place on the plan and stay in the chat (a
+  modified click still opens the workspace); a source on another page opens that page with its own mark. Under
+  1200 px: AC-38. A restored thread opens its newest view. [component
+  `plan.test.tsx`, `PageViewer` spy; browser 1440 and 390]
+- AC-38 (chat-ux #9, phone pass) Under 1200 px the same plan opens as a full-screen sheet (`dialog` "The plan",
+  above the site header) instead of beside the chat: from a "Show the plan" chip next to "Point at the plan", and
+  from `[n]` / "Show it" (which then focus that place and stay in the chat, as AC-36). The sheet's head has Close;
+  Escape closes it too, except inside the viewer (there it clears a tip or a drag); focus moves into the sheet,
+  Tab and Shift+Tab wrap inside it, and focus goes back to where it was on close. Scrolling the plan never scrolls
+  the chat behind. Widening past 1200 px closes the sheet (the pane shows); narrowing again does not reopen it.
+  1200 px and wider: no chip, no Close.
+  [component `plan.test.tsx`; browser 390 and 1024]
+- AC-37 (chat-ux #2, orch 20:36; events in `.agents/chat/contract.md` C) Live steps: a turn is sent to
+  `POST .../chat/stream` (`src/agent/stream.ts`, fetch + reader, not EventSource). While it runs, the pending row
+  lists each tool as the server labels it: planned (open circle), running (spinner, still under reduced motion),
+  then ✓ or ✗ with the server's `summary`; under them what it does now: "Thinking…", "Checking the answer…", or
+  "Checking again: <reason>" after a `checking` retry; "Working on it…" before the first event. The `answer` event's
+  ChatTurn replaces the row as the sync reply did. A new chat's id is taken from the `turn` event. A `view` event
+  (show_on_plan) moves the plan (AC-36) while the turn runs; the answer's own view has the last word. The stream is
+  used only when `GET /api/info` says `chat.stream`; otherwise (false, or an older server without it) the sync
+  `POST .../chat`. Never resent to either route: an HTTP error, a lost connection or an `error` event shows the
+  error row; asking again continues the chat. [unit `stream.test.ts`; component `live.test.tsx`, `plan.test.tsx`;
+  browser with a streaming mock backend, 1440 and 390]
+- AC-39 (chat-ux #8) The empty agent chat says what was read before the first question: a "What I read" block
+  (`region`) between the title and the ask bar, per askable drawing (at most 3, then "and N more drawings") its
+  plain name, kind and route in words, what its file's takeoff counted ("8 rooms (38.32 m² indoors) · 6 doors ·
+  4 windows", zero counts left out) and the file's `reason` as a sentence (the server's words, flags included).
+  From `GET /api/projects/{id}` alone, no model call; gone once the thread has a turn. Up to 600 px wide the block
+  goes under the ask bar and the starter chips, so the ask box is fully in the first screen (390x844, keycheck 334).
+  [component `WhatIRead.test.tsx`, `AgentChat.test.tsx`; browser 1440 and 390: e2e AC-39 asserts the ask box's
+  bottom is within the viewport]
 
 ## 4. Tests
 

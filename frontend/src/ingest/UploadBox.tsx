@@ -1,22 +1,44 @@
 import { useRef, useState, type DragEvent } from 'react';
-import { startSample, uploadProject, type Started } from '../api';
+import { ApiError, errorText, startSample, uploadProject, type Started } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
 import { uploadTooLarge } from '../shell/limits';
+import { amount, sizeText, uploadedKey } from './ingest';
 
 const ACCEPT = '.zip,.pdf,.png,.jpg,.jpeg,.ifc,.dxf,.svg,image/*';
-// What a route reads today; no DWG (no reader).
+// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader.
 const FORMATS = [
   'IFC models',
   'DXF',
-  'Vector PDF · SVG',
+  'PDF, drawn or scanned',
+  'SVG',
   'PNG · JPG scans and photos',
   'ZIP archives',
 ];
 
-/** Start a project: drop or pick one file, or the sample archive. On 202 the app goes to the project. */
+/** An upload on its way: bytes sent of the total (XHR progress). */
+type Sending = { name: string; sent: number; total: number };
+/** An upload that failed: the file (for Retry), the error, and how far it got. */
+type Failed = { file: File; error: unknown; at: number };
+
+const percent = (s: Sending) => (s.total > 0 ? Math.round((100 * s.sent) / s.total) : 0);
+
+/** What failed and where (Bogdan 2026-11-15): lost while sending, or refused by the server with its detail. */
+function failedLine(f: Failed): string {
+  const name = f.file.name;
+  if (f.error instanceof ApiError && f.error.status > 0)
+    return `The server refused ${name}: ${f.error.detail}`;
+  if (f.error instanceof ApiError)
+    return `The connection was lost while sending ${name} (at ${String(f.at)}%).`;
+  return `Could not send ${name}: ${errorText(f.error).detail}`;
+}
+
+/** Start a project: drop or pick one file, or the sample archive. A file's upload shows its progress, then on 202
+ * the app goes to the project's extraction view, which says what the server received. */
 export function UploadBox() {
   const [busy, setBusy] = useState<string | null>(null);
+  const [sending, setSending] = useState<Sending | null>(null);
+  const [failed, setFailed] = useState<Failed | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [note, setNote] = useState<string | null>(null);
   const inFlight = useRef(false);
@@ -29,6 +51,7 @@ export function UploadBox() {
     setBusy(label);
     setError(null);
     setNote(null);
+    setFailed(null);
     try {
       const started = await call();
       window.location.hash = `#/p/${started.id}`;
@@ -54,7 +77,43 @@ export function UploadBox() {
       setNote(refused);
       return;
     }
-    void start(`Uploading ${file.name}…`, () => uploadProject(file));
+    send(file);
+  }
+
+  function send(file: File) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setError(null);
+    setNote(null);
+    setFailed(null);
+    let at: Sending = { name: file.name, sent: 0, total: file.size };
+    setSending(at);
+    uploadProject(file, {
+      onProgress: (sent, total) => {
+        at = { name: file.name, sent, total };
+        setSending(at);
+      },
+    })
+      .then(
+        (started) => {
+          try {
+            sessionStorage.setItem(
+              uploadedKey(started.id),
+              JSON.stringify({ name: file.name, bytes: file.size }),
+            );
+          } catch {
+            // no storage: the extraction view just doesn't repeat it
+          }
+          window.location.hash = `#/p/${started.id}`;
+        },
+        (e: unknown) => {
+          setFailed({ file, error: e, at: percent(at) });
+        },
+      )
+      .finally(() => {
+        inFlight.current = false;
+        setSending(null);
+      });
   }
 
   function onDrop(event: DragEvent) {
@@ -80,7 +139,7 @@ export function UploadBox() {
           <button
             type="button"
             className="v-btn v-press"
-            disabled={busy !== null}
+            disabled={busy !== null || sending !== null}
             onClick={() => {
               picker.current?.click();
             }}
@@ -92,7 +151,7 @@ export function UploadBox() {
             type="file"
             accept={ACCEPT}
             hidden
-            disabled={busy !== null}
+            disabled={busy !== null || sending !== null}
             onChange={(e) => {
               upload(e.target.files);
               e.target.value = '';
@@ -101,7 +160,7 @@ export function UploadBox() {
           <button
             type="button"
             className="v-btn v-btn--secondary v-press"
-            disabled={busy !== null}
+            disabled={busy !== null || sending !== null}
             onClick={() => {
               void start('Starting the sample…', () => startSample({ fresh: true }));
             }}
@@ -114,6 +173,31 @@ export function UploadBox() {
           <p role="status" aria-live="polite">
             {busy}
           </p>
+        )}
+        {sending &&
+          (sending.total > 0 && sending.sent >= sending.total ? (
+            <p role="status" aria-live="polite">
+              {`Sent ${sending.name} (${sizeText(sending.total)}): waiting for the server…`}
+            </p>
+          ) : (
+            <div role="status" aria-live="polite" className="ingest-sending">
+              <p>{`Sending ${sending.name}: ${amount(sending.sent, sending.total)} of ${sizeText(sending.total)} (${String(percent(sending))}%)`}</p>
+              <progress aria-label="Upload" max={100} value={percent(sending)} />
+            </div>
+          ))}
+        {failed && (
+          <div role="alert" className="ingest-failed">
+            <p>{failedLine(failed)}</p>
+            <button
+              type="button"
+              className="v-btn v-btn--secondary v-press"
+              onClick={() => {
+                send(failed.file);
+              }}
+            >
+              Retry
+            </button>
+          </div>
         )}
         {note && <p role="alert">{note}</p>}
         {error !== null && <ErrorView error={error} />}

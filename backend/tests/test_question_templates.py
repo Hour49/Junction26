@@ -6,7 +6,14 @@ dataset, so a pass means the parser reads meaning rather than one fixed template
 import pytest
 
 from app.adapters.question_templates import TemplateParser
-from app.core.answering.model import IN_ONE_ROOM, NO_SUBJECT, SEVERAL_ROOMS, Query, Unsupported
+from app.core.answering.model import (
+    IN_ONE_ROOM,
+    NO_SUBJECT,
+    SEVERAL_ROOMS,
+    SEVERAL_THINGS,
+    Query,
+    Unsupported,
+)
 
 PARSE = TemplateParser().parse
 
@@ -404,6 +411,30 @@ def test_a_room_number_alone_does_not_make_a_count_or_a_sheet_total() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("text", "subject", "name"),
+    [
+        ("How many doors does Bagno 1.01 have?", "door", "1.01"),
+        ("How many doors are in room 1.01?", "door", "1.01"),
+        ("How many windows does room 'Cucina' have?", "window", "Cucina"),
+        ("How many showers and bathtubs are in room 1.01?", "shower+bathtub", "1.01"),
+    ],
+)
+def test_a_count_with_a_room_number_or_name_counts_inside_that_room(
+    text: str, subject: str, name: str
+) -> None:
+    """Tudor's chat QA: "How many doors does Bagno 1.01 have?" counted the whole sheet."""
+    assert PARSE(text) == Query(measure="count", subject=subject, name=name)
+
+
+def test_a_count_naming_two_rooms_or_two_things_in_one_room_is_refused() -> None:
+    assert PARSE("How many doors are in rooms 1.01 and 1.09?") == Unsupported(reason=SEVERAL_ROOMS)
+    assert PARSE("How many doors and windows does room 1.01 have?") == Unsupported(
+        reason=SEVERAL_THINGS
+    )
+    assert PARSE("How many doors are there?") == Query(measure="count", subject="door")
+
+
 def test_a_storage_room_is_a_room_type() -> None:
     assert PARSE("What is the area of the storage room?") == Query(
         measure="area", subject="room:storage"
@@ -415,3 +446,14 @@ def test_plans_are_counted() -> None:
     """R2-2 note: "How many plans are there?" was refused though the takeoff counts plans."""
     assert PARSE("How many plans are there?") == Query(subject="plan")
     assert PARSE("How many floor plans does the sheet show?") == Query(subject="plan")
+
+
+def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
+    """review-354 re-check: "room -1.2" is the basement room -1.2 (its label keeps the sign), not
+    room 1.2; "Zimmer-1.05" is room 1.05."""
+    assert PARSE("What is the area of room -1.2?") == Query(
+        measure="area", subject="room", name="-1.2"
+    )
+    assert PARSE("What is the area of Zimmer-1.05?") == Query(
+        measure="area", subject="room", name="1.05"
+    )

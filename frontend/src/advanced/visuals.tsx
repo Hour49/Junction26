@@ -321,7 +321,7 @@ function showConflicts() {
   list.focus({ preventScroll: true });
 }
 
-/** Cross-check: every quantity measured twice, with both values and the verdict. */
+/** Second count: every quantity measured twice, with both values and the verdict. */
 export const PAIRS_SHOWN = 4;
 
 export function CheckPairs({ pairs, done }: { pairs: readonly Pair[]; done: boolean }) {

@@ -158,6 +158,17 @@ class QuantityConflict(Frozen):
     value_marks: tuple[tuple[ValueMark, ...], ...] = ()
 
 
+class Partial(Frozen):
+    """A room total that may leave rooms out: the sum of the `counted` rooms a reader found on a
+    picture (`read`), or of rooms a room schedule on the drawing says are not all of them.
+    `missing`: the rooms the schedule names and the sum does not have, as it prints them."""
+
+    counted: int = Field(ge=0)
+    missing: tuple[str, ...] = ()
+    read: bool = True  # the rooms were read off a picture; False: drawn on the sheet (vector, IFC)
+    schedule: str | None = None  # the title of the table naming `missing`; None: it has none
+
+
 class Quantity(Frozen):
     """Stage 10: one precomputed answer of the takeoff, with its proof."""
 
@@ -167,6 +178,7 @@ class Quantity(Frozen):
     marks: tuple[Mark, ...]
     rule: str  # the id of the counting rule
     estimate: str | None = None  # what an estimated value rests on, in words; None: as read
+    source: str | None = None  # where a value read off the sheet was printed, in words
     conflict: QuantityConflict | None = None  # two methods measured it; `value` is the resolved one
     # Two methods measured it and agree (status "agree"); with `conflict` None too, it is single:
     # one method measured it
@@ -174,6 +186,7 @@ class Quantity(Frozen):
     # The items its counting rule left out, each with the reason (stage 9), e.g. a sauna room's
     # stoves, or the outdoor rooms of an indoor total
     excluded: tuple[tuple[Mark, str], ...] = ()
+    partial: Partial | None = None  # a room total over the rooms found, maybe not all of them
 
 
 class SheetReport(Frozen):

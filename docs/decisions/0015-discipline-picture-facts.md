@@ -20,8 +20,9 @@
 
 ## Decision
 
-- **One branch, two lanes, one output.** A page whose triage discipline is a service or structural one (or whose
-  kind is `mep_plan`) goes to the discipline branch. A vector PDF is parsed (its repeated path groups and line
+- **One branch, two lanes, one output.** A page whose triage discipline is a service or structural one (by a
+  strong title word or a sheet code) goes to the discipline branch; a `mep_plan` whose title names no service is not
+  routed (the sheet-kind model calls 4 of 22 labelled floor plans `mep_plan`). A vector PDF is parsed (its repeated path groups and line
   styles), with the picture lane as its check. A scan or photo is read with vision. Both write a `FactSheet` with
   the IFC fact sheets' topics (`<kind>.count`, `<kind>.length`, `<kind>.size_length`, ...), keyed by the drawing id.
   `source` names the method (`picture:vlm+template`, `vector:paths+vlm`). The answer path does not know whether a

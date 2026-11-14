@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { error, info, projectList, projectStarted } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
@@ -72,7 +72,7 @@ describe('HomeScreen', () => {
     render(<HomeScreen />);
     pick(new File(['x'], 'plan.pdf'));
     await flush();
-    expect(screen.getByText('Uploading plan.pdf…')).toBeTruthy();
+    expect(screen.getByText('Sent plan.pdf (1 KB): waiting for the server…')).toBeTruthy();
     expect((sampleButton() as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -168,7 +168,7 @@ describe('HomeScreen', () => {
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
-  it('IN-52 home: the hero, the five format chips and no edit-plan link', async () => {
+  it('IN-52 home: the hero, the six format chips (a scanned PDF named) and no edit-plan link', async () => {
     mockApi({});
     render(<HomeScreen />);
     expect(
@@ -182,7 +182,8 @@ describe('HomeScreen', () => {
     ).toEqual([
       'IFC models',
       'DXF',
-      'Vector PDF · SVG',
+      'PDF, drawn or scanned',
+      'SVG',
       'PNG · JPG scans and photos',
       'ZIP archives',
     ]);
@@ -198,5 +199,105 @@ describe('HomeScreen', () => {
       screen.getByRole('link', { name: 'Earlier uploads are in Workspaces' }).getAttribute('href'),
     ).toBe('#/workspaces');
     expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(0);
+  });
+});
+
+// Bogdan 2026-11-15: the upload says it is sending (bytes, %), that the server received it, then moves on to the
+// extraction; a failure says what failed, with a retry.
+describe('upload: sending, received, failed', () => {
+  /** An XHR whose upload this test drives: `progress`, `answer` (status + JSON body) or `drop` (network). */
+  class HeldXhr {
+    static last: HeldXhr | null = null;
+    static sent = 0;
+    status = 0;
+    responseText = '';
+    upload: { onprogress: ((e: Partial<ProgressEvent>) => void) | null } = { onprogress: null };
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    onabort: (() => void) | null = null;
+    open() {
+      HeldXhr.last = this; // the test drives it
+    }
+    setRequestHeader() {
+      return undefined;
+    }
+    abort() {
+      return undefined;
+    }
+    send() {
+      HeldXhr.sent++;
+    }
+    progress(loaded: number, total: number) {
+      act(() => {
+        this.upload.onprogress?.({ lengthComputable: true, loaded, total });
+      });
+    }
+    answer(status: number, body: unknown) {
+      this.status = status;
+      this.responseText = JSON.stringify(body);
+      this.onload?.();
+    }
+    drop() {
+      this.onerror?.();
+    }
+  }
+  const MB = 2 ** 20;
+  function held(): HeldXhr {
+    mockApi({ [LIST]: projectList });
+    HeldXhr.last = null;
+    HeldXhr.sent = 0;
+    vi.stubGlobal('XMLHttpRequest', HeldXhr);
+    render(<HomeScreen />);
+    const file = new File(['x'], 'site.zip');
+    Object.defineProperty(file, 'size', { value: 2 * MB });
+    pick(file);
+    const xhr = HeldXhr.last as HeldXhr | null;
+    if (!xhr) throw new Error('no upload was sent');
+    return xhr;
+  }
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it('while sending: the bytes sent of the total and the percent, as a progress bar', () => {
+    const xhr = held();
+    xhr.progress(MB / 2, 2 * MB);
+    expect(screen.getByText('Sending site.zip: 0.5 of 2.0 MB (25%)')).toBeTruthy();
+    expect(screen.getByRole('progressbar', { name: 'Upload' }).getAttribute('value')).toBe('25');
+  });
+
+  it('on 202: what the server received is kept for the extraction view, which opens without a click', async () => {
+    const xhr = held();
+    xhr.progress(2 * MB, 2 * MB);
+    expect(screen.getByText('Sent site.zip (2.0 MB): waiting for the server…')).toBeTruthy();
+    xhr.answer(202, projectStarted);
+    await flush();
+    expect(window.location.hash).toBe(`#/p/${projectStarted.id}`);
+    expect(JSON.parse(must(sessionStorage.getItem(`uploaded:${projectStarted.id}`)))).toEqual({
+      name: 'site.zip',
+      bytes: 2 * MB,
+    });
+  });
+
+  it('the connection lost while sending says so and where; Retry sends the file again', async () => {
+    const xhr = held();
+    xhr.progress(MB, 2 * MB);
+    xhr.drop();
+    await flush();
+    expect(screen.getByRole('alert').textContent).toContain(
+      'The connection was lost while sending site.zip (at 50%).',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(HeldXhr.sent).toBe(2);
+  });
+
+  it('a file the server refuses says the server refused it, with its detail; Retry is offered', async () => {
+    const xhr = held();
+    xhr.answer(413, { detail: 'the upload is over 200 MB', code: 'too-large' });
+    await flush();
+    expect(screen.getByRole('alert').textContent).toContain(
+      'The server refused site.zip: the upload is over 200 MB',
+    );
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 });

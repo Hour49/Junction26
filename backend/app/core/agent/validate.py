@@ -88,10 +88,8 @@ def problems(
                if ev not in minted]  # fmt: skip
     if unknown:
         out.append(f"evidence ids no tool returned in this turn: {', '.join(unknown)}")
-    known = numbers(sources)
-    unbacked = [n for n in NUMBER.findall(_IDS.sub(" ", answer.text)) if not backed(n, known)]
-    if unbacked:
-        out.append(f"numbers no tool result of this turn gives: {', '.join(unbacked)}")
+    if missing := unbacked(answer.text, sources):
+        out.append(f"numbers no tool result of this turn gives: {', '.join(missing)}")
     if answer.kind == "edit" and answer.proposal_id not in proposals:
         out.append(f"kind edit needs a proposal_id a plan tool returned in this turn, "
                    f"not {answer.proposal_id!r}")  # fmt: skip
@@ -100,6 +98,17 @@ def problems(
     if answer.kind == "answer" and all_failed:
         out.append("kind answer, but every tool result of this turn failed or said unknown")
     return out
+
+
+def claims(text: str) -> list[str]:
+    """The numbers `text` states, ids and citations aside."""
+    return NUMBER.findall(_IDS.sub(" ", text))
+
+
+def unbacked(text: str, sources: list[str]) -> list[str]:
+    """The numbers in `text` (ids and citations aside) that no number in `sources` backs."""
+    known = numbers(sources)
+    return [n for n in claims(text) if not backed(n, known)]
 
 
 def numbers(sources: list[str]) -> set[Decimal]:

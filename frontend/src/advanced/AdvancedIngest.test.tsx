@@ -71,7 +71,7 @@ const stat = (label: string) => must(screen.getByText(label, { selector: 'dt' })
 afterEach(cleanup);
 
 describe('AdvancedIngest', () => {
-  it('AV-1 the rail has the 8 steps in the backend order', async () => {
+  it('AV-1 the rail has the 9 steps in the backend order', async () => {
     await show();
     expect(steps().map((b) => b.textContent.replace(/^[✓–]/, '').split(',')[0])).toEqual([
       'Unpack',
@@ -79,13 +79,27 @@ describe('AdvancedIngest', () => {
       'Route',
       'Normalise',
       'Extract',
-      'Cross-check',
+      'Second count',
+      'Takeoff',
+      'Store',
       'Index',
-      'Drawing model',
     ]);
   });
 
-  it('AV-4 running: the current step is aria-current and selected; done: none current, Index selected', async () => {
+  it('AV-46 the route lines: one per route the project is on, none where the routes do not differ', async () => {
+    await show();
+    await pick(/^Extract/);
+    const list = screen.getByRole('list', { name: 'By route' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([expect.stringMatching(/^drawn PDF route: Read from the PDF's text and lines/)]);
+    await pick(/^Takeoff/);
+    expect(screen.queryByRole('list', { name: 'By route' })).toBeNull();
+  });
+
+  it('AV-4 running: the current step is aria-current and selected; done: none current, Takeoff selected', async () => {
     const { view } = await show(variants.running);
     const current = steps().filter((b) => b.getAttribute('aria-current') === 'step');
     expect(current.map((b) => b.textContent.split(',')[0])).toEqual(['Extract']); // working: no icon
@@ -94,7 +108,7 @@ describe('AdvancedIngest', () => {
     view.unmount();
     await show();
     expect(steps().some((b) => b.hasAttribute('aria-current'))).toBe(false);
-    expect(screen.getByRole('heading', { name: 'Indexing' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Working out the quantities' })).toBeTruthy();
   });
 
   it('AV-5 a click selects a step, and the pick stays when the project updates', async () => {
@@ -367,9 +381,9 @@ describe('AdvancedIngest', () => {
     );
   });
 
-  it('AV-19/AV-38 Cross-check: conflicts first, "Show the conflict" scrolls to the list; stats', async () => {
+  it('AV-19/AV-38 Second count: conflicts first, "Show the conflict" scrolls to the list; stats', async () => {
     await show();
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     const pairs = screen.getByRole('list', { name: 'Measured twice' });
     expect(pairs.textContent).toContain('They disagree. It goes to the conflicts below.');
     expect(within(pairs).queryAllByRole('link')).toHaveLength(0);
@@ -387,7 +401,7 @@ describe('AdvancedIngest', () => {
     expect(stat('Agree').textContent).toContain('0');
   });
 
-  it("Cross-check names each pair by this project's file even when the drawing is shared", async () => {
+  it("Second count names each pair by this project's file even when the drawing is shared", async () => {
     const d = must(project.drawings[0]);
     const p: ProjectView = {
       ...project,
@@ -403,13 +417,13 @@ describe('AdvancedIngest', () => {
         file: 'plans/someone-else.pdf',
       },
     });
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     const pairs = screen.getByRole('list', { name: 'Measured twice' });
     expect(pairs.textContent).toContain('drawings/mine.pdf');
     expect(document.body.textContent).not.toContain('someone-else');
   });
 
-  it('Cross-check shows every conflict and the first agreeing pairs, the rest behind "Show all"', async () => {
+  it('Second count shows every conflict and the first agreeing pairs, the rest behind "Show all"', async () => {
     const agree = (i: number) => ({
       ...must(takeoff.quantities[0]),
       key: `k${String(i)}`,
@@ -425,26 +439,26 @@ describe('AdvancedIngest', () => {
     await show(p, {
       [`GET /api/drawings/${d.drawing_id}/takeoff`]: { ...long, drawing_id: d.drawing_id },
     });
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     const list = screen.getByRole('list', { name: 'Measured twice' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(1 + 4);
     fireEvent.click(screen.getByRole('button', { name: 'Show all 7 pairs' }));
     expect(within(list).getAllByRole('listitem')).toHaveLength(7);
   });
 
-  it('AV-31 Cross-check: "–" until every takeoff has loaded, never a partial count', async () => {
+  it('AV-31 Second count: "–" until every takeoff has loaded, never a partial count', async () => {
     const last = must(project.drawings.at(-1));
     await show(project, { [`GET /api/drawings/${last.drawing_id}/takeoff`]: never() });
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     for (const label of ['Measured twice', 'Agree', 'Conflicts'])
       expect(stat(label).textContent).toBe(`${label}–`);
     cleanup();
     await show();
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     expect(stat('Measured twice').textContent).not.toContain('–');
   });
 
-  it('AV-34 Cross-check: Conflicts counts Takeoff.disputes, not every conflict row', async () => {
+  it('AV-34 Second count: Conflicts counts Takeoff.disputes, not every conflict row', async () => {
     const real = must(takeoff.quantities.find((r) => r.status === 'conflict'));
     const twin = { ...real, key: 'area:room|name=Küche' };
     const over: Record<string, unknown> = {};
@@ -456,7 +470,7 @@ describe('AdvancedIngest', () => {
         disputes: [real.key],
       };
     await show(project, over);
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     expect(stat('Conflicts').textContent).toBe(`Conflicts${String(project.drawings.length)}`);
   });
 
@@ -505,7 +519,7 @@ describe('AdvancedIngest', () => {
 
   it('AV-37 the Advanced view makes no review or issues request of its own', async () => {
     const { api } = await show();
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     const urls = api.calls.map((c) => c.url);
     expect(urls.length).toBeGreaterThan(0);
     expect(urls.filter((u) => u.includes('/review') || u.includes('/issues'))).toEqual([]);
@@ -513,7 +527,7 @@ describe('AdvancedIngest', () => {
 
   it('AV-38 while reading, a conflict goes to the list when reading ends, with no button', async () => {
     await show(variants.running);
-    await pick(/^Cross-check/);
+    await pick(/^Second count/);
     const pairs = screen.queryByRole('list', { name: 'Measured twice' });
     if (pairs) {
       expect(pairs.textContent).not.toContain('below');
@@ -527,7 +541,7 @@ describe('AdvancedIngest', () => {
   it('AV-20/AV-39 Index: questions ready per drawing and the suggestions, no Ask link', async () => {
     await show();
     expect(screen.getByText('Questions ready to ask')).toBeTruthy();
-    expect(document.body.textContent).toContain('71 questions ready to ask');
+    expect(document.body.textContent).toContain('141 questions ready to ask');
     expect(document.body.textContent).toContain(must(drawing.suggestions[0]).label);
     expect(screen.queryByRole('link', { name: 'Ask this drawing' })).toBeNull();
     expect(document.body.textContent).not.toContain('answers ready');

@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
-import { drawing, project } from '../api/fixtures';
+import { drawing, fileReadAsPlan, project } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
 import { AgentChat } from './AgentChat';
 import type { ChatRequest } from './agent';
@@ -133,6 +133,40 @@ it('CH-45 follow-up chips after an answer (questions not asked yet); none after 
   expect(screen.queryByRole('group', { name: 'Follow-up questions' })).toBeNull();
 });
 
+it("#369 the answer's own next chips (at most 3) replace the drawing follow-ups; a click asks its message", async () => {
+  const next = [
+    { label: 'Show them on the plan', message: 'Show me where they are' },
+    { label: 'Which is the largest?', message: 'Which bathroom is the largest?' },
+    { label: 'Total area', message: 'What is the total bathroom area?' },
+    { label: 'A fourth', message: 'never shown' },
+  ];
+  const api = open({ ...answerTurn, next });
+  await send('How big is the bathroom?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  const group = screen.getByRole('group', { name: 'Follow-up questions' });
+  expect(
+    within(group)
+      .getAllByRole('button')
+      .map((b) => b.textContent),
+  ).toEqual(['Show them on the plan', 'Which is the largest?', 'Total area']);
+  fireEvent.click(within(group).getByRole('button', { name: 'Show them on the plan' }));
+  await waitFor(() => {
+    expect(posts(api).at(-1)).toEqual({
+      chat_id: answerTurn.chat_id,
+      message: 'Show me where they are',
+    });
+  });
+});
+
+it('#369 a turn without a next field (kept from an older server) gets the drawing follow-ups', async () => {
+  open({ ...answerTurn, next: undefined });
+  await send('How many doors are there?');
+  await screen.findByText(/is 7.56 m²/);
+  expect(screen.getByRole('group', { name: 'Follow-up questions' }).textContent).toContain(
+    'How many windows are there?',
+  );
+});
+
 it("LC-11 every turn sends the route's ?pack=; none without one", async () => {
   const api = open(answerTurn, 'pack=ch-zh');
   await send('Put a storage room here');
@@ -149,3 +183,38 @@ it("LC-11 every turn sends the route's ?pack=; none without one", async () => {
   await screen.findByText(/is 7.56 m²/);
   expect(posts(bare)[0]).not.toHaveProperty('pack');
 });
+
+it('chat-ux #8 the empty chat says what was read from the drawings; the first turn replaces it', async () => {
+  open(answerTurn);
+  expect(await screen.findByRole('region', { name: 'What I read' })).toBeTruthy();
+  await send('How big is the bathroom?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  expect(screen.queryByRole('region', { name: 'What I read' })).toBeNull();
+});
+
+it('CH-18 agent chat: a photo read as a plan makes a project with no askable drawing askable', async () => {
+  const added = { ...fileReadAsPlan, id: 'f9', path: 'plan.jpg', state: 'queued' as const };
+  const before = { ...project, drawings: [] };
+  const after = { ...project, files: [...project.files, { ...added, state: 'ready' as const }] };
+  let n = 0;
+  const api = mockApi({
+    [`GET /api/projects/${PID}`]: () => (n++ === 0 ? before : after),
+    ...drawings,
+    [`POST /api/projects/${PID}/files`]: added,
+    [CHAT]: answerTurn,
+  });
+  render(<AgentChat projectId={PID} />);
+  expect(await screen.findByText('No drawing in this project can be asked yet.')).toBeTruthy();
+  fireEvent.change(screen.getByTestId('photo-input'), {
+    target: { files: [new File(['jpeg'], 'plan.jpg', { type: 'image/jpeg' })] },
+  });
+  expect(await screen.findByText('Reading plan.jpg…')).toBeTruthy();
+  expect(
+    await screen.findByText('plan.jpg is read: you can ask about it.', {}, { timeout: 4000 }),
+  ).toBeTruthy();
+  expect(screen.queryByText('No drawing in this project can be asked yet.')).toBeNull();
+  const post = api.calls.find((c) => c.url.startsWith(`/api/projects/${PID}/files`));
+  expect(post?.url).toBe(`/api/projects/${PID}/files?name=plan.jpg`);
+  await send('How many doors are there?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+}, 8000);

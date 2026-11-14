@@ -45,6 +45,31 @@ class Option(Frozen):
     message: str = Field(min_length=1, max_length=300)
 
 
+Box = tuple[float, float, float, float]  # page fractions, top left origin
+
+
+class ViewMark(Frozen):
+    """One place on the plan the turn shows (.agents/chat/contract.md A)."""
+
+    n: int  # its ChatEvidence n: every mark is in the turn's evidence
+    label: str | None
+    box: Box
+    polygon: tuple[tuple[float, float], ...] | None = None  # a room outline, when the tool gave one
+
+
+class View(Frozen):
+    """The plan the turn wants on screen: one drawing page, its marks, the box to focus."""
+
+    drawing_id: str
+    name: str | None
+    page: int
+    box: Box  # the marks' union with a margin, inside the page
+    marks: tuple[ViewMark, ...] = ()
+    caption: str | None = None
+    # show_on_plan: the agent chose it; evidence: the page of the answer's first source
+    source: Literal["show_on_plan", "evidence"]
+
+
 class ChatTurn(Frozen):
     chat_id: str
     turn: int
@@ -59,12 +84,17 @@ class ChatTurn(Frozen):
     latency_s: float
     # The ask_drawings results (ProjectAnswer, as POST /api/projects/{id}/ask) the answer rests on
     answers: tuple[Json, ...] = ()
+    view: View | None = None
+    # Follow-up chips after a complete turn (.agents/chat/contract.md F): server-built from the
+    # turn's tool results, never from the model's text; at most 3; none when `options` is set
+    next: tuple[Option, ...] = Field(default=(), max_length=3)
 
 
 @dataclass(frozen=True)
 class Caps:
     max_steps: int = 8
     calls_per_step: int = 4
+    parallel: int = 4  # a step's tool calls run at most this many at a time
     turn_usd: float = 0.10
     seconds: float = 60.0
 
@@ -82,3 +112,9 @@ class Chat:
     proposals: dict[str, Proposal] = field(default_factory=dict[str, Proposal])
     results: list[Json] = field(default_factory=list[Json])
     minted: int = 0  # evidence ids given so far: ev ids run on through the chat
+    # Every place minted in earlier turns by ev id (as evidence.mint records it): a later turn may
+    # cite or show it without calling its tool again
+    evidence: dict[str, Json] = field(default_factory=dict[str, Json])
+    # Every ask_drawings result: {"answer": as the route gave it, "evs": its ev ids, "marks": the
+    # ev ids of its answers' marks, "disputed": of the marks the readers disagree on}
+    asked: list[Json] = field(default_factory=list[Json])
