@@ -182,7 +182,10 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-38 (chat-ux #9, phone pass) Under 1200 px the same plan opens as a full-screen sheet (`dialog` "The plan",
   above the site header) instead of beside the chat: from a "Show the plan" chip next to "Point at the plan", and
   from `[n]` / "Show it" (which then focus that place and stay in the chat, as AC-36). The sheet's head has Close;
-  Escape closes it too; focus moves into the sheet and back to where it was. 1200 px and wider: no chip, no Close.
+  Escape closes it too, except inside the viewer (there it clears a tip or a drag); focus moves into the sheet,
+  Tab and Shift+Tab wrap inside it, and focus goes back to where it was on close. Scrolling the plan never scrolls
+  the chat behind. Widening past 1200 px closes the sheet (the pane shows); narrowing again does not reopen it.
+  1200 px and wider: no chip, no Close.
   [component `plan.test.tsx`; browser 390 and 1024]
 
 ## 4. Tests

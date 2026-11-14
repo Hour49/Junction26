@@ -103,6 +103,12 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const [shown, setShown] = useState<Shown | null>(() => lastShown(start.rows));
   // Under 1200 px the plan opens as a full-screen sheet over the chat (chat-ux #9).
   const [sheet, setSheet] = useState(false);
+  // Widening closes the sheet (the pane shows instead), so narrowing again does not bring it back unasked.
+  const [wasWide, setWasWide] = useState(wide);
+  if (wide !== wasWide) {
+    setWasWide(wide);
+    if (wide) setSheet(false);
+  }
   const openAsk = query?.get('ask')?.trim() ?? '';
   const pack = query?.get('pack') ?? null;
   // Read at send time: a new country must not re-run the open effect (it would ask ?ask= again).

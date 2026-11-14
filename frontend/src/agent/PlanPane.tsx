@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type KeyboardEvent, type ReactNode, useEffect, useRef } from 'react';
 import type { DrawingView, MarkView } from '../api';
 import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
@@ -96,8 +96,12 @@ export function PlanPane(props: {
   );
 }
 
-/** The plan as a full-screen sheet over the chat under 1200 px (chat-ux #9): focus moves into it, Escape closes it
- * and focus goes back where it was. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/** The plan as a full-screen sheet over the chat under 1200 px (chat-ux #9): focus moves into it and Tab keeps it
+ * there (the chat behind is out of sight), Escape closes it except inside the viewer (which uses Escape to clear a
+ * tip or a drag), and focus goes back where it was. */
 export function PlanSheet({ children, onClose }: { children: ReactNode; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -107,15 +111,30 @@ export function PlanSheet({ children, onClose }: { children: ReactNode; onClose:
   useEffect(() => {
     const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     box.current?.focus();
-    const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close.current();
-    };
-    document.addEventListener('keydown', key);
     return () => {
-      document.removeEventListener('keydown', key);
       back?.focus();
     };
   }, []);
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (e.key === 'Escape') {
+      if (!target.closest('.vw')) close.current();
+      return;
+    }
+    if (e.key !== 'Tab' || !box.current) return;
+    const all = [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+    const first = all[0];
+    const last = all.at(-1);
+    if (!first || !last) return;
+    // From the last control forward, or from the first (or the sheet itself) back: wrap around.
+    if (!e.shiftKey && (target === last || target === box.current)) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.shiftKey && (target === first || target === box.current)) {
+      e.preventDefault();
+      last.focus();
+    }
+  };
   return (
     <div
       className="ag-sheet"
@@ -124,6 +143,7 @@ export function PlanSheet({ children, onClose }: { children: ReactNode; onClose:
       aria-label="The plan"
       tabIndex={-1}
       ref={box}
+      onKeyDown={onKeyDown}
     >
       {children}
     </div>

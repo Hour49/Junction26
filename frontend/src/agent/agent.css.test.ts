@@ -13,3 +13,7 @@ it("AC-36 the plan pane's sticky rules are its own classes, not the edit card's 
   expect(css.match(/^\.ag-plan\s*\{/gm)).toHaveLength(1);
   expect(css).toMatch(/^\.ag-pane\s*\{[^}]*position:\s*sticky/m);
 });
+
+it('AC-38 scrolling the plan in the sheet never scrolls the chat behind it', () => {
+  expect(css).toMatch(/^\.ag-sheet \.ag-pane-view\s*\{[^}]*overscroll-behavior:\s*contain/m);
+});

@@ -475,6 +475,9 @@
 .ag-sheet:focus {
   outline: none;
 }
+.ag-sheet .ag-pane-view {
+  overscroll-behavior: contain; /* scrolling the plan never scrolls the chat behind the sheet */
+}
 .ag-sheet .ag-pane {
   position: static;
   flex: 1;

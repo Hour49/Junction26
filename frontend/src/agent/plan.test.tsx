@@ -16,7 +16,12 @@ const viewers: ViewerProps[] = [];
 vi.mock('../viewer/PageViewer', () => ({
   PageViewer: (props: ViewerProps) => {
     viewers.push(props);
-    return <div data-testid="viewer">{props.file}</div>;
+    // the viewer's own class: the sheet leaves Escape inside it to the viewer
+    return (
+      <div data-testid="viewer" className="vw" tabIndex={0}>
+        {props.file}
+      </div>
+    );
   },
 }));
 const viewer = () => viewers.at(-1) as ViewerProps;
@@ -49,6 +54,16 @@ const shownView: View = {
 const viewTurn = { ...answerTurn, view: shownView } as ChatTurn;
 
 let wide = true;
+let resizes: (() => void)[] = [];
+/** The window crosses 1200 px. */
+const resize = (to: boolean) => {
+  wide = to;
+  act(() => {
+    resizes.forEach((f) => {
+      f();
+    });
+  });
+};
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
@@ -57,13 +72,18 @@ afterEach(() => {
   sessionStorage.clear();
   viewers.length = 0;
   wide = true;
+  resizes = [];
   vi.unstubAllGlobals();
 });
 
 function open(chat: unknown) {
   vi.stubGlobal('matchMedia', (q: string) => ({
-    matches: q.includes('min-width') ? wide : false,
-    addEventListener: vi.fn(),
+    get matches() {
+      return q.includes('min-width') ? wide : false;
+    },
+    addEventListener: (_: string, f: () => void) => {
+      resizes.push(f);
+    },
     removeEventListener: vi.fn(),
   }));
   const routes: Record<string, unknown> = { [`GET /api/projects/${PID}`]: project, [CHAT]: chat };
@@ -231,7 +251,7 @@ describe('a narrow window: the plan as a sheet (chat-ux #9)', () => {
     expect(within(sheet).getByRole('complementary', { name: 'Plan' })).toBeTruthy();
     expect(within(sheet).getByText('Bagno 1.01 on the plan')).toBeTruthy();
     expect(document.activeElement).toBe(sheet);
-    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.keyDown(sheet, { key: 'Escape' });
     expect(dialog()).toBeNull();
     expect(document.activeElement).toBe(button);
   });
@@ -251,6 +271,54 @@ describe('a narrow window: the plan as a sheet (chat-ux #9)', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
     expect(dialog()).toBeNull();
     expect(cite.getAttribute('href')).toContain(`/d/${DID}`); // a modified click still opens the workspace
+  });
+
+  it('Tab stays inside the sheet: from the last control to the first and back', async () => {
+    wide = false;
+    open(viewTurn);
+    await send('Where is Bagno 1.01?');
+    await screen.findByRole('link', { name: /^Source 1:/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Show the plan' }));
+    const sheet = dialog() as HTMLElement;
+    const all = [...sheet.querySelectorAll<HTMLElement>('a[href], button, [tabindex="0"]')];
+    const first = all[0] as HTMLElement;
+    const last = all.at(-1) as HTMLElement;
+    expect(all.length).toBeGreaterThan(2);
+    fireEvent.keyDown(sheet, { key: 'Tab' }); // from the sheet itself, as it opens
+    expect(document.activeElement).toBe(first);
+    last.focus();
+    fireEvent.keyDown(last, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("Escape inside the viewer is the viewer's (a tip, a drag); elsewhere in the sheet it closes it", async () => {
+    wide = false;
+    open(viewTurn);
+    await send('Where is Bagno 1.01?');
+    await screen.findByRole('link', { name: /^Source 1:/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Show the plan' }));
+    const sheet = dialog() as HTMLElement;
+    fireEvent.keyDown(within(sheet).getByTestId('viewer'), { key: 'Escape' });
+    expect(dialog()).toBeTruthy();
+    fireEvent.keyDown(within(sheet).getByRole('button', { name: 'Close' }), { key: 'Escape' });
+    expect(dialog()).toBeNull();
+  });
+
+  it('widening closes the sheet (the pane shows); narrowing again does not reopen it', async () => {
+    wide = false;
+    open(viewTurn);
+    await send('Where is Bagno 1.01?');
+    await screen.findByRole('link', { name: /^Source 1:/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Show the plan' }));
+    expect(dialog()).toBeTruthy();
+    resize(true);
+    expect(dialog()).toBeNull();
+    expect(pane()).toBeTruthy();
+    resize(false);
+    expect(dialog()).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Plan' })).toBeNull();
   });
 
   it('a wide window has neither the button nor a Close', async () => {
