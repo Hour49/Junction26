@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Issue } from '../api';
-import { error, project, projectIssues } from '../api/fixtures';
+import { error, project, projectIssues, projectReviewResolved } from '../api/fixtures';
 import { mockApi, never, reply } from '../test/mockApi';
 import { issuesChanged, useIssuesToAnswer } from './issueCount';
 
@@ -56,6 +56,20 @@ describe('issues to answer', () => {
       expect(result.current).toBe(3);
     });
     expect(api.calls).toHaveLength(2);
+  });
+
+  it('RS-7 an issue Carbon picked (note, resolved set) is not counted: server count 0, and under a pack', async () => {
+    const picked: Issue = {
+      ...issue('p', 'note', 'open'),
+      resolved: projectReviewResolved.conflicts[0]?.resolved ?? null,
+    };
+    mockApi({ [PROJECT]: done(0), [GET]: { ...list, issues: [picked] } });
+    const plain = renderHook(() => useIssuesToAnswer(PID));
+    const packed = renderHook(() => useIssuesToAnswer(PID, undefined, 'ch-zh'));
+    await waitFor(() => {
+      expect(plain.result.current).toBe(0);
+      expect(packed.result.current).toBe(0);
+    });
   });
 
   it("SH-88 with a pack: needsYou over the pack's issues, issues_to_answer ignored, re-asked on issuesChanged", async () => {

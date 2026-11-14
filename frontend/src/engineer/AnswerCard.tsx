@@ -15,10 +15,12 @@ import {
 import { routeLabel } from '../ingest/ingest';
 import { pageFlagged } from '../doublecheck/check';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
+import { ResolverLines } from './Resolver';
 import { routeHref } from '../shell/route';
 import { ChecksPanel } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
 import {
+  estimateLine,
   formatCost,
   formatLatency,
   formatScore,
@@ -316,6 +318,8 @@ function References(props: {
 
 function Answer(props: {
   a: AnswerView;
+  /** The drawing's name (EN-87), for the viewer's title line. */
+  name: string;
   projectId: string;
   credit: string | null;
   place: Place | null;
@@ -352,6 +356,7 @@ function Answer(props: {
   // Row.noun ("doors"); null for areas and where the backend has none: then the label sentence.
   const noun = typeof a.answer === 'number' ? (row?.noun ?? null) : null;
   const grade = gradeOf(a);
+  const estimate = estimateLine(a);
   const confidence =
     row?.status === 'signed' ? (
       // A person's sign-off replaces the level (EN-83).
@@ -405,13 +410,33 @@ function Answer(props: {
         {row && !pageFlagged(a) && ` ${cap(row.rule.text)}.`}
       </p>
       <div className="v-card en-card">
+        {/* EN-86: its own grid area, first in the card on phones so the value and the reason are above the fold */}
+        <div className="en-head">
+          <div className="en-value-row">
+            <span className="en-value" data-testid="answer-value">
+              {value}
+            </span>
+            {noun && <span className="en-noun">{noun}</span>}
+          </div>
+          {estimate && <p className="en-estimate">{estimate}</p>}
+          {/* Decides itself whether to ask (null when certified); never for a High answer (EN-83). */}
+          {a.level?.level !== 'high' && (
+            <DoubleCheck
+              answer={a}
+              projectId={projectId}
+              drawingId={a.drawing_id}
+              onChanged={onChanged}
+            />
+          )}
+          <ResolverLines a={a} />
+        </div>
         <figure className="en-left" aria-label="Drawing">
           {a.pages.length > 0 ? (
             <Plan
               place={place}
               overlay={overlay}
               viewer={{
-                file: a.file,
+                file: props.name,
                 pages: a.pages,
                 marks: a.marks,
                 credit,
@@ -437,21 +462,6 @@ function Answer(props: {
           {a.proof.arithmetic && <p className="en-arith">{a.proof.arithmetic}</p>}
         </figure>
         <div className="en-side">
-          <div className="en-value-row">
-            <span className="en-value" data-testid="answer-value">
-              {value}
-            </span>
-            {noun && <span className="en-noun">{noun}</span>}
-          </div>
-          {/* Decides itself whether to ask (null when certified); never for a High answer (EN-83). */}
-          {a.level?.level !== 'high' && (
-            <DoubleCheck
-              answer={a}
-              projectId={projectId}
-              drawingId={a.drawing_id}
-              onChanged={onChanged}
-            />
-          )}
           {row?.signed && (
             <p className="en-verified">
               Verified by {row.signed.by}, {formatTime(row.signed.at)}
@@ -585,6 +595,7 @@ export function AnswerCard(props: {
       {turn.status === 'done' && !refusal && (
         <Answer
           a={turn.answer}
+          name={file}
           projectId={projectId}
           credit={credit}
           place={place}

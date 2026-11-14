@@ -1262,7 +1262,7 @@ export interface components {
              * Part
              * @enum {string}
              */
-            part: "summary" | "detail" | "visible_text";
+            part: "summary" | "detail" | "visible_text" | "text";
             register: components["schemas"]["Register"] | null;
             relevance: components["schemas"]["Relevance"] | null;
             /** Text */
@@ -1295,7 +1295,7 @@ export interface components {
              * Part
              * @enum {string}
              */
-            part: "summary" | "detail" | "visible_text";
+            part: "summary" | "detail" | "visible_text" | "text";
             /** Score */
             score: number;
             /** Snippet */

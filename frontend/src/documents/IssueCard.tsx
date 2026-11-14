@@ -4,6 +4,8 @@ import {
   errorText,
   formatTime,
   postRelevance,
+  resolverModel,
+  resolverName,
   type DrawingView,
   type FileStatus,
   type Issue,
@@ -11,6 +13,7 @@ import {
   type RelevanceRequest,
 } from '../api';
 import { callError, callLine } from '../ingest/triage';
+import { issueRoute } from '../surveyor/issueLinks';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { isAnswerable, issueSource, pillOf } from './documents';
 
@@ -261,6 +264,31 @@ function IssueAnswerForm(props: {
   );
 }
 
+/** What a model said on a conflict (resolver.md RS-30/31): its pick or that it could not tell, why, and the way to
+ * the conflict card, where a person settles it. */
+function ModelSaid({ projectId, issue }: { projectId: string; issue: Issue }) {
+  const r = issue.resolved;
+  if (!r) return null;
+  const name = resolverName(r.by);
+  const href = issueRoute(issue, projectId);
+  const picked = r.verdict === 'picked';
+  return (
+    <div className="doc-foot">
+      <span>
+        <strong title={resolverModel(r.by)}>
+          {picked ? `Picked by ${name}` : `${name} could not tell`}
+        </strong>{' '}
+        <span>{r.reason}</span>
+      </span>
+      {href && (
+        <a className="v-btn v-btn--secondary v-press" href={href}>
+          {picked ? 'You can change it' : 'Settle the conflict'}
+        </a>
+      )}
+    </div>
+  );
+}
+
 /** One issue on the Documents tab (documents.md flow 4). */
 export function IssueCard(props: {
   projectId: string;
@@ -295,6 +323,7 @@ export function IssueCard(props: {
       </div>
       <p className="doc-why">{issue.why}</p>
       {source && <SourceFigure sources={[source]} label={`Source of issue ${String(n)}`} />}
+      <ModelSaid projectId={projectId} issue={issue} />
       {isAnswerable(issue) &&
         (issue.kind === 'unrelated_file' ? (
           file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />

@@ -107,6 +107,9 @@ function Item({
         <span className="account-name">{summary.name}</span>
         <span className={`v-pill v-pill--${pill.tone}`}>{pill.word}</span>
         {toReview > 0 && <span className="v-pill v-pill--warn">{toReview} to review</span>}
+        {(summary.conflicts_picked ?? 0) > 0 && (
+          <span className="v-pill">{summary.conflicts_picked} picked by Carbon</span>
+        )}
       </span>
       <span className="v-caption">{workspaceKind(summary)}</span>
       <span className="v-caption">{formatTime(summary.created_at)}</span>

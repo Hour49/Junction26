@@ -2064,7 +2064,8 @@
             "enum": [
               "summary",
               "detail",
-              "visible_text"
+              "visible_text",
+              "text"
             ],
             "title": "Part",
             "type": "string"
@@ -2186,7 +2187,8 @@
             "enum": [
               "summary",
               "detail",
-              "visible_text"
+              "visible_text",
+              "text"
             ],
             "title": "Part",
             "type": "string"

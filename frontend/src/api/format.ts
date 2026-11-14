@@ -1,4 +1,4 @@
-import type { Info, RulePack } from './types';
+import type { Info, Resolved, RulePack } from './types';
 
 const UNITS: Record<string, string> = { m: 'm', m2: 'm²', m3: 'm³', ft: 'ft', ft2: 'ft²' };
 
@@ -75,3 +75,20 @@ export const drawingName = (file: string): string => file.slice(file.lastIndexOf
  * `name` (#224: "Drawn plan 1", "Building model 1"), else the file name. Takes any shape with a `file`. */
 export const drawingLabel = (d: { name?: string | null; file: string }): string =>
   d.name || drawingName(d.file);
+
+/** Who picked (resolver.md "Words"): `by`'s prefix capitalised, 'carbon:gemini-4-carbon' → 'Carbon'. */
+export function resolverName(by: string): string {
+  const name = by.split(':', 1)[0] ?? by;
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/** The model id after the first ':' (for a tooltip only); the whole string when there is none. */
+export const resolverModel = (by: string): string => by.slice(by.indexOf(':') + 1);
+
+/** A model's pick is in use: picked, and no person needed, settled or signed (resolver.md "Data"). */
+export const pickInUse = (r: {
+  resolved?: Resolved | null;
+  needs_person: boolean;
+  settled?: unknown;
+  signed?: unknown;
+}): boolean => r.resolved?.verdict === 'picked' && !r.needs_person && !r.settled && !r.signed;

@@ -1,4 +1,12 @@
-import { formatValue, methodName, type Row, type Takeoff } from '../api';
+import {
+  formatValue,
+  methodName,
+  pickInUse,
+  resolverModel,
+  resolverName,
+  type Row,
+  type Takeoff,
+} from '../api';
 import { statusText } from './words';
 
 interface Props {
@@ -35,9 +43,16 @@ function Rows({ rows, selected, onSelect }: { rows: Row[] } & Omit<Props, 'takeo
         {formatValue(row.value, row.unit)}
       </td>
       <td>
-        <span className="sv-status" data-status={row.needs_person ? 'needs' : row.status}>
-          {statusText(row)}
-        </span>
+        {pickInUse(row) && row.resolved ? (
+          // a model's pick in use (#252 RS-15): its name, the model id only in the tooltip
+          <span className="sv-status" data-status="picked" title={resolverModel(row.resolved.by)}>
+            Picked by {resolverName(row.resolved.by)}
+          </span>
+        ) : (
+          <span className="sv-status" data-status={row.needs_person ? 'needs' : row.status}>
+            {statusText(row)}
+          </span>
+        )}
       </td>
     </tr>
   ));
