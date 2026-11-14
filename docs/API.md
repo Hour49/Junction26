@@ -3123,7 +3123,33 @@ many quantities are left to review and how many are signed off, and every confli
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "needs_person": false,
@@ -4846,6 +4872,10 @@ that call gives, the project's review edits applied. An unknown project is 404; 
   how many of the summed parts need a double-check (the methods disagree, or a person still has to settle it), or
   why there is no total, and which drawings gave no answer and why, e.g. `2 doors from 1 drawing.` or `3 drawings
   answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.`
+- `why_no_total` and `refused_note`: `total_note` in its two parts. `why_no_total`: why there is no total, as a
+  sentence (`3 drawings answered; they may show the same rooms, so the numbers are not added up.`, or `No drawing
+  answered it.`); null when there is a total. `refused_note`: the drawings that gave no answer and why (`2 drawings
+  have no reader for it.`); null when none refused.
 - The question is kept in the project's question list (`GET /api/projects/{id}/questions`) as one line per drawing
   that answered, with its own `answer` and `unit`, or one refused line per drawing when none answered; its lines
   share one `project_ask` id.
@@ -5356,7 +5386,9 @@ is no total):
   "total": null,
   "total_unit": null,
   "total_sure": false,
-  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+  "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+  "refused_note": "2 drawings have no reader for it."
 }
 ```
 
@@ -5983,7 +6015,33 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
       },
       "note": null,
       "derived": null,
-      "status": "conflict"
+      "status": "conflict",
+      "value_marks": [
+        [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "polygon_x_scale"
+          }
+        ],
+        [
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "printed_label"
+          }
+        ]
+      ]
     },
     "settled": null,
     "marks": [
@@ -6245,7 +6303,33 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
       },
       "note": null,
       "derived": null,
-      "status": "conflict"
+      "status": "conflict",
+      "value_marks": [
+        [
+          {
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ],
+            "label": "polygon_x_scale"
+          }
+        ],
+        [
+          {
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ],
+            "label": "printed_label"
+          }
+        ]
+      ]
     },
     "settled": null,
     "marks": [
@@ -6636,7 +6720,33 @@ any project, which no project shows. A project that does not hold the drawing is
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "marks": [
@@ -7229,7 +7339,33 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
         },
         "note": null,
         "derived": null,
-        "status": "conflict"
+        "status": "conflict",
+        "value_marks": [
+          [
+            {
+              "page": 1,
+              "box": [
+                0.16667,
+                0.125,
+                0.5,
+                0.375
+              ],
+              "label": "polygon_x_scale"
+            }
+          ],
+          [
+            {
+              "page": 1,
+              "box": [
+                0.17367,
+                0.17946,
+                0.21269,
+                0.19027
+              ],
+              "label": "printed_label"
+            }
+          ]
+        ]
       },
       "settled": null,
       "marks": [
@@ -7776,6 +7912,15 @@ unknown pack, `not-found` for an unknown project.
 
 ## Changelog
 
+- 2026-11-14, additive (board #14, Tudor's asks 2, 5 and 11): `value_marks` on every conflict and agreement of a
+  quantity (`QuantityConflict`, in the takeoff, the review's conflicts and an answer): `value_marks[i]` lists
+  `{page, box, label}` for each item of `values[i]`, so a legend can outline them. A count of an element class or
+  of rooms lists what each method counted: the elements or rooms the plan draws, and the objects of the building
+  model that the sheet draws (a model object the sheet does not draw has no position, so a list can be shorter
+  than the count). Any other value with a `page` and `box` (a room area, a scale, a schedule's count) is one mark,
+  labelled with its method. `[]` when no value has a position. `ProjectAnswer.why_no_total` and `refused_note`:
+  the parts of `total_note` (why there is no total; which drawings refused and why). Fixtures `answer_conflict`,
+  `answer_signed`, `project_ask`, `project_review`, `takeoff`, `takeoff_edited` gain the fields.
 - 2026-11-14, additive (decision 0010 section 8, board #152, PR #183): `Triage.register` (the sheet register:
   kind, has_floor_plan, photo_of_sheet, scale_shown, quality, method; null with no register-reading classifier);
   `Description.what_it_is`, `shows_building`, `visible_text` and `detail`. `TRIAGE_JUDGE=rules` judges a
