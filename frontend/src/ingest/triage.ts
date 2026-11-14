@@ -44,9 +44,17 @@ export const readLine = (r: { by: string; at: string }) =>
 
 export const planChance = (p: number) => `${String(Math.round(100 * p))} %`;
 
+/** The card heading (FT-24): the sheet model's words when it set the file aside (#251), else the class words. */
+export function notPlanLine(t: Triage): string {
+  const s = t.sheet;
+  if (s?.decision !== 'set_aside') return `Not a floor plan: ${CLASS_LABEL[t.class]}`;
+  const more = [s.title, s.sheet_number].filter(Boolean).join(', ');
+  return `Not a floor plan: ${s.kind_words}${more ? ` (${more})` : ''}`;
+}
+
 export function rowLine(t: Triage): string {
-  const subject = t.description?.subject;
-  return `Not a floor plan: ${CLASS_LABEL[t.class]}${subject ? ` · ${subject}` : ''}`;
+  const subject = t.sheet?.decision === 'set_aside' ? null : t.description?.subject;
+  return `${notPlanLine(t)}${subject ? ` · ${subject}` : ''}`;
 }
 
 /** "Related to this project: Ana’s call, <time>. The judge said: Not related."; null with no call. */

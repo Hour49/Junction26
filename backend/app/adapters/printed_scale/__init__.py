@@ -7,8 +7,7 @@ resolution, which turns a printed ratio into metres per pixel, is what the file 
 (PNG pHYs, JPEG density), trusted only as `printed.trusted_dpi` says.
 
 The reader is the Carbon reader's `printed_scale` and `printed_facts` plus the scale bar's ends on
-a full-resolution tile (`carbon`); that client is not in this build yet, so `carbon` is refused
-at startup and tests use a fake reader.
+a full-resolution tile (`carbon`, app/adapters/printed_scale/carbon.py).
 """
 
 import io

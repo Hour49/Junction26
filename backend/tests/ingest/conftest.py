@@ -46,11 +46,14 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
         store: DiskProjectStore | None = None,
         triage: TriageSteps | None = None,
         evidence: EvidenceIndex | None = None,
+        carbon_read: Callable[[str], bool] | None = None,
     ) -> IngestService:
         store = store or DiskProjectStore(root)
 
         def readers(project_id: str) -> Pipeline:
-            pipeline = build_pipeline(settings, store.files_dir(project_id))
+            pipeline = replace(
+                build_pipeline(settings, store.files_dir(project_id)), carbon_read=carbon_read
+            )
             if raster is None:
                 return pipeline
             reader = raster(pipeline.files)  # the raster reader, over this project's files

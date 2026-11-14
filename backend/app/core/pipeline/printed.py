@@ -74,6 +74,7 @@ class PrintedSheet(Frozen):
     printed_scale: str | None = None  # as printed: "1:100", "1/4 in = 1 ft", "bar"
     bars: tuple[ScaleBar, ...] = ()
     printed_facts: tuple[PrintedFact, ...] = ()
+    notes: tuple[str, ...] = ()  # what the reader could not read, and why
 
 
 _RATIO = re.compile(r"(?<![\d.])1\s*:\s*(\d+(?:[.,]\d+)?)(?![\d.])")
@@ -216,7 +217,7 @@ def with_printed(
     """`found` with what the sheet prints: its printed scale in place of an estimated one (or of
     none), every room area the estimate gave measured again at it, and the printed scale and
     counts as stage-8 values against the reading. A scale the reading measured itself is kept."""
-    notes = list(found.notes)
+    notes = [*found.notes, *printed.notes]
     measurements = [
         *_room_types_counted(found, printed.printed_facts),
         *fact_measurements(printed.printed_facts),

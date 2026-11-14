@@ -24,10 +24,11 @@ def judge(
     route: Route,
     reader: str | None,
     frame: Normalised | None = None,
+    carbon: bool = False,
 ) -> tuple[FileState, str]:
     """`ready` when the route's reader read the drawing and nothing needs a look; `flagged`
     with every reason a person should look at it. `reader`: the route's adapter name; `frame`:
-    how an image was normalised."""
+    how an image was normalised; `carbon`: the Carbon reader read it alone (CARBON_READER)."""
     if drawing.model_objects is not None and not drawing.pages:
         found = count(len(drawing.model_objects), "model object")
     else:
@@ -45,10 +46,13 @@ def judge(
     empty = read_nothing(drawing, route, reader)
     if empty is not None:
         flags.append(empty)
-    flags += reading_flags(kind, frame)
+    flags += reading_flags(kind, frame, carbon)
     if flags:
         return "flagged", f"{'; '.join(flags)} ({found})"
     return "ready", f"read on the {route_words(route)}: {found}"
+
+
+CARBON_FLAG = "read by Gemini Carbon alone: its counts are not measured yet"
 
 
 def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:
@@ -62,17 +66,23 @@ def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | No
     return f"the {ROUTE_WORDS[route]} reader read nothing: {why}"
 
 
-def reading_flags(kind: ContentKind, frame: Normalised | None) -> tuple[str, ...]:
-    """The flags about how the page itself was read (a phone photo, a scan): every answer on
-    the drawing carries them, and a group the reader found nothing of is not a count of 0
-    (review/ask.py). A conflict or an empty read is said where it shows (its row, no-reader)."""
+def reading_flags(
+    kind: ContentKind, frame: Normalised | None, carbon: bool = False
+) -> tuple[str, ...]:
+    """The flags about how the page itself was read (a phone photo, a scan, by Gemini Carbon
+    alone): every answer on the drawing carries them, none of its answers is certified, and a
+    group the reader found nothing of is not a count of 0 (review/ask.py). A conflict or an
+    empty read is said where it shows (its row, no-reader)."""
+    flags: tuple[str, ...] = ()
     if kind == "pdf_scan":
-        return ("a scanned PDF, read as an image",)
-    if kind == "photo_plan" and frame is not None and frame.rectified:
-        return (f"a phone photo, rectified by {frame.rectifier}: check the paper's corners",)
-    if kind == "photo_plan":
-        return ("a phone photo, read without perspective correction",)
-    return ()
+        flags = ("a scanned PDF, read as an image",)
+    elif kind == "photo_plan" and frame is not None and frame.rectified:
+        flags = (f"a phone photo, rectified by {frame.rectifier}: check the paper's corners",)
+    elif kind == "photo_plan":
+        flags = ("a phone photo, read without perspective correction",)
+    if carbon:  # its counts have no measured level yet (.agents/exp/carbon-reader.md 1.4)
+        flags += (CARBON_FLAG,)
+    return flags
 
 
 def pipeline_stages(

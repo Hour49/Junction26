@@ -11,9 +11,7 @@ from PIL import Image
 
 from app.adapters.printed_scale import PrintedScale, stated_dpi
 from app.adapters.raster_scale import PriorScale
-from app.composition import build_pipeline
 from app.core.drawing.model import Drawing, Element, Page, Room, Scale
-from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.printed import (
     PrintedFact,
@@ -253,8 +251,5 @@ def test_a_printed_count_of_doors_and_of_all_rooms_is_checked_areas_are_not() ->
     assert len(entries) == 2
 
 
-def test_the_carbon_reader_is_refused_until_its_client_lands(tmp_path: Path) -> None:
-    settings = Settings(_env_file=None, raster_printed_scale="carbon")  # pyright: ignore[reportCallIssue]
-    with pytest.raises(InvalidInputError, match="RASTER_PRINTED_SCALE=carbon"):
-        build_pipeline(settings, tmp_path)
+def test_the_setting_is_off_by_default() -> None:
     assert Settings(_env_file=None).raster_printed_scale == "off"  # pyright: ignore[reportCallIssue]

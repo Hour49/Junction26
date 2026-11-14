@@ -49,6 +49,9 @@ RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile b
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
+# The Carbon reader of raster drawings (app/adapters/carbon/). off; all: every raster drawing;
+# advanced: the drawings the sheet-kind step (SHEET_KIND=carbon) called advanced
+CarbonReaderName = Literal["off", "advanced", "all"]
 # Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
     Annotated[float, Field(ge=0)] | None,
@@ -81,7 +84,8 @@ class Settings(BaseSettings):
     raster_scale: RasterScaleName = "off"
     # carbon: the printed scale (a bar, or a ratio at a resolution the file states) replaces the
     # estimate, kept as a conflict value, and printed counts are checked against the read ones.
-    # Off by default; carbon needs the Carbon reader's client (not in this build yet)
+    # Off by default; carbon asks gemini-4-carbon (GEMINI_API_KEY, the spend guard, cached in
+    # CARBON_CACHE_DIR: the page reply is the Carbon reader's): about 0.015 USD a sheet
     raster_printed_scale: RasterPrintedScaleName = "off"
     # auto: a raster page whose long side is over 4000 px is read by every detector source of
     # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
@@ -121,6 +125,16 @@ class Settings(BaseSettings):
     # The sheet-kind signal at ingest (app/adapters/decisions_kind/, same key, timeout and cache
     # folder): Gemini's photo-of-a-plan flag and P(floor plan) for each uploaded image or PDF
     decisions_kind: bool = False
+    # The Carbon reader (app/adapters/carbon/; brief r8 AS-2, .agents/exp/carbon-reader.md):
+    # gemini-4-carbon reads page 1 of a raster drawing whole and in full-resolution tiles, with
+    # GEMINI_API_KEY and the spend guard (charged at 4/20 USD per million tokens). CARBON_READER
+    # routes raster drawings to it alone instead of RASTER_COMPONENTS' reader (needs
+    # EXTRACTOR_RASTER=composite); ingest flags each such drawing, so none of its answers is
+    # certified. As a source it is `carbon` in RASTER_COMPONENTS or DOUBLE_CHECK_READERS.
+    # Seconds per call, and the folder replies are cached in (gitignored)
+    carbon_reader: CarbonReaderName = "off"
+    carbon_timeout_s: float = 120.0
+    carbon_cache_dir: Path = Path("../data/cache/carbon-reader")
     # EU open models (app/adapters/openvlm/): our vLLM server on Verda (Finland), reached by an SSH
     # tunnel. Each Gemini step picks its provider; "eu" sends it to this server instead (no
     # fallback to Gemini on an error). URL, key (never logged), model, seconds per request
