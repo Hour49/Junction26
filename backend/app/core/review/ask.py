@@ -59,7 +59,9 @@ from app.core.review.check import (
     level_of,
     no_disputes,
     no_room_words,
+    only_room_word,
     room_word_doubt,
+    room_word_refusal,
     schedule_check,
     score_of,
     summed_check,
@@ -180,8 +182,12 @@ def ask(
     nothing, yet stays not `sure`: Carbon never certifies an answer. On the raster route a count
     `room_words` doubts (check.room_word_doubt: its rooms' printed labels) is not certified
     and gets no High from Carbon either; its level is otherwise the score's, except Low on an image
-    printing words of a plan kind the policy was not measured on (check.unmeasured_room)."""
+    printing words of a plan kind the policy was not measured on (check.unmeasured_room). A 0
+    count of a room type whose only candidates are labelled just "room" is refused
+    (check.only_room_word)."""
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
+    unsaid = _unsaid(quantities, drawing)
+    quantities = {key: found for key, found in quantities.items() if key not in unsaid}
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -237,6 +243,9 @@ def ask(
             code, words = "no-reader", _unread_text(query, flags)
         elif query is not None and query in unlocated:
             code, words = "no-reader", _unlocated_text(unlocated[query], flags, drawing)
+        elif query is not None and query in unsaid:
+            kind = parse_key(query)[1].split(":", 1)[1]
+            code, words = "not-in-drawing", room_word_refusal(kind, unsaid[query])
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
@@ -417,6 +426,19 @@ def _flagged(
         said = note if found.estimate is None else f"{found.estimate}; {note}"
         kept[key] = found.model_copy(update={"estimate": said})
     return kept, empty, unlocated
+
+
+def _unsaid(quantities: Mapping[str, Quantity], drawing: Drawing) -> dict[str, tuple[Room, ...]]:
+    """The 0 counts of a room type the drawing does not say (check.only_room_word), by key, with
+    the rooms that are why: the question is refused, not answered 0."""
+    found: dict[str, tuple[Room, ...]] = {}
+    for key, quantity in quantities.items():
+        measure, subject = parse_key(key)[:2]
+        if measure != "count" or not subject.startswith("room:") or quantity.value != 0:
+            continue
+        if rooms := only_room_word(subject.split(":", 1)[1], drawing):
+            found[key] = rooms
+    return found
 
 
 def _groups(key: str) -> set[str]:
