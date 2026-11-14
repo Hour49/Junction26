@@ -1,6 +1,6 @@
 """Command line: `python -m stoa_eval <command>` (from eval/): split, select, select-plans,
 baseline, baseline-extraction, score, score-extraction, history, series, validate-extraction,
-schema."""
+schema, exp-split, ab, gate, leaderboard."""
 
 import argparse
 import hashlib
@@ -9,20 +9,70 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Iterator, Sequence
+import tempfile
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import cast, get_args
+from typing import Literal, cast, get_args
 from zoneinfo import ZoneInfo
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from . import baselines
+from . import backend, baselines
+from .ab import (
+    AB_SEED,
+    BOOTSTRAP_REPS,
+    REFERENCE_ARMS,
+    AbResult,
+    ArmResult,
+    Rate,
+    arm_result,
+    compare,
+    count_errors,
+    count_keys,
+    count_stats,
+    format_ab,
+    hits_of,
+    orientation_label,
+    paired,
+)
 from .coverage import format_coverage_table, load_answers, score_all
+from .exp_split import (
+    DEFAULT_EXP_SEED,
+    DEFAULT_SHARES,
+    EXP_PARTS,
+    EXP_SOURCE,
+    ExpPart,
+    ExpPartImages,
+    ExpSplit,
+    assign_parts,
+    check_dev_only,
+    totals,
+)
 from .extraction import Extraction
 from .extraction_scoring import format_extraction_table, score_extraction
 from .extras_scoring import format_slices, score_golden
 from .families import group_of, source_of
+from .gate import (
+    DELTA,
+    GATE_SEED,
+    SIGNALS,
+    TARGET,
+    GateResult,
+    Signal,
+    SignalReport,
+    Unit,
+    apply_gate,
+    calibrate,
+    certificate,
+    compare_signals,
+    family_gates,
+    family_keys,
+    family_result,
+    format_gate,
+    halves,
+    signals_of,
+)
 from .history import (
     Provenance,
     format_extraction_history,
@@ -38,6 +88,21 @@ from .history import (
     write_history_csv,
 )
 from .jsonl import iter_jsonl, read_jsonl, write_jsonl
+from .leaderboard import (
+    ArmRun,
+    Invalid,
+    arm_digest,
+    best_per_group,
+    combo_hits,
+    combo_string,
+    digest_files,
+    failure_images,
+    family_policy,
+    find_arms,
+    format_leaderboard,
+    kept_block,
+    policy_runs,
+)
 from .models import (
     SCHEMA_DIR,
     SETTING_NAME,
@@ -94,6 +159,9 @@ SPLIT_MANIFEST = "manifest.json"
 EVAL_WARNING = "warning: sealed split: score at milestones only"
 RESULTS = Path(__file__).resolve().parents[1] / "results/runs"  # tracked: one file per run
 HELSINKI = ZoneInfo("Europe/Helsinki")
+EXP_DIR = REPO / "data/stoa/exp"  # gitignored: the experiment split, A/B results, arms
+EXP_PRIOR = REPO / "data/stoa/priors/exp-train.json"  # the prior fit on the train part only
+LEADERBOARD = REPO / ".agents/exp/leaderboard.md"  # local: arm names and val numbers only
 
 
 def manifest_path(golden: Path) -> Path:
@@ -293,6 +361,584 @@ def run_split(args: argparse.Namespace) -> None:
             )
         print()
     print(f"wrote {', '.join(str(path) for path in paths.values())} and {SPLIT_MANIFEST}")
+
+
+def run_exp_split(args: argparse.Namespace) -> None:
+    sealed = set(_split_manifest(args.split_dir).eval_groups)
+    golden_manifest = args.golden_dir / V2_MANIFEST
+    golden_files = {
+        row.file for _, row in read_jsonl(args.golden_dir / PART1 / "files.jsonl", PlanFile)
+    }
+    golden_groups = {group_of(file) for file in golden_files}
+    asked: dict[str, list[NumberedQuestion]] = {}
+    for _, row in iter_jsonl(args.split_dir / "dev.jsonl", NumberedQuestion):
+        if source_of(row.path) == EXP_SOURCE:
+            asked.setdefault(row.path, []).append(row)
+    excluded = sorted(file for file in asked if group_of(file) in golden_groups)
+    files = sorted(set(asked) - set(excluded))
+    gold = {
+        file: extraction
+        for file, (_, extraction) in _extractions(args.gold / EXP_SOURCE).items()
+        if file in asked
+    }
+    check_dev_only(files, sealed, golden_files, {file: gold[file].split for file in gold})
+    group_part = assign_parts((group_of(file) for file in files), args.seed)
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    parts: dict[ExpPart, ExpPartImages] = {}
+    for part in EXP_PARTS:
+        mine = [file for file in files if group_part[group_of(file)] == part]
+        questions = args.out_dir / f"{part}_questions.jsonl"
+        rows = sorted((row for file in mine for row in asked[file]), key=lambda row: row.id)
+        write_jsonl(questions, rows)
+        elements, rooms, plans, per_image = totals(gold[file] for file in mine)
+        parts[part] = ExpPartImages(
+            files=mine,
+            images=len(mine),
+            groups=len({group_of(file) for file in mine}),
+            questions=sum(len(asked[file]) for file in mine),
+            questions_sha256=_sha256(questions),
+            elements=dict(sorted(elements.items())),
+            rooms=dict(sorted(rooms.items())),
+            plans=plans,
+            plans_per_image=dict(sorted(per_image.items(), key=lambda item: int(item[0]))),
+        )
+    split = ExpSplit(
+        seed=args.seed,
+        shares=DEFAULT_SHARES,
+        split_manifest_sha256=_sha256(args.split_dir / SPLIT_MANIFEST),
+        golden_manifest_sha256=_sha256(golden_manifest),
+        excluded_golden=excluded,
+        parts=parts,
+    )
+    out = args.out_dir / "split.json"
+    out.write_text(split.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    print(f"{'part':<6} {'images':>6} {'questions':>9} {'plans':>6}  elements / rooms")
+    for name, part in split.parts.items():
+        print(
+            f"{name:<6} {part.images:>6} {part.questions:>9} {part.plans:>6}  "
+            f"{part.elements} / {part.rooms}"
+        )
+    print(f"left out {len(excluded)} golden v2 images; wrote {out} and <part>_questions.jsonl")
+
+
+CERTIFIED = "test-certified.json"  # under the exp dir: every test run, so test is used once
+
+
+class CertifiedRun(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command: Literal["ab", "gate"]
+    arm: str
+    time: str
+    result: str = Field(description="the verdict or the certificate sentence")
+    result_file: str
+    result_sha256: str
+    reason: str | None = Field(default=None, description="why a certified arm was run again")
+
+
+class CertifiedRuns(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    runs: list[CertifiedRun] = Field(default_factory=list[CertifiedRun])
+
+
+def _certified(exp_dir: Path) -> CertifiedRuns:
+    path = exp_dir / CERTIFIED
+    if not path.is_file():
+        return CertifiedRuns()
+    return CertifiedRuns.model_validate_json(path.read_text("utf-8"))
+
+
+def _certify_check(args: argparse.Namespace, command: str, arms: Sequence[str]) -> None:
+    """Test needs --certify, and an arm already run on test by this command needs a reason."""
+    if args.part != "test":
+        return
+    if not args.certify:
+        raise ValueError(
+            "test is used once, for the arm we ship: ask the orchestrator, then add --certify"
+        )
+    done = {
+        run.arm: run
+        for run in _certified(args.exp_dir).runs
+        if run.command == command and run.arm in arms
+    }
+    if done and not args.recertify_reason:
+        run = next(iter(done.values()))
+        raise ValueError(
+            f"{run.arm} was already run on test with {command} at {run.time}: test is used once; "
+            "give --recertify-reason to run it again"
+        )
+
+
+def _certify_record(
+    args: argparse.Namespace, command: Literal["ab", "gate"], arms: Sequence[str], result: str,
+    out: Path,
+) -> None:  # fmt: skip
+    if args.part != "test":
+        return
+    record = _certified(args.exp_dir)
+    now = datetime.now(HELSINKI).isoformat(timespec="seconds")
+    for arm in arms:
+        record.runs.append(
+            CertifiedRun(
+                command=command,
+                arm=arm,
+                time=now,
+                result=result,
+                result_file=str(out),
+                result_sha256=_sha256(out),
+                reason=args.recertify_reason,
+            )
+        )
+    path = args.exp_dir / CERTIFIED
+    path.write_text(record.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    print(f"recorded the test run in {path}")
+
+
+def _exp_part(exp_dir: Path, part: ExpPart) -> tuple[ExpSplit, Path, list[NumberedQuestion]]:
+    """The split, the part's questions file and its rows, after checking the file is the one
+    exp-split wrote."""
+    split_path = exp_dir / "split.json"
+    if not split_path.is_file():
+        raise ValueError(f"{split_path} is missing: run `python -m stoa_eval exp-split` first")
+    split = ExpSplit.model_validate_json(split_path.read_text("utf-8"))
+    path = exp_dir / f"{part}_questions.jsonl"
+    if _sha256(path) != split.parts[part].questions_sha256:
+        raise ValueError(f"{path} is not the file exp-split wrote: run exp-split again")
+    return split, path, [row for _, row in read_jsonl(path, NumberedQuestion)]
+
+
+def _arm_name(arm: str, exp_dir: Path) -> str:
+    """A reference arm's name, or the folder under data/stoa/exp joined with "-" (core/yolo ->
+    core-yolo), or else the folder's own name."""
+    if arm in REFERENCE_ARMS:
+        return arm
+    folder = Path(arm).resolve()
+    if folder.is_relative_to(exp_dir.resolve()):
+        return "-".join(folder.relative_to(exp_dir.resolve()).parts)
+    return folder.name
+
+
+def _exp_prior(exp_dir: Path, out: Path) -> Path:
+    """Fits the answer prior on the train part's questions only (answer's builder)."""
+    backend.run("prior", "--train", str(exp_dir / "train_questions.jsonl"), "--out", str(out))
+    return out
+
+
+def _answer_arm(
+    arm: str,
+    questions: Path,
+    golds: dict[str, Extraction],
+    gold_dir: Path,
+    prior: Path | None,
+    work: Path,
+) -> tuple[str, dict[int, Answer], dict[str, Extraction] | None]:
+    """(what the arm is, its answers by question id, its extractions of the part's images; None
+    for the prior). `work` is a fresh folder for this arm."""
+    work.mkdir(parents=True)
+    drawings, use_prior, preds = work / "drawings", None, None
+    if arm == "gold":
+        drawings, preds, what = gold_dir, dict(golds), f"dev gold extraction ({gold_dir})"
+    elif arm == "prior":
+        if prior is None:
+            raise ValueError("the prior arm needs the train prior")
+        drawings.mkdir()
+        use_prior, preds, what = prior, None, f"train prior ({prior}), no extraction"
+    elif arm == "none":
+        drawings.mkdir()
+        preds = {file: baselines.empty_extraction(gold) for file, gold in golds.items()}
+        for n, extraction in enumerate(preds.values()):
+            body = extraction.model_dump_json(by_alias=True, exclude_none=True)
+            (drawings / f"{n}.json").write_text(body, "utf-8")
+        what = "empty extraction: every image read, nothing found"
+    else:
+        drawings = Path(arm)
+        if not drawings.is_dir():
+            raise ValueError(f"{arm} is neither a folder nor one of {', '.join(REFERENCE_ARMS)}")
+        found = _extractions(drawings)
+        preds = {file: found[file][1] for file in golds if file in found}
+        what = str(drawings)
+    out = work / "answers.jsonl"
+    extra = ["--prior", str(use_prior)] if use_prior is not None else []
+    backend.run(
+        "answer", "--questions", str(questions), "--drawings", str(drawings), "--out", str(out),
+        *extra,
+    )  # fmt: skip
+    answers = {answer.id: answer for _, answer in read_jsonl(out, Answer)}
+    return what, answers, preds
+
+
+ORIENTATION = "orientation.json"  # under the exp dir, written by answer: file -> turn, mirrored
+
+
+def _orientation(path: Path) -> tuple[dict[str, str] | None, str]:
+    """file -> orientation label, and where it came from (None when there is no file)."""
+    if not path.is_file():
+        return None, f"no {path}: the gold has no orientation, so upright/rotated is not split"
+    raw = json.loads(path.read_text("utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path}: expected an object of file -> orientation")
+    entries = cast(dict[str, object], raw)
+    return {file: orientation_label(value) for file, value in entries.items()}, f"from {path}"
+
+
+def _part_golds(
+    exp_dir: Path, gold: Path, part: ExpPart
+) -> tuple[Path, list[NumberedQuestion], list[str], dict[str, Extraction]]:
+    """The part's questions file, its questions, its files and their dev gold."""
+    split, questions_path, questions = _exp_part(exp_dir, part)
+    files = split.parts[part].files
+    wanted = set(files)
+    golds = {
+        file: extraction
+        for file, (_, extraction) in _extractions(gold / EXP_SOURCE).items()
+        if file in wanted
+    }
+    if set(golds) != wanted:
+        raise ValueError(f"{len(wanted - set(golds))} images of {part} have no dev gold")
+    return questions_path, questions, files, golds
+
+
+def _families(questions_path: Path, work: Path) -> dict[int, str]:
+    """question id -> the backend parser's family."""
+    out = work / "families.json"
+    backend.run("families", "--questions", str(questions_path), "--out", str(out))
+    return {int(k): v for k, v in json.loads(out.read_text("utf-8")).items()}
+
+
+def _score_arm(
+    arm: str,
+    name: str,
+    part: tuple[Path, list[NumberedQuestion], list[str], dict[str, Extraction]],
+    gold_dir: Path,
+    families: Mapping[int, str],
+    prior: Path | None,
+    orientation: Mapping[str, str] | None,
+    work: Path,
+) -> tuple[ArmResult, dict[int, bool], list[int]]:
+    """One arm on a part: its result, its hits by question id and the ids it refused."""
+    questions_path, questions, files, golds = part
+    what, answers, preds = _answer_arm(arm, questions_path, golds, gold_dir, prior, work)
+    hits = hits_of(questions, answers)
+    refused = sorted(q.id for q in questions if q.id not in answers or answers[q.id].answer is None)
+    keys = count_keys(golds.values())
+    counts = None if preds is None else count_stats(golds, preds, keys)
+    errors = None if preds is None else count_errors(golds, preds, keys)
+    present = files if preds is None else list(preds)
+    result = arm_result(
+        name, what, questions, hits, families, files, present, counts, orientation, errors
+    )
+    return result, hits, refused
+
+
+def run_ab(args: argparse.Namespace) -> None:
+    names = [_arm_name(arm, args.exp_dir) for arm in (args.a, args.b)]
+    if names[0] == names[1]:
+        raise ValueError(f"both arms are named {names[0]}")
+    certified = [name for name in names if name not in REFERENCE_ARMS]
+    _certify_check(args, "ab", certified)
+    part = _part_golds(args.exp_dir, args.gold, args.part)
+    questions = part[1]
+    orientation, note = _orientation(args.orientation or args.exp_dir / ORIENTATION)
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        prior = _exp_prior(args.exp_dir, args.prior) if "prior" in (args.a, args.b) else None
+        families = _families(part[0], work)
+        arms: list[tuple[ArmResult, dict[int, bool]]] = []
+        for label, arm, name in zip(("a", "b"), (args.a, args.b), names, strict=True):
+            result, hits, _ = _score_arm(
+                arm, name, part, args.gold / EXP_SOURCE, families, prior, orientation, work / label
+            )
+            arms.append((result, hits))
+    overall, by_family, per_image = compare(
+        questions, arms[0], arms[1], families, args.seed, args.reps
+    )
+    result = AbResult(
+        part=args.part,
+        split_sha256=_sha256(args.exp_dir / "split.json"),
+        prior_sha256=_sha256(prior) if prior is not None else None,
+        seed=args.seed,
+        bootstrap_reps=args.reps,
+        orientation=note,
+        a=arms[0][0],
+        b=arms[1][0],
+        paired=overall,
+        paired_by_family=by_family,
+        per_image=per_image,
+    )
+    print(format_ab(result))
+    out = args.exp_dir / "ab" / f"{names[0]}-vs-{names[1]}-{args.part}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    print(f"\nwrote {out}")
+    verdict = f"{overall.verdict}: B - A {overall.diff} [{overall.ci_low}, {overall.ci_high}]"
+    _certify_record(args, "ab", certified, verdict, out)
+
+
+def _units(
+    questions: Sequence[NumberedQuestion],
+    families: Mapping[int, str],
+    answers: Mapping[int, Answer],
+    second: Mapping[int, Answer] | None,
+    preds: Mapping[str, Extraction],
+    steps: Mapping[str, list[tuple[float, float]]],
+) -> list[Unit]:
+    """One unit per (image, family) the questions ask; unsupported questions are left out."""
+    hits = hits_of(questions, answers)
+    grouped: dict[tuple[str, str], list[NumberedQuestion]] = {}
+    for q in questions:
+        if families.get(q.id, "unsupported") != "unsupported":
+            grouped.setdefault((q.path, families[q.id]), []).append(q)
+
+    def said(replies: Mapping[int, Answer], rows: list[NumberedQuestion]) -> list[object]:
+        return [replies[q.id].answer if q.id in replies else None for q in rows]
+
+    units: list[Unit] = []
+    for (file, family), rows in sorted(grouped.items()):
+        agree = None if second is None else said(answers, rows) == said(second, rows)
+        signals = signals_of(preds.get(file), family, steps, agree)
+        if None in said(answers, rows):  # a refused answer is never marked sure
+            signals = dict.fromkeys(signals)
+        exact = all(hits[q.id] for q in rows)
+        units.append(Unit(file=file, family=family, exact=exact, signals=signals))
+    return units
+
+
+def _best_signal(compared: Mapping[str, SignalReport], name: str) -> Signal:
+    """Of the signals with a value, the highest failure AUROC (none when val has only right or
+    only wrong answers: the earlier one in SIGNALS)."""
+    usable: list[Signal] = [s for s in SIGNALS if compared[s].scored]
+    if not usable:
+        raise ValueError(f"{name}: no signal has a value (attrs.score, or a --second arm)")
+    auroc = {s: -1.0 if compared[s].auroc is None else compared[s].auroc for s in usable}
+    return max(usable, key=lambda s: (auroc[s], -SIGNALS.index(s)))
+
+
+def run_gate(args: argparse.Namespace) -> None:
+    _certify_check(args, "gate", [_arm_name(args.arm, args.exp_dir)])
+    split, questions_path, questions = _exp_part(args.exp_dir, args.part)
+    files = split.parts[args.part].files
+    wanted = set(files)
+    golds = {
+        file: extraction
+        for file, (_, extraction) in _extractions(args.gold / EXP_SOURCE).items()
+        if file in wanted
+    }
+    name = _arm_name(args.arm, args.exp_dir)
+    second_name = None if args.second is None else _arm_name(args.second, args.exp_dir)
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        backend.run("families", "--questions", str(questions_path), "--out", str(work / "f.json"))
+        families = {int(k): v for k, v in json.loads((work / "f.json").read_text()).items()}
+        gold_dir = args.gold / EXP_SOURCE
+        _, answers, preds = _answer_arm(args.arm, questions_path, golds, gold_dir, None, work / "a")
+        second = None
+        if args.second is not None:
+            _, second, _ = _answer_arm(
+                args.second, questions_path, golds, gold_dir, None, work / "b"
+            )
+    preds = preds or {}
+    asked = {families.get(q.id, "unsupported") for q in questions} - {"unsupported"}
+    if args.part == "val":
+        calibration_files, selection_files = halves(files, args.seed)
+        keys = {key for family in asked for key in family_keys(family)}
+        steps = calibrate(
+            {f: golds[f] for f in calibration_files},
+            {f: preds[f] for f in calibration_files if f in preds},
+            sorted(keys),
+        )
+        chosen = set(selection_files)
+        thresholds_in: dict[str, float | None] | None = None
+        signal: Signal | None = args.signal
+    else:
+        tuned_path = args.thresholds or args.exp_dir / "ab" / f"gate-{name}-val.json"
+        tuned = GateResult.model_validate_json(tuned_path.read_text("utf-8"))
+        if tuned.part != "val" or tuned.arm != name or tuned.second != second_name:
+            raise ValueError(f"{tuned_path} is not the val gate of {name} / {second_name}")
+        steps, chosen = tuned.calibration, wanted
+        thresholds_in = {family: gate.threshold for family, gate in tuned.families.items()}
+        signal = tuned.signal
+    units = [
+        u for u in _units(questions, families, answers, second, preds, steps) if u.file in chosen
+    ]
+    compared = compare_signals(units)
+    if signal is None:
+        signal = _best_signal(compared, name)
+    label = "test" if args.part == "test" else "val selection half, not a certificate"
+    by_family: dict[str, list[Unit]] = {}
+    for u in units:
+        by_family.setdefault(u.family, []).append(u)
+    if thresholds_in is None:
+        picked = family_gates(by_family, signal, args.target, args.delta)
+    else:
+        picked = {f: apply_gate(by_family[f], signal, thresholds_in.get(f)) for f in by_family}
+    gates = {family: family_result(picked[family], family, label) for family in sorted(picked)}
+    thresholds = {family: gate.threshold for family, gate in gates.items()}
+    result = GateResult(
+        arm=name,
+        second=second_name,
+        part=args.part,
+        images=len({u.file for u in units}),
+        seed=args.seed,
+        target=args.target,
+        delta=args.delta,
+        family_delta=args.delta / max(1, len(by_family)),
+        signal=signal,
+        compared=compared,
+        calibration={key: list(value) for key, value in steps.items()},
+        families=gates,
+        certificate=certificate(units, signal, thresholds, label),
+    )
+    print(format_gate(result))
+    out = args.exp_dir / "ab" / f"gate-{name}-{args.part}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    print(f"\nwrote {out}")
+    _certify_record(args, "gate", [name], result.certificate.sentence, out)
+
+
+def _code_digest() -> str:
+    """The code that answers and scores an arm: backend/app, ab_backend.py and stoa_eval."""
+    eval_dir = Path(__file__).resolve().parents[1]
+    paths = [
+        *(REPO / "backend/app").rglob("*.py"),
+        eval_dir / "ab_backend.py",
+        *(eval_dir / "stoa_eval").glob("*.py"),
+    ]
+    return digest_files(paths, REPO)
+
+
+def _modified(folder: Path) -> str:
+    times = [path.stat().st_mtime for path in folder.rglob("*.json")]
+    when = datetime.fromtimestamp(max(times), HELSINKI) if times else None
+    return when.strftime("%Y-%m-%d %H:%M") if when else "-"
+
+
+def _repo_path(path: Path) -> str:
+    """Repo-relative when the path is inside the repo, else absolute."""
+    resolved = path.resolve()
+    return (resolved.relative_to(REPO) if resolved.is_relative_to(REPO) else resolved).as_posix()
+
+
+def _first_line(error: Exception) -> str:
+    lines = [line.strip() for line in str(error).splitlines() if line.strip()]
+    return " / ".join(lines[:3])[:300]
+
+
+def run_leaderboard(args: argparse.Namespace) -> None:
+    part = _part_golds(args.exp_dir, args.gold, "val")
+    questions_path, questions, files, _ = part
+    gold_dir = args.gold / EXP_SOURCE
+    orientation, _ = _orientation(args.exp_dir / ORIENTATION)
+    gold_paths = [path for path, _ in _extractions(gold_dir).values()]
+    base = hashlib.sha256()
+    for piece in (
+        _sha256(args.exp_dir / "split.json"),
+        digest_files([p for p in gold_paths if p.is_file()], gold_dir),
+        _code_digest(),
+        _sha256(args.exp_dir / "train_questions.jsonl"),
+        json.dumps(orientation, sort_keys=True),
+        f"{args.seed}:{args.reps}",
+    ):
+        base.update(piece.encode())
+    cache = args.exp_dir / "ab" / "cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        families = _families(questions_path, work)
+        prior_path = _exp_prior(args.exp_dir, args.prior)
+
+        def scored(arm: str, name: str, digest: str, modified: str) -> ArmRun:
+            key = hashlib.sha256(f"{base.hexdigest()}:{name}:{digest}".encode()).hexdigest()
+            path = cache / f"{key[:32]}.json"
+            if path.is_file():
+                run = ArmRun.model_validate_json(path.read_text("utf-8"))
+                if run.key == key:
+                    return run
+            result, hits, refused = _score_arm(
+                arm, name, part, gold_dir, families, prior_path, orientation, work / key[:12]
+            )
+            run = ArmRun(
+                key=key, name=name, result=result, hits=hits, refused=refused, modified=modified
+            )
+            if name != "prior":
+                run.against_prior = paired(questions, prior.hits, hits, args.seed, args.reps)
+            path.write_text(run.model_dump_json() + "\n", encoding="utf-8")
+            return run
+
+        prior = scored("prior", "prior", _sha256(prior_path), "-")
+        references = {"prior": prior, "gold": scored("gold", "gold", "", "-")}
+        runs: list[ArmRun] = []
+        invalid: list[Invalid] = []
+        for folder in find_arms(args.exp_dir):
+            name = folder.relative_to(args.exp_dir).as_posix()
+            try:
+                found = _extractions(folder)
+            except ValueError as error:
+                invalid.append(
+                    Invalid(name=name, reason=f"not valid extraction_v1: {_first_line(error)}")
+                )
+                continue
+            covered = sum(file in found for file in files)
+            if not covered:
+                example = next(iter(found), "nothing")
+                invalid.append(
+                    Invalid(name=name, reason=f"no val image ({len(found)} files, e.g. {example})")
+                )
+                continue
+            runs.append(scored(str(folder), name, arm_digest(folder), _modified(folder)))
+    chosen = best_per_group(questions, families, runs, prior)
+    combo = combo_hits(questions, families, chosen, prior)
+    hits = sum(combo.values())
+    folders = {run.name: _repo_path(args.exp_dir / run.name) for run in runs}
+    policy = family_policy(questions, families, runs, prior, folders, args.seed, args.reps)
+    per_family = policy_runs(policy, runs)
+    family_combo = combo_hits(questions, families, per_family, prior)
+    family_hits = sum(family_combo.values())
+    family_string = ",".join(f"{family}={run.name}" for family, run in per_family.items())
+    out = args.out
+    existing = out.read_text("utf-8") if out.is_file() else ""
+    text = format_leaderboard(
+        generated=datetime.now(HELSINKI).strftime("%Y-%m-%d %H:%M"),
+        questions=questions,
+        families=families,
+        runs=runs,
+        references=references,
+        invalid=invalid,
+        combo=combo_string(chosen),
+        combo_pair=paired(questions, prior.hits, combo, args.seed, args.reps),
+        combo_rate=Rate(hits=hits, n=len(combo), rate=hits / len(combo) if combo else None),
+        family_combo=f"{family_string or 'prior'} (others: prior)",
+        family_pair=paired(questions, prior.hits, family_combo, args.seed, args.reps),
+        family_rate=Rate(
+            hits=family_hits, n=len(family_combo), rate=family_hits / len(family_combo)
+        ),
+        failures=failure_images(questions, families, runs),
+        kept=kept_block(existing),
+        orientation=orientation,
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    summary = {
+        "combo": combo_string(chosen),
+        "family_combo": {family: run.name for family, run in per_family.items()},
+        "arms": {run.name: run.result.overall.rate for run in runs},
+        "not_scored": {item.name: item.reason for item in invalid},
+    }
+    (args.exp_dir / "ab" / "leaderboard.json").write_text(json.dumps(summary, indent=2) + "\n")
+    policy_file = {
+        "schema": "answer_policy_v1",
+        "generated": datetime.now(HELSINKI).isoformat(timespec="seconds"),
+        "part": "val",
+        "split_sha256": _sha256(args.exp_dir / "split.json"),
+        "prior": _repo_path(args.prior),
+        "rule": "per family the best arm on val whose paired 95% bootstrap interval against the "
+        "train prior lies above 0, else prior",
+        "families": {family: entry.model_dump() for family, entry in policy.items()},
+    }
+    (args.exp_dir / "policy.json").write_text(json.dumps(policy_file, indent=2) + "\n", "utf-8")
+    print(text)
+    print(f"wrote {out}, {args.exp_dir / 'ab/leaderboard.json'} and {args.exp_dir / 'policy.json'}")
 
 
 def run_select(args: argparse.Namespace) -> None:
@@ -968,6 +1614,60 @@ def parser() -> argparse.ArgumentParser:
         help="also need a scale value on every image and an area on every room with a polygon",
     )
     check.set_defaults(run=run_validate_extraction)
+
+    exp = commands.add_parser(
+        "exp-split", help="cut CubiCasa dev images into experiment train/val/test"
+    )
+    exp.add_argument("--split-dir", type=Path, default=SPLIT_DIR)
+    exp.add_argument("--golden-dir", type=Path, default=GOLDEN_V2)
+    exp.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
+    exp.add_argument("--out-dir", type=Path, default=EXP_DIR)
+    exp.add_argument("--seed", type=int, default=DEFAULT_EXP_SEED)
+    exp.set_defaults(run=run_exp_split)
+
+    ab = commands.add_parser("ab", help="compare two experiment arms on val (or test)")
+    ab.add_argument("--a", required=True, help="an arm folder of extraction_v1, or gold|prior|none")
+    ab.add_argument("--b", required=True, help="the challenger, same choices")
+    ab.add_argument("--part", choices=["val", "test"], default="val")
+    ab.add_argument("--certify", action="store_true", help="needed for test: once, shipped arm")
+    ab.add_argument("--recertify-reason", help="why an arm already run on test runs again")
+    ab.add_argument("--exp-dir", type=Path, default=EXP_DIR)
+    ab.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
+    ab.add_argument("--prior", type=Path, default=EXP_PRIOR, help="where the train prior goes")
+    ab.add_argument(
+        "--orientation",
+        type=Path,
+        help="JSON: file -> label or {turn, mirrored}; default: <exp-dir>/orientation.json if any",
+    )
+    ab.add_argument("--seed", type=int, default=AB_SEED)
+    ab.add_argument("--reps", type=int, default=BOOTSTRAP_REPS, help="bootstrap resamples")
+    ab.set_defaults(run=run_ab)
+
+    gate = commands.add_parser("gate", help="E5: when may an arm's answer be marked sure")
+    gate.add_argument("--arm", required=True, help="an arm folder, extraction_v1 with attrs.score")
+    gate.add_argument("--second", help="a second arm, for the agreement signal")
+    gate.add_argument("--part", choices=["val", "test"], default="val")
+    gate.add_argument("--signal", choices=SIGNALS, help="default: the best failure AUROC on val")
+    gate.add_argument("--certify", action="store_true", help="needed for test: once, shipped arm")
+    gate.add_argument("--recertify-reason", help="why an arm already certified runs again")
+    gate.add_argument(
+        "--thresholds", type=Path, help="test: the val run's gate JSON (default: its usual path)"
+    )
+    gate.add_argument("--target", type=float, default=TARGET, help="exact share among sure")
+    gate.add_argument("--delta", type=float, default=DELTA)
+    gate.add_argument("--exp-dir", type=Path, default=EXP_DIR)
+    gate.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
+    gate.add_argument("--seed", type=int, default=GATE_SEED)
+    gate.set_defaults(run=run_gate)
+
+    board = commands.add_parser("leaderboard", help="every experiment arm on val against prior")
+    board.add_argument("--exp-dir", type=Path, default=EXP_DIR)
+    board.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
+    board.add_argument("--prior", type=Path, default=EXP_PRIOR, help="where the train prior goes")
+    board.add_argument("--out", type=Path, default=LEADERBOARD)
+    board.add_argument("--seed", type=int, default=AB_SEED)
+    board.add_argument("--reps", type=int, default=BOOTSTRAP_REPS, help="bootstrap resamples")
+    board.set_defaults(run=run_leaderboard)
 
     schema = commands.add_parser("schema", help="write the JSON Schemas into eval/schemas/")
     schema.add_argument("--check", action="store_true", help="fail if a committed one is stale")

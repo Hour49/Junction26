@@ -1,0 +1,86 @@
+"""The backend half of `stoa_eval ab` and `stoa_eval gate`: runs in backend/'s environment, with
+backend/ on the path, and uses the backend as a library, so the experiments are answered by the
+same parser and takeoff the pipeline runs. `stoa_eval` starts it; nobody needs to call it by hand.
+
+    answer   --questions Q --drawings DIR --out A.jsonl [--prior TABLE]
+             answers every question of Q from the extraction_v1 files in DIR (the pipeline's
+             answering, `Pipeline.answer_questions`, with QUESTION_PARSER=templates); a file
+             missing from DIR is refused. With --prior, a refusal carries that table's value.
+    prior    --train Q --out TABLE
+             fits the answer prior (`app.adapters.answer_prior.build`) on the experiment's train
+             questions only (data/stoa/exp/train_questions.jsonl), never val, test or dev.jsonl.
+    families --questions Q --out F.json
+             question id -> the parser's family (`unsupported` when it can't read the question).
+"""
+
+import argparse
+import dataclasses
+import json
+from pathlib import Path
+
+from app.adapters.answer_prior import TablePrior, build
+from app.adapters.answer_v1 import AnswerV1Writer
+from app.adapters.extraction_v1 import ExtractionV1Reader
+from app.adapters.question_templates import TemplateParser
+from app.adapters.questions_file import QuestionsFile
+from app.composition import build_pipeline
+from app.core.answering.model import Unsupported
+from app.settings import Settings
+
+TRAIN_QUESTIONS = "train_questions.jsonl"
+
+
+def answer(args: argparse.Namespace) -> None:
+    settings = Settings(question_parser="templates", answer_prior="none")
+    pipeline = build_pipeline(settings, args.dataset)
+    if args.prior is not None:
+        pipeline = dataclasses.replace(pipeline, prior=TablePrior(args.prior))
+    questions = QuestionsFile(args.questions).questions()
+    args.out.unlink(missing_ok=True)
+    pipeline.answer_questions(
+        questions, ExtractionV1Reader(args.drawings), AnswerV1Writer(args.out)
+    )
+
+
+def prior(args: argparse.Namespace) -> None:
+    if args.train.name != TRAIN_QUESTIONS:  # val and test must not leak into the prior
+        raise SystemExit(f"{args.train} is not the experiment's {TRAIN_QUESTIONS}")
+    with args.train.open(encoding="utf-8") as lines:
+        table = build((json.loads(line) for line in lines if line.strip()), TemplateParser())
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(table, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def families(args: argparse.Namespace) -> None:
+    parser = TemplateParser()
+    found: dict[int, str] = {}
+    for question in QuestionsFile(args.questions).questions():
+        parsed = parser.parse(question.text)
+        found[question.id] = "unsupported" if isinstance(parsed, Unsupported) else parsed.family()
+    args.out.write_text(json.dumps(found) + "\n", encoding="utf-8")
+
+
+def main() -> None:
+    root = argparse.ArgumentParser(prog="ab_backend.py")
+    commands = root.add_subparsers(dest="command", required=True)
+    run = commands.add_parser("answer")
+    run.add_argument("--questions", type=Path, required=True)
+    run.add_argument("--drawings", type=Path, required=True)
+    run.add_argument("--dataset", type=Path, default=Path("."))
+    run.add_argument("--out", type=Path, required=True)
+    run.add_argument("--prior", type=Path)
+    run.set_defaults(run=answer)
+    fit = commands.add_parser("prior")
+    fit.add_argument("--train", type=Path, required=True)
+    fit.add_argument("--out", type=Path, required=True)
+    fit.set_defaults(run=prior)
+    kinds = commands.add_parser("families")
+    kinds.add_argument("--questions", type=Path, required=True)
+    kinds.add_argument("--out", type=Path, required=True)
+    kinds.set_defaults(run=families)
+    args = root.parse_args()
+    args.run(args)
+
+
+if __name__ == "__main__":
+    main()
