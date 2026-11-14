@@ -275,6 +275,44 @@ it('CH-6 nobody answers: one refusal for the project; its questions ask every dr
   ]);
 });
 
+type RefusalCode = NonNullable<ProjectAnswer['parts'][number]['answer']['refusal']>['code'];
+/** Drawing i of project.json refusing with `code`. */
+const refuse = (i: number, code: RefusalCode): ProjectAnswer['parts'][number] => {
+  const id = ids[i] ?? '';
+  const refusal = answerRefused.refusal as NonNullable<typeof answerRefused.refusal>;
+  return {
+    ...refusedPart,
+    drawing_id: id,
+    name: `drawing-${String(i)}.png`,
+    answer: { ...answerRefused, drawing_id: id, refusal: { ...refusal, code } },
+  };
+};
+
+it('K7 nobody answers: each drawing is named with what it lacks; more than 3 are grouped by reason', async () => {
+  const two = [refuse(0, 'no-scale'), refuse(2, 'no-reader')];
+  open({ ...noneAnswers, parts: two });
+  await ask('What colour is the roof?');
+  expect((await screen.findByTestId('refused-drawings')).textContent).toBe(
+    `Not used: ${label(two[0] as (typeof two)[number])} has no scale; ` +
+      `${label(two[1] as (typeof two)[number])} gives no reliable number for it.`,
+  );
+  cleanup();
+  const five = [
+    refuse(0, 'no-scale'),
+    refuse(1, 'not-in-drawing'),
+    refuse(2, 'no-scale'),
+    refuse(3, 'no-scale'),
+    refuse(4, 'no-drawing'),
+  ];
+  open({ ...noneAnswers, parts: five });
+  await ask('What colour is the roof?');
+  const [a, b, c, d, e] = five.map(label);
+  expect((await screen.findByTestId('refused-drawings')).textContent).toBe(
+    `Not used. Has no scale: ${String(a)}, ${String(c)}, ${String(d)}. ` +
+      `Doesn't show it: ${String(b)}. Has no drawing model: ${String(e)}.`,
+  );
+});
+
 it.each([500, 409])(
   'CH-7 the ask fails (%i): the error turn; Try again asks again',
   async (status) => {
