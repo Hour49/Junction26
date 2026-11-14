@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { drawingLabel, formatValue, type ProjectAnswer, type ProjectView } from '../api';
+import { useRef, useState } from 'react';
+import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { GRADE_TONE, StatusPill } from './AnswerCard';
 import { ResolverLines } from './Resolver';
-import { estimateLine, gradeOf, kindName, levelWord, type Grade } from './format';
+import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
+import { ModelDialog } from '../model3d/ModelDialog';
+import { canShow3d } from '../model3d/model3d';
 
 /** "<Level> confidence" (CH-42), the backend's sentence as its tooltip when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
@@ -34,6 +36,9 @@ export function ChatAnswer(props: {
   // Only parts with a page can be drawn; a building model is listed as "no preview".
   const drawn = parts.filter((p) => p.answer.pages.length > 0);
   const [at, setAt] = useState(0);
+  // model-3d.md part 2: the part whose 3D view is open, and the button that opened it (focus goes back)
+  const [model, setModel] = useState<(typeof parts)[number] | null>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
   const current = drawn[at];
   const step = (by: number) => {
     setAt((i) => (i + by + drawn.length) % drawn.length);
@@ -42,10 +47,14 @@ export function ChatAnswer(props: {
   const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
   // "2 doors" (EN-68's noun), as the demo's "11 doors"
   const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
+  // The value the server shows (`answer`: an estimated area in whole m², #294), as the answer card says it (CH-48).
   const value = (p: (typeof parts)[number]) =>
     typeof p.answer.answer === 'number'
-      ? formatValue(p.answer.answer, p.answer.unit) + noun(p.answer.quantity?.noun)
+      ? shownValue(p.answer.answer, p.answer.unit, Boolean(p.answer.quantity?.estimate)) +
+        noun(p.answer.quantity?.noun)
       : (p.answer.answer ?? '');
+  // The total is in whole m² when a part in it is an estimate (the backend's _total), so it reads as they do.
+  const estimated = parts.some((p) => p.answer.refusal === null && p.answer.quantity?.estimate);
   // CH-40: a drawing by its plain name (#224), else its file name; files keep their path
   const labelOf = (p: (typeof parts)[number]) =>
     drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
@@ -66,7 +75,8 @@ export function ChatAnswer(props: {
         // The demo's lead: the value only (CH-39); total_note is never shown, it can name refused drawings.
         <p className="en-lead">
           <strong className="en-value" data-testid="answer-value">
-            {formatValue(ask.total, ask.total_unit) + noun(parts[0]?.answer.quantity?.noun)}
+            {shownValue(ask.total, ask.total_unit, estimated) +
+              noun(parts[0]?.answer.quantity?.noun)}
           </strong>
           {ask.total_level && (
             <>
@@ -195,6 +205,19 @@ export function ChatAnswer(props: {
                         {body}
                       </button>
                     )}
+                    {canShow3d(p.model_3d) && p.model_file_id && (
+                      <button
+                        type="button"
+                        className="v-btn v-btn--secondary v-press m3-open3d"
+                        aria-label={`View in 3D: ${labelOf(p)}`}
+                        onClick={(e) => {
+                          opener.current = e.currentTarget;
+                          setModel(p);
+                        }}
+                      >
+                        View in 3D
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -202,6 +225,18 @@ export function ChatAnswer(props: {
           </div>
         </div>
       </div>
+      {model?.model_file_id && (
+        <ModelDialog
+          projectId={projectId}
+          fileId={model.model_file_id}
+          label={labelOf(model)}
+          highlight={model.highlight ?? []}
+          onClose={() => {
+            setModel(null);
+            opener.current?.focus();
+          }}
+        />
+      )}
     </>
   );
 }

@@ -11,12 +11,22 @@ from dataclasses import dataclass
 from fastapi import APIRouter
 from pydantic import Field
 
+from app.adapters.ifc_model.glb import GlbModels
 from app.api.ask import QUESTION_CHARS, AnswerView, answer_view
-from app.api.deps import AnsweringDep, IngestDep, ProjectId, ReviewsDep, SettingsDep, now
+from app.api.deps import (
+    AnsweringDep,
+    IngestDep,
+    Models3dDep,
+    ProjectId,
+    ReviewsDep,
+    SettingsDep,
+    now,
+)
 from app.api.questions import AskedQuestion, record
 from app.api.views import View, drawings_of
 from app.core.answering.model import Unit
 from app.core.drawing.model import Drawing
+from app.core.ingest.model import Highlight, Model3d, ProjectStatus
 from app.core.review.check import LevelName, lowest
 from app.core.review.model import RefusalCode, Row
 from app.core.review.proof import SHOWN_UNITS
@@ -44,6 +54,15 @@ class ProjectAnswerPart(View):
     drawing_id: str
     name: str  # the drawing's file as the project uploaded it
     answer: AnswerView  # what POST /api/ask gives on this drawing in this project
+    file_id: str | None = None  # the drawing's file in the project (FileStatus.id)
+    # The IFC file whose 3D view shows this drawing (…/files/{model_file_id}/model.glb): its own
+    # file when that is IFC, else the IFC model it was read from; left out when there is none
+    model_file_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    # MODEL_3D: that file's 3D view state, as its FileStatus.model_3d; left out otherwise
+    model_3d: Model3d | None = Field(default=None, exclude_if=lambda value: value is None)
+    # The elements the answer counted, by IFC GlobalId (answer.proof.objects), to highlight in the
+    # 3D view; left out when there are none
+    highlight: list[Highlight] = Field(default_factory=list[Highlight], exclude_if=lambda v: not v)
 
 
 class ProjectAnswer(View):
@@ -85,15 +104,22 @@ def project_ask(
     reviews: ReviewsDep,
     answering: AnsweringDep,
     settings: SettingsDep,
+    models_3d: Models3dDep = None,
 ) -> ProjectAnswer:
+    """`models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D); the chat
+    tool calls this without, so a kept chat never keeps a stale state."""
     status = ingest.status(project_id)  # 404 for a project that doesn't exist
     if status.state != "done":
         raise NotAllowedError(f"project {project_id} is {status.state}; ask when it is done")
+    file_ids = {file.path: file.id for file in status.files}
+    ifc_ids = {file.path: file.id for file in status.files if file.kind == "ifc"}
     parts = [
-        ProjectAnswerPart(
-            drawing_id=entry.drawing_id,
-            name=entry.file,
-            answer=answer_view(
+        _part(
+            entry.drawing_id,
+            entry.file,
+            file_ids.get(entry.file),
+            ifc_ids.get(entry.source or entry.file),  # a sheet read from its model: the model
+            answer_view(
                 body.question, entry.drawing_id, project_id, ingest, reviews, answering, settings
             ),
         )
@@ -118,17 +144,56 @@ def project_ask(
                 project_ask=asked,
             ),
         )
-    return ProjectAnswer(
-        question=body.question,
-        parts=answered + refused,
-        total=total.total,
-        total_unit=total.unit,
-        total_sure=total.sure,
-        total_level=total.level,
-        total_note=total.note,
-        why_no_total=total.why_not,
-        refused_note=total.left_out,
+    return with_models_3d(
+        ProjectAnswer(
+            question=body.question,
+            parts=answered + refused,
+            total=total.total,
+            total_unit=total.unit,
+            total_sure=total.sure,
+            total_level=total.level,
+            total_note=total.note,
+            why_no_total=total.why_not,
+            refused_note=total.left_out,
+        ),
+        status,
+        models_3d,
     )
+
+
+def _part(
+    drawing_id: str, file: str, file_id: str | None, model_file_id: str | None, answer: AnswerView
+) -> ProjectAnswerPart:
+    counted = answer.proof.objects or () if answer.refusal is None else ()
+    return ProjectAnswerPart(
+        drawing_id=drawing_id,
+        name=file,
+        answer=answer,
+        file_id=file_id,
+        model_file_id=model_file_id,
+        highlight=[
+            Highlight(global_id=item.global_id, role="affected")
+            for item in counted
+            if item.global_id
+        ],
+    )
+
+
+def with_models_3d(
+    answer: ProjectAnswer, status: ProjectStatus, models: GlbModels | None
+) -> ProjectAnswer:
+    """Each part with an IFC model file gets that file's 3D view state (MODEL_3D); off, the
+    answer as it is."""
+    if models is None:
+        return answer
+    files = {file.id: file for file in status.files if file.kind == "ifc" and file.sha256}
+    parts = [
+        part.model_copy(update={"model_3d": models.status(files[part.model_file_id].sha256 or "")})
+        if part.model_file_id in files
+        else part
+        for part in answer.parts
+    ]
+    return answer.model_copy(update={"parts": parts})
 
 
 def _total(parts: list[ProjectAnswerPart], drawing_of: Callable[[str], Drawing]) -> Total:
@@ -158,6 +223,10 @@ def _total(parts: list[ProjectAnswerPart], drawing_of: Callable[[str], Drawing])
     total = sum(row.value for row in found)
     total = total if isinstance(total, int) else round(total, 6)  # no float noise
     unit = answered[0].unit
+    # A sum with an area measured on an estimated scale is said in whole m², as its part is
+    # (ask.shown_value, #294): two decimals would claim a precision the estimate does not have.
+    if unit == "m2" and isinstance(total, float) and any(row.estimate for row in found):
+        total = round(total)
     first = found[0]
     said = noun(first.measure, first.subject, total)
     shown = f"{total} {said}" if said else f"{first.label}: {total}{_shown(unit)}"

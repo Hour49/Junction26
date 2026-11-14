@@ -17,6 +17,12 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   readers give boxes) is BOX_RATIO larger than the room's outline on val (Gemini G4-regpred boxes
   matched to gold rooms), so a box's area is divided by it; OUTLINE_SPREAD is that ratio's 68%
   log spread, combined with the scale's (twice, for an area) into `area_uncertainty`.
+- An area printed in a room's label (`area_source` printed, a raster label reader's) is kept as
+  read, but `label_area_checks` sets it against the room's outline (or box) at the sheet's scale:
+  more than LABEL_RANGE apart, one of the two is a misread ("KH 97 m²" with its decimal comma
+  lost, on a 9.7 m² room), so both become stage-8 values of the room's area with no rule between
+  them, and the answer leaves it to a person. A box under MIN_BOX_M2 (the rule below) is the
+  label itself, not the room: nothing to compare with, the label stands.
 - A box that cannot be the room gets no area (`refused_boxes`): a room reader sometimes boxes the
   room's printed label, not the room ("LOBBY 0.18 m²" on a 7.4 m² floor). A box under MIN_BOX_M2
   at the sheet's scale (a door leaf's footprint) is smaller than any room; and when the box rooms
@@ -33,7 +39,17 @@ import math
 import statistics
 from collections.abc import Sequence
 
-from app.core.drawing.model import Box, Element, Page, Room, Scale
+from app.core.drawing.model import (
+    Box,
+    Element,
+    MeasuredValue,
+    MeasureMethod,
+    Page,
+    Room,
+    Scale,
+    Subject,
+)
+from app.core.pipeline.model import Measurement
 
 DOOR_M = 0.794  # m, val (C-yolo26s-1536 ONNX doors, score >= 0.5)
 MIN_DOOR_SCORE = 0.5  # the doors the prior was fitted on
@@ -42,6 +58,12 @@ SPREAD_FEW = 0.158  # 68% relative scale error with 1-4 doors, val two-way
 SPREAD_MANY = 0.0795  # with 5 or more doors
 BOX_RATIO = 1.104  # a room's box area over its outline area, val median
 OUTLINE_SPREAD = 0.157  # 68% |log| of that ratio around its median, val
+# A printed label area and the outline at the sheet's scale further apart than this (either way)
+# is a misread on one side. The outline's 68% |log| band at the door estimate is about 0.33
+# (hypot(2 log1p(SPREAD_FEW), OUTLINE_SPREAD)); log 3 = 1.10 is over 3 of those bands (7 at a
+# printed scale), while a lost decimal comma is 10x.
+LABEL_RANGE = 3.0
+LABEL_NOTE = "room label area: "  # how a label-area check's note starts
 # A box smaller than a door leaf's footprint (0.7 x 0.7 m) holds no room (a guard). The box's
 # area, not its shorter side: real rooms can be narrow (high_quality-11271's kitchen 0.63 x 3 m,
 # 1.9 m², and its utility kitchen APK about 0.6 x 1.8 m, 1.1 m², are kept), while a label is small
@@ -185,6 +207,75 @@ def _cover(boxes: Sequence[Box]) -> float:
     return union / around
 
 
+def label_area_checks(
+    rooms: Sequence[Room], scale: Scale, pages: Sequence[Page]
+) -> tuple[list[Measurement], list[str]]:
+    """Each room whose area is printed in its label (`area_source` printed) and more than
+    LABEL_RANGE from its outline (its box: over BOX_RATIO) at `scale`: two stage-8 values of its
+    area, the label's (`printed_label`) and the outline's (`detector`: what the raster reading
+    drew), which no rule decides between, and a note. A box under MIN_BOX_M2 boxes the label
+    itself and is not compared (refused_boxes' area rule). Nothing without a scale."""
+    if scale.m_per_unit is None:
+        return [], []
+    by_page = {page.page: page for page in pages}
+    found: list[Measurement] = []
+    notes: list[str] = []
+    for room in rooms:
+        page = by_page.get(room.page)
+        if room.area_source != "printed" or not room.area_m2 or page is None:
+            continue
+        x0, y0, x1, y1 = room.box
+        box_m2 = (x1 - x0) * page.width * (y1 - y0) * page.height * scale.m_per_unit**2
+        if room.polygon is None and box_m2 < MIN_BOX_M2:
+            continue
+        share = _shoelace(room.polygon) if room.polygon else (x1 - x0) * (y1 - y0) / BOX_RATIO
+        outline = share * page.width * page.height * scale.m_per_unit**2
+        if outline <= 0 or max(room.area_m2 / outline, outline / room.area_m2) <= LABEL_RANGE:
+            continue
+        subject = Subject(kind="room", ref=room.id)
+        pair: tuple[tuple[float, MeasureMethod], ...] = (
+            (room.area_m2, "printed_label"),
+            (round(outline, 2), "detector"),
+        )
+        found += [
+            Measurement(
+                quantity="room_area",
+                subject=subject,
+                value=MeasuredValue(
+                    value=value, unit="m2", method=method, page=room.page, box=room.box
+                ),
+            )
+            for value, method in pair
+        ]
+        notes.append(
+            f"{LABEL_NOTE}{room.id} prints {room.area_m2:g} m², its outline at the sheet's scale "
+            f"is about {outline:.3g} m² (more than {LABEL_RANGE:g}x apart): left for a person"
+        )
+    return found, notes
+
+
 def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
     pairs = zip(polygon, [*polygon[1:], polygon[0]], strict=True)
     return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in pairs)) / 2
+
+
+# SCALE_CARBON_DOORS=on (app/adapters/raster_scale/ CarbonDoorScale): when the detector found no
+# door it is sure of, the Carbon reader's own door boxes. shortcut: CARBON_DOOR_M is DOOR_M, fitted
+# on the detector's boxes, not Carbon's (it boxes a door with its swing, a square about a leaf wide
+# on a side; on golden's 19 Carbon door boxes the scale comes out about 14.5% low); fit it on the
+# hard set before the setting goes on: scripts/carbon_door_scale.py prints the value ("fit:")
+CARBON_DOOR_M = DOOR_M
+
+
+def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
+    """The scale from the door prior over Carbon's door boxes `sides`; None without a door. The
+    band is SPREAD_FEW however many doors (the widest; the bands were fitted on the detector's)."""
+    if not sides:
+        return None
+    return Scale(
+        status="estimated",
+        m_per_unit=CARBON_DOOR_M / statistics.median(sides),
+        source=f"a door is about {CARBON_DOOR_M} m wide; median of {len(sides)} doors the Carbon "
+        "reader found (the detector found no door it is sure of)",
+        uncertainty=SPREAD_FEW,
+    )

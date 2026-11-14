@@ -14,6 +14,7 @@ import threading
 from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
+from pathlib import PurePosixPath
 
 from app.core import cost
 from app.core.drawing.model import Drawing
@@ -22,6 +23,7 @@ from app.core.errors import (
     InvalidInputError,
     NotFoundError,
     NotTriagedError,
+    UnsupportedFileError,
 )
 from app.core.evidence.pictures import EvidenceSteps
 from app.core.evidence.ports import EvidenceIndex
@@ -302,6 +304,35 @@ class IngestService:
         queued = run.file(file.path)
         self._save(run)
         self._runner.submit(lambda: self._reread(run, file.path, call))
+        return queued
+
+    def add_file(self, project_id: str, name: str, data: bytes) -> FileStatus:
+        """A photo added to a finished project (board #203): png or jpeg only, kept as file
+        f<n+1> at its own name (a taken name gets "-2", "-3"...), then identified, triaged and
+        read in the background, alone, as at upload; the project stays done. Returns the file,
+        queued; poll the project for the rest."""
+        if sniff(data) not in ("png", "jpeg"):
+            raise UnsupportedFileError(f"{name}: only a png or jpeg image can be added")
+        base = PurePosixPath(name.replace("\\", "/")).name
+        if base in ("", ".", "..") or ":" in base or any(ord(char) < 32 for char in base):
+            raise InvalidInputError(f"{name!r} is not a file name")
+        with self._lock:
+            if project_id in self._live:
+                raise NotAllowedError(f"project {project_id} is still being read; try again")
+            status, traces = self._store.load_project(project_id)
+            if status.state != "done":
+                raise NotAllowedError(f"project {project_id} is {status.state}, not done")
+            run = Run.resumed(status, traces)
+            path, stem, n = base, PurePosixPath(base), 1
+            while run.has(path):
+                n += 1
+                path = f"{stem.stem}-{n}{stem.suffix}"
+            run.add(Entry(path=path, size=len(data), data=data))
+            run.set(path, reason="added to the project, queued to be read")
+            self._live[project_id] = run
+        queued = run.file(path)
+        self._save(run)
+        self._runner.submit(lambda: self._add(run, path, data))
         return queued
 
     def _doubt_read_as_plan(
@@ -596,6 +627,40 @@ class IngestService:
                 del self._live[run.id]
             run.done.set()
 
+    def _add(self, run: Run, path: str, data: bytes) -> None:
+        """Stages 1-3 for the added file, then its group, route and readers, as `_run` does for
+        an upload of one file. A failure sets the file aside with why; the project stays done."""
+        try:
+            started = self._clock()
+            self._store.put_file(run.id, path, data)
+            run.stage(path, "unpack", f"added to the project, {len(data)} bytes",
+                      self._ms(started), output=path)  # fmt: skip
+            probing: Future[tuple[Probed, float, float, Triaged]] = Future()
+            try:
+                probing.set_result(self._probed(data))
+            except Exception as error:  # `_identify` sets the file aside with it
+                probing.set_exception(error)
+            first_of = {file.sha256: file.path for file in run.status().files if file.sha256}
+            frames: dict[str, Normalised] = {}
+            drawing = self._identify(run, path, data, probing, first_of, frames)
+            self._save(run)
+            if drawing is not None:
+                groups = Groups(self._store, self._clock, self._names, frames)
+                groups.run(run, self._readers(run.id), {path: drawing}, lambda: self._save(run))
+            self._judge(run, failed=False)
+            self._describe_for_index(run, only=path)
+        except DomainError as failure:
+            run.finish(path, "set_aside", f"not ingested: {failure}")
+        except Exception as failure:  # a bug: the file says so, the project stays done
+            logger.exception("adding %s to project %s failed", path, run.id)
+            run.finish(path, "set_aside", f"not ingested: {type(failure).__name__}")
+        finally:
+            self._save(run)
+            self._index(run.status())
+            with self._lock:
+                del self._live[run.id]
+            run.done.set()
+
     def _unread(self, run: Run, path: str, failure: str, line: str | None = None) -> None:
         """A re-read that failed: the file is set aside with why and back to triage's call (no
         `read_as_plan`), so a person can ask again; its trace line says the re-read failed, with
@@ -651,13 +716,14 @@ class IngestService:
                 triage = judged(file.triage, found, judged_note(file.triage, None))
             run.set(file.path, triage=triage, cost_usd=file.cost_usd + paid)
 
-    def _describe_for_index(self, run: Run) -> None:
+    def _describe_for_index(self, run: Run, only: str | None = None) -> None:
         """EVIDENCE_SCOPE=all_non_plan (decision 0012 sources v2): every file triage did not set
         aside gets its record for the index (`file_evidence`: a picture asked its kind and
         described, a text document by its own text, an unread file listed by name), a few side
         by side. It runs after the readers, so plans are never held back, and writes only
         `evidence` and the cost: a file's state, route and takeoff stay as they are. One file's
-        failure is its `why`, never the project's."""
+        failure is its `why`, never the project's. `only`: that file alone (an added file;
+        the others keep their records and are not charged again)."""
         steps = self._evidence_steps
         if steps is None:
             return
@@ -675,7 +741,8 @@ class IngestService:
             run.set(file.path, evidence=found, cost_usd=file.cost_usd + found.cost_usd)
 
         with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="evidence") as pool:
-            for done in [pool.submit(one, file) for file in run.status().files]:
+            files = [file for file in run.status().files if only in (None, file.path)]
+            for done in [pool.submit(one, file) for file in files]:
                 done.result()
 
     def _shown(self) -> dict[str, str]:

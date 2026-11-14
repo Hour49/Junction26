@@ -41,6 +41,7 @@ DOCUMENTED_CODES = {
     "validation",
     "not-allowed",
     "too-large",
+    "unsupported",
     "busy",
     "method-not-allowed",
     "internal",
