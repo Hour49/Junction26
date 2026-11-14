@@ -1,3 +1,6 @@
+import { LockTip } from '../shell/LockTip';
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { useEffect, useId, useState } from 'react';
 import {
   ApiError,
@@ -192,7 +195,9 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
     const s = row.signed;
     return (
       <section className={cn(PANEL, 'gap-2 bg-ok-soft')} aria-label="Double-check">
-        <Badge className={cn(PILL, 'bg-card text-ok')}>Checked by a person</Badge>
+        <Tip text={REVIEW_TIPS.checkedByPerson} wrap>
+          <Badge className={cn(PILL, 'bg-card text-ok')}>Checked by a person</Badge>
+        </Tip>
         {s && (
           <p className={ASK}>
             Checked by {s.by}, {formatTime(s.at)}
@@ -231,9 +236,11 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
   return (
     <section className={PANEL} aria-label="Double-check">
       <div className="flex flex-col items-start gap-1.5">
-        <Badge className={cn(PILL, fixing ? 'bg-accent text-primary' : 'bg-card text-warn')}>
-          {fixing ? 'Fixing' : 'Please double-check'}
-        </Badge>
+        <Tip text={fixing ? REVIEW_TIPS.fixing : REVIEW_TIPS.doubleCheck} wrap>
+          <Badge className={cn(PILL, fixing ? 'bg-accent text-primary' : 'bg-card text-warn')}>
+            {fixing ? 'Fixing' : 'Please double-check'}
+          </Badge>
+        </Tip>
         <p className={ASK}>{requestLine(a, check)}</p>
         {/* on a flagged page the generic rule ("counts once") says nothing; the card's level text says why */}
         {!pageFlagged(a) && <p className="dc-reason m-0 text-sm text-text-2">{check.reason}</p>}
@@ -419,28 +426,32 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
             </>
           ) : (
             <>
-              <Button
-                size="pill"
-                className={cn(BTN, PRIMARY)}
-                disabled={busy}
-                onClick={() => {
-                  setMode('confirm');
-                }}
-              >
-                Looks right
-              </Button>
-              <Button
-                variant="secondary"
-                size="pill"
-                className={BTN}
-                disabled={busy}
-                onClick={() => {
-                  setMode('fixing');
-                  setKept(false);
-                }}
-              >
-                Fix it
-              </Button>
+              <LockTip text={REVIEW_TIPS.looksRight} locked={busy}>
+                <Button
+                  size="pill"
+                  className={cn(BTN, PRIMARY)}
+                  disabled={busy}
+                  onClick={() => {
+                    setMode('confirm');
+                  }}
+                >
+                  Looks right
+                </Button>
+              </LockTip>
+              <LockTip text={REVIEW_TIPS.fixIt} locked={busy}>
+                <Button
+                  variant="secondary"
+                  size="pill"
+                  className={BTN}
+                  disabled={busy}
+                  onClick={() => {
+                    setMode('fixing');
+                    setKept(false);
+                  }}
+                >
+                  Fix it
+                </Button>
+              </LockTip>
             </>
           )}
           {fixing && addable.length > 0 && (

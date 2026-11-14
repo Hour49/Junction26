@@ -13,6 +13,8 @@ import {
 import { mockApi, never, reply } from '../test/mockApi';
 import type { PageViewerProps } from '../viewer/PageViewer';
 import { DoubleCheck } from './DoubleCheck';
+import { stubResizeObserver } from '../test/resizeObserver';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import {
   asking,
   check,
@@ -388,5 +390,30 @@ describe('DoubleCheck', () => {
     expect(body).toContain(`@min-[${wide?.[1] ?? ''}px]:grid-cols-[minmax(0,1fr)_320px]`);
     expect(plan).toContain(`@min-[${wide?.[1] ?? ''}px]:block`);
     expect(tsx.replace(body, '')).not.toMatch(/320px/);
+  });
+});
+
+/** ui-tooltips: the text of the shared Tip on (or around) this element, opened by keyboard focus. */
+async function tipOf(el: HTMLElement) {
+  const trigger = el.closest<HTMLElement>('[data-slot="tooltip-trigger"]') ?? el;
+  trigger.focus();
+  const text = (await screen.findByRole('tooltip')).textContent;
+  fireEvent.keyDown(trigger, { key: 'Escape' });
+  trigger.blur();
+  return text;
+}
+
+describe('tips (ui-tooltips P1)', () => {
+  beforeEach(stubResizeObserver);
+
+  it('TIP-5 the Please double-check / Fixing badge and Looks right / Fix it explain themselves', async () => {
+    show();
+    expect(await tipOf(within(panel()).getByText('Please double-check'))).toBe(
+      REVIEW_TIPS.doubleCheck,
+    );
+    expect(await tipOf(button('Looks right'))).toBe(REVIEW_TIPS.looksRight);
+    expect(await tipOf(button('Fix it'))).toBe(REVIEW_TIPS.fixIt);
+    click('Fix it');
+    expect(await tipOf(within(panel()).getByText('Fixing'))).toBe(REVIEW_TIPS.fixing);
   });
 });

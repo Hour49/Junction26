@@ -88,27 +88,6 @@
   overflow-wrap: anywhere;
   margin: 0;
 }
-.cf-pill-wrap {
-  position: relative;
-  flex: none;
-}
-.cf-tip {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  width: 240px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--v-text);
-  color: var(--v-surface);
-  font-size: 12px;
-  z-index: 1;
-  visibility: hidden;
-}
-.cf-pill:hover + .cf-tip,
-.cf-pill:focus + .cf-tip {
-  visibility: visible;
-}
 
 .cf-tiles {
   display: grid;

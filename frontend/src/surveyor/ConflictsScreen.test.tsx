@@ -15,6 +15,8 @@ import { mockApi, reply } from '../test/mockApi';
 import type { SourceFigureProps } from '../viewer/SourceFigure';
 import { ProjectReviewSide } from './ProjectReviewSide';
 import { ConflictsList } from './ConflictsScreen';
+import { stubResizeObserver } from '../test/resizeObserver';
+import { REVIEW_TIPS } from '../shell/tips-review';
 
 // The source figure is fe-viewer's; here a double recording its props and counting its mounts.
 const fig = vi.hoisted(() => ({ props: [] as SourceFigureProps[], mounts: 0 }));
@@ -697,15 +699,30 @@ describe('ConflictsList', () => {
       expect(text).not.toContain(mock);
   });
 
-  it('CF-21 the pill is focusable and its tooltip is its accessible description', async () => {
+  it('CF-21 the pill is focusable and its tip is the shared Tip, its accessible description', async () => {
+    stubResizeObserver();
     show();
     await ready();
     const pill = within(card(base.label)).getByText('Settled by rule');
     expect(pill.tabIndex).toBe(0);
-    const tip = document.getElementById(pill.getAttribute('aria-describedby') ?? '');
-    expect(tip?.textContent).toBe(
+    pill.focus();
+    const tip = await screen.findByRole('tooltip');
+    expect(tip.textContent).toBe(
       `A rule settled this: ${String(base.conflict.resolution?.rule)}. Modify it if you disagree.`,
     );
+    expect(pill.getAttribute('aria-describedby')).toBe(tip.id);
+  });
+
+  it('TIP-6 the kicker says what a conflict is; a signed card says why its choices are locked', async () => {
+    stubResizeObserver();
+    const signed: ConflictEntry = { ...base, signed: { by: 'Ana', at: AT, value: 30 } };
+    show({ [PATH.review]: withConflicts([signed]) });
+    await ready();
+    const c = card(base.label);
+    expect(await tipOf(within(c).getByText(/^Conflict 1 of /))).toBe(REVIEW_TIPS.conflictKicker);
+    const t = tile(c, 1);
+    expect(disabled(t)).toBe(true);
+    expect(await tipOf(t.parentElement as HTMLElement)).toBe(REVIEW_TIPS.choiceLocked);
   });
 
   it('CF-23 a real sign-off on the entry locks the card and names the signer', async () => {
@@ -833,3 +850,13 @@ describe('ConflictsList with a resolver', () => {
     expect(why.textContent).not.toMatch(/model|carbon:|gemini/);
   });
 });
+
+/** ui-tooltips: the text of the shared Tip on (or around) this element, opened by keyboard focus. */
+async function tipOf(el: HTMLElement) {
+  const trigger = el.closest<HTMLElement>('[data-slot="tooltip-trigger"]') ?? el;
+  trigger.focus();
+  const text = (await screen.findByRole('tooltip')).textContent;
+  fireEvent.keyDown(trigger, { key: 'Escape' });
+  trigger.blur();
+  return text;
+}
