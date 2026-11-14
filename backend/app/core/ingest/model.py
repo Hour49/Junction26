@@ -12,6 +12,7 @@ from typing import Literal, cast
 
 from pydantic import ConfigDict, Field, model_validator
 
+from app.core.discipline import Discipline
 from app.core.model import Frozen
 from app.core.pipeline.model import Route
 
@@ -223,6 +224,8 @@ class Sheet(Frozen):
     advanced_why: str | None
     seen: str  # one sentence on what is drawn
     model: str
+    # From the kind, title and number (discipline_from_sheet): a display hint, nothing reads it yet
+    discipline: Discipline | None = None
 
 
 class Classified(_Classed):

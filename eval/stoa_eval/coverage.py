@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from .families import language_of, source_of, template_of
 from .models import FREE_TEXT_TYPES, Answer, AnswerValue, NumberedQuestion, Unit
 from .scoring import TextReview, judge, p95
+from .text_claims_dev import SplitClaimsScore
 
 
 class CompactAnswer(NamedTuple):
@@ -93,6 +94,7 @@ class CoverageScore(BaseModel):
     latency_mean_s: float | None
     latency_p95_s: float | None
     needs_review: list[TextReview]  # answered text questions
+    text_claims: SplitClaimsScore | None = None  # dev text by derived claims (text_claims_dev)
 
 
 @dataclass

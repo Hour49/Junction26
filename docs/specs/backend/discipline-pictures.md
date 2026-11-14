@@ -281,7 +281,13 @@ their range), plus discipline accuracy against `Sheet.discipline`.
 - **refusals**: the share of units with no fact;
 - **cost**: USD per page, median and p95; seconds per page.
 
-Each scored run writes a record to `eval/results/runs/` (aggregates only, no file names), as every scored run does.
+A reader's output for the bench is one JSON line per picture: `{"picture": <the truth file's picture>, "sheet":
+<its FactSheet, facts with spots>, "agreed": {label: bool} (the double-check's), "cost_usd": float, "seconds":
+float}`; `stoa_eval disc-pictures <bench dir> <lines>` scores it.
+
+Each scored run writes a record to `eval/results/disc-pictures/runs/` (aggregates only, no file names), not
+`eval/results/runs/`: `stoa_eval history` reads every file there as an answering record, and this record's shape
+would break it.
 
 ## Files owned (future workers)
 

@@ -22,6 +22,7 @@ uv run python -m stoa_eval baseline-extraction oracle|empty   # Part 1 baselines
 uv run python -m stoa_eval score answers.jsonl --name "swiss counts v2" --reads gold-extraction
 uv run python -m stoa_eval score answers.jsonl --against dev --name "swiss counts v2"
 uv run python -m stoa_eval score answers.jsonl --no-record   # a scratch check, nothing kept
+uv run python -m stoa_eval text-claims         # split/dev_text_claims.jsonl + oracle/constant
 uv run python -m stoa_eval history              # both parts, oldest first, per source
 uv run python -m stoa_eval history --progress   # per method: first vs latest vs best
 uv run python -m stoa_eval history --csv ../data/stoa/charts   # answering.csv, extraction.csv
@@ -367,6 +368,19 @@ Two more sections follow the headline without changing it:
   share of number and name claims met, and the text questions without claims. The headline's text
   line stays exact match. Claims for an id that is not a golden text question, or a repeated id,
   stop the run.
+- Dev text by derived claims (`stoa_eval/text_claims_dev.py`). `text-claims` reads every gold
+  answer of dev's ifc_bench text questions (`--source` for another folder) and writes
+  `split/dev_text_claims.jsonl` (gitignored, partner-derived): every number it states, in m, m2,
+  m3, %, minutes or as a count (a restatement in another unit claimed once), and as names the
+  labels it lists ("- <label>: ...") unless all their words are report vocabulary or they start
+  with Total, Average or Number, plus "yes"/"no" when it starts so and "not available" (with
+  aliases) when it says so. It also writes `split/dev_text_oracle.jsonl` (the gold texts, must pass
+  100%) and `split/dev_text_constant.jsonl` (the most common gold text). When the claims file
+  exists, `score --against dev` adds the same claims score, on answered questions only, per
+  source and per family (`ifc_bench/<discipline>` from the file name), and records its
+  aggregates. Here numbers are also read as volumes, percentages and 10,957 as one count;
+  the golden claims keep the reading above. `write_text_answers` turns {question id -> text}
+  into an answer_v1 file for answerers outside eval/. The eval split gets no claims file.
 
 Review-7 writes its lines (ids up to 1000999) straight into `part2_answering/extras.jsonl`.
 Review-10 writes its conflict lines (1001001-1001999) to
