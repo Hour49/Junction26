@@ -184,7 +184,8 @@ def _rooms(found: Json) -> tuple[str, Json] | None:
     options = [{"label": str(r["label"])[:60], "message": f"Where is {r['label']}?"[:300]}
                for r in rooms[:4]]  # fmt: skip
     cites = " ".join(f"[{r['ev']}]" for r in rooms[:4])
-    text = f"The drawings print {count} rooms with that name: which one do you mean? {cites}"
+    some = f"; here are {len(options)}" if count > len(options) else ""
+    text = f"The drawings print {count} rooms with that name{some}: which one do you mean? {cites}"
     return _final("needs_input", text, [str(r["ev"]) for r in rooms[:4]], options=options)
 
 

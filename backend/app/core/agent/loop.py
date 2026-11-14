@@ -21,6 +21,7 @@ from app.core.agent.model import (
     ChatTurn,
     Json,
     Level,
+    Option,
     Step,
     TurnKind,
     View,
@@ -35,6 +36,7 @@ from app.core.agent.review import (
     REVIEWED,
     review_of,
 )
+from app.core.agent.rooms import FIND_ROOMS
 from app.core.agent.validate import (
     FINAL_ANSWER_TOOL,
     TEXT_CHARS,
@@ -238,6 +240,7 @@ class _Run:
         self.reattached: list[Json] = []  # earlier ask_drawings results show_on_plan showed
         self.reviewed: list[str] = []  # the places of the answer review_answer reviewed
         self.reviewed_refusal = False  # the reviewed answer was a refusal on every drawing
+        self.printed: set[str] = set()  # the room labels find_rooms returned this turn
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
@@ -405,7 +408,7 @@ class _Run:
         if long:  # cut by the server, so the retry's reason and a second failure are true
             arguments = json.dumps({**json.loads(arguments), "text": shortened(long)})
         try:
-            answer = FinalAnswer.model_validate_json(arguments)
+            answer, offered = self._printed_only(FinalAnswer.model_validate_json(arguments))
             wrong = problems(
                 answer,
                 set(self.ledger) | set(self.known),
@@ -413,6 +416,8 @@ class _Run:
                 self.sources,
                 bool(self.failures) and all(self.failures),
             )
+            if offered:
+                wrong.append(f"offer only rooms find_rooms returned, not {', '.join(offered)}")
         except ValidationError as error:
             answer, wrong = None, [f"bad final_answer arguments: {error.errors()[0]['msg']}"]
         soft, fixed = self._law(answer) if answer is not None else ([], None)
@@ -546,6 +551,12 @@ class _Run:
         self._law_results(name, out)
         text = out if isinstance(found, str) else json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
+        if name == FIND_ROOMS and isinstance(found, dict):
+            listed: list[Any] = found.get("rooms") or []  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            for room in listed:  # pyright: ignore[reportUnknownVariableType]
+                label: Any = room.get("label") if isinstance(room, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                if isinstance(label, str) and label:
+                    self.printed.add(label)
         if name == ASK:
             self.rated += _values(found)  # the answers' own values (review-342 S2)
         elif name in UNRATED_TOOLS:
@@ -621,6 +632,25 @@ class _Run:
         if entry is not None:
             self.sources.append(json.dumps(entry["answer"]))
         self._show_step(call, start, label, "ok", text)
+
+    def _printed_only(self, answer: FinalAnswer) -> tuple[FinalAnswer, list[str]]:
+        """A needs_input answer on a turn that looked rooms up offers only rooms find_rooms
+        returned (review-360 S1): the others are dropped; with fewer than 2 left, the dropped
+        labels for the model's retry."""
+        if not self.printed or answer.kind != "needs_input" or not answer.options:
+            return answer, []
+        printed = [label.casefold() for label in self.printed]
+
+        def known(option: Option) -> bool:
+            said = f"{option.label} {option.message}".casefold()
+            return any(label in said for label in printed)
+
+        kept = tuple(option for option in answer.options if known(option))
+        if len(kept) == len(answer.options):
+            return answer, []
+        dropped = [option.label for option in answer.options if not known(option)]
+        answer = answer.model_copy(update={"options": kept or None})
+        return answer, dropped if len(kept) < 2 else []
 
     def _review(self, call: Json) -> None:
         """review_answer (item 3): the chat's latest ask_drawings result as its readers judged

@@ -13,7 +13,7 @@ from typing import Any
 from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
 from app.api.views import drawings_of
-from app.core.agent.rooms import TOKEN, name_words
+from app.core.agent.rooms import FIND_ROOMS, TOKEN, name_words
 from app.core.checks.model import RulePack
 from app.core.errors import DomainError
 from app.core.plan_edit.law_check import ROOM_WORDS
@@ -27,7 +27,6 @@ Runner = Callable[[str, str], str]  # (tool name, arguments JSON) -> result JSON
 # answers "room 1.01" (QA smoke-1; the parser is app/core/answering's, so worked around here)
 ROOM_NUMBER = re.compile(r"\b([^\W\d_]+)\s+(\d+\.\d{2})\b(?!\s*(?:m\b|m2|m²|cm|mm|%))")
 ROOMS_LISTED = 12
-FIND_ROOMS = "find_rooms"
 FIND_TOOLS: list[Json] = [
     {
         "type": "function",
