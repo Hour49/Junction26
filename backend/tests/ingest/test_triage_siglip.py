@@ -114,7 +114,19 @@ def test_gemini_says_plan_so_a_plan_though_the_local_head_says_no() -> None:
     assert found.register_ is not None
     assert found.register_.has_floor_plan
     assert found.p_plan == pytest.approx(0.25)
-    assert "OR Gemini kind (P(plan) 0.25)" in found.method
+    assert "OR Gemini kind (P(plan or photo of one) 0.25)" in found.method
+
+
+def test_a_missing_kind_signal_is_in_the_method_but_an_absent_one_is_not() -> None:
+    off = classify([1, 0, 0, 0])  # DECISIONS_KIND off: the signal was never asked
+    assert off.method == "local heads (test)"
+    down = PROBED.model_copy(update={"signal_missing": "kind signal not available: HTTP 503"})
+    found = SiglipClassifier(FakeSession([1, 0, 0, 0]), heads(-5.0), EMBEDDING).classify(
+        png(), down
+    )
+    assert isinstance(found, Classified)
+    assert found.method == "local heads (test); kind signal not available: HTTP 503"
+    assert found.register_ is not None and found.register_.method == found.method
 
 
 def test_gemini_below_its_threshold_leaves_the_local_answer() -> None:

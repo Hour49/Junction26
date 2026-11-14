@@ -29,7 +29,8 @@ class KindProbe:
             return probed
         signal = self._reader.read(data)
         if not isinstance(signal, KindSignal):
-            return probed.model_copy(update={"did": f"{probed.did}; {signal.note}"})
+            update = {"did": f"{probed.did}; {signal.note}", "signal_missing": signal.note}
+            return probed.model_copy(update=update)
         if signal.not_drawing:
             said = f"not a drawing: {signal.line()} (the pixels alone: {probed.did})"
             return Probed(kind="unknown", did=said)

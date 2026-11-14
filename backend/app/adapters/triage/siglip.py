@@ -205,9 +205,11 @@ class SiglipClassifier:
         method = heads.method
         has_plan = p_plan >= limits["plan"]
         if probed.p_plan_sheet is not None:
-            method += f" OR Gemini kind (P(plan) {probed.p_plan_sheet:.2f})"
+            method += f" OR Gemini kind (P(plan or photo of one) {probed.p_plan_sheet:.2f})"
             has_plan = has_plan or probed.p_plan_sheet >= limits["gemini_p_plan_sheet"]
             p_plan = max(p_plan, probed.p_plan_sheet)
+        elif probed.signal_missing is not None:
+            method += f"; {probed.signal_missing}"
         register = {name: heads.label(name, x) for name in FIELDS}
         register |= {
             "has_floor_plan": has_plan,
