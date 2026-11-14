@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ConflictEntry } from '../api';
-import { projectReview } from '../api/fixtures';
+import { projectReview, projectReviewResolved, resolving } from '../api/fixtures';
 import {
   cardState,
   conflictCount,
@@ -11,6 +11,7 @@ import {
   progressText,
   ruleIndex,
   subLine,
+  whyText,
 } from './conflicts';
 
 const base = projectReview.conflicts[0] as ConflictEntry;
@@ -93,5 +94,37 @@ describe('conflicts.ts', () => {
     expect(subLine([needs, needs])).toBe('2 need you.');
     expect(subLine([])).toBe('Both methods agree wherever two of them measured.');
     expect(progressText([base, yours, needs])).toBe('2 of 3 settled');
+  });
+
+  const picked = projectReviewResolved.conflicts[0] as ConflictEntry;
+  const cannot = resolving.review.conflicts[0] as ConflictEntry;
+
+  it('RS-10 / RS-12 a pick in use is its own state, before the rule; cannot_tell stays open', () => {
+    expect(cardState(picked)).toBe('picked');
+    expect(inUseIndex(picked)).toBe(0); // the tile at the pick, 22.401
+    expect(cardState({ ...picked, settled: { value: 30, at: '2026-11-14T01:30:00Z' } })).toBe(
+      'yours',
+    );
+    expect(cardState({ ...base, resolved: picked.resolved })).toBe('picked');
+    expect(cardState(cannot)).toBe('open');
+    expect(inUseIndex(cannot)).toBe(-1);
+  });
+
+  it('RS-13 subLine counts picks apart; progressText counts a pick as settled', () => {
+    expect(subLine([picked])).toBe('1 picked by Carbon, check them.');
+    expect(subLine([base, picked, picked, needs])).toBe(
+      '1 settled by a rule. 2 picked by Carbon, check them. 1 needs you.',
+    );
+    expect(progressText([picked, cannot])).toBe('1 of 2 settled');
+  });
+
+  it("RS-15 whyText stops after 'No rule decides between them.' when a model answered", () => {
+    const cut =
+      "The methods disagree: 22.40 m² by the room outlines at the sheet's scale, 30.00 m² by the printed room areas. No rule decides between them.";
+    expect(whyText(picked)).toBe(cut);
+    expect(whyText(cannot)).toBe(cut);
+    expect(whyText(picked)).not.toMatch(/gemini|carbon:/);
+    expect(whyText(base)).toBe(base.why);
+    expect(whyText({ ...picked, why: 'A model (carbon:x) picked it.' })).toBe('');
   });
 });

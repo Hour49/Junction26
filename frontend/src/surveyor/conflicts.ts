@@ -1,12 +1,13 @@
 // The conflicts screen's pure parts (docs/specs/frontend/conflicts.md "Field map").
-import type { ConflictEntry } from '../api';
+import { pickInUse, resolverName, type ConflictEntry } from '../api';
 
-export type CardState = 'open' | 'rule' | 'yours';
+export type CardState = 'open' | 'rule' | 'picked' | 'yours';
 
-/** needs_person → open; a settled value → yours; else a rule chose. */
+/** needs_person → open; a settled value → yours; a model's pick in use → picked (#252); else a rule chose. */
 export function cardState(c: ConflictEntry): CardState {
   if (c.needs_person) return 'open';
-  return c.settled ? 'yours' : 'rule';
+  if (c.settled) return 'yours';
+  return pickInUse(c) ? 'picked' : 'rule';
 }
 
 /** The tile the rule chose, or -1. The server sends the same float for both, so `===` holds. */
@@ -31,15 +32,27 @@ export function conflictCount(k: number): string {
 export function subLine(conflicts: ConflictEntry[]): string {
   if (conflicts.length === 0) return 'Both methods agree wherever two of them measured.';
   const n = (s: ReturnType<typeof cardState>) => conflicts.filter((c) => cardState(c) === s).length;
-  const [r, y, p] = [n('rule'), n('yours'), n('open')];
+  const [r, k, y, p] = [n('rule'), n('picked'), n('yours'), n('open')];
+  const by = conflicts.find((c) => cardState(c) === 'picked')?.resolved?.by ?? 'carbon';
   return [
     r ? `${String(r)} settled by a rule` : null,
+    k ? `${String(k)} picked by ${resolverName(by)}, check them` : null,
     y ? `${String(y)} settled by you` : null,
     p ? `${String(p)} need${p === 1 ? 's' : ''} you` : null,
   ]
     .filter(Boolean)
     .map((s) => `${String(s)}.`)
     .join(' ');
+}
+
+const NO_RULE = 'No rule decides between them';
+
+/** The server's `why`, cut after "No rule decides between them." when a model answered: the rest names the model id
+ * (RS-15); '' when the sentence is missing (the card then lists the rule's sentences). */
+export function whyText(c: ConflictEntry): string {
+  if (!c.resolved) return c.why;
+  const at = c.why.indexOf(NO_RULE);
+  return at < 0 ? '' : `${c.why.slice(0, at + NO_RULE.length)}.`;
 }
 
 export function progressText(conflicts: ConflictEntry[]): string {

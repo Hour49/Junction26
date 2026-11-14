@@ -4,16 +4,19 @@ import {
   errorText,
   formatValue,
   methodName,
+  resolverModel,
+  resolverName,
   type ConflictEntry,
   type DrawingView,
 } from '../api';
-import { SourceFigure, type Source } from '../viewer/SourceFigure';
+import { SourceFigure, type Place, type Source } from '../viewer/SourceFigure';
 import {
   cardState,
   inUseIndex,
   newSuggestions,
   parseAnswer,
   ruleIndex,
+  whyText,
   type Answer,
 } from './conflicts';
 
@@ -39,25 +42,30 @@ const SIGNED = 'This value is signed off. Undo the sign-off in the surveyor work
 
 const UNIT: Record<string, string> = { m2: 'm²', m3: 'm³', m: 'm', ft: 'ft', ft2: 'ft²' };
 
-/** One source: the drawing's page of the marks, with each value's marks (#221 `value_marks`) as its places. */
-function sourceOf(c: ConflictEntry, d: DrawingView, name: string): Source {
+/** One source: the drawing's page of the marks, with each value's marks (#221 `value_marks`) as its places, then
+ * the model's marks when its answer is shown (`who`, #252 RS-11). */
+function sourceOf(c: ConflictEntry, d: DrawingView, name: string, who: string | null): Source {
   const { values } = c.conflict;
   // a backend before #221 sends no value_marks: the drawing without outlines, never a crash
   const marks = (c.conflict.value_marks as typeof c.conflict.value_marks | undefined) ?? [];
   const at = marks.flat()[0]?.page ?? values.find((v) => v.page)?.page ?? 1;
+  const place = (label: string, m: { page: number; box: NonNullable<Place['box']> }): Place => {
+    const here = m.page === at;
+    return {
+      label: `${label}${here ? '' : `, on page ${String(m.page)}`}`,
+      box: here ? m.box : null,
+    };
+  };
   return {
     name,
     page: d.pages.find((p) => p.page === at) ?? d.pages[0] ?? null,
     // a mark label may be a method id: methodName gives its words and leaves any other label as is
-    places: marks.flatMap((list, i) =>
-      list.map((m) => {
-        const here = m.page === at;
-        return {
-          label: `Variant ${String(i + 1)}: ${methodName(m.label)}${here ? '' : `, on page ${String(m.page)}`}`,
-          box: here ? m.box : null,
-        };
-      }),
-    ),
+    places: [
+      ...marks.flatMap((list, i) =>
+        list.map((m) => place(`Variant ${String(i + 1)}: ${methodName(m.label)}`, m)),
+      ),
+      ...(who ? (c.resolved?.marks ?? []).map((m) => place(`${who}: ${m.label}`, m)) : []),
+    ],
   };
 }
 
@@ -67,6 +75,7 @@ const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const PILL = {
   open: ['Needs you', 'cf-warn'],
   rule: ['Settled by rule', 'cf-ok'],
+  picked: ['', 'cf-accent'], // words from `resolved.by`
   yours: ['Your choice', 'cf-accent'],
 } as const;
 
@@ -109,6 +118,15 @@ export function ConflictCard({
   const rule = ruleIndex(c);
   const inUse = inUseIndex(c);
   const value = c.value;
+  // the model's answer, shown while its pick is in use or while it could not tell (#252)
+  const r = c.resolved;
+  const shown =
+    r && (state === 'picked' || (r.verdict === 'cannot_tell' && state === 'open')) ? r : null;
+  const who = shown
+    ? shown.verdict === 'picked'
+      ? `Picked by ${resolverName(shown.by)}`
+      : `${resolverName(shown.by)} could not tell`
+    : null;
   useEffect(() => {
     if (drawing === undefined) onNeedDrawing();
   }, [drawing, onNeedDrawing]);
@@ -118,7 +136,9 @@ export function ConflictCard({
     ? [`Signed off by ${signed.by}`, 'cf-ok']
     : mode === 'choosing' && state !== 'open'
       ? ['Choosing', 'cf-muted']
-      : PILL[state];
+      : state === 'picked'
+        ? [who ?? '', PILL.picked[1]]
+        : PILL[state];
   const tip = signed
     ? 'Undo the sign-off in the surveyor workspace to change it.'
     : mode === 'choosing' && state !== 'open'
@@ -127,8 +147,17 @@ export function ConflictCard({
         ? 'The rules could not decide. Pick a value before you open the workspace.'
         : state === 'rule'
           ? `A rule settled this: ${String(c.conflict.resolution?.rule)}. Modify it if you disagree.`
-          : 'You picked this value; it overrides the rule.';
-  const kicker = state === 'open' ? 'needs you' : state === 'rule' ? 'settled by a rule' : null;
+          : state === 'picked'
+            ? `${resolverName(r?.by ?? '')} picked this value. Modify it if you disagree.`
+            : 'You picked this value; it overrides the rule.';
+  const kicker =
+    state === 'open'
+      ? 'needs you'
+      : state === 'rule'
+        ? 'settled by a rule'
+        : state === 'picked'
+          ? `picked by ${resolverName(r?.by ?? '')}`
+          : null;
 
   async function send(edit: Parameters<Props['onEdit']>[0], back: Mode) {
     setMode('saving');
@@ -176,9 +205,11 @@ export function ConflictCard({
               : inUse < 0
                 ? `Your answer: ${formatValue(c.settled?.value ?? 0, unit)}.` // typed here or in the workspace
                 : `You kept variant ${String(inUse + 1)}${rule >= 0 && rule !== inUse ? ", over the rule's choice" : ''}.`
-            : inUse < 0 && state === 'rule'
-              ? `In use: ${formatValue(value, unit)}.` // a recount in the workspace: neither variant
-              : '';
+            : state === 'picked'
+              ? 'You can change it.'
+              : inUse < 0 && state === 'rule'
+                ? `In use: ${formatValue(value, unit)}.` // a recount in the workspace: neither variant
+                : '';
 
   const why = [c.conflict.resolution?.rule, c.conflict.note, c.conflict.derived].filter(
     (x): x is string => !!x,
@@ -231,7 +262,7 @@ export function ConflictCard({
         </div>
       ) : (
         <SourceFigure
-          sources={[sourceOf(c, drawing, drawingName)]}
+          sources={[sourceOf(c, drawing, drawingName, shown?.verdict === 'picked' ? who : null)]}
           label={`Source of conflict ${String(index + 1)}`}
           defaultOpen={focused || undefined}
         />
@@ -276,6 +307,12 @@ export function ConflictCard({
           </button>
         ))}
       </div>
+
+      {shown && who && (
+        <p className="cf-resolved">
+          <strong title={resolverModel(shown.by)}>{who}</strong> <span>{shown.reason}</span>
+        </p>
+      )}
 
       {choosing && (
         <form
@@ -335,8 +372,8 @@ export function ConflictCard({
         <summary>
           {rule >= 0 ? `Why the rule chose variant ${String(rule + 1)}` : 'Why no rule decides'}
         </summary>
-        {c.why ? (
-          <p>{c.why}</p>
+        {whyText(c) ? (
+          <p>{whyText(c)}</p>
         ) : why.length > 0 ? (
           <ul>
             {why.map((w, i) => (
@@ -367,6 +404,15 @@ export function ConflictCard({
               Use the rule&apos;s value
             </button>
           )}
+          {!signed &&
+            state === 'yours' &&
+            mode === 'idle' &&
+            !c.conflict.resolution &&
+            r?.verdict === 'picked' && (
+              <button type="button" className="cf-btn" onClick={useRule}>
+                Use {resolverName(r.by)}&apos;s pick
+              </button>
+            )}
           {state !== 'open' && mode === 'choosing' && (
             <button
               type="button"
