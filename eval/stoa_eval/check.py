@@ -18,8 +18,11 @@ family). The shipped thresholds are the all-val calibrations at that cut, one va
 fixed cut is kept as given and what it flags counts toward the recall. A signal that is a
 probability (every value in [0, 1]) is calibrated on its logit: the tails, where a cut near a few
 percent P(wrong) falls, fit far better (C1 val: 46.0% of answers flagged instead of 51.4% at the
-same recall; D17). Families with fewer than `pool_below` wrong answers on val share one calibration
-(D23): with three errors, a half's own fit is nearly flat and flags half the family.
+same recall; D17). A family with fewer than `pool_below` wrong answers on val is not fit alone: with
+three errors, a half's own fit is nearly flat and flags half the family. D23 fits all such families
+together, across their signals; `pool_with="signal"` fits each on every family gated on its own
+signal, which keeps one curve per signal (C1-T1 val, cross-fit at 96%: 43.9% flagged, against 58.1%
+with D23 and 47.9% fitting each family alone).
 
 Routes the raster gate does not see (vector, IFC model, schedules) are certified whole or not from
 golden v2's holdout answers: certified when they reach the floor and the same utility is positive.
@@ -27,6 +30,7 @@ golden v2's holdout answers: certified when they reach the floor and the same ut
 
 import math
 from collections.abc import Callable, Mapping, Sequence, Set
+from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -46,8 +50,8 @@ RECALL_RULE = (
 )
 RIDGE = 0.01  # keeps a half with only right answers finite
 EPS = 1e-6  # a probability's logit is taken on [EPS, 1 - EPS]
-POOL_BELOW = 10  # D23: a family with fewer wrong answers on val joins the shared calibration
-POOLED = "pooled"  # the shared calibration group's name
+POOL_BELOW = 10  # D23: a family with fewer wrong answers on val is not calibrated alone
+PoolWith = Literal["small", "signal"]  # D23: all such families together; or its signal's families
 
 
 class Point(BaseModel):
@@ -106,7 +110,7 @@ class CheckFamily(BaseModel):
         default=None, description="D476: the all-val P(wrong) the threshold is read from"
     )
     group: str | None = Field(
-        default=None, description="D476: the calibration it shares with other families, if any"
+        default=None, description="D476: the families its calibration is fit on, if not itself"
     )
 
 
@@ -133,7 +137,10 @@ class CheckPolicyFile(BaseModel):
     floor: float
     recall: float | None = Field(default=None, description="D476's target; null: D455's rule")
     pool_below: int | None = Field(
-        default=None, description="D476: families with fewer wrong answers share a calibration"
+        default=None, description="D476: families with fewer wrong answers are not fit alone"
+    )
+    pool_with: PoolWith | None = Field(
+        default=None, description="small: all such families together; signal: its signal's"
     )
     always_flag: list[str] = Field(
         default_factory=list, description="rules whose units are flagged whatever their signal"
@@ -298,43 +305,49 @@ def probabilities(by_family: Mapping[str, Sequence[Unit]], signals: Signals) -> 
 
 
 def groups_below(
-    by_family: Mapping[str, Sequence[Unit]], signals: Signals, below: int
-) -> dict[str, str]:
-    """Family -> its calibration group: POOLED for a family (without a fixed cut) with fewer than
-    `below` wrong answers, when at least two are; else the family itself."""
-    small = [
-        f
-        for f, us in by_family.items()
-        if signals[f][1] is None and sum(not u.exact for u in us) < below
-    ]
-    shared = set(small) if len(small) >= 2 else set[str]()
-    return {f: POOLED if f in shared else f for f in by_family}
+    by_family: Mapping[str, Sequence[Unit]],
+    signals: Signals,
+    below: int,
+    pool_with: PoolWith = "small",
+) -> dict[str, tuple[str, ...]]:
+    """Family -> the families its calibration is fit on. A family (without a fixed cut) with
+    fewer than `below` wrong answers: with `small`, every such family (when there are two or
+    more); with `signal`, every family without a fixed cut on its signal. Any other: itself."""
+    fitted = [f for f in by_family if signals[f][1] is None]
+    small = [f for f in fitted if sum(not u.exact for u in by_family[f]) < below]
+    made: dict[str, tuple[str, ...]] = {f: (f,) for f in by_family}
+    for family in small:
+        if pool_with == "small" and len(small) >= 2:
+            made[family] = tuple(sorted(small))
+        elif pool_with == "signal":
+            made[family] = tuple(sorted(f for f in fitted if signals[f][0] == signals[family][0]))
+    return made
 
 
 def calibrations(
     by_family: Mapping[str, Sequence[Unit]],
     signals: Signals,
     logit: Set[str] = frozenset(),
-    groups: Mapping[str, str] | None = None,
+    groups: Mapping[str, tuple[str, ...]] | None = None,
 ) -> dict[str, Calibration | None]:
-    """Each family's calibration on its signal, on the logit when every signal of its group is in
-    `logit` (None for a family with a fixed cut). The families of one group (`groups`: family ->
-    group, default each its own) share one calibration fit on all their values."""
-    group_of = groups or {f: f for f in by_family}
-    members: dict[str, list[str]] = {}
-    for family in by_family:
-        if signals[family][1] is None:
-            members.setdefault(group_of[family], []).append(family)
+    """Each family's calibration, fit on the values of the families `groups` gives it (default
+    itself), each on its own signal, on the logit when all those signals are in `logit` (None
+    for a family with a fixed cut). Families fit on the same families share one calibration."""
+    fits: dict[tuple[str, ...], Calibration | None] = {}
     made: dict[str, Calibration | None] = dict.fromkeys(by_family)
-    for families in members.values():
-        scored = [
-            (v, not u.exact)
-            for f in families
-            for u in by_family[f]
-            if (v := _value(u, signals[f][0])) is not None
-        ]
-        model = calibrate(scored, logit=all(signals[f][0] in logit for f in families))
-        made.update(dict.fromkeys(families, model))
+    for family in by_family:
+        if signals[family][1] is not None:
+            continue
+        on = (groups or {}).get(family, (family,))
+        if on not in fits:
+            scored = [
+                (v, not u.exact)
+                for f in on
+                for u in by_family[f]
+                if (v := _value(u, signals[f][0])) is not None
+            ]
+            fits[on] = calibrate(scored, logit=all(signals[f][0] in logit for f in on))
+        made[family] = fits[on]
     return made
 
 
@@ -370,7 +383,7 @@ def recall_fit(
     signals: Signals,
     recall: float,
     in_first: Callable[[str], bool],
-    groups: Mapping[str, str] | None = None,
+    groups: Mapping[str, tuple[str, ...]] | None = None,
 ) -> tuple[float, dict[str, Point]]:
     """D476's cut, chosen on the cross-fit P(wrong) (each half calibrated on the other, `groups`
     as in `calibrations`), and the cross-fit points at that cut per family. Units a fixed cut or a

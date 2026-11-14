@@ -183,12 +183,28 @@ def test_families_with_few_errors_share_one_calibration() -> None:
     many = units("door", *[(0.9, True)] * 5, *[(0.1, False)] * 10, prefix="c")
     fixed = units("window", (0.5, False), prefix="w")
     by_family = {"sauna": few_a, "plan": few_b, "door": many, "window": fixed}
-    signals = {"sauna": ("s", None), "plan": ("s", None), "door": ("s", None),
+    signals = {"sauna": ("s", None), "plan": ("t", None), "door": ("s", None),
                "window": ("s", 0.75)}  # fmt: skip
+    # D23: the two small families together, across their signals
     groups = groups_below(by_family, signals, 10)
-    assert groups == {"sauna": "pooled", "plan": "pooled", "door": "door", "window": "window"}
+    assert groups == {"sauna": ("plan", "sauna"), "plan": ("plan", "sauna"), "door": ("door",),
+                      "window": ("window",)}  # fmt: skip
     made = calibrations(by_family, signals, frozenset(), groups)
     assert made["sauna"] is made["plan"] and made["sauna"] is not None
     assert made["door"] is not made["sauna"] and made["window"] is None
     # one small family alone keeps its own calibration
-    assert groups_below({"sauna": few_a, "door": many}, signals, 10)["sauna"] == "sauna"
+    assert groups_below({"sauna": few_a, "door": many}, signals, 10)["sauna"] == ("sauna",)
+
+
+def test_by_signal_a_small_family_borrows_its_signal_s_curve() -> None:
+    few = units("sauna", *[(0.9, True)] * 8, (0.2, False), prefix="a")
+    alone = units("plan", *[(0.95, True)] * 8, (0.3, False), prefix="b")
+    many = units("door", *[(0.9, True)] * 5, *[(0.1, False)] * 10, prefix="c")
+    by_family = {"sauna": few, "plan": alone, "door": many}
+    signals = {"sauna": ("s", None), "plan": ("t", None), "door": ("s", None)}
+    groups = groups_below(by_family, signals, 10, "signal")
+    assert groups == {"sauna": ("door", "sauna"), "plan": ("plan",), "door": ("door",)}
+    made = calibrations(by_family, signals, frozenset(), groups)
+    door_then_sauna = [(0.9, False)] * 5 + [(0.1, True)] * 10 + [(0.9, False)] * 8 + [(0.2, True)]
+    pooled_fit = calibrate(door_then_sauna)
+    assert made["sauna"] == pooled_fit and made["door"] != made["sauna"]

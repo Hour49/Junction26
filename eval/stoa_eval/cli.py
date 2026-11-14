@@ -50,6 +50,7 @@ from .check import (
     CheckPolicyFile,
     FlagUnits,
     Point,
+    PoolWith,
     calibrations,
     crossfit,
     fit,
@@ -1161,7 +1162,7 @@ def run_check_policy(args: argparse.Namespace) -> None:
         chosen = fit(by_family, signals, args.lam, args.floor)
         held = crossfit(by_family, signals, args.lam, args.floor, lambda file: file in first)
     else:
-        groups = groups_below(by_family, signals, args.pool_below)
+        groups = groups_below(by_family, signals, args.pool_below, args.pool_with)
         cut, held = recall_fit(by_family, signals, args.recall, lambda file: file in first, groups)
         logit = probabilities(by_family, signals)
         calibrated = calibrations(by_family, signals, logit, groups)
@@ -1174,7 +1175,7 @@ def run_check_policy(args: argparse.Namespace) -> None:
             val=point(units_of, signals[family][0], chosen[family]),
             crossfit=held[family],
             calibration=calibrated.get(family),
-            group=groups[family] if groups.get(family, family) != family else None,
+            group="+".join(groups[family]) if groups.get(family, (family,)) != (family,) else None,
         )
         for family, units_of in sorted(by_family.items())
     }
@@ -1193,6 +1194,7 @@ def run_check_policy(args: argparse.Namespace) -> None:
         floor=args.floor,
         recall=args.recall,
         pool_below=None if args.recall is None else args.pool_below,
+        pool_with=None if args.recall is None else args.pool_with,
         always_flag=[rule.name for rule in rules],
         cut=cut,
         families=made_families,
@@ -2324,6 +2326,11 @@ def parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--pool-below", type=int, default=POOL_BELOW,
         help="with --recall: families with fewer wrong answers on val share one calibration (D23)",
+    )  # fmt: skip
+    check.add_argument(
+        "--pool-with", choices=get_args(PoolWith), default="small",
+        help="with --recall: fit those families all together (small, D23) or each on every family "
+        "gated on its signal (signal)",
     )  # fmt: skip
     check.add_argument("--lambda", dest="lam", type=float, default=LAMBDA)
     check.add_argument("--floor", type=float, default=FLOOR)
