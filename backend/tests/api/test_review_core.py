@@ -791,6 +791,137 @@ def test_a_room_s_names_are_one_disagreement_only_when_the_rows_point_at_one_roo
     assert storey_twins(rooms(BOX_A)) == {"area:room|name=kitchen": "area:room|name=1.01"}
 
 
+BOX_C = (0.5, 0.5, 0.6, 0.6)
+BOX_D = (0.7, 0.7, 0.8, 0.8)
+
+
+def room(at: str, kind: RoomType, label: str | None, area: float | None, **more: object) -> Room:
+    box = {"r1": BOX_A, "r2": BOX_B, "r3": BOX_C}.get(at, BOX_D)
+    return Room(id=at, type=kind, label=label, page=1, box=box, area_m2=area, **more)  # type: ignore[arg-type]
+
+
+def test_which_room_is_the_largest_or_smallest_names_it_from_the_rooms_areas() -> None:
+    """judge-fresh §10: "Which room is the largest?" was refused as "isn't one I can turn into a
+    count, area, length or volume" although every room's area answers. Outdoor rooms are left
+    out; the answer names the room and gives both areas it rests on."""
+    drawing = scaled(
+        room("r1", "kitchen", "Küche", 12.0), room("r2", "living", "Wohnen", 31.5),
+        room("r3", "bathroom", "Bad", 5.25), room("r4", "balcony", "Balkon", 40.0, outdoor=True),
+    )  # fmt: skip
+    for text in ("Which room is the largest?", "What is the biggest room?",
+                 "Which room has the largest area?"):  # fmt: skip
+        found = asked(text, drawing)
+        assert found.refusal is None, (text, found.refusal)
+        assert (found.answer.answer, found.answer.unit) == ("Wohnen", None)
+        assert found.answer.explanation is not None
+        assert found.answer.explanation.replace("biggest", "largest").startswith(
+            "Wohnen (31.50 m²) is the largest of the 3 rooms; next is Küche (12.00 m²)"
+        )
+        assert [mark.ref for mark in found.marks] == ["r2"]
+    smallest = asked("Which room is the smallest?", drawing)
+    assert smallest.answer.answer == "Bad", smallest.refusal
+    # other questions that start the same way are not this one (review-368 M1)
+    for text in (
+        "Which room has the largest window?",
+        "Which room has the largest number of doors?",
+        "What is the largest room's area?",
+    ):
+        assert asked(text, drawing).answer.answer not in ("Wohnen", "Küche", "Bad"), text
+
+
+def test_which_of_two_rooms_is_larger_or_smaller() -> None:
+    drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.25))
+    larger = asked("Which is larger, the kitchen or the Bad?", drawing)
+    assert larger.answer.answer == "Küche", larger.refusal
+    assert larger.answer.explanation is not None
+    assert larger.answer.explanation.startswith("Küche (12.00 m²) is larger than Bad (5.25 m²)")
+    smaller = asked("Which room is smaller: the Küche or the bathroom?", drawing)
+    assert smaller.answer.answer == "Bad", smaller.refusal
+
+
+def test_rooms_without_a_name_of_their_own_are_ranked_by_their_label_s_or_type_s_largest() -> None:
+    """jf01/jf02 (fresh set): two rooms printed "BED ROOM" and three "CLOSET" have no area
+    question of their own, which refused the whole comparison. For the largest, each is asked as
+    the largest room of its printed label, an unlabelled room as the largest of its type."""
+    drawing = scaled(
+        room("r1", "bedroom", "BED ROOM", 14.0), room("r2", "bedroom", "BED ROOM", 12.0),
+        room("r3", "kitchen", "KITCHEN", 9.0), room("r4", "living", None, 23.0),
+    )  # fmt: skip
+    found = asked("Which room is the largest?", drawing)
+    assert found.answer.answer == "the unlabelled living room", found.refusal
+    assert found.answer.explanation is not None
+    assert "; next is BED ROOM (14.00 m²)" in found.answer.explanation
+    first = asked("Which room is the largest?", replace_rooms(drawing, r4=5.0))
+    assert first.answer.answer == "BED ROOM", first.refusal
+    assert [mark.ref for mark in first.marks] == ["r1"]
+    # the smallest has no such row: a room that no name gives alone refuses it, plainly
+    smallest = asked("Which room is the smallest?", drawing)
+    assert smallest.answer.answer is None and smallest.refusal is not None
+    assert (
+        "(BED ROOM, BED ROOM, the unlabelled living room) have no name or number"
+        in smallest.refusal.text
+    )
+
+
+def replace_rooms(drawing: Drawing, **areas: float) -> Drawing:
+    rooms = tuple(
+        r.model_copy(update={"area_m2": areas.get(r.id, r.area_m2)}) for r in drawing.rooms
+    )
+    return drawing.model_copy(update={"rooms": rooms})
+
+
+def test_which_room_refuses_when_an_area_it_needs_is_unknown() -> None:
+    no_scale = scaled(room("r1", "kitchen", "Küche", None), room("r2", "bathroom", "Bad", None))
+    found = asked("Which room is the largest?", no_scale)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        "I can't tell which room is the largest: 2 of its rooms (Küche, Bad) have no area measured."
+    )
+    one = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
+    named = asked("Which is larger, the Küche or the sauna?", one)  # no sauna on the sheet
+    assert named.answer.answer is None and named.refusal is not None
+    assert named.refusal.text.startswith("I can't tell which is larger: the area of sauna isn't")
+
+
+def test_two_areas_within_each_other_s_estimate_band_are_not_ranked() -> None:
+    def two(a: float, b: float) -> Drawing:
+        return scaled(
+            room("r1", "kitchen", "Küche", a, area_uncertainty=0.1),
+            room("r2", "living", "Wohnen", b, area_uncertainty=0.1),
+        )
+
+    close = asked("Which room is the largest?", two(10.0, 11.5))  # 11.5 * 0.9 <= 10 * 1.1
+    assert close.answer.answer is None and close.refusal is not None
+    assert "within each other's estimate band, so either could be" in close.refusal.text
+    apart = asked("Which room is the largest?", two(10.0, 12.5))  # 11.25 > 11
+    assert apart.answer.answer == "Wohnen", apart.refusal
+    # equal measured areas (no band) are a tie: refused, not the first one listed (review-368)
+    tie = scaled(room("r1", "kitchen", "Küche", 10.0), room("r2", "living", "Wohnen", 10.0))
+    tied = asked("Which room is the largest?", tie)
+    assert tied.answer.answer is None and tied.refusal is not None
+    assert "within each other's estimate band" in tied.refusal.text
+
+
+def test_two_names_that_read_as_one_room_are_not_compared() -> None:
+    """jf04 (fresh set): "the Assistant Superintendent's office" read as the room printed
+    SUPERINTENDENT, the other side's room, and was ranked against itself."""
+    drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
+    found = asked("Which is larger, the kitchen or the Küche?", drawing)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        "I can't tell which is larger: the kitchen and the Küche both read as Küche, so I can't "
+        "find them as two rooms."
+    )
+
+
+def test_a_schedule_s_largest_room_is_left_to_the_schedule() -> None:
+    """golden 89437 asks the finish room schedule which room is largest: not the rooms drawn."""
+    drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
+    for text in ("Which room in the finish room schedule has the largest area?",
+                 "Which room has the largest area in the room schedule?"):  # fmt: skip
+        assert asked(text, drawing).answer.answer != "Küche", text
+
+
 def test_a_room_number_printed_in_the_label_names_the_room() -> None:
     """fail-1, .agents/qa/r10/stanza-107.md: the raster room reader keeps "Stanza 1.07" as one
     label (the vector reader stores the number apart), so "What is the area of Stanza 1.07?"
