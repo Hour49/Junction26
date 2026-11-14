@@ -6,7 +6,7 @@ import csv
 import io
 import re
 from pathlib import PurePosixPath
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 from fastapi.responses import Response
@@ -62,13 +62,19 @@ class Takeoff(View):
     review_queue: list[str]
 
 
+def _no_default(field: dict[str, Any]) -> None:
+    field.pop("default", None)
+
+
 class SignOffRequest(View):
     quantity: str = Field(min_length=1)
     by: str = Field(min_length=1, max_length=100)
     undo: bool = False
     # Settle the quantity's current value first, then sign it off (the conflict no rule decides
     # included): one call for "looks right". Not with `undo`.
-    settle: bool = False
+    # No default in the schema, so a generated client type keeps `settle` optional and the
+    # bodies written before it still type-check
+    settle: bool = Field(default=False, json_schema_extra=lambda field: _no_default(field))
 
 
 def takeoff_rows(

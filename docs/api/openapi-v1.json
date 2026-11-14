@@ -2979,7 +2979,6 @@
             "type": "string"
           },
           "settle": {
-            "default": false,
             "title": "Settle",
             "type": "boolean"
           },
