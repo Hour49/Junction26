@@ -138,3 +138,16 @@ def test_review_369_the_size_chip_end_to_end_asks_the_drawings_about_that_room()
     run_turn(chat, chip.message, (), rules, tools, Caps(), SpendGuard())
     asked = [json.loads(args) for name, args in tools.ran if name == "ask_drawings"]
     assert asked[-1] == {"question": "How big is OPEN OFFICE 102?"}
+
+
+def test_review_379_the_show_chip_is_not_offered_again_after_showing() -> None:
+    """Marks on two pages: show_on_plan shows one page, so 'more marks than the view' stayed
+    true and the same chip came back after every click."""
+    two: Json = json.loads(json.dumps(DOORS))
+    two["parts"][0]["answer"]["marks"][2]["page"] = 2
+    chat, tools, rules = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=two), RulesChatModel()
+    first = run_turn(chat, "How many doors are there?", (), rules, tools, Caps(), SpendGuard())
+    assert "Show them on the plan" in labels(first)
+    shown = run_turn(chat, SHOW_THEM, (), rules, tools, Caps(), SpendGuard())
+    assert [s.tool for s in shown.steps] == ["show_on_plan"]
+    assert "Show them on the plan" not in labels(shown)

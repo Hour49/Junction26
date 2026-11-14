@@ -871,7 +871,9 @@ class _Run:
             return ()
         out: list[Option] = []
         marks = sum(len(_marks_of(given)) for given in answers)
-        if marks > (len(view.marks) if view is not None else 0):
+        # not after a show: it showed the page with the most marks, the rest are on other
+        # pages, and the same chip would come back after every click (review-379)
+        if not self.shown and marks > (len(view.marks) if view is not None else 0):
             out.append(Option(label="Show them on the plan", message=SHOW_THEM))
         if not self.did_review and any(_doubtful(given) for given in answers):
             out.append(Option(label="Are you sure?", message="Are you sure?"))
