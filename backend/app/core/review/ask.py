@@ -8,6 +8,7 @@ when the parser maps it back to that row's key, so asking a suggestion is never 
 
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
+from typing import NamedTuple
 
 from app.core.answering.answer import (
     AGREEING_FAMILIES,
@@ -187,6 +188,26 @@ class _Once:
         return self._seen[text]
 
 
+class Known(NamedTuple):
+    """What `ask` looks a question up in: the drawing's takeoff after `_flagged` and `_unsaid`,
+    and its rows' storey twins."""
+
+    quantities: dict[str, Quantity]
+    unread: set[str]
+    unlocated: dict[str, Quantity]
+    unsaid: dict[str, tuple[Room, ...]]
+    twins: dict[str, str]
+
+
+def known_of(drawing: Drawing, flags: Sequence[str], raster: bool) -> Known:
+    """The drawing's takeoff (stages 9-10) as `ask` answers from it: the groups a flagged page's
+    reader did not read and the 0 counts the drawing does not say are left out."""
+    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
+    unsaid = _unsaid(quantities, drawing)
+    kept = {key: found for key, found in quantities.items() if key not in unsaid}
+    return Known(kept, unread, unlocated, unsaid, storey_twins(kept))
+
+
 def ask(
     text: str,
     drawing: Drawing,
@@ -207,6 +228,7 @@ def ask(
     scorers: Mapping[str, Scorer] = NO_SCORERS,
     carbon_ladder: bool = False,
     room_words: RoomWords = no_room_words,
+    known: Known | None = None,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -228,17 +250,18 @@ def ask(
     and gets no High from Carbon either; its level is otherwise the score's, except Low on an image
     printing words of a plan kind the policy was not measured on (check.unmeasured_room). A 0
     count of a room type whose only candidates are labelled just "room" is refused
-    (check.only_room_word)."""
-    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
-    unsaid = _unsaid(quantities, drawing)
-    quantities = {key: found for key, found in quantities.items() if key not in unsaid}
+    (check.only_room_word). `known`: `drawing`'s takeoff as `known_of` gives it for these
+    `flags` and `raster`, when the caller has it already (which_room's per-room questions)."""
+    if known is None:
+        known = known_of(drawing, flags, raster)
+    quantities, unread, unlocated, unsaid, twins = known
 
     def area_of(asked: str) -> Asked:  # one room's area, as this question would be answered
         return ask(
             asked, drawing, parser=parser, clock=clock, prior=prior, state=state,
             prior_families=prior_families, confidence=confidence, sure_at=sure_at, flags=flags,
             raster=raster, check=check, route=route, disputes=disputes, no_reader=no_reader,
-            scorers=scorers, carbon_ladder=carbon_ladder,
+            scorers=scorers, carbon_ladder=carbon_ladder, known=known,
         )  # fmt: skip
 
     if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
@@ -256,7 +279,7 @@ def ask(
     elif isinstance(parsed, TableQuery):
         query = parsed.family()
     found = quantities.get(query) if query is not None and answer.method == TAKEOFF else None
-    shared = with_twins(state, storey_twins(quantities))
+    shared = with_twins(state, twins)
     shown = None if found is None else row(found, drawing, shared, RULES)
     notes = [NOT_LOCATED] if found is not None and _unplaced(found, drawing) else []
     if found is not None and parse_key(found.key)[1] == "door" and CLOSET.search(text):
