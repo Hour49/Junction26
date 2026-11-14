@@ -322,3 +322,20 @@ def test_review_339b_s1_a_fresh_ask_does_not_get_the_reviewed_answers_places() -
     model = Model(step(call("ask_drawings", question="windows")), final(text="There is one."))
     got = again(chat, model, tools, "Is that right?")
     assert not {e.id for e in got.evidence} & {"ev_1", "ev_2", "ev_3"}
+
+
+@pytest.mark.parametrize("message", ["Are you sure?", "Why is that low?"])
+def test_review_339b_n1_a_second_review_in_one_turn_gives_the_same_review_without_a_step(
+    message: str,
+) -> None:
+    """Probe P5: the model called review_answer after the server's pre-run review (or twice on
+    its own): the review ran again, as a second step."""
+    chat, tools = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=LEVELLED)
+    counted(chat, tools)
+    calls = [step(call("review_answer"))] * (1 if message == "Are you sure?" else 2)
+    model = Model(*calls, final(text="Not for certain: it is Low [ev_4].", evidence_ids=["ev_4"]))
+    got = again(chat, model, tools, message)
+    assert [s.tool for s in got.steps] == ["review_answer"]
+    reply = json.loads(model.sent[-1][-1]["content"])
+    assert reply["drawings"][0]["level"] == "low"  # the model still gets the review
+    assert got.kind == "answer" and len(got.answers) == 1
