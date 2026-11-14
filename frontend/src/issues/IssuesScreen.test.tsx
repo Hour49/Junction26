@@ -233,6 +233,23 @@ describe('IssuesScreen', () => {
     expect(screen.getByRole('link', { name: 'Back to workspaces' })).toBeTruthy();
   });
 
+  it('IS-21 a country change that fails drops the old list: the not-available card, no rows, no Export', async () => {
+    mockApi({
+      [GET]: (c: { url: string }) =>
+        c.url.includes('pack=xx') ? reply(404, { ...error, code: 'unknown-pack' }) : issueListFi,
+      [DRAWING(DRAWING_B)]: drawing,
+      [DRAWING(DRAWING_IFC)]: drawing,
+    });
+    const { rerender } = render(<IssuesScreen projectId={PID} pack="fi" />);
+    await flush();
+    expect(document.querySelectorAll('.is-n').length).toBeGreaterThan(0);
+    rerender(<IssuesScreen projectId={PID} pack="xx" />);
+    await flush();
+    expect(screen.getByText('These country rules are not available.')).toBeTruthy();
+    expect(document.querySelectorAll('.is-n')).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: 'Export' })).toBeNull();
+  });
+
   it('IS-14 no issues says so (the pack variant with a pack)', async () => {
     mockApi({ [GET]: { ...issueList, issues: [] } });
     render(<IssuesScreen projectId={PID} />);

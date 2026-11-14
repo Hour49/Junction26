@@ -87,13 +87,18 @@
 .en-plan {
   position: relative;
 }
+/* Over the right half of the viewer's file-name row (its padding is 20 px); in flow on a phone. The name keeps the
+   left half and wraps there, so a long name never runs under "Also as" (EN-80). */
+.en-plan:has(> .en-place) .vw-name {
+  max-width: 50%;
+}
 /* Over the empty right end of the viewer's file-name row (its padding is 20 px); in flow on a phone. */
 .en-place {
   position: absolute;
   top: 20px;
   right: 20px;
   z-index: 1;
-  max-width: 50%;
+  max-width: calc(50% - 32px);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -560,6 +565,9 @@ button.en-ref:hover,
   }
   .en-left > :not(.en-plan) {
     margin-inline: 16px;
+  }
+  .en-plan:has(> .en-place) .vw-name {
+    max-width: none;
   }
   .en-place {
     position: static;
