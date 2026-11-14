@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
-import { drawing, project } from '../api/fixtures';
+import { drawing, fileReadAsPlan, project } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
 import { AgentChat } from './AgentChat';
 import type { ChatRequest } from './agent';
@@ -157,3 +157,30 @@ it('chat-ux #8 the empty chat says what was read from the drawings; the first tu
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
   expect(screen.queryByRole('region', { name: 'What I read' })).toBeNull();
 });
+
+it('CH-18 agent chat: a photo read as a plan makes a project with no askable drawing askable', async () => {
+  const added = { ...fileReadAsPlan, id: 'f9', path: 'plan.jpg', state: 'queued' as const };
+  const before = { ...project, drawings: [] };
+  const after = { ...project, files: [...project.files, { ...added, state: 'ready' as const }] };
+  let n = 0;
+  const api = mockApi({
+    [`GET /api/projects/${PID}`]: () => (n++ === 0 ? before : after),
+    ...drawings,
+    [`POST /api/projects/${PID}/files`]: added,
+    [CHAT]: answerTurn,
+  });
+  render(<AgentChat projectId={PID} />);
+  expect(await screen.findByText('No drawing in this project can be asked yet.')).toBeTruthy();
+  fireEvent.change(screen.getByTestId('photo-input'), {
+    target: { files: [new File(['jpeg'], 'plan.jpg', { type: 'image/jpeg' })] },
+  });
+  expect(await screen.findByText('Reading plan.jpg…')).toBeTruthy();
+  expect(
+    await screen.findByText(/^plan\.jpg is read: you can ask about it \(/, {}, { timeout: 4000 }),
+  ).toBeTruthy();
+  expect(screen.queryByText('No drawing in this project can be asked yet.')).toBeNull();
+  const post = api.calls.find((c) => c.url.startsWith(`/api/projects/${PID}/files`));
+  expect(post?.url).toBe(`/api/projects/${PID}/files?name=plan.jpg`);
+  await send('How many doors are there?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+}, 8000);

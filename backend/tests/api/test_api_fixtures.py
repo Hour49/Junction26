@@ -77,6 +77,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "triage_request": TriageRequest,
     "triage_started": FileStatus,
     "file_read_as_plan": FileStatus,
+    "file_added": FileStatus,
     "checks": DrawingChecks,
     "project_checks": ProjectChecks,
     "project_issues_checks": ProjectIssues,

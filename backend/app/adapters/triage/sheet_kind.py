@@ -13,9 +13,14 @@ It is a triage `Classifier` around the configured one (`inner`, or none):
    architectural_floor_plan, at confidence >= the cut; any other "not a plan" sign is a doubt
    (read, and its answers say so); else read. `advanced` (the model's flag, or an upload over
    4,000 px on its long side) is recorded for the Carbon reader (r8 AS-2); nothing reads it yet.
+   A camera photo (the probe's `photo_plan`) the model calls no floor plan while saying its rooms
+   and doors can be counted, under the cut, is read with no doubt: posted fire exit plans were
+   warned as "a piping, plumbing, ventilation or electrical plan" (live, hard set fp05;
+   .agents/exp/sheet-kind-live.md, rule N2). The kind it named stays on the record.
 
 PROMPT, SCHEMA, KINDS, PLAN_KINDS, `decide` and `advanced` are prototypes/sheet-kind/contract.py's
-(sheet-kind-2, frozen 2026-11-14 17:29), word for word, and PROMPT_SHA is pinned by a test. The
+(sheet-kind-2, frozen 2026-11-14 17:29), word for word but for `decide`'s camera-photo case, and
+PROMPT_SHA is pinned by a test. The
 model is Carbon (Bogdan, 2026-11-14 17:2x: "Carbon first"; r8 section AS-1). Its price is not
 confirmed (third-party pages: 2 / 10 USD per M tokens in / out, introductory until 2026-11-30,
 then 4 / 20), so every call is charged at 4 / 20 to the trace and the spend guard.
@@ -161,7 +166,7 @@ PLAN_KINDS = frozenset({"architectural_floor_plan", "multi_view_sheet"})
 NOT_DRAWING = frozenset({"not_a_drawing", "schedule_or_text"})  # set aside as not_drawing
 
 
-def decide(form: dict[str, Any], cut: float) -> SheetDecision:
+def decide(form: dict[str, Any], cut: float, camera_photo: bool = False) -> SheetDecision:
     """ "read", "doubt" or "set_aside" for one parsed reply.
 
     Set aside only when the model says: no floor plan on the sheet, a kind other than
@@ -169,10 +174,17 @@ def decide(form: dict[str, Any], cut: float) -> SheetDecision:
     not set aside is a doubt, and so is one it calls a plan while giving it a non-plan kind and
     no takeoff: the sheet is read and its answers say so. The rest is read.
 
+    `camera_photo` (the probe's `photo_plan`): "no floor plan" with takeoff possible, under the
+    cut, is read. The model names a posted fire exit plan a services plan while seeing its rooms
+    and doors; on a camera photo that was 5 of the 7 doubts on true plans and none of the doubts
+    on non-plans (.agents/exp/sheet-kind-live.md, N2). A scan with the same reply stays a doubt.
+
     (The contract's `strict` row, which also needs takeoff_possible false, is scored, not built.)"""
     no_plan = form["floor_plan_on_sheet"] is False
     no_takeoff = form["takeoff_possible"] is False
     kind = form["sheet_kind"]
+    if camera_photo and no_plan and not no_takeoff and float(form["confidence"]) < cut:
+        return "read"
     if no_plan and kind != "architectural_floor_plan":
         return "set_aside" if float(form["confidence"]) >= cut else "doubt"
     if no_plan or (no_takeoff and kind not in PLAN_KINDS):
@@ -394,11 +406,14 @@ class SheetKindReader:
         return SheetReply(form, usd, model, said)
 
 
-def sheet_of(found: SheetReply, image: bytes, cut: float, set_aside: bool = True) -> Sheet:
+def sheet_of(
+    found: SheetReply, image: bytes, cut: float, set_aside: bool = True, camera_photo: bool = False
+) -> Sheet:
     """The reply as `Triage.sheet` holds it, with its decision at `cut`; with `set_aside` false
-    (SHEET_KIND_SET_ASIDE) a sheet it would set aside is a doubt: read, and flagged."""
+    (SHEET_KIND_SET_ASIDE) a sheet it would set aside is a doubt: read, and flagged.
+    `camera_photo`: `decide`'s."""
     form = found.form
-    decision = decide(form, cut)
+    decision = decide(form, cut, camera_photo)
     if decision == "set_aside" and not set_aside:
         decision = "doubt"
     # a set-aside sheet is not read, so it routes no reader (hardphotos: the size rule marked
@@ -444,7 +459,7 @@ class SheetKindClassifier:
         if isinstance(found, Unavailable):
             return before if isinstance(before, Classified) else found
         form = found.form
-        sheet = sheet_of(found, image, self._cut, self._set_aside)
+        sheet = sheet_of(found, image, self._cut, self._set_aside, probed.kind == "photo_plan")
         decision = sheet.decision
         method = f"Gemini sheet kind ({found.said})"
         if isinstance(before, Classified):

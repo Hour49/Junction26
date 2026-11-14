@@ -86,6 +86,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
+| A file added to a project (`POST …/files`) that is not a png or jpeg | 415 `unsupported` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
 | A method the path does not take (`GET /api/ask`) | 405 `method-not-allowed` |
 | An unexpected error | 500 `internal` |
@@ -113,6 +114,7 @@ An edit of a signed-off quantity (409):
 | `GET /api/projects` | All projects, newest first | #27 |
 | `GET /api/projects/{project_id}` | Project status: every file with its state and reason, one drawing per plan | #27 |
 | `GET /api/projects/{project_id}/files/{file_id}/trace` | Per-stage trace of one file | #27 |
+| `POST /api/projects/{project_id}/files?name=` | Add a photo (png or jpeg) to a done project; read in the background | #203 |
 | `POST /api/projects/{project_id}/files/{file_id}/relevance` | A person's call on a triaged file: related or unrelated, or undo | 0010 |
 | `POST /api/projects/{project_id}/files/{file_id}/triage` | Read a file triage set aside as a floor plan (in the background) | 0010 |
 | `GET /api/projects/{project_id}/evidence/search?q=&k=&include_unrelated=` | Search the project's non-plan files by what they show and say (one hit per file) | 0012 |
@@ -1218,7 +1220,9 @@ the `identify` stage's line.
   its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
   issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
   drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
-  plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
+  plan."; `read`: also a camera photo (`photo_plan`) it calls no floor plan while `takeoff_possible` is true, under
+  the cut: a posted fire exit plan keeps the kind it was given and gets no sheet-kind doubt (the photo's own reading
+  flag stays)), `takeoff_possible`, `confidence` (of a floor plan on the
   sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
   `electrical`, `fire`, `site` or `other`, from the kind, title and number; null when unsure; a display hint, no
   client shows or reads it yet), `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
@@ -1670,6 +1674,47 @@ photo of an elevation sheet with its register, showing a building that matches n
   "conflicts_open": 0,
   "issues_open": 2,
   "issues_to_answer": 1
+}
+```
+
+### `POST /api/projects/{project_id}/files?name=<file name>`
+
+A photo added to a finished project, from the chat (board #203). The body is the image's bytes (png or jpeg,
+up to the upload limit); `name` its file name. 202 with the new file's `FileStatus`, `queued`, id `f<n+1>`, at
+its own name, the folders dropped (a name the project has gets `-2`, `-3`... before the extension). It is read
+in the background, alone, as at upload: identified (a camera photo of a plan as `photo_plan`, EXIF and
+rectifier applied), triaged when triage is on, then its group, route and readers; with
+`EVIDENCE_SCOPE=all_non_plan` it alone is then described for the evidence index. Poll
+`GET /api/projects/{project_id}`: the file goes `running`, then `ready`, `flagged`, `set_aside` or `text_only`;
+once read as a plan it has a `drawing_id` and is in `drawings`. The project stays `done` throughout; the issues
+already there keep their ids and order, the new drawing's issues join the list.
+
+- 404 `not-found` for an unknown project; 409 `not-allowed` until the project is `done` or while one of its files
+  is read; 413 `too-large` over the upload limit; 415 `unsupported` for anything but png or jpeg (an empty body
+  too); 422 `invalid` for a name that is not a file name (`..`); 422 `validation` with no `name`.
+- A failure sets the file aside with why ("not ingested: ..."); the project stays `done`.
+- While queued its `reason` is "added to the project, queued to be read".
+
+<!-- fixture: file_added.json -->
+```json
+{
+  "id": "f6",
+  "path": "phone.png",
+  "size": 2000,
+  "sha256": null,
+  "kind": null,
+  "state": "queued",
+  "reason": "added to the project, queued to be read",
+  "group": null,
+  "route": null,
+  "source": null,
+  "drawing_id": null,
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": null,
+  "cost_usd": 0.0,
+  "normalised": null
 }
 ```
 
@@ -6684,7 +6729,12 @@ that call gives, the project's review edits applied. An unknown project is 404; 
 
 - `parts`: one per drawing, `{drawing_id, name, answer}`: `name` is the drawing's file as the project uploaded it
   and `answer` is the full `POST /api/ask` response. The drawings that answered come first, then those that
-  refused (with their `answer.refusal`), each group in the project's order.
+  refused (with their `answer.refusal`), each group in the project's order. Also `file_id` (the drawing's file,
+  its `FileStatus.id`); `model_file_id` (left out when none): the IFC file whose 3D view shows the drawing
+  (`…/files/{model_file_id}/model.glb`), its own file when that is IFC, else the model a sheet was read from;
+  `highlight` (left out when empty): the elements the answer counted, by IFC GlobalId, `[{global_id, role}]`, role
+  `affected` here (`moved`, `removed`, `added` are for edit proposals); and while `MODEL_3D` is on, `model_3d`: that
+  file's `FileStatus.model_3d`, read at response time. A chat turn's `answers` carry the same parts.
 - `total`, `total_unit`: when exactly one drawing answered, its value. When several did, their values added up, but
   only when the backend knows the drawings show different parts of the building: sheets of the same IFC model,
   each showing a different storey. A flat drawn twice (a PDF and its IFC model, as in the sample) would otherwise be
@@ -6922,7 +6972,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f1"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -7128,7 +7179,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f3"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -7212,7 +7264,8 @@ is no total):
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f4"
     }
   ],
   "total": null,
@@ -8787,7 +8840,8 @@ still come from this turn's tool results).
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -8993,7 +9047,8 @@ still come from this turn's tool results).
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -9105,7 +9160,19 @@ still come from this turn's tool results).
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8",
+          "model_file_id": "f8",
+          "highlight": [
+            {
+              "global_id": "000000000000000000000K",
+              "role": "affected"
+            },
+            {
+              "global_id": "000000000000000000000M",
+              "role": "affected"
+            }
+          ]
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -9189,7 +9256,8 @@ still come from this turn's tool results).
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -9273,7 +9341,8 @@ still come from this turn's tool results).
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         }
       ],
       "total": null,
@@ -9464,7 +9533,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -9570,7 +9640,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -9654,7 +9725,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -9738,7 +9810,8 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -9827,7 +9900,9 @@ budget, the same call a third time) ends a turn the same way.
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8",
+          "model_file_id": "f8"
         }
       ],
       "total": null,
@@ -11623,6 +11698,9 @@ unofficial translation. An unknown id is 404 `not-found`.
   read: this setup has no reader for the image route"; a DWG: "DWG files can't be opened here; export it as a PDF
   and upload that"; `total_note`/`refused_note` and issue `why`: "gives/give no reliable number for it" (was
   "has/have no reader for it"). Shapes unchanged.
+- 2026-11-14, additive (board #203): new `POST /api/projects/{project_id}/files?name=`, a png or jpeg added to a
+  done project and read alone in the background; 202 `FileStatus`. New error 415 `unsupported`. New fixture
+  `file_added.json`.
 - 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
   `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
   (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,

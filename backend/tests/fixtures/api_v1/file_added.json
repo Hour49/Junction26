@@ -1,0 +1,19 @@
+{
+  "id": "f6",
+  "path": "phone.png",
+  "size": 2000,
+  "sha256": null,
+  "kind": null,
+  "state": "queued",
+  "reason": "added to the project, queued to be read",
+  "group": null,
+  "route": null,
+  "source": null,
+  "drawing_id": null,
+  "reused": false,
+  "takeoff": {},
+  "ms": 12.5,
+  "stage": null,
+  "cost_usd": 0.0,
+  "normalised": null
+}

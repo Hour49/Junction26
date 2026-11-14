@@ -205,7 +205,8 @@
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f1"
     },
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -411,7 +412,8 @@
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f3"
     },
     {
       "drawing_id": "3b3ce7db34257f63",
@@ -495,7 +497,8 @@
         },
         "check": null,
         "level": null
-      }
+      },
+      "file_id": "f4"
     }
   ],
   "total": null,
