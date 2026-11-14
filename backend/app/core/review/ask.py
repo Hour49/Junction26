@@ -278,7 +278,8 @@ def _flagged(
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
     page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
     the classes it could not count (left out of `read`), so on a drawing whose elements are
-    Carbon's a class it read with no element is a read 0, still flagged (brief r8 BD)."""
+    Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
+    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b."""
     empty: set[str] = set()
     if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)

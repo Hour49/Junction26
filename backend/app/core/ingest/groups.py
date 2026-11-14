@@ -155,7 +155,7 @@ class Groups:
             flags: tuple[str, ...] = ()
             if file.path in sheets and drawing is not None:
                 carbon_read = readers.carbon_read
-                carbon = route_name == "raster" and bool(carbon_read and carbon_read(file.path))
+                carbon = carbon_read(file.path) if route_name == "raster" and carbon_read else None
                 stages = pipeline_stages(
                     sheets[file.path].trace,
                     timer.ms.get(file.path, {}),

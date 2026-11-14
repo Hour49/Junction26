@@ -25,7 +25,7 @@ from app.composition import build_ingest, build_pipeline, uses_keys
 from app.core import cost
 from app.core.drawing.model import Page
 from app.core.errors import InvalidInputError
-from app.core.ingest.judge import CARBON_FLAG, judge, reading_flags
+from app.core.ingest.judge import CARBON_FLAG, CARBON_PART_FLAG, judge, reading_flags
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.spend import SpendGuard
 from app.settings import Settings
@@ -383,10 +383,10 @@ def test_a_drawing_carbon_read_alone_is_flagged() -> None:
 
     drawing = Drawing(file="a.png", pages=(Page(page=1, width=9, height=9, unit="px"),),
                       scale=Scale(status="no_scale"), read=("door", "room"))  # fmt: skip
-    assert reading_flags("png_plan", None, carbon=True) == (CARBON_FLAG,)
-    assert reading_flags("photo_plan", None, carbon=True)[-1] == CARBON_FLAG
+    assert reading_flags("png_plan", None, carbon="elements") == (CARBON_FLAG,)
+    assert reading_flags("photo_plan", None, carbon="elements")[-1] == CARBON_FLAG
     assert reading_flags("png_plan", None) == ()
-    state, reason = judge(drawing, "png_plan", "raster", "composite", None, carbon=True)
+    state, reason = judge(drawing, "png_plan", "raster", "composite", None, carbon="elements")
     assert state == "flagged" and reason.startswith(CARBON_FLAG)
     assert judge(drawing, "png_plan", "raster", "composite")[0] == "ready"
 
@@ -404,7 +404,7 @@ def test_ingest_flags_the_drawings_the_switch_sent_to_carbon(
             return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
 
     plan = png_bytes(raster_plan())
-    for carbon, flagged in ((lambda _: True, True), (None, False)):
+    for carbon, flagged in ((lambda _: "elements", True), (None, False)):
         root = tmp_path / f"projects-{flagged}"  # each its own store: no reused outcome
         ingest = make_service(root=root, raster=Reader, carbon_read=carbon)
         (file,) = ingest.status(ingest.start("plan.png", plan)).files
@@ -439,7 +439,7 @@ def test_a_file_triage_set_aside_never_reaches_carbon_however_big(make_service: 
         zipped.writestr("elevation.png", big)
         zipped.writestr("plan.png", plan)
     triage = steps(FakeClassifier({big: "other_drawing"}))
-    ingest = make_service(raster=Carbon, carbon_read=lambda _: True, triage=triage)
+    ingest = make_service(raster=Carbon, carbon_read=lambda _: "elements", triage=triage)
     status = ingest.wait(ingest.start("site.zip", archive.getvalue()))
     files = {file.path: file for file in status.files}
     assert asked == ["plan.png"]
@@ -527,7 +527,7 @@ def test_carbon_reader_advanced_reads_what_the_sheet_kind_step_called_advanced_a
     ingest = make_service(
         store=store,
         raster=lambda files: CarbonSwitch(Named("shipped"), Named("carbon"), advanced),
-        carbon_read=advanced,
+        carbon_read=lambda path: "elements" if advanced(path) else None,
         triage=TriageSteps(classifier=kinds, describer=None, judge=None, name="fakes"),
     )
     status = ingest.wait(ingest.start("site.zip", archive.getvalue()))
@@ -598,21 +598,27 @@ def api_doors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, **env: str) -> di
 
 
 @pytest.mark.parametrize(
-    "env",
+    ("env", "flag"),
     [
-        {"CARBON_READER": "all", "RASTER_COMPONENTS": "plans=one-plan"},
-        {"RASTER_COMPONENTS": "elements=carbon,plans=carbon,rooms=carbon"},
-        {"RASTER_COMPONENTS": f"plans=one-plan,door={c.SOURCE}"},  # one class is enough
+        ({"CARBON_READER": "all", "RASTER_COMPONENTS": "plans=one-plan"}, CARBON_FLAG),
+        ({"RASTER_COMPONENTS": "elements=carbon,plans=carbon,rooms=carbon"}, CARBON_PART_FLAG),
+        # one class is enough
+        ({"RASTER_COMPONENTS": f"plans=one-plan,door={c.SOURCE}"}, CARBON_PART_FLAG),
     ],
     ids=["carbon-reader-all", "every-part", "one-part-pinned"],
 )
 def test_a_carbon_count_is_flagged_and_never_certified_on_any_path(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env: dict[str, str]
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env: dict[str, str], flag: str
 ) -> None:
+    """The flag says what Carbon read: the elements (CARBON_READER, CARBON_FLAG) or a part a
+    composite took from it (CARBON_PART_FLAG), so ask's counted-zero rule (brief r8 BD) keys on
+    who counted the elements (fail-1's S-D)."""
     got = api_doors(monkeypatch, tmp_path, **env)
     doors = [e for e in got["model"]["elements"] if e["class"] == "door"]
     assert doors and all(e["attrs"]["reader"] == c.SOURCE for e in doors)
-    assert got["file"]["state"] == "flagged" and CARBON_FLAG in got["file"]["reason"]
+    assert got["file"]["state"] == "flagged" and flag in got["file"]["reason"]
+    other = CARBON_PART_FLAG if flag == CARBON_FLAG else CARBON_FLAG
+    assert other not in got["file"]["reason"]
     assert got["ask"]["answer"] == 2
     assert got["ask"]["check"] is not None and got["ask"]["level"]["level"] == "low"
 
@@ -622,10 +628,10 @@ def test_carbon_as_a_second_reader_flags_nothing(
 ) -> None:
     got = api_doors(monkeypatch, tmp_path, RASTER_COMPONENTS="plans=one-plan,elements=carbon",
                     DOUBLE_CHECK_READERS="c1=carbon")  # fmt: skip
-    assert CARBON_FLAG in got["file"]["reason"]  # elements=carbon is a part: flagged
+    assert CARBON_PART_FLAG in got["file"]["reason"]  # elements=carbon is a part: flagged
     got = api_doors(monkeypatch, tmp_path / "second", RASTER_COMPONENTS="plans=one-plan",
                     DOUBLE_CHECK_READERS="c1=carbon")  # fmt: skip
-    assert CARBON_FLAG not in got["file"]["reason"]  # a double-check reader counts nothing
+    assert "Gemini Carbon" not in got["file"]["reason"]  # a double-check reader counts nothing
 
 
 # --- codecheck's client review of #254 (.agents/qa/r9/review-254-client.md) --------------------
