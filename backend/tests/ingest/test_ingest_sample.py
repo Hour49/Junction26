@@ -49,7 +49,7 @@ def test_each_file_says_why_it_ends_where_it_does(make_service: MakeService) -> 
     files = by_path(ingest.status(ingest.start("sample.zip", build_archive())).files)
     reason: Callable[[str], str] = lambda path: files[path].reason  # noqa: E731
     assert reason("plans/flat-a.pdf").startswith("read on the vector route: 7 elements, 5 rooms")
-    assert reason("plans/flat-b.pdf").startswith("1 conflict between the two methods (room_area)")
+    assert reason("plans/flat-b.pdf").startswith("1 conflict between the two methods (room areas)")
     assert "no reader for the raster route yet" in reason("scans/ground-floor.png")
     assert "a phone photo, read without perspective correction" in reason("photos/plan-photo.jpg")
     assert reason("photos/site.jpg").startswith("a photo, not of a drawing")

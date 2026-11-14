@@ -1,10 +1,17 @@
 """The words a person reads in a reason or a trace: counts in the right number, plain scale and
 kind words (the machine fields `kind` and `scale.status` are unchanged)."""
 
+import re
+
 from conftest import MakeService
 
-from app.core.ingest.model import ContentKind, FileStatus
-from app.core.wording import KIND_WORDS, SCALE_WORDS, count, kind_words
+from app.adapters.rectifier import CLASSICAL, LEARNED
+from app.core.drawing.model import ConflictQuantity
+from app.core.ingest.judge import reading_flags
+from app.core.ingest.model import ContentKind, FileStatus, Normalised
+from app.core.pipeline import rules
+from app.core.pipeline.model import CountingRule
+from app.core.wording import CONFLICT_WORDS, KIND_WORDS, SCALE_WORDS, count, kind_words
 from scripts.make_sample_archive import build_archive
 
 
@@ -41,3 +48,33 @@ def test_a_trace_reads_in_plain_words(make_service: MakeService) -> None:
     assert ingest.trace(project.id, flat_b.id).stages[-1].output.endswith("quantities")
     photo = by_path(project.files)["photos/plan-photo.jpg"]
     assert ingest.trace(project.id, photo.id).stages[2].output == "photo of a drawing"
+
+
+# QA R4 (R4-a-3, R4-c, 2026-11-14): internal names a person read on screen 2 and in answers.
+INTERNAL = re.compile(r"_|\bR\d|UVDoc|dataset")
+
+
+def test_every_conflict_quantity_has_plain_words(make_service: MakeService) -> None:
+    from typing import get_args
+
+    assert set(CONFLICT_WORDS) == set(get_args(ConflictQuantity))
+    assert not [words for words in CONFLICT_WORDS.values() if INTERNAL.search(words)]
+    ingest = make_service()
+    project = ingest.wait(ingest.start("sample.zip", build_archive()))
+    reason = by_path(project.files)["plans/flat-b.pdf"].reason
+    assert reason.startswith("1 conflict between the two methods (room areas) ("), reason
+
+
+def test_a_rectified_photo_names_how_in_plain_words() -> None:
+    assert not INTERNAL.search(CLASSICAL) and not INTERNAL.search(LEARNED)
+    frame = Normalised(rectified=True, width=10, height=10, rectifier=CLASSICAL)
+    (flag,) = reading_flags("photo_plan", frame)
+    assert flag == "a phone photo, rectified by paper edges: check the paper's corners"
+
+
+def test_no_counting_rule_text_names_the_dataset() -> None:
+    texts = {rule.id: rule.text for rule in vars(rules).values() if isinstance(rule, CountingRule)}
+    assert not {key: text for key, text in texts.items() if INTERNAL.search(text)}
+    # the rule is still said, where it differs from the question's own wording
+    assert "though the question says shafts are left out" in texts["indoor-rooms-total"]
+    assert "sauna stoves" in texts["sauna-room-else-stove"]

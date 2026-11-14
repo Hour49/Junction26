@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import ContentKind, FileState, Normalised, Stage, StageTrace
 from app.core.pipeline.model import Route
-from app.core.wording import SCALE_WORDS, count
+from app.core.wording import CONFLICT_WORDS, SCALE_WORDS, count
 
 # The pipeline's trace line prefixes (app/core/pipeline/ingest.py) after stage 5, by stage.
 # The counting rules and the takeoff run together, so they are one timed stage.
@@ -40,7 +40,7 @@ def judge(
     flags: list[str] = []
     conflicts = [entry for entry in drawing.conflicts or () if entry.status == "conflict"]
     if conflicts:
-        what = ", ".join(sorted({entry.quantity for entry in conflicts}))
+        what = ", ".join(sorted({CONFLICT_WORDS[entry.quantity] for entry in conflicts}))
         flags.append(f"{count(len(conflicts), 'conflict')} between the two methods ({what})")
     read_nothing = drawing.read == () and not drawing.tables  # a schedule sheet reads tables
     if read_nothing and reader == "hello":
