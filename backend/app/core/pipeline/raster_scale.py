@@ -11,6 +11,10 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   FEW_DOORS, else SPREAD_MANY, each the 68% quantile of the scale error, fitted on one half of val
   and checked on the other, both ways, then averaged (prototypes/areas/calibrate.py). One
   uncertainty for every sheet covered sheets with 1-4 doors only 41% of the time (held out).
+- The doors' own spread (K5): when the detected door widths disagree, some boxes are not door
+  leaves (a double door, a wardrobe, a window), and the median can rest on the wrong ones. The
+  robust log spread of the widths (1.4826 x their median |log| distance from the median) above
+  DISAGREE widens the scale's uncertainty to that spread; above REFUSE no estimate is made.
 - No door detected: no estimate. The page-size prior (a door is about 5% of the page's long side)
   is 37-72% off on 68% of such val sheets; an area off by that much is not an answer.
 - A room's area is its outline's pixel area times the scale squared. A box (the raster room
@@ -32,6 +36,10 @@ SPREAD_FEW = 0.158  # 68% relative scale error with 1-4 doors, val two-way
 SPREAD_MANY = 0.0795  # with 5 or more doors
 BOX_RATIO = 1.104  # a room's box area over its outline area, val median
 OUTLINE_SPREAD = 0.157  # 68% |log| of that ratio around its median, val
+# shortcut: DISAGREE and REFUSE are set by hand, not fitted on val (no val door detections on the
+# machine this was written on); fit them with `scripts/k5_band.py --sweep` (K5) and set them here
+DISAGREE = 0.2  # door width log spread above which the prior's uncertainty is too narrow
+REFUSE = 0.45  # above it the doors are too unlike one another to give a scale
 
 
 def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float]:
@@ -53,15 +61,29 @@ def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float
     return [side for side in sides if side > 0]
 
 
+def door_spread(sides: Sequence[float]) -> float:
+    """The robust log spread of the door widths (a standard deviation's worth); 0 under two."""
+    if len(sides) < 2:
+        return 0.0
+    middle = statistics.median(sides)
+    return 1.4826 * statistics.median(abs(math.log(side / middle)) for side in sides)
+
+
 def estimate_scale(sides: Sequence[float]) -> Scale | None:
-    """The scale from the door prior over `sides`; None without a door."""
-    if not sides:
+    """The scale from the door prior over `sides`; None without a door or when the doors
+    disagree beyond REFUSE (the caller says which, with `door_spread`)."""
+    spread = door_spread(sides)
+    if not sides or spread > REFUSE:
         return None
+    prior = SPREAD_FEW if len(sides) < FEW_DOORS else SPREAD_MANY
+    source = f"a door is about {DOOR_M} m wide; median of {len(sides)} detected doors"
+    if spread > DISAGREE:  # K5: the doors disagree, so the prior's band is too narrow
+        source += f", whose widths disagree (±{math.expm1(spread):.0%})"
     return Scale(
         status="estimated",
         m_per_unit=DOOR_M / statistics.median(sides),
-        source=f"a door is about {DOOR_M} m wide; median of {len(sides)} detected doors",
-        uncertainty=SPREAD_FEW if len(sides) < FEW_DOORS else SPREAD_MANY,
+        source=source,
+        uncertainty=max(prior, round(math.expm1(spread), 3)) if spread > DISAGREE else prior,
     )
 
 
