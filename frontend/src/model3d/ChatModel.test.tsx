@@ -95,6 +95,11 @@ describe('3D view from the chat answer', () => {
     expect(document.activeElement).toBe(close);
     fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(reset);
+    // The focused button's tip is open: the first Escape closes the tip only, the next one the dialog.
+    expect(screen.getByRole('tooltip').textContent).toContain('Reset view');
+    fireEvent.keyDown(reset, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(scene.dispose).toHaveBeenCalledOnce();
