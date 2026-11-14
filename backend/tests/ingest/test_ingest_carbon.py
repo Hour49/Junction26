@@ -1002,3 +1002,51 @@ def test_the_cli_path_flags_a_few_things_page_carbon_counted(
     pipeline.ingest(["faint.png", "flat.png"], Sink())
     assert pipeline.flags("faint.png") == (CARBON_FLAG,)
     assert pipeline.flags("flat.png") == ()
+
+
+def test_a_carbon_door_takes_the_box_of_the_shipped_door_inside_it_and_counts_stay(
+    tmp_path: Path,
+) -> None:
+    """golden, 240e620: Carbon boxes a door with its swing arc (about five times the opening), so
+    its doors matched 0 of 22 gold doors on the two big CubiCasa pages; snapped to the detector's
+    door whose centre lies inside, 18, as the detector. Doors only, best overlap, each shipped door
+    once; a door with none keeps Carbon's box; windows keep Carbon's (theirs matched better)."""
+    from app.core.drawing.model import Element, Scale
+
+    def el(id_: str, kind: str, box: tuple[float, float, float, float], **attrs: str) -> Element:
+        return Element(id=id_, class_=kind, page=1, box=box, attrs=dict(attrs))  # pyright: ignore[reportArgumentType]
+
+    opening = (0.10, 0.10, 0.20, 0.12)  # a door's opening in the wall, as the detector marks it
+    shipped = (
+        el("d1", "door", opening),
+        el("d2", "door", (0.11, 0.105, 0.19, 0.125)),  # also inside, overlaps the arc box less
+        el("d3", "door", (0.70, 0.70, 0.72, 0.80)),
+        el("w1", "window", (0.41, 0.41, 0.49, 0.42)),
+    )
+    carbon = (
+        el("c1", "door", (0.10, 0.10, 0.20, 0.20), reader=c.SOURCE),  # opening + swing arc
+        el("c2", "door", (0.105, 0.10, 0.205, 0.20), reader=c.SOURCE),  # the same spot: d2 left
+        el("c3", "door", (0.50, 0.50, 0.60, 0.60), reader=c.SOURCE),  # no shipped door inside
+        el("c4", "window", (0.40, 0.40, 0.50, 0.45), reader=c.SOURCE),  # windows are not snapped
+    )
+
+    class Fixed:
+        def __init__(self, found: Extracted) -> None:
+            self._found = found
+
+        def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+            return self._found
+
+    def reading(elements: tuple[Element, ...]) -> Extracted:
+        return Extracted(method="detector", scale=Scale(status="no_scale"), elements=elements,
+                         read=("door", "window"))  # fmt: skip
+
+    source = DrawingFile(path="big.png", size=1, sha256="0" * 64, kind="png")
+    sheet = Sheet(file=source, pages=(Page(page=1, width=4960, height=3507, unit="px"),))
+    got = CarbonThings(Fixed(reading(shipped)), Fixed(reading(carbon)), lambda _: True)
+    found = {e.id: e for e in got.extract(source, sheet).elements}
+    assert list(found) == ["c1", "c2", "c3", "c4"]  # Carbon's elements: the counts stay its own
+    assert found["c1"].box == opening and found["c2"].box == shipped[1].box
+    assert found["c3"].box == carbon[2].box and found["c4"].box == carbon[3].box
+    assert all(e.attrs["reader"] == c.SOURCE for e in found.values())  # still Carbon-read
+    assert [k for k, e in found.items() if e.attrs.get("box_from") == "detector"] == ["c1", "c2"]

@@ -12,7 +12,7 @@ from collections.abc import Callable, Sequence
 from PIL import Image
 
 from app.adapters.carbon.reader import CarbonClient, CarbonExtractor, CarbonReader
-from app.core.drawing.model import Box, CarbonCheck, Plan, ReadClass
+from app.core.drawing.model import Box, CarbonCheck, Element, Plan, ReadClass
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 
@@ -115,7 +115,7 @@ class CarbonThings:
             plans=plans,
             elements=tuple(
                 e.model_copy(update={"plan": _plan_of(plans, e.page, e.box)})
-                for e in carbon.elements
+                for e in _snapped_doors(carbon.elements, shipped.elements)
             ),
             rooms=tuple(
                 r.model_copy(update={"plan": _plan_of(plans, r.page, r.box)})
@@ -168,6 +168,42 @@ def _why(notes: Sequence[str]) -> str:
     """Why Carbon read nothing, from its first note (contract.assemble puts the reason first)."""
     first = notes[0] if notes else "carbon: no usable reply"
     return first.removeprefix("carbon: ")
+
+
+def _snapped_doors(carbon: Sequence[Element], shipped: Sequence[Element]) -> list[Element]:
+    """Carbon's elements, each door on the box of the shipped reader's door whose centre lies inside
+    it (the best overlap; each shipped door once). Carbon boxes a door with its swing arc, a square
+    about five times the opening the detector and the gold box mark: on golden's two CubiCasa pages
+    over 4,000 px its 19 door boxes matched 0 of 22 gold doors at IoU 0.5, snapped 18, as the
+    detector (answer, 2026-11-14; .agents/exp/answer.md). Windows are not snapped (Carbon's matched
+    25, snapped 21). A door with no such shipped door keeps Carbon's box; no element is added or
+    dropped, so every count stays Carbon's."""
+    free = [e for e in shipped if e.class_ == "door"]
+    out: list[Element] = []
+    for element in carbon:
+        inside = [d for d in free if d.page == element.page and _holds(element.box, d.box)]
+        if element.class_ != "door" or not inside:
+            out.append(element)
+            continue
+        best = max(inside, key=lambda d: _iou(element.box, d.box))
+        free.remove(best)
+        attrs = {**element.attrs, "box_from": "detector"}
+        out.append(element.model_copy(update={"box": best.box, "attrs": attrs}))
+    return out
+
+
+def _holds(box: Box, other: Box) -> bool:
+    """Whether `other`'s centre lies inside `box`."""
+    x, y = (other[0] + other[2]) / 2, (other[1] + other[3]) / 2
+    return box[0] <= x <= box[2] and box[1] <= y <= box[3]
+
+
+def _iou(a: Box, b: Box) -> float:
+    width = min(a[2], b[2]) - max(a[0], b[0])
+    height = min(a[3], b[3]) - max(a[1], b[1])
+    inter = max(0.0, width) * max(0.0, height)
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
 
 
 def _plan_of(plans: Sequence[Plan], page: int, box: Box) -> str | None:
