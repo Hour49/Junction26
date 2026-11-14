@@ -962,7 +962,8 @@ the `identify` stage's line.
   characters) and `detail` (a paragraph or more, at most 4,000 characters: a model's description no person
   checked). Printed text is kept (project, company, place and room names, the title block); the describer leaves
   out number plates, home addresses, personal contact data of private persons (phone numbers, e-mails) and the
-  names of people seen in photos.
+  names of people seen in photos. A home address keeps its street and town, without the house number and
+  postal code; that is the model's judgement, which can also drop a public building's house number.
 - `relevance` (set once the project's ingest is done): `verdict` `related`, `unrelated` or `unsure`, `why` (one
   sentence naming what matched or what is missing), `matched_on`, `plans` (drawing ids, always among this
   project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
@@ -4349,6 +4350,8 @@ so every client shows the same one: show `level` as the pill and `text` with it,
   - `route`: the drawing's route, from its own reference answers. A certified route (vector PDF, IFC model) is
     high; a value read from a printed schedule takes the `schedule` route's level.
   - `page`: the page was flagged at upload (a phone photo, a scan). Low: levels are not measured on such pages.
+    Also a raster page on which the detector found no plan and no element: nothing on it is certified, and its
+    answers are low (`text` says so), because readers that all saw nothing agree on 0 without evidence.
   - `held`: the value is held for a check whatever its score (two methods disagree, an estimate, edited and not
     signed off, a bedroom with no printed label). Low; `check.reason` says why.
   - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
@@ -8194,6 +8197,13 @@ unknown pack, `not-found` for an unknown project.
   Act 751/2023), which replaced 1008/2017: the 7 m2 rule is 4 § 2 mom. and the window rule 5 § 1 mom., each with
   the decree's own sentence and its Finlex link; the limits are unchanged. Fixtures `info`, `checks`,
   `project_checks` and `project_issues_checks` show the new citation. No shape change.
+- 2026-11-14, behaviour (safety rule, orchestrator): on the raster route, an answer on a drawing where the
+  detector found no plan and no located element is never certified (`sure` false, `check` set) and its `level`
+  is low with basis `page`. No shape change.
+- 2026-11-14, behaviour: the Gemini describer's prompt is `describe-6` (`Description.model` ends
+  `describe-6`): a home address is written without its house number and postal code in every field
+  (decision 0010); `describe-5` kept a house's street address on all 8 of its sheets that print one. No
+  shape change. Replies cached under `describe-5` are not reused: each described file is asked again once.
 - 2026-11-14, additive (decision 0011, Bogdan: "the confidence levels should be high medium low"): `level` on
   `POST /api/ask`'s answer: `{level: high|medium|low, basis, text}` or null, computed by the backend from the
   check policy; high exactly when the answer is certified (`check` null). `total_level` on the project ask: the

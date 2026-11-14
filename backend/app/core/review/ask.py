@@ -46,6 +46,7 @@ from app.core.review.check import (
     certified,
     disagree,
     double_check,
+    found_nothing,
     held,
     level_of,
     no_disputes,
@@ -232,13 +233,15 @@ def ask(
         agrees = None
         if family in AGREEING_FAMILIES and confidence is not None and route == "raster":
             agrees = confidence.probability(drawing.file, family, answer.answer).agrees
+        blank = found_nothing(drawing)
         sure = reason is None and certified(
-            check, route=route, family=family, score=score, flags=flags, agrees=agrees
-        )
+            check, route=route, family=family, score=score, flags=flags, agrees=agrees,
+            blank=blank,
+        )  # fmt: skip
         if shown.signed is None and shown.settled is None:
             level = level_of(
                 check, sure=sure, route=route, family=family, score=score, flags=flags,
-                held=reason is not None,
+                held=reason is not None, blank=blank,
             )  # fmt: skip
         if not sure:
             if reason is None and agrees is False:

@@ -16,6 +16,7 @@ from app.core.drawing.model import (
     Element,
     MeasuredValue,
     Page,
+    Plan,
     Room,
     Scale,
     Subject,
@@ -140,6 +141,25 @@ def test_an_answer_held_for_a_check_is_low_whatever_its_score() -> None:
     assert made(asked(question, score=0.7, check=bedrooms)) == ("medium", "score")  # labelled
     unlabelled = SCAN.model_copy(update={"rooms": (ROOMS[0].model_copy(update={"label": None}),)})
     assert made(asked(question, score=0.7, check=bedrooms, drawing=unlabelled)) == ("low", "held")
+
+
+def test_nothing_is_certified_on_a_raster_drawing_where_the_detector_found_nothing() -> None:
+    """Archive sheet 61261280 (AR, 2026-11-14): no plan and no element found, so every reader
+    said 0 toilets, the gate scored that agreement high and the 0 was Sure; two bowls are drawn.
+    An element counted with no position of its own (the arbiter's) does not make the page read."""
+    unlocated = Element(id="e1", class_="shower", page=1, box=(0.0, 0.0, 1.0, 1.0),
+                        attrs={"located": False, "source": "arbiter-t1"})  # fmt: skip
+    blank = SCAN.model_copy(update={"elements": (unlocated,)})
+    found = asked(score=0.95, drawing=blank)
+    assert found.answer.answer == 0 and found.answer.sure is False and found.check is not None
+    assert found.level is not None and (found.level.level, found.level.basis) == ("low", "page")
+    assert found.level.text.startswith("Low confidence: nothing was found on this page")
+    # it does not change a route that read the sheet itself, or a page that was read
+    assert made(asked(score=None, drawing=blank, route="bim")) == ("high", "route")
+    assert made(asked(score=0.95)) == ("high", "certified")  # located doors
+    plan = Plan(id="p1", page=1, box=(0.0, 0.0, 1.0, 1.0))
+    planned = blank.model_copy(update={"plans": (plan,)})
+    assert made(asked(score=0.95, drawing=planned)) == ("high", "certified")
 
 
 def test_a_value_a_person_signed_or_settled_a_refusal_and_no_policy_have_no_level() -> None:
