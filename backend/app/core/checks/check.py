@@ -246,10 +246,10 @@ def _nothing(drawing: Drawing, rule: CodeRule, why: str) -> tuple[str, RuleStatu
     if not unknown:
         return why, "not_applicable"
     kinds = " or ".join(room_noun(kind) for kind in rule.applies_to.room_types)
-    are = "is" if unknown == 1 else "are"
+    are, they = ("is", "it") if unknown == 1 else ("are", "they")
     return (
         f"No {kinds} was recognised, but {count_of(unknown, 'room')} {are} of a kind we could not "
-        "tell, so they cannot be checked.",
+        f"tell, so {they} cannot be checked.",
         "cannot_tell",
     )
 

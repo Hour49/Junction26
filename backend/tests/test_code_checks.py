@@ -685,7 +685,7 @@ def test_a_scoped_door_rule_on_rooms_of_no_kind_we_tell_cannot_tell() -> None:
     unknown = check_rule(drawing(rooms=[room(1, "other"), HALL], elements=[door]), SCOPED)
     assert unknown.status == "cannot_tell"
     assert unknown.why.endswith(
-        "but 1 room is of a kind we could not tell, so they cannot be checked."
+        "but 1 room is of a kind we could not tell, so it cannot be checked."
     )
     to_closet = element(2, "door", (0.38, 0.2, 0.42, 0.26))
     plan = drawing(rooms=[room(1), CLOSET, room(3, "other", box=(0.6, 0.6, 0.9, 0.9))])
