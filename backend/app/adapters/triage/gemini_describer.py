@@ -2,11 +2,16 @@
 that is not a floor plan fills the description form (what_it_is, shows_building, visible_text,
 text_seen, language, subject) and its long text (detail, text).
 
-The prompt and schema are prototypes/triage-describe's describe-4, word for word, so the numbers
-measured on it hold here (.agents/exp/triage-describer.md: what_it_is right on 72 of 79 preview
-non-plans, 8.0 USD per 1,000 images). Thinking "minimal", temperature 0.2, the image as a JPEG
-(quality 90) at most 2,048 px on its long side, the long text first in the schema so the form
-fields come after the model has looked.
+The prompt and schema are prototypes/triage-describe's describe-5, word for word, so the
+numbers measured on it hold here (.agents/exp/triage-describer.md). describe-5 is describe-4 with
+two rules for the long text: a count only when every item can be counted, and a date only when
+it is printed. On the same 50 images a blind count found 44 right, 6 minor errors, 0 wrong
+(describe-4: 43, 7, 0), with no dates read from the style and no invented views; the form
+fields matched describe-4's on 47 of 50 (what_it_is) and 50 of 50 (shows_building).
+describe-4's what_it_is was right on 48 of 55 hand-checked hard rows. Price: 0.42 USD for the
+50, about 8.5 USD per 1,000. Thinking "minimal", temperature 0.2, the image as a JPEG (quality
+90) at most 2,048 px on its long side, the long text first in the schema so the form fields
+come after the model has looked.
 
 - Replies are cached on disk by the file's sha256, the prompt version and the model, as the
   prototype names them, so a file is paid for once. What is cached is the model's form as it
@@ -49,7 +54,7 @@ TEMPERATURE = 0.2
 MAX_SIDE = 2048
 JPEG_QUALITY = 90
 MAX_TOKENS = 4096
-PROMPT_VERSION = "describe-4"  # change it with PROMPT, SCHEMA or the image encoding
+PROMPT_VERSION = "describe-5"  # change it with PROMPT, SCHEMA or the image encoding
 MAX_VISIBLE, MAX_DETAIL, MAX_SEEN = 2000, 4000, 20  # Description's limits (0010 section 8)
 UNAVAILABLE = "the describer could not answer"
 
@@ -86,7 +91,11 @@ PROMPT = (
     "is one (type, storeys, roof, facade, materials, style); the drawing technique or the "
     "photo's conditions; what the text on it says, in short (title, place, date, scale, the "
     "firm or office that made it); and its condition (paper, stains, mount, a camera photo of a "
-    "sheet). Do not guess what is not visible: when unsure, say 'possibly' or 'unclear'.\n\n"
+    "sheet). Do not guess what is not visible: when unsure, say 'possibly' or 'unclear'. Give the "
+    "number of repeated things (bays, panels, windows, columns, clusters, sheets) only when you "
+    "can count every one of them; otherwise write 'several', 'many' or 'about N'. Give a date, "
+    "year or century only when it is printed on the sheet; a period you judge from the style is "
+    "said as such ('in an 18th-century style'), never as the date.\n\n"
     "text: 1 to 3 plain sentences that sum up detail.\n\n"
     "visible_text: every legible word, as printed (its own language and spelling), titles "
     "first, then the other text in reading order, line breaks kept (one line per line of text "

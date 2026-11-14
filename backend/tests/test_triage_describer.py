@@ -115,7 +115,7 @@ def test_a_reply_becomes_the_description_form(tmp_path: Path) -> None:
     assert found.visible_text == "VILLA ESIMERKKI\nETELÄJULKISIVU 1:50"
     assert found.text_seen == ("VILLA ESIMERKKI", "ETELÄJULKISIVU", "1:50")
     assert found.subject == "south elevation of a two-storey timber house"
-    assert found.model == "fake-flash-minimal, describe-4"
+    assert found.model == "fake-flash-minimal, describe-5"
     assert found.cost_usd == pytest.approx(USD)
 
 
@@ -145,7 +145,7 @@ def test_the_cache_name_holds_the_sha256_the_prompt_version_and_the_model(tmp_pa
 
     describe(FakeModel(answer(form())), tmp_path)
     [stored] = tmp_path.iterdir()
-    assert stored.name.startswith(hashlib.sha256(png()).hexdigest() + "-describe-4-")
+    assert stored.name.startswith(hashlib.sha256(png()).hexdigest() + "-describe-5-")
     assert stored.name.endswith("-fake-flash-minimal.json")
 
 
@@ -374,7 +374,7 @@ def test_triage_describer_gemini_builds_the_gemini_describer(tmp_path: Path) -> 
     assert off is not None and off.describer is None
 
 
-def test_the_prompt_is_describe_4_as_measured() -> None:
+def test_the_prompt_is_describe_5_as_measured() -> None:
     # The measured numbers hold only for this prompt and schema: a change needs a new version
-    assert gemini_describer.PROMPT_VERSION == "describe-4"
-    assert gemini_describer.PROMPT_SHA.startswith("29b9a883250f")  # describe.py, 2026-11-14
+    assert gemini_describer.PROMPT_VERSION == "describe-5"
+    assert gemini_describer.PROMPT_SHA.startswith("2000e9f20435")  # describe5.py, 2026-11-14
