@@ -192,7 +192,11 @@ def project_checks(
 ) -> ProjectChecks:
     """Every drawing of the project checked against the pack, in the project's drawing order.
     409 `not-allowed` until the project's ingest is done, as for the project's questions."""
-    chosen = pack_of(request, pack)
+    return checks_of(project_id, pack_of(request, pack), ingest)
+
+
+def checks_of(project_id: str, chosen: RulePack, ingest: Ingest) -> ProjectChecks:
+    """`project_checks` for a pack already found (the agent tools call it too)."""
     status = ingest.status(project_id)
     if status.state != "done":
         raise NotAllowedError(f"project {project_id} is {status.state}; check it when it is done")
