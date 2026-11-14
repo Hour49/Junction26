@@ -1,6 +1,7 @@
 """Drawing groups read at once (INGEST_GROUPS_IN_FLIGHT, groups.py), and the cap on Carbon calls in
 flight (carbon/reader.py). Overlap is shown with barriers, never with sleeps or timings."""
 
+import contextlib
 import io
 import threading
 import urllib.request
@@ -16,12 +17,14 @@ from test_ingest_carbon import FakeCarbon, carbon_settings, page_form, page_imag
 from app.adapters.archive import FileProbe
 from app.adapters.carbon import reader as carbon
 from app.adapters.one_at_a_time import OneAtATime
+from app.adapters.raster_ocr.gemini import GeminiError
 from app.composition import build_pipeline
 from app.core import cost
 from app.core.drawing.model import Scale
 from app.core.ingest import groups
 from app.core.ingest.model import Probed
 from app.core.pipeline.model import DrawingFile, DrawingGroup, Extracted, Sheet
+from app.core.spend import SpendGuard
 from scripts.make_sample_archive import png_bytes, raster_plan
 
 
@@ -231,6 +234,37 @@ def test_one_read_asks_its_workers_calls_at_once(
     assert pools == [carbon.WORKERS if workers is None else workers]
 
 
+def test_a_call_queued_behind_the_cap_checks_the_budget_when_its_turn_comes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """More callers than the cap and a budget of one call: once the first calls are charged, the
+    ones still waiting for a slot are refused, so at most the cap's worth are sent (review-422
+    Must 1: checked before the wait, all 12 were sent)."""
+    sent = [0]
+    lock = threading.Lock()
+
+    def urlopen(request: object, timeout: float) -> Response:
+        with lock:
+            sent[0] += 1
+        threading.Event().wait(0.1)  # the others queue behind the cap meanwhile
+        return Response(b'{"usageMetadata": {"promptTokenCount": 1000000}}')
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    one_call = carbon.contract.price({"promptTokenCount": 1000000})
+    client = carbon.CarbonClient("key", timeout_s=5, budget=SpendGuard(one_call), in_flight=3)
+
+    def call() -> None:
+        with contextlib.suppress(GeminiError):  # refused: the budget is used up
+            client.generate(b"", "p", {}, 10)
+
+    callers = [threading.Thread(target=call) for _ in range(12)]
+    for caller in callers:
+        caller.start()
+    for caller in callers:
+        caller.join(10)
+    assert 1 <= sent[0] <= 3
+
+
 class Inside:
     """A local reader that counts how many reads are inside it at once."""
 
@@ -243,9 +277,11 @@ class Inside:
             self.inside += 1
             self.most = max(self.most, self.inside)
             self.changed.notify_all()
-        assert self.go.wait(10)
-        with self.changed:
-            self.inside -= 1
+        try:  # a reader that times out still leaves, so a leak can't fake the count (review-422)
+            assert self.go.wait(10)
+        finally:
+            with self.changed:
+                self.inside -= 1
         return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
 
 

@@ -94,8 +94,6 @@ class CarbonClient:
     def generate(
         self, jpeg: bytes, prompt: str, schema: dict[str, Any], max_tokens: int
     ) -> dict[str, Any]:
-        if self._budget is not None and (refused := self._budget.exhausted()):
-            raise GeminiError(refused)
         body = contract.request_body(base64.b64encode(jpeg).decode(), prompt, schema, max_tokens)
         request = urllib.request.Request(
             f"{URL}/{contract.MODEL}:generateContent",
@@ -103,11 +101,11 @@ class CarbonClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with (
-                self._in_flight,
-                urllib.request.urlopen(request, timeout=self._timeout) as response,
-            ):
-                answer = json.load(response)
+            with self._in_flight:  # the budget is checked when it is this call's turn (review-422)
+                if self._budget is not None and (refused := self._budget.exhausted()):
+                    raise GeminiError(refused)
+                with urllib.request.urlopen(request, timeout=self._timeout) as response:
+                    answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
         except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets

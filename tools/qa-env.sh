@@ -60,8 +60,8 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   SERVICES_FOLLOW=on  # services-on: an IFC project's plumbing/ventilation/heating files are followed and the chat gets the services tools (#397); the deploy builds the DigitalHub cache first
   INGEST_GROUPS_IN_FLIGHT=10  # ingest-60s: 10 cold files 273 s -> 88 s, cgroup peak 7.3 GB
   INGEST_LOCAL_IN_FLIGHT=1  # 2 is about 20% faster on cached replies but peaked at 9.4 GB once, over MEMORY
-  CARBON_CALLS_IN_FLIGHT=48  # the process cap: 107 calls waited 5.4 s in all at 48 (1489 s at 8), 0 429s
-  CARBON_READ_WORKERS=24  # one sheet's tile calls at once (us_daf has about 70)
+  CARBON_CALLS_IN_FLIGHT=48  # the process cap: 107 calls waited 5.4 s in all at 48 (1489 s at 8), 0 429s; up to 48 may run past GEMINI_BUDGET_USD
+  CARBON_READ_WORKERS=12  # one read's tile calls at once (at most 20); at 2 local slots 24 peaked at 9.4 GB, 12 at 7.3 (review-422)
   MALLOC_ARENA_MAX=2)  # glibc arenas: peak 9.6 -> 6.7 GB on the same replay, and no slower (33.1 vs 36.5 s)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
