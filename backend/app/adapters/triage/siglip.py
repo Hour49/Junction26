@@ -27,13 +27,14 @@ import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 import numpy as np
 import pypdfium2
 from numpy.typing import NDArray
 from PIL import Image
 
+from app.adapters.eight_bit import eight_bit
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.errors import InvalidInputError, NotFoundError
 from app.core.ingest.model import Classified, Probed, Unavailable
@@ -42,7 +43,6 @@ MODEL_DIR = Path(__file__).resolve().parents[4] / "data" / "models" / "triage" /
 THREADS = 4
 FIELDS = ("kind", "scale_shown", "quality")
 Vector = NDArray[np.float32]
-WIDE = ("I;16", "I;16L", "I;16B", "I;16N", "I")  # 16-bit (or 32-bit) greyscale
 SIDE = 1024  # training's long side (prototypes/triage/shrink.py)
 GAP = 2.0  # Pillow thumbnail's reducing_gap: box-reduce by int(size / target / 2) first
 STRIP = 256  # rows put on white at a time
@@ -106,16 +106,9 @@ def _decoded(data: bytes) -> Image.Image:
     return image
 
 
-def _eight_bit(image: Image.Image) -> Image.Image:
-    """16-bit greyscale as 8-bit L (0-65535 -> 0-255); Pillow's convert would clip it at 255."""
-    wide = cast(NDArray[np.int64], np.asarray(image))
-    return Image.fromarray(np.clip(wide >> 8, 0, 255).astype(np.uint8))
-
-
 def _on_white(strip: Image.Image) -> Image.Image:
     """A strip of the decoded image as 8-bit RGB, transparency on white (as training did)."""
-    if strip.mode in WIDE:
-        return _eight_bit(strip).convert("RGB")
+    strip = eight_bit(strip)  # 16-bit greyscale: Pillow's convert would clip it to white
     if strip.mode in ("RGBA", "LA", "P"):
         strip = strip.convert("RGBA")
         white = Image.new("RGBA", strip.size, (255, 255, 255, 255))
