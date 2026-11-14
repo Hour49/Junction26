@@ -25,7 +25,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 TAG = re.compile(r"<[^>]+>")
-SAMPLE = "Synthetic drawing made by code (backend/scripts/make_sample_archive.py); no partner data"
+SAMPLE = "Synthetic drawing made for this demo by the Hour49 team; no partner data"
 ALL_FILES = "All files: "
 
 

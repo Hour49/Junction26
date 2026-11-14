@@ -79,7 +79,9 @@ def test_demo_path_sample_archive_to_an_answer_with_evidence_then_review_and_res
         drawing_id = plan["drawing_id"]
 
         drawing = client.get(f"/api/drawings/{drawing_id}").json()
-        assert drawing["credit"] == SAMPLE  # drawn by code: no partner data, and it says so
+        # drawn by code: no partner data, and it says so in plain words (no repo path on screen)
+        assert drawing["credit"] == SAMPLE
+        assert SAMPLE == "Synthetic drawing made for this demo by the Hour49 team; no partner data"
         assert any("door" in item["question"].lower() for item in drawing["suggestions"])
 
         answer = client.post(

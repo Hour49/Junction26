@@ -21,5 +21,4 @@ per entry; an entry goes when its fix is merged.
 - "Try the sample project" always starts from scratch (`fresh=true`): it resets the last sample's review edits and
   sign-offs.
 - The answer's model score is never shown as a probability or percent; with no keys there is none.
-- "Credit: none recorded for this file" on the synthetic sample: it has no licence credit (it is ours).
 - The sign-off name is what the surveyor types; there is no login (decision 0001).
