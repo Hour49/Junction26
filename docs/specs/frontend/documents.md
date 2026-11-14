@@ -25,7 +25,7 @@ drawings, then every file that came in, each opening its file page. The header b
 | `src/documents/documents.ts` (new) | pure: `documentIssues`, `isAnswerable`, `needsYou`, `pillOf`, `issueSource`, `localAnswers` (read/write) |
 | `src/documents/documents.css` (new) | demo look through `--v-*` tokens |
 | `src/issues/issues.ts` | kept: `KIND_LABEL`, `SEVERITY_LABEL`, `STATE_LABEL`, `kindOf`, `placeOf`, `routeOf`; `numbered`, `filterIssues`, `issueMarks`, `issueTones` lose their callers |
-| `src/issues/IssuesScreen.tsx`, `IssueList.tsx`, `IssuePlan.tsx`, `issues.css` | deleted once Documents lands (fe-shared moves `#/p/<pid>/issues` to Ingest) |
+| `src/issues/IssuesScreen.tsx`, `IssueList.tsx`, `IssuePlan.tsx`, `issues.css` | deleted with their tests (2026-11-14, after fe-shared's 31dd5ee wired Documents); `#/p/<pid>/issues` lands on Ingest |
 
 Uses, does not own: `SourceFigure` and `SourcePreview` (fe-viewer, `viewer.md`); `getProject`, `getIssues`,
 `postRelevance`, `previewUrl`, `pageUrl`, `issuesZipUrl` and the plain drawing-name helper (fe-shared); `usePoll`,
@@ -60,7 +60,9 @@ not edited).
      with "Cancel"). **Client-side until API ask 1 lands**: kept in fe-shared's in-memory answer store
      (`setAnswer` / `answerOf` / `useIssueAnswers`, `src/shell/issueAnswers.ts`, keyed by project and `Issue.id`),
      so a reload forgets it; the card says "Kept in this tab only: the server does not save answers yet." under
-     the answer (frontend-orch, GO 17:00).
+     the answer (frontend-orch, GO 17:00). **Typed answers are lost on reload** (and in another tab or browser):
+     the badge and the "need your answer" line then count those issues again (fe-shared's note, shared.md
+     "Answers store"). Only the `unrelated_file` call survives a reload: the API saves it.
 5. **Drawings**: one card each (`drawings[]`): the drawing's plain name (fe-shared's helper, else `file`), kind,
    `routeLabel`, "Open" → the workspace (`#/p/<pid>/d/<drawing_id>/engineer`). While running, only the drawings
    listed so far; "No drawing ready yet." with none.
