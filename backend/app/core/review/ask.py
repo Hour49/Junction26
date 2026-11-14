@@ -22,6 +22,8 @@ from app.core.answering.answer import (
 )
 from app.core.answering.model import (
     IN_ONE_ROOM,
+    NO_SUBJECT,
+    SEVERAL_ROOMS,
     SEVERAL_THINGS,
     Answer,
     Query,
@@ -74,9 +76,8 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
-# Parser reasons (question_templates.py) for a supported kind of question about a subject it
-# didn't recognise, or one without that quantity ("no area is taken off for door")
-NO_SUBJECT = "no element, room or apartment named"
+# Parser reason (question_templates.py) for a supported kind of question without that quantity
+# ("no area is taken off for door"); NO_SUBJECT (answering/model.py): a subject it didn't recognise
 NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
 # Plurals plain English rules don't give (a kind's id is not always the word a person uses)
 PLURALS = {"living": "living rooms"}
@@ -102,6 +103,8 @@ PARTS = {  # an unsupported count that would drop part of the question: which pa
     "the whole drawing. Ask for each one on its own; try one of these.",
     IN_ONE_ROOM: "This question counts what is inside one room, and I count across the whole "
     "drawing. Try one of these instead.",
+    SEVERAL_ROOMS: "This question names more than one room, and I give one room's area or length "
+    "at a time. Ask for each room on its own.",
 }
 
 
