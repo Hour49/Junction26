@@ -487,3 +487,10 @@ def test_takeoff_of_stated_totals_gives_only_those_without_marks() -> None:
 def test_known_quantities_runs_rules_then_takeoff() -> None:
     drawing = a_drawing(two_doors())
     assert known_quantities(drawing) == take_off(drawing, apply_rules(drawing.marks_by_quantity()))
+
+
+def test_no_conflict_rule_names_the_dataset_or_challenge_partner() -> None:
+    """R1-2-3: an answer read "Kept 12: count what the sheet draws (our rule, not Stoa's)"; the
+    rule's text is what the user reads after "Kept <value>:"."""
+    for rule in RULES.values():
+        assert "stoa" not in rule.text.lower(), rule.text

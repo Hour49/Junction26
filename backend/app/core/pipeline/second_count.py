@@ -55,7 +55,7 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
         "scale_bar", "the measured scale bar over the scale text"
     ),
     ("element_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
-        "plan_drawing", "count what the sheet draws (our rule, not Stoa's)"
+        "plan_drawing", "count what the sheet draws"
     ),
     ("room_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
         "ifc_model", "keep the spaces of the sheet's storey"
