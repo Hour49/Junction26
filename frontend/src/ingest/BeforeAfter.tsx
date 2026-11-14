@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { pageUrl, previewUrl, type Normalised } from '../api';
 import { normalisedSteps } from './ingest';
+import { PANEL } from './ui';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 function Picture({ src, alt, missing }: { src: string; alt: string; missing: string }) {
   const [broken, setBroken] = useState(false);
-  if (broken) return <p className="ingest-missing">{missing}</p>;
+  if (broken) return <p>{missing}</p>;
   return (
     <img
+      className="block h-auto max-w-full rounded-xl border border-border"
       src={src}
       alt={alt}
       onError={() => {
@@ -32,8 +36,8 @@ export function BeforeAfter({
 }) {
   const steps = normalisedSteps(normalised);
   return (
-    <section aria-label="Before and after" className="v-card ingest-before-after">
-      <div className="ingest-pair">
+    <Card role="region" aria-label="Before and after" className={cn(PANEL, 'block')}>
+      <div className="grid grid-cols-2 gap-4 max-[720px]:grid-cols-1 [&_figcaption]:mt-1.5 [&_figcaption]:text-[13px] [&_figcaption]:text-muted-foreground [&_figure]:m-0">
         <figure>
           <Picture
             src={previewUrl(projectId, fileId)}
@@ -62,6 +66,6 @@ export function BeforeAfter({
           {normalised.width} × {normalised.height} px
         </li>
       </ul>
-    </section>
+    </Card>
   );
 }
