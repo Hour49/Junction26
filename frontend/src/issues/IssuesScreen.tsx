@@ -30,13 +30,14 @@ const once = () => false;
 const NO_FILTER = { kind: '', state: '' };
 
 /** Route `#/p/<pid>/issues` (issues.md): every place that needs a look, located, with the export. */
-export function IssuesScreen({
-  projectId,
-  pack = null,
-}: {
-  projectId: string;
-  pack?: string | null;
-}) {
+export function IssuesScreen(props: { projectId: string; pack?: string | null }) {
+  // a new country starts afresh: no old list (and Export) while it loads or after it fails (IS-21)
+  return (
+    <IssuesView key={props.pack ?? ''} projectId={props.projectId} pack={props.pack ?? null} />
+  );
+}
+
+function IssuesView({ projectId, pack }: { projectId: string; pack: string | null }) {
   const load = useCallback(
     (signal: AbortSignal) => getIssues(projectId, { signal, pack: pack ?? undefined }),
     [projectId, pack],
@@ -44,11 +45,10 @@ export function IssuesScreen({
   const { data, error, retry } = usePoll(load, once);
   const { info } = useInfo();
   const note = pack ? rulePacksOf(info).find((p) => p.id === pack)?.note : null;
-  const [filter, setFilter] = useState({ ...NO_FILTER, pack });
+  const [filter, setFilter] = useState(NO_FILTER);
   const [picked, setPicked] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<Record<string, DrawingView | 'error'>>({});
   const asked = useRef(new Set<string>());
-  if (filter.pack !== pack) setFilter({ ...NO_FILTER, pack }); // a new country: filters reset
 
   const rows = numbered(data?.issues ?? []);
   const selected =
@@ -203,7 +203,7 @@ export function IssuesScreen({
                   type="button"
                   className="v-btn v-btn--secondary v-press"
                   onClick={() => {
-                    setFilter({ ...NO_FILTER, pack });
+                    setFilter(NO_FILTER);
                   }}
                 >
                   Show all

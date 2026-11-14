@@ -1,4 +1,6 @@
+import { rulePacksOf } from '../api';
 import { CountryPicker } from './CountryPicker';
+import { useInfo } from './info';
 import { ProjectPicker } from './ProjectPicker';
 import { packOf, routeHref, withPack, type Route } from './route';
 import { PRODUCT_NAME } from './strings';
@@ -10,7 +12,7 @@ interface ViewLink {
   current: boolean;
 }
 
-function viewLinks(route: Route): ViewLink[] {
+function viewLinks(route: Route, packs: readonly string[]): ViewLink[] {
   if (!('projectId' in route)) return [];
   const pid = route.projectId;
   const pack = packOf(route);
@@ -19,12 +21,12 @@ function viewLinks(route: Route): ViewLink[] {
     href: withPack(`#/p/${pid}${path}`, pack),
     current,
   });
-  // shared.md "Header tabs": Checks only with a pack (or on its own route); Surveyor only on drawing routes. No
-  // Engineer tab (Tudor 12:46): the engineer route is reached from the chat's and the drawings' links.
+  // shared.md "Header tabs": Checks only with a pack info lists (or on its own route); Surveyor only on drawing
+  // routes. No Engineer tab (Tudor 12:46): the engineer route is reached from the chat's and the drawings' links.
   const links = [
     tab('Ingest', '', route.name === 'project' || route.name === 'file'),
     tab('Conflicts', '/conflicts', route.name === 'conflicts'),
-    ...(pack !== null || route.name === 'checks'
+    ...((pack !== null && packs.includes(pack)) || route.name === 'checks'
       ? [tab('Checks', '/checks', route.name === 'checks')]
       : []),
     tab('Issues', '/issues', route.name === 'issues'),
@@ -45,7 +47,11 @@ function viewLinks(route: Route): ViewLink[] {
 export const isWide = (route: Route) => route.name === 'account' || route.name === 'workspace';
 
 export function Header({ route }: { route: Route }) {
-  const links = viewLinks(route);
+  const { info } = useInfo();
+  const links = viewLinks(
+    route,
+    rulePacksOf(info).map((p) => p.id),
+  );
   const wide = isWide(route);
   return (
     <header className="app-header">
