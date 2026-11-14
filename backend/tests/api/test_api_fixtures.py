@@ -17,7 +17,7 @@ from app.api.ask import AnswerView, AskRequest
 from app.api.checks import DrawingChecks, ProjectChecks
 from app.api.drawings import DrawingView
 from app.api.info import Info
-from app.api.issues import ProjectIssues
+from app.api.issues import AnswerRequest, Issue, ProjectIssues
 from app.api.project_ask import ProjectAnswer
 from app.api.projects import (
     ProjectList,
@@ -76,6 +76,8 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "checks": DrawingChecks,
     "project_checks": ProjectChecks,
     "project_issues_checks": ProjectIssues,
+    "issue_answer_request": AnswerRequest,
+    "issue_answered": Issue,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 
