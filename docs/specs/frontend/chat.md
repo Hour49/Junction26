@@ -216,7 +216,8 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   `level.text`; nothing when both are missing. Plain text like a refusal's reason (`.en-why`, full row width).
   [component, `answer_double_check.json` (check), `answer_certified.json` (level only), `answer.json` (none)]
 - CH-44 (judge path) An estimated value (`quantity.estimate` set, a number) adds "about <rounded value> <unit>,
-  <estimate>" under the row's value (`.en-estimate`, `estimateLine`, shared with EN-88). [component]
+  <estimate>" under the row's value (`.en-estimate`, `estimateLine`, shared with EN-88); a count shows the estimate
+  sentence alone as a caveat, no "about" (EN-88). [component]
 - CH-45 (judge path) One name per drawing: rows, figure title, references and "Show it on" use `drawingLabel(d)`
   (CH-40/41 already); the engineer page uses the same name (EN-87). [component]
 

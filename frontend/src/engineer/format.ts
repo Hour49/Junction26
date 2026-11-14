@@ -71,10 +71,12 @@ export function gradeOf(a: { level?: AnswerView['level'] }): Grade | null {
 /** `ProjectAnswer.total_level` in words (CH-42). */
 export const levelWord = (level: keyof typeof LEVEL_WORD): Grade => LEVEL_WORD[level];
 
-/** EN-88/CH-44: "about 180 m², <why the value is an estimate>" for a number with `quantity.estimate`, else null. */
+/** EN-88/CH-44: "about 180 m², <why the value is an estimate>" for a number with `quantity.estimate`, else null;
+ * a count is counted, not estimated: the reason alone, as a caveat. */
 export function estimateLine(a: AnswerView): string | null {
   const why = a.quantity?.estimate;
   if (!why || typeof a.answer !== 'number') return null;
+  if (a.unit === 'count') return why.charAt(0).toUpperCase() + why.slice(1);
   // a whole number: formatValue's two decimals would claim a precision the estimate has not
   return `about ${formatValue(Math.round(a.answer), a.unit).replace(/\.00 /, ' ')}, ${why}`;
 }

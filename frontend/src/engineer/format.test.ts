@@ -23,7 +23,7 @@ describe('engineer format', () => {
   });
 });
 
-it('EN-88 estimateLine: rounded value, unit and the API sentence; null without an estimate', () => {
+it('EN-88 estimateLine: rounded value, unit and the API sentence; a count gets the caveat alone; null without an estimate', () => {
   const q = answerArea.quantity as NonNullable<typeof answerArea.quantity>;
   const est = {
     ...answerArea,
@@ -31,9 +31,15 @@ it('EN-88 estimateLine: rounded value, unit and the API sentence; null without a
     quantity: { ...q, estimate: 'the scale estimated from the doors' },
   };
   expect(estimateLine(est)).toBe('about 180 m², the scale estimated from the doors');
-  expect(estimateLine({ ...est, answer: 12.4, unit: 'count' })).toBe(
-    'about 12, the scale estimated from the doors',
-  );
+  // a count is counted, not estimated: the caveat alone, no "about", no number repeated
+  expect(
+    estimateLine({
+      ...est,
+      answer: 12,
+      unit: 'count',
+      quantity: { ...q, estimate: 'read from a page flagged at upload: x' },
+    }),
+  ).toBe('Read from a page flagged at upload: x');
   expect(estimateLine(answerArea)).toBeNull();
   expect(estimateLine(answer)).toBeNull();
 });

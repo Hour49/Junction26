@@ -494,7 +494,7 @@ Thread and pages
   counting rule from the answer sentence ("There are 2 doors." only): the whole page is in doubt, so the generic
   "Every element, room and plan the drawing lists counts once." says nothing. Other answers keep it. [component]
 - EN-86 (judge path) At 390x844 the value, the double-check pill and its reason are above the fold: the value row,
-  the estimate line (EN-88) and DoubleCheck sit in `.en-head`, a grid area of their own: right column top on
+  the estimate or caveat line (EN-88) and DoubleCheck sit in `.en-head`, a grid area of their own: right column top on
   desktop (look unchanged), first in the card on phones (before the plan); the rest of the side column follows the
   plan. [component on the DOM order; browser 390x844: double-check reason bottom y < 844]
 - EN-87 (judge path) One name per drawing: the page's title, ask box placeholder ("Ask about <name>"), pending line
@@ -502,7 +502,9 @@ Thread and pages
   name), the file name until the project loads. References keep the file path (files are files, #224). [component]
 - EN-88 (judge path) `quantity.estimate` set on a number answer: "about <rounded value> <unit>, <estimate>" under
   the value (`.en-estimate`, `estimateLine(a)` in format.ts; whole numbers, the estimate sentence as the API
-  writes it). None otherwise. [unit + component]
+  writes it). A count (`unit` `count`) is counted, not estimated: the line is the estimate sentence alone as a
+  caveat, first letter capitalised, no "about" and no number (the value above already shows it). None otherwise.
+  [unit + component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
