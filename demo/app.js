@@ -1043,7 +1043,16 @@ const H3 = { wall: 1.5, sill: 0.6, head: 1.3, door: 1.3 };
 const FX_H = { wc: 0.45, shower: 0.12, sink: 0.85, basin: 0.85, bath: 0.55 };
 function faces3D(m, added) {
   const F = [], col = (id, base) => (added.has(id) ? '#8d75ea' : base);
-  const quad = (pts, c, alpha, floor) => F.push({ p: pts, c, a: alpha || 1, floor: !!floor });
+  const quad = (pts, c, alpha, floor) => {
+    if (floor) return F.push({ p: pts, c, a: alpha || 1, floor: true });
+    // split into tiles of at most 0.5 m so each tile's depth is local (long faces sort wrong in a painter's algorithm)
+    const [p0, p1, , p3] = pts, lerp = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t), dist = (a, b) => Math.hypot(...a.map((v, k) => v - b[k]));
+    const nu = Math.max(1, Math.ceil(dist(p0, p1) / 0.5)), nv = Math.max(1, Math.ceil(dist(p0, p3) / 0.5));
+    const at = (u, v) => lerp(lerp(p0, p1, u), lerp(p3, pts[2], u), v);
+    for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+      F.push({ p: [at(i / nu, j / nv), at((i + 1) / nu, j / nv), at((i + 1) / nu, (j + 1) / nv), at(i / nu, (j + 1) / nv)], c, a: alpha || 1, floor: false });
+    }
+  };
   const box = (x0, z0, x1, z1, y0, y1, c, alpha) => {
     quad([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], c, alpha);
     quad([[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]], c, alpha);
@@ -1056,7 +1065,10 @@ function faces3D(m, added) {
   for (const w of m.walls) {
     const hor = w.y1 === w.y2, t = (w.ext ? 0.25 : w.lb ? 0.2 : 0.14) / 2, c = col(w.id, w.lb ? '#b9b2d6' : '#d8d4e6'), top = w.low ? 0.5 : H3.wall;
     const a0 = Math.min(hor ? w.x1 : w.y1, hor ? w.x2 : w.y2), a1 = Math.max(hor ? w.x1 : w.y1, hor ? w.x2 : w.y2), k = hor ? w.y1 : w.x1;
-    const piece = (b0, b1, y0, y1, cc, al) => (hor ? box(b0, k - t, b1, k + t, y0, y1, cc, al) : box(k - t, b0, k + t, b1, y0, y1, cc, al));
+    const piece = (b0, b1, y0, y1, cc, al) => {
+      if (b0 === a0) b0 -= t; if (b1 === a1) b1 += t; // close the joint with the wall it meets
+      return hor ? box(b0, k - t, b1, k + t, y0, y1, cc, al) : box(k - t, b0, k + t, b1, y0, y1, cc, al);
+    };
     const ops = openings.filter((o) => (hor ? o.y1 === o.y2 && Math.abs(o.y1 - k) < 0.01 : o.x1 === o.x2 && Math.abs(o.x1 - k) < 0.01))
       .map((o) => ({ o, b0: Math.min(hor ? o.x1 : o.y1, hor ? o.x2 : o.y2), b1: Math.max(hor ? o.x1 : o.y1, hor ? o.x2 : o.y2) }))
       .filter((x) => x.b1 > a0 && x.b0 < a1).sort((p, q) => p.b0 - q.b0);
@@ -1099,13 +1111,18 @@ function draw3D(cv, m, added, pins) {
     const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], len = Math.hypot(...n) || 1;
     const lit = 0.7 + 0.3 * Math.abs((n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / len);
     return { pr, depth: pr.reduce((s2, p) => s2 + p[2], 0) / 4, fill: shade(q.c, lit), a: q.a, floor: q.floor };
-  }).sort((p, q) => q.floor - p.floor || q.depth - p.depth); // floors first: nothing is under them
+  });
+  // room labels sit on the floor: sorted with the walls so a nearer wall covers them
+  for (const r of m.rooms) { const pt = P([r.x + r.w / 2, 0.05, r.y + r.h / 2]); list.push({ label: r.name, pt, depth: pt[2] + 0.05, floor: false }); }
+  list.sort((p, q) => q.floor - p.floor || q.depth - p.depth); // floors first: nothing is under them
+  ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center';
   for (const q of list) {
+    if (q.label) { ctx.globalAlpha = 1; ctx.fillStyle = '#2b2840'; ctx.fillText(q.label, q.pt[0], q.pt[1]); continue; }
     ctx.globalAlpha = q.a; ctx.beginPath(); q.pr.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
-    ctx.fillStyle = q.fill; ctx.fill(); ctx.strokeStyle = 'rgba(47,33,112,0.25)'; ctx.lineWidth = 0.6; ctx.stroke();
+    ctx.fillStyle = q.fill; ctx.fill();
+    ctx.strokeStyle = q.floor ? 'rgba(47,33,112,0.25)' : q.fill; ctx.lineWidth = q.floor ? 0.6 : 0.5; ctx.stroke();
   }
-  ctx.globalAlpha = 1; ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#2b2840';
-  for (const r of m.rooms) { const [x, y] = P([r.x + r.w / 2, 0.05, r.y + r.h / 2]); ctx.fillText(r.name, x, y); }
+  ctx.globalAlpha = 1;
   // pins: a stem from the floor to a numbered disc, drawn far to near so near pins stay on top
   (pins || []).map((pn) => ({ pn, base: P([pn.x, 0, pn.z]), head: P([pn.x, 2.2, pn.z]) })).sort((a, b) => b.head[2] - a.head[2]).forEach(({ pn, base, head }) => {
     ctx.strokeStyle = pn.c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(base[0], base[1]); ctx.lineTo(head[0], head[1]); ctx.stroke();
@@ -1123,10 +1140,21 @@ function planModel3D(p) {
     edge(r.x, r.y, r.x + r.w, r.y, low); edge(r.x, r.y + r.h, r.x + r.w, r.y + r.h, low);
     edge(r.x, r.y, r.x, r.y + r.h, low); edge(r.x + r.w, r.y, r.x + r.w, r.y + r.h, low);
   }
+  // merge collinear edges that overlap or touch into one wall; a merged wall is low only if all its parts are
+  const lines = new Map();
+  for (const w of walls.values()) { const hor = w.y1 === w.y2, key = (hor ? 'h' : 'v') + (hor ? w.y1 : w.x1).toFixed(2); (lines.get(key) || lines.set(key, []).get(key)).push(w); }
+  const merged = [];
+  for (const [key, ws] of lines) {
+    const hor = key[0] === 'h', iv = ws.map((w) => [Math.min(hor ? w.x1 : w.y1, hor ? w.x2 : w.y2), Math.max(hor ? w.x1 : w.y1, hor ? w.x2 : w.y2), w.low]).sort((a, b) => a[0] - b[0]);
+    for (const [b0, b1, low] of iv) {
+      const last = merged.length && merged[merged.length - 1];
+      if (last && last.key === key && b0 <= last.b1 + 0.001) { last.b1 = Math.max(last.b1, b1); last.low = last.low && low; } else merged.push({ key, hor, k: +key.slice(1), b0, b1, low });
+    }
+  }
   const op = (o, len) => (o.wall === 'v' ? { id: o.id, x1: o.x, y1: o.y - len / 2, x2: o.x, y2: o.y + len / 2 } : { id: o.id, x1: o.x - len / 2, y1: o.y, x2: o.x + len / 2, y2: o.y });
   p.m3 = {
     rooms: p.rooms.map((r) => ({ id: r.id, name: r.name, x: r.x, y: r.y, w: r.w, h: r.h, out: r.kind === 'out', wet: /bath|wc|kh/i.test(r.name) })),
-    walls: [...walls.values()],
+    walls: merged.map((w, i) => (w.hor ? { id: 'w' + i, x1: w.b0, y1: w.k, x2: w.b1, y2: w.k, low: w.low } : { id: 'w' + i, x1: w.k, y1: w.b0, x2: w.k, y2: w.b1, low: w.low })),
     wins: p.windows.map((w) => op(w, w.len || 1.4)),
     doors: p.doors.map((d) => op(d, d.double ? 1.5 : d.small ? 0.7 : 0.9)),
     fx: p.fixtures.map((f) => ({ id: f.id, t: f.type, x: f.x, y: f.y, rot: f.rot })),
