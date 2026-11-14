@@ -7000,6 +7000,10 @@
             ],
             "title": "At"
           },
+          "global_id": {
+            "title": "Global Id",
+            "type": "string"
+          },
           "kind": {
             "title": "Kind",
             "type": "string"
@@ -7033,6 +7037,7 @@
         },
         "required": [
           "ref",
+          "global_id",
           "kind",
           "label"
         ],

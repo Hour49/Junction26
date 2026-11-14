@@ -2875,6 +2875,8 @@ export interface components {
                 number,
                 number
             ] | null;
+            /** Global Id */
+            global_id: string;
             /** Kind */
             kind: string;
             /** Label */

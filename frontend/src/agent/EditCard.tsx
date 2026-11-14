@@ -14,6 +14,7 @@ import {
   type Proposal,
 } from './agent';
 import { LawSection } from './LawSection';
+import { useServiceTabs } from './multi/ServiceTabs';
 
 type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
@@ -137,6 +138,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
   }, [hot]);
   const [load, setLoad] = useState<PageLoad>({ state: 'loading' });
   const [after, setAfter] = useState(true);
+  const services = useServiceTabs(p.services, after); // a tab per discipline (services-follow.md)
   const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
   const box = useRef<HTMLDivElement>(null);
   const extent = extentOf(p);
@@ -185,6 +187,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
           </pattern>
         </defs>
       </svg>
+      {services?.tabs}
       <div className="v-segmented ag-toggle" role="group" aria-label="Show the plan">
         <button
           type="button"
@@ -222,6 +225,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
             page={p.page}
           >
             {after && <Overlay p={p} hatch={hatch} />}
+            {services?.layer}
             {hot && (
               <svg
                 className="vw-overlay ag-overlay"
@@ -253,6 +257,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
           <Swatch kind="room" hatch={hatch} /> Changed room (hatched)
         </span>
       </figcaption>
+      {services?.panel}
     </figure>
   );
 }

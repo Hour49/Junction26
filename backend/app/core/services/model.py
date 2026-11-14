@@ -137,6 +137,7 @@ class ServiceMark(Frozen):
     its point. Page fractions."""
 
     ref: str  # P12, V3, H7, E1: the lane's letter and a number, stable within one follow-up
+    global_id: str  # the element's IFC GlobalId in the lane's model (`source`), for a 3D view
     kind: str  # plain: "pipe", "duct", "radiator", "toilet"
     label: str
     line: Path = ()

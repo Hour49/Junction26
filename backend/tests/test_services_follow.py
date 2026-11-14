@@ -320,6 +320,8 @@ def test_sf12_marks_are_what_is_near_the_edit_in_page_fractions_and_actions_poin
     assert by_kind["duct"].line == ((0.2, 0.15), (0.4, 0.15)) and by_kind["duct"].at is None
     assert by_kind["radiator"].at == (0.5, 0.28) and by_kind["radiator"].line == ()
     assert all(mark.ref.startswith("H") for mark in found.marks)
+    # Each mark carries its element's GlobalId, so a 3D view can find the same element.
+    assert by_kind["duct"].global_id == "near" and by_kind["radiator"].global_id == "rad"
     through = next(a for a in found.actions if a.code == "through")
     assert through.refs == (by_kind["duct"].ref,)
 

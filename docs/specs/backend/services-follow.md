@@ -113,7 +113,7 @@ type DisciplineFollow = {
   elements: number                     // of the model between the storey's heights
   line: string                         // the lane in one sentence, server-written
   summary: { follows: number, stays: number, needs_decision: number, cut_off: number, new_run_m: number }
-  marks: { ref: string, kind: string, label: string, line: [number, number][], at: [number, number] | null }[]
+  marks: { ref: string, global_id: string, kind: string, label: string, line: [number, number][], at: [number, number] | null }[]
   actions: {
     id: string
     status: "follows" | "stays" | "needs_decision" | "cut_off"

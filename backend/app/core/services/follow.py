@@ -772,6 +772,7 @@ def _marks(
         marks.append(
             ServiceMark(
                 ref=refs[element.guid],
+                global_id=element.guid,
                 kind=word,
                 label=", ".join(filter(None, (word, element.size, *element.systems))),
                 line=line,
