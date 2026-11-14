@@ -16,7 +16,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from typing import Protocol
 
-from app.core.answering.model import Answer, Question
+from app.core.answering.model import Answer, Evidence, Question
 from app.core.discipline import SYSTEM_DISCIPLINE
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
@@ -47,14 +47,17 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
     """The answer the facts give, or None when the rules can't read the question or the facts
     hold nothing for it."""
     query = parse_ifc_question(question.text)
-    text = None if query is None else fact_text(query, sheet)
+    facts = _Facts(sheet.facts)
+    text = None if query is None else _fact_text(query, facts)
     if text is None:
         return None
+    # the marks of what the text was written from: a picture's spots; a model's facts have none
+    seen = {(s.page, s.box): s for fact in facts.read for s in fact.spots}
     return Answer(
         id=question.id,
         answer=text,
         unit=None,
-        evidence=(),
+        evidence=tuple(Evidence(file=question.file, page=p, box=b) for p, b in seen),
         method=FACTS,
         cost_usd=0.0,
         latency_s=latency_s,
@@ -63,7 +66,10 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
 
 
 def fact_text(query: FactQuery, sheet: FactSheet) -> str | None:
-    facts = _Facts(sheet.facts)
+    return _fact_text(query, _Facts(sheet.facts))
+
+
+def _fact_text(query: FactQuery, facts: "_Facts") -> str | None:
     if query.aggregate == "unavailable":
         return f"{UNAVAILABLE}: a building file does not record it."
     storey = None if query.storey is None else _storey_of(query.storey, facts)
@@ -127,6 +133,7 @@ class _Facts:
         self.by_topic: dict[str, list[Fact]] = defaultdict(list)
         for fact in facts:
             self.by_topic[fact.topic].append(fact)
+        self.read: list[Fact] = []  # every fact handed out, in order: the answer's evidence
 
     def get(
         self,
@@ -138,13 +145,15 @@ class _Facts:
         """Facts of `topic` (of `subject`), of the whole building or, with `storey`, of that
         storey; with `anywhere`, of any storey. A system's own facts (`system` set) are left
         out: they are asked for by system."""
-        return [
+        found = [
             fact
             for fact in self.by_topic.get(topic, ())
             if (subject is None or fact.subject == subject)
             and (anywhere or fact.storey == storey)
             and fact.system is None
         ]
+        self.read += found
+        return found
 
     def one(self, topic: str, subject: str, storey: str | None = None) -> Fact | None:
         found = self.get(topic, subject, storey)

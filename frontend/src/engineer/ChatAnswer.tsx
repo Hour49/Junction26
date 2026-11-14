@@ -11,6 +11,19 @@ import { canShow3d } from '../model3d/model3d';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+/** K7: what a refused drawing lacks, by refusal code (the backend's LACKS, singular). */
+const LACKS: Record<
+  NonNullable<ProjectAnswer['parts'][number]['answer']['refusal']>['code'],
+  string
+> = {
+  'no-reader': 'gives no reliable number for it',
+  'no-scale': 'has no scale',
+  'not-in-drawing': "doesn't show it",
+  'not-read': "wasn't read for it",
+  'unsupported-question': "can't answer this question",
+  'no-drawing': 'has no drawing model',
+};
+
 /** "<Level> confidence" (CH-42), the backend's sentence as its tooltip (the shared Tip) when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
   <TipIf text={text}>
@@ -28,6 +41,8 @@ export function ChatAnswer(props: {
 }) {
   const { ask, project, projectId } = props;
   const parts = orderParts(ask.parts, project.files);
+  // K7: the drawings that refused, named with what each lacks (orderParts keeps only the answering ones)
+  const refused = ask.parts.filter((p) => p.answer.refusal !== null);
   // The reference shown: the first with a page; a building model (no page) shows "No preview" when chosen.
   const [at, setAt] = useState(() =>
     Math.max(
@@ -210,6 +225,19 @@ export function ChatAnswer(props: {
           </div>
         </figure>
       </div>
+      {refused.length > 0 && (
+        <p className="en-refused" data-testid="refused-drawings">
+          Not used:{' '}
+          {refused.map((p, n) => (
+            <span key={p.drawing_id}>
+              {n > 0 && '; '}
+              <span className="en-part-name">{labelOf(p)}</span>{' '}
+              {p.answer.refusal ? LACKS[p.answer.refusal.code] : ''}
+            </span>
+          ))}
+          .
+        </p>
+      )}
       {model?.model_file_id && (
         <ModelDialog
           projectId={projectId}

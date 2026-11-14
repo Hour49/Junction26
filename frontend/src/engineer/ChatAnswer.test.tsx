@@ -123,6 +123,15 @@ it('CH-31 the lead: why_no_total without a total, never the refused drawings; a 
   expect(document.body.textContent).not.toContain('no reader');
 });
 
+it('K7 the drawings that refused are named with what each lacks, under the card', () => {
+  show();
+  const line = screen.getByTestId('refused-drawings');
+  expect(line.textContent).toBe('Not used: ground-floor.png gives no reliable number for it.');
+  cleanup();
+  show({ ...projectAsk, parts: projectAsk.parts.slice(0, 2) });
+  expect(screen.queryByTestId('refused-drawings')).toBeNull();
+});
+
 it('CH-32 reference 1 is drawn large by the viewer with its marks and legend; no credit', () => {
   show();
   expect(figure().getAttribute('aria-label')).toBe('Reference 1 of 2');
