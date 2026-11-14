@@ -10955,7 +10955,7 @@ unofficial translation. An unknown id is 404 `not-found`.
 - 2026-11-14, additive (decision 0013, agent chat): `POST /api/projects/{project_id}/chat` and
   `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`; `GET /api/info` gains `chat`
   (`model`, `available`, `reason`; last). Settings `CHAT_MODEL`, `AGENT_MODEL`, `AGENT_BASE_URL`,
-  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_TURN_USD`, `AGENT_MAX_STEPS`, `AGENT_THINKING` (the model's `reasoning_effort`, default `low`). Fixtures `chat_request`,
+  `AGENT_PRICE_IN_PER_M`, `AGENT_PRICE_OUT_PER_M`, `AGENT_PRICE_CACHED_PER_M` (prompt tokens read from cache), `AGENT_TURN_USD`, `AGENT_MAX_STEPS`, `AGENT_THINKING` (the model's `reasoning_effort`, default `low`). Fixtures `chat_request`,
   `chat_answer`, `chat_dont_know`, `chat_edit`, `chat_proposal_accepted`.
 - 2026-11-14, additive (decision 0013): `ChatTurn.answers` (last), the `ProjectAnswer`s a turn rests on;
   `ChatTurn.evidence` lists only the cited places; `options` may come with any kind.

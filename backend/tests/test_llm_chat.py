@@ -185,3 +185,34 @@ def test_the_thinking_setting_reaches_the_model() -> None:
     made, why = chat_model(settings)
     assert why is None and isinstance(made, OpenAiChatModel) and made.thinking == "none"
     assert Settings().agent_thinking == "low"  # unchanged until chat-eval says otherwise
+
+
+def test_cached_prompt_tokens_are_priced_at_the_cached_rate() -> None:
+    """pi-spike borrow 5. The compat endpoint's usage, as a live call gave it (2026-11-14):
+    `prompt_tokens_details.cached_tokens` counts the part of `prompt_tokens` read from cache."""
+    priced = OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, Transport(),
+                             sleep=lambda _: None, price_cached=0.375)  # fmt: skip
+    usage = {"completion_tokens": 5, "prompt_tokens": 15115, "total_tokens": 15120,
+             "prompt_tokens_details": {"cached_tokens": 13061}}  # fmt: skip
+    want = (2054 * 1.50 + 13061 * 0.375 + 5 * 9.00) / 1e6
+    assert priced.usd(usage, 0) == pytest.approx(want)
+    # a cached count that can't be right is ignored: the prompt at the full price, never less
+    full = (15115 * 1.50 + 5 * 9.00) / 1e6
+    for odd in (-1, "13061", 20_000, None, True):
+        given = {**usage, "prompt_tokens_details": {"cached_tokens": odd}}
+        assert priced.usd(given, 0) == pytest.approx(full), odd
+    assert priced.usd({**usage, "prompt_tokens_details": "x"}, 0) == pytest.approx(full)
+
+
+def test_the_cached_price_setting_reaches_the_model() -> None:
+    from pydantic import SecretStr
+
+    from app.composition import chat_model
+    from app.settings import Settings
+
+    given = Settings(
+        chat_model="gemini", gemini_api_key=SecretStr(KEY), agent_price_cached_per_m=0.2
+    )
+    made, _ = chat_model(given)
+    assert isinstance(made, OpenAiChatModel) and made.price_cached == 0.2
+    assert Settings().agent_price_cached_per_m == pytest.approx(0.375)  # 1/4 of the input price

@@ -236,6 +236,9 @@ class Settings(BaseSettings):
     agent_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     agent_price_in_per_m: float = Field(default=1.50, ge=0)
     agent_price_out_per_m: float = Field(default=9.00, ge=0)
+    # Prompt tokens Gemini read from its cache (usage.prompt_tokens_details.cached_tokens), USD
+    # per million: a placeholder at 1/4 of the input price, as Gemini's published cache discounts
+    agent_price_cached_per_m: float = Field(default=0.375, ge=0)
     agent_turn_usd: float = Field(default=0.10, gt=0)
     agent_max_steps: int = Field(default=8, ge=1, le=20)
     # How much the model thinks per step, sent as reasoning_effort; "default" sends none (the

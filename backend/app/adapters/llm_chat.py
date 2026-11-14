@@ -32,6 +32,7 @@ class OpenAiChatModel:
         transport: Transport = urllib_transport,
         sleep: Callable[[float], None] = time.sleep,
         thinking: str = "low",
+        price_cached: float | None = None,
     ) -> None:
         self.name = model
         # sent as reasoning_effort (Gemini's compat endpoint takes it); "default": not sent, the
@@ -47,6 +48,8 @@ class OpenAiChatModel:
         self._client = OpenVlmClient(base_url, api_key, model, timeout_s, watched, sleep)
         self._price_in = price_in
         self._price_out = price_out
+        # USD per million prompt tokens read from the provider's cache; None: the input price
+        self.price_cached = price_in if price_cached is None else price_cached
 
     def __repr__(self) -> str:
         return f"OpenAiChatModel({self.name})"
@@ -84,10 +87,12 @@ class OpenAiChatModel:
         return 0.0 if self._paid is None else self.usd(_usage(self._paid), sent)
 
     def usd(self, usage: Json, sent_chars: int) -> float:
-        """Prompt tokens at the input price; the rest of `total_tokens` (answer and thinking,
-        whichever way the endpoint splits them), or `completion_tokens` if larger, at the output
-        price. A count that is missing, negative or not a number is priced high, never as free:
-        the prompt from the request's size, the output as UNKNOWN_OUT."""
+        """Prompt tokens at the input price, those of them read from cache
+        (`prompt_tokens_details.cached_tokens`) at the cached price; the rest of `total_tokens`
+        (answer and thinking, whichever way the endpoint splits them), or `completion_tokens` if
+        larger, at the output price. A count that is missing, negative or not a number is priced
+        high, never as free: the prompt from the request's size, the output as UNKNOWN_OUT, a
+        cached count as none."""
         given = _count(usage.get("prompt_tokens"))
         total = _count(usage.get("total_tokens"))
         done = _count(usage.get("completion_tokens"))
@@ -95,7 +100,11 @@ class OpenAiChatModel:
             given = sent_chars // CHARS_PER_TOKEN + 1
         outs = [n for n in (None if total is None else total - given, done) if n is not None]
         out = max(outs) if outs and max(outs) >= 0 else UNKNOWN_OUT
-        return (given * self._price_in + out * self._price_out) / M
+        details: Any = usage.get("prompt_tokens_details")
+        cached = _count(details.get("cached_tokens")) if isinstance(details, dict) else None  # pyright: ignore[reportUnknownMemberType]
+        cached = cached if cached is not None and cached <= given else 0
+        paid = (given - cached) * self._price_in + cached * self.price_cached
+        return (paid + out * self._price_out) / M
 
 
 def _usage(data: bytes) -> Json:
