@@ -81,6 +81,7 @@ from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
 from app.adapters.resolver.carbon import CarbonResolver
+from app.adapters.scan_images import ScanImages
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -230,8 +231,9 @@ def build_pipeline(
     sheet-kind step called a file advanced, by its path (CARBON_READER=advanced); None: none
     was."""
     files = DatasetFiles(dataset)
+    scans = ScanImages(files)  # what the raster side reads: a scanned PDF as its page's image
     kind_of = kinds or _probed_kinds(settings, files)
-    use_carbon = _carbon_read(settings, advanced, files)
+    use_carbon = _carbon_read(settings, advanced, scans)
     took: set[str] = set()  # CARBON_READER=large: the files read by Carbon for few things found
     models = IfcModels(files)
     # A sheet is paired with its building model only when the model route can read it.
@@ -254,7 +256,7 @@ def build_pipeline(
             "raster": _tables(
                 settings.tables,
                 _printed(
-                    settings, _raster(settings, files, decisions, kind_of, use_carbon, took), files
+                    settings, _raster(settings, scans, decisions, kind_of, use_carbon, took), scans
                 ),
                 files,
             ),
@@ -268,7 +270,7 @@ def build_pipeline(
         prior_families=_policy(settings.answer_policy),
         readable=_readable(settings),
         scanned=is_scanned_pdf,
-        confidence=DecisionsConfidence(files, decisions())
+        confidence=DecisionsConfidence(scans, decisions())
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
@@ -513,7 +515,7 @@ def build_answering(settings: Settings) -> Answering:
     signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
-        confidence = partial(DecisionsConfidence, reader=reader)
+        confidence = partial(_scan_confidence, reader=reader)
         signal = DECISIONS_SIGNAL
     # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
     scorers = _scorers(settings.local_gates) if settings.check_policy else {}
@@ -534,6 +536,12 @@ def build_answering(settings: Settings) -> Answering:
         scorers=scorers,
         resolver=_resolver(settings),
     )
+
+
+def _scan_confidence(files: DrawingFiles, reader: G1MainReader) -> AnswerConfidence:
+    """The answer confidence over a raster drawing's file as ingest's readers read it: a scanned
+    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image."""
+    return DecisionsConfidence(ScanImages(files), reader)
 
 
 def _resolver(settings: Settings) -> Resolver | None:

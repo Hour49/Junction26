@@ -427,3 +427,22 @@ test("the code check compares the whole digest: a wrong code whose digest starts
   for (let n = 0; twins.length < 3; n++) if ((await first(`wrong-${n}`)) === want) twins.push(`wrong-${n}`);
   for (const twin of twins) assert.equal(await codeMatches(CODE, twin), false, twin);
 });
+
+test("the build: the page for visitors without the code is the synthetic mock, and nothing else is in the assets", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const site = new URL("../", import.meta.url);
+  const root = new URL("../../", import.meta.url);
+  execFileSync("./build-assets.sh", { cwd: site, stdio: "pipe" });
+  const built = (name) => readFileSync(new URL(`assets/${name}`, site));
+  assert.deepEqual(readdirSync(new URL("assets/", site), { recursive: true }).sort(), [
+    "app.js",
+    "favicon.ico",
+    "index.html",
+    "style.css",
+  ]);
+  for (const name of ["index.html", "app.js", "style.css"]) {
+    assert.deepEqual(built(name), readFileSync(new URL(`demo/${name}`, root)), name);
+  }
+  assert.match(built("index.html").toString(), /<script src="app\.js">/); // a page, not a redirect to a missing one
+});
