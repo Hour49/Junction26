@@ -918,6 +918,11 @@
               }
             ],
             "title": "Reason"
+          },
+          "stream": {
+            "default": true,
+            "title": "Stream",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1063,6 +1068,16 @@
           "turn": {
             "title": "Turn",
             "type": "integer"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2441,6 +2456,41 @@
         "title": "Edit",
         "type": "object"
       },
+      "ErrorBody": {
+        "additionalProperties": false,
+        "description": "Every error: one sentence, a code, and FastAPI's list for a request that fails validation.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors"
+          }
+        },
+        "required": [
+          "detail",
+          "code"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
       "Evidence": {
         "additionalProperties": false,
         "properties": {
@@ -2938,6 +2988,16 @@
               }
             ],
             "title": "Kind"
+          },
+          "model_3d": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Model3d"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "ms": {
             "default": 0,
@@ -4293,6 +4353,59 @@
           "value"
         ],
         "title": "MethodValue",
+        "type": "object"
+      },
+      "Model3d": {
+        "additionalProperties": false,
+        "description": "FileStatus.model_3d (MODEL_3D setting): the 3D view of an IFC file, a GLB converted once\non its first request (GET .../files/{file_id}/model.glb) or ahead by `python -m app.cli glb`.",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "enum": [
+                  "too_big",
+                  "no_geometry",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "elements": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elements"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "converting",
+              "ready",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "Model3d",
         "type": "object"
       },
       "ModelItem": {
@@ -7566,6 +7679,159 @@
         "title": "ValueMark",
         "type": "object"
       },
+      "View": {
+        "additionalProperties": false,
+        "description": "The plan the turn wants on screen: one drawing page, its marks, the box to focus.",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ViewMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "show_on_plan",
+              "evidence"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "name",
+          "page",
+          "box",
+          "source"
+        ],
+        "title": "View",
+        "type": "object"
+      },
+      "ViewMark": {
+        "additionalProperties": false,
+        "description": "One place on the plan the turn shows (.agents/chat/contract.md A).",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          }
+        },
+        "required": [
+          "n",
+          "label",
+          "box"
+        ],
+        "title": "ViewMark",
+        "type": "object"
+      },
       "app__core__agent__model__Level": {
         "additionalProperties": false,
         "description": "An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').",
@@ -8702,6 +8968,59 @@
         "summary": "Chat"
       }
     },
+    "/api/projects/{project_id}/chat/stream": {
+      "post": {
+        "description": "One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are\nplain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away.",
+        "operationId": "chat_stream_api_projects__project_id__chat_stream_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-Sent Events: turn, thinking, plan, tool_call, tool_result, view, checking, then answer (the ChatTurn of POST .../chat) or error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "CHAT_MODEL=off"
+          }
+        },
+        "summary": "Chat Stream"
+      }
+    },
     "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
       "post": {
         "operationId": "decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post",
@@ -8941,6 +9260,71 @@
           }
         },
         "summary": "Get Evidence"
+      }
+    },
+    "/api/projects/{project_id}/files/{file_id}/model.glb": {
+      "get": {
+        "description": "An IFC file's 3D view: one GLB of the whole model, each node named by its element's\nGlobalId. The first request starts its conversion (409 `converting` until it is built; poll\nit or the project's `model_3d`); gzipped when the client takes gzip.",
+        "operationId": "model_glb_api_projects__project_id__files__file_id__model_glb_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "title": "File Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "model/gltf-binary": {}
+            },
+            "description": "the model's GLB"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such file, no IFC file, or MODEL_3D off"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "code converting: being built, ask again"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "code too_big, no_geometry or failed: no view"
+          }
+        },
+        "summary": "Model Glb"
       }
     },
     "/api/projects/{project_id}/files/{file_id}/preview.png": {

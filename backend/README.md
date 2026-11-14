@@ -95,6 +95,20 @@ the orchestrator. The file is recognised by its bytes (the `eval.jsonl` entry of
 copy under another name is refused too. A part of that file, or the dataset's whole `questions.jsonl`, is not
 recognised.
 
+## 3D views of IFC files (MODEL_3D)
+
+`MODEL_3D=true` turns on `GET /api/projects/{id}/files/{file_id}/model.glb` and `FileStatus.model_3d` (off: 404
+and no payload changes). The first request converts the file in the background (409 `converting`), one at a time,
+in a subprocess capped at `MODEL_3D_MEMORY_MB` and `MODEL_3D_TIMEOUT_S`; over either, or a GLB over 60 MB, is 422
+`too_big`. GLBs are cached by content in `<PROJECTS_DIR>/models-3d/`. For a deploy, build them ahead, before the
+app starts:
+
+```bash
+uv run python -m app.cli glb <project id or file.ifc> ...   # exit 1 when one is not ready
+```
+
+Spike 2026-11-14 (4 threads, 3 GB cap): 0.7-25 s, GLB 0.4-47 MB (gzip about -78%), peak 0.1-2.2 GB per model.
+
 ## Adding a real extractor, second counter or question parser
 
 1. Write the adapter in `app/adapters/`. It implements the port's Protocol from `app/core/pipeline/ports.py` or

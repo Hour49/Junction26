@@ -35,7 +35,13 @@ from app.api import (
 )
 from app.api.deps import Ingest
 from app.api.views import ErrorBody
-from app.composition import EvidenceIndexes, build_answering, build_evidence, build_ingest
+from app.composition import (
+    EvidenceIndexes,
+    build_answering,
+    build_evidence,
+    build_ingest,
+    build_models_3d,
+)
 from app.core.errors import (
     DomainError,
     InvalidInputError,
@@ -112,6 +118,8 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         service.close()
+        if app.state.models_3d is not None:
+            app.state.models_3d.close()
 
     app = FastAPI(title="Hour49 backend", lifespan=lifespan)
     app.state.settings = settings  # adapters' providers build their clients from it
@@ -127,6 +135,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.rule_packs = rule_packs
     app.state.chats = JsonChatStore(settings.projects_dir)  # the agent chats (decision 0013)
     app.state.laws = law_index
+    app.state.models_3d = build_models_3d(settings)  # None: MODEL_3D off
     routers = (
         health,
         info,
