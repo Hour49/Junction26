@@ -7,7 +7,8 @@ function howRead({ reader }: DrawingView): string {
       : ` by ${reader.extractor ?? 'nothing'}`;
   return (
     `${reader.route ?? 'no'} route, read from ${reader.source ?? 'no file'}${by}; ` +
-    `second count: ${reader.second_counter}; questions: ${reader.question_parser}`
+    `${reader.second_counter === 'none' ? 'no second count' : `second count: ${reader.second_counter}`}; ` +
+    `questions: ${reader.question_parser}`
   );
 }
 

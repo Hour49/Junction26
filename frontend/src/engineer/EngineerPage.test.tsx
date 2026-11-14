@@ -154,6 +154,17 @@ describe('drawing header and ask box', () => {
     ).toBeTruthy();
   });
 
+  it('QA #76 EN-4 a header without a second count says so', async () => {
+    open({
+      [DRAWING_ROUTE]: { ...drawing, reader: { ...drawing.reader, second_counter: 'none' } },
+    });
+    expect(
+      await screen.findByText(
+        'vector route, read from plans/flat-a.pdf by pdf; no second count; questions: templates',
+      ),
+    ).toBeTruthy();
+  });
+
   it('EN-6 one button per suggestion, in order', async () => {
     open({ [DRAWING_ROUTE]: drawing });
     await screen.findByRole('heading', { name: 'plans/flat-a.pdf' });
@@ -519,10 +530,19 @@ describe('extended answers', () => {
     expect(within(s).queryByRole('link', { name: 'Picture of this answer' })).toBeNull();
   });
 
-  it('EN-26 where this came from', async () => {
+  it('QA #76 EN-26 where this came from: no second count, or the counter by name', async () => {
+    expect(answer.reader.second_counter).toBe('none');
     const t = await shownTurn(answer);
     expect(
-      within(t).getByText('pdf read plans/flat-a.pdf (vector route), second count by none'),
+      within(t).getByText('pdf read plans/flat-a.pdf (vector route), no second count'),
+    ).toBeTruthy();
+    cleanup();
+    const counted = await shownTurn({
+      ...answer,
+      reader: { ...answer.reader, second_counter: 'ifc' },
+    });
+    expect(
+      within(counted).getByText('pdf read plans/flat-a.pdf (vector route), second count by ifc'),
     ).toBeTruthy();
   });
 
