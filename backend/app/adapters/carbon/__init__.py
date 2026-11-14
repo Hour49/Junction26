@@ -114,8 +114,9 @@ class CarbonChecked:
     kept beside it as `carbon_check`, never counted. A Medium answer whose question Carbon
     answers with another value becomes Low (integ's rule, .agents/exp/integ.md AW
     pre-registration 2: on 256 unseen val pages Medium went from 92.4% to 95.4% exact). When
-    Carbon read nothing (a failed call, nothing it could count, an image it cannot open), the
-    check says why and is logged: it changes no level, and the level says it was not checked."""
+    Carbon read nothing (a failed call, nothing it could count, an image it cannot open, any
+    error in the check itself), the check says why and is logged: the reader's drawing is kept,
+    no level changes, and the level says it was not checked."""
 
     def __init__(self, other: Extractor, carbon: Extractor) -> None:
         self._other = other
@@ -127,6 +128,10 @@ class CarbonChecked:
             seen = self._carbon.extract(source, sheet)
         except (OSError, Image.DecompressionBombError) as error:  # PIL could not open the image
             check = CarbonCheck(failed=f"the image could not be opened: {type(error).__name__}")
+        except Exception as error:  # a bug in a check that is never counted keeps the drawing
+            log.exception("Carbon check of %s raised", source.path)
+            failed = CarbonCheck(failed=f"the check failed: {type(error).__name__}")
+            return found.model_copy(update={"carbon_check": failed})
         else:
             check = CarbonCheck(
                 read=tuple(seen.read or ()),

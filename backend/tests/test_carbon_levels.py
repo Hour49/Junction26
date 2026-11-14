@@ -126,6 +126,19 @@ def test_a_failed_check_is_kept_as_failed_and_logged(
     assert f"Carbon did not check plan.png: {why}" in caplog.text
 
 
+@pytest.mark.parametrize("error", [ValueError("bad"), KeyError("plans"), RuntimeError("x")])
+def test_any_error_in_the_check_keeps_the_reader_s_drawing(
+    error: Exception, caplog: pytest.LogCaptureFixture
+) -> None:
+    """codecheck's S1 (.agents/qa/r9/review-274.md): an error other than OSError from Carbon set
+    the file aside, so the reader's own drawing was lost for a check that is never counted."""
+    with caplog.at_level(logging.ERROR, logger="app.adapters.carbon"):
+        found = CarbonChecked(Reads(SHIPPED), Reads(error)).extract(SOURCE, SHEET)
+    assert found.model_copy(update={"carbon_check": None}) == SHIPPED
+    assert found.carbon_check == CarbonCheck(failed=f"the check failed: {type(error).__name__}")
+    assert "Carbon check of plan.png raised" in caplog.text and "Traceback" in caplog.text
+
+
 def test_off_writes_the_drawing_as_before() -> None:
     assert "carbon_check" not in SCAN.model_dump_json(by_alias=True)
     assert "carbon_check" in checked(failed="x").model_dump_json(by_alias=True)
