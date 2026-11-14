@@ -172,6 +172,7 @@ def asked_on(
         no_reader=no_reader,
         scorers=answering.scorers,
         carbon_ladder=answering.carbon_ladder,
+        room_words=answering.room_words,
     )
 
 

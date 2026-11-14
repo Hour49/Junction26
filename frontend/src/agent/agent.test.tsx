@@ -189,13 +189,17 @@ describe('TurnCard', () => {
     expect(screen.queryByText('Try one of these instead')).toBeNull();
   });
 
-  it('AC-31 a turn resting on ask results shows the ask chat card for them, without a second sources list', () => {
+  it('AC-31 a turn resting on ask results shows the ask chat card, and the Sources its [n] cite (Tudor smoke 3)', () => {
     mockApi({});
     card({ ...answerTurn, answers: [projectAsk] });
     expect(screen.getByText(/is 7.56 m²/)).toBeTruthy(); // the agent's text stays
     expect(screen.getByRole('list', { name: 'Per drawing' })).toBeTruthy();
     expect(screen.getByRole('list', { name: 'References' })).toBeTruthy();
-    expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull();
+    // References number drawings; the text's [n] number marks: each [n] has its line in Sources
+    const sources = within(screen.getByRole('list', { name: 'Sources' }));
+    expect(
+      sources.getAllByRole('listitem').map((li) => li.querySelector('.en-tag')?.textContent),
+    ).toEqual(answerTurn.evidence.map((e) => String(e.n)));
     expect(screen.getByText('2 steps · 0.3 s · $0')).toBeTruthy();
   });
 
@@ -210,6 +214,29 @@ describe('TurnCard', () => {
     card({ ...answerTurn, answers: [refused] });
     expect(screen.queryByRole('list', { name: 'Per drawing' })).toBeNull();
     expect(screen.getByRole('list', { name: 'Sources' })).toBeTruthy();
+  });
+
+  it("Tudor's smoke (1): an edit turn's Show it shows the card's own After plan, not the plan beside the chat", () => {
+    mockApi({ [DRAWING]: never() });
+    const onShow = vi.fn();
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled; // jsdom has none
+    render(
+      <TurnCard
+        turn={editTurn}
+        projectId={PID}
+        project={project}
+        pack={null}
+        busy={false}
+        onAsk={vi.fn()}
+        onShow={onShow}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Before' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Show it' }));
+    expect(onShow).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'After' }).getAttribute('aria-pressed')).toBe('true');
+    expect(scrolled).toHaveBeenCalled();
   });
 
   it('AC-32 edit turn renders the edit card', () => {

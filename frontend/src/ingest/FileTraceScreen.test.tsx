@@ -78,7 +78,7 @@ describe('FileTraceScreen', () => {
       );
     });
     expect(must(items[0]).querySelector('b')?.textContent).toBe('Unpack');
-    expect(must(items.at(-1)).querySelector('b')?.textContent).toBe('Write');
+    expect(must(items.at(-1)).querySelector('b')?.textContent).toBe('Store');
   });
 
   it('IN-37 a file with a drawing links "Open the drawing" to its engineer workspace', async () => {

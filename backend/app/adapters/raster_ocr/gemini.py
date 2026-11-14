@@ -65,6 +65,16 @@ PROMPT = (
     "Each room once: never repeat an entry. A balcony (PARVEKE, LASITETTU PARVEKE) is type "
     "balcony, not outdoor. On a mirrored page the text reads backwards: HM is MH, HV is VH."
 )
+# An area printed in a room's label ("MH 9,7 m²", "12.5 m2"): the unit is required, so a room
+# number ("1.01") or a height is never an area. The number stands on its own: not glued to a
+# letter or digit ("R1 m2" is room R1; "OH9.7m²" is refused too, as the two cannot be told
+# apart), not the tail of a spaced thousands group ("1 234,5 m²") or of a range or sum ("9,7-10,2
+# m²" with a hyphen or a dash, "12m2+3m2"). A label with two areas gives none.
+LABEL_AREA = re.compile(
+    r"(?<![\w.,])(?<!\d\s)(?<![-\u2013\u2014+/~]\s)(?<![-\u2013\u2014+/~])"
+    r"(\d+(?:[.,]\d+)?)\s*m(?:²|2)(?!\w)(?!\s*[-\u2013\u2014+/~]\s*\d)",
+    re.IGNORECASE,
+)
 TYPES = ("bedroom", "kitchen", "bathroom", "wc", "sauna", "balcony", "living", "hall", "storage",
          "outdoor", "other")  # fmt: skip
 
@@ -259,6 +269,15 @@ class GeminiRooms:
     note: str
 
 
+def printed_area(label: str) -> dict[str, Any]:
+    """The Room fields for the one area printed in `label` (LABEL_AREA), or none."""
+    found = LABEL_AREA.findall(label)
+    area = float(found[0].replace(",", ".")) if len(found) == 1 else 0.0
+    if area <= 0:
+        return {}
+    return {"area_m2": area, "area_status": "exact", "area_source": "printed"}
+
+
 def pixel_digest(image: Image.Image) -> str:
     """sha256 of the page as decoded (RGB, as `encode` sends it) and its size."""
     rgb = image.convert("RGB")
@@ -316,6 +335,7 @@ class GeminiRoomExtractor:
                 box=box,
                 outdoor=kind in ("balcony", "outdoor"),
                 attrs={"reader": "gemini"},
+                **printed_area(label),
             )
             for index, (kind, label, box) in enumerate(found.rooms, start=1)
         )

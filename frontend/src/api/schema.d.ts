@@ -319,7 +319,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Project Ask */
+        /**
+         * Project Ask
+         * @description `models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D); the chat
+         *     tool calls this without, so a kept chat never keeps a stale state.
+         */
         post: operations["project_ask_api_projects__project_id__ask_post"];
         delete?: never;
         options?: never;
@@ -338,6 +342,27 @@ export interface paths {
         put?: never;
         /** Chat */
         post: operations["chat_api_projects__project_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/chat/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat Stream
+         * @description One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are
+         *     plain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away.
+         */
+        post: operations["chat_stream_api_projects__project_id__chat_stream_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -382,6 +407,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/drawings/{drawing_id}/services/{storey_id}.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Services Png */
+        get: operations["services_png_api_projects__project_id__drawings__drawing_id__services__storey_id__png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/evidence/search": {
         parameters: {
             query?: never;
@@ -416,6 +458,52 @@ export interface paths {
          *     description, register and relevance.
          */
         get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add File
+         * @description A photo added to a finished project from the chat (board #203). The body is the image's
+         *     bytes, png or jpeg; `name` its file name. It is read in the background, alone, while the
+         *     project stays done. Returns the new file, queued; poll the project. 404 unknown project,
+         *     409 until the project is done or while a file of it is read, 413 over the upload limit, 415
+         *     not a png or jpeg.
+         */
+        post: operations["add_file_api_projects__project_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files/{file_id}/model.glb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Model Glb
+         * @description An IFC file's 3D view: one GLB of the whole model, each node named by its element's
+         *     GlobalId. The first request starts its conversion (409 `converting` until it is built; poll
+         *     it or the project's `model_3d`); gzipped when the client takes gzip.
+         */
+        get: operations["model_glb_api_projects__project_id__files__file_id__model_glb_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -949,6 +1037,11 @@ export interface components {
             model: "gemini" | "rules" | "off";
             /** Reason */
             reason: string | null;
+            /**
+             * Stream
+             * @default true
+             */
+            stream: boolean;
         };
         /** ChatRequest */
         ChatRequest: {
@@ -990,6 +1083,11 @@ export interface components {
             latency_s: number;
             /** Model */
             model: string;
+            /**
+             * Next
+             * @default []
+             */
+            next: components["schemas"]["Option"][];
             /** Options */
             options?: components["schemas"]["Option"][] | null;
             /**
@@ -1001,6 +1099,7 @@ export interface components {
             text: string;
             /** Turn */
             turn: number;
+            view?: components["schemas"]["View"] | null;
         };
         /**
          * Check
@@ -1088,6 +1187,8 @@ export interface components {
         };
         /** CheckSubject */
         CheckSubject: {
+            /** Global Id */
+            global_id?: string | null;
             /**
              * Kind
              * @enum {string}
@@ -1298,6 +1399,50 @@ export interface components {
              */
             what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
         };
+        /** DisciplineFollow */
+        DisciplineFollow: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["ServiceAction"][];
+            /**
+             * Discipline
+             * @enum {string}
+             */
+            discipline: "architecture" | "structural" | "plumbing" | "heating" | "ventilation" | "electrical" | "fire" | "site" | "other";
+            /**
+             * Elements
+             * @default 0
+             */
+            elements: number;
+            /** Line */
+            line: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ServiceMark"][];
+            /** Reason */
+            reason?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "checked" | "no_model" | "not_aligned";
+            /**
+             * @default {
+             *       "cut_off": 0,
+             *       "follows": 0,
+             *       "needs_decision": 0,
+             *       "new_run_m": 0,
+             *       "stays": 0
+             *     }
+             */
+            summary: components["schemas"]["Summary"];
+        };
         /**
          * Disputed
          * @description One place to double-check, as the answer gives it.
@@ -1424,6 +1569,20 @@ export interface components {
             quantity?: string | null;
             /** Value */
             value?: number | null;
+        };
+        /**
+         * ErrorBody
+         * @description Every error: one sentence, a code, and FastAPI's list for a request that fails validation.
+         */
+        ErrorBody: {
+            /** Code */
+            code: string;
+            /** Detail */
+            detail: string;
+            /** Errors */
+            errors?: {
+                [key: string]: unknown;
+            }[] | null;
         };
         /** Evidence */
         Evidence: {
@@ -1568,6 +1727,7 @@ export interface components {
             id: string;
             /** Kind */
             kind?: ("pdf_vector" | "pdf_scan" | "png_plan" | "jpeg_plan" | "photo_plan" | "ifc" | "dxf" | "svg" | "pdf_text" | "text" | "photo" | "pdf_encrypted" | "dwg" | "office" | "archive" | "unknown") | null;
+            model_3d?: components["schemas"]["Model3d"] | null;
             /**
              * Ms
              * @default 0
@@ -1671,6 +1831,20 @@ export interface components {
              */
             status: "ok";
         };
+        /**
+         * Highlight
+         * @description One element the 3D view highlights, by its IFC GlobalId, and what happens to it: an
+         *     answer's counted elements are `affected`; an edit proposal's are moved, removed or added.
+         */
+        Highlight: {
+            /** Global Id */
+            global_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "moved" | "removed" | "added" | "affected";
+        };
         /** HitWhy */
         HitWhy: {
             /** Bm25 Rank */
@@ -1719,6 +1893,8 @@ export interface components {
             file_id: string | null;
             /** Floor */
             floor: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
             /** Id */
             id: string;
             /**
@@ -1731,6 +1907,8 @@ export interface components {
             links: components["schemas"]["IssueLinks"];
             /** Mark Id */
             mark_id: string | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Page */
             page: number | null;
             /** Polygon */
@@ -1953,6 +2131,27 @@ export interface components {
             /** Value */
             value: number;
         };
+        /**
+         * Model3d
+         * @description FileStatus.model_3d (MODEL_3D setting): the 3D view of an IFC file, a GLB converted once
+         *     on its first request (GET .../files/{file_id}/model.glb) or ahead by `python -m app.cli glb`.
+         */
+        Model3d: {
+            /** Code */
+            code?: ("too_big" | "no_geometry" | "failed") | null;
+            /** Elements */
+            elements?: number | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "not_started" | "converting" | "ready" | "unavailable";
+        };
         /** ModelItem */
         ModelItem: {
             /** Class */
@@ -2086,6 +2285,13 @@ export interface components {
             answer: components["schemas"]["AnswerView"];
             /** Drawing Id */
             drawing_id: string;
+            /** File Id */
+            file_id?: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
+            model_3d?: components["schemas"]["Model3d"] | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Name */
             name: string;
         };
@@ -2285,6 +2491,7 @@ export interface components {
              * @default []
              */
             rooms: components["schemas"]["RoomChange"][];
+            services?: components["schemas"]["ServicesFollow"] | null;
             /**
              * State
              * @default proposed
@@ -2785,6 +2992,92 @@ export interface components {
             ref?: string | null;
         };
         /**
+         * ServiceAction
+         * @description One consequence of the edit in one discipline. `label` is the whole of it in plain words,
+         *     numbers included; the rest is for drawing it.
+         */
+        ServiceAction: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "reseat" | "in_wall" | "cut_off" | "through" | "riser" | "fire_damper" | "tally" | "opening" | "under" | "missing";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Moved To */
+            moved_to?: [
+                number,
+                number
+            ] | null;
+            /**
+             * Paths
+             * @default []
+             */
+            paths: [
+                number,
+                number
+            ][][];
+            /**
+             * Refs
+             * @default []
+             */
+            refs: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "follows" | "stays" | "needs_decision" | "cut_off";
+            /** System */
+            system?: string | null;
+        };
+        /**
+         * ServiceMark
+         * @description One service element near the edit, for the overlay: a run as its line, anything else as
+         *     its point. Page fractions.
+         */
+        ServiceMark: {
+            /** At */
+            at?: [
+                number,
+                number
+            ] | null;
+            /** Global Id */
+            global_id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /**
+             * Line
+             * @default []
+             */
+            line: [
+                number,
+                number
+            ][];
+            /** Ref */
+            ref: string;
+        };
+        /** ServicesFollow */
+        ServicesFollow: {
+            /**
+             * Credits
+             * @default []
+             */
+            credits: string[];
+            /** Disciplines */
+            disciplines: components["schemas"]["DisciplineFollow"][];
+            /** Storey */
+            storey: string | null;
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
@@ -2956,6 +3249,34 @@ export interface components {
             /** Question */
             question: string;
         };
+        /** Summary */
+        Summary: {
+            /**
+             * Cut Off
+             * @default 0
+             */
+            cut_off: number;
+            /**
+             * Follows
+             * @default 0
+             */
+            follows: number;
+            /**
+             * Needs Decision
+             * @default 0
+             */
+            needs_decision: number;
+            /**
+             * New Run M
+             * @default 0
+             */
+            new_run_m: number;
+            /**
+             * Stays
+             * @default 0
+             */
+            stays: number;
+        };
         /** Takeoff */
         Takeoff: {
             /** Disputes */
@@ -3054,6 +3375,59 @@ export interface components {
             label: string;
             /** Page */
             page: number;
+        };
+        /**
+         * View
+         * @description The plan the turn wants on screen: one drawing page, its marks, the box to focus.
+         */
+        View: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Caption */
+            caption?: string | null;
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ViewMark"][];
+            /** Name */
+            name: string | null;
+            /** Page */
+            page: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "show_on_plan" | "evidence";
+        };
+        /**
+         * ViewMark
+         * @description One place on the plan the turn shows (.agents/chat/contract.md A).
+         */
+        ViewMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label: string | null;
+            /** N */
+            n: number;
+            /** Polygon */
+            polygon?: [
+                number,
+                number
+            ][] | null;
         };
         /**
          * Level
@@ -3756,6 +4130,48 @@ export interface operations {
             };
         };
     };
+    chat_stream_api_projects__project_id__chat_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-Sent Events: turn, thinking, plan, tool_call, tool_result, view, checking, then answer (the ChatTurn of POST .../chat) or error */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description CHAT_MODEL=off */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post: {
         parameters: {
             query?: never;
@@ -3815,6 +4231,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProjectChecks"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    services_png_api_projects__project_id__drawings__drawing_id__services__storey_id__png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storey_id: string;
+                project_id: string;
+                drawing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the storey's services, drawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description no such project, drawing or storey */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the drawing has no services model yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -3890,6 +4353,89 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_file_api_projects__project_id__files_post: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    model_glb_api_projects__project_id__files__file_id__model_glb_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the model's GLB */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "model/gltf-binary": unknown;
+                };
+            };
+            /** @description no such file, no IFC file, or MODEL_3D off */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description code converting: being built, ask again */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description code too_big, no_geometry or failed: no view */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

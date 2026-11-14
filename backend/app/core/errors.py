@@ -21,3 +21,8 @@ class InvalidInputError(DomainError):
 class NotTriagedError(InvalidInputError):
     """Reading as a floor plan, or a relevance call on, a file triage did not call a non-plan
     (decision 0010): its own code, so a screen says why the button does nothing."""
+
+
+class UnsupportedFileError(InvalidInputError):
+    """A file of a kind this route does not take (a photo added to a project that is not png or
+    jpeg, board #203): 415, so a screen says which kinds it takes."""

@@ -34,7 +34,7 @@ def room(at: int, label: str, area: float, reader: bool = True) -> Room:
         box=(0.1 * at, 0.1, 0.1 * at + 0.05, 0.2),
         area_m2=area,
         area_status="exact",
-        area_source="printed",
+        area_source="geometry_x_scale",  # not printed: no source line before the sentence
         attrs={"number": f"10{at}", **({"reader": "gemini"} if reader else {})},
     )
 
@@ -154,6 +154,15 @@ def test_a_vector_total_a_schedule_shows_partial_is_never_certified() -> None:
 def test_a_schedule_s_rows_count_only_on_the_sheet_s_storey() -> None:
     no_numbers = tuple(r.model_copy(update={"attrs": {}}) for r in READ)
     assert known_quantities(drawing(no_numbers, (SCHEDULE,)))["area:room"].partial is None
+
+
+def test_after_another_note_the_partial_sentence_is_a_sentence_of_its_own() -> None:
+    printed = tuple(r.model_copy(update={"area_source": "printed"}) for r in READ)
+    assert asked(drawing(printed, (SCHEDULE,))).answer.explanation == (
+        "read from the rooms' labels on the image (a digit can be misread). This is the sum of "
+        "the 2 rooms the reader found; rooms it missed are not in it. Not in it: 104 LOBBY, "
+        "107 STAIR, 108 STOR and 1 more."
+    )
 
 
 # --- refused partial (fail-1 S1 on #349): a refused room box keeps the sheet total ------------

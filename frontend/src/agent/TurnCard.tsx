@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import { useState, type MouseEvent } from 'react';
 import type { ProjectView } from '../api';
 import { ChatAnswer } from '../engineer/ChatAnswer';
 import { routeHref } from '../shell/route';
@@ -198,10 +198,19 @@ export function TurnCard(props: {
   onShow?: (e: Evidence) => void;
 }) {
   const { turn, projectId, project, pack, busy, onAsk } = props;
-  // The ask chat's card for each answer some drawing answered; it lists the references, so no sources list then.
+  // The ask chat's card for each answer some drawing answered. Its References number drawings, so the Sources list
+  // stays: the text's [n] number the marks (Tudor's smoke 3).
   const answers = turn.answers.filter((a) => a.parts.some((p) => p.answer.refusal === null));
   const headline = HEADLINE[turn.kind];
   const options = turn.options ?? [];
+  // Tudor's smoke (1): an edit's sources are its change: Show it and [n] show the card's own After plan.
+  const [reveal, setReveal] = useState(0);
+  const onShow =
+    turn.kind === 'edit' && turn.edit
+      ? () => {
+          setReveal((n) => n + 1);
+        }
+      : props.onShow;
   return (
     <div className={`v-card ag-card ag-card--${turn.kind}`}>
       {headline && (
@@ -209,7 +218,7 @@ export function TurnCard(props: {
           <b>{headline}</b>
         </p>
       )}
-      <Text turn={turn} projectId={projectId} pack={pack} onShow={props.onShow} />
+      <Text turn={turn} projectId={projectId} pack={pack} onShow={onShow} />
       {answers.map((a, i) => (
         <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
       ))}
@@ -245,10 +254,11 @@ export function TurnCard(props: {
           chatId={turn.chat_id}
           evidence={turn.evidence}
           onDecided={props.onDecided}
+          reveal={reveal}
         />
       )}
-      {turn.evidence.length > 0 && answers.length === 0 && (
-        <Sources turn={turn} projectId={projectId} pack={pack} onShow={props.onShow} />
+      {turn.evidence.length > 0 && (
+        <Sources turn={turn} projectId={projectId} pack={pack} onShow={onShow} />
       )}
       <Steps turn={turn} />
     </div>

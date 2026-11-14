@@ -711,6 +711,22 @@ def rooms_estimate(rooms: Sequence[Room], scale: str | None) -> str | None:
     return scale
 
 
+def label_source(rooms: Sequence[Room]) -> str | None:
+    """Where the areas of `rooms` came from, in words a user reads, when a raster label reader
+    read them in the rooms' labels on the image (`area_source` printed); None when none was."""
+    n = sum(room.area_source == "printed" for room in rooms)
+    if n == 0:
+        return None
+    if n == len(rooms):
+        if n == 1:
+            return "read from the room's label on the image (a digit can be misread)"
+        return "read from the rooms' labels on the image (a digit can be misread)"
+    return (
+        f"{n} of {len(rooms)} room areas read from the rooms' labels on the image "
+        "(a digit can be misread)"
+    )
+
+
 # How an estimated room area was measured, in words (extraction_v1 `area_source`)
 _AREA_HOW = {
     "geometry_x_estimate": "measured on an estimated scale",
@@ -855,6 +871,7 @@ def _put(
     rule: CountingRule,
     estimate: str | None = None,
     excluded: Sequence[tuple[Mark, str]] = (),
+    source: str | None = None,
 ) -> None:
     found[key] = Quantity(
         key=key,
@@ -864,6 +881,7 @@ def _put(
         rule=rule.id,
         estimate=estimate,
         excluded=tuple(excluded),
+        source=source,
     )
 
 
@@ -888,7 +906,7 @@ def _area_sum(
         total = sum(area for area in areas if area is not None)
         marks = [_mark(room) for room in rooms]
         estimate = rooms_estimate(rooms, scale)
-        _put(found, key, "area", total, marks, rule, estimate, excluded)
+        _put(found, key, "area", total, marks, rule, estimate, excluded, label_source(rooms))
         if refused:
             names = tuple(room.label or room.id for room in refused)
             partial = Partial(counted=len(rooms), refused=names)
@@ -903,15 +921,78 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
     return out
 
 
+# A room number printed inside a label ("Stanza 1.07"), as the parser reads one (U1.05, 4.01),
+# with its sign ("-1.2" is a basement room, not 1.2): a minus after a letter joins ("Zimmer-1.05")
+LABEL_NUMBER = re.compile(r"(?:(?<![\w.\-])|(?<=[^\W\d_]-))(-?U?\d+\.\d+)(?![\w.])", re.IGNORECASE)
+# ... and not a measure: a times sign on either side ("x 1.5", "3.50 x 4.20") or a unit after it
+# ("PH 4.5 m²", "7.56 qm"; review-354 S1)
+TIMES_BEFORE = re.compile(r"(?:^|[\W\d_])[x\u00d7*]\s*$", re.IGNORECASE)
+MEASURE_AFTER = re.compile(
+    r"\s*(?:[x\u00d7*](?![^\W\d_])|m\b|m2|m²|qm\b|sqm\b|sq\b|cm\b|mm\b|ft\b|%|'|\")", re.IGNORECASE
+)
+
+
+def _label_numbers(label: str) -> set[str]:
+    """The room number printed in a label (LABEL_NUMBER), leaving out dimensions and measures;
+    none when it prints two ("-1.4 Room 0.5": a level and a number, or two rooms' numbers, and
+    which is the room's is not known; it took -1.4, another room's number, so the shared-name
+    rule left that room unnamed; review-354 re-check)."""
+    found = {
+        number.group(1)
+        for number in LABEL_NUMBER.finditer(label)
+        if not TIMES_BEFORE.search(label, 0, number.start())
+        and not MEASURE_AFTER.match(label, number.end())
+    }
+    return found if len(found) == 1 else set()
+
+
+# A room number of whole digits printed after the room's words ("LOBBY\n104", "OPEN OFFICE 102":
+# US sheets number rooms so), not a measure ("12 m²"), not part of another number
+WHOLE_NUMBER = re.compile(r"(?<![\w.,\-])\d{2,4}(?![\w.,])")
+# a number with its unit, left out of a label's words ("PH 4.5 m²" → "PH"); one joined to letters
+# is part of the name ("MH1")
+LABEL_MEASURE = re.compile(
+    r"(?<![^\W\d_])-?\d+(?:[.,]\d+)?\s*(?:m²|m2|qm|sqm|sq\.?\s*ft|ft²|ft|cm|mm|m|%)?(?![^\W\d_])",
+    re.IGNORECASE,
+)
+
+
+GENERIC = frozenset({"room", "rm", "space"})  # a label's word that names no one room
+
+
+def _label_parts(label: str) -> set[str]:
+    """A label's words without its numbers and measures ("LOBBY\n104" → "LOBBY", "Stanza 1.07" →
+    "Stanza"), and the one whole room number it prints ("104"). The raster room reader keeps a
+    label as printed, where the vector reader stores name and number apart, so "the area of the
+    lobby" and "open office 102" were refused on the USCG scans (fable-rooms r10)."""
+    found: set[str] = set()
+    tokens = LABEL_MEASURE.sub(" ", label).split()
+    words = " ".join(t.strip(".,:;-") for t in tokens if any(c.isalpha() for c in t))
+    if words and words != " ".join(label.split()) and words.casefold() not in GENERIC:
+        found.add(words)
+    numbers = {
+        number.group()
+        for number in WHOLE_NUMBER.finditer(label)
+        if not MEASURE_AFTER.match(label, number.end())
+    }
+    if words and len(numbers) == 1 and not _label_numbers(label):
+        found |= numbers
+    return found
+
+
 def room_names(room: Room) -> tuple[str, ...]:
-    """Every name a room answers to (its numbers, names, printed label), normalised and sorted, so
-    the takeoff's keys come in the same order on every run (golden-311)."""
+    """Every name a room answers to (its numbers, names, printed label, and a room number printed
+    in the label), normalised and sorted, so the takeoff's keys come in the same order on every
+    run (golden-311). The raster room reader keeps "Stanza 1.07" as one label where the vector
+    reader stores the number apart, so "the area of Stanza 1.07" (the parser's name 1.07) was
+    refused on the PNG and answered on the PDF (fail-1, .agents/qa/r10/stanza-107.md)."""
 
     def texts(keys: Iterable[str]) -> set[str]:
         return {value for key in keys if isinstance(value := room.attrs.get(key), str) and value}
 
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
+    found |= _label_numbers(room.label or "") | _label_parts(room.label or "")
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
     return tuple(sorted({normalised(value) for value in found}))
 
@@ -989,19 +1070,22 @@ def _add_scope(
 
 
 def _add_apartments(found: dict[str, Quantity], drawing: Drawing, scale: str | None) -> None:
+    """The apartment count and areas. Only the Swiss vector reader reads apartments, so a drawing
+    with none read has no count: a raster sheet of five flats is not "0 apartments" (jf06)."""
     apartments = drawing.apartments
     rooms_of: dict[str, list[Room]] = defaultdict(list)
     for room in drawing.rooms:
         if room.apartment is not None:
             rooms_of[room.apartment].append(room)
-    _put(
-        found,
-        quantity_key("count", "apartment"),
-        "count",
-        len(apartments),
-        [],  # an apartment has no box of its own in the drawing model
-        EACH_ONCE,
-    )
+    if apartments:
+        _put(
+            found,
+            quantity_key("count", "apartment"),
+            "count",
+            len(apartments),
+            [],  # an apartment has no box of its own in the drawing model
+            EACH_ONCE,
+        )
     for apartment in apartments:
         if apartment.label is not None:
             key = quantity_key("area", "apartment", apartment=apartment.label)
@@ -1040,7 +1124,10 @@ def _largest(
     if rooms and all(room.area_m2 is not None for room in rooms):
         top = max(rooms, key=lambda room: room.area_m2 or 0.0)
         area = top.area_m2 or 0.0
-        _put(found, key, "area", area, [_mark(top)], LARGEST_ROOM, rooms_estimate([top], scale))
+        estimate = rooms_estimate([top], scale)
+        _put(
+            found, key, "area", area, [_mark(top)], LARGEST_ROOM, estimate, (), label_source([top])
+        )
 
 
 def _add_room_sides(found: dict[str, Quantity], drawing: Drawing, scale: str | None) -> None:

@@ -182,6 +182,7 @@ class Quantity(Frozen):
     marks: tuple[Mark, ...]
     rule: str  # the id of the counting rule
     estimate: str | None = None  # what an estimated value rests on, in words; None: as read
+    source: str | None = None  # where a value read off the sheet was printed, in words
     conflict: QuantityConflict | None = None  # two methods measured it; `value` is the resolved one
     # Two methods measured it and agree (status "agree"); with `conflict` None too, it is single:
     # one method measured it
