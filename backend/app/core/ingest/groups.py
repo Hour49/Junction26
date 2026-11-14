@@ -205,18 +205,25 @@ def _scans(run: Run, members: DrawingGroup) -> set[str]:
 
 
 def _reuse(run: Run, file: DrawingFile, members: DrawingGroup, outcome: Outcome) -> None:
-    """The cache stage, then the stages of the first ingest, so the file's story stays
-    readable; their times are the first ingest's."""
+    """The cache stage, then the stages of the first ingest up to its write, so the file's
+    story stays readable and it ends at the stage the first ingest left it at (a file set aside
+    at route stays at route); listed with `ms` 0, as this run spent no time on them."""
     source = next(
         (found.path for found in members.files if found.sha256 == outcome.source_sha256), None
     )
+    ended = run.file(file.path).stage
     run.stage(file.path, "cache",
               f"seen before as {outcome.path} (project {outcome.project_id}) with the same group "
               "and readers: reused, nothing recomputed; the stages below are from that ingest",
               0.0, output=outcome.state)  # fmt: skip
-    for stage in outcome.stages:  # listed, not timed again: this run spent no time on them
-        run.add_stages(file.path, [stage.model_copy(update={"ms": 0.0, "cost_usd": 0.0})])
-    run.set(file.path, reused=True, takeoff=outcome.takeoff, source=source, stage="cache",
+    replayed = [stage.model_copy(update={"ms": 0.0, "cost_usd": 0.0}) for stage in outcome.stages]
+    if outcome.has_drawing:
+        did = f"drawing model {outcome.key} stored by that ingest"
+        output = f"{len(outcome.takeoff)} quantities"
+        replayed.append(StageTrace(stage="write", did=did, ms=0.0, output=output))
+    run.add_stages(file.path, replayed)
+    run.set(file.path, reused=True, takeoff=outcome.takeoff, source=source,
+            stage=replayed[-1].stage if replayed else ended,
             drawing_id=outcome.key if outcome.has_drawing else None)  # fmt: skip
     run.finish(file.path, outcome.state, outcome.reason)
 

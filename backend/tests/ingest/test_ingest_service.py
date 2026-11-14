@@ -46,8 +46,25 @@ def test_a_second_upload_reuses_every_file_and_its_trace_keeps_the_first_story(
     stages = [stage.stage for stage in ingest.trace(again.id, pdf.id).stages]
     assert stages[:5] == ["unpack", "hash", "identify", "group", "route"]
     assert stages[5] == "cache"
-    assert stages[6:] == ["normalise", "extract", "second_count", "takeoff"]  # the first ingest's
-    assert pdf.stage == "cache" and pdf.state == "ready"
+    assert stages[6:] == ["normalise", "extract", "second_count", "takeoff", "write"]  # the first's
+    assert pdf.stage == "write" and pdf.state == "ready"  # where its first ingest ended
+
+
+def test_a_reused_file_ends_at_the_stage_its_first_ingest_ended_at(
+    make_service: MakeService,
+) -> None:
+    """The ingest screen counts files by their last stage: reuse does not move a file (QA R2,
+    #14 c6871874309). A set-aside DXF stays where it was set aside, not under cache."""
+    ingest = make_service()
+    first = ingest.status(ingest.start("a.zip", build_archive()))
+    again = ingest.status(ingest.start("b.zip", build_archive()))
+    assert [(file.path, file.stage, file.state) for file in again.files] == [
+        (file.path, file.stage, file.state) for file in first.files
+    ]
+    dxf = next(file for file in again.files if file.path == "cad/detail.dxf")
+    assert (dxf.reused, dxf.stage, dxf.state) == (True, "route", "set_aside")
+    written = ingest.trace(again.id, next(f.id for f in again.files if f.path == "model/house.ifc"))
+    assert written.stages[-1].stage == "write" and written.stages[-1].ms == 0.0
 
 
 def test_a_fresh_upload_reads_everything_again(make_service: MakeService) -> None:

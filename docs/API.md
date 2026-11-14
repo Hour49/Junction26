@@ -908,7 +908,9 @@ after a restart cut that run off:
 
 - `stage`: `unpack`, `hash`, `identify`, `group`, `route`, `cache`, `normalise`, `extract`, `second_count`,
   `takeoff` (the counting rules and the takeoff), `write` (docs/PIPELINE.md stages 1-10). The list grows while the
-  file runs. `cache`: the drawing was ingested before; the stages of that first ingest follow it, with `ms` 0.
+  file runs. `cache`: the drawing was ingested before; the stages of that first ingest follow it, with `ms` 0,
+  up to its `write` when a drawing was stored then. A reused file's `stage` is the one its first ingest ended at
+  (`write`, or `route` for a file set aside there), so the ingest screen counts it as on the first run.
 - `did`: one readable line of what the stage did; `output`: what it produced; `ms`: its time.
 - `failure`: set when the stage failed; the file then ends `set_aside` with this as its reason.
 
