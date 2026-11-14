@@ -21,8 +21,8 @@ AS_GIVEN = CountingRule(
 )
 SAUNA_ROOM_ELSE_STOVE = CountingRule(
     id="sauna-room-else-stove",
-    text="one per sauna room; a drawing without sauna rooms counts its sauna stoves "
-    "(CubiCasa5K, review-1 section 7: 2648 of 2655 dev answers)",
+    text="one per sauna room; a drawing without sauna rooms counts its sauna stoves, as the "
+    "dataset's answers do (2648 of 2655 CubiCasa5K questions)",
 )
 SHOWERS_AND_BATHTUBS = CountingRule(
     id="showers-and-bathtubs", text="showers and bathtubs together, each counted once"
@@ -35,7 +35,7 @@ ROOMS_TOTAL = CountingRule(
 INDOOR_TOTAL = CountingRule(
     id="indoor-rooms-total",
     text="every room that is not outdoor; shafts, lifts and stairwells stay in, as the "
-    "dataset's answers do although the question says shafts are left out (review-4)",
+    "dataset's answers do although the question says shafts are left out",
 )
 APARTMENT_AREA = CountingRule(
     id="apartment-area",
@@ -76,6 +76,10 @@ ROOM_SIDE = CountingRule(
     text="the longer side of a rectangular room's outline at the sheet's scale; other shapes "
     "have no sides to compare",
 )
+
+
+# The parts of a fallback count in plain words, as the reason an item is left out says them
+PLAIN = {"room:sauna": "sauna rooms", "sauna_stove": "sauna stoves"}
 
 
 class Combined(Frozen):
@@ -138,8 +142,13 @@ def apply_rules(listed: Mapping[str, tuple[Mark, ...]]) -> dict[str, Counted]:
             chosen = next((i for i, found in enumerate(parts) if found), None)
             marks = () if chosen is None else parts[chosen]
             if chosen is not None:
-                why = f"{combined.parts[chosen]} counted instead ({combined.rule.id})"
-                excluded = tuple((mark, why) for found in parts[chosen + 1 :] for mark in found)
+                kept = PLAIN[combined.parts[chosen]]
+                later = zip(combined.parts[chosen + 1 :], parts[chosen + 1 :], strict=True)
+                excluded = tuple(
+                    (mark, f"{kept} counted instead of {PLAIN[part]}")
+                    for part, found in later
+                    for mark in found
+                )
         else:
             marks = tuple(mark for found in parts for mark in found)
         counted[combined.key] = Counted(rule=combined.rule, marks=marks, excluded=excluded)

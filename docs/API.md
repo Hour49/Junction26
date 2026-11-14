@@ -1654,7 +1654,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
     },
     "estimate": null,
     "first": null,
@@ -2942,7 +2942,7 @@ any project, which no project shows. A project that does not hold the drawing is
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
       },
       "estimate": null,
       "first": null,
