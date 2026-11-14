@@ -32,8 +32,8 @@ export const verdictOf = (t: Pick<Triage, 'verdict'>) => VERDICT_LABEL[t.verdict
 /** A file triage looked at and set aside as not a floor plan. */
 export const isNotPlan = (f: FileStatus) => !!f.triage && f.triage.class !== 'floor_plan';
 
-/** A call needs a description (else 422 `no-description`). */
-export const canCall = (f: FileStatus) => isNotPlan(f) && !!f.triage?.description;
+/** Any non-plan, described or not (#183 lifted the 422 `no-description`; its line stays for older servers). */
+export const canCall = isNotPlan;
 
 /** Reserved route, built (#166): a set-aside non-plan nobody had read as a plan yet; no undo. */
 export const canReadAsPlan = (f: FileStatus) =>

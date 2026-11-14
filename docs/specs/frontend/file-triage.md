@@ -90,8 +90,9 @@ percent ("chance of a floor plan 3 %"), `round(100 × p_plan)`.
      on: <a>, <b>" (when not empty) and "Judged by <judge>"; when `relevance` is null the `note` (if not already
      shown above);
    - the call (step 4) and, once its route exists, "Read it as a floor plan" (step 6).
-4. The call. Shown when `canCall(file)`: `triage` set, `class != floor_plan`, `description` not null (else the API
-   answers 422 `no-description`; the note already says why). With no call yet:
+4. The call. Shown when `canCall(file)`: `triage` set and `class != floor_plan`, described or not (#183 lifted the
+   422 `no-description`, so every `unrelated_file` issue can be settled; its error line stays for an older server).
+   With no call yet:
    - "Your name" text field (max 100 characters), filled from this browser's saved name, the surveyor's key
      `countersign.surveyorName` (one name across sign-off, double-check and this; a failing `localStorage` leaves it
      empty and the screen working);
@@ -118,8 +119,9 @@ percent ("chance of a floor plan 3 %"), `round(100 × p_plan)`.
 7. Issues list: an `unrelated_file` issue is a row like any other: kind "Not a floor plan" (icon ▭), severity group
    from the API (`needs_person` for unsure, else `note`), `why` as sent, place "not on a drawing", plan panel "This
    issue has no place on a drawing.", and one link to the trace `#/p/<pid>/f/<file_id>` (keeps `pack`): "Make a
-   call" while `open`, "See the call" when `settled`. After a call the issue keeps its `id` and `n` and reads
-   "settled" (Bogdan, #152 item 1).
+   call" while `open`, "See the call" when `settled`. After a call the issue keeps its `id` and reads "settled"
+   (Bogdan, #152 item 1). `n` is the position in the list as loaded, not an identifier; `Issue.id` is the reference
+   that survives re-reads and exports (Bogdan, #14 c6877137779).
 
 ## API calls
 
@@ -156,7 +158,7 @@ outside the collapsed text list, `ProjectSummary.not_plans` (screen 5 is fe-gold
 | Judged, no call | class line, verdict pill | description, relevance, call form | `project_triaged.json` `files[1]` (related) |
 | Unsure | "? Unsure" | as above with unsure | variant `triaged-unsure` |
 | Called | pill of `verdict` · "Ana's call" | `callLine`, "Undo the call" | `project_triaged.json` `files[2]` |
-| Not described | class line, "– Not judged" | note in place of description and relevance; no call form | `project_triaged.json` `files[3]` (refused); variant `triaged-offline` |
+| Not described | class line, the class rule's verdict ("✕ Not related" for a non-drawing) | note in place of the description; the class rule's relevance; call form | `project_triaged.json` `files[3]` (refused); variant `triaged-offline` |
 | Sending | | both buttons disabled, "Saving your call…" | a pending promise |
 | Call failed | | the error line of the table | `mockApi` 409/422/404/500 with `error.json` spread with the `code` |
 | Read as a plan (reserved) | "Read as a floor plan on Ana's call" | "Ana had it read as a floor plan, …" | variant `read-as-plan` |
@@ -191,22 +193,26 @@ Ingest rows and project
 - FT-2: `project_triaged.json`: `elevations/south.png` row reads "Not a floor plan: another kind of drawing · the
   south elevation of a two-storey house" and "✓ Related"; its `reason` text is not on the row. [component]
 - FT-3: `photos/site.jpg` row reads "Not a floor plan: not a drawing · a building site with a crane", "✓ Related"
-  and "Ana's call". `photos/street.jpg` reads "Not a floor plan: not a drawing" and "– Not judged". [component]
-- FT-4: `not_plans: 3` shows "3 not floor plans: kept, not read"; `not-plans-zero` shows "No image set aside as
+  and "Ana's call". `photos/street.jpg` (not described, judged by the class rule) reads "Not a floor plan: not a
+  drawing" and "✕ Not related". `photos/sheet.jpg` reads "Not a floor plan: another kind of drawing · a
+  photographed elevation of a church" and "? Unsure". [component]
+- FT-4: `not_plans: 4` shows "4 not floor plans: kept, not read"; `not-plans-zero` shows "No image set aside as
   not a floor plan"; `triaged-running` and `project.json` show no such line. [component]
 - FT-5: `rowLine`, `callLine`, `CLASS_LABEL`, `VERDICT_LABEL` map every `class` and `verdict` value (incl. null) to
-  words; `canCall` is false for `triage` null, `class` `floor_plan`, or `description` null. [unit]
+  words (a null verdict is "– Not judged"); `canCall` is false for `triage` null or `class` `floor_plan`, and true
+  for an undescribed non-plan (#183). [unit]
 
 Trace
 
 - FT-6: `trace-triaged` with `files[1]`: the card shows "Not a floor plan: another kind of drawing", "Chance of a
   floor plan 3 % (fake classifier)", the preview `<img>` with alt "elevations/south.png as uploaded", the description
   text, "Subject: the south elevation of a two-storey house", a closed "Text printed on it (2)" holding "Küche" and
-  "Süd", "Described by fake describer", the related sentence, "Related: Küche is on the project's plans.", "Matched
-  on: Küche", "Judged by word judge". [component]
+  "Süd", "Described by fake describer", the related sentence, "Related: 'kuche', printed on it, is in the project's
+  plan text; it shows no building.", "Matched on: 'kuche' (plan text)", "Judged by rule on the words printed on it
+  and whether it shows a building, no model". [component]
 - FT-7: A failed preview load shows "Preview not available". [component]
-- FT-8: `files[3]` (not described): the note "not described: the model refused" shows once, no description, no
-  call form, no buttons. [component]
+- FT-8: `files[3]` (not described): the note "not described: the model refused" shows once, no description, and
+  the call buttons are offered (#183). [component]
 - FT-9: With a saved name "Ana", "It is related" on `triaged-open`'s `files[2]` sends exactly
   `relevance_request.json` to `POST /api/projects/5e0c1a2b3d52/files/f3/relevance`; the answer (`files[2]` of
   `project_triaged.json`) replaces the card: "Related to this project: Ana's call, 2026-11-14 08:05 UTC. The judge
@@ -228,7 +234,9 @@ Issues
 
 - FT-15: `issue-unrelated` shows kind "Not a floor plan" with its icon, "not on a drawing", and one link "Make a
   call" → `#/p/<pid>/f/f3`; settled it reads "See the call", same href; `?pack=` is kept. [unit] [component]
-- FT-16: Its row keeps its `n` when its state changes between two loads (same `id`, same position). [unit]
+- FT-16: `n` is the row's position in the list as loaded, not an identifier; `Issue.id` is the stable reference
+  (Bogdan, #14 c6877137779). A call that only changes an issue's state leaves the list's order, and so `n`,
+  unchanged. [unit]
 
 Reserved: read as a floor plan (built when the `/triage` PR lands)
 

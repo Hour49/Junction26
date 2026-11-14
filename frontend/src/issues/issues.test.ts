@@ -147,7 +147,7 @@ describe('issues.ts', () => {
       expect(linksOf(unrelated, 'fi')).toEqual({ 'Make a call': `#/p/${PID}/f/f3?pack=fi` });
     });
 
-    it('FT-16 a call changes the state, not n', () => {
+    it('FT-16 n is the position in the list as loaded; a state change leaves the order, Issue.id is the reference', () => {
       const before = numbered([...issues, unrelated]);
       const after = numbered([...issues, { ...unrelated, state: 'settled' }]);
       expect(after.map((r) => [r.n, r.issue.id])).toEqual(before.map((r) => [r.n, r.issue.id]));
