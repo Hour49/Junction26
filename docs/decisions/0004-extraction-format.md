@@ -195,3 +195,20 @@ bedrooms with 0 (one model) each have a 2.36 m high door to the outside.
 
 `attrs` already takes any JSON scalar, so the schema and the Part 1 scorer don't change. Files without the keys read
 as before: all gold, every non-BIM file, and every extraction written before this.
+
+## Amendment, 2026-11-14 19:57: a room type as a conflict's class
+
+- Decided by: agent golden (worker), for the orchestrator to confirm (series point on 240e620, 19:54: `stoa_eval
+  score-extraction` refused the run); the shape is the one the backend already writes since #256 (ad06d63).
+
+With `RASTER_PRINTED_SCALE=carbon` a raster sheet's printed count of one room type ("3H+K+S" counts one kitchen and
+one sauna) stands against the read count as a `room_count` conflict whose subject is `{"kind": "class", "ref":
+"room:kitchen"}` (`backend/app/core/pipeline/printed.py`, `fact_measurements`; the takeoff reads it back in
+`takeoff.py`). The amendment of 2026-11-13 23:30 allowed only an element class there, so eval refused the whole
+extraction folder. A `class` subject's `ref` may now also be `room:<type>` with a room type of this format, the same
+key `counts` and `count_arbiter` already use. Every file valid before stays valid; the conflict gold has no such
+entry, so the conflict slice scores as before (a predicted conflict with no gold entry on a file outside the gold is
+not scored).
+
+Alternative rejected: the backend writing the room type somewhere else (a `sheet` subject plus a note, or a new
+subject kind). It would lose the type or add a kind that `counts` doesn't need for the same idea.
