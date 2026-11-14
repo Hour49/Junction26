@@ -65,7 +65,7 @@ def test_show_on_plan_streams_the_view_as_it_happens() -> None:
     [shown] = [
         data for kind, data in got if kind == "tool_result" and data["tool"] == "show_on_plan"
     ]
-    assert shown["label"] == "Showed The bathroom on the plan"
+    assert shown["label"] == "Showed the bathroom on the plan"
 
 
 def test_the_model_text_is_never_streamed() -> None:
@@ -99,3 +99,27 @@ def test_sse_frames_events_pings_while_idle_and_ends_after_the_last_event() -> N
 
 
 _ = ASKED
+
+
+def test_a_caption_is_streamed_only_once_checked() -> None:
+    """The plan and tool_call of show_on_plan come before its caption is checked: plain words."""
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        step(call("show_on_plan", 2, evidence_ids=["ev_1"], caption="All 12 rooms on the plan")),
+        final(text="Here."),
+    )
+    got, done = events(model)
+    assert "12 rooms" not in json.dumps(got)
+    calls = [data["label"] for kind, data in got if kind in ("tool_call", "tool_result")]
+    assert calls[2:] == ["Showed places on the plan", "Showed 1 place on plan.pdf, page 1"]
+    assert done.steps[-1].label == "Showed 1 place on plan.pdf, page 1"
+
+
+def test_a_caption_that_names_the_plan_is_not_said_twice() -> None:
+    model = Model(
+        step(call("ask_drawings", question="q")),
+        step(call("show_on_plan", 2, evidence_ids=["ev_1"], caption="The bathroom on the plan")),
+        final(text="Here."),
+    )
+    _, done = events(model)
+    assert done.steps[-1].label == "Showed the bathroom on the plan"

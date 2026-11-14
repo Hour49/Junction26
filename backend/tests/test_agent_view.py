@@ -81,7 +81,7 @@ def test_show_on_plan_shows_every_mark_of_the_last_answer_on_a_follow_up() -> No
     assert len(got.answers) == 1 and got.answers[0]["question"] == "how many doors"
     [shown] = got.steps
     assert (shown.tool, shown.status, shown.label) == (
-        "show_on_plan", "ok", "Showed The 3 doors on the plan")  # fmt: skip
+        "show_on_plan", "ok", "Showed the 3 doors on the plan")  # fmt: skip
 
 
 def test_show_on_plan_disputed_shows_the_marks_the_readers_disagree_on() -> None:

@@ -86,7 +86,6 @@ LABELS = {
     "get_clause": "Read clause {clause_id}",
     "search_evidence": "Searched the evidence for: {query}",
     "get_evidence": "Read evidence {evidence_id}",
-    "show_on_plan": "Showed {caption} on the plan",
 }
 # A proposal the plan tool refused is no proposal (QA edits-6)
 FAILED_LABELS = {
@@ -493,7 +492,7 @@ class _Run:
             backing.append(json.dumps(entry["answer"]))
             self.reattached.append(entry["answer"])
         if given and not unbacked(given, backing):
-            caption, label = given, f"Showed {given} on the plan"
+            caption, label = given, _showed(given)
         else:  # the server's words: a caption with a number no tool gave is not shown
             caption = f"{len(ids)} {'place' if len(ids) == 1 else 'places'} on {name}, page {page}"
             label = f"Showed {caption}"
@@ -718,6 +717,12 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _showed(caption: str) -> str:
+    """show_on_plan's step label from its checked caption: "Showed the 3 doors on the plan"."""
+    lower = caption[:1].lower() + caption[1:] if caption[1:2].islower() else caption
+    return f"Showed {lower}" if "plan" in caption.lower() else f"Showed {lower} on the plan"
 
 
 def _summary(name: str, found: Any, names: Mapping[str, str]) -> str | None:
