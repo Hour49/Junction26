@@ -667,8 +667,9 @@ def build_ingest(
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"
-    if settings.carbon_levels != "off":  # the same
-        names["carbon_levels"] = f"{settings.carbon_levels}:{READER_SHA[:12]}"
+    if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
+        # (ladder acts only when answering), so they share one name and a switch reads nothing again
+        names["carbon_levels"] = f"demote:{READER_SHA[:12]}"
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),

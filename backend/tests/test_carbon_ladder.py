@@ -4,14 +4,17 @@ never makes an answer High or certified; a Low or High stays; a person's sign-of
 wins; a failed check keeps today's level."""
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from app.adapters.answer_prior import NoPrior
 from app.adapters.carbon import CarbonChecked
+from app.adapters.carbon.contract import READER_SHA
 from app.adapters.question_templates import TemplateParser
-from app.composition import build_answering, build_pipeline
+from app.api import ask as api_ask
+from app.composition import build_answering, build_ingest, build_pipeline
 from app.core.drawing.model import CarbonCheck, Drawing, Element, Plan
 from app.core.review.ask import Asked, ask
 from app.core.review.check import CARBON_AGREED, CheckPolicy, Level, carbon_checked
@@ -157,3 +160,34 @@ def test_off_and_demote_leave_the_ladder_off(
 ) -> None:
     settings = settings_with(monkeypatch, tmp_path, CARBON_LEVELS=value)
     assert build_answering(settings).carbon_ladder is False
+
+
+@pytest.mark.parametrize("value", ["demote", "ladder"])
+def test_demote_and_ladder_share_the_ingest_cache_name(
+    value: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Both store the same reading (ladder acts only when answering), so a switch reads nothing
+    again (codecheck S2, .agents/qa/r9/review-296.md)."""
+    settings = settings_with(monkeypatch, tmp_path, CARBON_LEVELS=value)
+    names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
+    assert names["carbon_levels"] == f"demote:{READER_SHA[:12]}"
+
+
+@pytest.mark.parametrize("ladder", [True, False])
+def test_the_api_passes_the_ladder_to_ask(monkeypatch: pytest.MonkeyPatch, ladder: bool) -> None:
+    """The app's only ladder wiring (api/ask.py asked_on); without it the live app answers as
+    demote while CARBON_LEVELS=ladder (codecheck S1, .agents/qa/r9/review-296.md)."""
+    seen: dict[str, Any] = {}
+    monkeypatch.setattr(api_ask, "ask", lambda *a, **k: seen.update(k))  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
+    monkeypatch.setattr(api_ask, "file_of", lambda ingest, named: None)  # pyright: ignore[reportUnknownLambdaType]
+    monkeypatch.setattr(api_ask, "as_uploaded", lambda ingest, info, pid: info)  # pyright: ignore[reportUnknownLambdaType]
+    monkeypatch.setattr(api_ask, "confidence_of", lambda *a: None)  # pyright: ignore[reportUnknownLambdaType]
+    info = SimpleNamespace(flags=(), route="raster")
+    ingest = SimpleNamespace(drawing_info=lambda drawing_id: info)  # pyright: ignore[reportUnknownLambdaType]
+    reviews = SimpleNamespace(get=lambda pid, did: None)  # pyright: ignore[reportUnknownLambdaType]
+    answering = SimpleNamespace(
+        parser=None, clock=None, prior=None, prior_families=None, sure_at=None, check=None,
+        disputes=None, scorers=None, carbon_ladder=ladder,
+    )  # fmt: skip
+    api_ask.asked_on("q", SCAN, "d1", reviews, answering, ingest, "p1")  # type: ignore[arg-type]
+    assert seen["carbon_ladder"] is ladder
