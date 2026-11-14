@@ -101,6 +101,7 @@ from app.core.review.check import (
     no_disputes,
 )
 from app.core.review.disputes import find_disputes
+from app.core.spend import SpendGuard
 from app.settings import (
     AnswerPriorName,
     ExtractorName,
@@ -248,7 +249,9 @@ def _probe(settings: Settings) -> ContentProbe:
         OpenVlmDecider(_eu(settings))
         if settings.kind_provider == "eu"
         else DecisionsClient(
-            settings.gemini_api_key.get_secret_value(), settings.decisions_timeout_s
+            settings.gemini_api_key.get_secret_value(),
+            settings.decisions_timeout_s,
+            budget=spend_guard(settings),
         )
     )
     return KindProbe(FileProbe(), KindReader(client, settings.decisions_cache_dir))
@@ -269,7 +272,9 @@ def _triage(settings: Settings) -> TriageSteps | None:
     describer = None
     if settings.triage_describer == "gemini":
         client = GeminiDescribeClient(
-            settings.gemini_api_key.get_secret_value(), settings.gemini_timeout_s
+            settings.gemini_api_key.get_secret_value(),
+            settings.gemini_timeout_s,
+            budget=spend_guard(settings),
         )
         describer = GeminiDescriber(client, settings.triage_describer_cache_dir)
     return TriageSteps(classifier=classifier, describer=describer, judge=judge, name=name)
@@ -601,7 +606,10 @@ def _gemini_rooms(settings: Settings, files: DrawingFiles) -> Extractor:
         reader = GeminiRoomReader(OpenVlmRoomModel(_eu(settings)), settings.gemini_cache_dir)
         return OpenVlmRoomExtractor(files, reader)
     client = GeminiClient(
-        settings.gemini_api_key.get_secret_value(), settings.gemini_model, settings.gemini_timeout_s
+        settings.gemini_api_key.get_secret_value(),
+        settings.gemini_model,
+        settings.gemini_timeout_s,
+        budget=spend_guard(settings),
     )
     return GeminiRoomExtractor(files, GeminiRoomReader(client, settings.gemini_cache_dir))
 
@@ -613,8 +621,20 @@ def decisions_reader(settings: Settings) -> G1MainReader:
         decider = OpenVlmDecider(_eu(settings), joint=True)
         return G1MainReader(decider, settings.decisions_cache_dir)
     key = settings.gemini_api_key.get_secret_value()
-    client = DecisionsClient(key, settings.decisions_timeout_s)
+    client = DecisionsClient(key, settings.decisions_timeout_s, budget=spend_guard(settings))
     return G1MainReader(client, settings.decisions_cache_dir)
+
+
+def spend_guard(settings: Settings) -> SpendGuard:
+    """The process's one Gemini ledger (GEMINI_BUDGET_USD, GEMINI_BUDGET_USD_PER_HOUR; how to use
+    it: app/core/spend.py), shared by every Gemini caller built from these limits. With neither
+    set it only counts and never refuses."""
+    return _spend_guard(settings.gemini_budget_usd, settings.gemini_budget_usd_per_hour)
+
+
+@cache
+def _spend_guard(total_usd: float | None, per_hour_usd: float | None) -> SpendGuard:
+    return SpendGuard(total_usd, per_hour_usd)
 
 
 def _eu(settings: Settings) -> OpenVlmClient:

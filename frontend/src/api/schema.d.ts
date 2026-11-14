@@ -1106,6 +1106,8 @@ export interface components {
         };
         /** Info */
         Info: {
+            /** Gemini */
+            gemini?: ("ok" | "budget_exhausted") | null;
             limits: components["schemas"]["Limits"];
             /** No Keys */
             no_keys: boolean;
