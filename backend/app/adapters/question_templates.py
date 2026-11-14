@@ -4,6 +4,11 @@ languages to a `Query`, with no model call.
 It reads meaning from words rather than matching whole templates, so a reworded question, a
 dropped hint or a typo still parses:
 
+0. Misspelt words are read as the parser's own words, where that is unambiguous
+   (question_typos.py). A question refused as typed is answered as read, and the query says
+   what was read (`Query.read_as`). A question that parses as typed keeps its query, unless,
+   read right, it counts several kinds of thing: then it is refused as such.
+
 1. Quoted names ('x', „x“, «x», “x”) are taken out first. The words just before each one say
    what it is: a room label ("labelled", "Bezeichnung"...), one room's name ("room", "Raum",
    "ruimte"...), a building model ("model", "Modell"...) or, by default, a storey. A model's
@@ -31,6 +36,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.adapters.question_tables import is_table_question, parse_table
+from app.adapters.question_typos import corrected
 from app.core.answering.model import (
     IN_ONE_ROOM,
     SEVERAL_THINGS,
@@ -142,30 +148,6 @@ SUBJECTS: Sequence[tuple[str, str]] = (
     ),
 )
 _SUBJECTS = [(subject, re.compile(pattern)) for subject, pattern in SUBJECTS]
-
-# Plain word forms for typo matching: a word one edit (or one swap of neighbours) away from one of
-# these names its subject, when no subject was found otherwise.
-TYPO_WORDS: dict[str, str] = {
-    word: subject
-    for subject, words in {
-        "door": "doors türen portes porte deuren puertas",
-        "window": "window windows fenster fenêtres finestre ventanas ikkunaa",
-        "toilet": "toilets toilet",
-        "sink": "sinks washbasins lavabos",
-        "shower": "shower showers duschen douches docce",
-        "bathtub": "bathtub bathtubs badewannen baignoires",
-        "room:bedroom": "bedroom bedrooms",
-        "room:kitchen": "kitchen kitchens",
-        "room:bathroom": "bathroom bathrooms",
-        "room:balcony": "balcony balconies",
-        "apartment": "apartment apartments wohnungen",
-        "wall": "walls wände",
-        "column": "columns",
-        "stair": "stairs",
-        "room": "rooms räume pièces",
-    }.items()
-    for word in words.split()
-}
 
 MEASURES: Sequence[tuple[Measure, re.Pattern[str]]] = (
     ("volume", re.compile(r"volum|m³|\bm3\b|tilavuus|objęto|\bmaht")),
@@ -281,6 +263,18 @@ class TemplateParser:
 
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
         raw = unicodedata.normalize("NFC", " ".join(text.split()))
+        parsed = self._parse(raw)
+        text, read = corrected(raw, [match.span() for match in QUOTED.finditer(raw)])
+        if not read:
+            return parsed
+        again = self._parse(text)
+        if isinstance(again, Unsupported) and again.reason == SEVERAL_THINGS:
+            return again  # read right, it asks more than one count answers ("doors and windwos")
+        if isinstance(parsed, Unsupported) and isinstance(again, Query):
+            return again.model_copy(update={"read_as": read})
+        return parsed
+
+    def _parse(self, raw: str) -> Query | TableQuery | Unsupported:
         quoted = _quoted(raw)
         bare = QUOTED.sub(" _ ", raw)  # the question without its quoted names
         lower = bare.casefold()
@@ -426,19 +420,13 @@ def _subjects(lower: str) -> tuple[str, list[tuple[int, str]]]:
     for clause in CLAUSES.split(body):
         start = offset
         offset += len(clause) + 1
-        if EXCLUDING.search(clause):
-            continue
+        if excluding := EXCLUDING.search(clause):  # "the rooms of B without balconies"
+            clause = clause[: excluding.start()]
         rest = clause
         for subject, pattern in _SUBJECTS:
             for match in pattern.finditer(rest):
                 hits.append((start + match.start(), subject))
             rest = pattern.sub(lambda m: " " * len(m.group()), rest)
-    if not hits:
-        hits = [
-            (match.start(), subject)
-            for match in WORD.finditer(body)
-            if (subject := _typo(match.group())) is not None
-        ]
     return body, sorted(hits)
 
 
@@ -455,24 +443,3 @@ def _counted_thing_named(body: str, hits: list[tuple[int, str]]) -> bool:
         if word.group() not in FILLER:
             return False
     return True
-
-
-def _typo(word: str) -> str | None:
-    if len(word) < 5:
-        return None
-    return next((s for known, s in TYPO_WORDS.items() if _one_edit(word, known)), None)
-
-
-def _one_edit(a: str, b: str) -> bool:
-    """One insertion, deletion, substitution or swap of neighbours apart (not equal)."""
-    if a == b or abs(len(a) - len(b)) > 1:
-        return False
-    if len(a) == len(b):
-        diff = [i for i in range(len(a)) if a[i] != b[i]]
-        if len(diff) == 1:
-            return True
-        i, j = diff[0], diff[-1]
-        return len(diff) == 2 and j == i + 1 and a[i] == b[j] and a[j] == b[i]
-    short, long = (a, b) if len(a) < len(b) else (b, a)
-    i = next((k for k in range(len(short)) if short[k] != long[k]), len(short))
-    return short[i:] == long[i + 1 :]

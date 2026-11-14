@@ -51,8 +51,12 @@ def test_hints_and_excluded_clauses_are_not_the_subject() -> None:
 
 
 def test_a_typo_in_the_subject_still_parses() -> None:
-    assert PARSE("how many windwos are on this floorplan") == Query(subject="window")
-    assert PARSE("Wie viele Fenstre sind eingezeichnet?") == Query(subject="window")
+    assert PARSE("how many windwos are on this floorplan") == Query(
+        subject="window", read_as=("'windwos' as 'windows'",)
+    )
+    assert PARSE("Wie viele Fenstre sind eingezeichnet?") == Query(
+        subject="window", read_as=("'Fenstre' as 'fenster'",)
+    )
 
 
 def test_a_quoted_label_counts_or_sums_the_rooms_with_that_label() -> None:
