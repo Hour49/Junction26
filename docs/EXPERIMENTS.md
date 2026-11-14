@@ -541,7 +541,7 @@ elements, which it does not do yet.
 **Status of this section: draft, first written 2026-11-14 about 12:30 and extended the same day with the work after
 12:08 (14.7 to 14.11).** The single test read of C1-T1 and its certificate are in
 (14.2); the rest of the section is val numbers from the logs, plus golden dev numbers where a log gives them. Still open,
-marked `TODO` below: the paired interval against config C (integ-14, running); the golden series point; arm 3's
+marked `TODO` below: the golden series point; arm 3's
 per-style result.
 
 The round had two goals. First, find out where the 13.5% of val questions that config C gets wrong come from, and take
@@ -633,8 +633,11 @@ its bare name, so there the kitchen count comes from the drawing: 476 of 516 kit
 of 516 for the prior (95.0%). Quote 87.0% as the product's test accuracy and 87.2% only as the CLI read with the prior.
 Against the train prior (56.3%) the CLI read is +31.0 [+28.9, +33.0]; the log gives no interval for the API figure.
 
-Config C, read once at 07:47, scored 85.0% (5,708 of 6,718): C1-T1 is +2.0 pp through the API and +2.2 through the CLI,
-unpaired (no paired test comparison existed when this was written; integ-14 is running one). C's 07:47 read had no
+Config C, read once at 07:47, scored 85.0% (5,708 of 6,718): C1-T1 is +2.1 [+1.3, +2.8] pp through the API on a paired
+comparison (integ-14, 85.0% to 87.0%, McNemar p 1.0e-12), and +2.3 [+1.5, +3.1] through the CLI. Without kitchen the gain
+is +2.2 [+1.4, +3.0]; without kitchen and bedroom +1.5 [+0.7, +2.3]; T1's five element families +2.5 [+1.3, +3.8];
+kitchen from the drawing +0.8 [-1.2, +2.7], which includes zero. Bedroom's +10.8 is the gold-labels room policy, not T1,
+and the element gain mixes eight views with T1 (C1 alone was never read on test). C's 07:47 read had no
 answer policy, so its kitchen figure (91.5) is not like for like with the CLI's prior-based 95.0; its bedroom (77.6) was
 read without `gold-labels`, which is most of the 88.4 against 77.6.
 
