@@ -217,6 +217,7 @@ class _Run:
         self.shown: tuple[list[str], str] | None = None  # show_on_plan's places and caption
         self.reattached: list[Json] = []  # earlier ask_drawings results show_on_plan showed
         self.reviewed: list[str] = []  # the places of the answer review_answer reviewed
+        self.reviewed_refusal = False  # the reviewed answer was a refusal on every drawing
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
@@ -627,6 +628,8 @@ class _Run:
         self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
         latest = [*self.chat.asked, *self.asked][-1]
         self.reviewed = [ev for ev in latest["marks"] if ev in {**self.known, **self.ledger}]
+        drawings: list[Json] = found["drawings"]
+        self.reviewed_refusal = bool(drawings) and all("refused" in d for d in drawings)
         return _for_model(found)
 
     def _loop_step(self, start: float, label: str, status: str, tool: str) -> None:
@@ -720,6 +723,10 @@ class _Run:
             text = text.replace(file, self.names.get(drawing_id) or file)
         text = _plain_ids(text)
         kind: TurnKind = answer.kind
+        if kind == "dont_know" and self.reviewed_refusal:
+            # "are you sure?" about a refusal is answered by its review: the refusal stands and
+            # why. Not "I don't know." over "Yes, ..." (qa-a live, r10 live-photo #7)
+            kind = "answer"
         if kind in ("answer", "conflict") and self._unrated(answer.text):
             text = f"{text.rstrip()} {UNRATED}"
         answers = self._answers(set(cited) | set(shown), kind)
