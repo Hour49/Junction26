@@ -201,3 +201,49 @@ def test_minimal_thinking_is_refused_at_startup() -> None:
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, agent_thinking="minimal")  # pyright: ignore[reportCallIssue, reportArgumentType]
+
+
+def test_cached_prompt_tokens_are_priced_at_the_cached_rate() -> None:
+    """pi-spike borrow 5. The compat endpoint's usage, as a live call gave it (2026-11-14):
+    `prompt_tokens_details.cached_tokens` counts the part of `prompt_tokens` read from cache."""
+    priced = OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, Transport(),
+                             sleep=lambda _: None, price_cached=0.375)  # fmt: skip
+    usage = {"completion_tokens": 5, "prompt_tokens": 15115, "total_tokens": 15120,
+             "prompt_tokens_details": {"cached_tokens": 13061}}  # fmt: skip
+    want = (2054 * 1.50 + 13061 * 0.375 + 5 * 9.00) / 1e6
+    assert priced.usd(usage, 0) == pytest.approx(want)
+    # a cached count that can't be right is ignored: the prompt at the full price, never less
+    full = (15115 * 1.50 + 5 * 9.00) / 1e6
+    for odd in (-1, "13061", 20_000, None, True):
+        given = {**usage, "prompt_tokens_details": {"cached_tokens": odd}}
+        assert priced.usd(given, 0) == pytest.approx(full), odd
+    assert priced.usd({**usage, "prompt_tokens_details": "x"}, 0) == pytest.approx(full)
+
+
+def test_a_cached_count_is_not_discounted_when_the_prompt_count_is_missing() -> None:
+    """Review 336 S1: the prompt estimated from the request's size is priced in full; a cached
+    count can't be taken out of a number the endpoint never gave."""
+    priced = OpenAiChatModel(BASE, KEY, "gemini-4-hydrogen", 1.50, 9.00, 5.0, Transport(),
+                             sleep=lambda _: None, price_cached=0.375)  # fmt: skip
+    usage = {"completion_tokens": 5, "prompt_tokens_details": {"cached_tokens": 900}}
+    estimated = 4000 // 3 + 1  # CHARS_PER_TOKEN
+    assert priced.usd(usage, 4000) == pytest.approx((estimated * 1.50 + 5 * 9.00) / 1e6)
+
+
+def test_the_cached_price_setting_reaches_the_model() -> None:
+    from pydantic import SecretStr
+
+    from app.composition import chat_model
+    from app.settings import Settings
+
+    given = Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
+        chat_model="gemini",
+        gemini_api_key=SecretStr(KEY),
+        agent_price_cached_per_m=0.2,
+    )
+    made, _ = chat_model(given)
+    assert isinstance(made, OpenAiChatModel) and made.price_cached == 0.2
+    # deliberately above the listed 0.075/M cache read: a guard overestimates, never under
+    cached = Settings(_env_file=None).agent_price_cached_per_m  # pyright: ignore[reportCallIssue]
+    assert cached == pytest.approx(0.375)
