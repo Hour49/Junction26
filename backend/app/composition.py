@@ -9,7 +9,7 @@ case below (docs/decisions/0005-pipeline-core.md).
 import logging
 import secrets
 import time
-from collections.abc import Callable, Collection, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import cache, partial
@@ -76,6 +76,7 @@ from app.adapters.question_templates import TemplateParser
 from app.adapters.raster import RoomPolicy, assemble, parse_components, parse_readers
 from app.adapters.raster.photo import PHOTO, PhotoSwitch
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
+from app.adapters.raster.room_words import room_word, swiss_label_rooms
 from app.adapters.raster_detector import OnnxDetector
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
 from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
@@ -119,6 +120,7 @@ from app.core.answering.ports import (
     DrawingSource,
     QuestionParser,
 )
+from app.core.drawing.model import Room
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
@@ -137,15 +139,17 @@ from app.core.pipeline.ports import (
     SecondCounter,
     SourceFinder,
 )
-from app.core.pipeline.room_policy import gold_label_rooms
+from app.core.pipeline.room_policy import generic_word_rooms, gold_label_rooms
 from app.core.pipeline.route import RICHEST_FIRST
 from app.core.review.check import (
     NO_SCORERS,
     CheckPolicy,
     Disputes,
+    RoomWords,
     Scorer,
     gate_scorer,
     no_disputes,
+    no_room_words,
 )
 from app.core.review.disputes import find_disputes
 from app.core.review.ports import Resolver
@@ -600,6 +604,7 @@ class Answering:
     scorers: Mapping[str, Scorer] = NO_SCORERS  # LOCAL_GATES, by signal name (lower case)
     resolver: Resolver | None = None  # RESOLVER; None: off
     carbon_ladder: bool = False  # CARBON_LEVELS=ladder: a Medium answer Carbon reads alike is High
+    room_words: RoomWords = no_room_words  # what a room's printed label names (room_word_doubt)
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -631,6 +636,7 @@ def build_answering(settings: Settings) -> Answering:
         scorers=scorers,
         resolver=_resolver(settings),
         carbon_ladder=settings.carbon_levels == "ladder",
+        room_words=room_word,
     )
 
 
@@ -790,6 +796,10 @@ def build_ingest(
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
         names["room_policy"] = settings.room_policy
+    if settings.extractor_raster == "composite":  # its rooms take their Swiss printed names
+        # (room_words.py): readings stored before that are read again
+        names["room_words"] = "swiss+generic:v1"  # +generic: "Rum", "H" are no bedrooms
+        names["floor_plans"] = "rooms:v2"  # v2: drop only a box with no room (plan_rooms.py)
     if settings.double_check_readers:  # the same
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
@@ -909,12 +919,21 @@ def _raster(
             return read
 
 
-def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:
+def _room_policy(name: RoomPolicyName) -> RoomPolicy:
+    """ROOM_POLICY after the Swiss room names, which every raster reading takes (a correctness
+    fix, think-acc's certified-wrong Swiss bathroom, orchestrator 2026-11-14): a Swiss sheet's
+    room is typed by its printed name as the drawn route types it (room_words.py)."""
     match name:
         case "furniture":
-            return None
+            return _label_rooms
         case "gold-labels":
-            return gold_label_rooms
+            return lambda rooms: gold_label_rooms(_label_rooms(rooms))
+
+
+def _label_rooms(rooms: Sequence[Room]) -> Sequence[Room]:
+    """What every raster reading's rooms get: the Swiss names, then a bedroom whose label says
+    only "room" is `other` (room_policy.generic_word_rooms)."""
+    return generic_word_rooms(swiss_label_rooms(rooms))
 
 
 def _double_check(readers: str, build: Callable[[str], Extractor]) -> dict[str, str]:

@@ -407,6 +407,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/drawings/{drawing_id}/services/{storey_id}.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Services Png */
+        get: operations["services_png_api_projects__project_id__drawings__drawing_id__services__storey_id__png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/evidence/search": {
         parameters: {
             query?: never;
@@ -892,6 +909,8 @@ export interface components {
             method: string;
             /** Pages */
             pages: components["schemas"]["PageView"][];
+            /** Partial */
+            partial?: boolean | null;
             proof: components["schemas"]["Proof"];
             quantity: components["schemas"]["Row"] | null;
             /** Question */
@@ -901,6 +920,10 @@ export interface components {
             resolved?: components["schemas"]["Resolved"] | null;
             /** Resolver Note */
             resolver_note?: string | null;
+            /** Rooms Counted */
+            rooms_counted?: number | null;
+            /** Rooms Missing */
+            rooms_missing?: string[] | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
@@ -1060,6 +1083,11 @@ export interface components {
             latency_s: number;
             /** Model */
             model: string;
+            /**
+             * Next
+             * @default []
+             */
+            next: components["schemas"]["Option"][];
             /** Options */
             options?: components["schemas"]["Option"][] | null;
             /**
@@ -1159,6 +1187,8 @@ export interface components {
         };
         /** CheckSubject */
         CheckSubject: {
+            /** Global Id */
+            global_id?: string | null;
             /**
              * Kind
              * @enum {string}
@@ -1863,6 +1893,8 @@ export interface components {
             file_id: string | null;
             /** Floor */
             floor: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
             /** Id */
             id: string;
             /**
@@ -1875,6 +1907,8 @@ export interface components {
             links: components["schemas"]["IssueLinks"];
             /** Mark Id */
             mark_id: string | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Page */
             page: number | null;
             /** Polygon */
@@ -4197,6 +4231,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProjectChecks"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    services_png_api_projects__project_id__drawings__drawing_id__services__storey_id__png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storey_id: string;
+                project_id: string;
+                drawing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the storey's services, drawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description no such project, drawing or storey */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the drawing has no services model yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

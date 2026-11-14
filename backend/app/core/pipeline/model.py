@@ -158,6 +158,21 @@ class QuantityConflict(Frozen):
     value_marks: tuple[tuple[ValueMark, ...], ...] = ()
 
 
+class Partial(Frozen):
+    """A room total that may leave rooms out: the sum of the `counted` rooms a reader found on a
+    picture (`read`), or of rooms a room schedule on the drawing says are not all of them.
+    `missing`: the rooms the schedule names and the sum does not have, as it prints them;
+    `refused`: rooms found whose area was refused, left out of the sum."""
+
+    counted: int = Field(ge=0)
+    missing: tuple[str, ...] = ()
+    read: bool = True  # the rooms were read off a picture; False: drawn on the sheet (vector, IFC)
+    schedule: str | None = None  # the title of the table naming `missing`; None: it has none
+    # rooms found whose box cannot be the room (raster_scale.refused_boxes: no area), by label,
+    # left out of the sum
+    refused: tuple[str, ...] = ()
+
+
 class Quantity(Frozen):
     """Stage 10: one precomputed answer of the takeoff, with its proof."""
 
@@ -175,6 +190,7 @@ class Quantity(Frozen):
     # The items its counting rule left out, each with the reason (stage 9), e.g. a sauna room's
     # stoves, or the outdoor rooms of an indoor total
     excluded: tuple[tuple[Mark, str], ...] = ()
+    partial: Partial | None = None  # a room total over the rooms found, maybe not all of them
 
 
 class SheetReport(Frozen):

@@ -92,3 +92,15 @@ export function estimateLine(a: AnswerView): string | null {
   // a whole number: formatValue's two decimals would claim a precision the estimate has not
   return `about ${shownValue(n, a.unit, true)}, ${why}`;
 }
+
+/** CH-49/EN-90: the partial tag's title and accessible name for a room total that may leave rooms out (#350):
+ * "May be partial: sums 7 rooms; 2 not in it". The names stay in the explanation, which already lists them. */
+export function partialTip(
+  a: Pick<AnswerView, 'partial' | 'rooms_counted' | 'rooms_missing'>,
+): string | null {
+  if (!a.partial) return null;
+  const n = a.rooms_counted ?? 0;
+  const missing = a.rooms_missing?.length ?? 0;
+  const lacks = missing ? `; ${String(missing)} not in it` : '';
+  return `May be partial: sums ${String(n)} room${n === 1 ? '' : 's'}${lacks}`;
+}

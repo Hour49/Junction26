@@ -269,7 +269,6 @@ describe('API client', () => {
     if (!edit) throw new Error('review_requests.json is empty');
     const api = mockApi({
       'GET /api/info': fx.info,
-      'POST /api/projects': fx.projectStarted,
       'POST /api/projects/sample': fx.projectStarted,
       'GET /api/projects': fx.projectList,
       [`GET /api/projects/${pid}`]: fx.project,
@@ -288,7 +287,6 @@ describe('API client', () => {
     const opts = { signal };
     await Promise.all([
       getInfo(opts),
-      uploadProject(new File(['x'], 'a.zip'), opts),
       startSample(opts),
       listProjects(opts),
       getProject(pid, opts),
@@ -304,8 +302,23 @@ describe('API client', () => {
       postSignoff(tid, fx.signoffRequest, opts),
     ]);
     const signals = api.fetch.mock.calls.map(([, init]) => init?.signal);
-    expect(signals).toHaveLength(15);
+    expect(signals).toHaveLength(14);
     expect(signals.every((s) => s === signal)).toBe(true);
+  });
+
+  it('upload: XHR (for its progress) reports bytes sent and resolves the 202; the caller signal aborts it', async () => {
+    mockApi({ 'POST /api/projects': fx.projectStarted });
+    const seen: [number, number][] = [];
+    const file = new File(['abcd'], 'a.zip');
+    expect(await uploadProject(file, { onProgress: (s, t) => seen.push([s, t]) })).toEqual(
+      fx.projectStarted,
+    );
+    expect(seen).toEqual([[4, 4]]);
+    mockApi({ 'POST /api/projects': never() });
+    const abort = new AbortController();
+    const sent = uploadProject(file, { signal: abort.signal });
+    abort.abort();
+    await expect(sent).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('R1-PS-1 (SH-44) getDrawing passes the project when given', async () => {

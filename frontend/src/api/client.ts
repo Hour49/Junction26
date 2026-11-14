@@ -80,12 +80,40 @@ function postJson<T>(url: string, body: unknown, opts: Opts = {}): Promise<T> {
 
 export const getInfo = (opts?: Opts) => call<Info>('GET', '/api/info', opts);
 
-export const uploadProject = (file: File, opts?: Opts) =>
-  call<Started>('POST', withQuery('/api/projects', { name: file.name }), {
-    ...opts,
-    body: file,
-    type: 'application/octet-stream',
+/** POST /api/projects with the file as body, over XHR because fetch reports no upload progress: `onProgress`
+ * gets the bytes sent so far and the total as they go out. Errors as `call`'s: an HTTP error is its ApiError, no
+ * answer at all is a network ApiError, an abort rejects with an AbortError. */
+export function uploadProject(
+  file: File,
+  opts: Opts & { onProgress?: (sent: number, total: number) => void } = {},
+): Promise<Started> {
+  return new Promise<Started>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', withQuery('/api/projects', { name: file.name }));
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) opts.onProgress?.(e.loaded, e.total);
+    };
+    xhr.onload = () => {
+      const response = new Response(xhr.responseText, { status: xhr.status });
+      if (response.ok)
+        void response.json().then((body) => {
+          resolve(body as Started);
+        }, reject);
+      else void errorOf(response).then(reject);
+    };
+    xhr.onerror = () => {
+      reject(new ApiError(0, 'network', 'the connection was lost while sending the file'));
+    };
+    xhr.onabort = () => {
+      reject(new DOMException('aborted', 'AbortError'));
+    };
+    opts.signal?.addEventListener('abort', () => {
+      xhr.abort();
+    });
+    xhr.send(file);
   });
+}
 
 export const startSample = (opts: Opts & { fresh?: boolean } = {}) =>
   call<Started>('POST', withQuery('/api/projects/sample', { fresh: opts.fresh }), opts);

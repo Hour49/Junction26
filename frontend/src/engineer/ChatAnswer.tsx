@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
-import { GRADE_TONE, StatusPill } from './AnswerCard';
+import { GRADE_TONE, PartialTag, StatusPill } from './AnswerCard';
 import { ResolverLines } from './Resolver';
 import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
@@ -144,6 +144,8 @@ export function ChatAnswer(props: {
                 <span>
                   <span className="en-part-name">{labelOf(p)}</span>: <strong>{value(p)}</strong>
                 </span>
+                {/* CH-49: a room total that may leave rooms out; the explanation names them */}
+                <PartialTag a={p.answer} />
                 {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
                 {p.answer.quantity?.status === 'signed' ? (
                   <span className="v-pill v-pill--ok">Signed off</span>

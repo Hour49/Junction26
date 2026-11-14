@@ -18,6 +18,7 @@ from app.core.answering.model import Answer, Question
 from app.core.drawing.model import Element, Page, Room, Scale
 from app.core.errors import InvalidInputError
 from app.core.pipeline.raster_scale import (
+    AREA_REFUSED,
     BOX_RATIO,
     DOOR_M,
     FEW_DOORS,
@@ -25,6 +26,7 @@ from app.core.pipeline.raster_scale import (
     SPREAD_MANY,
     door_sides,
     estimate_scale,
+    refused_boxes,
     rooms_with_areas,
 )
 from app.settings import Settings
@@ -71,7 +73,7 @@ def test_a_rooms_box_area_is_corrected_to_its_outline_and_marked_estimated() -> 
     outlined = Room(id="r2", type="bedroom", page=1, box=(0.0, 0.0, 0.2, 0.4), polygon=square)
     printed = Room(id="r3", type="wc", page=1, box=(0.5, 0.5, 0.6, 0.6), area_m2=1.5)
 
-    got = rooms_with_areas([box, outlined, printed], scale, [PAGE])
+    got, notes = rooms_with_areas([box, outlined, printed], scale, [PAGE])
 
     assert got[0].area_m2 == pytest.approx(round(400 * 250 * 0.01**2 / BOX_RATIO, 2))
     assert got[1].area_m2 == pytest.approx(4.0)
@@ -79,6 +81,58 @@ def test_a_rooms_box_area_is_corrected_to_its_outline_and_marked_estimated() -> 
     # the scale's spread counts twice for an area, with the outline's on top
     assert got[0].area_uncertainty is not None and got[0].area_uncertainty > math.expm1(0.2)
     assert got[2] == printed
+    assert notes == []
+
+
+def test_label_boxes_fixes_m1_a_box_smaller_than_any_room_gets_no_area_a_narrow_room_keeps_it() -> (
+    None
+):
+    """fail-1 M1: the shorter side refused real narrow rooms (high_quality-11271's kitchen and its
+    utility kitchen APK). A label is small both ways: the box's area is tested. USCG's "LOBBY
+    0.18 m²" on a 7.4 m² floor is still refused."""
+    scale = Scale(status="scaled", m_per_unit=0.01, evidence=("scale_bar",))  # page 10 x 5 m
+    living = Room(id="r1", type="living", page=1, box=(0.0, 0.0, 0.4, 0.6))  # 4 x 3 m
+    kitchen = Room(id="r2", type="kitchen", page=1, box=(0.45, 0.0, 0.513, 0.6))  # 0.63 x 3 m
+    apk = Room(
+        id="r3", type="kitchen", label="APK", page=1, box=(0.55, 0.0, 0.73, 0.12)
+    )  # 1.8 x 0.6
+    lobby = Room(
+        id="r4", type="other", label="LOBBY", page=1, box=(0.75, 0.0, 0.81, 0.06)
+    )  # 0.6 x 0.3
+    outlined = Room(id="r5", type="wc", page=1, box=(0.85, 0.0, 0.9, 0.05),
+                    polygon=((0.85, 0.0), (0.9, 0.0), (0.9, 0.05), (0.85, 0.05)))  # fmt: skip
+    got, notes = rooms_with_areas([living, kitchen, apk, lobby, outlined], scale, [PAGE])
+    assert [room.area_m2 is not None for room in got] == [True, True, True, False, True]
+    # stays, its area unknown (never a smaller number), marked refused for the sheet's totals
+    assert got[3].model_copy(update={"attrs": {}}) == lobby
+    assert str(got[3].attrs[AREA_REFUSED]).startswith("its box is 0.60 x 0.30 m")
+    assert notes == [  # says what was measured, not that it is the label
+        "room area: r4 not measured, its box is 0.60 x 0.30 m (0.18 m²), smaller than any room "
+        "(a door leaf's footprint, 0.5 m²)"
+    ]
+
+
+def test_label_boxes_fixes_s2_coverage_counts_box_rooms_only_and_refuses_under_10_percent() -> None:
+    scale = Scale(status="scaled", m_per_unit=0.01, evidence=("scale_bar",))
+
+    def corners(width: float, height: float) -> list[Room]:  # four boxes in the page's corners
+        at = [(0.0, 0.0), (1 - width, 0.0), (0.0, 1 - height), (1 - width, 1 - height)]
+        return [Room(id=f"r{i}", type="other", page=1, box=(x, y, x + width, y + height))
+                for i, (x, y) in enumerate(at)]  # fmt: skip
+
+    hall = Room(id="hall", type="hall", page=1, box=(0.1, 0.1, 0.9, 0.9),
+                polygon=((0.1, 0.1), (0.9, 0.1), (0.9, 0.9), (0.1, 0.9)))  # fmt: skip
+    labels = corners(0.1, 0.15)  # 1 x 0.75 m each, 6% of the box around them: USCG page 2
+    refused = refused_boxes([*labels, hall], scale, [PAGE])  # the outlined hall does not count
+    assert list(refused) == ["r0", "r1", "r2", "r3"]
+    assert "the 4 room boxes on page 1 cover 6% of the area around them" in refused["r0"]
+    assert refused_boxes(corners(0.15, 0.25), scale, [PAGE]) == {}  # 15%: kept
+    assert refused_boxes(corners(0.25, 0.25), scale, [PAGE]) == {}  # 25%, separate blocks
+    assert refused_boxes(labels[:2], scale, [PAGE]) == {}  # two boxes say nothing about it
+    tiled = [Room(id=f"t{i}", type="other", page=1, box=(0.25 * i, 0.0, 0.25 * (i + 1), 1.0))
+             for i in range(4)]  # fmt: skip
+    assert refused_boxes(tiled, scale, [PAGE]) == {}
+    assert refused_boxes(labels, Scale(status="no_scale"), [PAGE]) == {}
 
 
 def test_the_wrapper_estimates_only_a_missing_scale_and_only_when_doors_were_read() -> None:

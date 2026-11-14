@@ -11,6 +11,7 @@ import {
   pairsOf,
   planCounts,
   quantityCount,
+  routeLines,
   stepLines,
   stepStatus,
 } from './advanced';
@@ -67,6 +68,7 @@ export function AdvancedIngest({
   const working: FileStatus | null =
     project.files.find((f) => !isFinished(f) && stepOf(f.stage ?? null) === step) ?? null;
   const lines = stepLines(project.files, traces, step);
+  const perRoute = routeLines(view, project);
   const status = stepStatus(project, step).status;
   const takeoffs = [...data.takeoffs.values()];
   const pairs = pairsOf(takeoffs, project);
@@ -225,6 +227,15 @@ export function AdvancedIngest({
             </span>
             <h2>{view.heading}</h2>
             <p>{view.explain}</p>
+            {perRoute.length > 0 && (
+              <ul className="adv-routes" aria-label="By route">
+                {perRoute.map(({ route, line }) => (
+                  <li key={route}>
+                    <b>{route}:</b> {line}
+                  </li>
+                ))}
+              </ul>
+            )}
             <p className="adv-live" aria-live={isCurrent ? 'polite' : undefined}>
               {liveText}
             </p>

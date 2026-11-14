@@ -154,6 +154,8 @@ SHARED_FLOOR = "a floor several plans of the drawing are labelled"
 GLUED_FLOOR = "a floor written with a hyphen that may be a minus"
 # A supported kind of question whose room or element was not recognised (review/ask.py words it)
 NO_SUBJECT = "no element, room or apartment named"
+# a count of a thing that is no element class, room or apartment ("How many X-RAY rooms")
+NOT_COUNTED = "the thing counted is not an element, room or apartment"
 
 
 class Evidence(Frozen):

@@ -217,11 +217,15 @@ Same `ModelDialog`, `canShow3d` and highlight as parts 2-3; no new dependency; m
    the chat at >= 1200 px, a sheet below): when the shown drawing's file can show 3D, the pane head gets "View in 3D"
    after "Open in workspace", opening `ModelDialog` with the newest answered turn's `highlight` for that drawing (its
    part in `turn.answers`), else `[]`.
-2. **Documents issue cards: not built, data missing.** `Issue` has `drawing_id`, `file_id`, `page`, `box`,
-   `polygon`, `mark_id`, no GlobalId; a code check on an IFC model (`code_check_failed`) knows the space or door it
-   checked but drops its GlobalId. Needed from the backend: `Issue.highlight: Highlight[]` (as `ProjectAnswerPart`),
-   e.g. the checked element as `affected`, plus `model_file_id`/`model_3d` or the file lookup by `file_id`. Then the
-   card gets the same button (one block in `IssueCard.tsx`).
+2. **Documents issue cards** (Bogdan #14 c6883948897, additive; feature/model-3d-issues). Backend: a check's
+   `CheckSubject` gets `global_id` when the drawing's model lists the room or door as drawn here
+   (`ModelObject.element`), and a `code_check_failed` issue gets `model_file_id` (the IFC file whose GLB shows its
+   drawing: its own, or the model a sheet was read from) and `highlight: [{global_id, role: "affected"}]`; each left
+   out when none. All three, and `ProjectAnswerPart.model_file_id`/`highlight`, only while `MODEL_3D` is on
+   (Bogdan's codecheck #14 c6884150822: off, no payload change); `file_id` stays either way. Frontend: an issue card with a `model_file_id` whose file in `project.files` can show 3D
+   (`canShow3d`) gets "View in 3D" (44 px, after "Open the file"), else, for any issue kind, its own `file_id` when
+   that file can show 3D (an IFC file's issue, no highlight); the dialog is titled "3D view: <drawing name>" and
+   highlights `issue.highlight`. No button without a 3D-capable file or with `MODEL_3D` off.
 
 `ModelDialog` stops Esc and Tab from bubbling: through the React tree a portal's key events reach the plan sheet's
 own Esc/Tab handlers, which would close the sheet behind the dialog.
@@ -232,12 +236,23 @@ Criteria:
   file and the newest answered part's `highlight` for the shown drawing. [component]
 - M3-22: [e2e 1440 and 390] the fixture's agent chat after "How many walls are there?": the plan pane (390: "Show the
   plan") -> "View in 3D" -> "Affected: 4"; Esc closes the dialog, the pane stays; screenshots `model3d-pane`. [e2e]
+- M3-23: (backend) `check_rule` puts the model object's GlobalId on a subject the model lists as drawn
+  (`ModelObject.element`), none otherwise, and the JSON leaves `global_id` out then (`tests/test_code_checks.py`); a
+  failed door check on the demo sheet with its IFC model gives the issue `model_file_id` = the IFC file and
+  `highlight` = that door's GlobalId; a plain PDF sheet's issues and the other kinds have neither key
+  (`tests/api/test_api_model_3d.py`). [unit, api]
+- M3-24: `issueModel(issue, files)` = `{fileId, highlight}` from `model_file_id` when that file can show 3D, else
+  from `file_id` when that file can; `highlight` = `issue.highlight ?? []`; else null. [unit]
+- M3-25: An issue card with such a model shows "View in 3D: <drawing name>"; it opens the dialog on
+  `files/<id>/model.glb` with the issue's highlight; Esc closes it and focus returns; no button without one.
+  [component] No e2e: the e2e fixtures give no code-check issue on an IFC model (the 3D house has no sheet; the demo
+  sheet+model passes the shipped packs), so this is covered by the component and API tests.
 
 ## Out of scope
 
 - web-ifc or any IFC parsing in the browser (licence and speed: the brief).
 - Per-storey views, sectioning, measuring, picking an element to see its properties.
-- A 3D view on Documents' issue cards: needs `Issue.highlight` (More places, 2).
+- Issue cards of kinds other than code checks get no highlight (only a failed check names an element).
 - Highlight from edit proposals (`Proposal.services`, Bogdan's cross-discipline GlobalIds): later; the view already
   takes `{global_id, role}` marks, so they only need a caller.
 

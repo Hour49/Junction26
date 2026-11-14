@@ -4528,7 +4528,7 @@ tell, and an uncertain answer with the model's check:
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -4536,7 +4536,7 @@ tell, and an uncertain answer with the model's check:
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -4893,6 +4893,11 @@ Each issue:
 - `answer`: a person's answer, `{text, by, at}` (`POST …/issues/{id}/answer` below), or null. It is a note on the
   issue: it settles nothing and does not change `state` (settle a conflict with `POST …/review`, make a call on a
   file with `POST …/relevance`).
+- `model_file_id` and `highlight` (added 2026-11-14, board #14 c6883948897; only while `MODEL_3D` is on, each left
+  out when there is none): for a failed code check on a drawing with an IFC model, the IFC file whose 3D view shows it (its own file, or the model
+  a sheet was read from: `…/files/{model_file_id}/model.glb`) and the checked room or door by GlobalId,
+  `[{global_id, role: "affected"}]`, when the model lists it as drawn on the sheet. The check's `subject` carries
+  the same `global_id` (left out when none, and always while `MODEL_3D` is off) in `GET /api/drawings/{id}/checks`.
 
 A flat checked against the Finnish pack (`?pack=fi`), its first failed check:
 
@@ -5675,7 +5680,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "2b4e04cde84fbbef",
+  "drawing_id": "ac22309c691d645d",
   "file": "plan.png",
   "pages": [
     {
@@ -5683,7 +5688,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/2b4e04cde84fbbef/pages/1.png",
+      "url": "/api/drawings/ac22309c691d645d/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -5979,7 +5984,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -5987,7 +5992,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -6202,7 +6207,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -6210,7 +6215,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -6463,7 +6468,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
 ```json
 {
   "question": "How many bedrooms are there?",
-  "drawing_id": "c592bb6c7e3273ca",
+  "drawing_id": "e9d9c7882f8bb9de",
   "file": "plan.png",
   "pages": [
     {
@@ -6471,7 +6476,7 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
       "width": 800.0,
       "height": 400.0,
       "unit": "px",
-      "url": "/api/drawings/c592bb6c7e3273ca/pages/1.png",
+      "url": "/api/drawings/e9d9c7882f8bb9de/pages/1.png",
       "normalised": {
         "exif": null,
         "rotated": 0,
@@ -6731,7 +6736,8 @@ that call gives, the project's review edits applied. An unknown project is 404; 
 - `parts`: one per drawing, `{drawing_id, name, answer}`: `name` is the drawing's file as the project uploaded it
   and `answer` is the full `POST /api/ask` response. The drawings that answered come first, then those that
   refused (with their `answer.refusal`), each group in the project's order. Also `file_id` (the drawing's file,
-  its `FileStatus.id`); `model_file_id` (left out when none): the IFC file whose 3D view shows the drawing
+  its `FileStatus.id`); only while `MODEL_3D` is on (off: left out, the payload as before), `model_file_id` (left
+  out when none): the IFC file whose 3D view shows the drawing
   (`…/files/{model_file_id}/model.glb`), its own file when that is IFC, else the model a sheet was read from;
   `highlight` (left out when empty): the elements the answer counted, by IFC GlobalId, `[{global_id, role}]`, role
   `affected` here (`moved`, `removed`, `added` are for edit proposals); and while `MODEL_3D` is on, `model_3d`: that
@@ -8569,6 +8575,14 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
 
+Levels only where measured (added 2026-11-14): when a number in an `answer` or `conflict` turn's `text` comes only from
+`get_plan_geometry`, `get_takeoff` or `list_walls` (no confidence level) and from no `ask_drawings` answer or the
+user's message, the server appends one sentence saying it is not rated.
+
+"Are you sure?" (added 2026-11-14): the agent calls `review_answer`, which gives back the chat's latest `ask_drawings`
+answer as its readers judged it (value, level and why, the check's reason, the disputed marks with their evidence
+ids), so the turn answers from the level and the disputed marks, cites them, and returns that answer in `answers`.
+
 `view` (added 2026-11-14) is the plan the turn wants on screen, or null when it has no place: `{drawing_id, name,
 page, box, marks: [{n, label, box, polygon}], caption, source}`, all in page fractions. `source: "show_on_plan"`:
 the agent called the `show_on_plan` tool (places of this chat by evidence id, or every mark, or the disputed ones,
@@ -8577,6 +8591,13 @@ after the cited ones. `source: "evidence"`: the page of `[1]` with every cited p
 the proposal's page around its geometry. `box` is the marks' union with a margin, the box to focus; each mark's `n`
 is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
 still come from this turn's tool results).
+
+`next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
+message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
+results, never from the model's text, in this order: "Show them on the plan" (`message` "Show me where they are")
+when the answer has more marks than the view shows; "Are you sure?" when an answer is rated Medium or Low or has
+disputed marks, not after a review; "How big is <label>?" when the answer names a room `find_rooms` returned without
+an area. `next` is `[]` on a turn with `options` and on every other kind.
 
 <!-- fixture: chat_answer.json -->
 ```json
@@ -9162,18 +9183,7 @@ still come from this turn's tool results).
             "check": null,
             "level": null
           },
-          "file_id": "f8",
-          "model_file_id": "f8",
-          "highlight": [
-            {
-              "global_id": "000000000000000000000K",
-              "role": "affected"
-            },
-            {
-              "global_id": "000000000000000000000M",
-              "role": "affected"
-            }
-          ]
+          "file_id": "f8"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -9380,7 +9390,13 @@ still come from this turn's tool results).
     ],
     "caption": null,
     "source": "evidence"
-  }
+  },
+  "next": [
+    {
+      "label": "Show them on the plan",
+      "message": "Show me where they are"
+    }
+  ]
 }
 ```
 
@@ -9902,8 +9918,7 @@ budget, the same call a third time) ends a turn the same way.
             "check": null,
             "level": null
           },
-          "file_id": "f8",
-          "model_file_id": "f8"
+          "file_id": "f8"
         }
       ],
       "total": null,
@@ -9915,7 +9930,8 @@ budget, the same call a third time) ends a turn the same way.
       "refused_note": "5 drawings can't answer this question."
     }
   ],
-  "view": null
+  "view": null,
+  "next": []
 }
 ```
 
@@ -10148,7 +10164,8 @@ without wall fills) gets `dont_know` saying so.
     ],
     "caption": null,
     "source": "evidence"
-  }
+  },
+  "next": []
 }
 ```
 

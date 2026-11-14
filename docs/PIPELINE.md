@@ -113,7 +113,12 @@ page over about 1,600 sq in (ARCH E, 36 x 48 in, and up) renders below 100 px pe
 The printed scale replaces the door estimate and the room areas are measured again at it. When the two are more than
 2x apart (`ESTIMATE_RANGE`), one is a misread: a measured bar still wins, and every area and length on the sheet
 becomes an estimate naming both scales (never certified, Low); a ratio does not win (the estimate stays, no rule
-decides). A printed count of an element class, a room type or all rooms is a second value of that count. `carbon`
+decides). A printed count of an element class, a room type or all rooms is a second value of that count; a
+Finnish flat type read as a room count (4H+K, 3h+k+s: the flat's type, not the rooms drawn) is not one, and stays in
+the notes (2026-11-14). A sheet's total room count read more than 2x the other count (all above 0, no rule) means the other counts
+something else: the reading is kept, both values stay on the entry, no person is asked. Within 2x, with a 0, with
+more printed than read (the reader may have missed rooms), for one room type's count (120 bedrooms vs 48 DORMS) or for
+an element count, a person decides. `carbon`
 reads them with the Carbon client (page call shared with `CARBON_READER`, a bars call, one full-resolution call per
 bar), on the process's spend guard.
 

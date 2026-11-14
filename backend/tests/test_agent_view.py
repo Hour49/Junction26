@@ -216,3 +216,15 @@ def test_a_follow_up_may_state_the_numbers_of_the_answer_it_shows() -> None:
     )
     got = again(chat, model, tools, "Show me where they are")
     assert (got.kind, got.text) == ("answer", "Here are the 3 doors on the plan.")
+
+
+def test_list_drawings_gives_each_drawing_its_plain_name_as_title() -> None:
+    """The user names a sheet as the app shows it ("Drawn plan 1"), not by its file (multi)."""
+    listed = [
+        {"drawing_id": DRAWING, "name": "plan.pdf"},
+        {"drawing_id": "f" * 16, "name": "b.pdf"},
+    ]
+    model = Model(step(call("list_drawings")), final(kind="dont_know", text="No."))
+    turn(model, Tools(list_drawings=listed), names=NAMES)
+    seen = json.loads(model.sent[1][-1]["content"])
+    assert seen == [{**listed[0], "title": "Drawn plan 1"}, listed[1]]

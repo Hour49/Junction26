@@ -189,13 +189,17 @@ describe('TurnCard', () => {
     expect(screen.queryByText('Try one of these instead')).toBeNull();
   });
 
-  it('AC-31 a turn resting on ask results shows the ask chat card for them, without a second sources list', () => {
+  it('AC-31 a turn resting on ask results shows the ask chat card, and the Sources its [n] cite (Tudor smoke 3)', () => {
     mockApi({});
     card({ ...answerTurn, answers: [projectAsk] });
     expect(screen.getByText(/is 7.56 m²/)).toBeTruthy(); // the agent's text stays
     expect(screen.getByRole('list', { name: 'Per drawing' })).toBeTruthy();
     expect(screen.getByRole('list', { name: 'References' })).toBeTruthy();
-    expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull();
+    // References number drawings; the text's [n] number marks: each [n] has its line in Sources
+    const sources = within(screen.getByRole('list', { name: 'Sources' }));
+    expect(
+      sources.getAllByRole('listitem').map((li) => li.querySelector('.en-tag')?.textContent),
+    ).toEqual(answerTurn.evidence.map((e) => String(e.n)));
     expect(screen.getByText('2 steps · 0.3 s · $0')).toBeTruthy();
   });
 
