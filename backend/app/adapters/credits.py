@@ -133,15 +133,17 @@ class DatasetCredits:
         return None
 
     def _sampled(self) -> set[tuple[int, str]]:
-        """Size and sha256 of each file in the sample archive (none when it is not built)."""
+        """Size and sha256 of each file in the sample archive (none while it is not built: /sample
+        builds it on its first request, so a lookup before that is not kept)."""
         if self._sample_files is None:
+            if self._sample is None or not self._sample.is_file():
+                return set()
             self._sample_files = set()
-            if self._sample is not None and self._sample.is_file():
-                with zipfile.ZipFile(self._sample) as archive:
-                    for entry in archive.infolist():
-                        if not entry.is_dir():
-                            data = archive.read(entry)
-                            self._sample_files.add((len(data), hashlib.sha256(data).hexdigest()))
+            with zipfile.ZipFile(self._sample) as archive:
+                for entry in archive.infolist():
+                    if not entry.is_dir():
+                        data = archive.read(entry)
+                        self._sample_files.add((len(data), hashlib.sha256(data).hexdigest()))
         return self._sample_files
 
     def _index(self) -> dict[int, list[Path]]:

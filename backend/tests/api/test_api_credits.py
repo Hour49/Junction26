@@ -3,12 +3,13 @@ and a synthetic Commons manifest, never in data/."""
 
 import hashlib
 import json
+import zipfile
 from pathlib import Path
 
 from conftest import upload
 from fastapi.testclient import TestClient
 
-from app.adapters.credits import DatasetCredits, parse_licence
+from app.adapters.credits import SAMPLE, DatasetCredits, parse_licence
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
@@ -100,3 +101,18 @@ def test_the_drawing_view_carries_the_credit_of_a_dataset_file_and_none_for_an_u
     shown = client.get(f"/api/drawings/{dataset_id['drawing_id']}").json()
     assert shown["credit"] == "Ana; Own work (CC BY-SA 4.0)"
     assert client.get(f"/api/drawings/{own_id['drawing_id']}").json()["credit"] is None
+
+
+def test_the_sample_is_credited_when_its_archive_is_built_after_the_first_lookup(
+    tmp_path: Path,
+) -> None:
+    """R3 qa-2: /sample builds its archive on the first request; an upload looked up before that
+    left the sample with no credit for the life of the process."""
+    archive = tmp_path / "samples" / "sample-project.zip"
+    credits = DatasetCredits(None, None, archive)
+    plan = b"%PDF sample plan"
+    assert credits.of(len(plan), sha(plan)) is None  # a user's upload, before the archive exists
+    archive.parent.mkdir(parents=True)
+    with zipfile.ZipFile(archive, "w") as out:
+        out.writestr("plans/flat-b.pdf", plan)
+    assert credits.of(len(plan), sha(plan)) == SAMPLE
