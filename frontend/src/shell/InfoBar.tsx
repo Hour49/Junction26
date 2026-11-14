@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { errorText, readerName } from '../api';
+import { errorText } from '../api';
 import { useInfo } from './info';
-import { OFFLINE_TEXT, READER_LABELS } from './strings';
+import { OFFLINE_TEXT } from './strings';
 
-/** Under the header on every route: whether the app runs offline, and which readers are active. */
+/** Under the header on every route: whether the app runs offline (ui-bugs 12: no "What runs"). */
 /** `wide`: the account and workspace routes, whose header row is 1280 px (shared.md "Header"). */
 export function InfoBar({ wide = false }: { wide?: boolean }) {
   const { info, error, reload } = useInfo();
@@ -28,24 +28,13 @@ export function InfoBar({ wide = false }: { wide?: boolean }) {
       </div>
     );
   }
+  // With keys there is nothing to say: no empty strip.
+  if (!info.no_keys) return null;
   return (
     <div className={`info-bar${width}`}>
-      {info.no_keys && (
-        <Badge variant="warn" className="px-2.5 py-[3px] text-[13px] font-semibold">
-          {OFFLINE_TEXT}
-        </Badge>
-      )}
-      <details className="what-runs">
-        <summary>What runs</summary>
-        <dl>
-          {Object.entries(info.readers).map(([port, reader]) => (
-            <div key={port}>
-              <dt>{READER_LABELS[port] ?? port}</dt>
-              <dd>{readerName(reader)}</dd>
-            </div>
-          ))}
-        </dl>
-      </details>
+      <Badge variant="warn" className="px-2.5 py-[3px] text-[13px] font-semibold">
+        {OFFLINE_TEXT}
+      </Badge>
     </div>
   );
 }

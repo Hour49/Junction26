@@ -62,13 +62,13 @@ beforeEach(() => {
 const header = (hash: string) => render(<Header route={parseRoute(hash)} />);
 
 describe('ExportButton in the header', () => {
-  it('EX-1 sits right after Workspaces on project routes, not on home or account', () => {
+  it('EX-1 ends the header row on project routes; not on home or account', () => {
     // The header's Documents badge (useIssuesToAnswer) asks the project, then its issues.
     mockApi(routes());
     const { unmount } = header(`#/p/${pid}/conflicts`);
     const button = screen.getByRole('button', { name: NAME });
-    const workspaces = screen.getByRole('link', { name: 'Workspaces' });
-    expect(workspaces.nextElementSibling?.contains(button)).toBe(true);
+    const last = document.querySelector('.app-header-row')?.lastElementChild;
+    expect(last?.contains(button)).toBe(true);
     unmount();
     header('#/');
     expect(screen.queryByRole('button', { name: NAME })).toBeNull();

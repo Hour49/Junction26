@@ -1,7 +1,6 @@
 import { ExportButton } from '../export/ExportButton';
 import { CountryPicker } from './CountryPicker';
 import { useIssuesToAnswer } from './issueCount';
-import { ProjectPicker } from './ProjectPicker';
 import { packOf, routePath, withPack, type Route } from './route';
 import { PRODUCT_NAME } from './strings';
 import logo from './vellum-logo.png';
@@ -75,24 +74,7 @@ export function Header({ route }: { route: Route }) {
             })}
           </nav>
         )}
-        <ProjectPicker
-          projectId={
-            'projectId' in route
-              ? route.projectId
-              : route.name === 'about'
-                ? route.query.get('project')
-                : null
-          }
-          pack={packOf(route)}
-        />
         {'projectId' in route && <CountryPicker pack={packOf(route)} />}
-        <a
-          className="header-pill workspaces-link v-press"
-          href="#/workspaces"
-          aria-current={route.name === 'account' ? 'page' : undefined}
-        >
-          Workspaces
-        </a>
         {'projectId' in route && (
           <ExportButton key={route.projectId} projectId={route.projectId} pack={packOf(route)} />
         )}

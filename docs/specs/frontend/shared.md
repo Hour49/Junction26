@@ -664,10 +664,9 @@ Info strip
 - SH-15 `GET /api/info` is sent once when the app starts, not again on route changes. [component]
 - SH-16 With `info.json`, "Running offline: no API keys, no models" is visible on home, project, file, workspace and
   not-found routes. [component] [e2e on the no-keys backend]
-- SH-17 With `no_keys: false` the offline text is absent and "What runs" is present. [component]
-- SH-18 "What runs" lists all ten ports of `info.json` with their labels; `CAD (DXF)` and `Scans and photos` read
-  "not read", `Vector PDF` reads "PDF vector reader", `Photo rectifier` reads "none", `photo/sheet check` reads
-  "off" (and "on" for `True`), `Questions` reads "question templates"; a port key not in the label list shows as is. [component, `info.json`]
+- SH-17 With `no_keys: false` there is no info strip at all: no offline text, no empty bar. [component]
+- SH-18 With `no_keys: true` the strip holds only the offline badge; there is no "What runs" panel (removed,
+  docs/ui-bugs.md 12: developer detail; `GET /api/info` `readers` stays for About and debugging). [component]
 - SH-19 While info is pending the strip shows "Checking the server…" with `role="status"`, and the route's screen is
   already rendered. [component]
 - SH-20 Info 500 with `error.json`'s body shows "The server did not answer: no drawing 0123456789abcdef
