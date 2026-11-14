@@ -39,6 +39,13 @@ export type Proof = Schemas['Proof'];
 export type Takeoff = Schemas['Takeoff'];
 export type Edit = Schemas['Edit'];
 export type SignOffRequest = Schemas['SignOffRequest'];
+export type Triage = Schemas['Triage'];
+export type Description = Schemas['Description'];
+export type Relevance = Schemas['Relevance'];
+export type Overrule = Schemas['Overrule'];
+export type RelevanceRequest = Schemas['RelevanceRequest'];
+export type TriageRequest = Schemas['TriageRequest'];
+export type ReadAsPlan = Schemas['ReadAsPlan'];
 
 /** The answer confidence (board #14): `score` is a raw model choice score, never a probability. */
 export type Signal = Schemas['Signal'];

@@ -16,6 +16,7 @@ const KIND_LABEL: Record<string, { word: string; icon: string }> = {
   reading_flag: { word: 'Reading flag', icon: '!' },
   code_check_failed: { word: 'Fails a code rule', icon: '✕' },
   double_check: { word: 'Double-check', icon: '◎' },
+  unrelated_file: { word: 'Not a floor plan', icon: '▭' },
 };
 
 /** A kind the table lacks shows its raw id and no icon (new kinds stay additive). */
@@ -123,6 +124,10 @@ export function routeOf(
   if (settle) links.push({ label: settleWord(issue), href: settle });
   if (issue.kind === 'set_aside' && issue.file_id)
     links.push({ label: 'Why it was set aside', href: href(`${p}/f/${issue.file_id}`, {}, pack) });
+  if (issue.kind === 'unrelated_file' && issue.file_id) {
+    const label = issue.state === 'open' ? 'Make a call' : 'See the call';
+    links.push({ label, href: href(`${p}/f/${issue.file_id}`, {}, pack) });
+  }
   if (did && (issue.kind === 'reading_flag' || issue.kind === 'code_check_failed')) {
     const q: Record<string, string> = issue.quantity ? { q: issue.quantity } : {};
     links.push({ label: 'Open in the surveyor', href: href(`${p}/d/${did}/surveyor`, q, pack) });

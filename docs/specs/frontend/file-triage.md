@@ -1,7 +1,7 @@
 # File triage: not-a-floor-plan files, their description, relevance and a person's call (spec, decision 0010)
 
-Status: draft for frontend-orch's review, 2026-11-14, by fe-ingest. Build: the call (`/relevance`) now, against main
-9bf74e4 (PR #161); the "Read it as a floor plan" button once Bogdan's `/triage` PR lands (shape: #152 c6876693460).
+Status: accepted by frontend-orch and built, 2026-11-14, by fe-ingest: FT-1..16 and FT-18..20 (the read-as-plan
+button, after Bogdan's PR #166 merged on main e8a89a8; FT-17 "no button" is superseded by FT-18). FT-21 is fe-golden's.
 API: docs/API.md "File triage (decision 0010)" and "POST …/relevance"; record `docs/decisions/0010-file-triage.md`;
 types `frontend/src/api/schema.d.ts` (`Triage`, `Description`, `Relevance`, `Overrule`, `RelevanceRequest`).
 
@@ -72,11 +72,13 @@ percent ("chance of a floor plan 3 %"), `round(100 × p_plan)`.
    when `description` is null), then the verdict pill, then " · <by>'s call" when `overruled` is set. A triaged
    file triage called a floor plan shows its row as today (nothing added).
 2. Under the "Files" heading, when `not_plans` is a number: "<n> not floor plans: kept, not read" (`plural`; "1 not a
-   floor plan: kept, not read"; with 0: "Every image is a floor plan"). Left out while `not_plans` is null or absent
+   floor plan: kept, not read"; with 0: "No image set aside as not a floor plan": a file read again as a plan leaves the count, which is no proof that it is one). Left out while `not_plans` is null or absent
    (running, or triage off).
 3. The user opens the file's trace. Under the facts card, the triage card (`section`, `aria-label` "Is it a floor
    plan?"):
-   - heading "Not a floor plan: <class words>", then "Chance of a floor plan <p> % (<method>)";
+   - heading "Not a floor plan: <class words>", then "Chance of a floor plan <p> % (<method>)"; once
+     `read_as_plan` is set the heading is "Read as a floor plan on <by>'s call" and the classifier's view moves under
+     it: "Triage said: <class words> (<p> % chance of a floor plan)" (frontend-orch, 2026-11-14);
    - the upload itself: `<img src={previewUrl(pid, fid)}>`, alt "<path> as uploaded", "Preview not available" on a
      failed load (a non-plan has no drawing, so `BeforeAfter` is never shown; this is the only picture of it);
    - "What is on it": `description.text`, "Subject: <subject>", and when `text_seen` is not empty a collapsed
@@ -109,7 +111,8 @@ percent ("chance of a floor plan 3 %"), `round(100 × p_plan)`.
    plan, <formatTime(at)>" and the button is gone (no undo). The project screen then also polls while any file
    is `queued`/`running` (today only while the project is), and the row's line reads "Read as a floor plan on
    <by>'s call". Until the PR lands the button is not rendered (no disabled placeholder: it would promise a
-   capability that does not exist).
+   capability that does not exist). Built once #166 merged; the variant `read-as-plan` is now the backend's fixture
+  `file_read_as_plan.json` (request `triage_request.json`, 202 answer `triage_started.json`).
 7. Issues list: an `unrelated_file` issue is a row like any other: kind "Not a floor plan" (icon ▭), severity group
    from the API (`needs_person` for unsure, else `note`), `why` as sent, place "not on a drawing", plan panel "This
    issue has no place on a drawing.", and one link to the trace `#/p/<pid>/f/<file_id>` (keeps `pack`): "Make a
@@ -187,8 +190,8 @@ Ingest rows and project
   south elevation of a two-storey house" and "✓ Related"; its `reason` text is not on the row. [component]
 - FT-3: `photos/site.jpg` row reads "Not a floor plan: not a drawing · a building site with a crane", "✓ Related"
   and "Ana's call". `photos/street.jpg` reads "Not a floor plan: not a drawing" and "– Not judged". [component]
-- FT-4: `not_plans: 3` shows "3 not floor plans: kept, not read"; `not-plans-zero` shows "Every image is a floor
-  plan"; `triaged-running` and `project.json` show no such line. [component]
+- FT-4: `not_plans: 3` shows "3 not floor plans: kept, not read"; `not-plans-zero` shows "No image set aside as
+  not a floor plan"; `triaged-running` and `project.json` show no such line. [component]
 - FT-5: `rowLine`, `callLine`, `CLASS_LABEL`, `VERDICT_LABEL` map every `class` and `verdict` value (incl. null) to
   words; `canCall` is false for `triage` null, `class` `floor_plan`, or `description` null. [unit]
 
@@ -227,12 +230,14 @@ Issues
 
 Reserved: read as a floor plan (built when the `/triage` PR lands)
 
-- FT-17: Before that PR the trace renders no "Read it as a floor plan" button in any state. [component]
+- FT-17: Superseded by FT-18 (#166 merged before the build).
 - FT-18: After it: on a set-aside non-plan with `read_as_plan` null the button shows; cancelling the confirm sends
   nothing; confirming sends `{class: "floor_plan", by: "Ana"}` to `POST …/files/f3/triage`; the 202 answer
   (`state: "queued"`) restarts trace polling, and once the file is `ready` with a `drawing_id`, "Open the drawing"
   shows. [component]
-- FT-19: `read-as-plan`: the card reads "Ana had it read as a floor plan, 2026-11-14 08:06 UTC", no button; the row
+- FT-19: `read-as-plan`: the card's heading reads "Read as a floor plan on Ana's call", under it "Triage said: another
+  kind of drawing (3 % chance of a floor plan)" and "Ana had it read as a floor plan, 2026-11-14 08:05 UTC"; no
+  "Not a floor plan" heading, no button; the row
   reads "Read as a floor plan on Ana's call". 409 `not-allowed` and 422 `not-triaged` show their lines. [component]
 - FT-20: The project screen polls while any file is `queued` or `running`, even when the project is `done`.
   [unit]
@@ -255,8 +260,7 @@ End to end (fe-golden, no-keys backend with `TRIAGE_CLASSIFIER=rules`)
 
 ## Not in the API
 
-Nothing this spec needs is missing for the call. The read-as-plan route and `Triage.read_as_plan` are announced
-(#152 c6876693460), not on main yet: FT-17..20 wait for them.
+Nothing. The read-as-plan route and `Triage.read_as_plan` are on main since #166 (e8a89a8).
 
 ## Open points
 
