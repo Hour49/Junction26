@@ -3,6 +3,7 @@
 OpenAI-format tools with their dispatcher, which answers every call with JSON and never raises."""
 
 import json
+import sqlite3
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -183,6 +184,21 @@ def test_with_an_embedder_search_is_hybrid_and_reports_both_ranks(tmp_path: Path
     assert len(found.hits) == 3  # dense ranks every kept file; the unrelated cat stays out
     assert [hit.why.bm25_rank for hit in found.hits[1:]] == [None, None]
     assert all(hit.why.terms == () for hit in found.hits[1:])  # found by meaning only
+
+
+def test_opening_and_searching_an_unchanged_index_writes_nothing(tmp_path: Path) -> None:
+    """Every tool call and REST request opens the index; with the status unchanged that must be a
+    read. A search then answers while another connection holds the write lock (ingest saving),
+    instead of waiting for it and failing with "database is locked"."""
+    open_index(tmp_path)  # built
+    writer = sqlite3.connect(tmp_path / "projects" / "p1" / "evidence.sqlite", timeout=0)
+    writer.execute("begin immediate")  # the write lock, held
+    try:
+        found = open_index(tmp_path).search("brick")
+        assert [hit.file for hit in found.hits] == ["facade.jpg"]
+    finally:
+        writer.rollback()
+        writer.close()
 
 
 # ---------------------------------------------------------------- get

@@ -3,10 +3,11 @@
 Tables: `sources` (one row per described non-plan file: its content hash, verdict and the source
 as JSON), `passages` (the chunker's passages, each with its file's subject and its vector of
 `subject. text`) and `passages_fts` (FTS5 over subject and text with equal weight, external
-content). `update` is incremental: a source whose content hash is unchanged
-keeps its passages and vectors (only its verdict and JSON are refreshed); a changed one is cut and
+content). `update` is incremental: a source whose content hash is unchanged keeps its passages
+and vectors (its verdict and JSON are refreshed when they changed); a changed one is cut and
 embedded again; one no longer in the status is dropped. A change of embedder re-embeds everything.
-Each update is one transaction, so a reader sees the index before or after it, never between.
+Each update is one transaction, so a reader sees the index before or after it, never between;
+an update with nothing to change writes nothing, so opening an index in step is a read.
 """
 
 import json
@@ -94,7 +95,9 @@ class SqliteEvidenceIndex:
         embedder = "" if self._embedder is None else self._embedder.name
         with self._db(status.id) as db, db:
             row = db.execute("select value from meta where key = 'embedder'").fetchone()
-            stored = dict(db.execute("select file_id, content from sources").fetchall())
+            rows = db.execute("select file_id, content, verdict, body from sources").fetchall()
+            stored = {file_id: content for file_id, content, _, _ in rows}
+            shown = {file_id: (verdict, body) for file_id, _, verdict, body in rows}
             if row is None or row[0] != embedder:
                 stored = {}  # another embedder: every source again
                 for file_id in [r[0] for r in db.execute("select file_id from sources")]:
@@ -105,6 +108,8 @@ class SqliteEvidenceIndex:
             for file_id, source in current.items():
                 body = source.model_dump_json()
                 if stored.get(file_id) == source.content:
+                    if shown[file_id] == (source.verdict, body):
+                        continue  # nothing changed: no write, so a read takes no write lock
                     db.execute(
                         "update sources set verdict = ?, body = ? where file_id = ?",
                         (source.verdict, body, file_id),
