@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/projects")
 SUMMED = ("count", "area", "length")  # what a total adds up over drawings
 # What a refused drawing lacks, per refusal code: (one drawing, several)
 LACKS: dict[RefusalCode, tuple[str, str]] = {
-    "no-reader": ("has no reader for it", "have no reader for it"),
+    "no-reader": ("gives no reliable number for it", "give no reliable number for it"),
     "no-scale": ("has no scale", "have no scale"),
     "not-in-drawing": ("doesn't show it", "don't show it"),
     "not-read": ("wasn't read for it", "weren't read for it"),
@@ -224,7 +224,7 @@ def _double_check(row: Row | None) -> bool:
 
 
 def _refused(views: list[AnswerView]) -> str:
-    """'1 drawing has no reader for it, 2 drawings have no scale', by refusal code."""
+    """'1 drawing gives no reliable number for it, 2 drawings have no scale', by refusal code."""
     codes: dict[RefusalCode, int] = {}
     for view in views:
         assert view.refusal is not None  # only refusals are passed: narrows the type

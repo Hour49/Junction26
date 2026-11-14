@@ -305,7 +305,7 @@ class TemplateParser:
         if is_table_question(raw):
             return parse_table(raw)
         if SCHEDULE.search(lower):
-            return Unsupported(reason="schedule (table) questions are not supported yet")
+            return Unsupported(reason="a schedule question that can't be turned into one lookup")
         if SUPERLATIVE.search(lower):
             return Unsupported(reason="a superlative (longest, largest...) is not a takeoff")
         if BREAKDOWN.search(lower):

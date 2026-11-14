@@ -89,13 +89,13 @@ TEXTS = {
     # `read` is empty: the do-nothing stand-in, or a real reader that found nothing on this sheet
     "no-reader": "Nothing was read from this sheet: its reader found no elements or rooms on it.",
     # the route's extractor is the do-nothing stand-in: there is no reader to blame
-    "no-reader-yet": "Nothing was read from this sheet: there is no reader for this kind of sheet "
-    "yet.",
+    "no-reader-yet": "This sheet wasn't read, so nothing on it was counted or measured: this setup "
+    "has no reader for this kind of sheet. You can still ask about the project's other drawings.",
     "no-scale": "The sheet has no scale, so lengths and areas can't be measured. Counts still "
     "work.",
     "no-drawing": "This file has no drawing model.",
-    "policy": "The reader for this kind of sheet is not reliable enough for this question yet, so "
-    "no number is given.",
+    "policy": "On sheets like this one, our reader got this kind of question wrong too often when "
+    "we measured it, so no number is given.",
 }
 PARTS = {  # an unsupported count that would drop part of the question: which part
     SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
