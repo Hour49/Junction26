@@ -46,7 +46,8 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   DOUBLE_CHECK_READERS=l1=detector:C-yolo26l,m1=detector:C-yolo26m
   CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json
   LOCAL_GATES=../data/models/arbiter/T1/lgate2-rt-C1T1.json,../data/models/arbiter/T1/lgate-rt-noL1-C1T1.json
-  CARBON_READER=large)  # demo/carbon: images over 4,000 px counted by Carbon, flagged, never certified (#269)
+  CARBON_READER=large  # demo/carbon: images over 4,000 px counted by Carbon, flagged, never certified (#269)
+  RASTER_PRINTED_SCALE=carbon)  # a measured printed scale replaces the estimate; > 2x from the door estimate holds areas Low (#256)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
