@@ -34,15 +34,6 @@ from scripts.make_sample_archive import png_bytes, raster_plan
 KEY = "test-key-0123456789"
 
 
-@pytest.fixture(autouse=True)
-def _cost_left_as_found() -> Any:
-    """These tests charge `cost`'s per-thread float; put it back exactly, so a later test that
-    compares a difference of it with == (test_ingest_triage) sees the counter it would alone."""
-    before = cost.spent()
-    yield
-    cost._local.usd = before  # pyright: ignore[reportPrivateUsage]
-
-
 # --- the contract, as copied -------------------------------------------------------------------
 
 
@@ -254,13 +245,13 @@ def test_calls_on_the_pool_are_charged_to_the_caller_and_a_cached_read_is_free(
 ) -> None:
     model = FakeCarbon(page_form(), [tile_form(), tile_form()])
     reader = CarbonReader(model, tmp_path)
-    before = cost.spent()
+    before = cost.mark()
     reader.read(page_image(3600, 1000))
-    assert cost.spent() - before == pytest.approx(0.03)  # page + 2 tiles, on other threads
+    assert cost.since(before) == pytest.approx(0.03)  # page + 2 tiles, on other threads
     assert len(model.calls) == 3
-    before = cost.spent()
+    before = cost.mark()
     again = reader.read(page_image(3600, 1000))
-    assert len(model.calls) == 3 and cost.spent() == before
+    assert len(model.calls) == 3 and cost.since(before) == 0
     assert again.read == ("room", *c.CLASSES)
     names = sorted(p.name for p in tmp_path.iterdir())
     assert len(names) == 3 and all(n.endswith(f"-{c.MODEL}-{c.THINKING}.json") for n in names)
@@ -307,11 +298,11 @@ def test_the_client_sends_the_contract_body_and_charges_4_20(
 
     monkeypatch.setattr(urllib.request, "urlopen", reply)
     guard = SpendGuard()
-    before = cost.spent()
+    before = cost.mark()
     CarbonClient(KEY, 5, guard).generate(b"\xff\xd8jpeg", c.TILE_PROMPT, c.TILE_SCHEMA, 8192)
     usd = (1000 * 4.00 + 200 * 20.00) / 1e6  # thinking billed as output
     assert guard.spent_by() == {"carbon reader": pytest.approx(usd)}
-    assert cost.spent() - before == pytest.approx(usd)
+    assert cost.since(before) == pytest.approx(usd)
     (request,) = sent
     assert request.full_url.endswith("/gemini-4-carbon:generateContent")
     assert KEY not in request.full_url and request.get_header("X-goog-api-key") == KEY
