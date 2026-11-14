@@ -25,10 +25,12 @@ def judge(
     reader: str | None,
     frame: Normalised | None = None,
     carbon: bool = False,
+    unruled: bool = False,
 ) -> tuple[FileState, str]:
     """`ready` when the route's reader read the drawing and nothing needs a look; `flagged`
     with every reason a person should look at it. `reader`: the route's adapter name; `frame`:
-    how an image was normalised; `carbon`: the Carbon reader read it alone (CARBON_READER)."""
+    how an image was normalised; `carbon`: the Carbon reader read it alone (CARBON_READER);
+    `unruled`: a drawn PDF read as an image (VECTOR_FALLBACK)."""
     if drawing.model_objects is not None and not drawing.pages:
         found = count(len(drawing.model_objects), "model object")
     else:
@@ -46,13 +48,14 @@ def judge(
     empty = read_nothing(drawing, route, reader)
     if empty is not None:
         flags.append(empty)
-    flags += reading_flags(kind, frame, carbon)
+    flags += reading_flags(kind, frame, carbon, unruled)
     if flags:
         return "flagged", f"{'; '.join(flags)} ({found})"
     return "ready", f"read on the {route_words(route)}: {found}"
 
 
 CARBON_FLAG = "counted by Gemini Carbon: its counts are not measured yet"
+UNRULED_FLAG = "a drawn PDF without reading rules, read as an image"
 
 
 def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:
@@ -67,15 +70,18 @@ def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | No
 
 
 def reading_flags(
-    kind: ContentKind, frame: Normalised | None, carbon: bool = False
+    kind: ContentKind, frame: Normalised | None, carbon: bool = False, unruled: bool = False
 ) -> tuple[str, ...]:
-    """The flags about how the page itself was read (a phone photo, a scan, by Gemini Carbon
-    alone): every answer on the drawing carries them, none of its answers is certified, and a
-    group the reader found nothing of is not a count of 0 (review/ask.py). A conflict or an
-    empty read is said where it shows (its row, no-reader)."""
+    """The flags about how the page itself was read (a phone photo, a scan, a drawn PDF with no
+    reading rules read as an image, by Gemini Carbon alone): every answer on the drawing carries
+    them, none of its answers is certified, and a group the reader found nothing of is not a
+    count of 0 (review/ask.py). A conflict or an empty read is said where it shows (its row,
+    no-reader)."""
     flags: tuple[str, ...] = ()
     if kind == "pdf_scan":
         flags = ("a scanned PDF, read as an image",)
+    elif unruled:  # VECTOR_FALLBACK: its readers were made for scans and photos, not this sheet
+        flags = (UNRULED_FLAG,)
     elif kind == "photo_plan" and frame is not None and frame.rectified:
         flags = (f"a phone photo, rectified by {frame.rectifier}: check the paper's corners",)
     elif kind == "photo_plan":

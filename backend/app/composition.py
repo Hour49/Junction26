@@ -97,6 +97,7 @@ from app.adapters.triage.sheet_kind import (
 )
 from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
+from app.adapters.vector_pdf.unruled import Unruled
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
 from app.core.answering.ports import (
@@ -185,6 +186,9 @@ class Pipeline:
     # CARBON_READER: whether the raster route's drawing of a file (by path) is read by Carbon
     # alone, the same yes/no its switch uses; ingest flags those drawings. None: no file is
     carbon_read: Callable[[str], bool] | None = None
+    # VECTOR_FALLBACK=raster: whether a drawn PDF has no sheet style the vector reader has rules
+    # for; stage 5 routes it to the raster route (in `scanned` too) and ingest flags it. None: off
+    unruled: Callable[[bytes], bool] | None = None
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -227,7 +231,9 @@ def build_pipeline(
     sheet-kind step called a file advanced, by its path (CARBON_READER=advanced); None: none
     was."""
     files = DatasetFiles(dataset)
-    scans = ScanImages(files)  # what the raster side reads: a scanned PDF as its page's image
+    unruled = _unruled(settings)
+    as_image = _as_image(unruled)  # the PDFs the raster route reads: scans, and unruled ones
+    scans = ScanImages(files, as_image)  # what the raster side reads: such a PDF as its page
     kind_of = kinds or _probed_kinds(settings, files)
     use_carbon = _carbon_read(settings, advanced, scans)
     models = IfcModels(files)
@@ -262,13 +268,26 @@ def build_pipeline(
         clock=time.perf_counter,
         prior_families=_policy(settings.answer_policy),
         readable=_readable(settings),
-        scanned=is_scanned_pdf,
+        scanned=as_image,
         confidence=DecisionsConfidence(scans, decisions())
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
         carbon_read=_carbon_counted(settings, use_carbon, kind_of),
+        unruled=unruled,
     )
+
+
+def _unruled(settings: Settings) -> Callable[[bytes], bool] | None:
+    return Unruled() if settings.vector_fallback == "raster" else None
+
+
+def _as_image(unruled: Callable[[bytes], bool] | None) -> Callable[[bytes], bool]:
+    """Whether the raster route reads a PDF as the image of its page: a scan, and with
+    VECTOR_FALLBACK=raster a drawn PDF the vector reader has no rules for."""
+    if unruled is None:
+        return is_scanned_pdf
+    return lambda data: is_scanned_pdf(data) or unruled(data)
 
 
 def _carbon_counted(
@@ -487,7 +506,8 @@ def build_answering(settings: Settings) -> Answering:
     signal: str | None = None
     if settings.decisions_confidence:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
-        confidence = partial(_scan_confidence, reader=reader)
+        render = _as_image(_unruled(settings))
+        confidence = partial(_scan_confidence, reader=reader, render=render)
         signal = DECISIONS_SIGNAL
     # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
     scorers = _scorers(settings.local_gates) if settings.check_policy else {}
@@ -510,10 +530,13 @@ def build_answering(settings: Settings) -> Answering:
     )
 
 
-def _scan_confidence(files: DrawingFiles, reader: G1MainReader) -> AnswerConfidence:
+def _scan_confidence(
+    files: DrawingFiles, reader: G1MainReader, render: Callable[[bytes], bool]
+) -> AnswerConfidence:
     """The answer confidence over a raster drawing's file as ingest's readers read it: a scanned
-    PDF as the image of its page (scan_images.py), so Gemini is asked about the same image."""
-    return DecisionsConfidence(ScanImages(files), reader)
+    PDF (or an unruled one, VECTOR_FALLBACK) as the image of its page (scan_images.py), so Gemini
+    is asked about the same image."""
+    return DecisionsConfidence(ScanImages(files, render), reader)
 
 
 def _resolver(settings: Settings) -> Resolver | None:
@@ -652,6 +675,8 @@ def build_ingest(
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
         names["raster_tiles"] = settings.raster_tiles
+    if settings.vector_fallback != "off":  # the same
+        names["vector_fallback"] = settings.vector_fallback
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"

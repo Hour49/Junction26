@@ -7,14 +7,16 @@ the PDF they failed ("cannot identify image file", local-dec BK S0, 2026-11-14).
 hands every one of them the same PNG of the page: rendered once per file and shared, at
 `SCAN_DPI` pixels per inch of the page (fewer when that is over page_render's MAX_PIXELS). Page
 fractions are the page's either way, so boxes land where the served page shows them. Every other
-file (an image, a drawn PDF) reads as it is. A later page of a PDF is a file of its own (ingest
-splits them), so page 1 is the page.
+file (an image, a drawn PDF) reads as it is, unless `render` says it too is read as an image (a
+drawn PDF the vector reader has no rules for, VECTOR_FALLBACK=raster). A later page of a PDF is a
+file of its own (ingest splits them), so page 1 is the page.
 """
 
 import hashlib
 import io
 import threading
 from collections import OrderedDict
+from collections.abc import Callable
 
 import pypdfium2
 
@@ -44,10 +46,12 @@ def scan_png(data: bytes, dpi: float = SCAN_DPI) -> bytes:
 
 
 class ScanImages:
-    """`files` with each scanned PDF read as `scan_png` of it, one render per file content."""
+    """`files` with each PDF that `render` calls an image (by default a scanned one) read as
+    `scan_png` of it, one render per file content."""
 
-    def __init__(self, files: DrawingFiles) -> None:
+    def __init__(self, files: DrawingFiles, render: Callable[[bytes], bool] | None = None) -> None:
         self._files = files
+        self._render = is_scanned_pdf if render is None else render
         self._made: OrderedDict[str, bytes] = OrderedDict()  # sha256 of the PDF -> what reads
         self._lock = threading.Lock()  # readers of one page wait for its one render
 
@@ -58,7 +62,7 @@ class ScanImages:
         key = hashlib.sha256(data).hexdigest()
         with self._lock:
             if key not in self._made:
-                self._made[key] = scan_png(data) if is_scanned_pdf(data) else data
+                self._made[key] = scan_png(data) if self._render(data) else data
                 while len(self._made) > KEEP:
                     self._made.popitem(last=False)
             self._made.move_to_end(key)
