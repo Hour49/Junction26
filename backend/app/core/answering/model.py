@@ -110,7 +110,8 @@ class TableQuery(Frozen):
     are ("door", "window", "room"); `table`: the words of the schedule's name when the question
     names one ("door type"); `column` (sum, read, max, min, count_sum): the words that name the
     column(s) to sum, read or rank; `meaning`: a read also gives what each code means, from the
-    sheet's legend tables."""
+    sheet's legend tables. `one_row`: the question names one row ("the room 'Office'"), so it
+    is answered only when exactly one row matches."""
 
     op: Literal["count", "sum", "read", "max", "min", "count_sum"]
     kind: str | None = None
@@ -119,6 +120,7 @@ class TableQuery(Frozen):
     filters: tuple[TableFilter, ...] = ()
     every_row: bool = False  # a count or sum over the whole table was asked for ("all", "listed")
     meaning: bool = False
+    one_row: bool = False
 
     def family(self) -> str:
         """The prior's key: what is done to which kind of table."""

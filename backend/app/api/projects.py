@@ -422,7 +422,9 @@ def triage(
     """A person has a file triage set aside read as a floor plan: it is read in the background,
     alone, while the project stays done. Returns the file, queued; poll the project. 409 until
     the project is done or while a file of it is read again; 422 `not-triaged` for a file triage
-    did not set aside as not a floor plan. No undo: a reading is not unread."""
+    did not set aside as not a floor plan. A sheet the sheet-kind step doubted (flagged) was read
+    already: its flag is dropped at once, nothing is read again. No undo: a reading is not
+    unread."""
     return ingest.read_as_plan(project_id, file_id, ReadAsPlan(by=body.by, at=now()))
 
 

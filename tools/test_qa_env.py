@@ -120,3 +120,14 @@ def test_the_backend_is_told_which_commit_it_runs() -> None:
     """GET /api/info `commit` (APP_COMMIT): tools/smoke.py prints which build it talks to."""
     script = SCRIPT.read_text()
     assert 'APP_COMMIT="$SHA" GEMINI_API_KEY="$KEY"' in script
+
+
+def test_the_demo_config_reads_big_sheets_and_printed_scales_with_carbon() -> None:
+    """demo/carbon (2026-11-14): CARBON_READER=large counts the drawn things on raster images over
+    4,000 px with Carbon (flagged, never certified, #269) and RASTER_PRINTED_SCALE=carbon lets a
+    scale measured from the sheet's own bar replace the door estimate (#256). Neither is the
+    default of the backend, so the demo config has to name them."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    assert "CARBON_READER=large" in config and "RASTER_PRINTED_SCALE=carbon" in config
