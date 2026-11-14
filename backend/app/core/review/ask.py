@@ -113,11 +113,13 @@ def ask(
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
     flags: Sequence[str] = (),
+    raster: bool = False,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
-    `flags`: how ingest read the page (judge.reading_flags: a phone photo, a scan)."""
-    quantities, unread = _flagged(known_quantities(drawing), drawing, flags)
+    `flags`: how ingest read the page (judge.reading_flags: a phone photo, a scan). `raster`: the
+    page was read on the raster route (an image, a photo, a scanned PDF)."""
+    quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -178,19 +180,20 @@ def ask(
 
 
 def _flagged(
-    quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str]
+    quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
 ) -> tuple[dict[str, Quantity], set[str]]:
     """On a page ingest flagged (a phone photo, a scan), a group its reader found nothing of
     (no element at all, no room at all) is unknown, not 0: those keys are left out and returned
     as `unread`. Every other quantity carries the flag as its estimate, so the answer says what
-    it rests on (R3-qa4-1)."""
-    if not flags:
-        return dict(quantities), set()
+    it rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
+    page can have 0 saunas, but not 0 rooms (F4-4)."""
     empty: set[str] = set()
-    if not drawing.elements:
+    if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)
-    if not drawing.rooms:
+    if (flags or raster) and not drawing.rooms:
         empty.add("room")
+    if not flags and not empty:
+        return dict(quantities), set()
     unread: set[str] = set()
     kept: dict[str, Quantity] = {}
     note = f"read from a page flagged at upload: {'; '.join(flags)}"
@@ -199,12 +202,17 @@ def _flagged(
         if parts <= empty:
             unread.add(key)
             continue
+        if not flags:
+            kept[key] = found
+            continue
         said = note if found.estimate is None else f"{found.estimate}; {note}"
         kept[key] = found.model_copy(update={"estimate": said})
     return kept, unread
 
 
 def _unread_text(query: str, flags: Sequence[str]) -> str:
+    if not flags:  # only rooms are unread on a page that wasn't flagged (_flagged)
+        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
     things = "rooms" if parse_key(query)[1].startswith("room") else "elements"
     return (
         f"This drawing was flagged at upload ({'; '.join(flags)}), and its reader found no "
