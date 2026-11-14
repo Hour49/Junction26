@@ -82,6 +82,8 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity | 409 `not-allowed` |
 | Upload over 200 MB | 413 `too-large` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
+| A method the path does not take (`GET /api/ask`) | 405 `method-not-allowed` |
+| An unexpected error | 500 `internal` |
 | A project whose ingest broke | 200, `state: "failed"`, `error` set |
 | A photo with no plan, a lone DXF | 200, `state: "done"`, the file `set_aside` with its reason, `drawings: []` |
 | A question the drawing cannot answer | 200, `refusal` set |
@@ -564,7 +566,12 @@ Ingest's project status, plus `drawings`:
       "route": "raster",
       "source": "scans/ground-floor.png",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [
+        {
+          "drawing_id": "3b3ce7db34257f63",
+          "file": "scans/ground-floor-copy.png"
+        }
+      ]
     },
     {
       "drawing_id": "37f6819bd17d65d9",
@@ -1042,7 +1049,12 @@ a rule ("AI decision") or settled by a surveyor.
 
 ## Drawings
 
-### `GET /api/drawings/{drawing_id}`
+### `GET /api/drawings/{drawing_id}?project=<project_id>`
+
+A drawing id is its content, so the same plan uploaded under two names, in one project or in two, is one drawing.
+Pass `project` (optional) from a screen inside a project: `file` and `reader.source` are then the names that
+project uploaded, never another upload's. Without it they are the names the drawing was last stored under. A
+project that does not hold the drawing is 404.
 
 <!-- fixture: drawing.json -->
 ```json
@@ -1135,7 +1147,8 @@ normalisation. Images and a PDF's first page; 404 for any other file. `width` as
 }
 ```
 
-`question` is 1 to 2000 characters. The response carries the takeoff row the value was read from, in the same
+`question` is 1 to 2000 characters. `project_id` (optional) names the project the question is asked in: the
+answer's `file` and `reader.source` are then that project's names, as for `GET /api/drawings/{id}?project=`. The response carries the takeoff row the value was read from, in the same
 shape as `GET …/takeoff` gives it, so one component shows both:
 
 <!-- fixture: answer.json -->
@@ -3408,6 +3421,12 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive: a method a path does not take is `405 method-not-allowed` (it was `405 error`, a
+  code this page did not list); the errors table lists it and `500 internal`. A project's drawing entry now lists
+  every file with the same content as `other_renderings` (two identical files were one drawing shown under one
+  name, the other name dropped). `GET /api/drawings/{id}?project=` and `POST /api/ask` `project_id` (both optional)
+  name the drawing as that project uploaded it (R1-3-6, R1-4-4: a drawing reused from the cache showed the earlier
+  upload's name).
 - 2026-11-14, breaking: `POST /api/ask` `confidence` was a number and is now an object `{signal, score,
   calibrated}` (or null), and `proof.confidence` is removed. The number was Gemini's raw choice score, not a
   probability that the answer is right, so it is kept only under a name that says so. `line.confidence`

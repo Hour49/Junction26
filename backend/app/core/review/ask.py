@@ -6,6 +6,7 @@ Suggestions are built from the takeoff's rows that have a value, and a phrasing 
 when the parser maps it back to that row's key, so asking a suggestion is never refused.
 """
 
+import re
 from collections.abc import Iterable, Mapping, Sequence, Set
 
 from app.core.answering.answer import (
@@ -14,16 +15,18 @@ from app.core.answering.answer import (
     SCHEDULE,
     TAKEOFF,
     UNSUPPORTED_QUESTION,
+    RoomByType,
     answer_question,
+    rooms_of_type,
 )
 from app.core.answering.model import Answer, Query, Question, TableQuery, Unsupported
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Table
+from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
-from app.core.pipeline.takeoff import known_quantities
+from app.core.pipeline.takeoff import known_quantities, room_names
 from app.core.review.model import (
     MarkView,
     Refusal,
@@ -44,6 +47,7 @@ SUGGESTIONS = 6
 PLURALS = {"bathtub": "bathtubs", "stair": "stairs", "sauna_stove": "sauna stoves"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
+ROOM_NUMBER = re.compile(r"U?\d+\.\d+")  # a room number the parser reads without quotes
 TEXTS = {
     "unsupported-question": "This question isn't one I can turn into a count, area, length or "
     "volume. Try one of these instead.",
@@ -92,8 +96,8 @@ def ask(
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability)."""
-    once = _Once(parser)
     quantities = known_quantities(drawing)
+    once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
@@ -135,9 +139,17 @@ def ask(
     refusal = None
     if answer.method not in (TAKEOFF, SCHEDULE):
         code, words = _refusal(answer.method, parsed, query, drawing)
-        refusal = Refusal(
-            code=code, text=words, can_answer=suggestions(quantities, parser, SUGGESTIONS, tables)
-        )
+        can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
+        if code == "not-in-drawing" and isinstance(parsed, Query):
+            rooms = rooms_of_type(parsed, drawing)
+            if len(rooms) > 1 and (each := _room_areas(rooms, quantities, parser)):
+                kind = parsed.subject.split(":", 1)[1]
+                words = (
+                    f"{len(rooms)} rooms on this drawing are of the type {kind}, so the question "
+                    "doesn't say which one. Ask about one of them."
+                )
+                can_answer = each
+        refusal = Refusal(code=code, text=words, can_answer=can_answer)
     return Asked(answer=answer, query=query, row=shown, marks=marks, refusal=refusal, proof=proof)
 
 
@@ -161,6 +173,25 @@ def suggestions(
             parsed = parser.parse(text)
             if isinstance(parsed, Query) and parsed.key() == key:
                 found.append(Suggestion(quantity=key, label=label(key), question=text))
+                break
+    return tuple(found)
+
+
+def _room_areas(
+    rooms: Sequence[Room], quantities: Mapping[str, Quantity], parser: QuestionParser
+) -> tuple[Suggestion, ...]:
+    """The area question of each room, by one of its names, that the parser maps back to a row
+    with a value."""
+    found: list[Suggestion] = []
+    for room in rooms:
+        for name in sorted(room_names(room)):
+            noun = name if ROOM_NUMBER.fullmatch(name) else f"'{name}'"
+            text = f"What is the net floor area of room {noun}?"
+            parsed = parser.parse(text)
+            if isinstance(parsed, Query) and parsed.key() in quantities:
+                found.append(
+                    Suggestion(quantity=parsed.key(), label=label(parsed.key()), question=text)
+                )
                 break
     return tuple(found)
 

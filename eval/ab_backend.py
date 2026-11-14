@@ -11,15 +11,22 @@ same parser and takeoff the pipeline runs. `stoa_eval` starts it; nobody needs t
              questions only (data/stoa/exp/train_questions.jsonl), never val, test or dev.jsonl.
     families --questions Q --out F.json
              question id -> the parser's family (`unsupported` when it can't read the question).
+    g1main   --replies DIR --out D.json
+             dataset path -> family -> {count: probability}: Gemini Decisions' G1main replies cached
+             by decide (one JSON per image: {file, request, response}), read by the backend's own
+             parser (`app.adapters.decisions.g1main.parse`), the distribution DECISIONS_CONFIDENCE
+             reads at runtime. A reply asked with other questions than the backend's is refused.
 """
 
 import argparse
 import dataclasses
+import hashlib
 import json
 from pathlib import Path
 
 from app.adapters.answer_prior import TablePrior, build
 from app.adapters.answer_v1 import AnswerV1Writer
+from app.adapters.decisions.g1main import QUESTIONS_SHA, parse
 from app.adapters.extraction_v1 import ExtractionV1Reader
 from app.adapters.question_templates import TemplateParser
 from app.adapters.questions_file import QuestionsFile
@@ -60,6 +67,20 @@ def families(args: argparse.Namespace) -> None:
     args.out.write_text(json.dumps(found) + "\n", encoding="utf-8")
 
 
+def g1main(args: argparse.Namespace) -> None:
+    found: dict[str, dict[str, dict[int, float]]] = {}
+    for path in sorted(args.replies.glob("*.json")):
+        cached = json.loads(path.read_text(encoding="utf-8"))
+        asked = json.dumps(cached["request"]["questions"], sort_keys=True).encode()
+        if hashlib.sha256(asked).hexdigest() != QUESTIONS_SHA:
+            raise SystemExit(f"{path}: not asked with the backend's G1main questions")
+        if cached["file"] in found:
+            raise SystemExit(f"{path}: a second reply for {cached['file']}")
+        dists = parse(cached["response"])
+        found[cached["file"]] = {family: dist.probs for family, dist in dists.items()}
+    args.out.write_text(json.dumps(found) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     root = argparse.ArgumentParser(prog="ab_backend.py")
     commands = root.add_subparsers(dest="command", required=True)
@@ -78,6 +99,10 @@ def main() -> None:
     kinds.add_argument("--questions", type=Path, required=True)
     kinds.add_argument("--out", type=Path, required=True)
     kinds.set_defaults(run=families)
+    replies = commands.add_parser("g1main")
+    replies.add_argument("--replies", type=Path, required=True)
+    replies.add_argument("--out", type=Path, required=True)
+    replies.set_defaults(run=g1main)
     args = root.parse_args()
     args.run(args)
 

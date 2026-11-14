@@ -341,7 +341,12 @@
       "route": "raster",
       "source": "scans/ground-floor.png",
       "state": "flagged",
-      "other_renderings": []
+      "other_renderings": [
+        {
+          "drawing_id": "3b3ce7db34257f63",
+          "file": "scans/ground-floor-copy.png"
+        }
+      ]
     },
     {
       "drawing_id": "37f6819bd17d65d9",

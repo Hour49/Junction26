@@ -224,24 +224,33 @@ numbers.
 extraction, every real adapter of the commit turned on. Each point runs from a clean export of a merge commit, not
 the shared tree, by `eval/pipeline-run.sh <commit> [NAME=VALUE ...]` and scored by the same eval on the frozen
 set, so the numbers compare. Its records say `dirty: false` with that commit, the settings it ran with, and the
-scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44):
+scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02):
 
 | commit | code time | settings that change | P1 element F1 cubi | P1 element F1 ifc | P1 element F1 open | P1 element F1 swiss | P2 accuracy | P2 dev | P2 holdout | abstained |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0f9120f | 2026-11-13 23:24 | extractor_bim=hello extractor_vector=hello question_parser=hello second_counter=hello | 0.0% | 0.0% | 0.0% | 0.0% | 0/2948 (0.0%) | 0.0% | 0.0% | n/a |
-| 85d3470 | 2026-11-13 23:55 | extractor_bim=hello extractor_vector=pdf question_parser=templates second_counter=hello | 0.0% | 80.4% | 0.0% | 100.0% | 1262/2948 (42.8%) | 39.9% | 55.4% | 14.3% |
-| 6e9a2df | 2026-11-14 00:39 | answer_prior=dev extractor_bim=hello extractor_vector=pdf question_parser=templates second_counter=pdf | 0.0% | 80.4% | 0.0% | 100.0% | 2109/2948 (71.5%) | 71.1% † | 73.2% | 50.8% |
-| bdfae08 | 2026-11-14 01:43 | answer_prior=dev extractor_bim=ifc extractor_vector=pdf question_parser=templates second_counter=ifc | 0.0% | 100.0% | 0.0% | 100.0% | 2201/2948 (74.7%) | 73.4% † | 80.0% | 47.7% |
+| 0f9120f | 2026-11-13 23:24 | extractor_bim=hello extractor_raster=hello extractor_vector=hello question_parser=hello second_counter=hello | 0.0% | 0.0% | 0.0% | 0.0% | 0/2948 (0.0%) | 0.0% | 0.0% | n/a |
+| 85d3470 | 2026-11-13 23:55 | extractor_bim=hello extractor_raster=hello extractor_vector=pdf question_parser=templates second_counter=hello | 0.0% | 80.4% | 0.0% | 100.0% | 1262/2948 (42.8%) | 39.9% | 55.4% | 14.3% |
+| 6e9a2df | 2026-11-14 00:39 | answer_prior=dev extractor_bim=hello extractor_raster=hello extractor_vector=pdf question_parser=templates second_counter=pdf | 0.0% | 80.4% | 0.0% | 100.0% | 2109/2948 (71.5%) | 71.1% † | 73.2% | 50.8% |
+| bdfae08 | 2026-11-14 01:43 | answer_prior=dev extractor_bim=ifc extractor_raster=hello extractor_vector=pdf question_parser=templates second_counter=ifc | 0.0% | 100.0% | 0.0% | 100.0% | 2201/2948 (74.7%) | 73.4% † | 80.0% | 47.7% |
+| 5331dab | 2026-11-14 04:56 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=False decisions_kind=False decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d rectifier=none region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
 
 Code time is the commit time (Europe/Helsinki); `*` marks a run recorded with uncommitted changes, timed when recorded. Abstained: share of golden answers marked `abstain` (n/a: no answer_v1.1 fields).
 
 † In-sample: with answer_prior=dev an abstained answer carries the dev prior's value, and the prior is fit on dev.jsonl, which holds the golden dev questions. The holdout column is the honest number for the prior.
 
-Settings the same at every point: extractor_cad=hello, extractor_raster=hello, log_level=INFO.
+Settings the same at every point: extractor_cad=hello, log_level=INFO.
 
 At 6e9a2df the answers the pipeline read itself are 1436 of 1450 right (99.0%); the other 1498 abstain and carry the
 dev prior, 673 of them right (44.9%). Part 1 is the same at 85d3470 and 6e9a2df (same extractor). At bdfae08 (IFC reader) every answer that does not abstain is right (1542 of
-1542); ifc_models Part 1 is 1630 of 1630 and Part 2 466 of 466. CubiCasa raster is still unread at every point.
+1542); ifc_models Part 1 is 1630 of 1630 and Part 2 466 of 466. CubiCasa raster is unread up to bdfae08.
+
+5331dab (integ, 2026-11-14 05:02) is the first point that reads CubiCasa raster: the val-chosen runtime config,
+`RASTER_COMPONENTS=elements=decisions-s1536:region:C-yolo26s-1536,plans=decisions-s1536:region:C-yolo26s-1536,rooms=exp:ocr/G4-regpred-golden`
+(the 1536 px detector with the region filter, Gemini Decisions' S1536 count swap from cached replies). The rooms
+came from the precomputed `exp:ocr/G4-regpred-golden` (cached Gemini replies), not a runtime source; the record's
+note says so. CubiCasa count 1124 of 1342 (bdfae08: 656). The record is public, so since 5331dab
+`pipeline-record.sh` keeps a setting whose value the record's rule refuses (a path, a long `raster_components`)
+as `name=sha256:<12 hex>`, and puts the given NAME=VALUE pairs verbatim in the run's note.
 
 ## Experiments (CubiCasa raster, 2026-11-14)
 
@@ -271,8 +280,10 @@ certificate comes from test. Test is run once for the arm we ship (`--certify`, 
 `data/stoa/exp/test-certified.json`; a second run of the same arm needs a written reason). The plan is the unit:
 a plan marked sure counts as exact when every sure answer on it is. The result is always one sentence: "of the
 plans marked sure, at least X% have every sure answer exact (N plans, 95% bound); the gate opens on Y% of plans".
-Other signals plug in as files (`--signal-file`, gate_signal_v1), for example decide's `g1main`, Gemini's
-probability for the answered count. `--pool` sets one threshold per family group (elements, plans, rooms) instead:
+Other signals plug in as files (`--signal-file`, gate_signal_v1). `--g1main` adds `g1main`, Gemini's probability
+for the answered count, which is what the backend computes at runtime (DECISIONS_CONFIDENCE), from decide's cached
+replies. `--family-arm 'room:*=<arm>'` answers some families from another arm, so the gate runs on the
+combination the product actually uses. `--pool` sets one threshold per family group (elements, plans, rooms) instead:
 on val, the loosest whose 95% Clopper-Pearson bound on the plans meets the target, then tightened until all groups
 together meet it, because the certificate counts a plan wrong when any of its sure answers is. Every val number is
 printed as "chosen on val, not a guarantee".
@@ -281,18 +292,26 @@ printed as "chosen on val, not a guarantee".
 (gate_policy_v1), the file the backend reads to mark answers sure:
 
 ```json
-{"schema": "gate_policy_v1", "generated": "2026-11-14T04:37:50+02:00", "part": "val",
- "split_sha256": "<sha256 of data/stoa/exp/split.json>", "arm": "detector-C-yolo26s-v8", "second": "seg-C-val",
- "target": 0.95, "source": "data/stoa/exp/ab/gate-detector-C-yolo26s-v8-val.json", "certified": false,
- "families": {"toilet": {"signal": "g1main", "threshold": 0.7625, "group": "elements",
-   "val": {"note": "chosen on val, not a guarantee", "answers": 188, "sure": 117, "exact": 116,
-           "coverage": 0.622, "bound": 0.960}}}}
+{"schema": "gate_policy_v1", "generated": "2026-11-14T05:02:02+02:00", "part": "val",
+ "split_sha256": "<sha256 of data/stoa/exp/split.json>", "arm": "decide-S1536+ocr-G4", "second": null,
+ "family_arms": {"room:kitchen": "ocr/G4", "...": "ocr/G4"}, "target": 0.95,
+ "source": "data/stoa/exp/ab/gate-decide-S1536+ocr-G4-val.json", "certified": false,
+ "families": {"plan": {"signal": "g1main", "threshold": 0.0144, "group": "plans",
+   "val": {"note": "chosen on val, not a guarantee", "answers": 188, "sure": 188, "exact": 186,
+           "coverage": 1.0, "bound": 0.967}}}}
 ```
 
 An answer is sure when its family is listed and its `signal` is at or above `threshold`. Only families whose gate
 opens and marks at least one val answer sure are listed. `split_sha256` is required (the loader refuses a file
-without it). `certified` stays false until the one test run; `arm` is the arm the thresholds were set on, so a
-product that answers a family with another arm uses an untested threshold there.
+without it). `certified` stays false until the one test run; `arm` (with `family_arms`) is what the thresholds
+were set on, so a product that answers a family with another arm uses an untested threshold there.
+
+The current file (2026-11-14, golden-16) is set on what the QA build runs: region:C-yolo26s-1536 with the S1536
+swap for elements and plans (val arm `decide/S1536`), Gemini rooms (`ocr/G4`), signal g1main. On val only plans
+open: elements and rooms stay shut, because Gemini is at least 0.95 sure of a few wrong counts (a toilet count,
+G4 kitchen, bedroom and balcony counts), and with the plan as the unit the 95% bound needs about 60 plans per
+error. The earlier file, set on detector C-yolo26s-v8 alone, also opened elements (0.7625) and sauna (0.664);
+those thresholds were never valid for the arms the product answers with.
 
 ## What the answer should show
 

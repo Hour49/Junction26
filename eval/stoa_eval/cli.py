@@ -3,6 +3,7 @@ baseline, baseline-extraction, score, score-extraction, history, series, validat
 schema, exp-split, ab, gate, leaderboard, annotated-region."""
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import multiprocessing
@@ -11,7 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence, Set
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -57,6 +58,7 @@ from .extras_scoring import format_slices, score_golden
 from .families import group_of, source_of
 from .gate import (
     DELTA,
+    G1MAIN,
     GATE_SEED,
     ON_VAL,
     SIGNALS,
@@ -75,6 +77,7 @@ from .gate import (
     family_keys,
     family_result,
     format_gate,
+    g1main_signal,
     gate_policy,
     group_result,
     halves,
@@ -703,9 +706,12 @@ def _units(
     steps: Mapping[str, list[tuple[float, float]]],
     extra: Sequence[SignalFile] = (),
     empty: Mapping[str, float] | None = None,
+    own: Set[str] = frozenset(),
 ) -> list[Unit]:
     """One unit per (image, family) the questions ask; unsupported questions are left out.
-    `extra`: signal files, each adding its value per answer under its name."""
+    `extra`: signal files, each adding its value per answer under its name. `own`: the families
+    another arm answers (--family-arm): the built-in signals read the arm's own extraction, so
+    they have no value there."""
     looked_up = [(made.name, made.by_answer()) for made in extra]
     hits = hits_of(questions, answers)
     grouped: dict[tuple[str, str], list[NumberedQuestion]] = {}
@@ -720,6 +726,8 @@ def _units(
     for (file, family), rows in sorted(grouped.items()):
         agree = None if second is None else said(answers, rows) == said(second, rows)
         signals = signals_of(preds.get(file), family, steps, agree, empty)
+        if family in own:
+            signals = dict.fromkeys(signals)
         signals.update((name, values.get((file, family))) for name, values in looked_up)
         if None in said(answers, rows):  # a refused answer is never marked sure
             signals = dict.fromkeys(signals)
@@ -752,6 +760,55 @@ def _arm_folder(arm: str, exp_dir: Path) -> str:
     return arm
 
 
+def _family_arm_specs(specs: Sequence[str]) -> list[tuple[str, str]]:
+    """--family-arm FAMILY=FOLDER (FAMILY may be a pattern: room:*) as (pattern, folder)."""
+    parsed: list[tuple[str, str]] = []
+    for spec in specs:
+        pattern, sep, folder = spec.partition("=")
+        if not sep or not pattern or not folder:
+            raise ValueError(f"--family-arm {spec!r}: FAMILY=FOLDER, e.g. 'room:*=ocr/G4'")
+        parsed.append((pattern, folder))
+    return parsed
+
+
+def _routed(specs: Sequence[tuple[str, str]], asked: Set[str]) -> dict[str, str]:
+    """Family -> the folder answering it instead of --arm; each pattern must match a family the
+    part asks, and no family may be routed twice."""
+    routed: dict[str, str] = {}
+    for pattern, folder in specs:
+        matched = fnmatch.filter(sorted(asked), pattern)
+        if not matched:
+            raise ValueError(f"--family-arm {pattern}: no such family asked; {sorted(asked)}")
+        for family in matched:
+            if family in routed:
+                raise ValueError(f"--family-arm: {family} is routed twice")
+            routed[family] = folder
+    return routed
+
+
+def _said(
+    questions: Sequence[NumberedQuestion],
+    families: Mapping[int, str],
+    answers: Mapping[int, Answer],
+) -> dict[tuple[str, str], list[object]]:
+    """(file, family) -> the answers to its questions, None for a refusal."""
+    said: dict[tuple[str, str], list[object]] = {}
+    for q in questions:
+        family = families.get(q.id, "unsupported")
+        if family != "unsupported":
+            reply = answers.get(q.id)
+            said.setdefault((q.path, family), []).append(None if reply is None else reply.answer)
+    return said
+
+
+def _g1main_dists(path: Path) -> dict[str, dict[str, dict[int, float]]]:
+    raw = cast(dict[str, dict[str, dict[str, float]]], json.loads(path.read_text("utf-8")))
+    return {
+        file: {family: {int(k): v for k, v in dist.items()} for family, dist in by.items()}
+        for file, by in raw.items()
+    }
+
+
 def _signal_files(
     paths: Sequence[Path], arm: str, families: set[str], exp_dir: Path
 ) -> list[SignalFile]:
@@ -774,7 +831,14 @@ def _signal_files(
 def run_gate(args: argparse.Namespace) -> None:
     if args.pool and args.part == "test":
         raise ValueError("--pool: val only; test reuses the val gate's groups")
-    _certify_check(args, "gate", [_arm_name(args.arm, args.exp_dir)])
+    specs = _family_arm_specs(args.family_arm)
+    name = "+".join(
+        [
+            _arm_name(args.arm, args.exp_dir),
+            *sorted({_arm_name(folder, args.exp_dir) for _, folder in specs}),
+        ]
+    )
+    _certify_check(args, "gate", [name])
     split, questions_path, questions = _exp_part(args.exp_dir, args.part)
     files = split.parts[args.part].files
     wanted = set(files)
@@ -783,22 +847,46 @@ def run_gate(args: argparse.Namespace) -> None:
         for file, (_, extraction) in _extractions(args.gold / EXP_SOURCE).items()
         if file in wanted
     }
-    name = _arm_name(args.arm, args.exp_dir)
     second_name = None if args.second is None else _arm_name(args.second, args.exp_dir)
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         backend.run("families", "--questions", str(questions_path), "--out", str(work / "f.json"))
         families = {int(k): v for k, v in json.loads((work / "f.json").read_text()).items()}
+        asked = {families.get(q.id, "unsupported") for q in questions} - {"unsupported"}
+        routed = _routed(specs, asked)
         gold_dir = args.gold / EXP_SOURCE
         _, answers, preds = _answer_arm(args.arm, questions_path, golds, gold_dir, None, work / "a")
+        for n, folder in enumerate(sorted(set(routed.values()))):
+            out = work / f"f{n}"
+            _, theirs, _ = _answer_arm(folder, questions_path, golds, gold_dir, None, out)
+            for q in questions:
+                if routed.get(families.get(q.id, "unsupported")) == folder:
+                    answers.pop(q.id, None)
+                    if q.id in theirs:
+                        answers[q.id] = theirs[q.id]
         second = None
         if args.second is not None:
             _, second, _ = _answer_arm(
                 args.second, questions_path, golds, gold_dir, None, work / "b"
             )
+        dists = None
+        if args.g1main is not None:
+            backend.run("g1main", "--replies", str(args.g1main), "--out", str(work / "g1.json"))
+            dists = _g1main_dists(work / "g1.json")
     preds = preds or {}
-    asked = {families.get(q.id, "unsupported") for q in questions} - {"unsupported"}
+    family_arms = {family: _arm_folder(folder, args.exp_dir) for family, folder in routed.items()}
     extra = _signal_files(args.signal_file, args.arm, asked, args.exp_dir)
+    if routed and any(signal.arm is not None for signal in extra):
+        raise ValueError(
+            "--family-arm: a signal file that judges one arm's answers can't judge a combination; "
+            "use --g1main or a file with arm null"
+        )
+    read_from = {made.name: str(path) for made, path in zip(extra, args.signal_file, strict=True)}
+    if dists is not None:
+        if G1MAIN in read_from:
+            raise ValueError(f"--g1main and a signal file both named {G1MAIN}")
+        extra.append(g1main_signal(_said(questions, families, answers), dists))
+        read_from[G1MAIN] = str(args.g1main)
     names = [*SIGNALS, *(signal.name for signal in extra)]
     if args.signal is not None and args.signal not in names:
         raise ValueError(f"--signal {args.signal}: not one of {names}")
@@ -814,7 +902,7 @@ def run_gate(args: argparse.Namespace) -> None:
         empty = nothing_found_rates(
             (
                 u
-                for u in _units(questions, families, answers, second, preds, steps)
+                for u in _units(questions, families, answers, second, preds, steps, own=set(routed))
                 if u.file in calibration_set
             ),
             preds,
@@ -828,6 +916,8 @@ def run_gate(args: argparse.Namespace) -> None:
         tuned = GateResult.model_validate_json(tuned_path.read_text("utf-8"))
         if tuned.part != "val" or tuned.arm != name or tuned.second != second_name:
             raise ValueError(f"{tuned_path} is not the val gate of {name} / {second_name}")
+        if tuned.family_arms != family_arms:
+            raise ValueError(f"{tuned_path} routed {tuned.family_arms}, not {family_arms}")
         steps, empty, chosen = tuned.calibration, tuned.empty_rates, wanted
         thresholds_in = {family: gate.threshold for family, gate in tuned.families.items()}
         groups_in = {group: (g.families, g.threshold) for group, g in tuned.groups.items()}
@@ -836,7 +926,9 @@ def run_gate(args: argparse.Namespace) -> None:
             raise ValueError(f"the val gate used the signal {signal!r}: give its --signal-file")
     units = [
         u
-        for u in _units(questions, families, answers, second, preds, steps, extra, empty)
+        for u in _units(
+            questions, families, answers, second, preds, steps, extra, empty, set(routed)
+        )
         if u.file in chosen
     ]
     compared = compare_signals(units, names)
@@ -864,6 +956,7 @@ def run_gate(args: argparse.Namespace) -> None:
     result = GateResult(
         arm=name,
         second=second_name,
+        family_arms=family_arms,
         part=args.part,
         images=len({u.file for u in units}),
         seed=args.seed,
@@ -872,9 +965,7 @@ def run_gate(args: argparse.Namespace) -> None:
         delta=args.delta,
         family_delta=None if grouped else args.delta / max(1, len(by_family)),
         signal=signal,
-        signal_files={
-            made.name: str(path) for made, path in zip(extra, args.signal_file, strict=True)
-        },
+        signal_files=read_from,
         compared=compared,
         calibration={key: list(value) for key, value in steps.items()},
         empty_rates=empty,
@@ -1845,6 +1936,20 @@ def parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         help="a gate_signal_v1 JSON (a value per family and image); repeat for each",
+    )
+    gate.add_argument(
+        "--family-arm",
+        action="append",
+        default=[],
+        metavar="FAMILY=FOLDER",
+        help="answer FAMILY (a pattern: 'room:*') from another arm folder, as a runtime "
+        "combination does; repeat for each",
+    )
+    gate.add_argument(
+        "--g1main",
+        type=Path,
+        help=f"decide's cached G1main replies (data/stoa/exp/decide/G1main-high/raw): adds the "
+        f"signal {G1MAIN}, Gemini's probability for each answer (DECISIONS_CONFIDENCE)",
     )
     gate.add_argument("--certify", action="store_true", help="needed for test: once, shipped arm")
     gate.add_argument("--recertify-reason", help="why an arm already certified runs again")

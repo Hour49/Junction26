@@ -30,7 +30,14 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
     InvalidInputError: 422,
     NotAllowedError: 409,
 }
-CODES = {404: "not-found", 409: "not-allowed", 413: "too-large", 422: "invalid", 429: "busy"}
+CODES = {
+    404: "not-found",
+    405: "method-not-allowed",
+    409: "not-allowed",
+    413: "too-large",
+    422: "invalid",
+    429: "busy",
+}
 log = logging.getLogger(__name__)
 
 

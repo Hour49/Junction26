@@ -8,6 +8,7 @@ from app.core.answering.model import (
     Answer,
     ConflictValue,
     Evidence,
+    Query,
     Question,
     TableQuery,
     Unsupported,
@@ -22,9 +23,9 @@ from app.core.answering.ports import (
     QuestionParser,
 )
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import Table
+from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
-from app.core.pipeline.takeoff import known_quantities
+from app.core.pipeline.takeoff import known_quantities, room_names
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,45 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     )
 
 
+class RoomByType:
+    """The parser, with the area of a room asked by its type ("the area of the kitchen") turned
+    into that room's own area (the key "room 2.01" answers under) when the drawing has exactly one
+    room of the type and the takeoff has its area: one row, with its conflict and review. Any
+    other question, or a type several rooms (or none) have, stays as parsed."""
+
+    def __init__(
+        self, parser: QuestionParser, drawing: Drawing, quantities: Mapping[str, Quantity]
+    ) -> None:
+        self._parser = parser
+        self._drawing = drawing
+        self._quantities = quantities
+
+    def parse(self, text: str) -> Query | TableQuery | Unsupported:
+        parsed = self._parser.parse(text)
+        if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
+            return parsed
+        for name in sorted(room_names(rooms[0])):
+            query = Query(measure="area", subject="room", name=name, storey=parsed.storey)
+            if query.key() in self._quantities:
+                return query
+        return parsed
+
+
+def rooms_of_type(parsed: Query, drawing: Drawing) -> list[Room]:
+    """The drawing's rooms a question about a room's area by its type alone ("the kitchen") is
+    about; none for any other question."""
+    if not (
+        parsed.measure == "area"
+        and parsed.subject.startswith("room:")
+        and parsed.name is None
+        and parsed.label is None
+        and not (parsed.largest or parsed.model or parsed.indoor)
+    ):
+        return []
+    kind = parsed.subject.split(":", 1)[1]
+    return [room for room in drawing.rooms if room.type == kind]
+
+
 def answer_questions(
     questions: Iterable[Question],
     *,
@@ -196,9 +236,14 @@ def answer_questions(
         drawing = drawings.drawing(file)
         quantities = None if drawing is None else known_quantities(drawing)
         tables = () if drawing is None else drawing.tables or ()
+        reads = (
+            parser
+            if drawing is None or quantities is None
+            else RoomByType(parser, drawing, quantities)
+        )
         for question in asked:
             answer = answer_question(
-                question, quantities, parser, clock, prior, tables, prior_families, confidence
+                question, quantities, reads, clock, prior, tables, prior_families, confidence
             )
             sink.write(answer)
             methods[answer.method] += 1

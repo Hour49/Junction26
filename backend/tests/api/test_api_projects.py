@@ -50,6 +50,65 @@ def test_project_status_lists_every_file_and_one_drawing_per_plan(client: TestCl
     assert [other["file"] for other in drawing["other_renderings"]] == ["plans/flat.png"]
 
 
+def test_the_same_drawing_under_two_names_lists_both(client: TestClient) -> None:
+    """Two identical files are one drawing (same id); the copy is named under the shown one."""
+    plan = swiss_sheet().pdf()
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as files:
+        files.writestr("scans/ground-floor.pdf", plan)
+        files.writestr("scans/ground-floor-copy.pdf", plan)
+    status = client.get(f"/api/projects/{upload(client, archive.getvalue(), 'p.zip')}").json()
+    ids = {file["path"]: file["drawing_id"] for file in status["files"]}
+    assert ids["scans/ground-floor.pdf"] == ids["scans/ground-floor-copy.pdf"]
+    (drawing,) = status["drawings"]
+    assert drawing["file"] == "scans/ground-floor.pdf"
+    assert drawing["other_renderings"] == [
+        {"drawing_id": drawing["drawing_id"], "file": "scans/ground-floor-copy.pdf"}
+    ]
+
+
+def test_a_drawing_seen_before_is_named_as_this_project_uploaded_it(client: TestClient) -> None:
+    """R1-3-6: the same bytes in a later project under another name are the same drawing (cache),
+    but the screen of that project names the file it uploaded, never the earlier upload."""
+    plan = swiss_sheet().pdf()
+    upload(client, plan, "colorful-10706.pdf")
+    later = upload(client, plan, "my-flat.pdf")
+    (entry,) = client.get(f"/api/projects/{later}").json()["drawings"]
+    drawing_id = entry["drawing_id"]
+    shown = client.get(f"/api/drawings/{drawing_id}", params={"project": later}).json()
+    assert (shown["file"], shown["reader"]["source"]) == ("my-flat.pdf", "my-flat.pdf")
+    question = {"drawing_id": drawing_id, "question": "How many doors are there?"}
+    answer = client.post("/api/ask", json={**question, "project_id": later}).json()
+    assert (answer["file"], answer["reader"]["source"]) == ("my-flat.pdf", "my-flat.pdf")
+    first = client.get(f"/api/drawings/{drawing_id}").json()  # no project: as before
+    assert first["file"] == "colorful-10706.pdf"
+
+
+def test_the_same_drawing_twice_in_a_project_is_named_as_listed(client: TestClient) -> None:
+    """R1-4-4: two identical files; the drawing opened from the project is named as its entry."""
+    plan = swiss_sheet().pdf()
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as files:
+        files.writestr("scans/ground-floor.pdf", plan)
+        files.writestr("scans/ground-floor-copy.pdf", plan)
+    project = upload(client, archive.getvalue(), "p.zip")
+    (entry,) = client.get(f"/api/projects/{project}").json()["drawings"]
+    shown = client.get(f"/api/drawings/{entry['drawing_id']}", params={"project": project}).json()
+    assert shown["file"] == entry["file"] == "scans/ground-floor.pdf"
+
+
+def test_a_drawing_asked_in_a_project_without_it_is_404(
+    client: TestClient, plan_pdf: bytes
+) -> None:
+    project = upload(client, plan_pdf)
+    (entry,) = client.get(f"/api/projects/{project}").json()["drawings"]
+    other = upload(client, b"site notes", "notes.txt")
+    response = client.get(f"/api/drawings/{entry['drawing_id']}", params={"project": other})
+    assert (response.status_code, response.json()["code"]) == (404, "not-found")
+    asked = {"drawing_id": entry["drawing_id"], "question": "How many doors?", "project_id": other}
+    assert client.post("/api/ask", json=asked).status_code == 404
+
+
 def test_an_upload_needs_a_name(client: TestClient, plan_pdf: bytes) -> None:
     response = client.post("/api/projects", content=plan_pdf)
     assert response.status_code == 422
