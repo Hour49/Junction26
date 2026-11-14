@@ -254,6 +254,17 @@ Golden v2 (CubiCasa, full pipeline): seg Bl alone 1022/1342, seg G3 alone 1104/1
 1006/1342, against 1124/1342 for the demo config before config C (1132/1342 for C). The window family stayed the weak one at about 45%; counting rules,
 test-time augmentation, centre heatmaps and shrunk masks did not move it. Total spend: about 8.3 EUR of 30.
 
+**Local sauna rooms (2026-11-14).** The network paints a sauna as an `other` room (its sauna class never passes the
+room size knob), so an all-local config (detector L, eight views, plus Bl rooms and the region mask; no hosted call)
+answers the sauna questions from the stove count alone: 96.3% on val against 98.9% for config C, whose Gemini sauna
+rooms count two stove boxes in one sauna once, -2.6 pp [-4.4, -0.7]. On 226 of the 228 val pages with a detected
+stove the best stove sits inside a room typed `other`. Retyping the `other` room that holds one of the network's own
+stove symbols to `sauna` (no parameter; `app/core/pipeline/sauna_rooms.py`) gives 98.2% (266 of 271 pages), +1.8 pp
+[+0.4, +3.7] against the stove count and -0.7 pp [-2.2, +0.7] against C. The same rule on the detector's stoves gives
+97.8%. Cross-fit extras added nothing held out: a score bar for a second sauna room, and an OCR "S"/"SAUNA" token as
+the backstop on a page with no stove (2 pages on val, both only with thresholds fit on all of val). Precomputed arms
+on val, not yet the backend runtime; the network's knobs were tuned on all of val.
+
 ---
 
 ## 7. VLMs as counters, and GRPO on top (logs: `vlm.md`, `rl.md`)
