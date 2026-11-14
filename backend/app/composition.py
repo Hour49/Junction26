@@ -27,7 +27,13 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
-from app.adapters.carbon import CarbonClient, CarbonExtractor, CarbonReader, CarbonSwitch
+from app.adapters.carbon import (
+    CarbonClient,
+    CarbonExtractor,
+    CarbonReader,
+    CarbonSwitch,
+    CarbonThings,
+)
 from app.adapters.carbon.contract import READER_SHA, SOURCE
 from app.adapters.check_policy import load_check
 from app.adapters.count_arbiter import ArbiterCountExtractor
@@ -77,9 +83,11 @@ from app.adapters.triage.gemini_describer import (
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.triage.sheet_kind import (
+    ADVANCED_LONG_SIDE,
     GeminiSheetKindClient,
     SheetKindClassifier,
     SheetKindReader,
+    long_side,
 )
 from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
@@ -212,7 +220,7 @@ def build_pipeline(
     was."""
     files = DatasetFiles(dataset)
     kind_of = kinds or _probed_kinds(settings, files)
-    use_carbon = _carbon_read(settings, advanced)
+    use_carbon = _carbon_read(settings, advanced, files)
     models = IfcModels(files)
     # A sheet is paired with its building model only when the model route can read it.
     with_models = settings.extractor_bim == "ifc"
@@ -286,11 +294,17 @@ def _carbon_part(spec: str) -> bool:
     return any(source.partition(":")[0] == "carbon" for source in sources)
 
 
+# CARBON_READER=large: on a raster image longer than this on its long side Carbon counts the things
+# drawn (the sheet-kind step's size rule, #251); below it the shipped reader stays (CubiCasa pages)
+LARGE_PX = ADVANCED_LONG_SIDE
+
+
 def _carbon_read(
-    settings: Settings, advanced: Callable[[str], bool] | None
+    settings: Settings, advanced: Callable[[str], bool] | None, files: DrawingFiles
 ) -> Callable[[str], bool] | None:
     """CARBON_READER's choice of the files Carbon reads alone, by path: all of them, the ones the
-    sheet-kind step called advanced (a file without that record: not), or none (None)."""
+    sheet-kind step called advanced (a file without that record: not), the images longer than
+    LARGE_PX (their PNG or JPEG header's size; a PDF or another format: not), or none (None)."""
     match settings.carbon_reader:
         case "off":
             return None
@@ -298,6 +312,8 @@ def _carbon_read(
             return lambda _: True
         case "advanced":
             return advanced or (lambda _: False)
+        case "large":
+            return cache(lambda path: (long_side(files.read(path)) or 0) > LARGE_PX)
 
 
 def _stored_advanced(store: DiskProjectStore, project_id: str) -> Callable[[str], bool]:
@@ -666,6 +682,8 @@ def _raster(
                 )
             if use_carbon is None:
                 return shipped
+            if settings.carbon_reader == "large":  # the things drawn from Carbon, rooms not
+                return CarbonThings(shipped, _carbon(settings, files), use_carbon)
             return CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
 
 

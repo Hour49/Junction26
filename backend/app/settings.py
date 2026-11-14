@@ -50,7 +50,9 @@ RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile b
 RoomPolicyName = Literal["furniture", "gold-labels"]
 # The Carbon reader of raster drawings (app/adapters/carbon/). off; all: every raster drawing;
 # advanced: the drawings the sheet-kind step (SHEET_KIND=carbon) called advanced
-CarbonReaderName = Literal["off", "advanced", "all"]
+# large: on raster images over 4,000 px on their long side (from the file's header), Carbon counts
+# the things drawn and the shipped reader the rooms
+CarbonReaderName = Literal["off", "advanced", "all", "large"]
 # Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
     Annotated[float, Field(ge=0)] | None,
