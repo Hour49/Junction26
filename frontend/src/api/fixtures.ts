@@ -16,6 +16,7 @@ import infoJson from '@fixtures/info.json';
 import projectJson from '@fixtures/project.json';
 import projectFailedJson from '@fixtures/project_failed.json';
 import projectListJson from '@fixtures/project_list.json';
+import projectAskJson from '@fixtures/project_ask.json';
 import projectReviewJson from '@fixtures/project_review.json';
 import projectRunningJson from '@fixtures/project_running.json';
 import projectStartedJson from '@fixtures/project_started.json';
@@ -35,6 +36,7 @@ import type {
   Edit,
   FileTrace,
   Info,
+  ProjectAnswer,
   ProjectList,
   ProjectReview,
   ProjectTrace,
@@ -66,6 +68,7 @@ export const answerConflict = answerConflictJson as unknown as AnswerView;
 export const answerSigned = answerSignedJson as unknown as AnswerView;
 export const answerSchedule = answerScheduleJson as unknown as AnswerView;
 export const answerRefused = answerRefusedJson as unknown as AnswerView;
+export const projectAsk = projectAskJson as unknown as ProjectAnswer;
 export const takeoff = takeoffJson as unknown as Takeoff;
 export const takeoffEdited = takeoffEditedJson as unknown as Takeoff;
 export const reviewRequests = reviewRequestsJson as unknown as Edit[];

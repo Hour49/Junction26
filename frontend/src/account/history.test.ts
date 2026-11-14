@@ -205,4 +205,29 @@ describe('historyEvents', () => {
     const signed = historyEvents(project, null, [twins]).filter((e) => e.kind === 'signed');
     expect(signed.map((e) => e.title)).toEqual(['Signed off: area of room (name Küche · 1.01)']);
   });
+
+  it('AC-34 one project-chat question (lines sharing project_ask) is one ask', () => {
+    const line = must(projectQuestions.questions[1]);
+    const ids = project.drawings.map((d) => d.drawing_id);
+    const fanned = ids.map((drawing_id, i) => ({
+      ...line,
+      drawing_id,
+      project_ask: 'pa1',
+      refused: i >= 2,
+      answer: i >= 2 ? null : 2,
+    }));
+    const log = {
+      ...projectQuestions,
+      questions: [...fanned, must(projectQuestions.questions[0])],
+    };
+    expect(must(workspaceStats(project, null, log)[2]).value).toBe('2');
+    const asked = historyEvents(project, null, [], log).filter((e) => e.kind === 'asked');
+    expect(asked.map((e) => [e.title, e.detail])).toEqual([
+      ['Asked: What colour is the roof?', 'plans/flat-a.pdf · not answered'],
+      ['Asked: How many doors are there?', `answered on 2 of ${String(ids.length)} drawings`],
+    ]);
+    const none = { ...log, questions: fanned.map((q) => ({ ...q, refused: true, answer: null })) };
+    const quiet = historyEvents(project, null, [], none).find((e) => e.kind === 'asked');
+    expect(quiet?.detail).toBe('not answered');
+  });
 });

@@ -1,6 +1,7 @@
 // Pure view data for the workspaces screen (docs/specs/frontend/account.md): list lines, stats and history.
 import {
   formatValue,
+  type AskedQuestion,
   type ProjectQuestions,
   type ProjectReview,
   type ProjectSummary,
@@ -28,7 +29,18 @@ export interface Stat {
   value: string;
 }
 
-/** Files, Drawings, Questions, To review, Signed off; a stat whose source is missing reads "–". */
+/** The questions asked, oldest first: a project-chat question asks every drawing and logs one line each, all
+ * sharing `project_ask` (Bogdan #135), so those lines are one ask; a line without it is its own. */
+export function asks(questions: ProjectQuestions): AskedQuestion[][] {
+  const groups = new Map<string, AskedQuestion[]>();
+  // The log is newest first: walk it oldest first so same-second asks keep the order they were asked in.
+  [...questions.questions].reverse().forEach((q, i) => {
+    const key = q.project_ask ? `ask ${q.project_ask}` : `line ${String(i)}`;
+    groups.set(key, [...(groups.get(key) ?? []), q]);
+  });
+  return [...groups.values()];
+}
+
 /** A room keyed under its number and its name is two rows but one disagreement, and one sign-off signs both (#131,
  * Bogdan #14 c6875696292): rows of one drawing sharing `conflict` and `marks` are one entry; others are their own. */
 export function disagreements(takeoffs: Takeoff[]): { file: string; rows: Row[] }[] {
@@ -58,7 +70,7 @@ export function workspaceStats(
   return [
     { label: 'Files', value: String(project.files.length) },
     { label: 'Drawings', value: String(project.drawings.length) },
-    { label: 'Questions', value: questions ? String(questions.questions.length) : '–' },
+    { label: 'Questions', value: questions ? String(asks(questions).length) : '–' },
     { label: 'To review', value: review ? String(sum((d) => d.to_review)) : '–' },
     {
       label: 'Signed off',
@@ -199,8 +211,21 @@ export function historyEvents(
     });
   }
   const fileOf = (id: string) => project.drawings.find((d) => d.drawing_id === id)?.file ?? id;
-  // The log is newest first: walk it oldest first so the stable sort keeps same-second asks in order.
-  for (const q of [...(questions?.questions ?? [])].reverse()) {
+  for (const lines of questions ? asks(questions) : []) {
+    const [q] = lines;
+    if (!q) continue;
+    if (q.project_ask) {
+      const n = lines.filter((l) => !l.refused && l.answer !== null).length;
+      events.push({
+        kind: 'asked',
+        at: lines.reduce((at, l) => (l.at < at ? l.at : at), q.at),
+        title: `Asked: ${q.question}`,
+        detail: n
+          ? `answered on ${String(n)} of ${plural(lines.length, 'drawing')}`
+          : 'not answered',
+      });
+      continue;
+    }
     const said = q.refused
       ? 'not answered'
       : q.answer === null

@@ -1,18 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatValue, getDrawing, getProject, type ProjectView, type Suggestion } from '../api';
+import {
+  askProject,
+  formatValue,
+  getDrawing,
+  getProject,
+  type ProjectAnswer,
+  type ProjectView,
+  type Suggestion,
+} from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { routeHref } from '../shell/route';
-import { AnswerCard, type Turn } from './AnswerCard';
+import { AnswerCard, SURE_TIP, type Turn } from './AnswerCard';
 import { AskBox } from './AskBox';
 import { Suggestions } from './DrawingHeader';
-import { askable, askProject, starters, type ProjectAsk } from './projectAsk';
+import { askable, starters } from './projectAsk';
 import './engineer.css';
 
 type ChatTurn =
   | { id: number; question: string; status: 'pending' }
   | { id: number; question: string; status: 'error'; error: unknown }
-  | { id: number; question: string; status: 'done'; ask: ProjectAsk };
+  | { id: number; question: string; status: 'done'; ask: ProjectAnswer };
 
 type Load =
   | { state: 'loading' }
@@ -20,19 +28,22 @@ type Load =
   | { state: 'ready'; project: ProjectView };
 
 /** The total, then one line per answering drawing with a link to show it (chat.md). */
-function PartsCard({ ask, projectId }: { ask: ProjectAsk; projectId: string }) {
+function PartsCard({ ask, projectId }: { ask: ProjectAnswer; projectId: string }) {
   const answering = ask.parts.filter((p) => p.answer.refusal === null);
-  const first = answering[0]?.answer;
-  const unit = first?.unit ?? null;
-  const label = first?.quantity?.label;
+  const label = answering[0]?.answer.quantity?.label;
   return (
     <div className="v-card en-chatcard">
       {label && <p className="en-small">{label.charAt(0).toUpperCase() + label.slice(1)}</p>}
       {ask.total !== null && (
         <p className="en-value-row">
           <span className="en-value" data-testid="answer-value">
-            {formatValue(ask.total, unit)}
+            {formatValue(ask.total, ask.total_unit)}
           </span>
+          {ask.total_sure && (
+            <span className="en-sure v-pill v-pill--ok" title={SURE_TIP}>
+              Sure<span className="en-sr">. {SURE_TIP}</span>
+            </span>
+          )}
         </p>
       )}
       {ask.total_note && <p className="en-small">{ask.total_note}</p>}
@@ -112,8 +123,7 @@ export function ProjectChat({ projectId }: { projectId: string }) {
     );
   }
   const { project } = load;
-  const drawings = askable(project.drawings);
-  const n = drawings.length;
+  const n = askable(project.drawings).length;
 
   function send(id: number, question: string) {
     pending.current = true;
@@ -121,7 +131,7 @@ export function ProjectChat({ projectId }: { projectId: string }) {
       pending.current = false;
       setTurns((ts) => ts.map((x) => (x.id === id ? t : x)));
     };
-    askProject(projectId, drawings, question).then(
+    askProject(projectId, question).then(
       (ask) => {
         settle({ id, question, status: 'done', ask });
       },
@@ -156,7 +166,7 @@ export function ProjectChat({ projectId }: { projectId: string }) {
     }
     // pending, error, or refused by every drawing: the engineer's turn (the first refusal speaks for all)
     const refused = turn.status === 'done' ? turn.ask.parts[0] : undefined;
-    if (turn.status === 'done' && !refused) return null; // askProject never resolves without a part
+    if (turn.status === 'done' && !refused) return null; // no parts only for a project without drawings, never asked
     const shown: Turn =
       turn.status === 'done'
         ? {

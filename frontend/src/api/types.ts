@@ -26,6 +26,7 @@ export type Reader = Schemas['Reader'];
 export type Suggestion = Schemas['Suggestion'];
 export type AskRequest = Schemas['AskRequest'];
 export type AnswerView = Schemas['AnswerView'];
+export type ProjectAnswer = Schemas['ProjectAnswer'];
 export type Refusal = Schemas['Refusal'];
 export type MarkView = Schemas['MarkView'];
 export type Row = Schemas['Row'];

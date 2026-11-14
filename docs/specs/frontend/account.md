@@ -75,7 +75,7 @@ Five cells, in this order (the design's three, plus to review and sign-offs):
 | --- | --- |
 | Files | `project.files.length` |
 | Drawings | `project.drawings.length` |
-| Questions | `questions.length` of the log; "–" while it is loading or failed |
+| Questions | the number of questions asked: log lines sharing a `project_ask` id (one project-chat question asks every drawing, Bogdan #135) count once, a line without one counts as itself; "–" while the log is loading or failed |
 | To review | sum of `review.drawings[].to_review` |
 | Signed off | "<signed disagreements> of <disagreements>" over the takeoffs (Bogdan #14 c6875696292): a room keyed under its number and its name is two rows but one disagreement, and one sign-off signs both, so rows of one drawing that share `Row.conflict` and `Row.marks` count once; a row with `conflict` null counts as itself. "–" while the review or the takeoffs are missing (loading or failed). |
 
@@ -96,7 +96,7 @@ nothing relies on the colour.
 | needs you | a conflict with `needs_person` true | `created_at` | "Conflict waiting for you: <label>" | "<file> · <values joined ' vs '>" |
 | settled | a conflict with `settled` set | `settled.at` | "Conflict settled: <label>" | "<file> · kept <settled.value, formatValue>" |
 | signed | a disagreement (rows grouped as for the stat) whose rows are signed: one event, not one per row | `signed.at` | "Signed off: <label>", the group's longest label (the printed-name one, e.g. "area of room (name Küche · 1.01)") | "<file> · <signed.value, formatValue> · by <signed.by>" |
-| asked | each entry of the questions log | `at` | "Asked: <question>" | "<file> · <answer, formatValue with unit>" (a text `answer` as is); refused: "<file> · not answered"; `answer` null and not refused: "<file> · no answer". `<file>`: the project drawing with that `drawing_id`, else the id. The log is newest first; asks with the same `at` show in the order they were asked (the log is walked oldest first before the stable sort) |
+| asked | each question: a line without `project_ask`, or one group of lines sharing a `project_ask` | `at` (a group: its earliest) | "Asked: <question>" | "<file> · <answer, formatValue with unit>" (a text `answer` as is); refused: "<file> · not answered"; `answer` null and not refused: "<file> · no answer". `<file>`: the project drawing with that `drawing_id`, else the id. A `project_ask` group: "answered on <n> of <m> drawings" (`n` = lines not refused with an `answer`, `m` = lines; "1 drawing" singular), or "not answered" when `n` is 0. The log is newest first; asks with the same `at` show in the order they were asked (the log is walked oldest first before the stable sort) |
 
 ## States
 
@@ -189,6 +189,9 @@ History
   "area of room (name Küche · 1.01)", both signed, plus one unsigned row with `conflict` null: Signed off "1 of 2",
   and one event "Signed off: area of room (name Küche · 1.01)". [unit]
 - AC-33 Two asks in the same second, logged newest first, show in asked order. [unit]
+- AC-34 (#135) Five lines sharing `project_ask` "pa1" (two answered, three refused) plus one line without it: Questions
+  "2"; one event "Asked: How many doors are there?" with "answered on 2 of 5 drawings", and the single line's event
+  as before; a group with no answer reads "not answered". [unit]
 - AC-23 A 500 for a takeoff shows "Sign-offs not loaded: internal error (internal)" and every other event.
   [component]
 - AC-24 Each event's glyph is `aria-hidden`; its title says the kind in words ("Uploaded", "Analysis done",

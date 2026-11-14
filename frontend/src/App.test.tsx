@@ -127,12 +127,14 @@ describe('shell', () => {
       expect(marked(), hash).toEqual([
         ['Ingest', `#/p/${P}`, 'page'],
         ['Conflicts', `#/p/${P}/conflicts`, null],
+        ['Chat', `#/p/${P}/chat`, null],
       ]);
     }
     go(`#/p/${P}/conflicts`);
     expect(marked()).toEqual([
       ['Ingest', `#/p/${P}`, null],
       ['Conflicts', `#/p/${P}/conflicts`, 'page'],
+      ['Chat', `#/p/${P}/chat`, null],
     ]);
     go(`#/p/${P}/d/${D}/surveyor`);
     expect(marked()).toEqual([
@@ -146,7 +148,7 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-64 the chat route mounts ProjectChat; header shows Ingest and Conflicts, none current', async () => {
+  it('SH-64 the chat route mounts ProjectChat; header shows Ingest, Conflicts, Chat (current)', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
     go(`#/p/${P}/chat`);
@@ -154,6 +156,7 @@ describe('shell', () => {
     expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
       ['Ingest', `#/p/${P}`, null],
       ['Conflicts', `#/p/${P}/conflicts`, null],
+      ['Chat', `#/p/${P}/chat`, 'page'],
     ]);
     await screen.findByText(OFFLINE);
   });
