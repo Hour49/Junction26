@@ -37,10 +37,10 @@ class ProjectEvidence:
 
     @property
     def method(self) -> str:
-        name = self._store.embedder_name
-        if name is None:
+        label = self._store.embedder_label
+        if label is None:
             return "BM25 (no embedder model on this machine)"
-        return f"hybrid: BM25 + {name}, reciprocal rank fusion"
+        return f"hybrid: BM25 + {label}, reciprocal rank fusion"
 
     def _credit(self, file_id: str) -> str | None:
         file = self._files.get(file_id)

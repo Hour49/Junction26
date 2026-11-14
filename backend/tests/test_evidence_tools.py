@@ -159,6 +159,7 @@ class Letters:
     """Bag of letters, L2-normalised: a stand-in embedder that ranks by spelling."""
 
     name = "letters-v1"
+    label = "letters"
 
     def embed(self, texts: Sequence[str]) -> NDArray[np.float32]:
         rows = np.zeros((len(texts), 26), np.float32)
@@ -176,7 +177,7 @@ class Letters:
 def test_with_an_embedder_search_is_hybrid_and_reports_both_ranks(tmp_path: Path) -> None:
     index = open_index(tmp_path, embedder=Letters())
     found = index.search("brick", k=4)
-    assert found.method == "hybrid: BM25 + letters-v1, reciprocal rank fusion"
+    assert found.method == "hybrid: BM25 + letters, reciprocal rank fusion"
     first = found.hits[0]
     assert (first.file, first.why.bm25_rank) == ("facade.jpg", 1)
     assert first.why.dense_rank is not None

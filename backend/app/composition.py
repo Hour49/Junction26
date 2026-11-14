@@ -6,6 +6,7 @@ second counter or parser: write the adapter, add its name to the Literal in app/
 case below (docs/decisions/0005-pipeline-core.md).
 """
 
+import logging
 import secrets
 import time
 from collections.abc import Callable, Iterable, Mapping
@@ -34,6 +35,7 @@ from app.adapters.decisions.g1main import G1MainReader
 from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtractor
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
+from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
 from app.adapters.gate_policy import load_gate
@@ -117,6 +119,7 @@ from app.settings import (
 )
 
 # The experiment arms' extraction_v1 files: data/stoa/exp/<track>/<arm>/ (RASTER_COMPONENTS exp:).
+logger = logging.getLogger(__name__)
 EXP_DIR = Path(__file__).resolve().parents[2] / "data" / "stoa" / "exp"
 # core's exported detectors: data/models/detector/<arm>/ (RASTER_COMPONENTS detector:<arm>).
 DETECTOR_DIR = Path(__file__).resolve().parents[2] / "data" / "models" / "detector"
@@ -376,10 +379,13 @@ def uses_keys(settings: Settings) -> bool:
     return raster or settings.decisions_confidence or settings.decisions_kind
 
 
-def build_evidence(root: Path) -> SqliteEvidenceIndex:
+def build_evidence(settings: Settings, root: Path) -> SqliteEvidenceIndex:
     """The projects' evidence index (decision 0012), `evidence.sqlite` in each project's folder
-    under `root`. BM25 only until rag's embedder lands (contract v1: no embedder, BM25)."""
-    return SqliteEvidenceIndex(root, passages, None)
+    under `root`: hybrid with the manifest's embedder, BM25 alone without a manifest."""
+    embedder = load_embedder(settings.evidence_embedder_manifest)
+    if embedder is None:
+        logger.info("evidence index: no embedder manifest, BM25 only")
+    return SqliteEvidenceIndex(root, passages, embedder)
 
 
 class EvidenceIndexes:
@@ -405,12 +411,14 @@ def build_ingest(
     *,
     background: bool = True,
     triage: TriageSteps | None = None,
+    evidence: SqliteEvidenceIndex | None = None,
 ) -> IngestService:
     """Project ingest over the projects folder `root` (data/projects/). `background` False runs
     each upload inside `start` (CLI, tests). The readers' names are part of the cache key, so a
     changed reader ingests a file again. Reader settings that do not build raise here, so the
     app fails at startup instead of setting every upload aside. `triage`: file triage's ports,
-    instead of the settings' (tests)."""
+    instead of the settings' (tests). `evidence`: the evidence index to keep in step, shared with
+    the REST routes (one embedder session); by default the settings' one."""
     build_pipeline(settings, root)
     store = DiskProjectStore(root)
     names = {
@@ -447,7 +455,7 @@ def build_ingest(
         now=lambda: datetime.now(UTC).isoformat(timespec="seconds"),
         new_id=lambda: secrets.token_hex(6),
         triage=triage or _triage(settings),
-        evidence=build_evidence(root),
+        evidence=evidence or build_evidence(settings, root),
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service

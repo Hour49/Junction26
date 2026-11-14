@@ -48,6 +48,9 @@ class Embedder(Protocol):
     @property
     def name(self) -> str: ...  # model and revision: a new name re-embeds every passage
 
+    @property
+    def label(self) -> str: ...  # the model in a few words, for `method`
+
     def embed(self, texts: Sequence[str]) -> NDArray[np.float32]: ...  # passages
 
     def embed_query(self, text: str) -> NDArray[np.float32]: ...  # one row
@@ -63,8 +66,8 @@ class SqliteEvidenceIndex:
         self._root, self._chunker, self._embedder = root, chunker, embedder
 
     @property
-    def embedder_name(self) -> str | None:
-        return None if self._embedder is None else self._embedder.name
+    def embedder_label(self) -> str | None:
+        return None if self._embedder is None else self._embedder.label
 
     def query_vector(self, query: str) -> NDArray[np.float32] | None:
         return None if self._embedder is None else self._embedder.embed_query(query)

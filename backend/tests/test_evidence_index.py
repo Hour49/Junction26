@@ -144,6 +144,17 @@ def test_a_fused_file_keeps_the_passage_of_the_ranking_that_put_it_highest() -> 
     assert same[0][1] == "c-detail-1"  # equal ranks: the earlier ranking's passage
 
 
+def test_a_file_one_retriever_puts_first_beats_one_both_rank_tenth() -> None:
+    """Why k=5 (decision 0012): a sheet BM25 finds first by its printed number and the embedder
+    doesn't rank must not sink below a file both rank around tenth (with k=60 it does)."""
+    filler = [(f"x{n}", f"x{n}-summary") for n in range(1, 10)]
+    bm25 = [("number", "number-visible_text-1"), *filler, ("both", "both-summary")]
+    dense = [*[(f"y{n}", f"y{n}-summary") for n in range(1, 10)], ("both", "both-summary")]
+    order = [file_id for file_id, _, _ in fused([bm25, dense])]
+    assert order.index("number") < order.index("both")
+    assert [f for f, _, _ in fused([bm25, dense], k=60)].index("both") == 0
+
+
 def test_only_the_first_pool_files_of_each_ranking_count() -> None:
     long = [(f"f{n}", f"f{n}-summary") for n in range(1, 61)]
     assert len(fused([long])) == POOL
@@ -167,6 +178,7 @@ class Embedder:
     """Bag of letters, L2-normalised: similar words, similar vectors. Counts what it embeds."""
 
     name: str = "letters-v1"
+    label: str = "letters"
     embedded: list[str] = field(default_factory=list[str])
 
     def embed(self, texts: Sequence[str]) -> NDArray[np.float32]:
