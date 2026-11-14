@@ -798,7 +798,8 @@ the `identify` stage's line.
   sentence naming what matched or what is missing), `matched_on`, `plans` (drawing ids, always among this
   project's `drawings`), `judge`. With no plan read in the project the verdict is `unsure`, "no floor plan in the
   project to compare with". With `TRIAGE_JUDGE=rules` (no model) `judge` is "rule on the kind of picture, no model":
-  `not_drawing` is `unrelated`, `other_drawing` `related`, and `why` says it was not read.
+  `not_drawing` is `unrelated`, `other_drawing` `related`, and `why` says it was not read. It judges files nothing
+  described too; their `note` is then "not described: no description model is set up" (or the describer's why).
 - `overruled`: a person's call, `{verdict: related|unrelated, by, at}`; the judge's `relevance` stays as it was.
 - `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
   classifier's.
