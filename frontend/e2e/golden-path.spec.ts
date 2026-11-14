@@ -55,7 +55,13 @@ test('GP-1..GP-13, GP-28: the golden demo path', async ({ page }, testInfo) => {
     await expect
       .poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth))
       .toBeGreaterThan(0);
-    await expect(page.getByText('Credit: none recorded for this file').first()).toBeVisible();
+    // The credit the backend gives this drawing (story #33: every drawing on screen carries its credit).
+    const drawingId = /\/d\/([0-9a-f]{16})\//.exec(page.url())?.[1] ?? '';
+    const drawing = await page.request.get(`/api/drawings/${drawingId}`);
+    const { credit } = (await drawing.json()) as { credit: string | null };
+    await expect(
+      page.getByText(`Credit: ${credit ?? 'none recorded for this file'}`, { exact: true }).first(),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'How many doors are there?' })).toBeVisible();
     await shot(page, testInfo, '04-engineer', offline);
   });

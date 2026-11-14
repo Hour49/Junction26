@@ -4,6 +4,7 @@ import type { AnswerView } from '../api';
 import {
   answer,
   answerArea,
+  answerConfidence,
   answerModel,
   answerRefused,
   drawing,
@@ -13,6 +14,7 @@ import {
 import { InfoProvider } from '../shell/info';
 import { mockApi, never } from '../test/mockApi';
 import { EngineerPage } from './EngineerPage';
+import { formatScore } from './format';
 import {
   answerAgree,
   answerAreaExcluded,
@@ -20,7 +22,6 @@ import {
   answerEdited,
   answerEstimate,
   answerNeedsPerson,
-  answerScored,
   answerSettled,
   answerSigned,
   answerUnlocated,
@@ -118,11 +119,7 @@ describe('drawing header and ask box', () => {
     const names = within(header)
       .getAllByRole('button')
       .map((b) => b.textContent);
-    expect(names).toEqual([
-      'How many doors are there?',
-      'How many windows are there?',
-      'How many toilets are there?',
-    ]);
+    expect(names).toEqual(drawing.suggestions.map((s) => s.question));
   });
 
   it('EN-8 before any question: page 1 without marks and the prompt', async () => {
@@ -230,8 +227,12 @@ describe('answers', () => {
   });
 
   it('EN-23 the model score, never a percent or probability; absent when null', async () => {
-    const t = await shown(answerScored);
-    expect(within(t).getByText(/Model score 0\.87 \(choice, uncalibrated\)/)).toBeTruthy();
+    const conf = answerConfidence.confidence;
+    expect(conf).not.toBeNull();
+    const t = await shown(answerConfidence);
+    expect(t.querySelector('.en-score')?.textContent).toContain(
+      `Model score ${formatScore(conf?.score ?? NaN)} (${conf?.signal ?? ''}, uncalibrated)`,
+    );
     expect(
       within(t).getByText(
         "A raw score from the model's choice, not the chance that the answer is right.",
@@ -293,19 +294,26 @@ describe('refusals and errors', () => {
   });
 
   it('EN-40 a can_answer button asks that question', async () => {
-    const api = open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused, answer) });
-    await typeAndAsk('What colour is the roof?');
-    const t = await turn('What colour is the roof?');
+    const can = (answerRefused.refusal?.can_answer ?? []).map((s) => s.question);
+    const first = can[0] ?? '';
+    const api = open({
+      [DRAWING_ROUTE]: drawing,
+      // The refusal for its own question; answer.json echoing any other question.
+      'POST /api/ask': (c: { body: unknown }) => {
+        const { question } = c.body as { question: string };
+        return question === answerRefused.question ? answerRefused : { ...answer, question };
+      },
+    });
+    await typeAndAsk(answerRefused.question);
+    const t = await turn(answerRefused.question);
     const buttons = await within(t).findAllByRole('button');
-    expect(buttons.map((b) => b.textContent)).toEqual([
-      'How many doors are there?',
-      'How many windows are there?',
-    ]);
-    fireEvent.click(within(t).getByRole('button', { name: 'How many doors are there?' }));
-    await turn('How many doors are there?');
+    expect(can.length).toBeGreaterThan(0);
+    expect(buttons.map((b) => b.textContent)).toEqual(can);
+    fireEvent.click(within(t).getByRole('button', { name: first }));
+    await within(await turn(first)).findByTestId('answer-value');
     expect(asks(api).map((c) => (c.body as { question: string }).question)).toEqual([
-      'What colour is the roof?',
-      'How many doors are there?',
+      answerRefused.question,
+      first,
     ]);
   });
 
@@ -394,7 +402,9 @@ describe('thread', () => {
     await within(await turn('How many doors are there?')).findByTestId('answer-value');
     const fold = within(header).getByText('Suggested questions').closest('details');
     expect(fold?.open).toBe(false);
-    expect(within(fold as HTMLElement).getAllByRole('button', { hidden: true })).toHaveLength(3);
+    expect(within(fold as HTMLElement).getAllByRole('button', { hidden: true })).toHaveLength(
+      drawing.suggestions.length,
+    );
   });
 });
 
@@ -455,7 +465,7 @@ describe('extended answers', () => {
     );
     expect(link.getAttribute('target')).toBe('_blank');
     cleanup();
-    const s = await shownTurn(answerScored);
+    const s = await shownTurn(answerConfidence);
     expect(within(s).queryByRole('link', { name: 'Picture of this answer' })).toBeNull();
   });
 

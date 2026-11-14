@@ -219,8 +219,14 @@ describe('FileTraceScreen', () => {
     expect(api.calls.filter((c) => c.url === `/api/drawings/${must(IMG.drawing_id)}`)).toHaveLength(
       1,
     );
-    const credit = screen.getByText('Credit: none recorded for this file');
+    const credit = screen.getByText(`Credit: ${must(drawing.credit)}`);
     expect(credit.closest('figure')?.textContent).toContain('After normalisation');
+    expect(document.querySelectorAll('.credit')).toHaveLength(1);
+    cleanup();
+
+    showImage(traceVariants.image, { ...drawing, credit: null });
+    await flush();
+    expect(screen.getByText('Credit: none recorded for this file')).toBeTruthy();
     cleanup();
 
     showImage(traceVariants.image, reply(500, error));

@@ -1,7 +1,7 @@
 // Derived fixtures (engineer.md "Acceptance criteria"): the backend's fixture files with named fields
 // overridden, never a hand-written whole response.
 import type { AnswerView, DrawingView, MarkView, Row } from '../api';
-import { answer, answerArea, answerConfidence, drawing, takeoff } from '../api/fixtures';
+import { answer, answerArea, drawing, takeoff } from '../api/fixtures';
 
 function must<T>(value: T | null | undefined, what: string): T {
   if (value === null || value === undefined) throw new Error(`fixture has no ${what}`);
@@ -110,13 +110,6 @@ export const drawingHello: DrawingView = {
 };
 
 export const drawingNoSuggestions: DrawingView = { ...drawing, suggestions: [] };
-
-// shortcut: the coming confidence object (board #14) is not in the generated types yet; drop this cast and
-// use answer_confidence.json itself when the backend PR regenerates it.
-export const answerScored = {
-  ...answerConfidence,
-  confidence: { signal: 'choice', score: 0.87, calibrated: false },
-} as unknown as AnswerView;
 
 /** answer.json whose strings carry markup, to prove they render as text. */
 export const markup = '<img src=x onerror=alert(1)>';

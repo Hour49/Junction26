@@ -35,9 +35,15 @@ describe('common views', () => {
   });
 
   it('SH-40 Credit shows the credit as text, or that none is recorded', () => {
-    const { container, unmount } = render(<Credit credit={drawing.credit ?? null} />);
-    expect(container.textContent).toBe('Credit: none recorded for this file');
+    const credit = drawing.credit;
+    if (!credit) throw new Error('drawing.json has no credit');
+    const { container, unmount } = render(<Credit credit={credit} />);
+    expect(container.textContent).toBe(`Credit: ${credit}`);
     unmount();
+    const uncredited = { ...drawing, credit: null };
+    const { container: none, unmount: unmountNone } = render(<Credit credit={uncredited.credit} />);
+    expect(none.textContent).toBe('Credit: none recorded for this file');
+    unmountNone();
     const { container: other } = render(<Credit credit="<b>x</b>" />);
     expect(other.textContent).toBe('Credit: <b>x</b>');
     expect(other.querySelector('b')).toBeNull();

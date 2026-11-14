@@ -36,10 +36,5 @@ export type Takeoff = Schemas['Takeoff'];
 export type Edit = Schemas['Edit'];
 export type SignOffRequest = Schemas['SignOffRequest'];
 
-/** The answer confidence agreed on board #14: `score` is a raw model choice score, never a probability.
- * shortcut: hand-written until the backend PR lands it in the OpenAPI document; then re-export it. */
-export interface Confidence {
-  signal: string;
-  score: number;
-  calibrated: false;
-}
+/** The answer confidence (board #14): `score` is a raw model choice score, never a probability. */
+export type Signal = Schemas['Signal'];

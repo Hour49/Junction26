@@ -20,15 +20,6 @@ export type Turn =
   | { id: number; question: string; status: 'done'; answer: AnswerView }
   | { id: number; question: string; status: 'error'; error: unknown };
 
-/** The coming confidence object (board #14); the old bare number is never shown. */
-function scoreOf(confidence: unknown): { signal: string; score: number } | null {
-  if (typeof confidence !== 'object' || confidence === null) return null;
-  const c = confidence as { signal?: unknown; score?: unknown };
-  return typeof c.score === 'number'
-    ? { signal: typeof c.signal === 'string' ? c.signal : 'model', score: c.score }
-    : null;
-}
-
 function sign(m: MarkView): string {
   if (m.state === 'rejected') return '×';
   if (m.state === 'excluded' || m.n === null) return '–';
@@ -108,7 +99,8 @@ function Answer(props: {
     );
   }
   const row = a.quantity;
-  const score = scoreOf(a.confidence);
+  // A raw model choice score (board #14), never shown as a probability.
+  const score = a.confidence;
   const value = typeof a.answer === 'number' ? formatValue(a.answer, a.unit) : (a.answer ?? '');
   const surveyor =
     row &&
@@ -156,7 +148,8 @@ function Answer(props: {
         )}
         {score && (
           <p className="en-score">
-            Model score {formatScore(score.score)} ({score.signal}, uncalibrated)
+            Model score {formatScore(score.score)} ({score.signal}
+            {score.calibrated ? '' : ', uncalibrated'})
             <br />
             <small>
               A raw score from the model's choice, not the chance that the answer is right.

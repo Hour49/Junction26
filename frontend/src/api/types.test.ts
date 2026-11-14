@@ -38,7 +38,7 @@ it('SH-37 types.ts exports every name of the shared spec', () => {
       T.Takeoff,
       T.Edit,
       T.SignOffRequest,
-      T.Confidence,
+      T.Signal,
     ]
   >().not.toBeNever();
 });
