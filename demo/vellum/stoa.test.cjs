@@ -35,7 +35,7 @@ test('Stoa answers come from the answer key, by exact text or by every content w
   const r = V.askProject('How many doors are there?');
   assert.equal(r.total, 12);
   assert.equal(r.total_unit, 'count');
-  assert.equal(r.parts[0].answer.key, true);
+  assert.equal(r.parts[0].answer.conflict, 'c1');  // the doors are a demo conflict; unsettled it shows the key's value
   assert.equal(r.parts[0].answer.marks.length, 0);
   assert.equal(V.askProject('net area of apartment B').total, 61.25);
   assert.equal(V.formatValue('area', 61.25), '61.25 m²');
@@ -53,10 +53,11 @@ test('Stoa refuses a question the key does not hold, or one that matches several
   assert.equal(none.canAnswer.length, V.SUGGEST.length);
 });
 
-test('Stoa mode has one drawing, no conflicts and rooms from the labelled counts', () => {
+test('Stoa mode has one drawing, the demo conflicts its key supports, and rooms from the labelled counts', () => {
   const V = load();
   assert.equal(V.DRAWINGS.length, 1);
-  assert.equal(V.CONFLICTS.length, 0);
+  assert.equal(V.CONFLICTS.length, 1);  // doors only: the fixture has no apartment A area or washbasin count
+  assert.equal(V.askProject('How many doors are there?', { c1: 1 }).total, 11);  // the picked variant wins
   assert.equal(V.extractFacts().rooms.length, 2);
   assert.equal(V.extractFacts().doors, 12);
   assert.ok(V.CREDIT.includes('CC-BY-4.0'));

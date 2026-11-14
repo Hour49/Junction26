@@ -70,7 +70,8 @@
       return d.image && !f.image ? `<li><span class="ref">${body}</span></li>`
         : `<li><button class="ref press" data-act="ref" data-t="${t.id}" data-f="${i}" aria-pressed="${ov === i}">${body}</button></li>`;
     }).join('');
-    const status = a.key ? `<span class="tip" tabindex="0"><span class="pill grey">Answer key</span><span role="tooltip" class="tip-body">${KEY_TIP}</span></span>`
+    const status = a.conflict ? `<span class="pill ${A().picks()[a.conflict] === null ? 'warn">Conflict open' : 'acc">Settled in Conflicts'}</span>`
+      : a.key ? `<span class="tip" tabindex="0"><span class="pill grey">Answer key</span><span role="tooltip" class="tip-body">${KEY_TIP}</span></span>`
       : !a.check ? `<span class="tip" tabindex="0"><span class="pill ok">Sure</span><span role="tooltip" class="tip-body">${SURE_TIP}</span></span>` : '';
     return `<article class="turn">${q}<p class="lead">${lead} <span class="muted">${esc(V.ruleOf(a))}</span></p>
       <div class="card"><div class="answer">
