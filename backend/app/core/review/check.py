@@ -45,6 +45,7 @@ from app.core.answering.local_gate import READER_FAMILIES, LocalGateModel, readi
 from app.core.drawing.model import Box, CarbonCheck, Drawing, Room, RoomType
 from app.core.model import Frozen
 from app.core.pipeline.count_arbiter import count_arbiter_reading
+from app.core.pipeline.room_policy import says_only_room
 from app.core.review.model import MarkView, Row
 from app.core.review.proof import SHOWN_UNITS
 
@@ -282,6 +283,31 @@ def unmeasured_room(drawing: Drawing, words: RoomWords) -> Room | None:
             if room.label and (w := words(room.label)) and w.unmeasured
         ),
         None,
+    )
+
+
+def only_room_word(kind: str, drawing: Drawing) -> tuple[Room, ...]:
+    """The rooms that leave a count of `kind` rooms unsaid: no room is typed `kind`, and these
+    were typed `kind` by the reader from a label that says only "room" ("Rum", "HUONE", "H":
+    room_policy.generic_word_rooms). The drawing then does not say which rooms are of the kind, so
+    0 would be a number it does not give (jf06: ten rooms labelled "Rum", .agents/exp/
+    judge-fresh-fixes.md). Empty: a room is typed `kind` (the count stands, with these as
+    places to look at), or no room was retyped."""
+    if any(room.type == kind for room in drawing.rooms):
+        return ()
+    return tuple(
+        room
+        for room in drawing.rooms
+        if room.attrs.get("retyped_from") == kind and says_only_room(room.label)
+    )
+
+
+def room_word_refusal(kind: str, rooms: Sequence[Room]) -> str:
+    """Why a count `only_room_word` leaves unsaid gets no number."""
+    some = "1 room is" if len(rooms) == 1 else f"{len(rooms)} rooms are"
+    return (
+        f"This drawing doesn't say which rooms are {kind}s: {some} labelled only "
+        f'"{_label_line(rooms[0])}", a word for any room.'
     )
 
 

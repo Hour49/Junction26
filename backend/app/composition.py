@@ -9,7 +9,7 @@ case below (docs/decisions/0005-pipeline-core.md).
 import logging
 import secrets
 import time
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import cache, partial
@@ -116,6 +116,7 @@ from app.core.answering.ports import (
     DrawingSource,
     QuestionParser,
 )
+from app.core.drawing.model import Room
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
@@ -134,7 +135,7 @@ from app.core.pipeline.ports import (
     SecondCounter,
     SourceFinder,
 )
-from app.core.pipeline.room_policy import gold_label_rooms
+from app.core.pipeline.room_policy import generic_word_rooms, gold_label_rooms
 from app.core.pipeline.route import RICHEST_FIRST
 from app.core.review.check import (
     NO_SCORERS,
@@ -745,7 +746,8 @@ def build_ingest(
         names["room_policy"] = settings.room_policy
     if settings.extractor_raster == "composite":  # its rooms take their Swiss printed names
         # (room_words.py): readings stored before that are read again
-        names["room_words"] = "swiss:v1"
+        names["room_words"] = "swiss+generic:v1"  # +generic: "Rum", "H" are no bedrooms
+        names["floor_plans"] = "rooms:v1"  # a plan box with no labelled room (plan_rooms.py)
     if settings.double_check_readers:  # the same
         names["double_check_readers"] = settings.double_check_readers
     if settings.raster_tiles != "off":  # the same
@@ -861,9 +863,15 @@ def _room_policy(name: RoomPolicyName) -> RoomPolicy:
     room is typed by its printed name as the drawn route types it (room_words.py)."""
     match name:
         case "furniture":
-            return swiss_label_rooms
+            return _label_rooms
         case "gold-labels":
-            return lambda rooms: gold_label_rooms(swiss_label_rooms(rooms))
+            return lambda rooms: gold_label_rooms(_label_rooms(rooms))
+
+
+def _label_rooms(rooms: Sequence[Room]) -> Sequence[Room]:
+    """What every raster reading's rooms get: the Swiss names, then a bedroom whose label says
+    only "room" is `other` (room_policy.generic_word_rooms)."""
+    return generic_word_rooms(swiss_label_rooms(rooms))
 
 
 def _double_check(readers: str, build: Callable[[str], Extractor]) -> dict[str, str]:

@@ -13,7 +13,7 @@ from test_raster_composite import FILE, LEFT, PNG, RIGHT, SHEET, Fake, gold
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
 from app.adapters.raster import assemble, parse_components
 from app.adapters.raster.precomputed import WholePagePlan
-from app.composition import build_ingest, build_pipeline
+from app.composition import _room_policy, build_ingest, build_pipeline
 from app.core.drawing.model import Box, Room
 from app.core.pipeline.model import Extracted
 from app.core.pipeline.room_policy import generic_word_rooms, gold_label_rooms
@@ -196,3 +196,9 @@ def test_a_room_retyped_for_its_generic_label_says_what_the_reader_typed() -> No
     assert changed == first.model_copy(
         update={"type": "other", "attrs": {"retyped_from": "bedroom"}}
     )
+
+
+@pytest.mark.parametrize("policy", ["furniture", "gold-labels"])
+def test_every_raster_reading_gets_the_generic_word_rule(policy: str) -> None:
+    rooms = _room_policy(policy)([room("bedroom", "Rum"), room("bedroom", "MH", RIGHT)])  # type: ignore[arg-type]
+    assert [r.type for r in rooms] == ["other", "bedroom"]

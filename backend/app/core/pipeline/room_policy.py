@@ -47,11 +47,14 @@ def generic_word_rooms(rooms: Sequence[Room]) -> tuple[Room, ...]:
     the reader's type in `attrs.retyped_from`. The label's first line is read by its letters
     alone, so "Rum 3" and "HUON." say "room" and "Sovrum" and "Makuuhuone" do not."""
     return tuple(
-        _retyped(room, "other")
-        if room.type == "bedroom" and _letters(room.label) in GENERIC_WORDS
-        else room
+        _retyped(room, "other") if room.type == "bedroom" and says_only_room(room.label) else room
         for room in rooms
     )
+
+
+def says_only_room(label: str | None) -> bool:
+    """Whether the label's first line is a word for "room" and nothing else."""
+    return _letters(label) in GENERIC_WORDS
 
 
 def _letters(label: str | None) -> str:
