@@ -229,7 +229,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
           ).map((s) => (
             <div key={s.label}>
               <dt className="text-[13px] text-muted-foreground">{s.label}</dt>
-              <dd className="mt-0.5 mb-0 text-2xl font-bold">{s.value}</dd>
+              <dd className="m-0 mt-0.5 text-2xl font-bold whitespace-nowrap">{s.value}</dd>
             </div>
           ))}
         </dl>
