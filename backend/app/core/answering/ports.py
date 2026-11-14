@@ -35,3 +35,20 @@ class AnswerPrior(Protocol):
     or None when there is none."""
 
     def prior(self, source: str, family: str) -> Prior | None: ...
+
+
+class Confidence(Protocol):
+    """A probability that an answer is right, or None with the reason in `note`."""
+
+    @property
+    def value(self) -> float | None: ...
+
+    @property
+    def note(self) -> str: ...
+
+
+class AnswerConfidence(Protocol):
+    """How likely a drawing's answer is right: by the drawing's path, the question family as the
+    parser names it (`door`, `room:wc`...) and the answered value."""
+
+    def probability(self, path: str, family: str, value: object) -> Confidence: ...

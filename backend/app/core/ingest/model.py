@@ -1,0 +1,201 @@
+"""What project ingest reports: the state of every file of an upload, and its trace per stage.
+
+The interface the API reads (`.agents/ingest.md` has it in words): `ProjectStatus` lists the
+files with their state and reason, `FileTrace` adds one `StageTrace` per stage the file went
+through.
+"""
+
+from typing import Literal
+
+from pydantic import Field
+
+from app.core.model import Frozen
+from app.core.pipeline.model import Route
+
+FileState = Literal["queued", "running", "ready", "flagged", "text_only", "set_aside"]
+FINISHED: frozenset[FileState] = frozenset({"ready", "flagged", "text_only", "set_aside"})
+ProjectState = Literal["queued", "running", "done", "failed"]
+
+# What a file is, from its content (stage 3). The first eight go into the pipeline.
+ContentKind = Literal[
+    "pdf_vector",  # a drawn PDF: paths and text objects
+    "pdf_scan",  # a PDF whose page is one big image (a scan)
+    "png_plan",  # a drawing as an image: mostly white paper with dark lines
+    "jpeg_plan",
+    "photo_plan",  # a camera photo of a drawing: perspective, background around the paper
+    "ifc",
+    "dxf",
+    "svg",
+    "pdf_text",  # a PDF with text and next to no drawing: a specification, a letter
+    "text",  # plain text (txt, csv, md, json)
+    "photo",  # a camera photo that is not of a drawing
+    "pdf_encrypted",  # no empty password opens it
+    "dwg",  # needs converting to DXF first (requirement I13, not built)
+    "office",  # a Word, Excel or PowerPoint file
+    "archive",  # a zip that was not unpacked (nested deeper than one level)
+    "unknown",
+]
+DRAWING_KINDS: frozenset[ContentKind] = frozenset(
+    {"pdf_vector", "pdf_scan", "png_plan", "jpeg_plan", "photo_plan", "ifc", "dxf", "svg"}
+)
+TEXT_KINDS: frozenset[ContentKind] = frozenset({"pdf_text", "text"})
+
+# The stages a file's trace can name, in pipeline order.
+Stage = Literal[
+    "unpack",
+    "hash",
+    "identify",
+    "group",
+    "route",
+    "cache",
+    "normalise",
+    "extract",
+    "second_count",
+    "takeoff",  # the counting rules (stage 9) and the takeoff (stage 10), timed together
+    "write",
+]
+
+
+class Entry(Frozen):
+    """One file of an upload, as the unpacker gives it: its bytes, or why it was refused."""
+
+    path: str  # inside the archive, "/"-separated; the upload's name for a single file
+    size: int = Field(ge=0)  # uncompressed, as the archive declares it
+    data: bytes | None = None
+    refused: str | None = None  # set: the file is set aside before it is read
+
+
+class Probed(Frozen):
+    """Stage 3: the content kind, and how it was decided, in words."""
+
+    kind: ContentKind
+    did: str
+
+
+class StageTrace(Frozen):
+    stage: Stage
+    did: str  # what the stage did, one readable line
+    ms: float = Field(ge=0)
+    output: str = ""  # what it produced, in short
+    failure: str | None = None  # set when the stage failed; the file is then set aside
+    cost_usd: float = Field(default=0.0, ge=0)  # model calls paid for; no stage calls one yet
+
+
+Point = tuple[float, float]
+Quad = tuple[Point, Point, Point, Point]
+
+
+class Normalised(Frozen):
+    """How an image was brought into the frame every page size, box and served page is in:
+    EXIF orientation applied, then any turn, deskew or perspective correction. The pipeline
+    reads the normalised image, never the upload's bytes."""
+
+    exif: int | None = None  # the EXIF orientation tag (1-8) of the upload; None: none given
+    rotated: int = 0  # degrees clockwise turned after the EXIF turn: 0, 90, 180, 270
+    deskew_deg: float = 0.0
+    rectified: bool = False  # perspective corrected by the `Rectifier` (RECTIFIER setting)
+    # The paper's corners in the upload (after the EXIF turn, as a browser shows it) as fractions
+    # of its size: top left, top right, bottom right, bottom left; None: not rectified.
+    quad: Quad | None = None
+    width: int = Field(ge=1)  # the normalised image, in pixels
+    height: int = Field(ge=1)
+    rectifier: str | None = None  # how it was rectified, e.g. "R1 contour quad"
+
+
+class Rectified(Frozen):
+    """A rectifier's result: the paper seen straight on, and where it was in the image."""
+
+    data: bytes = Field(exclude=True, repr=False)  # the rectified image, PNG or JPEG
+    quad: Quad  # the paper's corners in the image it was given, as fractions of it
+    width: int = Field(ge=1)  # of the rectified image, in pixels
+    height: int = Field(ge=1)
+    method: str  # how it was found, shown in the trace and the status
+
+
+class FileStatus(Frozen):
+    id: str  # f1, f2... in the order the upload lists the files
+    path: str
+    size: int = Field(ge=0)
+    sha256: str | None = None  # None: refused before it was read
+    kind: ContentKind | None = None  # None: not identified (refused, or still queued)
+    state: FileState = "queued"
+    reason: str = ""
+    group: str | None = None
+    route: Route | None = None
+    source: str | None = None  # the file of its group the drawing was read from
+    drawing_id: str | None = None
+    reused: bool = False  # True: the same content was ingested before with the same readers
+    takeoff: dict[str, int | float] = Field(default_factory=dict[str, int | float])
+    ms: float = Field(default=0, ge=0)
+    stage: Stage | None = (
+        None  # the stage it is in while running, else the last one it went through
+    )
+    cost_usd: float = Field(default=0.0, ge=0)
+    normalised: Normalised | None = None  # an image sheet: how its frame was made
+
+
+class ProjectStatus(Frozen):
+    id: str
+    name: str
+    state: ProjectState
+    created_at: str  # ISO 8601, UTC
+    files: tuple[FileStatus, ...] = ()
+    counts: dict[FileState, int] = Field(default_factory=dict[FileState, int])
+    readers: dict[str, str] = Field(default_factory=dict[str, str])  # route -> adapter name
+    error: str | None = None
+    ms: float = Field(default=0, ge=0)
+    cost_usd: float = Field(default=0.0, ge=0)
+
+
+class FileTrace(Frozen):
+    project_id: str
+    file: FileStatus
+    stages: tuple[StageTrace, ...]
+
+
+SheetKind = Literal["pdf", "png", "jpeg", "ifc"]  # a file a drawing model is written for
+
+
+class DrawingInfo(Frozen):
+    """Where a drawing model came from: its file (a sheet, or an IFC model with no page), the
+    route that read it and the file it was read from."""
+
+    drawing_id: str
+    project_id: str  # where it was first ingested
+    path: str
+    kind: SheetKind
+    route: Route | None = None
+    source: str | None = None  # path of the file it was read from, in that project
+    normalised: Normalised | None = None
+
+
+class SheetFile(Frozen):
+    """The file a drawing model is placed on, for rendering its pages."""
+
+    drawing_id: str
+    path: str
+    kind: Literal["pdf", "png", "jpeg"]
+    route: Route | None = None
+    source: str | None = None
+    data: bytes = Field(exclude=True, repr=False)  # normalised: the frame the boxes are in
+    normalised: Normalised | None = None
+
+
+class Outcome(Frozen):
+    """What ingest made of one file of a group, kept by content so the same file in the same
+    group is not ingested again. Paths of the group are named by their sha256, so a copy under
+    another name reuses it."""
+
+    key: str  # the drawing id when `has_drawing`
+    project_id: str  # where it was first ingested
+    path: str
+    sheet_kind: SheetKind | None = None
+    state: FileState
+    reason: str
+    route: Route | None = None
+    source_sha256: str | None = None
+    source: str | None = None  # its path in `project_id`
+    has_drawing: bool = False
+    takeoff: dict[str, int | float] = Field(default_factory=dict[str, int | float])
+    stages: tuple[StageTrace, ...] = ()
+    normalised: Normalised | None = None

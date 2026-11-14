@@ -1,0 +1,282 @@
+{
+  "question": "What is the net floor area of all indoor rooms in m²?",
+  "drawing_id": "adeefbbcc17559fc",
+  "file": "plans/flat-a.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": 52.269,
+  "unit": "m2",
+  "confidence": null,
+  "quantity": {
+    "key": "area:room|indoor",
+    "label": "area of room (indoor)",
+    "measure": "area",
+    "subject": "room",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": true,
+      "model": false,
+      "largest": false
+    },
+    "value": 52.269,
+    "unit": "m2",
+    "original_value": 52.269,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "indoor-rooms-total",
+      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ],
+        "polygon": [
+          [
+            0.16667,
+            0.125
+          ],
+          [
+            0.16667,
+            0.375
+          ],
+          [
+            0.5,
+            0.375
+          ],
+          [
+            0.5,
+            0.125
+          ]
+        ],
+        "state": "counted",
+        "value": 22.401,
+        "label": "Küche",
+        "ref": "r1",
+        "reason": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.25,
+          0.2,
+          0.33333,
+          0.3
+        ],
+        "polygon": [
+          [
+            0.25,
+            0.2
+          ],
+          [
+            0.25,
+            0.3
+          ],
+          [
+            0.33333,
+            0.3
+          ],
+          [
+            0.33333,
+            0.2
+          ]
+        ],
+        "state": "counted",
+        "value": 2.489,
+        "label": "Reduit",
+        "ref": "r2",
+        "reason": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {}
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.16667,
+        0.125,
+        0.5,
+        0.375
+      ],
+      "polygon": [
+        [
+          0.16667,
+          0.125
+        ],
+        [
+          0.16667,
+          0.375
+        ],
+        [
+          0.5,
+          0.375
+        ],
+        [
+          0.5,
+          0.125
+        ]
+      ],
+      "state": "counted",
+      "value": 22.401,
+      "label": "Küche",
+      "ref": "r1",
+      "reason": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.25,
+        0.2,
+        0.33333,
+        0.3
+      ],
+      "polygon": [
+        [
+          0.25,
+          0.2
+        ],
+        [
+          0.25,
+          0.3
+        ],
+        [
+          0.33333,
+          0.3
+        ],
+        [
+          0.33333,
+          0.2
+        ]
+      ],
+      "state": "counted",
+      "value": 2.489,
+      "label": "Reduit",
+      "ref": "r2",
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-a.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 52.269,
+    "unit": "m2",
+    "evidence": [
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      },
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.25,
+          0.2,
+          0.33333,
+          0.3
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "sum",
+    "legend": [
+      {
+        "label": "Küche",
+        "colour": "#d62728",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Reduit",
+        "colour": "#1f77b4",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Bad",
+        "colour": "#2ca02c",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Zimmer",
+        "colour": "#9467bd",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Balkon",
+        "colour": "#ff7f0e",
+        "count": 0,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": "22.4 + 2.49 + 12.45 + 14.93 = 52.27 m2; left out: Balkon 12.45 (outdoor room)",
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "confidence": null
+  }
+}

@@ -1,7 +1,7 @@
 """The ingest use case: runs the ten stages over a list of files and writes one drawing model per
 sheet file to the sink. The CLI and the API both call this (through app/composition.py)."""
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 
 from app.core.drawing.model import Drawing
 from app.core.pipeline.extract import extract
@@ -28,7 +28,7 @@ from app.core.pipeline.ports import (
     SecondCounter,
     SourceFinder,
 )
-from app.core.pipeline.route import route
+from app.core.pipeline.route import RICHEST_FIRST, route
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, resolved_rooms, second_count
 from app.core.pipeline.takeoff import take_off
@@ -46,16 +46,25 @@ def ingest(
     extractors: Mapping[Route, Extractor],
     second_counter: SecondCounter,
     sink: DrawingSink,
+    readable: Collection[Route] = RICHEST_FIRST,
+    scanned: Callable[[bytes], bool] | None = None,
 ) -> IngestReport:
     """A drawing model is written for every sheet among `paths`, and for a building model among
     them when its extractor lists its objects. A source the finder adds (a sheet's building
-    model) is read from, and gets no drawing model of its own."""
+    model) is read from, and gets no drawing model of its own. `readable`: the routes whose
+    extractor reads something; stage 5 routes a group only to one of them when it can.
+    `scanned`: whether a PDF's bytes are a scan (no drawn content), which stage 5 routes to the
+    raster reader; None: every PDF is drawn."""
     inventory: dict[str, DrawingFile | SetAside] = {}
+    scans: set[str] = set()
 
     def entry(path: str) -> DrawingFile | SetAside:
         if path not in inventory:
             data = files.read(path)
-            inventory[path] = identify(file_entry(path, data), data)
+            inventory[path] = found = identify(file_entry(path, data), data)
+            is_pdf = isinstance(found, DrawingFile) and found.kind == "pdf"
+            if scanned is not None and is_pdf and scanned(data):
+                scans.add(path)
         return inventory[path]
 
     drawing_files = [found for path in paths if isinstance(found := entry(path), DrawingFile)]
@@ -69,7 +78,7 @@ def ingest(
 
     sheets: list[SheetReport] = []
     for members in group(drawing_files, sources):
-        routed = route(members)
+        routed = route(members, readable, scans)
         # A source found for this group that was also given gets its drawing in its own group.
         asked = [
             file for file in members.files if file.path in given and key_of(file) == members.key

@@ -113,6 +113,7 @@ class Counted(Frozen):
 
     rule: CountingRule
     marks: tuple[Mark, ...]
+    excluded: tuple[tuple[Mark, str], ...] = ()  # items the rule left out, with the reason
 
 
 # What a quantity of the takeoff measures, and its unit (stage 10).
@@ -129,6 +130,7 @@ class QuantityConflict(Frozen):
     resolution: Resolution | None
     note: str | None = None
     derived: str | None = None
+    status: Literal["conflict", "agree"] = "conflict"  # the stage-8 entry's own status
 
 
 class Quantity(Frozen):
@@ -141,6 +143,12 @@ class Quantity(Frozen):
     rule: str  # the id of the counting rule
     estimate: str | None = None  # what an estimated value rests on, in words; None: as read
     conflict: QuantityConflict | None = None  # two methods measured it; `value` is the resolved one
+    # Two methods measured it and agree (status "agree"); with `conflict` None too, it is single:
+    # one method measured it
+    agree: QuantityConflict | None = None
+    # The items its counting rule left out, each with the reason (stage 9), e.g. a sauna room's
+    # stoves, or the outdoor rooms of an indoor total
+    excluded: tuple[tuple[Mark, str], ...] = ()
 
 
 class SheetReport(Frozen):

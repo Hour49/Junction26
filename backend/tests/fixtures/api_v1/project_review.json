@@ -1,0 +1,84 @@
+{
+  "drawings": [
+    {
+      "drawing_id": "adeefbbcc17559fc",
+      "file": "plans/flat-a.pdf",
+      "to_review": 0,
+      "signed": 0,
+      "quantities": 63
+    },
+    {
+      "drawing_id": "6d153ea15dca9ab4",
+      "file": "plans/flat-b.pdf",
+      "to_review": 2,
+      "signed": 0,
+      "quantities": 63
+    },
+    {
+      "drawing_id": "3b3ce7db34257f63",
+      "file": "scans/ground-floor.png",
+      "to_review": 0,
+      "signed": 0,
+      "quantities": 0
+    },
+    {
+      "drawing_id": "37f6819bd17d65d9",
+      "file": "photos/plan-photo.jpg",
+      "to_review": 0,
+      "signed": 0,
+      "quantities": 0
+    },
+    {
+      "drawing_id": "1db9bcf1e67e27a3",
+      "file": "model/house.ifc",
+      "to_review": 0,
+      "signed": 0,
+      "quantities": 26
+    }
+  ],
+  "conflicts": [
+    {
+      "drawing_id": "6d153ea15dca9ab4",
+      "file": "plans/flat-b.pdf",
+      "quantity": "area:room|name=1.01",
+      "label": "area of room (name 1.01)",
+      "conflict": {
+        "values": [
+          {
+            "value": 22.401,
+            "unit": "m2",
+            "method": "polygon_x_scale",
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ]
+          },
+          {
+            "value": 30.0,
+            "unit": "m2",
+            "method": "printed_label",
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ]
+          }
+        ],
+        "resolution": {
+          "rule": "the printed label over the outline at the sheet's scale",
+          "value": 30.0
+        },
+        "note": null,
+        "derived": null,
+        "status": "conflict"
+      },
+      "settled": null,
+      "needs_person": false
+    }
+  ]
+}

@@ -4,13 +4,18 @@ the filters (label, name, apartment, storey) a query looks a quantity up by."""
 from app.core.answering.model import Query
 from app.core.drawing.model import (
     Apartment,
+    Conflict,
     Drawing,
     Element,
+    Mark,
+    MeasuredValue,
     ModelObject,
     Page,
     Plan,
+    Resolution,
     Room,
     Scale,
+    Subject,
 )
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
@@ -57,6 +62,29 @@ def test_saunas_count_sauna_rooms_else_stoves() -> None:
         rooms=(room(1, "sauna", None),),
     )
     assert value(known_quantities(both), Query(subject="sauna")) == 1
+
+
+def test_saunas_fall_back_to_stoves_when_rooms_were_not_read() -> None:
+    """A detector reads stoves but no rooms: the sauna count is its stoves, on the sheet and
+    per storey. Rooms read without stoves stay unknown (a sheet without sauna rooms would count
+    stoves nobody looked for); both read keep room-else-stove."""
+    items = {
+        "plans": (Plan(id="p1", page=1, box=BOX, storey="EG"),),
+        "elements": (element(1, "sauna_stove"), element(2, "sauna_stove"), element(3, "door")),
+    }
+    detector = known_quantities(drawing(read=["sauna_stove", "door"], **items))
+    assert value(detector, Query(subject="sauna")) == 2
+    assert detector[Query(subject="sauna").key()].rule == SAUNA_ROOM_ELSE_STOVE.id
+    assert value(detector, Query(subject="sauna", storey="EG")) == 2
+    assert Query(subject="room:sauna").key() not in detector
+    none_found = known_quantities(drawing(read=["sauna_stove"], plans=items["plans"]))
+    assert value(none_found, Query(subject="sauna")) == 0
+    rooms_only = known_quantities(drawing(read=["room"], **items))
+    assert Query(subject="sauna").key() not in rooms_only
+    both = known_quantities(
+        drawing(read=["sauna_stove", "room"], rooms=(room(1, "sauna", None, plan="p1"),), **items)
+    )
+    assert value(both, Query(subject="sauna")) == 1
 
 
 def test_showers_and_bathtubs_add_up() -> None:
@@ -509,3 +537,69 @@ def test_a_name_two_of_a_storey_s_spaces_share_names_neither() -> None:
     assert Query(measure="area", subject="room", name="WC", storey="OG").key() not in found
     assert value(found, Query(measure="area", subject="room", name="WC (2.08)", storey="OG")) == 2.0
     assert value(found, Query(measure="area", subject="room", storey="OG")) == 4.0
+
+
+def door_entry(status: str, second: float) -> Conflict:
+    return Conflict.model_validate(
+        {
+            "id": f"c-{status}",
+            "quantity": "element_count",
+            "subject": Subject(kind="class", ref="door"),
+            "status": status,
+            "tolerance": 0,
+            "values": (
+                MeasuredValue(value=2, method="parser"),
+                MeasuredValue(value=second, method="ifc_model"),
+            ),
+            "resolution": Resolution(rule="the model", value=second)
+            if status == "conflict"
+            else None,
+        }
+    )
+
+
+def test_a_second_reading_that_agrees_shows_on_the_quantity_without_changing_it() -> None:
+    """api S2: first, second and agree. An agree entry goes on `agree`, a conflict on
+    `conflict`; neither on a quantity nothing measured twice (single)."""
+    doors = (element(1, "door"), element(2, "door"), element(3, "window"))
+    agreed = known_quantities(drawing(elements=doors, conflicts=(door_entry("agree", 2),)))
+    door = agreed[Query(subject="door").key()]
+    assert (door.value, door.conflict) == (2, None)
+    assert door.agree is not None and door.agree.status == "agree"
+    assert [v.method for v in door.agree.values] == ["parser", "ifc_model"]
+    window = agreed[Query(subject="window").key()]
+    assert (window.agree, window.conflict) == (None, None)  # single
+    disputed = known_quantities(drawing(elements=doors, conflicts=(door_entry("conflict", 3),)))
+    door = disputed[Query(subject="door").key()]
+    assert (door.value, door.agree) == (3, None)
+    assert door.conflict is not None and door.conflict.status == "conflict"
+
+
+def test_the_items_a_rule_leaves_out_are_listed_with_the_reason() -> None:
+    """api B3: a sauna room is counted, so the stoves are left out; an indoor total and a
+    dwelling's area leave out outdoor rooms (and shafts)."""
+    stove_box = (0.5, 0.5, 0.6, 0.6)
+    stove = Element.model_validate(
+        {"id": "e9", "class": "sauna_stove", "page": 1, "box": stove_box, "attrs": {}}
+    )
+    sauna = known_quantities(drawing(elements=(stove,), rooms=(room(1, "sauna", None),)))
+    found = sauna[Query(subject="sauna").key()]
+    assert found.value == 1
+    assert found.excluded == (
+        (Mark(page=1, box=stove_box), f"room:sauna counted instead ({SAUNA_ROOM_ELSE_STOVE.id})"),
+    )
+    assert known_quantities(drawing(elements=(stove,)))[Query(subject="sauna").key()].excluded == ()
+    rooms = (
+        room(1, "living", 20.0),
+        room(2, "balcony", 5.0, outdoor=True, box=stove_box),
+        room(3, "shaft", 1.0, box=(0.3, 0.3, 0.4, 0.4)),
+    )
+    found = known_quantities(drawing(rooms=rooms))
+    indoor = found[Query(measure="area", subject="room", indoor=True).key()]
+    assert (indoor.value, indoor.excluded) == (
+        21.0,
+        ((Mark(page=1, box=stove_box), "outdoor room"),),
+    )
+    dwelling = found[Query(measure="area", subject="apartment").key()]
+    assert dwelling.value == 20.0
+    assert [why for _, why in dwelling.excluded] == ["outdoor room", "shaft"]

@@ -1,0 +1,177 @@
+[
+ {
+  "label": "floor_plan",
+  "reply": {
+   "answers": {
+    "kind": {
+     "confidence": 0.7758009836656772,
+     "choice": "floor_plan",
+     "probabilities": {
+      "site_plan": 0.05545073459811628,
+      "photo_plan": 0.14595925785150574,
+      "floor_plan": 0.7758009836656772,
+      "elevation_section": 0.00655248629928282,
+      "not_drawing": 0.009924511492472338,
+      "schedule": 0.006312026092945348
+     },
+     "type": "choice"
+    }
+   },
+   "usage": {
+    "total_tokens": 1310,
+    "total_input_tokens": 1310,
+    "input_tokens_by_modality": [
+     {
+      "modality": "text",
+      "tokens": 222
+     },
+     {
+      "modality": "image",
+      "tokens": 1088
+     }
+    ],
+    "total_output_tokens": 0
+   }
+  }
+ },
+ {
+  "label": "elevation_section",
+  "reply": {
+   "answers": {
+    "kind": {
+     "confidence": 0.9665740546282608,
+     "choice": "elevation_section",
+     "probabilities": {
+      "not_drawing": 0.0023457194377739334,
+      "floor_plan": 0.00447866262950087,
+      "photo_plan": 0.017574467382052726,
+      "elevation_section": 0.9665740546282608,
+      "schedule": 0.0023116704846649024,
+      "site_plan": 0.0067154254377466555
+     },
+     "type": "choice"
+    }
+   },
+   "usage": {
+    "total_tokens": 1329,
+    "total_input_tokens": 1329,
+    "input_tokens_by_modality": [
+     {
+      "modality": "text",
+      "tokens": 222
+     },
+     {
+      "modality": "image",
+      "tokens": 1107
+     }
+    ],
+    "total_output_tokens": 0
+   }
+  }
+ },
+ {
+  "label": "schedule",
+  "reply": {
+   "answers": {
+    "kind": {
+     "confidence": 0.8359455307452234,
+     "choice": "schedule",
+     "probabilities": {
+      "floor_plan": 0.004695965027816584,
+      "site_plan": 0.0014321010047776655,
+      "elevation_section": 0.15139060820689748,
+      "not_drawing": 0.003214382467288125,
+      "schedule": 0.8359455307452234,
+      "photo_plan": 0.0033214125479968733
+     },
+     "type": "choice"
+    }
+   },
+   "usage": {
+    "total_tokens": 1314,
+    "total_input_tokens": 1314,
+    "input_tokens_by_modality": [
+     {
+      "modality": "text",
+      "tokens": 222
+     },
+     {
+      "modality": "image",
+      "tokens": 1092
+     }
+    ],
+    "total_output_tokens": 0
+   }
+  }
+ },
+ {
+  "label": "photo_plan",
+  "reply": {
+   "answers": {
+    "kind": {
+     "confidence": 0.946798812544559,
+     "choice": "photo_plan",
+     "probabilities": {
+      "floor_plan": 0.03368246528027989,
+      "not_drawing": 0.016408451894205235,
+      "elevation_section": 0.001445435156455386,
+      "schedule": 0.0009352245615444828,
+      "site_plan": 0.0007296105629557575,
+      "photo_plan": 0.946798812544559
+     },
+     "type": "choice"
+    }
+   },
+   "usage": {
+    "total_tokens": 1286,
+    "total_input_tokens": 1286,
+    "input_tokens_by_modality": [
+     {
+      "modality": "text",
+      "tokens": 222
+     },
+     {
+      "modality": "image",
+      "tokens": 1064
+     }
+    ],
+    "total_output_tokens": 0
+   }
+  }
+ },
+ {
+  "label": "site_plan",
+  "reply": {
+   "answers": {
+    "kind": {
+     "confidence": 0.9833872137354875,
+     "choice": "site_plan",
+     "probabilities": {
+      "photo_plan": 0.0037374639777162147,
+      "site_plan": 0.9833872137354875,
+      "not_drawing": 0.0020930751566227822,
+      "floor_plan": 0.007743208325686222,
+      "schedule": 0.0017039575297048682,
+      "elevation_section": 0.0013350812747823539
+     },
+     "type": "choice"
+    }
+   },
+   "usage": {
+    "total_tokens": 1288,
+    "total_input_tokens": 1288,
+    "input_tokens_by_modality": [
+     {
+      "modality": "text",
+      "tokens": 222
+     },
+     {
+      "modality": "image",
+      "tokens": 1066
+     }
+    ],
+    "total_output_tokens": 0
+   }
+  }
+ }
+]

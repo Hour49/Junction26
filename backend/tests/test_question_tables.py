@@ -83,3 +83,12 @@ def test_a_count_in_an_unquoted_plan_is_refused_not_answered_for_the_sheet() -> 
     text = "How many lavatories are drawn inside the two restrooms of enlarged plan 6A?"
     assert isinstance(PARSE(text), Unsupported)
     assert PARSE("How many sinks are shown on this floor plan?") == Query(subject="sink")
+
+
+def test_a_count_can_be_asked_without_how_many() -> None:
+    whole = TableQuery(op="count", kind="door", every_row=True)
+    for text in (
+        "Count the doors listed in the door schedule on sheet A-801 of the Xcel Sports Complex.",
+        "What is the number of doors listed in the door schedule?",
+    ):
+        assert PARSE(text) == whole, text

@@ -133,11 +133,16 @@ def apply_rules(listed: Mapping[str, tuple[Mark, ...]]) -> dict[str, Counted]:
     counted = {key: Counted(rule=EACH_ONCE, marks=marks) for key, marks in listed.items()}
     for combined in COMBINED:
         parts = [listed.get(part, ()) for part in combined.parts]
+        excluded: tuple[tuple[Mark, str], ...] = ()
         if combined.first_listed:
-            marks = next((found for found in parts if found), ())
+            chosen = next((i for i, found in enumerate(parts) if found), None)
+            marks = () if chosen is None else parts[chosen]
+            if chosen is not None:
+                why = f"{combined.parts[chosen]} counted instead ({combined.rule.id})"
+                excluded = tuple((mark, why) for found in parts[chosen + 1 :] for mark in found)
         else:
             marks = tuple(mark for found in parts for mark in found)
-        counted[combined.key] = Counted(rule=combined.rule, marks=marks)
+        counted[combined.key] = Counted(rule=combined.rule, marks=marks, excluded=excluded)
     return counted
 
 

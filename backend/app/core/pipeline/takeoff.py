@@ -258,7 +258,8 @@ def _space_names(space: ModelObject) -> set[str]:
 
 def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Quantity]:
     """Each quantity a `conflict` entry of the drawing is about, with the entry's values and its
-    resolved value. `agree` entries change nothing. A sheet-wide entry (an element class, the
+    resolved value. An `agree` entry changes no value: it goes on the quantity as `agree`, so
+    both readings show. A sheet-wide entry (an element class, the
     sheet's rooms) is about the sheet and, when its plans show one storey, that storey. An entry
     is only attached to a quantity whose own value is one of the entry's values, so a key that
     measures something else keeps its value."""
@@ -277,7 +278,28 @@ def _with_conflicts(found: dict[str, Quantity], drawing: Drawing) -> dict[str, Q
         if storey is not None:
             for key, derived in _room_set_areas(entry, drawing, storey, plans):
                 _attach(out, key, derived, SAME)
+    for entry in drawing.conflicts or ():
+        if entry.status != "agree":
+            continue
+        agreed = QuantityConflict(
+            values=entry.values, resolution=entry.resolution, note=entry.note, status="agree"
+        )
+        for key in _conflict_keys(entry, drawing, storey, plans):
+            _agree(out, key, agreed, entry.tolerance)
     return out
+
+
+def _agree(
+    found: dict[str, Quantity], key: str, agreed: QuantityConflict, tolerance: float
+) -> None:
+    """`agreed` on the quantity at `key` when its value is one of the entry's, and no conflict
+    is on it already."""
+    quantity = found.get(key)
+    if quantity is None or quantity.conflict is not None or quantity.agree is not None:
+        return
+    if all(differ(quantity.value, value.value, tolerance) for value in agreed.values):
+        return
+    found[key] = quantity.model_copy(update={"agree": agreed})
 
 
 def _conflict_keys(
@@ -419,7 +441,31 @@ def _read_only(found: dict[str, Quantity], read: Sequence[str] | None) -> dict[s
     if not read:
         return {}
     looked_for = set(read)
-    return {key: quantity for key, quantity in found.items() if _reads(key) <= looked_for}
+    kept = {key: quantity for key, quantity in found.items() if _reads(key) <= looked_for}
+    for key in found.keys() - kept.keys():
+        fallback = _read_fallback(key, looked_for)
+        if fallback is not None and fallback in found:
+            kept[key] = found[fallback].model_copy(update={"key": key, "rule": _rule_of(key)})
+    return kept
+
+
+def _read_fallback(key: str, looked_for: set[str]) -> str | None:
+    """A fallback count (rules.COMBINED, `first_listed`) whose first part was not read, while
+    its one later part was: that part's own key. Saunas are sauna rooms, else stoves; an
+    extraction that reads stoves but not rooms (a detector alone) counts the stoves."""
+    subject, _, filters = key.partition("|")
+    rule = next((r for r in COMBINED if r.key == subject and r.first_listed), None)
+    if rule is None or _reads(rule.parts[0]) <= looked_for:
+        return None
+    later = [part for part in rule.parts[1:] if _reads(part) <= looked_for]
+    if len(later) != 1 or len(rule.parts) != 2:
+        return None
+    return later[0] + (f"|{filters}" if filters else "")
+
+
+def _rule_of(key: str) -> str:
+    subject = key.partition("|")[0]
+    return next(rule.rule.id for rule in COMBINED if rule.key == subject)
 
 
 def _reads(key: str) -> set[str]:
@@ -503,6 +549,7 @@ def _put(
     marks: Sequence[Mark],
     rule: CountingRule,
     estimate: str | None = None,
+    excluded: Sequence[tuple[Mark, str]] = (),
 ) -> None:
     found[key] = Quantity(
         key=key,
@@ -511,6 +558,7 @@ def _put(
         marks=tuple(marks),
         rule=rule.id,
         estimate=estimate,
+        excluded=tuple(excluded),
     )
 
 
@@ -520,14 +568,25 @@ def _area_sum(
     rooms: Sequence[Room],
     rule: CountingRule,
     scale: str | None,
+    excluded: Sequence[tuple[Mark, str]] = (),
 ) -> None:
     """The total net area of `rooms`; no key when there are none or one has no area. `scale`:
-    what the sheet's scale makes an estimate of (scale_estimate)."""
+    what the sheet's scale makes an estimate of (scale_estimate). `excluded`: the rooms the
+    rule left out, with the reason."""
     areas = [room.area_m2 for room in rooms]
     if rooms and all(area is not None for area in areas):
         total = sum(area for area in areas if area is not None)
         marks = [_mark(room) for room in rooms]
-        _put(found, key, "area", total, marks, rule, rooms_estimate(rooms, scale))
+        estimate = rooms_estimate(rooms, scale)
+        _put(found, key, "area", total, marks, rule, estimate, excluded)
+
+
+def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
+    """The rooms an indoor or dwelling total leaves out, with the reason."""
+    out = [(_mark(room), "outdoor room") for room in rooms if room.outdoor]
+    if shafts:
+        out += [(_mark(r), "shaft") for r in rooms if r.type == "shaft" and not r.outdoor]
+    return out
 
 
 def _room_names(room: Room) -> set[str]:
@@ -561,6 +620,7 @@ def _add_scope(
             len(chosen.marks),
             chosen.marks,
             chosen.rule,
+            excluded=chosen.excluded,
         )
     _put(
         found,
@@ -574,7 +634,7 @@ def _add_scope(
         _area_sum(found, quantity_key("area", "room", storey=storey), rooms, ROOMS_TOTAL, scale)
     indoor = [room for room in rooms if not room.outdoor]
     key = quantity_key("area", "room", storey=storey, indoor=True)
-    _area_sum(found, key, indoor, INDOOR_TOTAL, scale)
+    _area_sum(found, key, indoor, INDOOR_TOTAL, scale, _left_out(rooms, shafts=False))
     labelled: dict[str, list[Room]] = defaultdict(list)
     named: dict[str, list[Room]] = defaultdict(list)
     for room in rooms:
@@ -635,7 +695,8 @@ def _add_apartments(found: dict[str, Quantity], drawing: Drawing, scale: str | N
         _apartment_area(found, key, only.area_m2, rooms_of[only.id], scale)
     elif not apartments:
         kept = [r for r in drawing.rooms if not r.outdoor and r.type != "shaft"]
-        _area_sum(found, key, kept, SHEET_DWELLING, scale)
+        left_out = _left_out(drawing.rooms, shafts=True)
+        _area_sum(found, key, kept, SHEET_DWELLING, scale, left_out)
 
 
 def _apartment_area(
@@ -647,10 +708,12 @@ def _apartment_area(
 ) -> None:
     """The stated area, else the apartment's rooms that are neither outdoor nor shafts."""
     kept = [r for r in rooms if not r.outdoor and r.type != "shaft"]
+    left_out = _left_out(rooms, shafts=True)
     if stated is not None:
-        _put(found, key, "area", stated, [_mark(room) for room in kept], APARTMENT_AREA)
+        marks = [_mark(room) for room in kept]
+        _put(found, key, "area", stated, marks, APARTMENT_AREA, excluded=left_out)
     else:
-        _area_sum(found, key, kept, APARTMENT_AREA, scale)
+        _area_sum(found, key, kept, APARTMENT_AREA, scale, left_out)
 
 
 def _largest(

@@ -146,6 +146,9 @@ def test_ab_command_end_to_end(
     assert result["b"]["overall"]["hits"] == right({val[0]})  # the refused images are wrong
     assert result["b"]["overall"]["n"] == len(questions)  # and still counted
     assert set(result["per_image"]) == set(val)
+    door = result["paired_by_family"]["door"]  # each family has its own interval
+    assert door["ci_low"] is not None and door["ci_low"] <= door["diff"] <= door["ci_high"]
+    assert "| door |" in printed and "95% interval | verdict |" in printed
     assert run("ab", "--a", "none", "--b", "prior", *common, "--reps", 200) == 0
     none_prior = json.loads((exp / "ab/none-vs-prior-val.json").read_text())
     zeros = sum(q["answer"] == 0 for q in questions)

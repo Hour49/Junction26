@@ -1,7 +1,7 @@
 """The answering use cases: one question (the API) and a batch of them (the CLI)."""
 
 from collections import Counter
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence, Set
 
 from app.core.answering.model import (
     Answer,
@@ -13,6 +13,7 @@ from app.core.answering.model import (
     source_of,
 )
 from app.core.answering.ports import (
+    AnswerConfidence,
     AnswerPrior,
     AnswerSink,
     Clock,
@@ -31,6 +32,8 @@ SCHEDULE = "schedule"  # read from a schedule printed on the sheet (Drawing.tabl
 NO_DRAWING = "refused:no-drawing"
 UNSUPPORTED_QUESTION = "refused:unsupported-question"
 NOT_IN_DRAWING = "refused:not-in-drawing"
+PRIOR_BY_POLICY = "prior:policy"  # the answer policy sends this family to the prior
+POLICY_WHY = "raster reader below prior on val for this family"
 
 
 def answer_question(
@@ -40,12 +43,18 @@ def answer_question(
     clock: Clock,
     prior: AnswerPrior,
     tables: Sequence[Table] = (),
+    prior_families: Set[tuple[str, str]] = frozenset(),
+    confidence: AnswerConfidence | None = None,
 ) -> Answer:
     """`quantities` is the takeoff of the question's drawing (`known_quantities`), or None when
-    the file has no drawing model; `tables` the schedules it prints. A refusal has the reason in
-    `method`, `abstain` true and the reason in words in `explanation` (answer_v1.1). Its `answer`
-    is the prior's value for the question's family when there is one (with the prior's
-    `confidence`), else None."""
+    the file has no drawing model; `tables` the schedules it prints. `prior_families` holds the
+    (source, family) pairs the answer policy (ANSWER_POLICY) answers from the prior although
+    the drawing gives a value: abstaining, with the prior's value, when the prior has one. A
+    refusal has the reason in `method`, `abstain` true and the reason in words in `explanation`
+    (answer_v1.1). Its `answer` is the prior's value for the question's family when there is one
+    (with the prior's `confidence`), else None. With `confidence` (DECISIONS_CONFIDENCE), a
+    takeoff answer gets its probability as `confidence`, or, when there is none, the reason
+    added to its `explanation`."""
     start = clock()
     parsed = parser.parse(question.text)
     found: Quantity | None = None
@@ -65,6 +74,8 @@ def answer_question(
                 method=SCHEDULE,
                 cost_usd=0.0,
                 latency_s=clock() - start,
+                abstain=True if row.abstain_why else None,
+                explanation=row.abstain_why,
             )
         method = NOT_IN_DRAWING
         why = f"no schedule on the sheet resolves {parsed.family()}"
@@ -72,8 +83,31 @@ def answer_question(
         found = quantities.get(parsed.key())
         method = NOT_IN_DRAWING if found is None else TAKEOFF
         why = f"the drawing model does not give {parsed.key()}"
+        source, family = source_of(question.file), parsed.family()
+        if (source, family) in prior_families and (
+            estimate := prior.prior(source, family)
+        ) is not None:
+            return Answer(
+                id=question.id,
+                answer=estimate.value,
+                unit=estimate.unit,
+                evidence=(),
+                method=PRIOR_BY_POLICY,
+                cost_usd=0.0,
+                latency_s=clock() - start,
+                confidence=estimate.confidence,
+                abstain=True,
+                explanation=POLICY_WHY,
+            )
     if found is not None:
-        return _from_takeoff(question, found, method, clock() - start)
+        answer = _from_takeoff(question, found, method, clock() - start)
+        if confidence is None or isinstance(parsed, Unsupported | TableQuery):
+            return answer
+        rated = confidence.probability(question.file, parsed.family(), answer.answer)
+        if rated.value is not None:
+            return answer.model_copy(update={"confidence": rated.value})
+        notes = "; ".join(text for text in (answer.explanation, rated.note) if text)
+        return answer.model_copy(update={"explanation": notes})
     estimate = None
     if not isinstance(parsed, Unsupported):
         source, family = source_of(question.file), parsed.family()
@@ -146,6 +180,8 @@ def answer_questions(
     clock: Clock,
     sink: AnswerSink,
     prior: AnswerPrior,
+    prior_families: Set[tuple[str, str]] = frozenset(),
+    confidence: AnswerConfidence | None = None,
 ) -> dict[str, int]:
     """Answers every question, file by file so each drawing model is loaded once, and writes the
     answers to the sink. Returns how many answers each method gave."""
@@ -158,7 +194,9 @@ def answer_questions(
         quantities = None if drawing is None else known_quantities(drawing)
         tables = () if drawing is None else drawing.tables or ()
         for question in asked:
-            answer = answer_question(question, quantities, parser, clock, prior, tables)
+            answer = answer_question(
+                question, quantities, parser, clock, prior, tables, prior_families, confidence
+            )
             sink.write(answer)
             methods[answer.method] += 1
     return dict(methods)

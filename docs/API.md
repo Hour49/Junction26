@@ -9,7 +9,8 @@ response (`npx openapi-typescript http://localhost:8000/openapi.json -o src/api.
 Every JSON example below is a file in `backend/tests/fixtures/api_v1/`, made from real responses on the synthetic
 sample archive (`backend/tests/api/make_fixtures.py`) and trimmed to a few rows. `tests/api/test_api_fixtures.py`
 fails when a fixture no longer fits its model or this page no longer quotes it as it is. The frontend can use the
-same files as mock data.
+same files as mock data. The project id, times and durations in them are fixed stand-ins, so the files are the same
+on every run.
 
 Items marked **waits on core** are agreed, and the field is in the shape already, but it is null or empty until
 core's part lands.
@@ -84,6 +85,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | `GET /api/drawings/{drawing_id}` | How the drawing was read, its pages, questions it can answer | #31 |
 | `GET /api/drawings/{drawing_id}/model` | The drawing model (extraction_v1) | #27 |
 | `GET /api/drawings/{drawing_id}/pages/{n}.png?width=` | Page `n` as PNG | #31 |
+| `GET /api/drawings/{drawing_id}/evidence.png?question=&width=` | An answer with its proof drawn on its page | #31 |
 | `POST /api/ask` | Answer a question with its takeoff row, marks, rule, conflicts, cost | #31 |
 | `GET /api/drawings/{drawing_id}/takeoff?zeros=` | Every quantity with its marks, both methods' values and review state | #32 |
 | `POST /api/drawings/{drawing_id}/review` | Reject, restore or add a mark; settle; reset. Returns the takeoff | #32 |
@@ -101,9 +103,12 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
     "cad": "hello",
     "vector": "pdf",
     "raster": "hello",
+    "tables": "pdf",
     "second_counter": "ifc",
+    "rectifier": "none",
     "question_parser": "templates",
-    "answer_prior": "none"
+    "answer_prior": "none",
+    "decisions_kind": "False"
   },
   "limits": {
     "upload_mb": 200,
@@ -141,10 +146,10 @@ Response `202 Accepted`:
 <!-- fixture: project_started.json -->
 ```json
 {
-  "id": "49b25e214855",
+  "id": "5e0c1a2b3d4f",
   "name": "sample-project.zip",
   "state": "done",
-  "url": "/api/projects/49b25e214855"
+  "url": "/api/projects/5e0c1a2b3d4f"
 }
 ```
 
@@ -172,10 +177,10 @@ Every project, newest first: open one ingested earlier when a live ingest is slo
 {
   "projects": [
     {
-      "id": "49b25e214855",
+      "id": "5e0c1a2b3d4f",
       "name": "sample-project.zip",
       "state": "done",
-      "created_at": "2026-11-14T00:58:34+00:00",
+      "created_at": "2026-11-14T08:00:00+00:00",
       "files": 11,
       "drawings": 5
     }
@@ -190,10 +195,10 @@ Ingest's project status, plus `drawings`:
 <!-- fixture: project.json -->
 ```json
 {
-  "id": "49b25e214855",
+  "id": "5e0c1a2b3d4f",
   "name": "sample-project.zip",
   "state": "done",
-  "created_at": "2026-11-14T00:58:34+00:00",
+  "created_at": "2026-11-14T08:00:00+00:00",
   "files": [
     {
       "id": "f1",
@@ -206,82 +211,82 @@ Ingest's project status, plus `drawings`:
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
-      "drawing_id": "1562846cb3da6f1c",
+      "drawing_id": "adeefbbcc17559fc",
       "reused": false,
       "takeoff": {
-        "door": 2,
-        "window": 2,
-        "toilet": 1,
-        "sink": 1,
-        "shower": 0,
-        "bathtub": 1,
-        "room:bedroom": 0,
-        "room:kitchen": 1,
-        "room:bathroom": 1,
-        "room:wc": 0,
-        "room:sauna": 0,
-        "room:balcony": 1,
-        "room:living": 0,
-        "room:hall": 0,
-        "room:storage": 1,
-        "room:outdoor": 0,
-        "room:shaft": 0,
-        "room:other": 1,
-        "plan": 1,
-        "shower+bathtub": 1,
-        "room": 5,
+        "apartment": 1,
+        "area:apartment": 52.27,
+        "area:apartment|apartment=a": 52.27,
         "area:room": 64.714,
+        "area:room:balcony|largest": 12.445,
+        "area:room:bathroom|largest": 12.445,
+        "area:room:kitchen|largest": 22.401,
+        "area:room:other|largest": 14.934,
+        "area:room:storage|largest": 2.489,
         "area:room|indoor": 52.269,
-        "room|label=küche": 1,
-        "area:room|label=küche": 22.401,
-        "area:room|label=küche|largest": 22.401,
-        "room|label=reduit": 1,
-        "area:room|label=reduit": 2.489,
-        "area:room|label=reduit|largest": 2.489,
-        "room|label=bad": 1,
         "area:room|label=bad": 12.445,
         "area:room|label=bad|largest": 12.445,
-        "room|label=balkon": 1,
         "area:room|label=balkon": 12.445,
         "area:room|label=balkon|largest": 12.445,
-        "room|label=zimmer": 1,
+        "area:room|label=küche": 22.401,
+        "area:room|label=küche|largest": 22.401,
+        "area:room|label=reduit": 2.489,
+        "area:room|label=reduit|largest": 2.489,
         "area:room|label=zimmer": 14.934,
         "area:room|label=zimmer|largest": 14.934,
-        "area:room:kitchen|largest": 22.401,
-        "area:room:storage|largest": 2.489,
-        "area:room:bathroom|largest": 12.445,
-        "area:room:balcony|largest": 12.445,
-        "area:room:other|largest": 14.934,
         "area:room|name=1.01": 22.401,
-        "area:room|name=küche": 22.401,
         "area:room|name=1.02": 2.489,
-        "area:room|name=reduit": 2.489,
-        "area:room|name=bad": 12.445,
         "area:room|name=1.03": 12.445,
-        "area:room|name=balkon": 12.445,
         "area:room|name=1.04": 12.445,
         "area:room|name=1.05": 14.934,
+        "area:room|name=bad": 12.445,
+        "area:room|name=balkon": 12.445,
+        "area:room|name=küche": 22.401,
+        "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 14.934,
-        "apartment": 1,
-        "area:apartment|apartment=a": 52.27,
-        "area:apartment": 52.27,
+        "bathtub": 1,
+        "door": 2,
+        "length:room:balcony": 7.056,
+        "length:room:bathroom": 3.528,
+        "length:room:kitchen": 7.056,
+        "length:room:other": 4.233,
+        "length:room:storage": 1.764,
         "length:room|name=1.01": 7.056,
-        "length:room|name=küche": 7.056,
         "length:room|name=1.02": 1.764,
-        "length:room|name=reduit": 1.764,
-        "length:room|name=bad": 3.528,
         "length:room|name=1.03": 3.528,
-        "length:room|name=balkon": 7.056,
         "length:room|name=1.04": 7.056,
         "length:room|name=1.05": 4.233,
+        "length:room|name=bad": 3.528,
+        "length:room|name=balkon": 7.056,
+        "length:room|name=küche": 7.056,
+        "length:room|name=reduit": 1.764,
         "length:room|name=zimmer": 4.233,
-        "length:room:kitchen": 7.056,
-        "length:room:storage": 1.764,
-        "length:room:bathroom": 3.528,
-        "length:room:balcony": 7.056,
-        "length:room:other": 4.233
+        "plan": 1,
+        "room": 5,
+        "room:balcony": 1,
+        "room:bathroom": 1,
+        "room:bedroom": 0,
+        "room:hall": 0,
+        "room:kitchen": 1,
+        "room:living": 0,
+        "room:other": 1,
+        "room:outdoor": 0,
+        "room:sauna": 0,
+        "room:shaft": 0,
+        "room:storage": 1,
+        "room:wc": 0,
+        "room|label=bad": 1,
+        "room|label=balkon": 1,
+        "room|label=küche": 1,
+        "room|label=reduit": 1,
+        "room|label=zimmer": 1,
+        "shower": 0,
+        "shower+bathtub": 1,
+        "sink": 1,
+        "toilet": 1,
+        "window": 2
       },
-      "ms": 9.908825493766926,
+      "ms": 12.5,
       "stage": "write",
       "cost_usd": 0.0,
       "normalised": null
@@ -297,82 +302,82 @@ Ingest's project status, plus `drawings`:
       "group": "plans/flat-a",
       "route": "vector",
       "source": "plans/flat-a.pdf",
-      "drawing_id": "0ad894dffcdf541d",
+      "drawing_id": "c9b719f715357201",
       "reused": false,
       "takeoff": {
-        "door": 2,
-        "window": 2,
-        "toilet": 1,
-        "sink": 1,
-        "shower": 0,
-        "bathtub": 1,
-        "room:bedroom": 0,
-        "room:kitchen": 1,
-        "room:bathroom": 1,
-        "room:wc": 0,
-        "room:sauna": 0,
-        "room:balcony": 1,
-        "room:living": 0,
-        "room:hall": 0,
-        "room:storage": 1,
-        "room:outdoor": 0,
-        "room:shaft": 0,
-        "room:other": 1,
-        "plan": 1,
-        "shower+bathtub": 1,
-        "room": 5,
+        "apartment": 1,
+        "area:apartment": 52.27,
+        "area:apartment|apartment=a": 52.27,
         "area:room": 64.714,
+        "area:room:balcony|largest": 12.445,
+        "area:room:bathroom|largest": 12.445,
+        "area:room:kitchen|largest": 22.401,
+        "area:room:other|largest": 14.934,
+        "area:room:storage|largest": 2.489,
         "area:room|indoor": 52.269,
-        "room|label=küche": 1,
-        "area:room|label=küche": 22.401,
-        "area:room|label=küche|largest": 22.401,
-        "room|label=reduit": 1,
-        "area:room|label=reduit": 2.489,
-        "area:room|label=reduit|largest": 2.489,
-        "room|label=bad": 1,
         "area:room|label=bad": 12.445,
         "area:room|label=bad|largest": 12.445,
-        "room|label=balkon": 1,
         "area:room|label=balkon": 12.445,
         "area:room|label=balkon|largest": 12.445,
-        "room|label=zimmer": 1,
+        "area:room|label=küche": 22.401,
+        "area:room|label=küche|largest": 22.401,
+        "area:room|label=reduit": 2.489,
+        "area:room|label=reduit|largest": 2.489,
         "area:room|label=zimmer": 14.934,
         "area:room|label=zimmer|largest": 14.934,
-        "area:room:kitchen|largest": 22.401,
-        "area:room:storage|largest": 2.489,
-        "area:room:bathroom|largest": 12.445,
-        "area:room:balcony|largest": 12.445,
-        "area:room:other|largest": 14.934,
         "area:room|name=1.01": 22.401,
-        "area:room|name=küche": 22.401,
         "area:room|name=1.02": 2.489,
-        "area:room|name=reduit": 2.489,
-        "area:room|name=bad": 12.445,
         "area:room|name=1.03": 12.445,
-        "area:room|name=balkon": 12.445,
         "area:room|name=1.04": 12.445,
         "area:room|name=1.05": 14.934,
+        "area:room|name=bad": 12.445,
+        "area:room|name=balkon": 12.445,
+        "area:room|name=küche": 22.401,
+        "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 14.934,
-        "apartment": 1,
-        "area:apartment|apartment=a": 52.27,
-        "area:apartment": 52.27,
+        "bathtub": 1,
+        "door": 2,
+        "length:room:balcony": 7.056,
+        "length:room:bathroom": 3.528,
+        "length:room:kitchen": 7.056,
+        "length:room:other": 4.233,
+        "length:room:storage": 1.764,
         "length:room|name=1.01": 7.056,
-        "length:room|name=küche": 7.056,
         "length:room|name=1.02": 1.764,
-        "length:room|name=reduit": 1.764,
-        "length:room|name=bad": 3.528,
         "length:room|name=1.03": 3.528,
-        "length:room|name=balkon": 7.056,
         "length:room|name=1.04": 7.056,
         "length:room|name=1.05": 4.233,
+        "length:room|name=bad": 3.528,
+        "length:room|name=balkon": 7.056,
+        "length:room|name=küche": 7.056,
+        "length:room|name=reduit": 1.764,
         "length:room|name=zimmer": 4.233,
-        "length:room:kitchen": 7.056,
-        "length:room:storage": 1.764,
-        "length:room:bathroom": 3.528,
-        "length:room:balcony": 7.056,
-        "length:room:other": 4.233
+        "plan": 1,
+        "room": 5,
+        "room:balcony": 1,
+        "room:bathroom": 1,
+        "room:bedroom": 0,
+        "room:hall": 0,
+        "room:kitchen": 1,
+        "room:living": 0,
+        "room:other": 1,
+        "room:outdoor": 0,
+        "room:sauna": 0,
+        "room:shaft": 0,
+        "room:storage": 1,
+        "room:wc": 0,
+        "room|label=bad": 1,
+        "room|label=balkon": 1,
+        "room|label=küche": 1,
+        "room|label=reduit": 1,
+        "room|label=zimmer": 1,
+        "shower": 0,
+        "shower+bathtub": 1,
+        "sink": 1,
+        "toilet": 1,
+        "window": 2
       },
-      "ms": 22.97267947869841,
+      "ms": 12.5,
       "stage": "write",
       "cost_usd": 0.0,
       "normalised": {
@@ -382,7 +387,8 @@ Ingest's project status, plus `drawings`:
         "rectified": false,
         "quad": null,
         "width": 1200,
-        "height": 800
+        "height": 800,
+        "rectifier": null
       }
     },
     {
@@ -396,82 +402,82 @@ Ingest's project status, plus `drawings`:
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
-      "drawing_id": "0f2705085f870f02",
+      "drawing_id": "6d153ea15dca9ab4",
       "reused": false,
       "takeoff": {
-        "door": 2,
-        "window": 2,
-        "toilet": 1,
-        "sink": 1,
-        "shower": 0,
-        "bathtub": 1,
-        "room:bedroom": 0,
-        "room:kitchen": 1,
-        "room:bathroom": 1,
-        "room:wc": 0,
-        "room:sauna": 0,
-        "room:balcony": 1,
-        "room:living": 0,
-        "room:hall": 0,
-        "room:storage": 1,
-        "room:outdoor": 0,
-        "room:shaft": 0,
-        "room:other": 1,
-        "plan": 1,
-        "shower+bathtub": 1,
-        "room": 5,
+        "apartment": 1,
+        "area:apartment": 52.27,
+        "area:apartment|apartment=a": 52.27,
         "area:room": 72.313,
+        "area:room:balcony|largest": 12.445,
+        "area:room:bathroom|largest": 12.445,
+        "area:room:kitchen|largest": 30.0,
+        "area:room:other|largest": 14.934,
+        "area:room:storage|largest": 2.489,
         "area:room|indoor": 59.868,
-        "room|label=küche": 1,
-        "area:room|label=küche": 30.0,
-        "area:room|label=küche|largest": 30.0,
-        "room|label=reduit": 1,
-        "area:room|label=reduit": 2.489,
-        "area:room|label=reduit|largest": 2.489,
-        "room|label=bad": 1,
         "area:room|label=bad": 12.445,
         "area:room|label=bad|largest": 12.445,
-        "room|label=balkon": 1,
         "area:room|label=balkon": 12.445,
         "area:room|label=balkon|largest": 12.445,
-        "room|label=zimmer": 1,
+        "area:room|label=küche": 30.0,
+        "area:room|label=küche|largest": 30.0,
+        "area:room|label=reduit": 2.489,
+        "area:room|label=reduit|largest": 2.489,
         "area:room|label=zimmer": 14.934,
         "area:room|label=zimmer|largest": 14.934,
-        "area:room:kitchen|largest": 30.0,
-        "area:room:storage|largest": 2.489,
-        "area:room:bathroom|largest": 12.445,
-        "area:room:balcony|largest": 12.445,
-        "area:room:other|largest": 14.934,
         "area:room|name=1.01": 30.0,
-        "area:room|name=küche": 30.0,
         "area:room|name=1.02": 2.489,
-        "area:room|name=reduit": 2.489,
-        "area:room|name=bad": 12.445,
         "area:room|name=1.03": 12.445,
-        "area:room|name=balkon": 12.445,
         "area:room|name=1.04": 12.445,
         "area:room|name=1.05": 14.934,
+        "area:room|name=bad": 12.445,
+        "area:room|name=balkon": 12.445,
+        "area:room|name=küche": 30.0,
+        "area:room|name=reduit": 2.489,
         "area:room|name=zimmer": 14.934,
-        "apartment": 1,
-        "area:apartment|apartment=a": 52.27,
-        "area:apartment": 52.27,
+        "bathtub": 1,
+        "door": 2,
+        "length:room:balcony": 7.056,
+        "length:room:bathroom": 3.528,
+        "length:room:kitchen": 7.056,
+        "length:room:other": 4.233,
+        "length:room:storage": 1.764,
         "length:room|name=1.01": 7.056,
-        "length:room|name=küche": 7.056,
         "length:room|name=1.02": 1.764,
-        "length:room|name=reduit": 1.764,
-        "length:room|name=bad": 3.528,
         "length:room|name=1.03": 3.528,
-        "length:room|name=balkon": 7.056,
         "length:room|name=1.04": 7.056,
         "length:room|name=1.05": 4.233,
+        "length:room|name=bad": 3.528,
+        "length:room|name=balkon": 7.056,
+        "length:room|name=küche": 7.056,
+        "length:room|name=reduit": 1.764,
         "length:room|name=zimmer": 4.233,
-        "length:room:kitchen": 7.056,
-        "length:room:storage": 1.764,
-        "length:room:bathroom": 3.528,
-        "length:room:balcony": 7.056,
-        "length:room:other": 4.233
+        "plan": 1,
+        "room": 5,
+        "room:balcony": 1,
+        "room:bathroom": 1,
+        "room:bedroom": 0,
+        "room:hall": 0,
+        "room:kitchen": 1,
+        "room:living": 0,
+        "room:other": 1,
+        "room:outdoor": 0,
+        "room:sauna": 0,
+        "room:shaft": 0,
+        "room:storage": 1,
+        "room:wc": 0,
+        "room|label=bad": 1,
+        "room|label=balkon": 1,
+        "room|label=küche": 1,
+        "room|label=reduit": 1,
+        "room|label=zimmer": 1,
+        "shower": 0,
+        "shower+bathtub": 1,
+        "sink": 1,
+        "toilet": 1,
+        "window": 2
       },
-      "ms": 8.706738008186221,
+      "ms": 12.5,
       "stage": "write",
       "cost_usd": 0.0,
       "normalised": null
@@ -489,15 +495,17 @@ Ingest's project status, plus `drawings`:
     "vector": "pdf",
     "raster": "hello",
     "raster_components": "",
-    "tables": "off",
-    "second_counter": "ifc"
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "decisions_kind": "False"
   },
   "error": null,
-  "ms": 114.7662150033284,
+  "ms": 12.5,
   "cost_usd": 0.0,
   "drawings": [
     {
-      "drawing_id": "1562846cb3da6f1c",
+      "drawing_id": "adeefbbcc17559fc",
       "group": "plans/flat-a",
       "file": "plans/flat-a.pdf",
       "kind": "pdf_vector",
@@ -506,13 +514,13 @@ Ingest's project status, plus `drawings`:
       "state": "ready",
       "other_renderings": [
         {
-          "drawing_id": "0ad894dffcdf541d",
+          "drawing_id": "c9b719f715357201",
           "file": "plans/flat-a.png"
         }
       ]
     },
     {
-      "drawing_id": "0f2705085f870f02",
+      "drawing_id": "6d153ea15dca9ab4",
       "group": "plans/flat-b",
       "file": "plans/flat-b.pdf",
       "kind": "pdf_vector",
@@ -522,7 +530,7 @@ Ingest's project status, plus `drawings`:
       "other_renderings": []
     },
     {
-      "drawing_id": "1e6fbfcee953228b",
+      "drawing_id": "3b3ce7db34257f63",
       "group": "scans/ground-floor",
       "file": "scans/ground-floor.png",
       "kind": "png_plan",
@@ -532,7 +540,7 @@ Ingest's project status, plus `drawings`:
       "other_renderings": []
     },
     {
-      "drawing_id": "30791510236578c9",
+      "drawing_id": "37f6819bd17d65d9",
       "group": "photos/plan-photo",
       "file": "photos/plan-photo.jpg",
       "kind": "photo_plan",
@@ -542,7 +550,7 @@ Ingest's project status, plus `drawings`:
       "other_renderings": []
     },
     {
-      "drawing_id": "48e1aa3450dff526",
+      "drawing_id": "1db9bcf1e67e27a3",
       "group": "model/house",
       "file": "model/house.ifc",
       "kind": "ifc",
@@ -586,7 +594,7 @@ Ingest's project status, plus `drawings`:
 <!-- fixture: trace.json -->
 ```json
 {
-  "project_id": "49b25e214855",
+  "project_id": "5e0c1a2b3d4f",
   "file": {
     "id": "f1",
     "path": "plans/flat-a.pdf",
@@ -598,82 +606,82 @@ Ingest's project status, plus `drawings`:
     "group": "plans/flat-a",
     "route": "vector",
     "source": "plans/flat-a.pdf",
-    "drawing_id": "1562846cb3da6f1c",
+    "drawing_id": "adeefbbcc17559fc",
     "reused": false,
     "takeoff": {
-      "door": 2,
-      "window": 2,
-      "toilet": 1,
-      "sink": 1,
-      "shower": 0,
-      "bathtub": 1,
-      "room:bedroom": 0,
-      "room:kitchen": 1,
-      "room:bathroom": 1,
-      "room:wc": 0,
-      "room:sauna": 0,
-      "room:balcony": 1,
-      "room:living": 0,
-      "room:hall": 0,
-      "room:storage": 1,
-      "room:outdoor": 0,
-      "room:shaft": 0,
-      "room:other": 1,
-      "plan": 1,
-      "shower+bathtub": 1,
-      "room": 5,
+      "apartment": 1,
+      "area:apartment": 52.27,
+      "area:apartment|apartment=a": 52.27,
       "area:room": 64.714,
+      "area:room:balcony|largest": 12.445,
+      "area:room:bathroom|largest": 12.445,
+      "area:room:kitchen|largest": 22.401,
+      "area:room:other|largest": 14.934,
+      "area:room:storage|largest": 2.489,
       "area:room|indoor": 52.269,
-      "room|label=küche": 1,
-      "area:room|label=küche": 22.401,
-      "area:room|label=küche|largest": 22.401,
-      "room|label=reduit": 1,
-      "area:room|label=reduit": 2.489,
-      "area:room|label=reduit|largest": 2.489,
-      "room|label=bad": 1,
       "area:room|label=bad": 12.445,
       "area:room|label=bad|largest": 12.445,
-      "room|label=balkon": 1,
       "area:room|label=balkon": 12.445,
       "area:room|label=balkon|largest": 12.445,
-      "room|label=zimmer": 1,
+      "area:room|label=küche": 22.401,
+      "area:room|label=küche|largest": 22.401,
+      "area:room|label=reduit": 2.489,
+      "area:room|label=reduit|largest": 2.489,
       "area:room|label=zimmer": 14.934,
       "area:room|label=zimmer|largest": 14.934,
-      "area:room:kitchen|largest": 22.401,
-      "area:room:storage|largest": 2.489,
-      "area:room:bathroom|largest": 12.445,
-      "area:room:balcony|largest": 12.445,
-      "area:room:other|largest": 14.934,
       "area:room|name=1.01": 22.401,
-      "area:room|name=küche": 22.401,
       "area:room|name=1.02": 2.489,
-      "area:room|name=reduit": 2.489,
-      "area:room|name=bad": 12.445,
       "area:room|name=1.03": 12.445,
-      "area:room|name=balkon": 12.445,
       "area:room|name=1.04": 12.445,
       "area:room|name=1.05": 14.934,
+      "area:room|name=bad": 12.445,
+      "area:room|name=balkon": 12.445,
+      "area:room|name=küche": 22.401,
+      "area:room|name=reduit": 2.489,
       "area:room|name=zimmer": 14.934,
-      "apartment": 1,
-      "area:apartment|apartment=a": 52.27,
-      "area:apartment": 52.27,
+      "bathtub": 1,
+      "door": 2,
+      "length:room:balcony": 7.056,
+      "length:room:bathroom": 3.528,
+      "length:room:kitchen": 7.056,
+      "length:room:other": 4.233,
+      "length:room:storage": 1.764,
       "length:room|name=1.01": 7.056,
-      "length:room|name=küche": 7.056,
       "length:room|name=1.02": 1.764,
-      "length:room|name=reduit": 1.764,
-      "length:room|name=bad": 3.528,
       "length:room|name=1.03": 3.528,
-      "length:room|name=balkon": 7.056,
       "length:room|name=1.04": 7.056,
       "length:room|name=1.05": 4.233,
+      "length:room|name=bad": 3.528,
+      "length:room|name=balkon": 7.056,
+      "length:room|name=küche": 7.056,
+      "length:room|name=reduit": 1.764,
       "length:room|name=zimmer": 4.233,
-      "length:room:kitchen": 7.056,
-      "length:room:storage": 1.764,
-      "length:room:bathroom": 3.528,
-      "length:room:balcony": 7.056,
-      "length:room:other": 4.233
+      "plan": 1,
+      "room": 5,
+      "room:balcony": 1,
+      "room:bathroom": 1,
+      "room:bedroom": 0,
+      "room:hall": 0,
+      "room:kitchen": 1,
+      "room:living": 0,
+      "room:other": 1,
+      "room:outdoor": 0,
+      "room:sauna": 0,
+      "room:shaft": 0,
+      "room:storage": 1,
+      "room:wc": 0,
+      "room|label=bad": 1,
+      "room|label=balkon": 1,
+      "room|label=küche": 1,
+      "room|label=reduit": 1,
+      "room|label=zimmer": 1,
+      "shower": 0,
+      "shower+bathtub": 1,
+      "sink": 1,
+      "toilet": 1,
+      "window": 2
     },
-    "ms": 9.908825493766926,
+    "ms": 12.5,
     "stage": "write",
     "cost_usd": 0.0,
     "normalised": null
@@ -682,7 +690,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "unpack",
       "did": "path checked, 2263 bytes",
-      "ms": 0.683862017467618,
+      "ms": 12.5,
       "output": "plans/flat-a.pdf",
       "failure": null,
       "cost_usd": 0.0
@@ -690,7 +698,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "hash",
       "did": "sha256 dd2c1cfd3ebb",
-      "ms": 0.03342298441566527,
+      "ms": 12.5,
       "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "failure": null,
       "cost_usd": 0.0
@@ -698,7 +706,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "identify",
       "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
-      "ms": 1.9600449886638671,
+      "ms": 12.5,
       "output": "pdf_vector",
       "failure": null,
       "cost_usd": 0.0
@@ -706,7 +714,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "group",
       "did": "plans/flat-a: flat-a.pdf, flat-a.png",
-      "ms": 0.007779497536830604,
+      "ms": 12.5,
       "output": "2 file(s)",
       "failure": null,
       "cost_usd": 0.0
@@ -714,7 +722,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "route",
       "did": "vector, read from plans/flat-a.pdf",
-      "ms": 0.0,
+      "ms": 12.5,
       "output": "vector",
       "failure": null,
       "cost_usd": 0.0
@@ -722,7 +730,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "normalise",
       "did": "1 page(s), page 1 is 600 x 400 pt",
-      "ms": 1.018344977637753,
+      "ms": 12.5,
       "output": "1 page(s), page 1 is 600 x 400 pt",
       "failure": null,
       "cost_usd": 0.0
@@ -730,7 +738,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "extract",
       "did": "7 elements, 5 rooms, 1 plans, scale scaled",
-      "ms": 3.064143005758524,
+      "ms": 12.5,
       "output": "7 elements, 5 rooms, 1 plans, scale scaled",
       "failure": null,
       "cost_usd": 0.0
@@ -738,7 +746,7 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "second_count",
       "did": "5 quantities measured twice, 0 conflict(s)",
-      "ms": 1.9115940085612237,
+      "ms": 12.5,
       "output": "5 quantities measured twice, 0 conflict(s)",
       "failure": null,
       "cost_usd": 0.0
@@ -746,15 +754,15 @@ Ingest's project status, plus `drawings`:
     {
       "stage": "takeoff",
       "did": "rules: each-once, sauna-room-else-stove, showers-and-bathtubs; takeoff: 71 quantities, 63 above zero",
-      "ms": 0.7033589936327189,
+      "ms": 12.5,
       "output": "takeoff: 71 quantities, 63 above zero",
       "failure": null,
       "cost_usd": 0.0
     },
     {
       "stage": "write",
-      "did": "drawing model 1562846cb3da6f1c stored",
-      "ms": 0.5262750200927258,
+      "did": "drawing model adeefbbcc17559fc stored",
+      "ms": 12.5,
       "output": "71 quantities",
       "failure": null,
       "cost_usd": 0.0
@@ -779,35 +787,35 @@ many quantities are left to review and how many are signed off, and every confli
 {
   "drawings": [
     {
-      "drawing_id": "1562846cb3da6f1c",
+      "drawing_id": "adeefbbcc17559fc",
       "file": "plans/flat-a.pdf",
       "to_review": 0,
       "signed": 0,
       "quantities": 63
     },
     {
-      "drawing_id": "0f2705085f870f02",
+      "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
       "to_review": 2,
       "signed": 0,
       "quantities": 63
     },
     {
-      "drawing_id": "1e6fbfcee953228b",
+      "drawing_id": "3b3ce7db34257f63",
       "file": "scans/ground-floor.png",
       "to_review": 0,
       "signed": 0,
       "quantities": 0
     },
     {
-      "drawing_id": "30791510236578c9",
+      "drawing_id": "37f6819bd17d65d9",
       "file": "photos/plan-photo.jpg",
       "to_review": 0,
       "signed": 0,
       "quantities": 0
     },
     {
-      "drawing_id": "48e1aa3450dff526",
+      "drawing_id": "1db9bcf1e67e27a3",
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
@@ -816,7 +824,7 @@ many quantities are left to review and how many are signed off, and every confli
   ],
   "conflicts": [
     {
-      "drawing_id": "0f2705085f870f02",
+      "drawing_id": "6d153ea15dca9ab4",
       "file": "plans/flat-b.pdf",
       "quantity": "area:room|name=1.01",
       "label": "area of room (name 1.01)",
@@ -872,7 +880,7 @@ a rule ("AI decision") or settled by a surveyor.
 <!-- fixture: drawing.json -->
 ```json
 {
-  "id": "1562846cb3da6f1c",
+  "id": "adeefbbcc17559fc",
   "file": "plans/flat-a.pdf",
   "reader": {
     "route": "vector",
@@ -888,7 +896,7 @@ a rule ("AI decision") or settled by a surveyor.
       "width": 600.0,
       "height": 400.0,
       "unit": "pt",
-      "url": "/api/drawings/1562846cb3da6f1c/pages/1.png",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
       "normalised": null
     }
   ],
@@ -914,7 +922,10 @@ a rule ("AI decision") or settled by a surveyor.
 
 - `reader`: how the drawing was read: the route, the file it was read from (`source`), that route's reader
   (`extractor`; `hello` reads nothing), the second counter and the question parser.
-- `credit`: the licence credit to show next to the drawing; null today (uploads carry none).
+- `credit`: the licence credit to show under every page of the drawing, or null. A file of the Stoa
+  dataset or a Commons demo photo is recognised by its content (whatever its upload name) and gets
+  its line from the dataset's `data/<source>/LICENSE.md` or the photos' manifest; a user's own
+  drawing gets null.
 - `pages` is `[]` for an IFC model asked about on its own. `normalised` is null for a PDF page; for an image,
   `{"exif": 6, "rotated": 0, "deskew_deg": 0.0, "rectified": false, "quad": null, "width": 3024, "height": 4032}`:
   the EXIF orientation of the upload, the turn and deskew made after it, and `quad`, the paper's four corners in
@@ -950,7 +961,7 @@ normalisation. Images and a PDF's first page; 404 for any other file. `width` as
 <!-- fixture: ask_request.json -->
 ```json
 {
-  "drawing_id": "1562846cb3da6f1c",
+  "drawing_id": "adeefbbcc17559fc",
   "question": "How many doors are there?"
 }
 ```
@@ -962,7 +973,7 @@ shape as `GET …/takeoff` gives it, so one component shows both:
 ```json
 {
   "question": "How many doors are there?",
-  "drawing_id": "1562846cb3da6f1c",
+  "drawing_id": "adeefbbcc17559fc",
   "file": "plans/flat-a.pdf",
   "pages": [
     {
@@ -970,12 +981,13 @@ shape as `GET …/takeoff` gives it, so one component shows both:
       "width": 600.0,
       "height": 400.0,
       "unit": "pt",
-      "url": "/api/drawings/1562846cb3da6f1c/pages/1.png",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
       "normalised": null
     }
   ],
   "answer": 2,
   "unit": "count",
+  "confidence": null,
   "quantity": {
     "key": "door",
     "label": "door count",
@@ -1040,7 +1052,8 @@ shape as `GET …/takeoff` gives it, so one component shows both:
         "reason": null
       }
     ],
-    "signed": null
+    "signed": null,
+    "unlocated": {}
   },
   "marks": [
     {
@@ -1089,7 +1102,7 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
-  "latency_s": 0.0001622469862923026,
+  "latency_s": 0.002,
   "line": {
     "id": 1,
     "answer": 2,
@@ -1118,19 +1131,40 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     ],
     "method": "takeoff",
     "cost_usd": 0.0,
-    "latency_s": 0.0001622469862923026,
+    "latency_s": 0.002,
     "confidence": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
     "conflicts": null,
     "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "door",
+        "colour": "#d62728",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "confidence": null
   }
 }
 ```
 
 - `answer`, `unit`: the value to show. It is the row's current `value`, so a surveyor's edits show here
   (`quantity.original_value` is what ingest computed). Null on a refusal: the screen shows no number.
+- `confidence`: the probability, 0 to 1, that the answer is right, from the pipeline's answer confidence
+  (Gemini Decisions, on when the server runs with `DECISIONS_CONFIDENCE=true`; counts of the families it asks
+  about). Null when it is off, gives no probability (the reason is in `explanation`), or on a refusal. There is
+  no cutoff for "sure" yet (golden sets it), so show the number.
 - `quantity`: the takeoff row (see below), with its `rule`, `status`, `first`/`second`, `conflict`, `estimate`,
   `settled` and `signed` (the engineer view shows "verified by Ana" from `signed`). Null for a refusal and for an
   answer read from a schedule.
@@ -1142,14 +1176,32 @@ shape as `GET …/takeoff` gives it, so one component shows both:
 - `cost_usd`, `latency_s`: of this answer. A takeoff lookup costs 0: no model call at question time.
 - `line` is the exact answer_v1.1 line (decision 0002, `eval/schemas/answer_v1.schema.json`) as the scorer reads
   it, from the pipeline's own reading: edits never change it. On a refusal it may hold the dev prior's estimate.
+- `proof`: what to draw as the answer's proof (docs/GOLDEN.md "What an answer should show"); `evidence.png`
+  draws the same. `kind` is `count`, `sum`, `model`, `schedule` or `none` (a refusal).
+  - `legend`: one entry per class (count) or room label (sum) among the marks not rejected: `label`, `colour`
+    (in a count fixed per class, so a door is the same red in every answer; in a sum the labels take the palette
+    in order, so no two share one) and `count` (its counted marks). A count can include items a second reader
+    counted with no position of their own (decide's count swap): they are in `count` and in `unlocated`, never
+    drawn as marks, and `note` says so in words for the legend (`2 counted without a mark (second reader)`;
+    null when there are none).
+  - `arithmetic`: how the parts make the answer, in one line: the classes of a count of several
+    (`2 shower + 1 bathtub = 3`), a sum's parts and what the rule left out, a model fact's object count, a
+    schedule's rows. Null for a count of one class (its numbered marks say it) and on a refusal.
+  - `objects` (kind `model`): the building model's objects the answer counted or summed, with `global_id`,
+    `name` and `storey`. Null when the list would not be exactly what was counted.
+  - `storeys` (kind `model`): the model's storeys in its order, with how many objects of each class each has.
+  - `schedule` (kind `schedule`): the table (`table` id, `title`, `page`, `box`, `columns`), the `rows` the answer
+    rests on with their `cells` and `n`, and `of`, the rows the table has.
+  - `confidence`: the answer's probability, as `line.confidence`; null on a refusal (kind `none`).
 
-A question the drawing cannot answer:
+The same count with `DECISIONS_CONFIDENCE` on (the example's probability comes from a stand-in, not Gemini;
+`marks` trimmed to two):
 
-<!-- fixture: answer_refused.json -->
+<!-- fixture: answer_confidence.json -->
 ```json
 {
-  "question": "What colour is the roof?",
-  "drawing_id": "1562846cb3da6f1c",
+  "question": "How many doors are there?",
+  "drawing_id": "adeefbbcc17559fc",
   "file": "plans/flat-a.pdf",
   "pages": [
     {
@@ -1157,12 +1209,614 @@ A question the drawing cannot answer:
       "width": 600.0,
       "height": 400.0,
       "unit": "pt",
-      "url": "/api/drawings/1562846cb3da6f1c/pages/1.png",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": 2,
+  "unit": "count",
+  "confidence": 0.87,
+  "quantity": {
+    "key": "door",
+    "label": "door count",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "each-once",
+      "text": "every element, room and plan the drawing lists counts once"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e1",
+        "reason": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.66,
+          0.225,
+          0.67333,
+          0.275
+        ],
+        "polygon": null,
+        "state": "counted",
+        "value": 1.0,
+        "label": "door",
+        "ref": "e2",
+        "reason": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {}
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.49333,
+        0.225,
+        0.50667,
+        0.275
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e1",
+      "reason": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.66,
+        0.225,
+        0.67333,
+        0.275
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": 1.0,
+      "label": "door",
+      "ref": "e2",
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-a.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ]
+      },
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.66,
+          0.225,
+          0.67333,
+          0.275
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": 0.87,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "count",
+    "legend": [
+      {
+        "label": "door",
+        "colour": "#d62728",
+        "count": 2,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "confidence": 0.87
+  }
+}
+```
+
+### `GET /api/drawings/{drawing_id}/evidence.png?question=<text>&width=<400|1600|3200>`
+
+The answer to `question` (as `POST /api/ask` gives it, edits applied) with its `proof` drawn on the page the marks
+are on: counted marks outlined in their class colour and numbered, a sum's rooms filled with their values,
+excluded items greyed with their reason, a schedule's rows highlighted; under the page the question and answer,
+the `arithmetic`, the answer's probability when it has one, the colour key (with the legend's `note`) and the
+licence `credit`. A model fact with no page is drawn as its objects
+(GlobalIds) and storey table. A refusal is drawn with its text. It is the fallback when a screen can't draw the
+proof itself, and a picture to share. `Cache-Control: no-store`, since a review edit changes it. Errors as
+`pages/{n}.png`: 422 for another width or no `question`, 404 for an unknown drawing.
+
+A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
+
+<!-- fixture: answer_area.json -->
+```json
+{
+  "question": "What is the net floor area of all indoor rooms in m²?",
+  "drawing_id": "adeefbbcc17559fc",
+  "file": "plans/flat-a.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": 52.269,
+  "unit": "m2",
+  "confidence": null,
+  "quantity": {
+    "key": "area:room|indoor",
+    "label": "area of room (indoor)",
+    "measure": "area",
+    "subject": "room",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": true,
+      "model": false,
+      "largest": false
+    },
+    "value": 52.269,
+    "unit": "m2",
+    "original_value": 52.269,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "indoor-rooms-total",
+      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ],
+        "polygon": [
+          [
+            0.16667,
+            0.125
+          ],
+          [
+            0.16667,
+            0.375
+          ],
+          [
+            0.5,
+            0.375
+          ],
+          [
+            0.5,
+            0.125
+          ]
+        ],
+        "state": "counted",
+        "value": 22.401,
+        "label": "Küche",
+        "ref": "r1",
+        "reason": null
+      },
+      {
+        "id": "m2",
+        "n": 2,
+        "page": 1,
+        "box": [
+          0.25,
+          0.2,
+          0.33333,
+          0.3
+        ],
+        "polygon": [
+          [
+            0.25,
+            0.2
+          ],
+          [
+            0.25,
+            0.3
+          ],
+          [
+            0.33333,
+            0.3
+          ],
+          [
+            0.33333,
+            0.2
+          ]
+        ],
+        "state": "counted",
+        "value": 2.489,
+        "label": "Reduit",
+        "ref": "r2",
+        "reason": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {}
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.16667,
+        0.125,
+        0.5,
+        0.375
+      ],
+      "polygon": [
+        [
+          0.16667,
+          0.125
+        ],
+        [
+          0.16667,
+          0.375
+        ],
+        [
+          0.5,
+          0.375
+        ],
+        [
+          0.5,
+          0.125
+        ]
+      ],
+      "state": "counted",
+      "value": 22.401,
+      "label": "Küche",
+      "ref": "r1",
+      "reason": null
+    },
+    {
+      "id": "m2",
+      "n": 2,
+      "page": 1,
+      "box": [
+        0.25,
+        0.2,
+        0.33333,
+        0.3
+      ],
+      "polygon": [
+        [
+          0.25,
+          0.2
+        ],
+        [
+          0.25,
+          0.3
+        ],
+        [
+          0.33333,
+          0.3
+        ],
+        [
+          0.33333,
+          0.2
+        ]
+      ],
+      "state": "counted",
+      "value": 2.489,
+      "label": "Reduit",
+      "ref": "r2",
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-a.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 52.269,
+    "unit": "m2",
+    "evidence": [
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      },
+      {
+        "file": "plans/flat-a.pdf",
+        "page": 1,
+        "box": [
+          0.25,
+          0.2,
+          0.33333,
+          0.3
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "sum",
+    "legend": [
+      {
+        "label": "Küche",
+        "colour": "#d62728",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Reduit",
+        "colour": "#1f77b4",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Bad",
+        "colour": "#2ca02c",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Zimmer",
+        "colour": "#9467bd",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      },
+      {
+        "label": "Balkon",
+        "colour": "#ff7f0e",
+        "count": 0,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": "22.4 + 2.49 + 12.45 + 14.93 = 52.27 m2; left out: Balkon 12.45 (outdoor room)",
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "confidence": null
+  }
+}
+```
+
+A fact of the building model behind a drawing (an IFC model asked about on its own has no page, so no marks):
+
+<!-- fixture: answer_model.json -->
+```json
+{
+  "question": "How many doors are shown on the floor plan of 'Ground Floor'?",
+  "drawing_id": "1db9bcf1e67e27a3",
+  "file": "model/house.ifc",
+  "pages": [],
+  "answer": 2,
+  "unit": "count",
+  "confidence": null,
+  "quantity": {
+    "key": "door|storey=ground floor",
+    "label": "door count (storey ground floor)",
+    "measure": "count",
+    "subject": "door",
+    "scope": {
+      "storey": "ground floor",
+      "label": null,
+      "name": null,
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 2,
+    "unit": "count",
+    "original_value": 2,
+    "status": "single",
+    "needs_person": false,
+    "rule": {
+      "id": "model-objects",
+      "text": "every object of the building model counts once, whether this sheet draws it or not"
+    },
+    "estimate": null,
+    "first": null,
+    "second": null,
+    "conflict": null,
+    "settled": null,
+    "marks": [],
+    "signed": null,
+    "unlocated": {}
+  },
+  "marks": [],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": null,
+  "reader": {
+    "route": "bim",
+    "source": "model/house.ifc",
+    "extractor": "ifc",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 2,
+    "unit": "count",
+    "evidence": [],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "model",
+    "legend": [],
+    "arithmetic": "2 door objects in the model on Ground floor",
+    "objects": [
+      {
+        "id": "m1",
+        "class": "door",
+        "name": "Door 1",
+        "storey": "Ground floor",
+        "global_id": "000000000000000000000K"
+      },
+      {
+        "id": "m2",
+        "class": "door",
+        "name": "Door 2",
+        "storey": "Ground floor",
+        "global_id": "000000000000000000000M"
+      }
+    ],
+    "storeys": [
+      {
+        "storey": "Ground floor",
+        "counts": {
+          "door": 2,
+          "slab": 1,
+          "space": 2,
+          "wall": 4,
+          "window": 3
+        }
+      }
+    ],
+    "schedule": null,
+    "confidence": null
+  }
+}
+```
+
+A question the drawing cannot answer:
+
+<!-- fixture: answer_refused.json -->
+```json
+{
+  "question": "What colour is the roof?",
+  "drawing_id": "adeefbbcc17559fc",
+  "file": "plans/flat-a.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
       "normalised": null
     }
   ],
   "answer": null,
   "unit": null,
+  "confidence": null,
   "quantity": null,
   "marks": [],
   "refusal": {
@@ -1191,7 +1845,7 @@ A question the drawing cannot answer:
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
-  "latency_s": 4.547601565718651e-05,
+  "latency_s": 0.002,
   "line": {
     "id": 1,
     "answer": null,
@@ -1199,13 +1853,22 @@ A question the drawing cannot answer:
     "evidence": [],
     "method": "refused:unsupported-question",
     "cost_usd": 0.0,
-    "latency_s": 4.547601565718651e-05,
+    "latency_s": 0.002,
     "confidence": null,
     "abstain": true,
     "explanation": "no count, area, length or volume asked for",
     "estimate": null,
     "conflicts": null,
     "resolution": null
+  },
+  "proof": {
+    "kind": "none",
+    "legend": [],
+    "arithmetic": null,
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "confidence": null
   }
 }
 ```
@@ -1231,7 +1894,7 @@ answers, as `suggestions` on the drawing does.
 <!-- fixture: takeoff.json -->
 ```json
 {
-  "drawing_id": "0f2705085f870f02",
+  "drawing_id": "6d153ea15dca9ab4",
   "file": "plans/flat-b.pdf",
   "quantities": [
     {
@@ -1338,7 +2001,8 @@ answers, as `suggestions` on the drawing does.
           "reason": null
         }
       ],
-      "signed": null
+      "signed": null,
+      "unlocated": {}
     },
     {
       "key": "door",
@@ -1404,7 +2068,8 @@ answers, as `suggestions` on the drawing does.
           "reason": null
         }
       ],
-      "signed": null
+      "signed": null,
+      "unlocated": {}
     },
     {
       "key": "area:room|indoor",
@@ -1504,7 +2169,8 @@ answers, as `suggestions` on the drawing does.
           "reason": null
         }
       ],
-      "signed": null
+      "signed": null,
+      "unlocated": {}
     }
   ],
   "review_queue": [
@@ -1519,24 +2185,28 @@ answers, as `suggestions` on the drawing does.
   (no conflict, estimate, edit or sign-off) is left out.
 - `label`: a readable name made from the key (`door count`, `area of room (indoor)`). `measure`, `subject` and
   `scope` are the key's parts, so the screen can group rows without parsing keys.
-- `first`, `second`: the drawing's own reading and the independent method's value (ingest stage 8). Set when the
-  two methods disagree. (**Waits on core**: when they agree core does not attach the second value yet, so such a
-  row is `single` with `second` null.)
+- `first`, `second`: the drawing's own reading and the independent method's value (ingest stage 8). Set when
+  two methods measured it, whether they agree or not; null when one method measured it.
 - `conflict`: every method's value and the rule that kept one (`resolution`; null: no rule decides). Null when the
   methods agree or only one measured it.
 - `status`, ranked: `signed` (signed off), `conflict` (methods disagree, not settled), `estimate` (rests on an
-  estimated scale or reading, not settled), `edited` (a review changed it), `agree` (two methods agree: **waits on
-  core**), `single` (one method).
+  estimated scale or reading, not settled), `edited` (a review changed it), `agree` (two methods agree), `single`
+  (one method).
 - `needs_person`: the methods disagree, no rule decides and nobody settled it. Such a row can't be signed off.
 - `settled`: the value a surveyor chose with `settle`, and when.
 - `marks`: one per counted item (count) or per room in the sum (area), in the order the screen numbers them.
   - `n`: the number to draw, null for a mark that is not counted.
   - `state`: `counted`, `rejected` (by a surveyor), `added` (by a surveyor), `excluded` (left out by the counting
-    rule, with `reason`; **waits on core**: core does not return the items a rule left out yet, so none is sent).
+    rule, with `reason`, e.g. the balcony of an indoor area: draw it greyed). Excluded marks come after the
+    counted ones, with ids `x1`, `x2`…; one a surveyor counts in with `restore` is `counted` and keeps its
+    `reason`.
   - `value`: the item's share of the total: 1 in a count, the room's m2 in an area, null when unknown.
   - `label`: the room's printed label (else its type) or the element class; `ref`: the element or room id in the
     drawing model; `polygon`: the room's outline when the model has one (else draw the box). All three are null
     for an added mark.
+- `unlocated`: per element class, the items of a count a second reader counted with no position of their own
+  (decide's count swap adds them with `attrs.located` false). They are in `value` but have no mark; empty when
+  there are none.
 - `review_queue`: the keys whose status is `conflict` or `estimate`.
 - `value` is the current value (after review); `original_value` what ingest computed.
 
@@ -1585,7 +2255,7 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
 ```
 
 - `reject` / `restore`: leave a mark out of the count or the sum, or put it back. Rejecting an added mark removes
-  it. (`restore` on an `excluded` mark counts it in, once core sends them.)
+  it. `restore` on an `excluded` mark (`x1`…) counts it in; `reject` on it leaves it out again.
 - `add`: a missed item, on a count only. The new mark gets an id `a1`, `a2`…
 - `settle`: the value to keep (one of the conflict's values, or any value the surveyor counted). It holds until
   the next mark edit of that quantity.

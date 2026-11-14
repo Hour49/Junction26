@@ -4,8 +4,8 @@ A question is about a schedule when it names one ("door schedule", "finish room 
 asks for what only a schedule prints (a hardware group, a door or frame material, a finish, a
 note, a door by its number). From its words:
 
-1. What is done: "how many" counts rows; an area sums the area column; "what"/"which" reads
-   the cells of the column the words before "of"/"for"/"is" name.
+1. What is done: "how many" ("count the", "number of") counts rows; an area sums the area
+   column; "what"/"which" reads the cells of the column the words before "of"/"for"/"is" name.
 2. Which rows: the codes (A1, WD-1, F0), door numbers (121.A), room numbers ("room 128"),
    names ("named OFFICE"), notes ("note A") and dimensions ("3'-0\" wide") it mentions, each
    with the few words before it, which pick the column when several hold the value.
@@ -32,7 +32,10 @@ SUPERLATIVE = re.compile(r"\b(?:largest|smallest|biggest|longest|shortest|most|l
 MEANING = re.compile(r"\bmean|\bwhat kind\b|\bstand for\b|\bdescri", re.IGNORECASE)
 WHOLE_TABLE = re.compile(r"\ball\b|\blisted\b", re.IGNORECASE)
 AREA = re.compile(r"\barea\b", re.IGNORECASE)
-COUNTED = re.compile(r"\bhow many\s+(doors?|rooms?)\b", re.IGNORECASE)
+# "how many doors", "count the doors", "the number of rooms"
+COUNTED = re.compile(
+    r"\b(?:how many|count(?:\s+the)?|number of)\s+(doors?|rooms?)\b", re.IGNORECASE
+)
 READ_COLUMNS = re.compile(
     r"^(?:what|which)\s+(?:(?:is|are)\s+)?(?:the\s+)?(.+?)\s+(?:of|for|is|are)\b", re.IGNORECASE
 )

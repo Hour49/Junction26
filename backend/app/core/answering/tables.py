@@ -19,6 +19,12 @@ from app.core.model import Frozen
 # A table whose title has one of these words explains codes (a finish key, door keynotes): it is
 # read for what a code means, never counted or summed.
 LEGEND_WORDS = frozenset({"key", "keynote", "legend"})
+# A column whose header has one of these words prints codes that say nothing without their key
+# (F2, W1, C2): its cells are read with what they mean, asked or not (the sheet's finish key).
+KEYED_WORDS = frozenset({"finish"})
+# A code read with its key's description is said in the sheet's words, which need not be the
+# words the question expects, so the answer abstains while keeping the value.
+MEANING_WHY = "what the code means is copied from the sheet's key; the wording asked for may differ"
 # Which tables a kind of row lives in, by title words.
 KIND_WORDS: Mapping[str, frozenset[str]] = {
     "door": frozenset({"door"}),
@@ -57,6 +63,7 @@ class TableAnswer(Frozen):
     unit: Unit | None  # None for text
     page: int
     boxes: tuple[Box, ...]  # the rows it rests on
+    abstain_why: str | None = None  # set: the value is a best estimate, and why
 
 
 def answer_table(query: TableQuery, tables: Sequence[Table]) -> TableAnswer | None:
@@ -169,14 +176,21 @@ def _on(table: Table, query: TableQuery, legends: Sequence[Table]) -> TableAnswe
     if any(value is None for value in read):
         return None
     texts = [value for value in read if value is not None]
-    if query.meaning:
-        texts = [_meaning(text, legends) for text in texts]
     headers = [words(table.columns[column]) for column in chosen]
+    keyed = any(header & KEYED_WORDS for header in headers)
+    why = None
+    if query.meaning or keyed:
+        meant = [_meaning(text, legends) for text in texts]
+        if query.meaning and any(found is None for found in meant):
+            return None  # what a code means was asked, and no legend on the sheet says it
+        if any(found is not None for found in meant):
+            texts = [found or text for found, text in zip(meant, texts, strict=True)]
+            why = MEANING_WHY
     if len(texts) == 2 and "width" in headers[0] and "height" in headers[1]:
         text = f"{texts[0]} wide x {texts[1]} high"
     else:
         text = "; ".join(texts)
-    return TableAnswer(value=text, unit=None, page=table.page, boxes=boxes)
+    return TableAnswer(value=text, unit=None, page=table.page, boxes=boxes, abstain_why=why)
 
 
 def _sum(
@@ -208,11 +222,13 @@ def _read(rows: Sequence[TableRow], column: int) -> str | None:
     return DIMENSION.sub(r"\1-\2", " ".join(next(iter(texts.values())).split()))
 
 
-def _meaning(text: str, legends: Sequence[Table]) -> str:
-    """The text with what its codes mean, from the legends: "F4 - RESILIENT FLOORING"."""
+def _meaning(text: str, legends: Sequence[Table]) -> str | None:
+    """The text with what its codes mean, from the legends: "F4 - RESILIENT FLOORING"; None
+    when a code of it is in no legend."""
     meant: list[str] = []
     for part in CELL_PARTS.split(text):
-        flat = _flat(part)
+        if not (flat := _flat(part)):
+            continue
         for legend in legends:
             row = next(
                 (r for r in legend.rows if _flat(_cell(r, legend.key_column) or "") == flat), None
@@ -222,4 +238,6 @@ def _meaning(text: str, legends: Sequence[Table]) -> str:
                 if description:
                     meant.append(" ".join(description.split()))
                 break
-    return f"{text} - {' and '.join(meant)}" if meant else text
+        else:
+            return None
+    return f"{text} - {' and '.join(meant)}" if meant else None

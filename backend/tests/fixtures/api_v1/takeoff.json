@@ -1,0 +1,285 @@
+{
+  "drawing_id": "6d153ea15dca9ab4",
+  "file": "plans/flat-b.pdf",
+  "quantities": [
+    {
+      "key": "area:room|name=1.01",
+      "label": "area of room (name 1.01)",
+      "measure": "area",
+      "subject": "room",
+      "scope": {
+        "storey": null,
+        "label": null,
+        "name": "1.01",
+        "apartment": null,
+        "indoor": false,
+        "model": false,
+        "largest": false
+      },
+      "value": 30.0,
+      "unit": "m2",
+      "original_value": 30.0,
+      "status": "conflict",
+      "needs_person": false,
+      "rule": {
+        "id": "room-area",
+        "text": "the room's net floor area as the drawing gives it"
+      },
+      "estimate": null,
+      "first": {
+        "method": "polygon_x_scale",
+        "value": 22.401
+      },
+      "second": {
+        "method": "printed_label",
+        "value": 30.0
+      },
+      "conflict": {
+        "values": [
+          {
+            "value": 22.401,
+            "unit": "m2",
+            "method": "polygon_x_scale",
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ]
+          },
+          {
+            "value": 30.0,
+            "unit": "m2",
+            "method": "printed_label",
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ]
+          }
+        ],
+        "resolution": {
+          "rule": "the printed label over the outline at the sheet's scale",
+          "value": 30.0
+        },
+        "note": null,
+        "derived": null,
+        "status": "conflict"
+      },
+      "settled": null,
+      "marks": [
+        {
+          "id": "m1",
+          "n": 1,
+          "page": 1,
+          "box": [
+            0.16667,
+            0.125,
+            0.5,
+            0.375
+          ],
+          "polygon": [
+            [
+              0.16667,
+              0.125
+            ],
+            [
+              0.16667,
+              0.375
+            ],
+            [
+              0.5,
+              0.375
+            ],
+            [
+              0.5,
+              0.125
+            ]
+          ],
+          "state": "counted",
+          "value": 30.0,
+          "label": "Küche",
+          "ref": "r1",
+          "reason": null
+        }
+      ],
+      "signed": null,
+      "unlocated": {}
+    },
+    {
+      "key": "door",
+      "label": "door count",
+      "measure": "count",
+      "subject": "door",
+      "scope": {
+        "storey": null,
+        "label": null,
+        "name": null,
+        "apartment": null,
+        "indoor": false,
+        "model": false,
+        "largest": false
+      },
+      "value": 2,
+      "unit": "count",
+      "original_value": 2,
+      "status": "single",
+      "needs_person": false,
+      "rule": {
+        "id": "each-once",
+        "text": "every element, room and plan the drawing lists counts once"
+      },
+      "estimate": null,
+      "first": null,
+      "second": null,
+      "conflict": null,
+      "settled": null,
+      "marks": [
+        {
+          "id": "m1",
+          "n": 1,
+          "page": 1,
+          "box": [
+            0.49333,
+            0.225,
+            0.50667,
+            0.275
+          ],
+          "polygon": null,
+          "state": "counted",
+          "value": 1.0,
+          "label": "door",
+          "ref": "e1",
+          "reason": null
+        },
+        {
+          "id": "m2",
+          "n": 2,
+          "page": 1,
+          "box": [
+            0.66,
+            0.225,
+            0.67333,
+            0.275
+          ],
+          "polygon": null,
+          "state": "counted",
+          "value": 1.0,
+          "label": "door",
+          "ref": "e2",
+          "reason": null
+        }
+      ],
+      "signed": null,
+      "unlocated": {}
+    },
+    {
+      "key": "area:room|indoor",
+      "label": "area of room (indoor)",
+      "measure": "area",
+      "subject": "room",
+      "scope": {
+        "storey": null,
+        "label": null,
+        "name": null,
+        "apartment": null,
+        "indoor": true,
+        "model": false,
+        "largest": false
+      },
+      "value": 59.868,
+      "unit": "m2",
+      "original_value": 59.868,
+      "status": "single",
+      "needs_person": false,
+      "rule": {
+        "id": "indoor-rooms-total",
+        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out (review-4)"
+      },
+      "estimate": null,
+      "first": null,
+      "second": null,
+      "conflict": null,
+      "settled": null,
+      "marks": [
+        {
+          "id": "m1",
+          "n": 1,
+          "page": 1,
+          "box": [
+            0.16667,
+            0.125,
+            0.5,
+            0.375
+          ],
+          "polygon": [
+            [
+              0.16667,
+              0.125
+            ],
+            [
+              0.16667,
+              0.375
+            ],
+            [
+              0.5,
+              0.375
+            ],
+            [
+              0.5,
+              0.125
+            ]
+          ],
+          "state": "counted",
+          "value": 30.0,
+          "label": "Küche",
+          "ref": "r1",
+          "reason": null
+        },
+        {
+          "id": "m2",
+          "n": 2,
+          "page": 1,
+          "box": [
+            0.25,
+            0.2,
+            0.33333,
+            0.3
+          ],
+          "polygon": [
+            [
+              0.25,
+              0.2
+            ],
+            [
+              0.25,
+              0.3
+            ],
+            [
+              0.33333,
+              0.3
+            ],
+            [
+              0.33333,
+              0.2
+            ]
+          ],
+          "state": "counted",
+          "value": 2.489,
+          "label": "Reduit",
+          "ref": "r2",
+          "reason": null
+        }
+      ],
+      "signed": null,
+      "unlocated": {}
+    }
+  ],
+  "review_queue": [
+    "area:room|name=1.01",
+    "area:room|name=küche"
+  ]
+}

@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Golden set selection, baselines and scoring for the Stoa drawing Q&A challenge."
 requires-python = "==3.13.*"
 dependencies = [
+    "numpy>=2.5",
+    "pillow>=13.0.0",
     "pydantic>=2.14.3",
     "shapely>=2.1",
 ]

@@ -10,6 +10,8 @@ from pydantic import ValidationError
 from app.adapters.dataset_files import DatasetSheetModels
 from app.adapters.hello import HelloExtractor, HelloSecondCounter, HelloSourceFinder
 from app.adapters.ifc_model import IfcModelExtractor, IfcSecondCounter
+from app.adapters.pdf_tables import PdfTables
+from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
 from app.adapters.question_templates import TemplateParser
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.composition import build_pipeline
@@ -23,11 +25,15 @@ def test_default_settings_wire_the_real_readers_and_hello_on_the_cad_and_raster_
     monkeypatch.chdir(tmp_path)  # so a developer's backend/.env can't change the result
     pipeline = build_pipeline(Settings(), tmp_path)
     assert set(pipeline.extractors) == set(get_args(Route))
-    assert isinstance(pipeline.extractors["vector"], PdfVectorExtractor)
+    vector = pipeline.extractors["vector"]  # with the schedules (TABLES=pdf) read around it
+    assert isinstance(vector, PdfTables)
+    assert isinstance(vector._inner, PdfVectorExtractor)  # pyright: ignore[reportPrivateUsage]
     assert isinstance(pipeline.extractors["bim"], IfcModelExtractor)
     assert isinstance(pipeline.extractors["cad"], HelloExtractor)
     assert isinstance(pipeline.extractors["raster"], HelloExtractor)
-    assert isinstance(pipeline.second_counter, IfcSecondCounter)
+    counter = pipeline.second_counter  # with the door schedule vs plan tags check around it
+    assert isinstance(counter, ScheduleTagCounter)
+    assert isinstance(counter._inner, IfcSecondCounter)  # pyright: ignore[reportPrivateUsage]
     # The model route reads models, so a plan sheet is paired with the model next to it.
     assert isinstance(pipeline.finder, DatasetSheetModels)
     assert isinstance(pipeline.parser, TemplateParser)
@@ -39,6 +45,7 @@ def test_without_the_ifc_reader_no_sheet_is_paired_with_a_model(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("EXTRACTOR_BIM", "hello")
+    monkeypatch.setenv("TABLES", "off")  # the vector reader itself, without the schedules
     pipeline = build_pipeline(Settings(), tmp_path)
     assert isinstance(pipeline.extractors["bim"], HelloExtractor)
     # Pairing follows the extractor alone: the second counter is still the ifc one.
@@ -52,6 +59,7 @@ def test_the_pdf_second_counter_stays_selectable(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SECOND_COUNTER", "pdf")
+    monkeypatch.setenv("TABLES", "off")  # the counter itself, without the schedule check
     pipeline = build_pipeline(Settings(), tmp_path)
     assert isinstance(pipeline.second_counter, PdfSecondCounter)
     assert isinstance(pipeline.finder, DatasetSheetModels)
@@ -62,6 +70,7 @@ def test_the_hello_extractor_stays_selectable_on_the_vector_route(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("EXTRACTOR_VECTOR", "hello")
+    monkeypatch.setenv("TABLES", "off")  # the vector reader itself, without the schedules
     assert isinstance(build_pipeline(Settings(), tmp_path).extractors["vector"], HelloExtractor)
 
 
@@ -70,6 +79,7 @@ def test_the_hello_second_counter_stays_selectable(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SECOND_COUNTER", "hello")
+    monkeypatch.setenv("TABLES", "off")  # the counter itself, without the schedule check
     assert isinstance(build_pipeline(Settings(), tmp_path).second_counter, HelloSecondCounter)
 
 

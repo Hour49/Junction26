@@ -9,6 +9,7 @@ import io
 import pypdfium2
 from PIL import Image
 
+from app.adapters.pdfium_lock import PDFIUM
 from app.core.drawing.model import Page
 from app.core.pipeline.model import DrawingFile
 from app.core.pipeline.ports import DrawingFiles
@@ -21,7 +22,8 @@ class PageSizes:
     def pages(self, file: DrawingFile) -> tuple[Page, ...]:
         data = self._files.read(file.path)
         if file.kind == "pdf":
-            return _pdf_pages(data)
+            with PDFIUM:  # pdfium is not thread-safe (app/adapters/pdfium_lock.py)
+                return _pdf_pages(data)
         if file.kind in ("png", "jpeg"):
             with Image.open(io.BytesIO(data)) as image:
                 width, height = image.size

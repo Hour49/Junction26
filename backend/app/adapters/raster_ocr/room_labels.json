@@ -1,0 +1,637 @@
+{
+ "AH": {
+  "type": "other",
+  "rooms": 178,
+  "share": 0.994
+ },
+ "AITTA": {
+  "type": "storage",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "ALKOVI": {
+  "type": "hall",
+  "rooms": 101,
+  "share": 1.0
+ },
+ "APUK": {
+  "type": "kitchen",
+  "rooms": 46,
+  "share": 1.0
+ },
+ "ASK": {
+  "type": "living",
+  "rooms": 41,
+  "share": 1.0
+ },
+ "AT": {
+  "type": "storage",
+  "rooms": 65,
+  "share": 1.0
+ },
+ "AULA": {
+  "type": "hall",
+  "rooms": 248,
+  "share": 1.0
+ },
+ "AUTOKATOS": {
+  "type": "storage",
+  "rooms": 146,
+  "share": 0.979
+ },
+ "AUTOSUOJA": {
+  "type": "storage",
+  "rooms": 9,
+  "share": 1.0
+ },
+ "AUTOTALLI": {
+  "type": "storage",
+  "rooms": 153,
+  "share": 1.0
+ },
+ "AUTOVAJA": {
+  "type": "storage",
+  "rooms": 30,
+  "share": 1.0
+ },
+ "AVOK": {
+  "type": "kitchen",
+  "rooms": 12,
+  "share": 1.0
+ },
+ "AVOKUISTI": {
+  "type": "other",
+  "rooms": 9,
+  "share": 1.0
+ },
+ "ET": {
+  "type": "hall",
+  "rooms": 2255,
+  "share": 1.0
+ },
+ "H": {
+  "type": "other",
+  "rooms": 831,
+  "share": 1.0
+ },
+ "HALLI": {
+  "type": "hall",
+  "rooms": 56,
+  "share": 1.0
+ },
+ "INVWC": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "K": {
+  "type": "kitchen",
+  "rooms": 1875,
+  "share": 1.0
+ },
+ "K+R": {
+  "type": "other",
+  "rooms": 8,
+  "share": 1.0
+ },
+ "K+RT": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "K+RUOK": {
+  "type": "other",
+  "rooms": 13,
+  "share": 1.0
+ },
+ "K/R": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "K/RT": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "K/RUOK": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "KATETTUTERASSI": {
+  "type": "outdoor",
+  "rooms": 21,
+  "share": 1.0
+ },
+ "KATOS": {
+  "type": "outdoor",
+  "rooms": 97,
+  "share": 1.0
+ },
+ "KATTH": {
+  "type": "other",
+  "rooms": 48,
+  "share": 1.0
+ },
+ "KAYTAVA": {
+  "type": "hall",
+  "rooms": 44,
+  "share": 1.0
+ },
+ "KEITTIO": {
+  "type": "kitchen",
+  "rooms": 436,
+  "share": 1.0
+ },
+ "KELL": {
+  "type": "other",
+  "rooms": 9,
+  "share": 1.0
+ },
+ "KELLARI": {
+  "type": "storage",
+  "rooms": 38,
+  "share": 0.974
+ },
+ "KH": {
+  "type": "bathroom",
+  "rooms": 574,
+  "share": 1.0
+ },
+ "KH/KHH": {
+  "type": "storage",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "KH/WC": {
+  "type": "other",
+  "rooms": 9,
+  "share": 1.0
+ },
+ "KHH": {
+  "type": "storage",
+  "rooms": 583,
+  "share": 1.0
+ },
+ "KHH+PH": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "KHH/PH": {
+  "type": "other",
+  "rooms": 14,
+  "share": 1.0
+ },
+ "KHH/PKH": {
+  "type": "other",
+  "rooms": 15,
+  "share": 1.0
+ },
+ "KHH/PUKUH": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "KHH/WC": {
+  "type": "other",
+  "rooms": 9,
+  "share": 1.0
+ },
+ "KIRJASTO": {
+  "type": "other",
+  "rooms": 25,
+  "share": 1.0
+ },
+ "KK": {
+  "type": "kitchen",
+  "rooms": 289,
+  "share": 1.0
+ },
+ "KOM": {
+  "type": "other",
+  "rooms": 26,
+  "share": 1.0
+ },
+ "KOMERO": {
+  "type": "other",
+  "rooms": 11,
+  "share": 1.0
+ },
+ "KPH": {
+  "type": "bathroom",
+  "rooms": 525,
+  "share": 1.0
+ },
+ "KPH/WC": {
+  "type": "other",
+  "rooms": 16,
+  "share": 1.0
+ },
+ "KT": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "KUISTI": {
+  "type": "outdoor",
+  "rooms": 308,
+  "share": 1.0
+ },
+ "KYL": {
+  "type": "other",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "KYLM": {
+  "type": "other",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "KYLMA": {
+  "type": "other",
+  "rooms": 8,
+  "share": 1.0
+ },
+ "KYLMAULLAKKO": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "KYLMIO": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "LAMM": {
+  "type": "other",
+  "rooms": 33,
+  "share": 1.0
+ },
+ "LASIKUISTI": {
+  "type": "outdoor",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "LASITETTU": {
+  "type": "other",
+  "rooms": 18,
+  "share": 1.0
+ },
+ "LASITETTUPARVEKE": {
+  "type": "balcony",
+  "rooms": 74,
+  "share": 1.0
+ },
+ "LASITETTUTERASSI": {
+  "type": "outdoor",
+  "rooms": 19,
+  "share": 1.0
+ },
+ "LIIKEH": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "LJH": {
+  "type": "other",
+  "rooms": 10,
+  "share": 1.0
+ },
+ "MH": {
+  "type": "bedroom",
+  "rooms": 4792,
+  "share": 1.0
+ },
+ "MH/KIRJASTO": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "MH/TYOH": {
+  "type": "other",
+  "rooms": 9,
+  "share": 1.0
+ },
+ "OH": {
+  "type": "living",
+  "rooms": 2368,
+  "share": 1.0
+ },
+ "OH+RP": {
+  "type": "other",
+  "rooms": 8,
+  "share": 1.0
+ },
+ "OLESKELU": {
+  "type": "other",
+  "rooms": 17,
+  "share": 1.0
+ },
+ "OLJY": {
+  "type": "storage",
+  "rooms": 23,
+  "share": 0.957
+ },
+ "PANNUH": {
+  "type": "other",
+  "rooms": 15,
+  "share": 1.0
+ },
+ "PARVEKE": {
+  "type": "balcony",
+  "rooms": 727,
+  "share": 0.986
+ },
+ "PARVI": {
+  "type": "other",
+  "rooms": 61,
+  "share": 1.0
+ },
+ "PATIO": {
+  "type": "outdoor",
+  "rooms": 9,
+  "share": 1.0
+ },
+ "PE": {
+  "type": "bathroom",
+  "rooms": 30,
+  "share": 1.0
+ },
+ "PERGOLA": {
+  "type": "outdoor",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "PESU": {
+  "type": "bathroom",
+  "rooms": 116,
+  "share": 0.991
+ },
+ "PESUH": {
+  "type": "bathroom",
+  "rooms": 281,
+  "share": 1.0
+ },
+ "PESUH/WC": {
+  "type": "other",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "PH": {
+  "type": "bathroom",
+  "rooms": 814,
+  "share": 1.0
+ },
+ "PH/KHH": {
+  "type": "other",
+  "rooms": 24,
+  "share": 1.0
+ },
+ "PH/WC": {
+  "type": "other",
+  "rooms": 29,
+  "share": 1.0
+ },
+ "PIHA": {
+  "type": "outdoor",
+  "rooms": 33,
+  "share": 1.0
+ },
+ "PKH": {
+  "type": "storage",
+  "rooms": 87,
+  "share": 1.0
+ },
+ "PKH/KHH": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "PSH": {
+  "type": "bathroom",
+  "rooms": 134,
+  "share": 1.0
+ },
+ "PUKUH": {
+  "type": "storage",
+  "rooms": 129,
+  "share": 1.0
+ },
+ "PUKUH/KHH": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "PUUVAJA": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "PUUVAR": {
+  "type": "storage",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "R": {
+  "type": "living",
+  "rooms": 139,
+  "share": 1.0
+ },
+ "RH": {
+  "type": "living",
+  "rooms": 8,
+  "share": 1.0
+ },
+ "RT": {
+  "type": "living",
+  "rooms": 178,
+  "share": 1.0
+ },
+ "RUOK": {
+  "type": "living",
+  "rooms": 236,
+  "share": 1.0
+ },
+ "RUOKAILU": {
+  "type": "living",
+  "rooms": 29,
+  "share": 1.0
+ },
+ "S": {
+  "type": "sauna",
+  "rooms": 31,
+  "share": 1.0
+ },
+ "SAUNA": {
+  "type": "sauna",
+  "rooms": 44,
+  "share": 0.977
+ },
+ "SH": {
+  "type": "bathroom",
+  "rooms": 103,
+  "share": 1.0
+ },
+ "SK": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "TAKKAH": {
+  "type": "living",
+  "rooms": 10,
+  "share": 0.8
+ },
+ "TALKELL": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "TEKN": {
+  "type": "other",
+  "rooms": 176,
+  "share": 1.0
+ },
+ "TEKNTILA": {
+  "type": "other",
+  "rooms": 14,
+  "share": 1.0
+ },
+ "TERASSI": {
+  "type": "outdoor",
+  "rooms": 593,
+  "share": 0.993
+ },
+ "TH": {
+  "type": "living",
+  "rooms": 173,
+  "share": 1.0
+ },
+ "TK": {
+  "type": "hall",
+  "rooms": 1041,
+  "share": 1.0
+ },
+ "TKH": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "TSTO": {
+  "type": "other",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "TUPA": {
+  "type": "other",
+  "rooms": 96,
+  "share": 1.0
+ },
+ "TUPAK": {
+  "type": "kitchen",
+  "rooms": 56,
+  "share": 1.0
+ },
+ "TUPAKEITTIO": {
+  "type": "kitchen",
+  "rooms": 25,
+  "share": 1.0
+ },
+ "TVH": {
+  "type": "living",
+  "rooms": 7,
+  "share": 0.857
+ },
+ "TYOH": {
+  "type": "other",
+  "rooms": 76,
+  "share": 1.0
+ },
+ "TYOTILA": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "UIMAALLAS": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "ULLAKKO": {
+  "type": "storage",
+  "rooms": 40,
+  "share": 1.0
+ },
+ "VAJA": {
+  "type": "storage",
+  "rooms": 18,
+  "share": 1.0
+ },
+ "VAR": {
+  "type": "storage",
+  "rooms": 729,
+  "share": 0.996
+ },
+ "VARASTO": {
+  "type": "storage",
+  "rooms": 223,
+  "share": 1.0
+ },
+ "VERANTA": {
+  "type": "outdoor",
+  "rooms": 11,
+  "share": 1.0
+ },
+ "VH": {
+  "type": "storage",
+  "rooms": 1626,
+  "share": 1.0
+ },
+ "VILPOLA": {
+  "type": "outdoor",
+  "rooms": 16,
+  "share": 1.0
+ },
+ "VINTTI": {
+  "type": "storage",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "WC": {
+  "type": "wc",
+  "rooms": 1747,
+  "share": 0.998
+ },
+ "WC/KH": {
+  "type": "other",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "WC/KHH": {
+  "type": "other",
+  "rooms": 7,
+  "share": 1.0
+ },
+ "WC/KPH": {
+  "type": "other",
+  "rooms": 5,
+  "share": 1.0
+ },
+ "WC/PH": {
+  "type": "other",
+  "rooms": 22,
+  "share": 1.0
+ },
+ "WC/PSH": {
+  "type": "other",
+  "rooms": 6,
+  "share": 1.0
+ },
+ "WC/SH": {
+  "type": "other",
+  "rooms": 11,
+  "share": 1.0
+ }
+}
