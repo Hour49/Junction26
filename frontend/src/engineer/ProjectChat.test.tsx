@@ -44,7 +44,7 @@ const noneAnswers: ProjectAnswer = {
   parts: [{ ...refusedPart, answer: { ...answerRefused, drawing_id: refusedPart.drawing_id } }],
   total: null,
   total_unit: null,
-  total_note: 'No drawing answered it: 1 drawing has no reader for it.',
+  total_note: 'No drawing answered it: 1 drawing gives no reliable number for it.',
 };
 
 beforeAll(() => {
