@@ -141,3 +141,4 @@ def test_the_demo_config_warns_about_sheet_kinds_without_setting_sheets_aside() 
     assert found.returncode == 0, found.stderr
     config = found.stdout.split()
     assert "SHEET_KIND=carbon" in config and "SHEET_KIND_SET_ASIDE=false" in config
+    assert "CARBON_LEVELS=demote" in config

@@ -49,7 +49,8 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   CARBON_READER=large  # demo/carbon: images over 4,000 px counted by Carbon, flagged, never certified (#269)
   RASTER_PRINTED_SCALE=carbon  # a measured printed scale replaces the estimate; > 2x from the door estimate holds areas Low (#256)
   SHEET_KIND=carbon  # demo/sheet-kind: Carbon names what each sheet looks like (warn only, #265)
-  SHEET_KIND_SET_ASIDE=false)  # a sheet that may not be a floor plan is read and flagged, never set aside
+  SHEET_KIND_SET_ASIDE=false  # a sheet that may not be a floor plan is read and flagged, never set aside
+  CARBON_LEVELS=demote)  # Carbon reads every raster drawing; a Medium answer it disagrees with drops to Low (Bogdan, 2026-11-14)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
