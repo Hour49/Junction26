@@ -821,6 +821,8 @@ export interface components {
             method: string;
             /** Pages */
             pages: components["schemas"]["PageView"][];
+            /** Partial */
+            partial?: boolean | null;
             proof: components["schemas"]["Proof"];
             quantity: components["schemas"]["Row"] | null;
             /** Question */
@@ -830,6 +832,10 @@ export interface components {
             resolved?: components["schemas"]["Resolved"] | null;
             /** Resolver Note */
             resolver_note?: string | null;
+            /** Rooms Counted */
+            rooms_counted?: number | null;
+            /** Rooms Missing */
+            rooms_missing?: string[] | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };

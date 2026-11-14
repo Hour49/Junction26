@@ -42,6 +42,7 @@ from app.core.pipeline.model import (
     Counted,
     CountingRule,
     Measure,
+    Partial,
     Quantity,
     QuantityConflict,
     QuantityUnit,
@@ -141,7 +142,48 @@ def take_off(drawing: Drawing, counted: Mapping[str, Counted]) -> dict[str, Quan
         _add_sheet(found, drawing, counted)
     if drawing.model_objects is not None:
         _add_model(found, drawing)
+    _mark_partial(found, drawing)
     return _read_only(_with_conflicts(found, drawing), drawing.read)
+
+
+# The whole-sheet room totals ("what is the total area?"); a sum of rooms by label or name is not
+PARTIAL_RULES = frozenset({ROOMS_TOTAL.id, INDOOR_TOTAL.id, SHEET_DWELLING.id})
+SCHEDULE_WORDS = ("room", "finish")  # a schedule whose title says so lists the sheet's rooms
+
+
+def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
+    """Marks each whole-sheet room total that may leave rooms out (label-area task 2, partial
+    totals): its rooms were picked off a picture by a room reader (`attrs["reader"]`: Gemini,
+    the EU model, Carbon), which can miss rooms, or a room schedule on the sheet names rooms the
+    drawing does not have. A vector or IFC room list, complete by construction, never is."""
+    missing = _unlisted(drawing)
+    read = any("reader" in room.attrs for room in drawing.rooms)
+    if not (read or missing):
+        return
+    for key, quantity in found.items():
+        if quantity.rule in PARTIAL_RULES and "label=" not in key and "name=" not in key:
+            partial = Partial(counted=len(quantity.marks), missing=missing)
+            found[key] = quantity.model_copy(update={"partial": partial})
+
+
+def _unlisted(drawing: Drawing) -> tuple[str, ...]:
+    """The rooms a room schedule prints (number and name, as printed) that no room of the drawing
+    answers to by number, name or label."""
+    have = {name for room in drawing.rooms for name in room_names(room)}
+    out: list[str] = []
+    for table in drawing.tables or ():
+        if not any(word in (table.title or "").lower() for word in SCHEDULE_WORDS):
+            continue
+        named = next((at for at, h in enumerate(table.columns) if "name" in h.lower()), None)
+        for row in table.rows:
+            cells = [row.cells[at] if at < len(row.cells) else None
+                     for at in (table.key_column, named) if at is not None]  # fmt: skip
+            texts = [cell.strip() for cell in cells if cell and cell.strip()]
+            if texts and not any(normalised(text) in have for text in texts):
+                shown = " ".join(dict.fromkeys(texts))
+                if shown not in out:
+                    out.append(shown)
+    return tuple(out)
 
 
 def _add_sheet(

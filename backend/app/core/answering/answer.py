@@ -28,7 +28,7 @@ from app.core.answering.ports import (
 )
 from app.core.answering.tables import TableAnswer, answer_table, why_none
 from app.core.drawing.model import Drawing, Room, Table
-from app.core.pipeline.model import Quantity
+from app.core.pipeline.model import Partial, Quantity
 from app.core.pipeline.second_count import METHODS
 from app.core.pipeline.takeoff import known_quantities, normalised, room_names
 
@@ -217,6 +217,8 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
     two methods measured differently shows both, with the rule that kept one; when no rule
     decides, it keeps the takeoff's own reading and abstains."""
     notes = [] if found.estimate is None else [found.estimate]  # the card's Estimate line too
+    if found.partial is not None:
+        notes.append(partial_text(found.partial))
     conflicts, resolution, abstain = None, None, None
     if (disputed := found.conflict) is not None:
         count = found.unit == "count"
@@ -258,6 +260,23 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
         conflicts=conflicts,
         resolution=resolution,
     )
+
+
+NAMED_MISSING = 3  # rooms named in a partial total's sentence; the rest are counted
+
+
+def partial_text(partial: Partial) -> str:
+    """One plain sentence: a room total is the sum of the rooms found, and which it misses."""
+    n = partial.counted
+    said = (
+        f"This is the sum of the {n} room{'' if n == 1 else 's'} the reader found; rooms it "
+        "missed are not in it"
+    )
+    if partial.missing:
+        named = ", ".join(partial.missing[:NAMED_MISSING])
+        more = len(partial.missing) - NAMED_MISSING
+        said += f". Not in it: {named}" + (f" and {more} more" if more > 0 else "")
+    return said + "."
 
 
 HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES

@@ -444,6 +444,17 @@
             "title": "Pages",
             "type": "array"
           },
+          "partial": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partial"
+          },
           "proof": {
             "$ref": "#/components/schemas/Proof"
           },
@@ -494,6 +505,31 @@
               }
             ],
             "title": "Resolver Note"
+          },
+          "rooms_counted": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rooms Counted"
+          },
+          "rooms_missing": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rooms Missing"
           },
           "unit": {
             "anyOf": [
