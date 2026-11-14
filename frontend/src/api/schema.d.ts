@@ -407,6 +407,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/drawings/{drawing_id}/services/{storey_id}.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Services Png */
+        get: operations["services_png_api_projects__project_id__drawings__drawing_id__services__storey_id__png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/evidence/search": {
         parameters: {
             query?: never;
@@ -892,6 +909,8 @@ export interface components {
             method: string;
             /** Pages */
             pages: components["schemas"]["PageView"][];
+            /** Partial */
+            partial?: boolean | null;
             proof: components["schemas"]["Proof"];
             quantity: components["schemas"]["Row"] | null;
             /** Question */
@@ -901,6 +920,10 @@ export interface components {
             resolved?: components["schemas"]["Resolved"] | null;
             /** Resolver Note */
             resolver_note?: string | null;
+            /** Rooms Counted */
+            rooms_counted?: number | null;
+            /** Rooms Missing */
+            rooms_missing?: string[] | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
@@ -1060,6 +1083,11 @@ export interface components {
             latency_s: number;
             /** Model */
             model: string;
+            /**
+             * Next
+             * @default []
+             */
+            next: components["schemas"]["Option"][];
             /** Options */
             options?: components["schemas"]["Option"][] | null;
             /**
@@ -1159,6 +1187,8 @@ export interface components {
         };
         /** CheckSubject */
         CheckSubject: {
+            /** Global Id */
+            global_id?: string | null;
             /**
              * Kind
              * @enum {string}
@@ -1368,6 +1398,50 @@ export interface components {
              * @enum {string}
              */
             what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
+        };
+        /** DisciplineFollow */
+        DisciplineFollow: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["ServiceAction"][];
+            /**
+             * Discipline
+             * @enum {string}
+             */
+            discipline: "architecture" | "structural" | "plumbing" | "heating" | "ventilation" | "electrical" | "fire" | "site" | "other";
+            /**
+             * Elements
+             * @default 0
+             */
+            elements: number;
+            /** Line */
+            line: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ServiceMark"][];
+            /** Reason */
+            reason?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "checked" | "no_model" | "not_aligned";
+            /**
+             * @default {
+             *       "cut_off": 0,
+             *       "follows": 0,
+             *       "needs_decision": 0,
+             *       "new_run_m": 0,
+             *       "stays": 0
+             *     }
+             */
+            summary: components["schemas"]["Summary"];
         };
         /**
          * Disputed
@@ -1819,6 +1893,8 @@ export interface components {
             file_id: string | null;
             /** Floor */
             floor: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
             /** Id */
             id: string;
             /**
@@ -1831,6 +1907,8 @@ export interface components {
             links: components["schemas"]["IssueLinks"];
             /** Mark Id */
             mark_id: string | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Page */
             page: number | null;
             /** Polygon */
@@ -2413,6 +2491,7 @@ export interface components {
              * @default []
              */
             rooms: components["schemas"]["RoomChange"][];
+            services?: components["schemas"]["ServicesFollow"] | null;
             /**
              * State
              * @default proposed
@@ -2913,6 +2992,92 @@ export interface components {
             ref?: string | null;
         };
         /**
+         * ServiceAction
+         * @description One consequence of the edit in one discipline. `label` is the whole of it in plain words,
+         *     numbers included; the rest is for drawing it.
+         */
+        ServiceAction: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "reseat" | "in_wall" | "cut_off" | "through" | "riser" | "fire_damper" | "tally" | "opening" | "under" | "missing";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Moved To */
+            moved_to?: [
+                number,
+                number
+            ] | null;
+            /**
+             * Paths
+             * @default []
+             */
+            paths: [
+                number,
+                number
+            ][][];
+            /**
+             * Refs
+             * @default []
+             */
+            refs: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "follows" | "stays" | "needs_decision" | "cut_off";
+            /** System */
+            system?: string | null;
+        };
+        /**
+         * ServiceMark
+         * @description One service element near the edit, for the overlay: a run as its line, anything else as
+         *     its point. Page fractions.
+         */
+        ServiceMark: {
+            /** At */
+            at?: [
+                number,
+                number
+            ] | null;
+            /** Global Id */
+            global_id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /**
+             * Line
+             * @default []
+             */
+            line: [
+                number,
+                number
+            ][];
+            /** Ref */
+            ref: string;
+        };
+        /** ServicesFollow */
+        ServicesFollow: {
+            /**
+             * Credits
+             * @default []
+             */
+            credits: string[];
+            /** Disciplines */
+            disciplines: components["schemas"]["DisciplineFollow"][];
+            /** Storey */
+            storey: string | null;
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
@@ -3083,6 +3248,34 @@ export interface components {
             quantity: string;
             /** Question */
             question: string;
+        };
+        /** Summary */
+        Summary: {
+            /**
+             * Cut Off
+             * @default 0
+             */
+            cut_off: number;
+            /**
+             * Follows
+             * @default 0
+             */
+            follows: number;
+            /**
+             * Needs Decision
+             * @default 0
+             */
+            needs_decision: number;
+            /**
+             * New Run M
+             * @default 0
+             */
+            new_run_m: number;
+            /**
+             * Stays
+             * @default 0
+             */
+            stays: number;
         };
         /** Takeoff */
         Takeoff: {
@@ -4038,6 +4231,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProjectChecks"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    services_png_api_projects__project_id__drawings__drawing_id__services__storey_id__png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storey_id: string;
+                project_id: string;
+                drawing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the storey's services, drawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description no such project, drawing or storey */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the drawing has no services model yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

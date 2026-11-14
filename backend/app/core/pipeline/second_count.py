@@ -55,6 +55,14 @@ ESTIMATE_TOLERANCE = 0.10
 # on one side, not the estimate's error: no rule decides it, a person does
 ESTIMATE_RANGE = 2.0
 AGREE = "both methods agree"
+# Two room counts no rule decides, where the reading (the first value) is more than ESTIMATE_RANGE
+# times every other, all above 0: a printed number that much smaller counts something else (a flat
+# type, 4H+K), not the rooms; the reading is kept, both stay on the entry. The other way round (more
+# printed than read) the reader may have missed rooms: a person decides
+FAR_COUNTS = (
+    f"the rooms read are more than {ESTIMATE_RANGE:g}x the other count, which counts something "
+    "else: the reading is kept"
+)
 
 
 class Rule(NamedTuple):
@@ -201,14 +209,14 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
                 status="conflict" if apart else "agree",
                 tolerance=tolerance,
                 values=tuple(values),
-                resolution=_resolution(quantity, values, apart),
+                resolution=_resolution(quantity, subject, values, apart),
             )
         )
     return entries
 
 
 def _resolution(
-    quantity: ConflictQuantity, values: Sequence[MeasuredValue], apart: bool
+    quantity: ConflictQuantity, subject: Subject, values: Sequence[MeasuredValue], apart: bool
 ) -> Resolution | None:
     """The value to report: the preferred method's when a rule names one, else the first value
     when they agree, else nothing."""
@@ -218,6 +226,15 @@ def _resolution(
         if far_apart(min(numbers), max(numbers)) and (rule is None or rule.prefer != "scale_bar"):
             rule = None  # a measured bar keeps its rule (printed.py); a ratio does not
     if rule is None:
+        read, others = values[0].value, [value.value for value in values[1:]]
+        if (
+            quantity == "room_count"
+            and subject.kind == "sheet"  # all rooms: a type's count (48 DORMS) still asks a person
+            and others
+            and min(others) > 0
+            and read > ESTIMATE_RANGE * max(others)
+        ):
+            return Resolution(rule=FAR_COUNTS, value=read)
         return None if apart else Resolution(rule=AGREE, value=values[0].value)
     preferred = next(value.value for value in values if value.method == rule.prefer)
     return Resolution(rule=rule.text if apart else AGREE, value=preferred)

@@ -152,6 +152,8 @@ SEVERAL_FLOORS = "a floor several of the drawing's storeys could be"
 SHARED_FLOOR = "a floor several plans of the drawing are labelled"
 # A supported kind of question whose room or element was not recognised (review/ask.py words it)
 NO_SUBJECT = "no element, room or apartment named"
+# a count of a thing that is no element class, room or apartment ("How many X-RAY rooms")
+NOT_COUNTED = "the thing counted is not an element, room or apartment"
 
 
 class Evidence(Frozen):

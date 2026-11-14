@@ -41,6 +41,7 @@ from app.core.answering.floors import FLOOR
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
+    NOT_COUNTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
     UNQUOTED_PLACE,
@@ -348,7 +349,7 @@ class TemplateParser:
             # a room number names a room whatever word goes with it ("Bagno 1.01")
             hits = [(number.start(), "room")]
         if hits and not _counted_thing_named(body, hits):
-            return Unsupported(reason="the thing counted is not an element, room or apartment")
+            return Unsupported(reason=NOT_COUNTED)
         subjects = list(dict.fromkeys(subject for _, subject in hits)) or ["room"]
         if measure in ("area", "length") and subjects[0] in ROOM_NAMED:
             # the area of the sauna (or "the sauna room", "the toilet") is that room's

@@ -224,11 +224,18 @@ class Settings(BaseSettings):
     local_gates: str = ""
     # Uploaded projects, drawing models and review edits (gitignored); relative to backend/
     projects_dir: Path = Path("../data/projects")
+    # Stored services models (decision 0017), <sha256>.services.v1.b<builder>.json.gz (a newer
+    # builder rebuilds them); `python -m app.cli services build` writes them, GET
+    # .../services/{storey}.png draws them (gitignored)
+    services_cache_dir: Path = Path("../data/cache/services")
     # The 3D view of IFC files (GET .../files/{file_id}/model.glb, FileStatus.model_3d): off, the
     # route is 404 and no payload changes. Each conversion runs alone in a subprocess under this
     # memory budget and time limit; over either, the model is too_big
     model_3d: bool = False
-    model_3d_memory_mb: int = Field(default=3000, ge=1)
+    # 1500 MB: the largest publishable model (DigitalHub plumbing) peaks at 1.27 GB, inside the
+    # live app's 4 GB; the time limit is CPU seconds (56 s for that one), so a busy machine does
+    # not make a model too_big
+    model_3d_memory_mb: int = Field(default=1500, ge=1)
     model_3d_timeout_s: float = Field(default=120, gt=0)
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
     sample_archive: Path = Path("../data/samples/sample-project.zip")
@@ -272,6 +279,10 @@ class Settings(BaseSettings):
     # off; chat-eval confirms on its set before the demo changes it (.agents/exp/pi-spike.md).
     # No "minimal": the chat model answers it with a 400
     agent_thinking: Literal["default", "none", "low", "medium", "high"] = "low"
+    # on: every plan edit the chat proposes is followed through the project's service models
+    # (plumbing, ventilation, heating, electrical IFC files), decision 0016. Reading a model
+    # takes about 0.2 GB of memory that is not given back
+    services_follow: Literal["off", "on"] = "off"
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set

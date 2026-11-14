@@ -22,6 +22,7 @@ from app.core.ingest.judge import CARBON_FLAG, CARBON_PART_FLAG
 from app.core.pipeline.model import Quantity, QuantityConflict
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import Asked, ask, suggestions
+from app.core.review.check import CheckPolicy, Counts
 from app.core.review.model import Edit, MethodValue, ReviewState
 from app.core.review.review import (
     NotAllowedError,
@@ -954,3 +955,152 @@ def test_a_room_number_printed_in_the_label_names_the_room() -> None:
     # a number two rooms print names neither: never one room's area for both, never a sum
     two = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno 1.07", 5.0, page=2))
     assert asked("What is the net floor area of room 1.07?", two).answer.answer is None
+
+
+def test_a_room_is_asked_by_its_label_s_words_or_whole_number() -> None:
+    """fable-rooms r10 (USCG scanned PDFs): the raster room reader keeps "LOBBY\\n104" and "OPEN
+    OFFICE\\n102" as one label each, so "What is the area of the lobby?" and "... of open office
+    102?" were refused as "no element, room or apartment named"."""
+
+    def room(n: int, label: str, area: float) -> Room:
+        return Room(id=f"r{n}", type="other", label=label, page=1, box=BOX_A, area_m2=area,
+                    attrs={"reader": "gemini"})  # fmt: skip
+
+    drawing = scaled(
+        room(1, "LOBBY\n104", 45.51), room(2, "OPEN OFFICE\n102", 17.46),
+        room(3, "OPEN OFFICE\n110", 1.2), room(4, "OPEN OFFICE\n114", 1.3),
+    )  # fmt: skip
+    assert asked("What is the area of the lobby?", drawing).answer.answer == 45.51
+    assert asked("What is the area of room 104?", drawing).answer.answer == 45.51
+    # three rooms print OPEN OFFICE: the number after it says which
+    assert asked("What is the area of open office 102?", drawing).answer.answer == 17.46
+    which = asked("What is the area of the open office?", drawing)
+    assert which.answer.answer is None and which.refusal is not None
+    assert which.refusal.text.startswith(
+        "3 rooms on this drawing are printed open office: OPEN OFFICE 102 17.46 m², "
+    )
+    # a whole number names a room only after "room": never any number in the question
+    assert asked("What is the area of 102?", drawing).answer.answer != 17.46
+
+
+def labelled(n: int, label: str, area: float | None = 5.0, kind: RoomType = "other") -> Room:
+    return Room(id=f"r{n}", type=kind, label=label, page=1, box=BOX_A, area_m2=area,
+                attrs={"reader": "gemini"})  # fmt: skip
+
+
+def test_a_plain_noun_that_is_a_printed_label_points_at_the_label_count() -> None:
+    """vocab-nouns P2 without P1 (line 3 failed): "How many porches are there?" with rooms printed
+    Porch is not answered from the label, and the refusal doesn't say no room is printed porches;
+    it names the label and the question that counts it. A label that only starts with the noun
+    ("CLASSROOM 104") is not it."""
+    drawing = scaled(
+        labelled(1, "CLOSET"), labelled(2, "CLOSET"), labelled(3, "Closet"),
+        labelled(4, "Porch", kind="outdoor"), labelled(5, "PORCH", kind="outdoor"),
+        labelled(6, "GUARD ROOM"), labelled(7, "MUSIC"), labelled(8, "LIBRARY"),
+        labelled(9, "CLASSROOM 104"),
+    )  # fmt: skip
+    for question, printed, value in (
+        ("How many closets are there?", "CLOSET", 3),
+        ("How many porches are there?", "Porch", 2),
+        ("How many guard rooms are there?", "GUARD ROOM", 1),
+        ("How many music rooms are there?", "MUSIC", 1),
+        ("How many libraries are there?", "LIBRARY", 1),
+        ("What is the number of porches on this floor?", "Porch", 2),
+    ):
+        got = asked(question, drawing)
+        assert got.answer.answer is None and got.refusal is not None, question
+        assert "no room on this drawing is printed" not in got.refusal.text, question
+        pointed = f"How many rooms labelled '{printed}' are there?"
+        assert got.refusal.text.endswith(f'ask "{pointed}"'), question
+        assert asked(pointed, drawing).answer.answer == value, question
+    classrooms = asked("How many classrooms are there?", drawing).refusal
+    assert classrooms is not None and "no room on this drawing is printed classrooms" in (
+        classrooms.text
+    )
+
+
+def test_a_noun_no_room_is_printed_with_is_refused_by_name() -> None:
+    """vocab-nouns P2: "How many telephone booths are there?" said "not which room or element it
+    is about"; it names the noun and the labels the drawing does print."""
+    drawing = scaled(labelled(1, "LOBBY"), labelled(2, "VAULT"), labelled(3, "PUBLIC SPACE"))
+    got = asked("How many telephone booths are there?", drawing)
+    assert got.answer.answer is None and got.refusal is not None
+    assert got.refusal.text.startswith("I don't count telephone booths: ")
+    assert "no room on this drawing is printed telephone booths" in got.refusal.text
+    assert "Rooms printed here: LOBBY, VAULT, PUBLIC SPACE." in got.refusal.text
+    bare = scaled(Room(id="r1", type="other", page=1, box=BOX_A, area_m2=5.0))
+    none = asked("How many fireplaces are there?", bare).refusal
+    assert none is not None and "No room on this drawing has a printed name." in none.text
+
+
+def test_no_and_hash_before_a_room_number_are_its_number_sign() -> None:
+    """vocab-nouns P3 (jf02-q08): "Bed Room No 2" did not find the room printed "BED ROOM № 2"."""
+    drawing = scaled(labelled(1, "BED ROOM № 1", 22.1), labelled(2, "BED ROOM № 2", 18.4))
+    for question in (
+        "What is the area of Bed Room No 2?",
+        "What is the area of bed room no. 2?",
+        "What is the area of Bed Room Nr 2?",
+        "What is the area of Bed Room #2?",
+        "What is the area of Bed Room № 2?",
+        "What is the area of Bed Room 2?",
+    ):
+        assert asked(question, drawing).answer.answer == 18.4, question
+    assert asked("What is the area of Bed Room No 3?", drawing).answer.answer is None
+
+
+def test_a_named_room_with_no_area_says_the_drawing_does_not_give_it() -> None:
+    """review-349 S3: "What is the area of LOBBY 104?" on a room whose box was refused said "not
+    which room or element it is about"; the room is named, its area is what is missing."""
+    lobby = labelled(1, "LOBBY\n104", None)
+    note = "room area: r1 not measured, its box is 0.40 x 0.50 m (0.20 m²), smaller than any room"
+    drawing = scaled(lobby, labelled(2, "OFFICE\n105", 12.0)).model_copy(update={"notes": (note,)})
+    for question in ("What is the area of the lobby?", "What is the area of LOBBY 104?"):
+        got = asked(question, drawing)
+        assert got.answer.answer is None and got.refusal is not None, question
+        assert got.refusal.code == "not-in-drawing", question
+        assert "doesn't give the area of" in got.refusal.text, question
+        assert got.refusal.text.endswith(
+            "Not measured: its box is 0.40 x 0.50 m (0.20 m²), smaller than any room."
+        ), question
+
+
+def test_apartments_no_reader_read_are_not_counted_as_none() -> None:
+    """jf06 (judge-fresh): "How many apartments are on this floor?" answered 0 on a raster sheet
+    of five flats: only the Swiss vector reader reads apartments, so a sheet without any has an
+    unknown count, not 0."""
+    flat = Drawing(file="x.png", pages=(PAGE,), scale=Scale(status="scaled"),
+                   rooms=(labelled(1, "Kök", 9.0, kind="kitchen"),))  # fmt: skip
+    got = asked("How many apartments are on this floor?", flat)
+    assert got.answer.answer is None and got.refusal is not None
+
+
+LOW_POLICY = CheckPolicy(
+    thresholds={"door": 0.8},
+    counts={"high": Counts(units=10, exact=10), "medium": Counts(units=10, exact=9),
+            "low": Counts(units=10, exact=5)},
+)  # fmt: skip
+
+
+def test_a_low_answer_with_or_without_a_partial_total_is_asked() -> None:
+    """main 8354e31: `found` (the takeoff row, which carries `partial`) was replaced by the
+    dispute finder's Found for every answer not High, so `found.partial` in the reply raised
+    AttributeError on each of them."""
+    rooms = tuple(
+        Room(id=f"r{n}", type="other", label=label, page=1, box=box, area_m2=area,
+             area_status="exact", area_source="geometry_x_scale",
+             attrs={"number": f"10{n}", "reader": "gemini"})
+        for n, label, box, area in ((1, "OFFICE", BOX_A, 10.0), (2, "HALL", BOX_B, 5.5))
+    )  # fmt: skip
+    drawing = Drawing(
+        file="scan.png", pages=(PAGE,), scale=Scale(status="estimated", m_per_unit=0.05),
+        rooms=rooms, elements=(Element(id="e1", class_="door", page=1, box=BOX_A),),
+    )  # fmt: skip
+    for text, partial in (("How many doors are there?", False),
+                          ("What is the total area of all rooms?", True)):  # fmt: skip
+        got = ask(
+            text, drawing, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
+            state=ReviewState(), check=LOW_POLICY, raster=True, route="raster",
+        )  # fmt: skip
+        assert got.answer.answer is not None and got.check is not None, text
+        assert got.level is not None and got.level.level != "high", text
+        assert (got.partial is not None) is partial, text

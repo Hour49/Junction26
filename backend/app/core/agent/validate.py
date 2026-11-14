@@ -100,10 +100,15 @@ def problems(
     return out
 
 
+def claims(text: str) -> list[str]:
+    """The numbers `text` states, ids and citations aside."""
+    return NUMBER.findall(_IDS.sub(" ", text))
+
+
 def unbacked(text: str, sources: list[str]) -> list[str]:
     """The numbers in `text` (ids and citations aside) that no number in `sources` backs."""
     known = numbers(sources)
-    return [n for n in NUMBER.findall(_IDS.sub(" ", text)) if not backed(n, known)]
+    return [n for n in claims(text) if not backed(n, known)]
 
 
 def numbers(sources: list[str]) -> set[Decimal]:

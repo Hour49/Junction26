@@ -143,6 +143,9 @@ class CheckSubject(Frozen):
     kind: Literal["room", "element", "sheet"]
     ref: str | None  # the room or element id; None for the sheet
     label: str
+    # The room's or element's IFC GlobalId when the drawing's model lists it as drawn here
+    # (ModelObject.element), for the 3D view; left out of the JSON when None (added 2026-11-14)
+    global_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class CheckResult(Frozen):

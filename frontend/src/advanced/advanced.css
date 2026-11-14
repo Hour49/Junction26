@@ -18,7 +18,7 @@
 /* Rail */
 .adv-rail {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 4px;
   background: var(--v-fill);
   border-radius: 18px;
@@ -31,7 +31,7 @@
   align-items: flex-start;
   gap: 6px;
   min-height: 44px;
-  padding: 10px 12px;
+  padding: 10px 6px;
   border: 0;
   border-radius: 14px;
   background: transparent;
@@ -39,6 +39,7 @@
   font-size: 13px;
   font-weight: 500;
   text-align: left;
+  overflow-wrap: normal; /* 9 steps leave ~70 px a step: "Normalise" must not break mid-word */
   cursor: pointer;
   transition: background-color 200ms ease-out;
 }
@@ -119,6 +120,21 @@
   margin: 0;
   font-size: 17px;
   line-height: 1.45;
+}
+.adv-routes {
+  margin: 0;
+  padding-left: 1.2em;
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--v-muted);
+}
+.adv-routes b {
+  color: var(--v-text);
+  font-weight: 600;
 }
 .adv-now {
   display: inline-flex;
@@ -550,12 +566,7 @@
     padding: 0 20px 22px;
   }
   .adv-rail {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  /* a 4-column rail at 390 px leaves ~75 px a step: "Normalise" must not break mid-word */
-  .adv-step {
-    padding: 10px 6px;
-    overflow-wrap: normal;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .adv-pair-values b {
     font-size: 22px;

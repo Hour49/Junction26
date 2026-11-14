@@ -80,6 +80,12 @@ def test_answer_with_a_policy_takes_only_the_policys_families_from_the_prior(
         "elements": doors, "rooms": [room], "read": ["door", "room"],
     }  # fmt: skip
     (drawings / "a.json").write_text(json.dumps(read))
+    # the CLI reads each question's file to give the page its reading flags (#302), so the files
+    # of the questions are in a dataset, though only the drawing's extraction answers
+    dataset = tmp_path / "junction-dataset"
+    (dataset / "data" / "cubicasa5k").mkdir(parents=True)
+    for name in ("a.png", "b.png"):
+        (dataset / "data" / "cubicasa5k" / name).write_bytes(b"\x89PNG\r\n\x1a\n" + name.encode())
     kitchens = (
         "How many kitchens (including kitchenettes, open kitchens and utility kitchens) are on "
         "this floor plan?"
@@ -108,7 +114,7 @@ def test_answer_with_a_policy_takes_only_the_policys_families_from_the_prior(
         out = tmp_path / f"answers{len(extra)}.jsonl"
         backend.run(
             "answer", "--questions", str(questions), "--drawings", str(drawings),
-            "--out", str(out), *extra,
+            "--out", str(out), "--dataset", str(dataset), *extra,
         )  # fmt: skip
         found = [json.loads(line) for line in out.read_text().splitlines()]
         return {row["id"]: (row["answer"], row["method"]) for row in found}

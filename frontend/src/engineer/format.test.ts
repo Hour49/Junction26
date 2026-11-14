@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { estimateLine, formatCost, formatLatency, formatScore, statusWord } from './format';
+import {
+  estimateLine,
+  formatCost,
+  formatLatency,
+  formatScore,
+  partialTip,
+  statusWord,
+} from './format';
 import { answer, answerArea } from '../api/fixtures';
 
 describe('engineer format', () => {
@@ -49,4 +56,19 @@ it('EN-88 estimateLine: about the rounded measure and the API sentence; a count 
   expect(estimateLine({ ...est, answer: 0.3 })).toBe('0.30 m², the scale estimated from the doors');
   expect(estimateLine(answerArea)).toBeNull();
   expect(estimateLine(answer)).toBeNull();
+});
+
+it('CH-49 partialTip: the rooms summed and how many are not in it, no names; null unless partial', () => {
+  expect(partialTip({ partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] })).toBe(
+    'May be partial: sums 7 rooms; 2 not in it',
+  );
+  expect(partialTip({ partial: true, rooms_counted: 1, rooms_missing: ['A'] })).toBe(
+    'May be partial: sums 1 room; 1 not in it',
+  );
+  expect(partialTip({ partial: true, rooms_counted: 3, rooms_missing: [] })).toBe(
+    'May be partial: sums 3 rooms',
+  );
+  expect(partialTip({ partial: false, rooms_counted: 3, rooms_missing: ['Sauna'] })).toBeNull();
+  expect(partialTip({})).toBeNull();
+  expect(partialTip(answer)).toBeNull();
 });
