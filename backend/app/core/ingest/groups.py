@@ -1,4 +1,9 @@
-"""Stages 4-10 of project ingest, one drawing group at a time.
+"""Stages 4-10 of project ingest, several drawing groups at a time (`in_flight`).
+
+Groups that read the same source (the sheets of one building and its model) are one lane, read one
+after another, so a source is never read by two groups at once; lanes run side by side. A cold
+upload is mostly waiting for model calls (Carbon, Gemini), so reading groups at once is what makes
+it fast; what each group finds is the same as when they ran one by one.
 
 Each group goes through the pipeline's own `ingest()` (app/core/pipeline/ingest.py) with its
 ports wrapped to time every stage per sheet (timing.py). What each file of the group ended as is
@@ -8,7 +13,9 @@ so the same group uploaded again is reused instead of read again, unless the run
 
 import hashlib
 import logging
-from collections.abc import Callable, Mapping
+import queue
+from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 
 from app.core.drawing.model import Drawing, Page
 from app.core.ingest.judge import judge, pipeline_stages, reading_flags, with_sheet_flag
@@ -40,9 +47,12 @@ class Groups:
         clock: Clock,
         names: Mapping[str, str],
         frames: dict[str, Normalised],
+        in_flight: int = 1,
     ) -> None:
-        """`frames`: by path, how each image sheet of the run was normalised."""
+        """`frames`: by path, how each image sheet of the run was normalised. `in_flight`: lanes
+        of groups read at once (INGEST_GROUPS_IN_FLIGHT)."""
         self._store, self._clock, self._frames = store, clock, frames
+        self._in_flight = in_flight
         self._readers = dict(names)
         self._names = sorted(f"{port}={name}" for port, name in names.items())
 
@@ -53,7 +63,8 @@ class Groups:
         drawings: dict[str, DrawingFile],
         saved: Callable[[], None],
     ) -> None:
-        """`saved` is called after each group, so the stored status follows the run."""
+        """`saved` is called after each group, on this thread, so the stored status follows the
+        run. A group that raises does not stop the others; the first error is raised at the end."""
         sources = {
             path: [drawings[found] for found in readers.finder.sources(path) if found in drawings]
             for path in drawings
@@ -75,9 +86,28 @@ class Groups:
             for file in asked:
                 run.set(file.path, group=members.key)
         saved()
-        for members, asked in groups:
-            self._group(run, readers, members, asked)
-            saved()
+        finished: queue.SimpleQueue[Exception | None] = queue.SimpleQueue()
+
+        def read(lane: list[tuple[DrawingGroup, list[DrawingFile]]]) -> None:
+            for members, asked in lane:
+                try:
+                    self._group(run, readers, members, asked)
+                except Exception as error:  # the run fails, after the other groups
+                    finished.put(error)
+                else:
+                    finished.put(None)
+
+        lanes = _lanes(groups, sources)
+        errors: list[Exception] = []
+        with ThreadPoolExecutor(self._in_flight, thread_name_prefix="group") as pool:
+            for lane in lanes:
+                pool.submit(read, lane)
+            for _ in groups:
+                if (error := finished.get()) is not None:
+                    errors.append(error)
+                saved()
+        if errors:
+            raise errors[0]
 
     def _group(
         self, run: Run, readers: Readers, members: DrawingGroup, asked: list[DrawingFile]
@@ -230,6 +260,41 @@ class Groups:
                       output=count(len(outcome.takeoff), "quantity", "quantities"))  # fmt: skip
         run.set(file.path, takeoff=outcome.takeoff, drawing_id=key if drawing is not None else None)
         _finish(run, file.path, outcome)
+
+
+def _lanes[G: tuple[DrawingGroup, list[DrawingFile]]](
+    groups: Sequence[G], sources: Mapping[str, list[DrawingFile]]
+) -> list[list[G]]:
+    """The groups as lanes, in upload order: groups that share a file or a source (a building's
+    sheets and its model, whose parsed model the readers keep) are one lane, and so are groups
+    with a file of the same content, so the later one reuses what the first stored."""
+    lane_of: dict[str, int] = {}  # a path or a content hash -> its lane's number
+    lanes: list[list[G]] = []
+    for found in groups:
+        members, asked = found
+        files = [
+            *members.files,
+            *(source for file in asked for source in sources.get(file.path, [])),
+        ]
+        paths = {f"path {file.path}" for file in files} | {
+            f"sha256 {file.sha256}" for file in files
+        }
+        joined = sorted({lane_of[path] for path in paths if path in lane_of})
+        if not joined:
+            lanes.append([])
+            joined = [len(lanes) - 1]
+        into = joined[0]
+        for other in joined[1:]:  # this group links two lanes: one lane, in upload order
+            lanes[into] += lanes[other]
+            lanes[other] = []
+        lanes[into].append(found)
+        for path, at in list(lane_of.items()):
+            if at in joined:
+                lane_of[path] = into
+        for path in paths:
+            lane_of[path] = into
+    order = {id(found): at for at, found in enumerate(groups)}
+    return [sorted(lane, key=lambda found: order[id(found)]) for lane in lanes if lane]
 
 
 FELL_BACK = (

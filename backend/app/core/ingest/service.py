@@ -121,6 +121,7 @@ class IngestService:
         triage: TriageSteps | None = None,
         evidence: EvidenceIndex | None = None,
         evidence_steps: EvidenceSteps | None = None,
+        groups_in_flight: int = 1,
     ) -> None:
         """`readers(project_id)`: the pipeline's ports over that project's files.
         `reader_names`: which adapter reads each route, shown in the status and part of the
@@ -130,13 +131,15 @@ class IngestService:
         project's evidence index (decision 0012), kept in step after judging and after an
         overrule or a re-read; None: no index. `evidence_steps`: EVIDENCE_SCOPE=all_non_plan,
         every picture triage did not set aside is asked its kind and described for the index
-        after the plans are read; it never changes how a file is routed. None: set_aside."""
+        after the plans are read; it never changes how a file is routed. None: set_aside.
+        `groups_in_flight`: drawing groups read at once (INGEST_GROUPS_IN_FLIGHT, groups.py)."""
         self._unpacker, self._probe, self._frame, self._store = unpacker, probe, frame, store
         self._rectifier = rectifier
         self._readers, self._names = readers, dict(reader_names)
         self._runner, self._clock, self._now, self._new_id = runner, clock, now, new_id
         self._triage = triage
         self._evidence, self._evidence_steps = evidence, evidence_steps
+        self._groups_in_flight = groups_in_flight
         self._lock = threading.Lock()
         self._live: dict[str, Run] = {}
 
@@ -394,7 +397,9 @@ class IngestService:
             drawings = self._unpack(run, name, data, frames)
             self._save(run)
             if drawings:
-                groups = Groups(self._store, self._clock, self._names, frames)
+                groups = Groups(
+                    self._store, self._clock, self._names, frames, self._groups_in_flight
+                )
                 groups.run(run, self._readers(run.id), drawings, lambda: self._save(run))
         except DomainError as failure:
             state, error = "failed", str(failure)
@@ -606,7 +611,7 @@ class IngestService:
             drawing = DrawingFile(
                 path=path, size=len(data), sha256=hashlib.sha256(data).hexdigest(), kind=file_format
             )
-            groups = Groups(self._store, self._clock, self._names, frames)
+            groups = Groups(self._store, self._clock, self._names, frames, self._groups_in_flight)
             groups.run(run, self._readers(run.id), {path: drawing}, lambda: self._save(run))
             read = run.file(path)
             if read.state == "set_aside":  # a reader failed: the group caught it and said why
@@ -645,7 +650,9 @@ class IngestService:
             drawing = self._identify(run, path, data, probing, first_of, frames)
             self._save(run)
             if drawing is not None:
-                groups = Groups(self._store, self._clock, self._names, frames)
+                groups = Groups(
+                    self._store, self._clock, self._names, frames, self._groups_in_flight
+                )
                 groups.run(run, self._readers(run.id), {path: drawing}, lambda: self._save(run))
             self._judge(run, failed=False)
             self._describe_for_index(run, only=path)
