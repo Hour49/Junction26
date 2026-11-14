@@ -5,14 +5,18 @@ off the drawing without replacing them. A fake reader stands in for the Carbon c
 
 import io
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from PIL import Image
+from test_answering import NoPrior
 
 from app.adapters.printed_scale import PrintedScale, stated_dpi
 from app.adapters.raster_scale import PriorScale
 from app.composition import build_ingest
-from app.core.drawing.model import Drawing, Element, Page, Room, Scale
+from app.core.answering.answer import answer_question
+from app.core.answering.model import Answer, Query, Question, Unsupported
+from app.core.drawing.model import Drawing, Element, MeasuredValue, Page, Room, Scale, Subject
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 from app.core.pipeline.printed import (
@@ -20,15 +24,22 @@ from app.core.pipeline.printed import (
     PrintedSheet,
     ScaleBar,
     bar_m_per_px,
+    fact_measurements,
     imperial_scales,
     printed_scale,
     ratio_of,
     trusted_dpi,
 )
-from app.core.pipeline.raster_scale import DOOR_M
+from app.core.pipeline.raster_scale import (
+    BOX_RATIO,
+    DOOR_M,
+    LABEL_NOTE,
+    LABEL_RANGE,
+    label_area_checks,
+)
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, second_count
-from app.core.pipeline.takeoff import take_off
+from app.core.pipeline.takeoff import known_quantities, label_source, take_off
 from app.settings import Settings
 
 PAGE = Page(page=1, width=2000, height=1000, unit="px")
@@ -110,6 +121,20 @@ def test_a_bar_wins_over_a_ratio_and_a_ratio_needs_a_trusted_resolution() -> Non
     assert ratio.evidence == ("scale_text",)
     assert printed_scale(PrintedSheet(printed_scale="1:100"), [PAGE], dpi=None) is None
     assert printed_scale(PrintedSheet(printed_scale="bar"), [PAGE], dpi=150.0) is None
+
+
+def test_a_ratio_on_a_page_in_points_is_metres_per_point_whatever_the_renders_resolution() -> None:
+    """A scanned PDF's page is in points (r10, 2026-11-14: its ratio became metres per pixel of
+    the 129 dpi render, so a 47.7 m wide sheet measured 26.6 m and its areas came out x0.31)."""
+    paper = Page(page=1, width=39.1 * 72, height=24.5 * 72, unit="pt")
+    quarter_inch = PrintedSheet(printed_scale='1/4" = 1\'-0"')
+    for dpi in (129.286, 150.0):
+        scale = printed_scale(quarter_inch, [paper], dpi=dpi)
+        assert scale is not None and scale.m_per_unit is not None
+        assert scale.m_per_unit == pytest.approx(48 * 0.0254 / 72)
+        assert scale.m_per_unit * paper.width == pytest.approx(48 * 39.1 * 0.0254)
+        assert scale.source == "printed scale 1/4\" = 1'-0\" on the page's paper size"
+    assert printed_scale(quarter_inch, [paper], dpi=None) is None  # no trusted paper size
 
 
 def doors(side_px: float, n: int) -> tuple[Element, ...]:
@@ -199,6 +224,24 @@ def test_the_printed_bar_replaces_the_door_estimate_and_measures_the_rooms_again
     side = take_off(drawing, apply_rules(drawing.marks_by_quantity()))["length:room:bedroom"]
     assert side.value == pytest.approx(200 * 0.02)  # within 2x: a length at the bar is not flagged
     assert side.estimate is None
+
+
+def test_label_boxes_a_label_boxed_as_its_room_gets_no_area_at_the_printed_scale() -> None:
+    """pipe-label-boxes: the printed scale made "LOBBY 0.18 m²" read as exact."""
+    inner = Fixed(side_px=DOOR_M / 0.02)
+    hall = Room(id="r2", type="living", page=1, box=(0.2, 0.1, 0.3, 0.25))  # 4 x 3 m at 0.02
+    lobby = Room(id="r3", type="other", label="LOBBY", page=1, box=(0.12, 0.32, 0.135, 0.335))
+    inner.found = inner.found.model_copy(update={"rooms": (*inner.found.rooms, hall, lobby)})
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+    assert found.scale.status == "scaled"
+    _, hall_read, lobby_read = found.rooms
+    assert hall_read.area_m2 == pytest.approx(4 * 3 / BOX_RATIO, abs=0.01)
+    assert lobby_read.area_m2 is None and lobby_read.label == "LOBBY"
+    said = [note for note in found.notes if note.startswith("room area:")]
+    assert said == [  # once, at the printed scale (the estimate's note is replaced)
+        "room area: r3 not measured, its box is 0.60 x 0.30 m (0.18 m²), smaller than any room "
+        "(a door leaf's footprint, 0.5 m²)"
+    ]
 
 
 def test_a_printed_ratio_wins_over_the_door_estimate_too(tmp_path: Path) -> None:
@@ -309,6 +352,81 @@ def drawing_of(found: Extracted) -> Drawing:
     )
 
 
+def label_room(id_: str, box: tuple[float, float, float, float], printed: float) -> Room:
+    """A room as the Gemini room reader gives it with an area printed in its label."""
+    return Room(id=id_, type="other", label=f"{id_.upper()} {printed:g} m²", page=1, box=box,
+                area_m2=printed, area_status="exact", area_source="printed")  # fmt: skip
+
+
+class AreaOf:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def parse(self, text: str) -> Query | Unsupported:
+        return Query(measure="area", subject="room", name=self.name)
+
+
+def test_label_area_fixes_s1_a_label_area_far_from_its_outline_is_left_to_a_person() -> None:
+    """qa-c S1: "KH 97 m²" (its decimal comma lost) on a 3 x 3 m box at a printed scale came
+    out 97.0 exact. More than LABEL_RANGE from the outline, both values stand and no rule
+    decides; within it the label stands, and so does a label-sized box's."""
+    inner = Fixed(side_px=DOOR_M / 0.02)  # the doors agree with the bar: 0.02 m/px
+    kh = label_room("kh", (0.30, 0.10, 0.375, 0.25), 97.0)  # 150 x 150 px: 3 x 3 m
+    mh = label_room("mh", (0.40, 0.10, 0.475, 0.25), 8.0)  # the same box, a plausible label
+    lobby = label_room("lobby", (0.50, 0.10, 0.54, 0.115), 7.4)  # 0.3 m tall: boxes its label
+    inner.found = inner.found.model_copy(update={"rooms": (*inner.found.rooms, kh, mh, lobby)})
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+
+    outline = round(150 * 150 * 0.02**2 / BOX_RATIO, 2)
+    assert [(m.subject.ref, m.value.value, m.value.method) for m in found.printed
+            if m.quantity == "room_area"] == [("kh", 97.0, "printed_label"),
+                                              ("kh", outline, "detector")]  # fmt: skip
+    said = [note for note in found.notes if note.startswith(LABEL_NOTE)]
+    assert said == [  # once: the door estimate's check is replaced by the printed scale's
+        f"{LABEL_NOTE}kh prints 97 m², its outline at the sheet's scale is about 8.15 m² (more "
+        f"than {LABEL_RANGE:g}x apart): left for a person"
+    ]
+    drawing = drawing_of(found)
+    (entry,) = [c for c in drawing.conflicts or () if c.quantity == "room_area"]
+    assert (entry.status, entry.resolution) == ("conflict", None)
+
+    def ask(name: str) -> Answer:
+        question = Question(id=1, file=FILE.path, text="How big is it?")
+        quantities = known_quantities(drawing)
+        return answer_question(question, quantities, AreaOf(name), iter(range(9)).__next__,
+                               NoPrior())  # fmt: skip
+
+    disputed = ask("kh 97 m²")
+    assert disputed.abstain is True and "no rule decides" in (disputed.explanation or "")
+    kept = ask("mh 8 m²")
+    assert (kept.answer, kept.abstain, kept.estimate) == (8.0, None, None)
+    # the level note: where the value was printed reaches the answer's explanation
+    assert kept.explanation == "read from the room's label on the image (a digit can be misread)"
+    assert ask("lobby 7.4 m²").answer == 7.4
+
+
+def test_label_source_says_the_area_was_read_off_the_image() -> None:
+    """review-341-level: one, all and some of the rooms' areas read from their labels."""
+    one, two = (
+        label_room("mh", (0.1, 0.1, 0.2, 0.2), 8.0),
+        label_room("kh", (0.3, 0.1, 0.4, 0.2), 5.0),
+    )
+    plain = Room(id="r3", type="hall", page=1, box=(0.5, 0.1, 0.6, 0.2), area_m2=3.0)
+    assert label_source([one]) == "read from the room's label on the image (a digit can be misread)"
+    assert label_source([one, two]) == (
+        "read from the rooms' labels on the image (a digit can be misread)"
+    )
+    assert label_source([one, two, plain]) == (
+        "2 of 3 room areas read from the rooms' labels on the image (a digit can be misread)"
+    )
+    assert label_source([plain]) is None
+
+
+def test_label_area_fixes_no_scale_no_check() -> None:
+    room = label_room("kh", (0.3, 0.1, 0.375, 0.25), 97.0)
+    assert label_area_checks([room], Scale(status="no_scale"), [PAGE]) == ([], [])
+
+
 def test_a_printed_count_stands_against_the_counted_one_and_never_replaces_it() -> None:
     found = read(Fixed(side_px=40.0, bedrooms=80), PrintedSheet(printed_facts=(DORMS,)))
     drawing = drawing_of(found)
@@ -393,3 +511,81 @@ def test_the_setting_is_part_of_the_ingest_reuse_key_only_when_on(tmp_path: Path
 
 def test_the_setting_is_off_by_default() -> None:
     assert Settings(_env_file=None).raster_printed_scale == "off"  # pyright: ignore[reportCallIssue]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["4H+K", "3h+k+s", "2h+kt", "1h+kk", "5H+K+S+SAU", "4 h + k", "Asunto B 12, 3h+k+s 78 m²"],
+)
+def test_a_flat_type_is_never_a_room_count(text: str) -> None:
+    """A Finnish flat type (4H+K: four rooms and a kitchen) names the flat, it does not count the
+    rooms drawn (live project d8c0e57b1ac4: 4H+K against 18 rooms read)."""
+    assert fact_measurements([PrintedFact(text=text, subject="room", value=4, unit="count")]) == []
+
+
+def test_a_printed_room_count_that_is_no_flat_type_is_still_a_room_count() -> None:
+    (found,) = fact_measurements(
+        [PrintedFact(text="4 ROOMS", subject="room", value=4, unit="count")]
+    )
+    assert (found.quantity, found.value.value) == ("room_count", 4)
+
+
+def counts(
+    read: float, printed: float, door: bool = False, kind: str | None = None
+) -> list[Measurement]:
+    """A count read and one printed: of all rooms, of one room type, or of doors."""
+    quantity: Literal["room_count", "element_count"] = "element_count" if door else "room_count"
+    subject = (
+        Subject(kind="class", ref="door")
+        if door
+        else Subject(kind="class", ref=kind)
+        if kind
+        else Subject(kind="sheet", ref=None)
+    )
+    return [
+        Measurement(
+            quantity=quantity,
+            subject=subject,
+            value=MeasuredValue(value=read, unit="count", method="plan_drawing"),
+        ),
+        Measurement(
+            quantity=quantity,
+            subject=subject,
+            value=MeasuredValue(value=printed, unit="count", method="printed_total"),
+        ),
+    ]
+
+
+def test_rooms_read_more_than_twice_the_printed_count_keep_the_reading_and_ask_no_person() -> None:
+    """18 read, 4 printed: no rule decides, but a printed number that much smaller counts
+    something else; the reading is kept and shown, with no card for a person."""
+    read, printed = counts(18, 4)
+    (entry,) = second_count([read], [printed])
+    assert entry.status == "conflict"  # both values stay on the entry
+    assert entry.resolution is not None and entry.resolution.value == 18
+    assert "more than 2x the other count" in entry.resolution.rule
+
+
+@pytest.mark.parametrize(
+    ("read", "printed", "door"),
+    [
+        (0, 3, False),  # nothing read
+        (6, 5, False),  # within 2x
+        (80, 48, False),
+        (4, 12, False),  # more printed than read: the reader may have missed rooms
+        (3, 12, True),  # doors: the rule is for rooms only
+        (18, 4, True),
+    ],
+)
+def test_other_count_pairs_are_left_to_a_person(read: int, printed: int, door: bool) -> None:
+    first, second = counts(read, printed, door)
+    (entry,) = second_count([first], [second])
+    assert entry.status == "conflict" and entry.resolution is None
+
+
+def test_a_room_type_count_far_above_the_printed_one_still_asks_a_person() -> None:
+    """qa-a on #385: 120 bedrooms read against a printed '48 DORMS' is a real disagreement about
+    one type, not a flat type; only the sheet's total room count keeps the reading."""
+    read, printed = counts(120, 48, kind="room:bedroom")
+    (entry,) = second_count([read], [printed])
+    assert entry.status == "conflict" and entry.resolution is None

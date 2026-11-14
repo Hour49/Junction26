@@ -36,6 +36,8 @@ class ChatInfo(View):
     model: Literal["gemini", "rules", "off"]
     available: bool
     reason: str | None  # why not available; None when it is
+    # POST /api/projects/{id}/chat/stream exists: the client streams a turn's steps only when true
+    stream: bool = True
 
 
 class Info(View):

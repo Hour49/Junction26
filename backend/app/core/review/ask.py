@@ -18,11 +18,14 @@ from app.core.answering.answer import (
     UNSUPPORTED_QUESTION,
     RoomByType,
     answer_question,
+    partial_text,
+    printed_rooms,
     rooms_of_type,
 )
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
+    SEVERAL_PRINTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
     Answer,
@@ -37,14 +40,17 @@ from app.core.drawing.model import ELEMENT_CLASSES, CarbonCheck, Drawing, Room, 
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
-from app.core.pipeline.model import CountingRule, Quantity
-from app.core.pipeline.takeoff import known_quantities, room_names
+from app.core.pipeline.model import CountingRule, Partial, Quantity
+from app.core.pipeline.takeoff import known_quantities, normalised, quantity_key, room_names
 from app.core.review.check import (
+    ASK,
     NO_SCORERS,
     Check,
     CheckPolicy,
     Disputes,
+    Found,
     Level,
+    RoomWords,
     Scorer,
     carbon_checked,
     certified,
@@ -54,9 +60,14 @@ from app.core.review.check import (
     held,
     level_of,
     no_disputes,
+    no_room_words,
+    only_room_word,
+    room_word_doubt,
+    room_word_refusal,
     schedule_check,
     score_of,
     summed_check,
+    unmeasured_room,
 )
 from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
@@ -83,7 +94,7 @@ NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)"
 PLURALS = {"living": "living rooms"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
-ROOM_NUMBER = re.compile(r"U?\d+\.\d+")  # a room number the parser reads without quotes
+ROOM_NUMBER = re.compile(r"-?U?\d+\.\d+")  # a room number the parser reads without quotes
 TEXTS = {
     "unsupported-question": "This question isn't one I can turn into a count, area, length or "
     "volume. Try one of these instead.",
@@ -103,8 +114,8 @@ PARTS = {  # an unsupported count that would drop part of the question: which pa
     "the whole drawing. Ask for each one on its own; try one of these.",
     IN_ONE_ROOM: "This question counts what is inside one room, and I count across the whole "
     "drawing. Try one of these instead.",
-    SEVERAL_ROOMS: "This question names more than one room, and I give one room's area or length "
-    "at a time. Ask for each room on its own.",
+    SEVERAL_ROOMS: "This question names more than one room, and I answer for one room at a time. "
+    "Ask for each room on its own.",
 }
 
 
@@ -119,6 +130,8 @@ class Asked(Frozen):
     # CHECK_POLICY's confidence level; None: a refusal, a value a person signed or settled, the
     # policy off, or a policy file without levels
     level: Level | None = None
+    # A room total that may leave rooms out (Quantity.partial); None: not one, or a refusal
+    partial: Partial | None = None
 
 
 class _Once:
@@ -153,6 +166,7 @@ def ask(
     no_reader: bool = False,
     scorers: Mapping[str, Scorer] = NO_SCORERS,
     carbon_ladder: bool = False,
+    room_words: RoomWords = no_room_words,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -169,8 +183,15 @@ def ask(
     about at once. The answer's `level` comes from the same verdict (check.level_of): High
     exactly when sure; none on a value a person signed or settled, which is theirs. With
     `carbon_ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon read the same is High and asks
-    nothing, yet stays not `sure`: Carbon never certifies an answer."""
+    nothing, yet stays not `sure`: Carbon never certifies an answer. On the raster route a count
+    `room_words` doubts (check.room_word_doubt: its rooms' printed labels) is not certified
+    and gets no High from Carbon either; its level is otherwise the score's, except Low on an image
+    printing words of a plan kind the policy was not measured on (check.unmeasured_room). A 0
+    count of a room type whose only candidates are labelled just "room" is refused
+    (check.only_room_word)."""
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
+    unsaid = _unsaid(quantities, drawing)
+    quantities = {key: found for key, found in quantities.items() if key not in unsaid}
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -189,6 +210,8 @@ def ask(
     notes = [NOT_LOCATED] if found is not None and _unplaced(found, drawing) else []
     if found is not None and parse_key(found.key)[1] == "door" and CLOSET.search(text):
         notes.append(CLOSET_RULE)
+    if found is not None and _in_room_opening(found.key):
+        notes.append(SHARED_OPENING)
     if notes:
         said = "; ".join(note for note in (answer.explanation, *notes) if note)
         answer = answer.model_copy(update={"explanation": said})
@@ -224,6 +247,9 @@ def ask(
             code, words = "no-reader", _unread_text(query, flags)
         elif query is not None and query in unlocated:
             code, words = "no-reader", _unlocated_text(unlocated[query], flags, drawing)
+        elif query is not None and query in unsaid:
+            kind = parse_key(query)[1].split(":", 1)[1]
+            code, words = "not-in-drawing", room_word_refusal(kind, unsaid[query])
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
@@ -236,12 +262,35 @@ def ask(
                     "doesn't say which one. Ask about one of them."
                 )
                 can_answer = each
+        if (
+            isinstance(parsed, Unsupported)
+            and parsed.reason == SEVERAL_PRINTED
+            and (named := printed_rooms(parser, drawing, text)) is not None
+        ):
+            # "How big is Bagno?", "How many doors does Bagno have?" with two rooms printed
+            # Bagno: which one (Tudor's chat QA; fail-1, review-332 S1)
+            again, rooms = named
+            code = "not-in-drawing"
+            words = (
+                f"{len(rooms)} rooms on this drawing are printed {again.name}: "
+                f"{', '.join(_room_lines(rooms, quantities))}. Which one? Ask with its number."
+            )
+            each = (
+                _room_areas(rooms, quantities, parser)
+                if again.measure == "area"
+                else _room_counts(rooms, again.subject, quantities, parser)
+            )
+            can_answer = each or can_answer
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     level = None
     sure: bool | None = None  # CHECK_POLICY's verdict
     if check is not None and shown is not None and isinstance(parsed, Query):
         reason = held(shown, drawing)
+        if reason is None and found is not None and found.partial is not None:
+            reason = f"Please double-check the {shown.noun or shown.label}: " + partial_text(
+                found.partial
+            )
         family = parsed.family()
         score = score_of(
             check, family, confidence=answer.confidence, drawing=drawing, value=answer.answer,
@@ -251,28 +300,38 @@ def ask(
         if family in AGREEING_FAMILIES and confidence is not None and route == "raster":
             agrees = confidence.probability(drawing.file, family, answer.answer).agrees
         blank = found_nothing(drawing)
-        sure = reason is None and certified(
+        doubt = room_word_doubt(shown, drawing, room_words) if route == "raster" else None
+        unmeasured = shown.measure == "count" and unmeasured_room(drawing, room_words) is not None
+        sure = reason is None and doubt is None and certified(
             check, route=route, family=family, score=score, flags=flags, agrees=agrees,
             blank=blank,
         )  # fmt: skip
         if shown.signed is None and shown.settled is None:
             level = level_of(
                 check, sure=sure, route=route, family=family, score=score, flags=flags,
-                held=reason is not None, blank=blank,
+                held=reason is not None, blank=blank, unmeasured=unmeasured,
             )  # fmt: skip
             if level is not None and drawing.carbon_check is not None:
                 carbon = carbon_answer(
                     question, drawing, drawing.carbon_check, parser, clock, prior, prior_families
                 )
                 # a disagreement the gate found (`agrees`) is not settled by Carbon agreeing
-                ladder = carbon_ladder and agrees is not False
+                ladder = carbon_ladder and agrees is not False and doubt is None
                 level = carbon_checked(
                     level, drawing.carbon_check, carbon, answer.answer, ladder=ladder
                 )
+        if level is not None and found is not None and found.partial is not None:
+            # a sum missing rooms is Low whatever its score, in its own words (partial totals)
+            said = "Low confidence: " + partial_text(found.partial) + ASK["low"]
+            level = Level(level="low", basis="held", text=said)
         if not sure and not (level is not None and level.level == "high"):
+            found = disputes(drawing, shown)
+            if reason is None and doubt is not None:
+                reason = doubt.reason
+                found = Found(places=(*doubt.places, *found.places), reason=found.reason)
             if reason is None and agrees is False:
                 reason = disagree(shown)
-            request = double_check(shown, marks, disputes(drawing, shown), reason)
+            request = double_check(shown, marks, found, reason)
     elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
         request, level = summed_check(check)
         sure = False
@@ -293,6 +352,7 @@ def ask(
         proof=proof,
         check=request,
         level=level,
+        partial=None if found is None else found.partial,
     )
 
 
@@ -381,6 +441,19 @@ def _flagged(
     return kept, empty, unlocated
 
 
+def _unsaid(quantities: Mapping[str, Quantity], drawing: Drawing) -> dict[str, tuple[Room, ...]]:
+    """The 0 counts of a room type the drawing does not say (check.only_room_word), by key, with
+    the rooms that are why: the question is refused, not answered 0."""
+    found: dict[str, tuple[Room, ...]] = {}
+    for key, quantity in quantities.items():
+        measure, subject = parse_key(key)[:2]
+        if measure != "count" or not subject.startswith("room:") or quantity.value != 0:
+            continue
+        if rooms := only_room_word(subject.split(":", 1)[1], drawing):
+            found[key] = rooms
+    return found
+
+
 def _groups(key: str) -> set[str]:
     """The groups a quantity key rests on: "area:room|indoor" -> {"room"}, "door+window" ->
     {"door", "window"}."""
@@ -402,6 +475,14 @@ NOT_LOCATED = "not located on the drawing"
 # counts closet doors as doors; brief r8 BM)
 CLOSET = re.compile(r"\bcloset", re.IGNORECASE)
 CLOSET_RULE = "closet doors are counted as doors"
+# fail-1, review-332 N1: rooms' door counts add up to more than the sheet's
+SHARED_OPENING = "a door or window in a wall between two rooms counts for both rooms"
+
+
+def _in_room_opening(key: str) -> bool:
+    """A count of doors or windows in one room (`door|name=1.01`)."""
+    _, subject, scope = parse_key(key)
+    return scope.name is not None and bool({"door", "window"} & set(subject.split("+")))
 
 
 def _room_count(found: Quantity) -> bool:
@@ -456,6 +537,39 @@ def suggestions(
             parsed = parser.parse(text)
             if isinstance(parsed, Query) and parsed.key() == key:
                 found.append(Suggestion(quantity=key, label=label(key), question=text))
+                break
+    return tuple(found)
+
+
+def _room_lines(rooms: Sequence[Room], quantities: Mapping[str, Quantity]) -> list[str]:
+    """Each room as "Bagno 1.01 7.56 m²": its printed label, its number, and the area of its row
+    (by the first of its names the takeoff has one for) when it has one."""
+    lines: list[str] = []
+    for room in rooms:
+        keys = (quantity_key("area", "room", name=name) for name in room_names(room))
+        found = next((quantities[key] for key in keys if key in quantities), None)
+        number = room.attrs.get("number")
+        name = " ".join(" ".join(str(part).split()) for part in (room.label, number) if part)
+        lines.append(name if found is None else f"{name} {found.value:.2f} m²")
+    return lines
+
+
+def _room_counts(
+    rooms: Sequence[Room], subject: str, quantities: Mapping[str, Quantity], parser: QuestionParser
+) -> tuple[Suggestion, ...]:
+    """The count question of `subject` in each room, by one of its names, that the parser maps
+    back to a row."""
+    found: list[Suggestion] = []
+    for room in rooms:
+        for name in sorted(room_names(room)):
+            if not ROOM_NUMBER.fullmatch(name):
+                continue
+            text = f"How many {plural(subject)} are in room {name}?"
+            parsed = parser.parse(text)
+            if isinstance(parsed, Query) and parsed.key() in quantities:
+                found.append(
+                    Suggestion(quantity=parsed.key(), label=label(parsed.key()), question=text)
+                )
                 break
     return tuple(found)
 
@@ -580,4 +694,20 @@ def _refusal(
             f"The reader of this drawing doesn't look for {', '.join(missing)}, so it has no "
             f"{label(query, drawing)}.",
         )
+    if parsed.measure == "count" and parsed.name is not None:  # what is inside one room
+        rooms = [room for room in drawing.rooms if normalised(parsed.name) in room_names(room)]
+        if not rooms:
+            return "not-in-drawing", f"No room on this drawing is numbered or named {parsed.name}."
+        if len(rooms) > 1:
+            return (
+                "not-in-drawing",
+                f"{len(rooms)} rooms on this drawing are named {parsed.name}, so the question "
+                "doesn't say which one.",
+            )
+        if rooms[0].polygon is None:
+            return (
+                "not-in-drawing",
+                f"Room {parsed.name} has no outline on this drawing, only a box around it, so I "
+                "can't tell what is inside it.",
+            )
     return "not-in-drawing", f"This drawing doesn't give the {label(query, drawing)}."

@@ -68,10 +68,19 @@ class IfcFile:
         part_of: str | None = None,
         name: str | None = None,
         quantities: Mapping[str, float] | None = None,
+        solid: tuple[Sequence[Point], float, float] | None = None,
     ) -> str:
         """An object contained in `storey`, or a part of the object `part_of` (both by GlobalId).
-        `quantities`: by the file's quantity name, e.g. NetSideArea, in one Qto set."""
-        element = self._rooted(ifc_class, Name=name)
+        `quantities`: by the file's quantity name, e.g. NetSideArea, in one Qto set. `solid`: its
+        shape, as a space's (outline, floor, height); without one it has no geometry."""
+        element = self._rooted(
+            ifc_class,
+            Name=name,
+            ObjectPlacement=None
+            if solid is None
+            else self._new("IfcLocalPlacement", RelativePlacement=self._origin),
+            Representation=None if solid is None else self._body([solid]),
+        )
         if storey is not None:
             self._rooted(
                 "IfcRelContainedInSpatialStructure",

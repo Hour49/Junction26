@@ -40,6 +40,7 @@ uv run python -m stoa_eval hard-questions <labels.json> --root .. --out q.jsonl 
 uv run python -m stoa_eval hard <labels.json> --run <answer out> --questions q.jsonl [--run ... --questions ...] [--pred P.jsonl]
 uv run python -m stoa_eval services-gen <model.ifc>... --manifest M.json   # hard services questions (below)
 uv run python -m stoa_eval services-score <questions.jsonl> <answers.jsonl> --name <method>
+uv run python -m chat.run --base <backend> --out <run.jsonl>   # the project chat, judge-like (chat/README.md)
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
 

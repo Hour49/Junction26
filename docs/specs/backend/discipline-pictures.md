@@ -39,8 +39,11 @@ Non-goals (v1):
 
 A page reaches this lane when triage says so:
 - `Sheet.discipline` (`app/core/ingest/model.py`, from `discipline_from_sheet`) is one of `plumbing`, `heating`,
-  `ventilation`, `electrical`, `fire` or `structural`, **or** `Sheet.kind == "mep_plan"` (discipline None is
-  allowed: the legend then decides each symbol's discipline);
+  `ventilation`, `electrical`, `fire` or `structural`, which it is only by a strong title word or a sheet code
+  (`discipline.py`; weak words such as "pump" or "post" never override the kind);
+- `Sheet.kind == "mep_plan"` alone does **not** route: an `mep_plan` whose title names no service (discipline None)
+  is not routed. Measured on the labelled set: the sheet-kind model calls 4 of 22 labelled floor plans
+  (evacuation-plan photos) `mep_plan`, so routing on the kind would send floor plans to this lane;
 - and `Sheet.decision != "set_aside"`.
 
 The page is one of:
@@ -238,13 +241,19 @@ models besides the architectural one. For each model and each storey, a renderer
 discipline**:
 - every distribution element of that discipline in the storey, projected to plan (`ifcopenshell.geom` world
   coordinates, XY);
-- terminals and equipment as a fixed symbol per kind at the element's plan centre;
+- terminals and equipment as one symbol per legend label (type name: a shape, a fill, past 24 labels a number
+  beside it) at the centre of the element's plan box; structural plans draw columns, footings and piles the same
+  way; fittings are not drawn;
 - segments as lines along their plan axis, styled per system (colour and dash), with the size printed along runs
   longer than 2 m;
 - a background from the same building's architectural model (walls cut at 1.2 m, light grey), where the two
   models share coordinates (checked by the storey elevations and the bounding boxes overlapping);
-- a legend (symbol + label, grouped by system), a scale bar and the ratio printed (1:50 or 1:100), and a title
-  naming the storey and the discipline.
+- a legend (symbol + label, grouped by system), a scale bar and the ratio printed (1:50 to 1:500, the first that
+  fits an A1 sheet), and a title naming the storey and the discipline.
+
+Built (P3): `app/adapters/ifc_model/plan_picture.py`, `python -m app.cli disc-bench render --model <services.ifc>
+--background <architecture.ifc> --out <dir> --dpi 100 150 200 --variant clean scan photo no-legend no-scale`
+writes `<dir>/<variant>-<dpi>/<model>--<storey>--<discipline>.png|jpg` and a truth `.json` beside each.
 
 IfcConvert's SVG serializer can keep only chosen classes (`--include entities`) and cut storeys by section height
 ([IfcConvert.cpp](https://github.com/IfcOpenShell/IfcOpenShell/blob/master/src/ifcconvert/IfcConvert.cpp)). It
@@ -253,14 +262,16 @@ architectural background only.
 
 **Truth** = the fact sheet of the same model, restricted to the storey: `<kind>.count` per type name (the legend
 label is the type name), `<kind>.length` per system, and `<kind>.size_length`, from `facts_mep`. Every truth thing
-also has its plan point, so symbol recall can be scored. An element whose centre falls outside the picture is left
-out of the truth.
+also has its plan point, so symbol recall can be scored. An element the geometry kernel cannot build is not drawn
+and is left out of the truth (`undrawn`). A run has two lengths: `length_m` (the fact sheet's) and `plan_m` (what
+the plan shows; a riser is near 0 there); a reader measures `plan_m`, P4 scores against it.
 
 **Variants** (seeded, so a picture can be rebuilt bit for bit):
 - resolution: 100, 150 and 200 dpi at the printed scale;
 - degradation: `clean`; `scan` (greyscale, Gaussian blur σ 1 px, JPEG quality 60, rotation ±1.5°, 0.2% salt
-  noise); `photo` (perspective warp ≤ 5% of the side, uneven lighting; goes through `RECTIFIER=r3`);
-- `no-legend` and `no-scale` copies of 10% of the pictures, for the failure cases.
+  noise); `photo` (corners moved in by ≤ 5% of the side, light falling off by ≤ 30%; goes through `RECTIFIER=r3`);
+- `no-legend` and `no-scale` copies, for the failure cases (the renderer draws them for every picture; the manifest
+  uses 10%).
 
 **Split by building**: two buildings dev, two test, chosen so that each discipline appears in both splits where the
 data allows. The list is fixed in the bench manifest (gitignored, `data/stoa/disc-bench/manifest.json`), before

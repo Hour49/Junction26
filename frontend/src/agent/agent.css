@@ -389,3 +389,226 @@
 .ag-pointer .vw-hint {
   display: none;
 }
+
+/* The plan beside the chat (chat-ux #1): the 868 px chat column left, the plan right, sticky under the header and
+   as tall as the window, so the newest turn's places stay in view while the thread scrolls. */
+.ag-split {
+  display: grid;
+  grid-template-columns: minmax(0, 868px) minmax(380px, 1fr);
+  align-items: start;
+  max-width: 1880px;
+  margin: 0 auto;
+  padding-right: 24px;
+  box-sizing: border-box;
+}
+.ag-split > .en-chat {
+  width: 100%;
+  margin: 0;
+}
+.ag-pane {
+  position: sticky;
+  top: calc(var(--v-header-h) + 16px);
+  margin-top: 16px;
+  height: calc(100dvh - var(--v-header-h) - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  box-sizing: border-box;
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  min-width: 0;
+}
+.ag-pane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ag-pane-name {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.ag-pane-open {
+  color: var(--v-accent);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ag-pane-open:hover,
+.ag-pane-open:focus-visible {
+  text-decoration: underline;
+}
+.ag-pane-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ag-pane-pick .en-chip[aria-pressed='true'] {
+  background: var(--v-accent-soft);
+  color: var(--v-accent-strong);
+}
+.ag-pane-caption {
+  margin: 0;
+  color: var(--v-text-2);
+  font-size: 15px;
+}
+.ag-pane-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Under 1200 px the plan opens as a sheet over the whole window (chat-ux #9), above the site header. */
+.ag-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  padding: 8px;
+  box-sizing: border-box;
+  background: var(--v-bg);
+}
+.ag-sheet:focus {
+  outline: none;
+}
+.ag-sheet .ag-pane-view {
+  overscroll-behavior: contain; /* scrolling the plan never scrolls the chat behind the sheet */
+}
+.ag-sheet .ag-pane {
+  position: static;
+  flex: 1;
+  height: auto;
+  margin: 0;
+  padding: 12px;
+}
+.ag-pane-close {
+  flex: none;
+}
+.ag-pane-head .ag-pane-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Live steps while the agent works (chat-ux #2): one line per tool, a spinner on the running one. */
+.ag-live {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: var(--v-radius);
+  background: var(--v-surface);
+  border: 1px solid var(--v-line);
+}
+.ag-live-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--v-text-2);
+}
+.ag-live-step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.ag-live-step--planned {
+  color: var(--v-muted);
+}
+.ag-live-mark {
+  flex: none;
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+}
+.ag-live-step--ok .ag-live-mark {
+  color: var(--v-ok);
+}
+.ag-live-step--error .ag-live-mark {
+  color: var(--v-danger);
+}
+.ag-live-step--planned .ag-live-mark::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--v-line);
+}
+.ag-live-step--running .ag-live-mark::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--v-accent-soft);
+  border-top-color: var(--v-accent);
+  animation: ag-spin 0.8s linear infinite;
+}
+.ag-live-body {
+  display: flex;
+  flex-direction: column;
+}
+.ag-live-sum {
+  color: var(--v-text);
+  font-weight: 600;
+}
+@keyframes ag-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ag-live-step--running .ag-live-mark::before {
+    animation: none;
+    border-color: var(--v-accent);
+  }
+}
+/* The empty chat's "What I read" (chat-ux #8): one quiet block per drawing between the title and the ask bar. */
+.ag-read {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px;
+  border-radius: var(--v-radius);
+  background: var(--v-surface);
+  border: 1px solid var(--v-line);
+}
+.ag-read h2 {
+  margin: 0;
+}
+.ag-read ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ag-read li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ag-read p {
+  margin: 0;
+}
+.ag-read-line {
+  font-weight: 600;
+}
+.ag-read-why {
+  color: var(--v-text-2);
+  font-size: 14px;
+}
+/* On a phone the block would push the ask box below the fold (keycheck 334): it goes under the bar and the chips. */
+@media (max-width: 600px) {
+  .en-chat--empty > .ag-read {
+    order: 1;
+  }
+}

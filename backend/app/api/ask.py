@@ -3,6 +3,7 @@ takeoff row it was read from, in the same shape as the takeoff gives it, and the
 the scorer reads."""
 
 from collections.abc import Callable
+from typing import TypedDict
 
 from fastapi import APIRouter
 from pydantic import Field
@@ -100,6 +101,12 @@ class AnswerView(View):
     # nothing when it could not; both left out of the JSON when None
     resolved: Resolved | None = Field(default=None, exclude_if=is_none)
     resolver_note: str | None = Field(default=None, exclude_if=is_none)
+    # A room total that may leave rooms out: the sum of the `rooms_counted` rooms the reader
+    # found (or drawn); `rooms_missing` are the rooms a room schedule names that it lacks.
+    # Left out of the JSON when it is not one
+    partial: bool | None = Field(default=None, exclude_if=is_none)
+    rooms_counted: int | None = Field(default=None, exclude_if=is_none)
+    rooms_missing: list[str] | None = Field(default=None, exclude_if=is_none)
 
 
 class _SheetFiles:
@@ -164,6 +171,7 @@ def asked_on(
         no_reader=no_reader,
         scorers=answering.scorers,
         carbon_ladder=answering.carbon_ladder,
+        room_words=answering.room_words,
     )
 
 
@@ -258,7 +266,7 @@ def answer_view(
     info = ingest.drawing_info(drawing_id)
     named = as_uploaded(ingest, info, project_id)
     owner = None if project_id is None else named.project_id
-    spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
+    spent = cost.mark()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
     asked = asked_on(
         question, drawing, drawing_id, reviews, answering, ingest, owner,
         no_reader_of(drawing_id, ingest, settings),
@@ -282,7 +290,7 @@ def answer_view(
                 note = reply.note
             else:
                 resolved = reply
-    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
+    line = asked.answer.model_copy(update={"cost_usd": cost.since(spent)})
     doubt = None if asked.refusal is not None else doubt_of(ingest, named)
     if doubt is not None:  # on an answer with a value only; it changes no value, check or level
         explanation = "; ".join(said for said in (line.explanation, doubt) if said)
@@ -309,4 +317,22 @@ def answer_view(
         level=asked.level,
         resolved=resolved,
         resolver_note=note,
+        **partial_fields(asked),
     )
+
+
+class PartialFields(TypedDict, total=False):
+    partial: bool
+    rooms_counted: int
+    rooms_missing: list[str]
+
+
+def partial_fields(asked: Asked) -> PartialFields:
+    """AnswerView's partial fields of a room total that may leave rooms out; none otherwise."""
+    if asked.partial is None or asked.refusal is not None:
+        return {}
+    return {
+        "partial": True,
+        "rooms_counted": asked.partial.counted,
+        "rooms_missing": list(asked.partial.missing),
+    }

@@ -302,7 +302,7 @@ def test_ac13_long_results_are_cut_for_the_model_and_kept_whole() -> None:
     )
     turn(model, Tools(get_takeoff=big), chat)
     seen = json.loads(model.sent[1][-1]["content"])  # still JSON, geometry and nulls left out
-    assert seen["rows"][0] == {"x": "x" * 100} and seen["rows"][-1] == "... 92 more"
+    assert seen["rows"] == [{"x": "x" * 100}] * 50 and seen["rows_more"] == 50  # typed items
     assert chat.results[0]["result"] == big
 
 
@@ -401,3 +401,48 @@ def test_answers_without_citations() -> None:
     model = Model(step(call("ask_drawings", question="q"), call("list_walls", 2)),
                   final(text="Wall W1 [ev_4].", evidence_ids=["ev_4"]))  # fmt: skip
     assert turn(model, Tools(ask_drawings=THREE, list_walls=walls)).answers == ()
+
+
+def test_get_counting_rules_has_a_plain_step_label() -> None:
+    """Queue 3 (#353): the steps line said 'Get counting rules'."""
+    rules = {"quantity": "doors", "rule": "each door opening counts once."}
+    model = Model(
+        step(call("get_counting_rules", quantity="closet doors")),
+        step(call("get_counting_rules", 2)),
+        final(kind="dont_know", text="No."),
+    )
+    got = turn(model, Tools(get_counting_rules=rules))
+    assert [s.label for s in got.steps] == [
+        "Read what counts as closet doors",
+        "Read the counting rules",
+    ]
+
+
+def test_queue_1_an_estimated_area_reaches_the_model_in_whole_m2() -> None:
+    """The ask result showed 5 but carried the raw 4.88 (quantity, line): the model said 4.88."""
+    shown = {"question": "kitchen area", "parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
+             "answer": {"answer": 5, "unit": "m2",
+                        "quantity": {"value": 4.88, "unit": "m2", "estimate": {"basis": "doors"}},
+                        "line": {"answer": 4.88, "unit": "m2", "estimate": "doors"},
+                        "marks": []}}]}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="kitchen area")),
+                  final(text="The kitchen is 4.88 m²."),
+                  final(text="The kitchen is about 5 m²."))  # fmt: skip
+    got = turn(model, Tools(ask_drawings=shown))
+    assert "4.88" not in model.sent[1][-1]["content"]
+    assert got.text == "The kitchen is about 5 m²."  # 4.88 is no longer backed
+
+
+def test_tudor_nit_a_measured_area_reaches_the_model_as_the_card_shows_it() -> None:
+    """Tudor's smoke: the reply said 7.557 m2 while the card said 7.56 m²."""
+    shown = {"question": "kitchen area", "parts": [{"drawing_id": DRAWING, "name": "plan.pdf",
+             "answer": {"answer": 7.557, "unit": "m2",
+                        "quantity": {"value": 7.557, "unit": "m2"},
+                        "line": {"answer": 7.557, "unit": "m2"},
+                        "marks": []}}]}  # fmt: skip
+    model = Model(step(call("ask_drawings", question="kitchen area")),
+                  final(text="The kitchen is 7.557 m²."),
+                  final(text="The kitchen is 7.56 m²."))  # fmt: skip
+    got = turn(model, Tools(ask_drawings=shown))
+    assert "7.557" not in model.sent[1][-1]["content"]
+    assert got.text == "The kitchen is 7.56 m²."  # 7.557 is no longer backed

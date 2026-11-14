@@ -136,6 +136,16 @@ def test_a_room_the_label_policy_retyped_is_listed_as_not_counted() -> None:
     assert room_disputes("kitchen", rooms) == ()
 
 
+def test_a_retyped_room_with_a_label_is_listed_with_the_label_it_has() -> None:
+    rooms = [room("other", B, "Rum", name="r4", retyped_from="bedroom")]
+    (place,) = room_disputes("bedroom", rooms)
+    assert place.mark_id is None
+    assert place.why == (
+        'Not counted: the room reader typed this room a bedroom, but its printed label "RUM" '
+        "does not name one."
+    )
+
+
 def test_an_answer_that_is_not_the_rooms_read_lists_every_counted_room() -> None:
     rooms = [room("kitchen", A, "K"), room("kitchen", B, "KK", name="r2")]
     second = [room("kitchen", A), room("kitchen", B)]

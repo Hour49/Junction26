@@ -14,6 +14,7 @@ import {
   type Proposal,
 } from './agent';
 import { LawSection } from './LawSection';
+import { useServiceTabs } from './multi/ServiceTabs';
 
 type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
@@ -125,21 +126,37 @@ export function placeOf(
   return room ? room.polygon : null;
 }
 
-function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: Point[] | null }) {
+function EditPlan({
+  p,
+  projectId,
+  hot,
+  reveal,
+}: {
+  p: Proposal;
+  projectId: string;
+  hot: Point[] | null;
+  reveal: number;
+}) {
   const fig = useRef<HTMLElement>(null);
-  // LC-15: a picked subject may be far below the plan (phone): bring the plan into view.
+  // LC-15: a picked subject may be far below the plan (phone): bring the plan into view; so does Show it.
   useEffect(() => {
     const reduce =
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches; // robust-8
-    if (hot)
+    if (hot || reveal > 0)
       fig.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-  }, [hot]);
+  }, [hot, reveal]);
   const [load, setLoad] = useState<PageLoad>({ state: 'loading' });
   const [after, setAfter] = useState(true);
+  const [revealed, setRevealed] = useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    setAfter(true);
+  }
+  const services = useServiceTabs(p, after); // a tab per discipline (services-follow.md)
   const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
   const box = useRef<HTMLDivElement>(null);
-  const extent = extentOf(p);
+  const extent = services?.focus ?? extentOf(p);
   const zoom = zoomFor(extent);
   // Centre the change in the plan box once the page frame has its size.
   useLayoutEffect(() => {
@@ -147,8 +164,8 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
     if (!el) return;
     el.scrollLeft = ((extent[0] + extent[2]) / 2) * el.scrollWidth - el.clientWidth / 2;
     el.scrollTop = ((extent[1] + extent[3]) / 2) * el.scrollHeight - el.clientHeight / 2;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once the page is ready
-  }, [load.state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once the page is ready, and when a tab changes the extent
+  }, [load.state, ...extent]);
   useEffect(() => {
     const abort = new AbortController();
     getDrawing(p.drawing_id, { project: projectId, signal: abort.signal }).then(
@@ -185,6 +202,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
           </pattern>
         </defs>
       </svg>
+      {services?.tabs}
       <div className="v-segmented ag-toggle" role="group" aria-label="Show the plan">
         <button
           type="button"
@@ -222,6 +240,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
             page={p.page}
           >
             {after && <Overlay p={p} hatch={hatch} />}
+            {services?.layer}
             {hot && (
               <svg
                 className="vw-overlay ag-overlay"
@@ -253,6 +272,7 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
           <Swatch kind="room" hatch={hatch} /> Changed room (hatched)
         </span>
       </figcaption>
+      {services?.panel}
     </figure>
   );
 }
@@ -265,6 +285,8 @@ export function EditCard(props: {
   /** The turn's sources: a law finding's `ev` mark is one of them (LC-15). */
   evidence?: Evidence[];
   onDecided?: (p: Proposal) => void;
+  /** Bumped by the turn's Show it: the plan shows After and comes into view. */
+  reveal?: number;
 }) {
   const { projectId, chatId, onDecided } = props;
   const [p, setP] = useState(props.proposal);
@@ -291,7 +313,7 @@ export function EditCard(props: {
   };
   return (
     <div className="ag-edit">
-      <EditPlan p={p} projectId={projectId} hot={hot} />
+      <EditPlan p={p} projectId={projectId} hot={hot} reveal={props.reveal ?? 0} />
       <div className="ag-side">
         <h4 className="en-label">Changes</h4>
         <ul className="ag-changes">

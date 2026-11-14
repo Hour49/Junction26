@@ -38,6 +38,8 @@ class JsonChatStore:
             proposals={k: Proposal.model_validate(p) for k, p in found["proposals"].items()},
             results=found["results"],
             minted=found["minted"],
+            evidence=found.get("evidence", {}),  # chats written before item 1 have none
+            asked=found.get("asked", []),
         )
 
     def put(self, project_id: str, chat: Chat) -> None:
@@ -49,6 +51,8 @@ class JsonChatStore:
             "proposals": {k: p.model_dump(mode="json") for k, p in chat.proposals.items()},
             "results": chat.results,
             "minted": chat.minted,
+            "evidence": chat.evidence,
+            "asked": chat.asked,
         }
         write_whole(self._path(project_id, chat.chat_id), json.dumps(body, ensure_ascii=False))
 

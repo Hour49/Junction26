@@ -259,7 +259,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f1"
         },
         {
           "drawing_id": "44cc9f0d991eafe3",
@@ -465,7 +466,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f3"
         },
         {
           "drawing_id": "1db9bcf1e67e27a3",
@@ -577,7 +579,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f8"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
@@ -661,7 +664,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f4"
         },
         {
           "drawing_id": "37f6819bd17d65d9",
@@ -745,7 +749,8 @@
             },
             "check": null,
             "level": null
-          }
+          },
+          "file_id": "f6"
         }
       ],
       "total": null,
@@ -755,6 +760,38 @@
       "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings give no reliable number for it.",
       "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
       "refused_note": "2 drawings give no reliable number for it."
+    }
+  ],
+  "view": {
+    "drawing_id": "adeefbbcc17559fc",
+    "name": "Drawn plan 1",
+    "page": 1,
+    "box": [
+      0.4633,
+      0.195,
+      0.5367,
+      0.305
+    ],
+    "marks": [
+      {
+        "n": 1,
+        "label": "door",
+        "box": [
+          0.49333,
+          0.225,
+          0.50667,
+          0.275
+        ],
+        "polygon": null
+      }
+    ],
+    "caption": null,
+    "source": "evidence"
+  },
+  "next": [
+    {
+      "label": "Show them on the plan",
+      "message": "Show me where they are"
     }
   ]
 }

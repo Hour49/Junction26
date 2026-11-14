@@ -10,6 +10,7 @@ const base = {
   cost_usd: 0,
   latency_s: 0.3,
   answers: [],
+  next: [],
 };
 
 export const answerTurn: ChatTurn = {
