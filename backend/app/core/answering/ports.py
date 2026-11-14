@@ -46,6 +46,12 @@ class Confidence(Protocol):
     @property
     def note(self) -> str: ...
 
+    @property
+    def agrees(self) -> bool | None:
+        """Whether the signal's own most likely value is the answered one (a second reader
+        that agrees); None: the signal gives no value of its own."""
+        ...
+
 
 class AnswerConfidence(Protocol):
     """How likely a drawing's answer is right: by the drawing's path, the question family as the

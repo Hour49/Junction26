@@ -76,6 +76,7 @@ class Rated:
 
     value: float | None = 0.87
     note: str = "decisions: example"
+    agrees: bool | None = None
 
 
 class ExampleConfidence:
