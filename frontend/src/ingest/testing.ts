@@ -185,3 +185,19 @@ export const triageTrace = (file: FileStatus): FileTrace => ({
   file,
   stages: trace.stages.slice(0, trace.stages.findIndex((s) => s.stage === 'identify') + 1),
 });
+
+// shortcut: #251 has no API fixture with a sheet (file-triage.md FT-24); replace with its fixture if one lands.
+export const sheet: NonNullable<Triage['sheet']> = {
+  advanced: false,
+  advanced_why: null,
+  confidence: 0.04,
+  decision: 'set_aside',
+  kind: 'elevation',
+  kind_words: 'an elevation',
+  model: 'gemini-4-carbon',
+  printed_scale: '1:100',
+  seen: 'an elevation sheet',
+  sheet_number: 'A-201',
+  takeoff_possible: false,
+  title: 'South elevation',
+};

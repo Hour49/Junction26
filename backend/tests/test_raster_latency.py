@@ -75,6 +75,21 @@ def test_the_memo_forgets_the_oldest_input_and_never_a_failed_run() -> None:
     assert network.runs == 5
 
 
+def test_the_memo_also_forgets_the_oldest_input_past_its_bytes() -> None:
+    """A model with large raw outputs must not fill the box: past `memo_bytes` of outputs the
+    oldest inputs go, whatever the entry cap."""
+    network = Network()
+    session = SharedSession(network, memo=1024, memo_bytes=400)  # one output: 192 bytes
+    session.run(None, x(1.0))
+    session.run(None, x(2.0))  # 384 bytes held
+    session.run(None, x(3.0))  # 576 > 400: x(1.0) goes
+    session.run(None, x(3.0))
+    session.run(None, x(2.0))  # both still remembered
+    assert network.runs == 3
+    session.run(None, x(1.0))  # forgotten: runs again
+    assert network.runs == 4
+
+
 def test_a_run_for_an_input_being_computed_waits_for_it() -> None:
     network = Network()
     network.release.clear()
