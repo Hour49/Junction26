@@ -10,9 +10,10 @@ from conftest import plan_png, upload
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from PIL import Image
+from test_review_core import BOX_A, disputed, quantity
 from test_vector_pdf import swiss_sheet
 
-from app.api import projects
+from app.api import projects, takeoff
 from app.api.info import info
 from app.main import create_app
 from app.settings import Settings
@@ -549,3 +550,30 @@ def test_review_edits_and_sign_offs_belong_to_the_project(client: TestClient) ->
     other = upload(client, b"site notes", "notes.txt")
     door = {"quantity": "door", "by": "Eve"}
     assert client.post(f"{url}/signoff", params={"project": other}, json=door).status_code == 404
+
+
+def test_settling_a_one_storey_sheet_s_row_decides_its_storey_twin_in_that_project_only(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K4 per project (R1b-4-1): settling "window count" in project A also decides its storey
+    twin "window count (storey p1)" in A, and neither row changes in project B."""
+    windows = disputed(False)
+    found = {
+        key: quantity(key, 2, "count", BOX_A, conflict=windows)
+        for key in ("window", "window|storey=p1")
+    }
+    monkeypatch.setattr(takeoff, "known_quantities", lambda drawing: found)
+    plan = swiss_sheet().pdf()
+    first, later = upload(client, plan, "A.pdf"), upload(client, plan, "B.pdf")
+    (entry,) = client.get(f"/api/projects/{later}").json()["drawings"]
+    url = f"/api/drawings/{entry['drawing_id']}"
+    settle = {"quantity": "window", "action": "settle", "value": 3}
+    assert client.post(f"{url}/review", params={"project": first}, json=settle).status_code == 200
+
+    def twin(project: str) -> tuple[object, object]:
+        quantities = client.get(f"{url}/takeoff", params={"project": project}).json()
+        shown = next(row for row in quantities["quantities"] if row["key"] == "window|storey=p1")
+        return shown["value"], shown["status"]
+
+    assert twin(first) == (3, "edited")
+    assert twin(later) == (2, "conflict")
