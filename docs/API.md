@@ -1007,7 +1007,9 @@ the `identify` stage's line.
   issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
   drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
   plan."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the
-  sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`, `electrical`, `fire`, `site` or `other`, from the kind, title and number; null when unsure; shown only, nothing reads it), `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
+  sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
+  `electrical`, `fire`, `site` or `other`, from the kind, title and number; null when unsure; a display hint, no
+  client shows or reads it yet), `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder
   than a clean scan of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet),
   `seen`, `model`. A call that fails leaves the file as triage would have it without the step ("triage not
   available: ...; read as today" with no classifier). A model answer alone; never a certified value.
@@ -10874,17 +10876,18 @@ unofficial translation. An unknown id is 404 `not-found`.
 ## Changelog
 
 - 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
-  reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones
-  (#282); a scale bar needs one unit, metres or feet (#301). `VECTOR_FALLBACK=raster` (default `off`) reads a drawn
-  PDF that matches no sheet style on the raster route, flagged and never certified (#283); a scanned PDF's page is
-  rendered once and shared by its readers and its answers (#280, #295). Under `CARBON_READER=large` Carbon's
-  door boxes take the detector's door box where one lies inside (#310, `attrs.box_from` is `detector`), and the
-  independent Carbon reads of a raster sheet run at the same time (#306). A question with a room type or a printed
-  label and a room number ("bathroom 1.01", "Bagno 1.01") names that room (#313). A stage's cost in a trace is
-  exact to the pico-dollar (#314).
-- 2026-11-14, additive (#311): `sheet.discipline` on a file's triage, one of the nine values above or null, from the sheet-kind
-  reply's kind, title and number. `docs/api/openapi-v1.json` already carries it.
-- 2026-11-15, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
+  reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and
+  has no scale bar (#282); a scale bar needs one unit, metres or feet (#301). `VECTOR_FALLBACK=raster` (default
+  `off`) reads a drawn PDF that matches no sheet style on the raster route, flagged and never certified (#283); a
+  scanned PDF's page is rendered once and shared by its readers and its answers (#280, #295). Under
+  `CARBON_READER=large` (default off) Carbon's door boxes take the detector's door box where one lies inside (#310,
+  `attrs.box_from` is `detector`), and the independent Carbon reads of a raster sheet run at the same time (#306).
+  An area (or length) question with a room type or a printed label and a room number ("bathroom 1.01", "Bagno 1.01")
+  names that room (#313); a count question does not take the room. A stage's cost in a trace is exact to the
+  pico-dollar (#314).
+- 2026-11-14, additive (#311): `sheet.discipline` on a file's triage, one of the nine values above or null, from
+  the sheet-kind reply's kind, title and number. `docs/api/openapi-v1.json` already carries it.
+- 2026-11-14, text only (board #14 c6882199550, Tudor's chat QA): refusal and reason texts that sounded like a
   missing feature say what was and wasn't read. A `no-reader` refusal on a route with no reader: "This sheet wasn't
   read, so nothing on it was counted or measured: this setup has no reader for this kind of sheet. You can still ask
   about the project's other drawings."; the policy refusal: "On sheets like this one, our reader got this kind of
