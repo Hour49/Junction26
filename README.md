@@ -34,13 +34,13 @@ that show where on the drawing they came from. In the order a user meets it:
    and described in words. A person can still ask for it to be read as a plan
    ([decision 0010](docs/decisions/0010-file-triage.md)).
 3. Reading, one route per kind of file: a drawn PDF is read from its vectors, an image (scan, photo, sketch) by
-   detectors and a room reader, an IFC model through its own objects. Every drawing keeps a list of what was
-   looked for, so a missing class is "not read" and never a silent zero ([docs/PIPELINE.md](docs/PIPELINE.md)).
+   detectors and a room reader, an IFC model through its own objects. Every drawing lists what was looked
+   for, so a class that was not read says so instead of showing a zero ([docs/PIPELINE.md](docs/PIPELINE.md)).
 4. Ask with proof. A question in plain words (11 languages) gets a value with its unit, marks on the plan page,
    the method that produced it, and the credit for any licensed data. The model's score is never shown as a
    percentage. Where the evidence is too weak the answer says it does not know.
 5. Double-check requests. An answer the system cannot certify asks a person to look: it shows the disputed
-   marks, and the person signs it off or fixes it. It does not guess quietly
+   marks, and the person signs it off or fixes it, instead of a silent guess
    ([spec](docs/specs/frontend/double-check.md)).
 6. Conflicts and located issues. Where two readings of one quantity disagree, both values are shown. Conflicts,
    refused answers, reading flags and set-aside files make one list of located issues (file, page, box, one
@@ -49,9 +49,9 @@ that show where on the drawing they came from. In the order a user meets it:
 7. Building-code pre-check, for Finland and the canton of Zürich. "A pre-check of a few rules, not a compliance
    certificate." The failed checks join the issues list.
 
-Status on main, 2026-11-14: steps 1 to 4 and 6 are merged. The double-check request (#129) and the rule packs
-for the pre-check (#139) are not in the backend on main yet; the screens for both are merged and read the API
-fields once they land. Details of what we tried and what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
+Status on main, 2026-11-14: steps 1 to 6 are merged, including the double-check request (#129) and plan counts
+that are sure only when two readers agree (#174). The rule packs for the pre-check (#139) are not in the backend on
+main yet; its screens are merged and read the API fields once they land. What we tried on the raster track, and what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
 Golden-set method and results: [docs/GOLDEN.md](docs/GOLDEN.md). Known issues: [docs/KNOWN.md](docs/KNOWN.md).
 All decision records: [docs/decisions/](docs/decisions/README.md).
 
@@ -83,8 +83,9 @@ reader, the second count, the question parser, the dev answer prior, and the det
 `data/models`.
 
 Verified 2026-11-14: `uv sync --locked`, `make_sample_archive.py`, the backend start, `GET /health`, `GET /api/info`
-and `POST /api/projects/sample?fresh=true` (project `done` in 440 ms, no keys). Not run: the frontend commands
-(`npm ci` failed, the disk was full) and `tools/qa-env.sh`.
+and `POST /api/projects/sample?fresh=true` (project `done` in 440 ms, no keys); then `npm ci`, `npm run build` and
+`npm run preview` against that backend (the page answers 200 on 4173, `/health` and `/api/info` pass through the
+proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a browser.
 
 ### Numbers
 
@@ -93,21 +94,25 @@ and `POST /api/projects/sample?fresh=true` (project `done` in 440 ms, no keys). 
   is the honest one. The series is in [docs/GOLDEN.md](docs/GOLDEN.md).
 - CubiCasa test split, read once for the shipped config C: 85.0% exact (5708 of 6718), 95% CI [83.4, 86.5],
   against 56.3% for the train prior ([docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)).
-- Double-check, validation numbers: TODO(#129 lands, from docs/GOLDEN.md).
+- Double-check policy, fit on validation: 55.1% of answers ask for a check, which covers 96.0% of the wrong
+  answers, and 98.95% of the answers it leaves alone are exact. These are validation estimates; the test
+  certificate is still to come ([docs/GOLDEN.md](docs/GOLDEN.md)).
 - Test-read numbers: TODO(test read).
 
 ### Limits
 
-- On an image, areas come from an estimated scale (`RASTER_SCALE=priors`) and are labelled estimates. One can
-  be far off while printing a narrow band (K5 in [docs/KNOWN.md](docs/KNOWN.md): +74%, +100% and -37% on three
-  golden rooms).
+- Sketches: we claim no door counting. On 14 hand-drawn sheets the door count was in range on 0 of 10, and every
+  door, window and room count asked for a check (K6 in [docs/KNOWN.md](docs/KNOWN.md)).
+- The double-check policy flags 55% of answers to catch 96% of the wrong ones, so a person reviews many right answers too (K7).
+- On an image, areas come from an estimated scale (`RASTER_SCALE=priors`) and are labelled estimates. One can be
+  far off while printing a narrow band (K5: +74%, +100% and -37% on three golden rooms).
 - On plans without printed room labels the reader types rooms by furniture, while the gold labels only count
-  what is printed: "bedrooms" can be 0 on a plan that shows beds (EXPERIMENTS.md).
+  what is printed, so "bedrooms" can be 0 on a plan that shows beds (EXPERIMENTS.md).
 - Windows stayed at about 45-55% in every track we tried (EXPERIMENTS.md).
 - Schedules are read on gold drawings only; the vector extractor reads no tables yet (backend/README.md).
 - No login: the sign-off name is typed by the surveyor (decision 0001), and the API is for localhost or a private
   network only.
-- The building-code pre-check covers a few rules in two places. It is not a compliance check.
+- The building-code pre-check covers a few rules, in Finland and the canton of Zürich only. It is not a compliance check.
 
 ## Stoa: golden set and eval
 
