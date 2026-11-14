@@ -96,7 +96,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | `proof.objects[]` | `ModelProof` table: `name`, `class`, `storey`, `global_id` |
 | `proof.storeys[]` | `ModelProof` table: one row per storey, one column per class in `counts` |
 | `proof.schedule` | table `title`, `columns` as header, `rows[].cells` (null cell = empty), "<rows> of <of> rows" |
-| `refusal.text`, `refusal.code`, `refusal.can_answer[]` | the refusal turn (States) |
+| `refusal.text`, `refusal.can_answer[]` | the refusal turn (States). `refusal.code` is not shown: the text explains the refusal (error views keep their codes) |
 | `method`, `explanation` | the details (collapsed by default): "Method: <method>", "How: <explanation>" when not null. A misspelt question's `explanation` starts with how it was read (backend #80): "read 'mnay' as 'many'" (several joined by ", "), then "; " and the answer's own explanation when it has one. The How line shows it in full, as text, and wraps at 390 px (long words break: `overflow-wrap: anywhere` from the page). The note is also on the card itself (R2-2-1: the typo reader can rewrite a real word into another question): when `explanation` starts with `read '`, its text up to the first `; ` (or all of it) shows right under the question bubble, first letter capitalised, quotes kept ("Read 'mnay' as 'many'"), on answers and on refusals |
 | `reader` | "Where this came from": `<extractor>` read `<source>` (`<route>` route), second count by `<second_counter>`, the reader ids through `readerName()` ("PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model"); with `second_counter` `none`: "…(vector route), no second count" |
 | `cost_usd`, `latency_s` | the card footer: "Cost $0" / "Time 0.2 ms" (format below) |
@@ -149,7 +149,7 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | No suggestions | `drawing.json` with `suggestions: []` | instead of the buttons: "No ready questions for this drawing."; with extractor `hello` also "Its route has no reader yet, so questions will be refused." Ask box stays usable. |
 | Asking | a mocked `POST /api/ask` that never resolves | the question bubble, "Reading <file>…" with a spinner, Ask disabled, input kept for the next question |
 | Ask error | mocked `POST /api/ask` with 404 `error.json`, 422 `validation` or 500 `internal` | in that turn: "The question could not be answered: <detail>" and the `code` in small text, a "Try again" button that sends the same question; Ask re-enabled |
-| Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text`, the code in small text, one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
+| Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text` (no code line), one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
 | Answer, count | `answer.json` | value `2`, title "door count", viewer with marks 1 and 2, mark list "1 door", "2 door", rule "every element, room and plan the drawing lists counts once", status "One method" |
 | Answer, sum | `answer_area.json` | value `52.27 m²`, rooms shaded, mark list with "Küche 22.40 m²"…, the arithmetic line with what was left out, the viewer's colour key |
 | Answer with a model score | `answer_confidence.json` (`confidence: {"signal": "g1main", "score": 0.87, "calibrated": false}`) | as count plus "Second reader's score 0.87 (not a probability)"; Details has "Signal: g1main"; no "Picture of this answer" link |
@@ -160,7 +160,7 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | Methods disagree, nobody decided | the above with `conflict.resolution: null`, `needs_person: true` | as above, and instead of "Kept": "No rule decides. A surveyor has to settle it before this value can be used." |
 | Methods agree | derived: `answer.json` with `status: "agree"`, `first: {"method": "plan_drawing", "value": 2}`, `second: {"method": "ifc_model", "value": 2}` | status "Two methods agree"; "Second method (<methodName(ifc_model)>): 2, agrees" |
 | One method | `answer.json` (`first`/`second` null) | "Measured by one method; no second check." |
-| Estimate | derived: `answer.json` with `status: "estimate"`, `estimate: "scale estimated from a door width"` | status "Estimate"; "Estimate: scale estimated from a door width" |
+| Estimate | derived: `answer.json` with `status: "estimate"`, `estimate: "scale estimated from a door width"` | status "Estimate"; "Estimate: scale estimated from a door width"; with `first`/`second` null "Estimated by one method; no second check." |
 | Edited in review | derived: `answer.json` with `status: "edited"`, `value`/`answer` 1, `original_value` 2, mark m2 `state: "rejected"`, `n: null` | status "Changed in review"; "Changed in review, was 2"; mark list row "× door rejected by a surveyor" |
 | Settled | derived: conflict case with `settled: {"value": 22.401, "at": "2026-11-14T01:30:00Z"}` | "Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²" |
 | Excluded item | derived: `answer_area.json` with one more mark `{"id": "x1", "n": null, "state": "excluded", "reason": "outdoor room", "label": "Balkon", …}` (box/polygon copied from m2) | mark list row "– Balkon left out by the rule: outdoor room" |
@@ -237,13 +237,13 @@ Checks and review state
 - EN-32 A signed answer shows "Verified by Ana, 2026-11-14 01:40 UTC" next to the value. [component, derived signed `answer.json`]
 - EN-33 A conflict shows both values with their methods' plain names from the shared `methodName()`, "22.40 m² by <methodName("polygon_x_scale")>" and "30.00 m² by <methodName("printed_label")>", never the raw ids, and "Kept 30.00 m²: the printed label over the outline at the sheet's scale". [component, derived conflict]
 - EN-34 With `conflict.resolution` null and `needs_person` true it shows "No rule decides. A surveyor has to settle it before this value can be used." and no "Kept" line. [component, derived conflict]
-- EN-35 `status: "agree"` shows "Second method (<methodName("ifc_model")>): 2, agrees" (not the raw id); `first`/`second` null shows "Measured by one method; no second check.". [component, derived agree, `answer.json`]
-- EN-36 An estimate shows "Estimate: scale estimated from a door width". [component, derived estimate]
+- EN-35 `status: "agree"` shows "Second method (<methodName("ifc_model")>): 2, agrees" (not the raw id); `first`/`second` null shows "Measured by one method; no second check.", or "Estimated by one method; no second check." when `estimate` is set. [component, derived agree, `answer.json`]
+- EN-36 An estimate shows "Estimate: scale estimated from a door width" and, measured once, "Estimated by one method; no second check." (not "Measured by …"). [component, derived estimate]
 - EN-37 An edited answer shows "Changed in review, was 2" and the rejected mark row "× door rejected by a surveyor"; an added mark (derived: `{"id": "a1", "n": 3, "state": "added", "label": null, "ref": null, "polygon": null, …}`) shows "+3 item added by a surveyor". [component, derived edited]
 - EN-38 A settled value shows "Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²". [component, derived settled]
 
 Refusals and errors
-- EN-39 A refusal shows "I can't answer that from this drawing.", the text "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.", the code "unsupported-question", and no number, marks, picture link or takeoff link. [component, `answer_refused.json`]
+- EN-39 A refusal shows "I can't answer that from this drawing.", the text "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.", no "code:" line and not the code "unsupported-question", and no number, marks, picture link or takeoff link. [component, `answer_refused.json`]
 - EN-40 The refusal shows one button per `can_answer` ("How many doors are there?", "How many windows are there?"); clicking one sends `POST /api/ask` with that question. [component, `answer_refused.json`]
 - EN-41 An ask that fails with 422 shows "The question could not be answered:" with the server's `detail` and "validation"; "Try again" sends the same question again; Ask is enabled again. [component, mocked 422]
 - EN-42 Strings from the server render as text: a `quantity.label`, `marks[].label`, `refusal.text` and `question` of `<img src=x onerror=alert(1)>` appear literally and add no element. [component, derived `answer.json`]

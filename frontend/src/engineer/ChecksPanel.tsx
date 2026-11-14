@@ -38,7 +38,7 @@ export function ChecksPanel({ row }: { row: Row }) {
           Second method ({methodName(second.method)}): {value(second.value)}, agrees
         </p>
       ) : (
-        <p>Measured by one method; no second check.</p>
+        <p>{row.estimate ? 'Estimated' : 'Measured'} by one method; no second check.</p>
       )}
       {row.estimate && <p className="en-warn">Estimate: {row.estimate}</p>}
       {settled && (

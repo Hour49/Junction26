@@ -345,13 +345,14 @@ describe('answers', () => {
 });
 
 describe('refusals and errors', () => {
-  it('EN-39 a refusal: the sentence, the reason, the code; no number, marks or links', async () => {
+  it('R3-final EN-39 a refusal: the sentence and the reason; no code, number, marks or links', async () => {
     open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused) });
     await typeAndAsk('What colour is the roof?');
     const t = await turn('What colour is the roof?');
     expect(await within(t).findByText("I can't answer that from this drawing.")).toBeTruthy();
     expect(within(t).getByText(/This question isn't one I can turn into a count/)).toBeTruthy();
-    expect(within(t).getByText(/unsupported-question/)).toBeTruthy();
+    expect(t.textContent).not.toContain('code:');
+    expect(t.textContent).not.toContain(answerRefused.refusal?.code ?? 'unsupported-question');
     expect(within(t).queryByTestId('answer-value')).toBeNull();
     expect(within(t).queryByRole('button', { name: /^Mark / })).toBeNull();
     expect(within(t).queryByRole('link')).toBeNull();
@@ -690,9 +691,11 @@ describe('extended answers', () => {
     expect(within(s).getByText('Measured by one method; no second check.')).toBeTruthy();
   });
 
-  it('EN-36 an estimate shows its reason', async () => {
+  it('R3-final EN-36 an estimate shows its reason and says it was estimated once', async () => {
     const t = await shownTurn(answerEstimate);
     expect(within(t).getByText('Estimate: scale estimated from a door width')).toBeTruthy();
+    expect(within(t).getByText('Estimated by one method; no second check.')).toBeTruthy();
+    expect(within(t).queryByText('Measured by one method; no second check.')).toBeNull();
   });
 
   it('EN-37 an edited answer: was 2, the rejected and added rows', async () => {
