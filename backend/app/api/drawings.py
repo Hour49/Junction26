@@ -19,6 +19,7 @@ from app.api.deps import (
     ReviewsDep,
     SettingsDep,
     as_uploaded,
+    project_of,
 )
 from app.api.views import PageView, Reader, View, page_views, reader_of
 from app.composition import readers
@@ -139,11 +140,13 @@ def evidence_png(
     answering: AnsweringDep,
     credits: CreditsDep,
     width: Annotated[int, Query(description="400, 1600 or 3200")] = 1600,
+    project: Annotated[str | None, Query(description="the project asked in: its edits")] = None,
 ) -> Response:
     """The answer to `question` with its proof drawn on its page (docs/GOLDEN.md), as POST /api/ask
-    gives it, edits applied. Not cached: a review edit changes it."""
+    gives it, that project's edits applied. Not cached: a review edit changes it."""
     drawing = ingest.drawing(drawing_id)
-    asked = asked_on(question, drawing, drawing_id, reviews, answering, ingest)
+    owner = project_of(ingest, drawing_id, project)
+    asked = asked_on(question, drawing, drawing_id, reviews, answering, ingest, owner)
     page = next((mark.page for mark in asked.marks), 1)
     if asked.proof.schedule is not None:
         page = asked.proof.schedule.page

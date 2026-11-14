@@ -2975,7 +2975,7 @@
     },
     "/api/drawings/{drawing_id}/evidence.png": {
       "get": {
-        "description": "The answer to `question` with its proof drawn on its page (docs/GOLDEN.md), as POST /api/ask\ngives it, edits applied. Not cached: a review edit changes it.",
+        "description": "The answer to `question` with its proof drawn on its page (docs/GOLDEN.md), as POST /api/ask\ngives it, that project's edits applied. Not cached: a review edit changes it.",
         "operationId": "evidence_png_api_drawings__drawing_id__evidence_png_get",
         "parameters": [
           {
@@ -3008,6 +3008,24 @@
               "description": "400, 1600 or 3200",
               "title": "Width",
               "type": "integer"
+            }
+          },
+          {
+            "description": "the project asked in: its edits",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the project asked in: its edits",
+              "title": "Project"
             }
           }
         ],
@@ -3156,7 +3174,7 @@
             }
           },
           {
-            "description": "the project it is shown in: names the file as that project uploaded it",
+            "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
             "in": "query",
             "name": "project",
             "required": false,
@@ -3169,7 +3187,7 @@
                   "type": "null"
                 }
               ],
-              "description": "the project it is shown in: names the file as that project uploaded it",
+              "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
               "title": "Project"
             }
           }
@@ -3235,7 +3253,7 @@
             }
           },
           {
-            "description": "the project it is shown in: names the file as that project uploaded it",
+            "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
             "in": "query",
             "name": "project",
             "required": false,
@@ -3248,7 +3266,7 @@
                   "type": "null"
                 }
               ],
-              "description": "the project it is shown in: names the file as that project uploaded it",
+              "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
               "title": "Project"
             }
           }
@@ -3314,7 +3332,7 @@
             }
           },
           {
-            "description": "the project it is shown in: names the file as that project uploaded it",
+            "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
             "in": "query",
             "name": "project",
             "required": false,
@@ -3327,7 +3345,7 @@
                   "type": "null"
                 }
               ],
-              "description": "the project it is shown in: names the file as that project uploaded it",
+              "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
               "title": "Project"
             }
           }
@@ -3383,7 +3401,7 @@
             }
           },
           {
-            "description": "the project it is shown in: names the file as that project uploaded it",
+            "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
             "in": "query",
             "name": "project",
             "required": false,
@@ -3396,7 +3414,7 @@
                   "type": "null"
                 }
               ],
-              "description": "the project it is shown in: names the file as that project uploaded it",
+              "description": "the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's",
               "title": "Project"
             }
           }

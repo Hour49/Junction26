@@ -439,6 +439,14 @@ def _checked(name: TablesName, inner: SecondCounter, files: DrawingFiles) -> Sec
             return ScheduleTagCounter(inner, files)
 
 
+def second_counter_of(names: Mapping[str, str], route: Route | None) -> str:
+    """The second counter that measured a drawing of `route`, by name (`names`: readers()): the
+    IFC one measures a model (the bim route) and passes every other file on to the PDF counter
+    (_second_counter)."""
+    name = names["second_counter"]
+    return "pdf" if name == "ifc" and route != "bim" else name
+
+
 def _second_counter(
     name: SecondCounterName, files: DrawingFiles, models: IfcModels
 ) -> SecondCounter:

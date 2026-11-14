@@ -12,7 +12,15 @@ from fastapi import APIRouter, Query
 from fastapi.responses import Response
 from pydantic import Field
 
-from app.api.deps import DrawingId, Ingest, IngestDep, ReviewsDep, as_uploaded, now
+from app.api.deps import (
+    DrawingId,
+    Ingest,
+    IngestDep,
+    ReviewsDep,
+    as_uploaded,
+    now,
+    project_of,
+)
 from app.api.views import View
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import RULES
@@ -34,7 +42,8 @@ router = APIRouter(prefix="/api/drawings")
 
 ZEROS = Query(description="also list the rows whose value is 0 and nothing happened to")
 PROJECT = Query(
-    description="the project it is shown in: names the file as that project uploaded it"
+    description="the project it is shown in: names the file as that project uploaded it, and "
+    "the review edits and sign-offs are that project's"
 )
 CSV_COLUMNS = (
     "drawing", "key", "label", "value", "unit", "status", "original_value", "first_method",
@@ -66,13 +75,15 @@ def takeoff_rows(
 ) -> Takeoff:
     """The drawing's rows in takeoff order, edits applied. Without `zeros`, a row is left out
     when its value is 0 and it has no conflict, edit or sign-off. With `project`, the file is
-    named as that project uploaded it (a drawing is shared by content)."""
+    named as that project uploaded it (a drawing is shared by content), and the edits are that
+    project's (R1b-4-1)."""
     drawing = ingest.drawing(drawing_id)
     file = drawing.file
     if project is not None:
-        file = as_uploaded(ingest, ingest.drawing_info(drawing_id), project).path
+        named = as_uploaded(ingest, ingest.drawing_info(drawing_id), project)
+        file, project = named.path, named.project_id
     quantities = known_quantities(drawing)
-    state = with_twins(reviews.get(drawing_id), storey_twins(quantities))
+    state = with_twins(reviews.get(project, drawing_id), storey_twins(quantities))
     rows = [row(found, drawing, state, RULES) for found in quantities.values()]
     if not zeros:
         rows = [found for found in rows if found.value != 0 or found.status != "single"]
@@ -101,13 +112,14 @@ def review(
     zeros: Annotated[bool, ZEROS] = False,
     project: Annotated[str | None, PROJECT] = None,
 ) -> Takeoff:
+    owner = project_of(ingest, drawing_id, project)
     if edit.action == "reset" and edit.quantity is None:
-        reviews.update(drawing_id, lambda state: reset(state, None))
+        reviews.update(owner, drawing_id, lambda state: reset(state, None))
     else:
         drawing = ingest.drawing(drawing_id)
         found = sheet_row(known_quantities(drawing), edit.quantity)
         at = now()
-        reviews.update(drawing_id, lambda state: apply(state, edit, found, drawing, at))
+        reviews.update(owner, drawing_id, lambda state: apply(state, edit, found, drawing, at))
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 
@@ -120,13 +132,14 @@ def signoff(
     zeros: Annotated[bool, ZEROS] = False,
     project: Annotated[str | None, PROJECT] = None,
 ) -> Takeoff:
+    owner = project_of(ingest, drawing_id, project)
     drawing = ingest.drawing(drawing_id)
     found = sheet_row(known_quantities(drawing), body.quantity)
     if body.undo:
-        reviews.update(drawing_id, lambda state: unsign(state, found.key))
+        reviews.update(owner, drawing_id, lambda state: unsign(state, found.key))
     else:
         at = now()
-        reviews.update(drawing_id, lambda state: sign(state, found, drawing, body.by, at))
+        reviews.update(owner, drawing_id, lambda state: sign(state, found, drawing, body.by, at))
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 

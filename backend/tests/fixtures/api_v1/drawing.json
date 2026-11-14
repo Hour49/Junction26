@@ -5,7 +5,7 @@
     "route": "vector",
     "source": "plans/flat-a.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "pdf",
     "question_parser": "templates"
   },
   "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",

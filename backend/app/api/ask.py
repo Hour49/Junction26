@@ -16,6 +16,7 @@ from app.api.deps import (
 )
 from app.api.views import PageView, Reader, View, page_views, reader_of
 from app.composition import Answering, readers
+from app.core import cost
 from app.core.answering.model import Answer, Unit
 from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
@@ -101,15 +102,17 @@ def asked_on(
     reviews: ReviewStore,
     answering: Answering,
     ingest: Ingest,
+    project_id: str | None,
 ) -> Asked:
-    """The question on the drawing, with the surveyor's edits of it applied."""
+    """The question on the drawing, with the surveyor's edits of it in `project_id` applied (a
+    checked id: deps.project_of)."""
     return ask(
         question,
         drawing,
         parser=answering.parser,
         clock=answering.clock,
         prior=answering.prior,
-        state=reviews.get(drawing_id),
+        state=reviews.get(project_id, drawing_id),
         prior_families=answering.prior_families,
         confidence=confidence_of(drawing, drawing_id, ingest, answering),
     )
@@ -143,8 +146,11 @@ def ask_route(
     drawing = ingest.drawing(drawing_id)
     info = ingest.drawing_info(drawing_id)
     named = as_uploaded(ingest, info, body.project_id)
-    asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest)
-    line, shown = asked.answer, asked.row
+    owner = None if body.project_id is None else named.project_id
+    spent = cost.spent()  # a confidence not cached at ingest calls Decisions now (R1b-4-2)
+    asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest, owner)
+    line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
+    shown = asked.row
     value = shown_value(asked)
     return AnswerView(
         question=body.question,

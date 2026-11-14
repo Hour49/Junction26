@@ -45,7 +45,7 @@ export interface paths {
         /**
          * Evidence Png
          * @description The answer to `question` with its proof drawn on its page (docs/GOLDEN.md), as POST /api/ask
-         *     gives it, edits applied. Not cached: a review edit changes it.
+         *     gives it, that project's edits applied. Not cached: a review edit changes it.
          */
         get: operations["evidence_png_api_drawings__drawing_id__evidence_png_get"];
         put?: never;
@@ -1266,6 +1266,8 @@ export interface operations {
                 question: string;
                 /** @description 400, 1600 or 3200 */
                 width?: number;
+                /** @description the project asked in: its edits */
+                project?: string | null;
             };
             header?: never;
             path: {
@@ -1368,7 +1370,7 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
-                /** @description the project it is shown in: names the file as that project uploaded it */
+                /** @description the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's */
                 project?: string | null;
             };
             header?: never;
@@ -1408,7 +1410,7 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
-                /** @description the project it is shown in: names the file as that project uploaded it */
+                /** @description the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's */
                 project?: string | null;
             };
             header?: never;
@@ -1448,7 +1450,7 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
-                /** @description the project it is shown in: names the file as that project uploaded it */
+                /** @description the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's */
                 project?: string | null;
             };
             header?: never;
@@ -1484,7 +1486,7 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
-                /** @description the project it is shown in: names the file as that project uploaded it */
+                /** @description the project it is shown in: names the file as that project uploaded it, and the review edits and sign-offs are that project's */
                 project?: string | null;
             };
             header?: never;

@@ -139,7 +139,11 @@ class Groups:
             stages: list[StageTrace] = []
             takeoff: dict[str, int | float] = {}
             if file.path in sheets and drawing is not None:
-                stages = pipeline_stages(sheets[file.path].trace, timer.ms.get(file.path, {}))
+                stages = pipeline_stages(
+                    sheets[file.path].trace,
+                    timer.ms.get(file.path, {}),
+                    timer.usd.get(file.path, {}),
+                )
                 stages = _with_frame(
                     stages, self._frames.get(file.path), run.frame_ms.get(file.path, 0.0)
                 )
