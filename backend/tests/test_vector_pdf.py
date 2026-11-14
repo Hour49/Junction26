@@ -140,6 +140,57 @@ def test_other_numbers_with_a_colon_are_not_a_scale(text: str) -> None:
     assert scale.status == "no_scale"
 
 
+IMPERIAL_EIGHTH = '1/8" = 1\'-0"'  # 1:96
+
+
+def test_an_imperial_scale_gives_metres_per_point() -> None:
+    sheet = SheetPdf()
+    for y in (200, 380):  # two views at the same scale, each with its number left of it
+        sheet.text("3", 380, y)  # not whole inches: "3 1/8\"" would be 1:3.84
+        sheet.text(IMPERIAL_EIGHTH, 390, y)
+    scale, notes = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text, scale.evidence) == (
+        "scaled",
+        IMPERIAL_EIGHTH,
+        ("scale_text",),
+    )
+    assert scale.m_per_unit == pytest.approx(96 * M_PER_PT_ON_PAPER)
+    assert notes == ()
+
+
+@pytest.mark.parametrize("slope", ["(1:12 RAMP SLOPE)", "SLOPE 1:10 MAX", "fall 1:40"])
+def test_a_slope_is_not_the_sheet_scale(slope: str) -> None:
+    sheet = SheetPdf()
+    sheet.text(slope, 100, 200)
+    sheet.text(IMPERIAL_EIGHTH, 400, 380)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text) == ("scaled", IMPERIAL_EIGHTH)
+
+
+def test_a_label_written_one_character_per_line_is_not_a_ratio() -> None:
+    sheet = SheetPdf()
+    # set along a ramp, one glyph per object: the page text has one glyph per line, as on the
+    # Sports_Complex site plans
+    for at, character in enumerate("(1:12RAMPSLOPE)"):
+        sheet.text(character, 200 + 6 * at, 200 + 6 * at)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert scale.status == "no_scale"
+
+
+@pytest.mark.parametrize(("first", "second"), [("1:100", "1:50"), (IMPERIAL_EIGHTH, '3" = 1\'-0"')])
+def test_a_sheet_that_prints_different_scales_has_no_one_scale(first: str, second: str) -> None:
+    sheet = SheetPdf()
+    sheet.text(first, 100, 380)
+    sheet.text(second, 400, 380)
+    sheet.text(first, 100, 200)
+    scale, notes = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.m_per_unit) == ("no_scale", None)
+    assert notes == (
+        f"scale: the sheet prints 2 different scales ({first}, {second}), one per view; none of "
+        "them is the sheet's",
+    )
+
+
 def test_a_scale_bar_that_agrees_is_listed_as_evidence() -> None:
     sheet = SheetPdf()
     sheet.text("1:100", 400, 380)

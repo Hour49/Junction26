@@ -20,6 +20,7 @@ from app.core.pipeline.printed import (
     PrintedSheet,
     ScaleBar,
     bar_m_per_px,
+    imperial_scales,
     printed_scale,
     ratio_of,
     trusted_dpi,
@@ -66,6 +67,14 @@ def test_a_printed_ratio_is_read_in_metric_and_imperial(
     text: str | None, ratio: float | None
 ) -> None:
     assert ratio_of(text) == ratio
+
+
+def test_imperial_scales_lists_each_scale_with_its_text() -> None:
+    assert imperial_scales('PLAN 1/8" = 1\'-0"   DETAIL 1 1/2" = 1\' - 0"') == [
+        (96.0, '1/8" = 1\'-0"'),
+        (8.0, '1 1/2" = 1\' - 0"'),
+    ]
+    assert imperial_scales("1:100") == []
 
 
 def test_only_a_resolution_a_file_states_on_purpose_is_trusted() -> None:

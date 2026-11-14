@@ -107,11 +107,23 @@ def ratio_of(text: str | None) -> float | None:
         ratio = float(re.sub(_GROUPED, "", grouped) if grouped else plain.replace(",", "."))
         return ratio if ratio > 0 else None
     if (found := _IMPERIAL.search(text)) is not None:
-        whole, numerator, denominator, feet, inches = found.groups()
-        paper = float(whole or 0) + float(numerator) / (float(denominator) if denominator else 1.0)
-        real = float(feet) * 12 + (float(inches) if inches else 0.0)
-        return real / paper if paper > 0 and real > 0 else None
+        return _imperial_ratio(found)
     return None
+
+
+def imperial_scales(text: str) -> list[tuple[float, str]]:
+    """Every imperial scale `text` prints, as `ratio_of` reads it, with the scale as printed:
+    "1/4\" = 1'-0\"" is (48, "1/4\" = 1'-0\""). The text should be one label: the number before
+    a fraction is read as whole inches, so a view number or a ZIP code next to it would be."""
+    found = ((_imperial_ratio(match), match.group(0).strip()) for match in _IMPERIAL.finditer(text))
+    return [(ratio, printed) for ratio, printed in found if ratio is not None]
+
+
+def _imperial_ratio(found: re.Match[str]) -> float | None:
+    whole, numerator, denominator, feet, inches = found.groups()
+    paper = float(whole or 0) + float(numerator) / (float(denominator) if denominator else 1.0)
+    real = float(feet) * 12 + (float(inches) if inches else 0.0)
+    return real / paper if paper > 0 and real > 0 else None
 
 
 def trusted_dpi(dpi: tuple[float, float] | None) -> float | None:
