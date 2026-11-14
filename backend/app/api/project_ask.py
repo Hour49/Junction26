@@ -208,6 +208,8 @@ def _total(parts: list[ProjectAnswerPart], drawing_of: Callable[[str], Drawing])
     rows = [view.quantity for view in answered]
     found = [row for row in rows if row is not None]
     many = _drawings(len(answered))
+    if any(isinstance(view.answer, str) for view in answered):  # "Which room is the largest?"
+        return _no_total(f"{many} answered with a room's name, so there is no total", left_out)
     if len(found) < len(rows):
         return _no_total(f"{many} answered from a printed table, so there is no total", left_out)
     if len(found) > 1:
