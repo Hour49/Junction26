@@ -272,6 +272,20 @@ def test_off_a_picture_only_a_printed_area_fails(
         assert statuses(check_rule(drawing(rooms=[read]), rule("bedroom-area"))) == ["fail"]
 
 
+def test_off_a_picture_a_printed_area_says_it_was_read_from_its_label() -> None:
+    """review-341-level: a label reader's area may hold a misread digit, so the words say where it
+    came from; the status is decision 0009's (a printed area decides)."""
+    read = room(1, area_m2=5.0, area_source="printed")
+    found = check_rule(drawing(rooms=[read]), rule("bedroom-area"), route="raster")
+    assert statuses(found) == ["fail"]
+    assert found.results[0].why == (
+        'The bedroom "MH 1" is 5 m2 (read from its label on the image); '
+        "the rule asks at least 7 m2."
+    )
+    vector = check_rule(drawing(rooms=[read]), rule("bedroom-area"), route="vector")
+    assert "label" not in vector.results[0].why
+
+
 def test_an_estimated_area_with_no_stated_error_cannot_tell() -> None:
     estimated = room(1, area_m2=20.0, area_status="estimated")
     assert statuses(check_rule(drawing(rooms=[estimated]), rule("bedroom-area"))) == ["cannot_tell"]
