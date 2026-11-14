@@ -147,15 +147,28 @@ def test_a_class_the_reader_did_not_look_for_is_refused_as_not_read(
     assert "column" in refusal["text"]
 
 
+NOTHING_READ = "Nothing was read from this sheet: its reader found no elements or rooms on it."
+NO_READER = "Nothing was read from this sheet: there is no reader for this kind of sheet yet."
+
+
 @pytest.mark.parametrize(
-    "raster",
-    [{}, {"extractor_raster": "composite", "raster_components": "elements=dir:arm,plans=dir:arm"}],
+    ("raster", "text"),
+    [
+        ({}, NO_READER),  # the stand-in reader: there is none to blame
+        (
+            {
+                "extractor_raster": "composite",
+                "raster_components": "elements=dir:arm,plans=dir:arm",
+            },
+            NOTHING_READ,  # a configured reader with nothing for this image
+        ),
+    ],
 )
-def test_a_sheet_nothing_was_read_from_is_refused_without_blaming_the_build(
-    settings: Settings, raster: dict[str, str]
+def test_a_sheet_nothing_was_read_from_is_refused_for_the_reason_that_holds(
+    settings: Settings, raster: dict[str, str], text: str
 ) -> None:
-    """The stand-in reader, or a configured raster reader that has nothing for this image: the
-    refusal says nothing was found, not that the build lacks a reader."""
+    """With no reader the refusal says there is none; with a reader that has nothing for this
+    image it says nothing was found (the line ingest gives says the same: judge.py)."""
     (settings.projects_dir.parent / "arm").mkdir()  # an arm folder with no file for the image
     settings = settings.model_copy(update=raster)
     client = TestClient(
@@ -164,9 +177,7 @@ def test_a_sheet_nothing_was_read_from_is_refused_without_blaming_the_build(
     project = client.get(f"/api/projects/{upload(client, plan_png(), 'plan.png')}").json()
     refusal = ask(client, project["drawings"][0]["drawing_id"], DOORS)["refusal"]
     assert refusal["code"] == "no-reader"
-    assert refusal["text"] == (
-        "Nothing was read from this sheet: its reader found no elements or rooms on it."
-    )
+    assert refusal["text"] == text
 
 
 def test_ask_names_a_drawing(client: TestClient) -> None:

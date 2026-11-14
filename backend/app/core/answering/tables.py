@@ -149,7 +149,7 @@ def _filter_columns(table: Table, wanted: TableFilter) -> list[int] | None:
 def _rows(table: Table, query: TableQuery) -> list[TableRow] | None:
     """The rows every filter keeps, or None when a filter's column does not resolve or a count
     or sum names no rows at all."""
-    if not query.filters and query.op != "read" and not query.every_row:
+    if not query.filters and query.op not in ("read", "max", "min") and not query.every_row:
         return None
     rows = list(table.rows)
     for wanted in query.filters:
@@ -190,6 +190,10 @@ def _on(table: Table, query: TableQuery, legends: Sequence[Table]) -> TableAnswe
     chosen = [column for column in columns if column is not None]
     if query.op == "sum":
         return _sum(rows, chosen[0], table.page, boxes)
+    if query.op in ("max", "min"):
+        return _extreme(table, rows, chosen[0], query)
+    if query.op == "count_sum":
+        return _count_and_sum(table, rows, chosen[0], query.kind, boxes)
     if not rows:
         return None
     read = [_read(rows, column) for column in chosen]
@@ -247,6 +251,64 @@ def _sum(
         return None
     value = int(total) if total.is_integer() else round(total, 3)
     return TableAnswer(value=value, unit=units.pop(), page=page, boxes=boxes)
+
+
+def _area(cell: str | None) -> tuple[float, Unit, str] | None:
+    """A printed area: its number, its unit and the unit as printed; None for no area."""
+    match = AREA_CELL.match(cell or "")
+    unit = re.sub(r"[\s.]", "", ((match and match.group(2)) or "").casefold())
+    if match is None or unit not in AREA_UNITS:
+        return None
+    return float(match.group(1).replace(",", "")), AREA_UNITS[unit], match.group(2)
+
+
+def _extreme(
+    table: Table, rows: Sequence[TableRow], column: int, query: TableQuery
+) -> TableAnswer | None:
+    """The one row with the largest (smallest) area, named by its kind, key and name cells and
+    the area as printed: "Room 128 FIELDHOUSE (29690 SF)". A tie, or areas in two units, is no
+    answer."""
+    areas = [(found, row) for row in rows if (found := _area(_cell(row, column)))]
+    if not areas or len({found[1] for found, _ in areas}) != 1:
+        return None
+    pick = max if query.op == "max" else min
+    best = pick(found[0] for found, _ in areas)
+    winners = [row for found, row in areas if found[0] == best]
+    if len(winners) != 1:
+        return None
+    row = winners[0]
+    names = [i for i, header in enumerate(table.columns) if "name" in words(header)]
+    parts = [query.kind.capitalize() if query.kind else None, _cell(row, table.key_column)]
+    parts += [_cell(row, i) for i in names if i != table.key_column]
+    label = " ".join(" ".join(part.split()) for part in parts if part)
+    area = " ".join((_cell(row, column) or "").split())
+    return TableAnswer(
+        value=f"{label} ({area})", unit=None, page=table.page, boxes=(row.box or table.box,)
+    )
+
+
+def _count_and_sum(
+    table: Table,
+    rows: Sequence[TableRow],
+    column: int,
+    kind: str | None,
+    boxes: tuple[Box, ...],
+) -> TableAnswer | None:
+    """How many rows and their total area: "3 rooms, 4541 SF" (the unit as the sheet prints it).
+    A schedule of types with a Count column has no one area per item, so it gives no answer."""
+    if kind is None or any(words(header) == {"count"} for header in table.columns):
+        return None
+    total = _sum(rows, column, table.page, boxes)
+    printed = next((found[2] for row in rows if (found := _area(_cell(row, column)))), None)
+    if total is None or printed is None:
+        return None
+    noun = kind if len(rows) == 1 else f"{kind}s"
+    return TableAnswer(
+        value=f"{len(rows)} {noun}, {total.value} {printed}",
+        unit=None,
+        page=table.page,
+        boxes=boxes,
+    )
 
 
 def _read(rows: Sequence[TableRow], column: int) -> str | None:

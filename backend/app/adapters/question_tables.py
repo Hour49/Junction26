@@ -19,6 +19,7 @@ Two quantities in one question, a superlative or rows it can't name are `Unsuppo
 """
 
 import re
+from typing import Literal
 
 from app.core.answering.model import TableFilter, TableQuery, Unsupported
 
@@ -31,6 +32,13 @@ TABLE_CUES = re.compile(
 CONTEXT = re.compile(r"^\s*on sheet (?:[^,(]|\([^)]*\))*,\s*", re.IGNORECASE)
 NAMED_TABLE = re.compile(r"\b(?:in|from|on|does)\s+the\s+([\w ]*?)\s*schedule\b", re.IGNORECASE)
 TWO_QUANTITIES = re.compile(r"\bhow many\b.*\band\b.*\b(?:total|area|sum)\b", re.IGNORECASE)
+# The two quantities that are one query: a count of rows and their total area.
+AND_THEIR_AREA = re.compile(
+    r",?\s+and what is (?:their|the) (?:total |combined )?area\s*\??$", re.IGNORECASE
+)
+# "which room ... has the largest area": the row of a kind with the largest or smallest area.
+WHICH_ROW = re.compile(r"^(?:which|what)\s+(\w+)\b", re.IGNORECASE)
+EXTREME_AREA = re.compile(r"\bthe (largest|biggest|smallest) (?:floor )?area\b", re.IGNORECASE)
 BREAKDOWN = re.compile(
     r"\beach\b|\bper (?:type|room|floor)\b|\bby type\b|\blist (?:all|the)\b", re.IGNORECASE
 )
@@ -92,11 +100,13 @@ def is_table_question(text: str) -> bool:
 def parse_table(text: str) -> TableQuery | Unsupported:
     """`text` is a question `is_table_question` accepts, whitespace normalised."""
     body = CONTEXT.sub("", text)
-    if SUPERLATIVE.search(body):
+    extreme = _extreme(body)
+    if SUPERLATIVE.search(body) and extreme is None:
         return Unsupported(reason="a superlative (largest, longest...) is not a schedule lookup")
     if BREAKDOWN.search(body):
         return Unsupported(reason="a breakdown or list is not one quantity")
-    if TWO_QUANTITIES.search(body):
+    with_area = AND_THEIR_AREA.search(body)
+    if TWO_QUANTITIES.search(body) and with_area is None:
         return Unsupported(reason="two quantities in one question")
     named = NAMED_TABLE.search(body)
     table_name = named.group(1) if named else ""
@@ -104,7 +114,13 @@ def parse_table(text: str) -> TableQuery | Unsupported:
     kind = _kind(table_name, counted, body)
     rest = NAMED_TABLE.sub(" ", body)
     filters, rest = _filters(rest)
-    if counted is not None:
+    if extreme is not None:
+        op, column = extreme, (("area",),)
+    elif with_area is not None:
+        if counted is None:
+            return Unsupported(reason="two quantities in one question")
+        op, column = "count_sum", (("area",),)
+    elif counted is not None:
         filters += [
             TableFilter(values=(name,), match="contains") for name in PROPER_NAME.findall(counted)
         ]
@@ -127,6 +143,14 @@ def parse_table(text: str) -> TableQuery | Unsupported:
         every_row=not filters and WHOLE_TABLE.search(body) is not None,
         meaning=MEANING.search(body) is not None,
     )
+
+
+def _extreme(body: str) -> Literal["max", "min"] | None:
+    """ "max"/"min" when the question asks which row of a kind has the largest/smallest area."""
+    row, most = WHICH_ROW.match(body), EXTREME_AREA.search(body)
+    if row is None or most is None or _row_kind(row.group(1)) is None:
+        return None
+    return "min" if most.group(1).casefold() == "smallest" else "max"
 
 
 def _counted(body: str) -> str | None:

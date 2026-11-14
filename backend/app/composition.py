@@ -26,6 +26,7 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
+from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
 from app.adapters.decisions.client import DecisionsClient
 from app.adapters.decisions.g1main import G1MainReader
@@ -48,7 +49,7 @@ from app.adapters.paths import inside
 from app.adapters.pdf_tables import PdfTables
 from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
 from app.adapters.question_templates import TemplateParser
-from app.adapters.raster import RoomPolicy, assemble, parse_components
+from app.adapters.raster import RoomPolicy, assemble, parse_components, parse_readers
 from app.adapters.raster.photo import PhotoSwitch
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster_detector import OnnxDetector
@@ -347,6 +348,8 @@ def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> 
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
         names["room_policy"] = settings.room_policy
+    if settings.double_check_readers:  # the same
+        names["double_check_readers"] = settings.double_check_readers
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -395,15 +398,22 @@ def _raster(
         case "hello":
             if photo:
                 raise InvalidInputError("RASTER_PHOTO_COMPONENTS needs EXTRACTOR_RASTER=composite")
+            if settings.double_check_readers:
+                raise InvalidInputError("DOUBLE_CHECK_READERS needs EXTRACTOR_RASTER=composite")
             return HelloExtractor()
         case "composite":
             built = cache(lambda source: _raster_component(source, settings, files, decisions))
             policy = _room_policy(settings.room_policy)
-            shipped = _composite("RASTER_COMPONENTS", settings.raster_components, built, policy)
+            checks = _double_check(settings.double_check_readers, built)
+            shipped = _composite(
+                "RASTER_COMPONENTS", settings.raster_components, built, policy, checks
+            )
             if not photo:
                 return shipped
             return PhotoSwitch(
-                shipped, _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy), kind_of
+                shipped,
+                _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
+                kind_of,
             )
 
 
@@ -415,12 +425,28 @@ def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:
             return gold_label_rooms
 
 
+def _double_check(readers: str, build: Callable[[str], Extractor]) -> dict[str, str]:
+    """DOUBLE_CHECK_READERS parsed, each source built once here (`build` is cached), so one that
+    does not build is refused under the setting's own name."""
+    try:
+        checks = parse_readers(readers)
+        for source in checks.values():
+            build(source)
+    except DomainError as error:
+        raise InvalidInputError(f"DOUBLE_CHECK_READERS={readers!r}: {error}") from error
+    return checks
+
+
 def _composite(
-    name: str, components: str, build: Callable[[str], Extractor], policy: RoomPolicy | None
+    name: str,
+    components: str,
+    build: Callable[[str], Extractor],
+    policy: RoomPolicy | None,
+    checks: Mapping[str, str],
 ) -> Extractor:
     """A spec's composite; a source both specs name is built once (`build` is cached)."""
     try:
-        return assemble(parse_components(components), build, policy)
+        return assemble(parse_components(components), build, policy, checks)
     except DomainError as error:
         raise InvalidInputError(f"{name}={components!r}: {error}") from error
 
@@ -479,6 +505,15 @@ def _raster_component(
         case "region" if where:
             region = Path(settings.region_model_dir) if settings.region_model_dir else None
             return RegionDetector.from_folders(files, inside(DETECTOR_DIR, where), region)
+        case "arbiter-t1" if where:
+            arm, _, run = where.partition(":")
+            folder = inside(DETECTOR_DIR, arm)
+            tuned = inside(DETECTOR_RUNS, f"{run}.thresholds.json") if run else None
+            base = OnnxDetector.from_folder(files, folder, views=8)
+            second = OnnxDetector.from_folder(files, folder, tuned)
+            return ArbiterCountExtractor.from_folder(
+                base, second, files, Path(settings.arbiter_model_dir)
+            )
         case "decisions" if where:
             inner = _raster_component(where, settings, files, decisions)
             return DecisionsCountExtractor(inner, files, decisions())
@@ -491,6 +526,7 @@ def _raster_component(
                 "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], "
                 "detector-v<2|4|8>:<arm>, photo:<arm>, "
                 "region:<arm>, verda, gemini, regionrooms, decisions:<source>, "
+                "arbiter-t1:<arm>[:<one-view tune run>], "
                 "decisions-s1536:<source> and one-plan"
             )
 

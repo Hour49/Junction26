@@ -312,6 +312,13 @@ def _count_key_ok(key: str) -> bool:
     return key == "plan" or key in ELEMENT_CLASSES or (kind == "room" and room_type in ROOM_TYPES)
 
 
+class ReaderView(_Strict):
+    """What one double-check reader saw on the sheet. Never scored, never counted."""
+
+    read: list[ElementClass] = Field(description="the element classes it looked for")
+    elements: list[Element] = Field(default_factory=list[Element])
+
+
 class Extraction(_Strict):
     """One drawing file: its pages, plans, elements, rooms, apartments and, optionally, its
     schedules, stage-8 conflicts and the objects of its BIM model (extraction_v1)."""
@@ -350,6 +357,11 @@ class Extraction(_Strict):
         default=None,
         description="every object of the BIM model the file comes from, all storeys, drawn here "
         "or not; null: the source has no model",
+    )
+    double_check: dict[str, ReaderView] | None = Field(
+        default=None,
+        description="what other readers saw on the sheet, by reader name, for marking where "
+        "they disagree with a count; never scored; null: none ran",
     )
     notes: list[str] = Field(default_factory=list[str])
 

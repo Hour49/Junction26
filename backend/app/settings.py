@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
     # into `other`
     room_policy: RoomPolicyName = "furniture"
+    # More readers of each raster sheet, <name>=<source> pairs with RASTER_COMPONENTS' sources,
+    # e.g. l1=detector:C-yolo26l,m1=detector:C-yolo26m. What each saw is kept with the drawing and
+    # never counted: an answer uses it to say where the readers disagree with it
+    # (app/core/pipeline/disputed_marks.py). Empty: none
+    double_check_readers: str = ""
     # The Gemini room reader of the raster route (app/adapters/raster_ocr/gemini.py), built only
     # when RASTER_COMPONENTS names it: its key (never logged), model, time limit per page, and
     # the folder its replies are cached in (gitignored)
@@ -93,6 +98,9 @@ class Settings(BaseSettings):
     # The region arm (app/adapters/raster_region/, source `region:<detector arm>`), built only when
     # RASTER_COMPONENTS names it: the annotated-flat segmenter's folder ("" reads the whole page)
     region_model_dir: str = "../data/models/region/R1-unet34"
+    # The local count arbiter T1 (app/adapters/count_arbiter/, source `arbiter-t1:<arm>`), built
+    # only when RASTER_COMPONENTS names it: its model, prior and L1 page-count model
+    arbiter_model_dir: Path = Path("../data/models/arbiter/T1")
     second_counter: SecondCounterName = "ifc"
     question_parser: QuestionParserName = "templates"
     answer_prior: AnswerPriorName = "none"

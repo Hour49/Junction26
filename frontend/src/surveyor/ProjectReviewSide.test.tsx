@@ -64,7 +64,7 @@ describe('ProjectReviewSide', () => {
     const items = within(list).getAllByRole('listitem');
     expect(items).toHaveLength(3);
     const first = nth(items, 0).textContent;
-    expect(first).toContain('area of room (name 1.01)');
+    expect(first).toContain('area of room (name Küche · 1.01)');
     expect(first).toContain('plans/flat-b.pdf');
     expect(first).toContain('22.40 m² vs 30.00 m²');
     expect(first).toContain('decided by rule');

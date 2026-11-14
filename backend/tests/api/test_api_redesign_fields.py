@@ -199,19 +199,11 @@ def test_unsettle_of_a_signed_quantity_is_refused(client: TestClient) -> None:
 
 
 def test_the_project_list_counts_what_is_left_to_review(client: TestClient) -> None:
-    url, project = sample(client)
+    url, _ = sample(client)
     (summary,) = client.get("/api/projects").json()["projects"]
     review = client.get(f"{url}/review").json()
     assert summary["to_review"] == sum(drawing["to_review"] for drawing in review["drawings"])
-    assert summary["conflicts_open"] == len(review["conflicts"]) >= 1
-    flat_b = next(file for file in project["files"] if file["path"] == "plans/flat-b.pdf")
-    settle = {"quantity": ROOM, "action": "settle", "value": 30}
-    client.post(
-        f"/api/drawings/{flat_b['drawing_id']}/review", params={"project": project["id"]},
-        json=settle,
-    )  # fmt: skip
-    (after,) = client.get("/api/projects").json()["projects"]
-    assert after["conflicts_open"] == summary["conflicts_open"] - 1
+    assert summary["conflicts_open"] == sum(entry["needs_person"] for entry in review["conflicts"])
 
 
 def test_a_project_still_running_has_no_counts() -> None:

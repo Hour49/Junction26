@@ -423,7 +423,12 @@ def photo(*rooms: Room, elements: tuple[Element, ...] = ()) -> Drawing:
 
 
 def asked_flagged(
-    text: str, drawing: Drawing, flags: tuple[str, ...], *, raster: bool = False
+    text: str,
+    drawing: Drawing,
+    flags: tuple[str, ...],
+    *,
+    raster: bool = False,
+    no_reader: bool = False,
 ) -> Asked:
     return ask(
         text,
@@ -434,6 +439,7 @@ def asked_flagged(
         state=ReviewState(),
         flags=flags,
         raster=raster,
+        no_reader=no_reader,
     )
 
 
@@ -566,3 +572,40 @@ def test_a_flagged_page_s_answers_are_never_marked_sure() -> None:
     assert sure((PHOTO_FLAG,)) == (1, 0.99, None)
     assert sure(("a scanned PDF, read as an image",)) == (1, 0.99, None)
     assert sure(()) == (1, 0.99, True)  # the same page unflagged: the gate's verdict
+
+
+def test_every_no_reader_refusal_says_so_when_the_route_has_no_reader() -> None:
+    """A route on the stand-in has no reader, so no refusal blames one that "found no elements":
+    the flagged photo's, the raster page's no rooms, and the empty drawing's."""
+    nothing = photo().model_copy(update={"read": ()})
+    cases = (
+        ("How many doors are there?", nothing, (PHOTO_FLAG,)),  # flagged, nothing read
+        ("How many rooms?", nothing, ()),  # a raster page with no rooms
+        ("How many doors are there?", nothing, ()),  # read is empty
+    )
+    for text, drawing, flags in cases:
+        found = asked_flagged(text, drawing, flags, raster=True, no_reader=True)
+        assert found.refusal is not None and found.refusal.code == "no-reader", text
+        assert found.refusal.text == (
+            "Nothing was read from this sheet: there is no reader for this kind of sheet yet."
+        ), (text, flags)
+        again = asked_flagged(text, drawing, flags, raster=True)  # a reader that read nothing
+        assert again.refusal is not None and "no reader" not in again.refusal.text
+
+
+def test_a_room_s_names_are_one_disagreement_only_when_the_rows_point_at_one_room() -> None:
+    """Two rooms whose readers disagree with the same numbers and that give no mark are two
+    disagreements: merging them would settle one room with the other's decision."""
+    both = disputed(False)
+
+    def rooms(*boxes: tuple[float, float, float, float]) -> dict[str, Quantity]:
+        return {
+            f"area:room|name={name}": quantity(
+                f"area:room|name={name}", 2, "m2", *boxes, conflict=both
+            )
+            for name in ("1.01", "kitchen")
+        }
+
+    assert storey_twins(rooms()) == {}  # no marks: not known to be one room
+    assert len(disputes([row(q, DRAWING, ReviewState(), {}) for q in rooms().values()])) == 2
+    assert storey_twins(rooms(BOX_A)) == {"area:room|name=kitchen": "area:room|name=1.01"}
