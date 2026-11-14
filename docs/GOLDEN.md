@@ -224,7 +224,7 @@ numbers.
 extraction, every real adapter of the commit turned on. Each point runs from a clean export of a merge commit, not
 the shared tree, by `eval/pipeline-run.sh <commit> [NAME=VALUE ...]` and scored by the same eval on the frozen
 set, so the numbers compare. Its records say `dirty: false` with that commit, the settings it ran with, and the
-scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02; 2e1c0b0 recorded 07:14; 5fa8464 recorded 08:20):
+scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02; 2e1c0b0 recorded 07:14; 5fa8464 recorded 08:20; bd2471f recorded 10:25):
 
 | commit | code time | settings that change | P1 element F1 cubi | P1 element F1 ifc | P1 element F1 open | P1 element F1 swiss | P2 accuracy | P2 dev | P2 holdout | abstained |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -235,6 +235,7 @@ scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfil
 | 5331dab | 2026-11-14 04:56 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=False decisions_kind=False decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d rectifier=none region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
 | 2e1c0b0 | 2026-11-14 06:58 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
 | 5fa8464 | 2026-11-14 08:15 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_provider=gemini decisions_timeout_s=30.0 eu_vlm_api_key=sha256:e3b0c44298fc eu_vlm_base_url=sha256:8d629f3b12ac eu_vlm_model=sha256:466b8aaefcdc eu_vlm_timeout_s=300.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 kind_provider=gemini projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:4448f99e9eaa raster_photo_components=sha256:e3b0c44298fc raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f rooms_provider=gemini sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.1% | 100.0% | 0.0% | 100.0% | 2709/2948 (91.9%) | 91.8% † | 92.5% | 1.0% |
+| bd2471f | 2026-11-14 10:14 | answer_policy=sha256:98f4f54c1a84 answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_provider=gemini decisions_timeout_s=30.0 eu_vlm_api_key=sha256:e3b0c44298fc eu_vlm_base_url=sha256:8d629f3b12ac eu_vlm_model=sha256:466b8aaefcdc eu_vlm_timeout_s=300.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gate_policy=sha256:56ca7d9c795f gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 kind_provider=gemini projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:4448f99e9eaa raster_photo_components=sha256:e3b0c44298fc raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f rooms_provider=gemini sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.1% | 100.0% | 0.0% | 100.0% | 2717/2948 (92.2%) | 92.0% † | 92.9% | 4.5% |
 
 Code time is the commit time (Europe/Helsinki); `*` marks a run recorded with uncommitted changes, timed when recorded. Abstained: share of golden answers marked `abstain` (n/a: no answer_v1.1 fields).
 
@@ -287,6 +288,19 @@ reads of the same pages. Against 2e1c0b0, by cause:
 - Config C's detector (11b40a5 to 5fa8464, same runtime rooms): +12: door 78 to 80/104, sink 120 to 126/150,
   toilet 134 to 140/154, window 72 to 70/154, shower+bathtub 116/142 either way (24 answers changed value), rooms
   identical. Part 1 CubiCasa element F1 85.4% to 85.1%. Estimate extras labelled 7/13 to 6/13.
+
+bd2471f (golden, 2026-11-14 10:25; branch exp/policy) is config C with golden's answer policy: `tools/qa-env.sh
+config` at that commit adds `ANSWER_POLICY=../eval/results/policy/policy-C-L-swap.json` and
+`GATE_POLICY=../eval/results/gate/gate-C-L-swap.json` (PR #98). The policy sends CubiCasa kitchen counts to the
+prior (1 kitchen): the train prior beat config C's readers on kitchens on both val halves, and the backend A/B on val
+gives +0.35 pp [+0.12, +0.60]. No key, every reply from the caches, no spend. Against 5fa8464, by cause:
+
+- Headline 2709 to 2717/2948 (dev 92.0% †, holdout 92.9%); Part 1 unchanged.
+- `ANSWER_POLICY`: the 102 CubiCasa kitchen-count answers are now method `prior:policy`, 90 to 98 right (dev +6,
+  holdout +2); no other answer changed value. Each one abstains with the prior's value, so abstained goes 1.0% to
+  4.5%. The dev prior is fit on dev.jsonl, so the dev part of the gain is in-sample (†); the train prior gives the
+  same value.
+- `GATE_POLICY`: 286 answers marked sure, 585 not, the rest null; no policy answer is marked sure.
 
 ## Experiments (CubiCasa raster, 2026-11-14)
 
