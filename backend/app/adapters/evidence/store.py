@@ -26,15 +26,20 @@ import numpy as np
 from numpy.typing import NDArray
 
 from app.adapters.paths import inside
+from app.core.evidence.file_sources import TextSource
 from app.core.evidence.fusion import POOL, FileRanking
 from app.core.evidence.model import EvidenceSource, Passage, sources
+from app.core.evidence.passages import source_passages
 from app.core.evidence.search import first_per_file, passage_id, words
 from app.core.ingest.model import ProjectStatus
 
 FILE = "evidence.sqlite"
-# (embedder name, {file id: (content hash, verdict, source JSON)})
-Stored = tuple[str | None, dict[str, tuple[str, str | None, str]]]
+SCHEMA_VERSION = "2"  # 2: passages.page (sources v2); an older file is migrated on its next sync
+# (embedder name, schema version, {file id: (content hash, verdict, source JSON)})
+Stored = tuple[str | None, str | None, dict[str, tuple[str, str | None, str]]]
 Chunker = Callable[[EvidenceSource], Sequence[Passage]]
+# A `text` source's own text, read again from the project's stored file: (project id, source)
+StoredText = Callable[[str, EvidenceSource], TextSource | None]
 SCHEMA = """
 create table if not exists meta (key text primary key, value text not null);
 create table if not exists sources (
@@ -42,7 +47,7 @@ create table if not exists sources (
 create table if not exists passages (
     rowid integer primary key, id text not null unique, file_id text not null,
     part text not null, n integer not null, subject text not null, text text not null,
-    vector blob);
+    vector blob, page integer not null default 1);
 create index if not exists passages_file on passages (file_id);
 create virtual table if not exists passages_fts using fts5(
     subject, text, content='passages', content_rowid='rowid',
@@ -97,10 +102,11 @@ class EvidenceReader:
     def stored(self) -> Stored:
         db = self._connection()
         if db is None:
-            return None, {}
-        row = db.execute("select value from meta where key = 'embedder'").fetchone()
+            return None, None, {}
+        meta = dict(db.execute("select key, value from meta").fetchall())
         rows = db.execute("select file_id, content, verdict, body from sources").fetchall()
-        return (None if row is None else row[0]), {r[0]: (r[1], r[2], r[3]) for r in rows}
+        found = {r[0]: (r[1], r[2], r[3]) for r in rows}
+        return meta.get("embedder"), meta.get("schema"), found
 
     def indexed(self) -> list[EvidenceSource]:
         """The sources in the index, in file order."""
@@ -152,19 +158,29 @@ class EvidenceReader:
         if db is None:
             return None
         row = db.execute(
-            "select p.part, p.n, p.text, s.body from passages p "
+            "select p.part, p.n, p.text, p.page, s.body from passages p "
             "join sources s on s.file_id = p.file_id where p.id = ?",
             (passage,),
         ).fetchone()
         if row is None:
             return None
-        part, n, text, body = row
-        return Passage(part=part, n=n, text=text), EvidenceSource.model_validate(json.loads(body))
+        part, n, text, page, body = row
+        found = Passage(part=part, n=n, text=text, page=page)
+        return found, EvidenceSource.model_validate(json.loads(body))
 
 
 class SqliteEvidenceIndex:
-    def __init__(self, root: Path, chunker: Chunker, embedder: Embedder | None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        chunker: Chunker,
+        embedder: Embedder | None,
+        texts: StoredText | None = None,
+    ) -> None:
+        """`texts`: reads a `text` source's own text again (None: such sources get no text
+        passages)."""
         self._root, self._chunker, self._embedder = root, chunker, embedder
+        self._texts = texts
 
     @property
     def embedder_label(self) -> str | None:
@@ -207,7 +223,11 @@ class SqliteEvidenceIndex:
                 for statement in SCHEMA.split(";"):  # in the transaction, with the rows
                     if statement.strip():
                         db.execute(statement)
-                self._write(db, current)
+                columns = {row[1] for row in db.execute("pragma table_info(passages)")}
+                if "page" not in columns:  # a file of schema 1
+                    db.execute("alter table passages add column page integer not null default 1")
+                db.execute("replace into meta values ('schema', ?)", (SCHEMA_VERSION,))
+                self._write(db, status.id, current)
                 db.execute("commit")
             except BaseException:
                 db.execute("rollback")
@@ -219,15 +239,19 @@ class SqliteEvidenceIndex:
         return "" if self._embedder is None else self._embedder.name
 
     def _differs(self, stored: Stored, current: dict[str, EvidenceSource]) -> bool:
-        embedder, rows = stored
-        if embedder != self._embedder_name() or rows.keys() != current.keys():
+        embedder, schema, rows = stored
+        if embedder != self._embedder_name() or schema != SCHEMA_VERSION:
+            return True
+        if rows.keys() != current.keys():
             return True
         return any(
             rows[file_id] != (source.content, source.verdict, source.model_dump_json())
             for file_id, source in current.items()
         )
 
-    def _write(self, db: sqlite3.Connection, current: dict[str, EvidenceSource]) -> None:
+    def _write(
+        self, db: sqlite3.Connection, project_id: str, current: dict[str, EvidenceSource]
+    ) -> None:
         """Write what differs, compared again under the write lock (another writer may have
         brought the index in step meanwhile)."""
         embedder = self._embedder_name()
@@ -253,7 +277,7 @@ class SqliteEvidenceIndex:
                 )
                 continue
             self._drop(db, file_id)
-            self._add(db, source)
+            self._add(db, project_id, source)
             db.execute(
                 "insert into sources values (?, ?, ?, ?)",
                 (file_id, source.content, source.verdict, body),
@@ -271,8 +295,12 @@ class SqliteEvidenceIndex:
         db.execute("delete from passages where file_id = ?", (file_id,))
         db.execute("delete from sources where file_id = ?", (file_id,))
 
-    def _add(self, db: sqlite3.Connection, source: EvidenceSource) -> None:
-        passages = [found for found in self._chunker(source) if found.text.strip()]
+    def _add(self, db: sqlite3.Connection, project_id: str, source: EvidenceSource) -> None:
+        text = None
+        if source.texts and self._texts is not None:
+            text = self._texts(project_id, source)
+        cut = source_passages(source, self._chunker, text)
+        passages = [found for found in cut if found.text.strip()]
         subject = source.description.subject
         vectors: list[bytes | None] = [None] * len(passages)
         if self._embedder is not None and passages:
@@ -280,10 +308,10 @@ class SqliteEvidenceIndex:
             vectors = [np.asarray(row, np.float32).tobytes() for row in found]
         for passage, vector in zip(passages, vectors, strict=True):
             cursor = db.execute(
-                "insert into passages (id, file_id, part, n, subject, text, vector) "
-                "values (?, ?, ?, ?, ?, ?, ?)",
+                "insert into passages (id, file_id, part, n, subject, text, vector, page) "
+                "values (?, ?, ?, ?, ?, ?, ?, ?)",
                 (passage_id(source.file_id, passage), source.file_id, passage.part, passage.n,
-                 subject, passage.text, vector),
+                 subject, passage.text, vector, passage.page),
             )  # fmt: skip
             db.execute(
                 "insert into passages_fts (rowid, subject, text) values (?, ?, ?)",

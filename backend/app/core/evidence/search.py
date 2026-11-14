@@ -3,10 +3,11 @@ passages as a ranking of files, a query's words, the ones a passage holds, and i
 
 import re
 from collections.abc import Iterable, Sequence
+from typing import cast
 
 from app.core.evidence.model import PartName, Passage
 
-ID = re.compile(r"(f[0-9]{1,6})(?:-(summary)|-(detail|visible_text)-([1-9][0-9]{0,3}))?")
+ID = re.compile(r"(f[0-9]{1,6})(?:-(summary)|-(detail|visible_text|text)-([1-9][0-9]{0,3}))?")
 SNIPPET = 300
 WORD = re.compile(r"[^\W_]{2,}")  # a word: two letters or digits or more
 # words too common to say why a passage matched (English, the descriptions' language)
@@ -47,7 +48,7 @@ COMMON = frozenset(
 
 
 def passage_id(file_id: str, passage: Passage) -> str:
-    """`f7-summary`, `f7-detail-2`, `f7-visible_text-1`."""
+    """`f7-summary`, `f7-detail-2`, `f7-visible_text-1`, `f7-text-12`."""
     if passage.part == "summary":
         return f"{file_id}-summary"
     return f"{file_id}-{passage.part}-{passage.n}"
@@ -59,7 +60,7 @@ def parsed(found: str) -> tuple[str, PartName, int] | None:
     if match is None:
         return None
     if match[3] is not None:
-        part: PartName = "detail" if match[3] == "detail" else "visible_text"
+        part = cast(PartName, match[3])
         return match[1], part, int(match[4])
     return match[1], "summary", 1
 

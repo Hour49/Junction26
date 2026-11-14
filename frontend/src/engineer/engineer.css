@@ -52,11 +52,33 @@
 .en-card {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  /* EN-86: value + double-check (head) over the rest of the side column; phones put head first */
+  grid-template-areas: 'fig head' 'fig side';
+  grid-template-rows: auto 1fr;
   padding: 0;
   overflow: hidden;
 }
+.en-card > .en-left {
+  grid-area: fig;
+}
+.en-head {
+  grid-area: head;
+  padding: 20px 22px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.en-head p {
+  margin: 0;
+}
+.en-card > .en-side {
+  grid-area: side;
+  padding-top: 16px;
+}
 .en-card--empty {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'fig';
+  grid-template-rows: auto;
 }
 .en-left {
   position: relative;
@@ -453,6 +475,20 @@ button.en-ref:hover,
 .en-warn {
   color: var(--v-warn);
 }
+/* EN-84: a flagged drawing's reason and level, before the sentence and the plan. */
+.en-flag {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--v-warn);
+  border-radius: 12px;
+  background: var(--v-warn-soft);
+  font-size: 14px;
+}
+.en-flag > p {
+  margin: 0;
+}
 
 /* Chips: suggestions, can_answer, Try again. */
 .en-suggest {
@@ -562,6 +598,11 @@ button.en-ref:hover,
 @media (max-width: 900px) {
   .en-card {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'head' 'fig' 'side';
+    grid-template-rows: auto;
+  }
+  .en-head {
+    padding-bottom: 16px;
   }
   .en-page {
     padding: 24px 16px 0;
@@ -751,6 +792,12 @@ button.en-cref {
   flex: 1 1 200px;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+/* CH-43/CH-44: why and the estimate, each a full row under the value */
+.en-parts .en-why,
+.en-parts .en-estimate {
+  flex-basis: 100%;
+  margin: 0;
 }
 .en-parts a {
   min-height: 44px;

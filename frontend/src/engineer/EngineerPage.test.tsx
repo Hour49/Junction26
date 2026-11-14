@@ -1,6 +1,13 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { evidenceUrl, methodName, previewUrl, type AnswerView, type Row } from '../api';
+import {
+  drawingLabel,
+  evidenceUrl,
+  methodName,
+  previewUrl,
+  type AnswerView,
+  type Row,
+} from '../api';
 import {
   answer,
   answerArea,
@@ -41,6 +48,8 @@ import {
 const PROJECT = '5e0c1a2b3d4f';
 const DRAWING = drawing.id;
 const DRAWING_ROUTE = `GET /api/drawings/${DRAWING}`;
+// EN-87: the page names the drawing as the chat does (project.json's entry)
+const NAME = 'Drawn plan 1';
 const PROJECT_ROUTE = `GET /api/projects/${PROJECT}`;
 
 /** Answers POST /api/ask with the given responses in order. */
@@ -90,7 +99,7 @@ afterEach(() => {
 describe('drawing header and ask box', () => {
   it('R1-PS-1 EN-49 the drawing is requested in the route project', async () => {
     const api = open({ [DRAWING_ROUTE]: drawing });
-    await screen.findByRole('heading', { name: drawing.file });
+    await screen.findByRole('heading', { name: NAME });
     const drawings = api.calls.filter((c) => c.url.startsWith('/api/drawings/'));
     expect(drawings.map((c) => c.url)).toEqual([`/api/drawings/${DRAWING}?project=${PROJECT}`]);
   });
@@ -133,7 +142,7 @@ describe('drawing header and ask box', () => {
 
   it('EN-1 opening the route requests the drawing once', async () => {
     const api = open({ [DRAWING_ROUTE]: drawing });
-    await screen.findByRole('heading', { name: 'plans/flat-a.pdf' });
+    await screen.findByRole('heading', { name: NAME });
     const gets = api.calls.filter((c) => c.url.startsWith(`/api/drawings/${DRAWING}`));
     expect(gets).toHaveLength(1);
     expect(gets[0]?.method).toBe('GET');
@@ -155,7 +164,7 @@ describe('drawing header and ask box', () => {
 
   it('EN-4 the header shows the file and how it was read', async () => {
     open({ [DRAWING_ROUTE]: drawing });
-    expect(await screen.findByRole('heading', { name: 'plans/flat-a.pdf' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: NAME })).toBeTruthy();
     expect(
       screen.getByText(
         'drawn PDF route, read from plans/flat-a.pdf by PDF vector reader; second count where a question has one: PDF vector reader; questions: question templates',
@@ -176,7 +185,7 @@ describe('drawing header and ask box', () => {
 
   it('EN-6 one button per suggestion, in order', async () => {
     open({ [DRAWING_ROUTE]: drawing });
-    await screen.findByRole('heading', { name: 'plans/flat-a.pdf' });
+    await screen.findByRole('heading', { name: NAME });
     const row = screen.getByRole('group', { name: 'Suggested questions' });
     const names = within(row)
       .getAllByRole('button')
@@ -221,7 +230,7 @@ describe('drawing header and ask box', () => {
     const api = open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': () => never() });
     await typeAndAsk('How many doors are there?');
     const t = await turn('How many doors are there?');
-    expect(within(t).getByText('Reading plans/flat-a.pdf…')).toBeTruthy();
+    expect(within(t).getByText(`Reading ${NAME}…`)).toBeTruthy();
     await typeAndAsk('How many windows are there?');
     expect(askButton().disabled).toBe(true);
     expect(asks(api)).toHaveLength(1);
@@ -468,7 +477,7 @@ describe('thread', () => {
     open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': () => held });
     await typeAndAsk(answerArea.question);
     const t = await turn(answerArea.question);
-    await within(t).findByText('Reading plans/flat-a.pdf…');
+    await within(t).findByText(`Reading ${NAME}…`);
     const before = scroll.mock.calls.length;
     arrive(answerArea);
     await within(t).findByTestId('answer-value');
@@ -820,8 +829,10 @@ describe('Vellum (screen 4)', () => {
     const parts = [...t.children].map((e) => e.className);
     expect(parts).toEqual(['en-bubble', 'en-sentence', 'v-card en-card']);
     expect(within(t).getByRole('figure', { name: 'Drawing' }).closest('.en-left')).toBeTruthy();
+    // EN-86: the value sits in .en-head (its own grid area), the rest in .en-side
+    const head = t.querySelector('.en-head') as HTMLElement;
+    expect(within(head).getByTestId('answer-value').textContent).toBe('2');
     const side = t.querySelector('.en-side') as HTMLElement;
-    expect(within(side).getByTestId('answer-value').textContent).toBe('2');
     const order = ['Checks', 'One method', 'Counting rule:', 'References'].map((x) =>
       side.textContent.indexOf(x),
     );
@@ -835,7 +846,7 @@ describe('Vellum (screen 4)', () => {
     const t = await shownTurn(answer);
     const fig = within(t).getByRole('figure', { name: 'Drawing' });
     expect(fig.textContent).toContain('PDF vector · drawn PDF route');
-    const also = within(t).getByRole('link', { name: 'plans/flat-a.png' });
+    const also = within(t).getByRole('link', { name: 'flat-a.png' });
     expect(also.getAttribute('href')).toBe(`#/p/${PROJECT}/d/c9b719f715357201/engineer`);
     expect(within(t).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
   });
@@ -972,7 +983,7 @@ describe('Vellum (screen 4)', () => {
   it('EN-61 the ask box: Question, placeholder with the file, Ask; no edit-plan link', async () => {
     open({ [DRAWING_ROUTE]: drawing });
     await screen.findByRole('textbox', { name: 'Question' });
-    expect(input().placeholder).toBe('Ask about plans/flat-a.pdf');
+    expect(input().placeholder).toBe(`Ask about ${NAME}`);
     expect(askButton()).toBeTruthy();
     expect(screen.queryByRole('link', { name: /Edit a house plan/ })).toBeNull();
   });
@@ -1029,6 +1040,52 @@ describe('Vellum (screen 4)', () => {
     expect(block.querySelector('.en-bar')).toBeNull();
   });
 
+  it('EN-84 flagged drawing: flag reason and level at the top, above the plan and marks', async () => {
+    // DoubleCheck reads this drawing's marks: the fixture's own drawing id has no route here
+    const low: AnswerView = { ...answerLow, drawing_id: DRAWING };
+    const flaggedProject = {
+      ...project,
+      drawings: project.drawings.map((d) =>
+        d.drawing_id === DRAWING ? { ...d, state: 'flagged' as const } : d,
+      ),
+    };
+    open({
+      [PROJECT_ROUTE]: flaggedProject,
+      [DRAWING_ROUTE]: drawing,
+      'POST /api/ask': answers(low),
+    });
+    await typeAndAsk(low.question);
+    const t = await turn(low.question);
+    await within(t).findByText('This drawing was flagged');
+    const flag = t.querySelector('.en-flag') as HTMLElement;
+    expect(within(flag).getByText('This drawing was flagged')).toBeTruthy();
+    expect(flag.textContent).toContain(answerLow.check?.reason ?? 'x');
+    expect(within(flag).getByText('Low')).toBeTruthy();
+    expect(flag.textContent).toContain(answerLow.level?.text ?? 'x');
+    const card = t.querySelector('.en-card') as HTMLElement;
+    const sentence = t.querySelector('.en-sentence') as HTMLElement;
+    for (const later of [card, sentence]) {
+      expect(flag.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(t.querySelectorAll('.en-grade')).toHaveLength(1);
+    expect(card.querySelector('.en-grade')).toBeNull();
+    cleanup();
+    const u = await shownTurn(low);
+    expect(u.querySelector('.en-flag')).toBeNull();
+    expect(u.querySelector('.en-card .en-grade')).toBeTruthy();
+  });
+
+  it('EN-85 a page-flagged answer (level.basis page) drops the counting rule from the sentence', async () => {
+    const low: AnswerView = { ...answerLow, drawing_id: DRAWING, check: null };
+    const t = await shownTurn(low);
+    const rule = (low.quantity as Row).rule.text;
+    expect(t.querySelector('.en-sentence')?.textContent).not.toContain(rule.slice(1));
+    cleanup();
+    const other: AnswerView = { ...low, level: { level: 'low', basis: 'score', text: 'Low.' } };
+    const u = await shownTurn(other);
+    expect(u.querySelector('.en-sentence')?.textContent).toContain(rule.slice(1));
+  });
+
   it('EN-68 Row.noun: "There are 2 doors." with the noun after the value; null keeps the label sentence', async () => {
     const t = await shownTurn(answer);
     expect(t.querySelector('.en-noun')?.textContent).toBe('doors');
@@ -1055,5 +1112,41 @@ describe('Vellum (screen 4)', () => {
     expect(text).toContain('PDF vector · drawn PDF route');
     expect(text.split('Ground floor')).toHaveLength(2);
     expect(text.split('1:100')).toHaveLength(2);
+  });
+});
+
+describe('judge path', () => {
+  it('EN-86 the value row and the double-check come before the plan in the card (phones: above the fold)', async () => {
+    const t = await shownTurn({ ...answerMedium, drawing_id: DRAWING });
+    const head = t.querySelector('.en-card > .en-head') as HTMLElement;
+    expect(within(head).getByTestId('answer-value')).toBeTruthy();
+    expect(within(head).getByRole('region', { name: 'Double-check' })).toBeTruthy();
+    const fig = t.querySelector('.en-card > .en-left') as HTMLElement;
+    expect(head.compareDocumentPosition(fig) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(t.querySelector('.en-card > .en-side .en-grade')).toBeTruthy();
+  });
+
+  it("EN-87 one name: the page title and ask box use the project's drawing name", async () => {
+    await shownTurn(answer);
+    const name = drawingLabel(
+      project.drawings.find((d) => d.drawing_id === DRAWING) ?? { file: '' },
+    );
+    expect(name).not.toBe(drawing.file);
+    expect(input().placeholder).toBe(`Ask about ${name}`);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(name);
+    // the viewer's title line too (the plan is what the judge looks at)
+    expect(document.querySelector('.vw-name')?.textContent).toBe(name);
+  });
+
+  it('EN-88 an estimated area shows "about <n> m², <estimate>" under the value', async () => {
+    const q = answerArea.quantity as Row;
+    const t = await shownTurn({
+      ...answerArea,
+      answer: 179.6,
+      quantity: { ...q, estimate: 'the scale estimated from the doors' },
+    });
+    expect(t.querySelector('.en-head .en-estimate')?.textContent).toBe(
+      'about 180 m², the scale estimated from the doors',
+    );
   });
 });

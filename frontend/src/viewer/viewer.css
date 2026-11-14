@@ -630,3 +630,8 @@
   padding: 0;
   background: none;
 }
+.vw-many {
+  margin: 0;
+  font-size: 13px;
+  color: var(--v-text-2);
+}

@@ -87,6 +87,21 @@ describe('DoubleCheck', () => {
     }
   });
 
+  it('DC-20 on a flagged page: one whole-page sentence, no "not sure about N", no generic reason line', () => {
+    const flagged = {
+      ...asking,
+      level: { level: 'low' as const, basis: 'page' as const, text: 'Read from a photo.' },
+    };
+    show(flagged);
+    const p = panel();
+    expect(p.textContent).toContain(
+      'Please double-check the whole page: it was flagged when it was read',
+    );
+    expect(p.textContent).not.toContain("we're not sure about");
+    expect(p.textContent).not.toContain(check.reason);
+    expect(p.querySelector('.dc-reason')).toBeNull();
+  });
+
   it('DC-2 says what it is not sure of, the reason, and each place with its why and readers', () => {
     show();
     const p = panel();
