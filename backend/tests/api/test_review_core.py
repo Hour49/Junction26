@@ -613,7 +613,8 @@ def test_every_no_reader_refusal_says_so_when_the_route_has_no_reader() -> None:
         found = asked_flagged(text, drawing, flags, raster=True, no_reader=True)
         assert found.refusal is not None and found.refusal.code == "no-reader", text
         assert found.refusal.text == (
-            "Nothing was read from this sheet: there is no reader for this kind of sheet yet."
+            "This sheet wasn't read, so nothing on it was counted or measured: this setup has no "
+            "reader for this kind of sheet. You can still ask about the project's other drawings."
         ), (text, flags)
         again = asked_flagged(text, drawing, flags, raster=True)  # a reader that read nothing
         assert again.refusal is not None and "no reader" not in again.refusal.text

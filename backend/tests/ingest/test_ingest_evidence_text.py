@@ -278,7 +278,7 @@ def test_a_dwg_is_listed_by_name_and_a_dxf_is_not_a_source(
     assert detail is not None
     assert detail.text == (
         "DWG drawing, not converted. A 801 Door Schedules. Its content is not read: "
-        "a DWG drawing: converting it to DXF is not built yet."
+        "a DWG drawing: DWG files can't be opened here; export it as a PDF and upload that."
     )
     prompt = evidence.prompt()
     assert "(1 listed by name; 1 dwg)" in prompt

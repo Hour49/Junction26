@@ -108,4 +108,5 @@ def test_reasons_and_trace_lines_name_a_route_in_words(make_service: MakeService
     routed = next(s for s in ingest.trace(project.id, flat_a.id).stages if s.stage == "route")
     assert (routed.did, routed.output) == ("drawn PDF route, read from plans/flat-a.pdf", "vector")
     ground = by_path(project.files)["scans/ground-floor.png"]
-    assert "no reader for the image route yet" in ground.reason
+    assert "not read: this setup has no reader for the image route" in ground.reason
+    assert "yet" not in ground.reason
