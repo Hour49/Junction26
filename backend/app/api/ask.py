@@ -101,15 +101,17 @@ def asked_on(
     reviews: ReviewStore,
     answering: Answering,
     ingest: Ingest,
+    project_id: str | None,
 ) -> Asked:
-    """The question on the drawing, with the surveyor's edits of it applied."""
+    """The question on the drawing, with the surveyor's edits of it in `project_id` applied (a
+    checked id: deps.project_of)."""
     return ask(
         question,
         drawing,
         parser=answering.parser,
         clock=answering.clock,
         prior=answering.prior,
-        state=reviews.get(drawing_id),
+        state=reviews.get(project_id, drawing_id),
         prior_families=answering.prior_families,
         confidence=confidence_of(drawing, drawing_id, ingest, answering),
     )
@@ -143,7 +145,8 @@ def ask_route(
     drawing = ingest.drawing(drawing_id)
     info = ingest.drawing_info(drawing_id)
     named = as_uploaded(ingest, info, body.project_id)
-    asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest)
+    owner = None if body.project_id is None else named.project_id
+    asked = asked_on(body.question, drawing, drawing_id, reviews, answering, ingest, owner)
     line, shown = asked.answer, asked.row
     value = shown_value(asked)
     return AnswerView(

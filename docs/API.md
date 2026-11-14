@@ -40,8 +40,10 @@ in `docs/api/openapi-v1.json` and in `backend/tests/fixtures/api_v1/` may not, e
   in seconds (`latency_s`, as answer_v1 does); money is US dollars (`cost_usd`).
 - Ids are opaque: a project id is 12 hex chars, a file id `f1`, `f2`… (unique within its project), a drawing id
   16 hex chars. An id that does not have its pattern is answered 404, like an unknown one. A drawing id is a hash
-  of the drawing's content and readers: the same drawing uploaded again, in any project, has the same id, and its
-  review edits and sign-offs show there too.
+  of the drawing's content and readers: the same drawing uploaded again, in any project, has the same id. Its
+  review edits and sign-offs belong to the project they were made in: the review routes, `POST /api/ask` and
+  `evidence.png` read and write that project's when given one (`project` / `project_id`), and a separate state
+  that no project sees when given none (clients from before 2026-11-14 06:40).
 - A takeoff key (`door`, `area:room|indoor`, `area:room|name=küche`) holds `:`, `|`, `=` and spaces: pass it
   through `encodeURIComponent` when it goes into a URL.
 - **The page frame.** `pages[].width/height`, every box and polygon, and `pages/{n}.png` are in one frame per page:
@@ -194,7 +196,8 @@ No body. Starts a project from the synthetic sample archive that `backend/script
 site photo; no partner data). 404 when the archive has not been built. Same response as an upload.
 
 `fresh=true` ingests every file again without the cache, so the ingest screen has something to watch, and resets
-every review edit and sign-off of the drawings of the last sample project, so each run of the demo starts clean.
+the last sample project's review edits and sign-offs. Each run is a new project, and review state belongs to the
+project, so a new run starts clean either way.
 Without it a second sample run is all `reused: true`.
 
 ### `GET /api/projects`
@@ -1067,7 +1070,7 @@ project that does not hold the drawing is 404.
     "route": "vector",
     "source": "plans/flat-a.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "pdf",
     "question_parser": "templates"
   },
   "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
@@ -1102,7 +1105,8 @@ project that does not hold the drawing is 404.
 ```
 
 - `reader`: how the drawing was read: the route, the file it was read from (`source`), that route's reader
-  (`extractor`; `hello` reads nothing), the second counter (`"none"` when it measured nothing on the
+  (`extractor`; `hello` reads nothing), the second counter that measured (`pdf` for any file that is no IFC
+  model, since the `ifc` counter passes those on to the PDF one; `"none"` when it measured nothing on the
   drawing; in an answer, `"none"` unless it measured the answered quantity) and the question parser.
 - `credit`: the licence credit to show under every page of the drawing, or null. A file of the Stoa
   dataset or a Commons demo photo is recognised by its content (whatever its upload name) and gets
@@ -1151,7 +1155,8 @@ normalisation. Images and a PDF's first page; 404 for any other file. `width` as
 ```
 
 `question` is 1 to 2000 characters. `project_id` (optional) names the project the question is asked in: the
-answer's `file` and `reader.source` are then that project's names, as for `GET /api/drawings/{id}?project=`. The response carries the takeoff row the value was read from, in the same
+answer's `file` and `reader.source` are then that project's names, as for `GET /api/drawings/{id}?project=`, and
+the review edits and sign-offs applied ("Verified by …") are that project's. The response carries the takeoff row the value was read from, in the same
 shape as `GET …/takeoff` gives it, so one component shows both:
 
 <!-- fixture: answer.json -->
@@ -1593,9 +1598,9 @@ from a stand-in, not Gemini; `marks` trimmed to two):
 }
 ```
 
-### `GET /api/drawings/{drawing_id}/evidence.png?question=<text>&width=<400|1600|3200>`
+### `GET /api/drawings/{drawing_id}/evidence.png?question=<text>&width=<400|1600|3200>&project=<project_id>`
 
-The answer to `question` (as `POST /api/ask` gives it, edits applied) with its `proof` drawn on the page the marks
+The answer to `question` (as `POST /api/ask` gives it, the edits of `project` applied, if given) with its `proof` drawn on the page the marks
 are on: counted marks outlined in their class colour and numbered, a sum's rooms filled with their values,
 excluded items greyed with their reason, a schedule's rows highlighted; under the page the question and answer,
 the `arithmetic`, the `check` line, the colour key (with the legend's `note`) and the
@@ -2265,7 +2270,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "route": "vector",
     "source": "plans/flat-b.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "pdf",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
@@ -2518,7 +2523,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "route": "vector",
     "source": "plans/flat-b.pdf",
     "extractor": "pdf",
-    "second_counter": "ifc",
+    "second_counter": "pdf",
     "question_parser": "templates"
   },
   "cost_usd": 0.0,
@@ -2729,8 +2734,9 @@ rests on:
 ### `GET /api/drawings/{drawing_id}/takeoff?zeros=<bool>&project=<project_id>`
 
 `project` (optional, also on `review`, `signoff` and `takeoff.csv`): `file`, the CSV's `drawing` column and its
-file name are then the names that project uploaded, as for `GET /api/drawings/{id}?project=`. A project that
-does not hold the drawing is 404.
+file name are then the names that project uploaded, as for `GET /api/drawings/{id}?project=`, and the review
+edits and sign-offs read and written are that project's only. Without it they are the drawing's state outside
+any project, which no project shows. A project that does not hold the drawing is 404.
 
 <!-- fixture: takeoff.json -->
 ```json
@@ -3432,6 +3438,12 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (behaviour): review edits and sign-offs belong to the project (R1b-4-1). With `project`
+  (takeoff, review, signoff, takeoff.csv, the new optional `project` on `evidence.png`) or `project_id` (ask)
+  they are that project's; without one, a drawing-level state no project sees. Edits stored before this change
+  were per drawing and are now that no-project state (not migrated). `reader.second_counter` names the counter
+  that measured: the IFC counter passes every file that is no model to the PDF one, so a PDF or image reads
+  `pdf` (was `ifc`) (R2-qa4-1, R2-qa-1-2).
 - 2026-11-14, additive: on a sheet of one storey, an edit or sign-off of a storey row that carries the sheet row's
   disagreement is made on the sheet's row, and the storey row shows its edits (K4). `POST /api/ask` answers the
   area of a room asked by a printed name the parser has no word for ("the Reduit"), "how big/large" as an area,

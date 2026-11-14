@@ -261,4 +261,5 @@ def ask_core(client: TestClient, drawing_id: str, question: str) -> Asked:
     app = cast(FastAPI, client.app)
     ingest = app.state.ingest
     drawing = ingest.drawing(drawing_id)
-    return asked_on(question, drawing, drawing_id, app.state.reviews, app.state.answering, ingest)
+    reviews, answering = app.state.reviews, app.state.answering
+    return asked_on(question, drawing, drawing_id, reviews, answering, ingest, None)

@@ -211,7 +211,7 @@ def project_review(project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep
     drawings: list[DrawingReview] = []
     conflicts: list[ConflictEntry] = []
     for entry in drawings_of(ingest.status(project_id)):
-        found = takeoff_rows(entry.drawing_id, ingest, reviews, zeros=False)
+        found = takeoff_rows(entry.drawing_id, ingest, reviews, zeros=False, project=project_id)
         drawings.append(
             DrawingReview(
                 drawing_id=entry.drawing_id,
@@ -313,7 +313,7 @@ def _reset_project(ingest: Ingest, reviews: ReviewStore, project_id: str) -> Non
         return
     for file in status.files:
         if file.drawing_id is not None:
-            reviews.update(file.drawing_id, _cleared)
+            reviews.update(status.id, file.drawing_id, _cleared)
 
 
 def _cleared(state: ReviewState) -> ReviewState:

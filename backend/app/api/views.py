@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.composition import second_counter_of
 from app.core.drawing.model import Page
 from app.core.ingest.model import DrawingInfo, FileState, Normalised, ProjectStatus
 from app.core.pipeline.model import Route
@@ -66,7 +67,7 @@ def reader_of(info: DrawingInfo, twice: bool, names: dict[str, str]) -> Reader:
         route=info.route,
         source=info.source,
         extractor=None if info.route is None else names[info.route],
-        second_counter=names["second_counter"] if twice else "none",
+        second_counter=second_counter_of(names, info.route) if twice else "none",
         question_parser=names["question_parser"],
     )
 

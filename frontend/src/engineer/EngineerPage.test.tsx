@@ -149,7 +149,7 @@ describe('drawing header and ask box', () => {
     expect(await screen.findByRole('heading', { name: 'plans/flat-a.pdf' })).toBeTruthy();
     expect(
       screen.getByText(
-        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count: IFC model; questions: question templates',
+        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count: PDF vector reader; questions: question templates',
       ),
     ).toBeTruthy();
   });

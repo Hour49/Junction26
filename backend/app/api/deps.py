@@ -100,6 +100,14 @@ AnsweringDep = Annotated[Answering, Depends(get_answering)]
 CreditsDep = Annotated[Credits, Depends(get_credits)]
 
 
+def project_of(ingest: Ingest, drawing_id: str, project_id: str | None) -> str | None:
+    """The project whose review edits a request reads or writes (R1b-4-1): `project_id` checked
+    to hold the drawing (404 if not), or None outside any project."""
+    if project_id is None:
+        return None
+    return as_uploaded(ingest, ingest.drawing_info(drawing_id), project_id).project_id
+
+
 def as_uploaded(ingest: Ingest, info: DrawingInfo, project_id: str | None) -> DrawingInfo:
     """The drawing named as `project_id` uploaded it. A drawing is shared by content (its id), so
     its stored name is the upload that wrote it last, maybe in another project; a screen inside a
