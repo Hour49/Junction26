@@ -524,7 +524,7 @@
 .vw-hl b {
   position: absolute;
   top: -11px;
-  left: -11px;
+  left: calc(-11px + var(--vw-k, 0) * 24px); /* --vw-k: coincident discs step right (VW-95) */
   box-shadow: 0 0 0 2px var(--v-surface);
 }
 .vw-hl-legend {

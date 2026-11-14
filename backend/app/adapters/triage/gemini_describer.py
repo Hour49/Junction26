@@ -2,8 +2,10 @@
 that is not a floor plan fills the description form (what_it_is, shows_building, visible_text,
 text_seen, language, subject) and its long text (detail, text).
 
-The prompt and schema are prototypes/triage-describe's describe-5, word for word, so the
-numbers measured on it hold here (.agents/exp/triage-describer.md). describe-5 is describe-4 with
+The prompt is describe-6: prototypes/triage-describe's describe-5, word for word, plus the
+home-address rule below; the schema is describe-5's. The numbers measured on describe-5 are
+below (.agents/exp/triage-describer.md); describe-6 was checked on 5 files only. describe-5 is
+describe-4 with
 two rules for the long text: a count only when every item can be counted, and a date only when
 it is printed. On the same 50 images a blind count found 44 right, 6 minor errors, 0 wrong
 (describe-4: 43, 7, 0), with no dates read from the style and no invented views; the form
@@ -27,9 +29,13 @@ come after the model has looked.
   is tried.
 - Phone numbers and e-mail addresses are taken out of every text field (orchestrator,
   2026-11-14: "drop every phone number and e-mail address from visible_text and detail with a
-  tested regex, firm or private"). Street addresses and firm names stay. Names of people in
-  photos are kept out by the prompt. A national number with no label, no "+" or "00" and no
-  area-code dash (0401234567) is not caught: it can't be told from a row of dimensions.
+  tested regex, firm or private"). Street addresses and firm names stay, except a home
+  address (decision 0010): the prompt has it written without its house number and postal
+  code in every field (describe-6; describe-5 kept a house's address on 8 of 8 sheets). That
+  is the model's call, not a regex: on the 5 files checked it also dropped a school's house
+  number. Names of people in photos are kept out by the prompt. A national number with no
+  label, no "+" or "00" and no area-code dash (0401234567) is not caught: it can't be told
+  from a row of dimensions.
 """
 
 import base64
@@ -64,7 +70,7 @@ TEMPERATURE = 0.2
 MAX_SIDE = 2048
 JPEG_QUALITY = 90
 MAX_TOKENS = 4096
-PROMPT_VERSION = "describe-5"  # change it with PROMPT, SCHEMA or the image encoding
+PROMPT_VERSION = "describe-6"  # change it with PROMPT, SCHEMA or the image encoding
 MAX_VISIBLE, MAX_DETAIL, MAX_SEEN = 2000, 4000, 20  # Description's limits (0010 section 8)
 UNAVAILABLE = "the describer could not answer"
 
@@ -94,13 +100,17 @@ PROMPT = (
     "to a building project. Look only at what is visible. Answer in English, as JSON. Never name "
     "or identify people seen in a photograph (write 'a person', 'two people'), and never write "
     "the contact data of private people (phone numbers, e-mail addresses, home addresses) or "
-    "number plates, in any field.\n\n"
+    "number plates, in any field. A home address is the street address of a house, a flat or a "
+    "private person; the address of a public building, a business or a firm is not one and "
+    "stays as printed. Write a home address without its house number and postal code in every "
+    "field (detail, text, visible_text, text_seen, subject).\n\n"
     "detail: a description of a paragraph or more (about 120 to 250 words, at most 4,000 "
     "characters). Say what kind of picture it is (photograph, technical drawing, print, page of "
     "text, ...), what it shows and how the sheet is laid out; the building or object if there "
     "is one (type, storeys, roof, facade, materials, style); the drawing technique or the "
     "photo's conditions; what the text on it says, in short (title, place, date, scale, the "
-    "firm or office that made it); and its condition (paper, stains, mount, a camera photo of a "
+    "firm or office that made it; a home address without its house number and postal code); "
+    "and its condition (paper, stains, mount, a camera photo of a "
     "sheet). Do not guess what is not visible: when unsure, say 'possibly' or 'unclear'. Give the "
     "number of repeated things (bays, panels, windows, columns, clusters, sheets) only when you "
     "can count every one of them; otherwise write 'several', 'many' or 'about N'. Give a date, "
@@ -112,9 +122,12 @@ PROMPT = (
     "or label). At most 2,000 characters: on a sheet with more text, keep titles, labels and "
     "notes and leave out repeated dimension figures. Do not invent text you cannot read. Empty "
     "string when nothing is readable. Building names, street and place names, firms, "
-    "institutions, dates and scales stay.\n\n"
+    "institutions, dates and scales stay, but a home address loses its house number and postal "
+    "code even here: on the sheets of a house, the title-block line '12 OAK ST - SPRINGFIELD, IL "
+    "62704' is written 'OAK ST - SPRINGFIELD, IL'.\n\n"
     "text_seen: the title-block and caption items of visible_text (title, place, date, scale, "
-    "firm), one per item, the most important first, at most 20; [] when there are none.\n\n"
+    "firm), one per item, the most important first, at most 20; [] when there are none. A home "
+    "address as in visible_text.\n\n"
     "language: the ISO 639-1 code of most of visible_text (fi, sv, de, en, nl, fr, la, ...), "
     "or null (not the word 'null') when there is no text.\n\n"
     "what_it_is: the one value that fits best:\n"

@@ -282,7 +282,11 @@ export function IssueCard(props: {
           {n}
         </span>
         <span className={`v-pill${pill.tone ? ` v-pill--${pill.tone}` : ''}`}>{pill.word}</span>
-        <span className="doc-mono doc-small">{issue.file}</span>
+        {issue.drawing_name ? (
+          <span className="doc-small">{issue.drawing_name}</span>
+        ) : (
+          <span className="doc-mono doc-small">{issue.file}</span>
+        )}
         {issue.file_id && (
           <a className="doc-small doc-open" href={`#/p/${projectId}/f/${issue.file_id}`}>
             Open the file

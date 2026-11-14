@@ -222,19 +222,20 @@ it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line 
   ).toHaveLength(2);
 });
 
-it('CH-13 the total in total_unit; the Sure badge only when total_sure', async () => {
+it('CH-13 (CH-42) the total in total_unit with its total_level, never a Sure badge', async () => {
   const area: ProjectAnswer = {
     ...oneAnswers,
     parts: [{ ...flatA, answer: answerArea }],
     total: 52.27,
     total_unit: 'm2',
     total_sure: true,
+    total_level: 'high',
   };
   open(area);
   const turn = await answered('What is the net floor area of all indoor rooms in m²?');
   expect(within(turn).getByTestId('answer-value').textContent).toBe('52.27 m²');
-  const badge = within(turn).getByText(/^Sure/);
-  expect(badge.getAttribute('title')).toMatch(/^Certified: /);
+  expect(within(turn).getByText('High confidence')).toBeTruthy();
+  expect(within(turn).queryByText(/^Sure/)).toBeNull();
 });
 
 it('CH-6 nobody answers: one refusal for the project; its questions ask every drawing again', async () => {

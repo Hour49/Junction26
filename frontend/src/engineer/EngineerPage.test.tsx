@@ -20,13 +20,14 @@ import {
   answerAgree,
   answerAreaExcluded,
   answerConflict,
-  answerLowScore,
   answerEdited,
   answerEstimate,
   answerNeedsPerson,
   answerSettled,
   answerSigned,
-  answerSure,
+  answerHigh,
+  answerLow,
+  answerMedium,
   answerUnlocated,
   answerWithMarkup,
   drawingHello,
@@ -608,23 +609,6 @@ describe('extended answers', () => {
     expect(within(area as HTMLElement).queryByText(/^Query: area:room/)).toBeNull();
   });
 
-  it('EN-53 line.sure: true shows a "Sure" badge after the value, with a tooltip and screen-reader text', async () => {
-    const t = await shownTurn({ ...answer, line: { ...answer.line, sure: true } });
-    const tip =
-      'Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact';
-    expect(within(t).getByTestId('answer-value').textContent).toBe('2');
-    const badge = within(t).getByTitle(tip);
-    expect(badge.textContent).toContain('Sure');
-    expect(badge.textContent).toContain(tip);
-    expect(badge.closest('[data-testid="answer-value"]')).toBeNull();
-  });
-
-  it.each([null, false, undefined])('EN-53 line.sure: %s shows no badge', async (sure) => {
-    const t = await shownTurn({ ...answer, line: { ...answer.line, sure } });
-    expect(within(t).queryByTitle(/^Certified:/)).toBeNull();
-    expect(within(t).queryByText(/^Sure/)).toBeNull();
-  });
-
   it('EN-27 printed-names: Query falls back to the key when the label is empty', async () => {
     if (!answer.quantity) throw new Error('answer.json has a quantity');
     const bare = await shownTurn({ ...answer, quantity: { ...answer.quantity, label: '' } });
@@ -1008,19 +992,41 @@ describe('Vellum (screen 4)', () => {
   });
 
   it.each([
-    ['sure', answerSure, 'High'],
-    ['score 0.87', answerConfidence, 'Medium'],
-    ['score 0.5', answerLowScore, 'Low'],
-  ])('EN-67 grade: %s reads %s, with where it comes from', async (_, a, grade) => {
-    const t = await shownTurn(a);
+    ['high', answerHigh, 'High'],
+    ['medium', answerMedium, 'Medium'],
+    ['low', answerLow, 'Low'],
+  ])('EN-82 confidence %s from answer.level: the pill, the bar, level.text', async (_, a, word) => {
+    // the double-check panel (check) has its own tests (EN-70); here only the confidence block
+    const t = await shownTurn({ ...a, check: null });
     const block = t.querySelector('.en-grade') as HTMLElement;
-    expect(within(block).getByText(grade)).toBeTruthy();
-    expect(block.textContent).toContain("From the Sure check and the second reader's score");
+    expect(within(block).getByText('Confidence')).toBeTruthy();
+    expect(within(block).queryByText('Grade')).toBeNull();
+    const pill = within(block).getByText(word);
+    expect(pill.getAttribute('title')).toBe(a.level?.text);
+    expect(block.textContent).toContain(a.level?.text ?? 'x');
+    expect(t.textContent).not.toMatch(/Certified: on held-out|Sure check/);
+    expect(within(t).queryByText(/^Sure/)).toBeNull();
   });
 
-  it('EN-67 grade: no Sure check and no score, no grade', async () => {
-    const t = await shownTurn(answer);
-    expect(t.querySelector('.en-grade')).toBeNull();
+  it('EN-82 no level, no confidence block, whatever the score or line.sure', async () => {
+    for (const a of [
+      answer,
+      answerConfidence,
+      { ...answer, line: { ...answer.line, sure: true } },
+    ]) {
+      const t = await shownTurn(a);
+      expect(t.querySelector('.en-grade')).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('EN-83 signed off: "Signed off", no level; no double-check panel on a High answer', async () => {
+    const signed = await shownTurn({ ...answerSigned, level: answerHigh.level });
+    const block = signed.querySelector('.en-grade') as HTMLElement;
+    expect(within(block).getByText('Signed off')).toBeTruthy();
+    expect(within(block).queryByText('High')).toBeNull();
+    expect(block.textContent).not.toContain(answerHigh.level?.text ?? 'x');
+    expect(block.querySelector('.en-bar')).toBeNull();
   });
 
   it('EN-68 Row.noun: "There are 2 doors." with the noun after the value; null keeps the label sentence', async () => {
