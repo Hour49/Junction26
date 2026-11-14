@@ -56,10 +56,14 @@ What the levels measured (share of answers, exact rate, Wilson 95% interval wher
 | CubiCasa val, cross-fit (3,382) | 44.9%, 98.9% [98.3, 99.3] | 35.0%, 91.5% [89.7, 92.9] | 20.1%, 58.4% [54.6, 62.0] |
 | val, median of 50 halvings | 46.0%, 99.0% | 33.9%, 91.6% | 20.1%, 57.8% |
 | golden v2 dev, raster (1,088) | 35.1%, 97.9% | 42.1%, 92.1% [89.3, 94.3] | 22.8%, 52.4% |
-| CubiCasa test, the one read (3,359) | 41.8%, 98.2% [97.4, 98.8] | 37.9%, 92.2% [90.6, 93.6] | 20.3%, 55.2% [51.5, 58.9] |
+| CubiCasa test, the one read, first run of its certificate (3,359) | 41.8%, 98.2% [97.4, 98.8] | 37.9%, 92.2% [90.6, 93.6] | 20.3%, 55.2% [51.5, 58.9] |
 
 The test row was pre-registered (rule, thresholds by sha256, both cuts) and scored once from the stored outputs of
-the single test read of config C1-T1; nothing was refit after it.
+the single test read of config C1-T1; nothing was refit after it. It is the certificate's first run, where every
+kitchen answer came from the prior with one fixed score and was certified (258 answers, 13 of the 25 wrong High
+answers). The corrected certificate in [GOLDEN.md](../GOLDEN.md) answers kitchens from the drawing, as the API
+does, and changes only the kitchen lines: High is then 2,518 of 2,544 questions exact (98.98%), and the 133 kitchen
+answers that ask there have no Medium or Low count yet.
 
 ## Alternatives considered
 
@@ -75,7 +79,8 @@ the single test read of config C1-T1; nothing was refit after it.
 
 - `CHECK_POLICY` must point at a policy file generated with `--medium` for levels to show; until then `level` is
   null and nothing else changes.
-- Known limits. High is "certified", 98.2% exact on test, not a 99% guarantee. Every window answer is Low: no
+- Known limits. High is "certified": 98.9% exact on val cross-fit and 99.0% on the corrected test certificate,
+  which is a measured rate, not a guarantee for one answer. Every window answer is Low: no
   runtime signal separates windows. The policy is fit on CubiCasa scans read with `ROOM_POLICY=gold-labels`.
   The vector and IFC High rests on 23 Swiss sheets and 11 models; a schedule's Medium on one sheet.
 - Revisit when the check policy changes (the levels are regenerated with it) or when a family gets a new signal.

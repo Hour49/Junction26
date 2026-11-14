@@ -826,8 +826,14 @@ export interface components {
             quantity: string;
             settled: components["schemas"]["Settled"] | null;
             signed: components["schemas"]["SignOff"] | null;
+            /** Suggestions */
+            suggestions: string[];
+            /** Title */
+            title: string;
             /** Value */
             value: number;
+            /** Why */
+            why: string;
         };
         /**
          * ConflictValue
@@ -1007,6 +1013,8 @@ export interface components {
             ] | null;
             /** Mark */
             mark?: string | null;
+            /** Note */
+            note?: string | null;
             /** Page */
             page?: number | null;
             /** Quantity */
@@ -1133,6 +1141,8 @@ export interface components {
             check: string | null;
             /** Drawing Id */
             drawing_id: string | null;
+            /** Drawing Name */
+            drawing_name?: string | null;
             /** File */
             file: string;
             /** File Id */
@@ -1984,6 +1994,8 @@ export interface components {
         Settled: {
             /** At */
             at: string;
+            /** Note */
+            note?: string | null;
             /** Value */
             value: number;
         };

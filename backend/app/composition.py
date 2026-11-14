@@ -65,6 +65,7 @@ from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
+from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
@@ -264,6 +265,11 @@ def _triage(settings: Settings) -> TriageSteps | None:
             return None
         case "rules":
             classifier = RulesClassifier()
+        case "siglip":
+            try:
+                classifier = SiglipClassifier.from_folder()
+            except DomainError as error:
+                raise InvalidInputError(f"TRIAGE_CLASSIFIER=siglip: {error}") from error
     name = (
         f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
         f"judge={settings.triage_judge}"
@@ -365,16 +371,25 @@ def readers(settings: Settings) -> dict[str, str]:
 # The answer confidence's score: Gemini Decisions' probability for the answered count (G1main's
 # choice distribution), raw: not calibrated against right answers
 DECISIONS_SIGNAL = "g1main"
-# RASTER_COMPONENTS sources that call a service with a key (Gemini, the Verda model server)
+# Raster sources that call a service with a key (Gemini or our EU model server, the Verda
+# detector), in RASTER_COMPONENTS, RASTER_PHOTO_COMPONENTS and DOUBLE_CHECK_READERS
 KEYED_SOURCES = frozenset({"gemini", "regionrooms", "verda", "decisions", "decisions-s1536"})
 
 
 def uses_keys(settings: Settings) -> bool:
-    """Whether a reader or the answer confidence calls a service that needs an API key."""
-    sources = [part.partition("=")[2] for part in settings.raster_components.split(",") if part]
+    """Whether a reader, the answer confidence or file triage calls a service that needs an API
+    key."""
+    specs = (
+        settings.raster_components,
+        settings.raster_photo_components,
+        settings.double_check_readers,
+    )
+    sources = [part.partition("=")[2] for spec in specs for part in spec.split(",") if part]
     keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
     raster = settings.extractor_raster == "composite" and keyed
-    return raster or settings.decisions_confidence or settings.decisions_kind
+    # the describer is built only when triage is on (`_triage`)
+    describer = settings.triage_classifier != "off" and settings.triage_describer == "gemini"
+    return raster or settings.decisions_confidence or settings.decisions_kind or describer
 
 
 def build_ingest(
