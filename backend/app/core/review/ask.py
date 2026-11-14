@@ -25,6 +25,7 @@ from app.core.answering.answer import (
     printed_rooms,
     rooms_of_type,
 )
+from app.core.answering.facts import FACTS
 from app.core.answering.floors import (
     FLOOR,
     FLOOR_AT,
@@ -61,6 +62,7 @@ from app.core.drawing.model import (
     Table,
     words,
 )
+from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
@@ -127,6 +129,7 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
+FACTS_LEVEL = "Low confidence: read from the file's fact sheet, not yet measured."
 # Parser reason (question_templates.py) for a supported kind of question without that quantity
 # ("no area is taken off for door"); NO_SUBJECT (answering/model.py): a subject it didn't recognise
 NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
@@ -207,6 +210,7 @@ def ask(
     scorers: Mapping[str, Scorer] = NO_SCORERS,
     carbon_ladder: bool = False,
     room_words: RoomWords = no_room_words,
+    facts: Callable[[], FactSheet | None] | None = None,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -228,7 +232,9 @@ def ask(
     and gets no High from Carbon either; its level is otherwise the score's, except Low on an image
     printing words of a plan kind the policy was not measured on (check.unmeasured_room). A 0
     count of a room type whose only candidates are labelled just "room" is refused
-    (check.only_room_word)."""
+    (check.only_room_word). `facts` (IFC_FACTS; a services picture's sheet) gives the drawing's
+    fact sheet, asked only when the takeoff, the schedules and the dev prior give nothing
+    (answer_question): its answer is Low, never sure, marked by the facts' spots."""
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
     unsaid = _unsaid(quantities, drawing)
     quantities = {key: found for key, found in quantities.items() if key not in unsaid}
@@ -238,7 +244,7 @@ def ask(
             asked, drawing, parser=parser, clock=clock, prior=prior, state=state,
             prior_families=prior_families, confidence=confidence, sure_at=sure_at, flags=flags,
             raster=raster, check=check, route=route, disputes=disputes, no_reader=no_reader,
-            scorers=scorers, carbon_ladder=carbon_ladder,
+            scorers=scorers, carbon_ladder=carbon_ladder, facts=facts,
         )  # fmt: skip
 
     if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
@@ -247,8 +253,9 @@ def ask(
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
-        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at, flags
-    )
+        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at,
+        flags, facts,
+    )  # fmt: skip
     parsed = once.parse(text)
     query: str | None = None
     if isinstance(parsed, Query):
@@ -268,7 +275,7 @@ def ask(
         answer = answer.model_copy(update={"explanation": said})
     if shown is not None:
         marks = shown.marks
-    elif answer.method == SCHEDULE:
+    elif answer.method in (SCHEDULE, FACTS):
         marks = tuple(
             MarkView(
                 id=f"e{at}",
@@ -292,7 +299,7 @@ def ask(
     elif answer.method == SCHEDULE:
         proof = schedule_proof(marks, tables, answer.answer)
     refusal = None
-    if answer.method not in (TAKEOFF, SCHEDULE):
+    if answer.method not in (TAKEOFF, SCHEDULE, FACTS):
         code, words = _refusal(answer.method, parsed, query, drawing)
         if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
@@ -399,6 +406,8 @@ def ask(
     elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
         request, level = summed_check(check)
         sure = False
+    elif check is not None and answer.method == FACTS:  # not measured on any gold yet
+        level = Level(level="low", basis="unrated", text=FACTS_LEVEL)
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None
