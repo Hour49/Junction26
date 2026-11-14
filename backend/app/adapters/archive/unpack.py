@@ -20,6 +20,7 @@ import zlib
 from collections.abc import Iterator
 from pathlib import PurePosixPath
 
+from app.adapters.archive.raster import converted
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import Entry
 
@@ -70,6 +71,10 @@ class ZipUnpacker:
         self._max_total, self._max_ratio = max_total, max_ratio
 
     def entries(self, name: str, data: bytes) -> Iterator[Entry]:
+        for entry in self._files(name, data):
+            yield from converted(entry)
+
+    def _files(self, name: str, data: bytes) -> Iterator[Entry]:
         if not is_archive(data):
             single = PurePosixPath(name.replace("\\", "/")).name or "upload"
             if len(data) > self._max_file:
