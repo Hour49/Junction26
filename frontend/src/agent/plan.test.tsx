@@ -107,7 +107,7 @@ const pane = () => screen.getByRole('complementary', { name: 'Plan' });
 describe('viewOf', () => {
   it("returns the server's view as sent, null included", () => {
     expect(viewOf(viewTurn)).toBe(shownView);
-    expect(viewOf({ ...answerTurn, view: null } as ChatTurn)).toBeNull();
+    expect(viewOf({ ...answerTurn, view: null })).toBeNull();
   });
 
   it('without a view field: the page of [1] and every source on it, the box their union with a margin', () => {

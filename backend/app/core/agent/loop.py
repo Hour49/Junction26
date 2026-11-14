@@ -76,6 +76,8 @@ NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 # Levels only where measured (item 4): these tools' numbers are read from the drawing as it is,
 # with no confidence level; an answer whose number rests only on them says so, in no digits
+SHOW_THEM = "Show me where they are"  # the "Show them on the plan" chip (contract F)
+AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
 UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
 UNRATED = (
     "That number is read straight from the drawing's geometry and has no confidence level; ask "
@@ -241,6 +243,7 @@ class _Run:
         self.reviewed: list[str] = []  # the places of the answer review_answer reviewed
         self.reviewed_refusal = False  # the reviewed answer was a refusal on every drawing
         self.printed: set[str] = set()  # the room labels find_rooms returned this turn
+        self.did_review = False  # review_answer ran this turn (no "Are you sure?" chip after it)
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
@@ -676,6 +679,7 @@ class _Run:
         if minted is None:
             return None
         found = review_of(minted, self.names)
+        self.did_review = True
         text = json.dumps(found, ensure_ascii=False)
         self.sources.append(text)
         self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
@@ -797,12 +801,14 @@ class _Run:
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
+        evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
+        view = self._view(kind, cited, number, answer.proposal_id)
         return ChatTurn(
             chat_id=self.chat.chat_id,
             turn=len(self.chat.turns) + 1,
             kind=kind,
             text=text,
-            evidence=tuple(self._evidence(n, ev) for ev, n in number.items()),
+            evidence=evidence,
             edit=self._edit(answer.proposal_id) if kind == "edit" else None,
             options=answer.options,
             steps=tuple(self.steps),
@@ -810,8 +816,35 @@ class _Run:
             cost_usd=round(self.cost, 6),
             latency_s=round(self.clock() - self.started, 3),
             answers=answers,
-            view=self._view(kind, cited, number, answer.proposal_id),
+            view=view,
+            next=self._follow_ups(kind, answers, view, evidence, answer),
         )
+
+    def _follow_ups(
+        self,
+        kind: TurnKind,
+        answers: tuple[Json, ...],
+        view: View | None,
+        evidence: tuple[ChatEvidence, ...],
+        answer: FinalAnswer,
+    ) -> tuple[Option, ...]:
+        """`ChatTurn.next` (contract F), from what the tools returned, in this order: show the
+        answer's marks the plan does not show yet; ask whether it is sure about a Medium or Low
+        answer or one with disputed marks (not after a review); the size of a printed room the
+        answer names without an area. Each message is one both planners route to a tool."""
+        if answer.options or kind not in ("answer", "conflict"):
+            return ()
+        out: list[Option] = []
+        marks = sum(len(_marks_of(given)) for given in answers)
+        if marks > (len(view.marks) if view is not None else 0):
+            out.append(Option(label="Show them on the plan", message=SHOW_THEM))
+        if not self.did_review and any(_doubtful(given) for given in answers):
+            out.append(Option(label="Are you sure?", message="Are you sure?"))
+        named = [e.label for e in evidence if e.label in self.printed]
+        if kind == "answer" and named and not AREA_WORDS.search(answer.text):
+            ask = f"How big is {named[0]}?"
+            out.append(Option(label=ask[:60], message=ask))
+        return tuple(out[:3])
 
     def _unrated(self, text: str) -> str | None:
         """The sentence for a number in `text` that rests only on unrated places (an
@@ -944,6 +977,32 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _marks_of(given: Json) -> list[Any]:
+    """Every mark of a ProjectAnswer's drawings."""
+    out: list[Any] = []
+    parts: list[Any] = given.get("parts") or []
+    for part in parts:
+        each: Json = part if isinstance(part, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+        line: Json = each.get("answer") or {}
+        marks: list[Any] = line.get("marks") or []
+        out += marks
+    return out
+
+
+def _doubtful(given: Json) -> bool:
+    """Whether a drawing's answer is rated Medium or Low or has marks the readers dispute."""
+    parts: list[Any] = given.get("parts") or []
+    for part in parts:
+        line: Any = part.get("answer") if isinstance(part, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        if not isinstance(line, dict) or line.get("answer") is None:  # pyright: ignore[reportUnknownMemberType]
+            continue
+        level: Any = line.get("level") or {}  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        check: Any = line.get("check") or {}  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        if level.get("level") in ("medium", "low") or check.get("disputed"):  # pyright: ignore[reportUnknownMemberType]
+            return True
+    return False
 
 
 def _values(found: Any) -> list[str]:

@@ -30,6 +30,10 @@ NO_PACK = (
     "and ask again."
 )
 ROOM = re.compile(r"\broom\b")
+# "Where are they?" about the last answer (the "Show them on the plan" chip, contract F)
+SHOW = re.compile(
+    r"\b(show me where|where are they|show (them|it|me them) on the plan|mark them)\b"
+)
 # Placing a room by its type's word ("Put a toilet here") rather than the word room (multi)
 PLACE = re.compile(r"\b(put|place|add|make|create|draw|build|turn|convert|mark|insert|new)\b")
 # A word for a room, as Room.type names it
@@ -136,6 +140,8 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         return _law(turn, offered)
     if DOUBT.search(words) and ("review_answer" in offered or turn.result("review_answer")):
         return _sure(turn)
+    if SHOW.search(words) and "show_on_plan" in offered:
+        return _show(turn)
     found = turn.result("ask_drawings")
     if found is None:
         return "ask_drawings", {"question": turn.message[:500]}
@@ -187,6 +193,17 @@ def _rooms(found: Json) -> tuple[str, Json] | None:
     some = f"; here are {len(options)}" if count > len(options) else ""
     text = f"The drawings print {count} rooms with that name{some}: which one do you mean? {cites}"
     return _final("needs_input", text, [str(r["ev"]) for r in rooms[:4]], options=options)
+
+
+def _show(turn: _Turn) -> tuple[str, Json]:
+    """The latest answer's marks on the plan (show_on_plan answer: latest), its card with them."""
+    shown = turn.result("show_on_plan")
+    if shown is None:
+        return "show_on_plan", {"answer": "latest", "caption": ""}
+    if shown.get("status") != "ok":
+        why = str(shown.get("error") or "there is nothing to show").removeprefix("show_on_plan: ")
+        return _final("dont_know", f"I can't show that on the plan: {why}.")
+    return _final("answer", "Here they are on the plan.")
 
 
 def _sure(turn: _Turn) -> tuple[str, Json]:

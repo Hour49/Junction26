@@ -8514,6 +8514,13 @@ the proposal's page around its geometry. `box` is the marks' union with a margin
 is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
 still come from this turn's tool results).
 
+`next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
+message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
+results, never from the model's text, in this order: "Show them on the plan" (`message` "Show me where they are")
+when the answer has more marks than the view shows; "Are you sure?" when an answer is rated Medium or Low or has
+disputed marks, not after a review; "How big is <label>?" when the answer names a room `find_rooms` returned without
+an area. `next` is `[]` on a turn with `options` and on every other kind.
+
 <!-- fixture: chat_answer.json -->
 ```json
 {
@@ -9300,7 +9307,13 @@ still come from this turn's tool results).
     ],
     "caption": null,
     "source": "evidence"
-  }
+  },
+  "next": [
+    {
+      "label": "Show them on the plan",
+      "message": "Show me where they are"
+    }
+  ]
 }
 ```
 
@@ -9829,7 +9842,8 @@ budget, the same call a third time) ends a turn the same way.
       "refused_note": "5 drawings can't answer this question."
     }
   ],
-  "view": null
+  "view": null,
+  "next": []
 }
 ```
 
@@ -10061,7 +10075,8 @@ without wall fills) gets `dont_know` saying so.
     ],
     "caption": null,
     "source": "evidence"
-  }
+  },
+  "next": []
 }
 ```
 

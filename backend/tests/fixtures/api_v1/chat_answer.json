@@ -782,5 +782,11 @@
     ],
     "caption": null,
     "source": "evidence"
-  }
+  },
+  "next": [
+    {
+      "label": "Show them on the plan",
+      "message": "Show me where they are"
+    }
+  ]
 }
