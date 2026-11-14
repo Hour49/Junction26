@@ -277,5 +277,8 @@
       "noun": null
     }
   ],
-  "review_queue": []
+  "review_queue": [],
+  "disputes": [
+    "area:room|name=1.01"
+  ]
 }

@@ -3304,6 +3304,13 @@
       "Takeoff": {
         "additionalProperties": false,
         "properties": {
+          "disputes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Disputes",
+            "type": "array"
+          },
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
@@ -3331,7 +3338,8 @@
           "drawing_id",
           "file",
           "quantities",
-          "review_queue"
+          "review_queue",
+          "disputes"
         ],
         "title": "Takeoff",
         "type": "object"
