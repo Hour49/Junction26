@@ -191,17 +191,40 @@ def test_a_printed_ratio_wins_over_the_door_estimate_too(tmp_path: Path) -> None
     assert "printed scale over the scale estimated from the doors" in entry.resolution.rule
 
 
-def test_a_printed_scale_more_than_twice_the_estimate_is_left_to_a_person() -> None:
-    # the UK school sheet's case: one door read 20x too large; or a printed ratio misread 20x
-    inner = Fixed(side_px=DOOR_M / 0.02 * 20)
+def test_a_bar_more_than_twice_the_estimate_wins_and_flags_what_rests_on_it() -> None:
+    # the UK school sheet's case: one door read 20x too large, so the estimate is 20x off
+    found = read(
+        Fixed(side_px=DOOR_M / 0.02 * 20), PrintedSheet(printed_scale="1:200", bars=(BAR,))
+    )
+    assert found.scale.status == "scaled" and found.scale.m_per_unit == pytest.approx(0.02)
+    (room,) = found.rooms
+    assert room.area_m2 == pytest.approx(200 * 200 * 0.02**2)  # measured at the bar
+    assert any("1 px = 20 mm) is more than 2x" in note and "1 px = 1 mm" in note
+               for note in found.notes)  # fmt: skip
+    drawing = drawing_of(found)
+    (entry,) = [c for c in drawing.conflicts or () if c.quantity == "scale"]
+    assert entry.resolution is not None and entry.resolution.value == pytest.approx(0.02)
+    quantities = take_off(drawing, apply_rules(drawing.marks_by_quantity()))
+    flagged = (  # every area and length: an estimate, so never certified and Low (review/check.py)
+        "measured at the printed scale bar (1 px = 20 mm), which is more than twice the scale "
+        "estimated from the doors (1 px = 1 mm), so one of them is misread"
+    )
+    areas = [q for key, q in quantities.items() if q.unit in ("m2", "m")]
+    assert areas and all(q.estimate is not None and flagged in q.estimate for q in areas)
+    assert quantities["room:bedroom"].estimate is None  # a count does not rest on the scale
+
+
+def test_a_ratio_more_than_twice_the_estimate_is_left_to_a_person() -> None:
+    # 1:100 at 150 dpi is 0.0169 m/px; one door read 20x too large says 0.001
+    inner = Fixed(side_px=DOOR_M / 0.001)
     estimate = PriorScale(inner).extract(FILE, SHEET)
-    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+    found = read(inner, PrintedSheet(printed_scale="1:100"), dpi=150.0)
     assert found.scale == estimate.scale  # the estimate stays the sheet's scale
     assert found.rooms == estimate.rooms  # and its areas
     assert any("more than 2x the scale estimated from the doors" in n for n in found.notes)
     (entry,) = [c for c in second_count(measured(found), found.printed) if c.quantity == "scale"]
     assert entry.status == "conflict"
-    assert [v.method for v in entry.values] == ["detector", "scale_bar"]
+    assert [v.method for v in entry.values] == ["detector", "scale_text"]
     assert entry.resolution is None  # no rule decides: a person does
 
 

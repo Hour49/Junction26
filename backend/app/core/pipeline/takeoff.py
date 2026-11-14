@@ -69,7 +69,7 @@ from app.core.pipeline.rules import (
     apply_rules,
     combine_totals,
 )
-from app.core.pipeline.second_count import differ, of_its_plans_storey
+from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
 
 # An element sum an estimated scale makes an estimate (a volume is the model's, not the sheet's).
 SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
@@ -149,7 +149,7 @@ def _add_sheet(
 ) -> None:
     """What the sheet draws, for the whole sheet and each storey. With a building model, the
     storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
-    scale = scale_estimate(drawing.scale)
+    scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
     sheet = _without_seen_through(counted, drawing)
     _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
     _add_apartments(found, drawing, scale)
@@ -222,7 +222,7 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
     objects = drawing.model_objects or ()
     drawn = {item.id: _mark(item) for item in (*drawing.elements, *drawing.rooms)}
     rooms = {room.id: room for room in drawing.rooms}
-    scale = scale_estimate(drawing.scale)
+    scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
 
     def marks(items: Iterable[ModelObject]) -> list[Mark]:
         return [drawn[item.element] for item in items if item.element in drawn]
@@ -612,8 +612,9 @@ def rooms_estimate(rooms: Sequence[Room], scale: str | None) -> str | None:
         how = " or ".join(
             sorted({_AREA_HOW.get(room.area_source or "", "estimated") for room in estimated})
         )
-        if scale and "geometry_x_estimate" in {room.area_source for room in estimated}:
-            how = how.replace(_AREA_HOW["geometry_x_estimate"], scale)
+        for source in ("geometry_x_estimate", "geometry_x_scale"):  # the latter: disputed_scale
+            if scale and source in {room.area_source for room in estimated}:
+                how = how.replace(_AREA_HOW[source], scale)
         spread = max((room.area_uncertainty or 0.0 for room in estimated), default=0.0)
         which = "the area" if n == 1 else "each area"
         band = f"; {which} may be off by about ±{_percent(spread)}" if spread else ""
@@ -632,6 +633,27 @@ _AREA_HOW = {
 
 def _percent(spread: float) -> str:
     return f"{round(100 * spread)}%"
+
+
+def disputed_scale(drawing: Drawing) -> str | None:
+    """What an area or length rests on, in words a user reads, when the sheet's scale is a
+    measured scale bar more than second_count.ESTIMATE_RANGE from the scale estimated from the
+    doors (printed.py: the bar is used, but one of the two is a misread), naming both."""
+    m_per_unit = drawing.scale.m_per_unit
+    if drawing.scale.status != "scaled" or m_per_unit is None:
+        return None
+    for entry in drawing.conflicts or ():
+        values = {value.method: value.value for value in entry.values}
+        bar, doors = values.get("scale_bar"), values.get("detector")
+        if entry.quantity != "scale" or bar is None or doors is None or bar != m_per_unit:
+            continue
+        if far_apart(bar, doors):
+            return (
+                f"measured at the printed scale bar ({mm_per_px(bar)}), which is more than twice "
+                f"the scale estimated from the doors ({mm_per_px(doors)}), so one of them is "
+                "misread"
+            )
+    return None
 
 
 def scale_estimate(scale: Scale) -> str | None:

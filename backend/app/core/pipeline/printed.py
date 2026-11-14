@@ -12,8 +12,11 @@ scale and the stage-8 measurements to check the reading with.
   only when the file states one that can be trusted (`trusted_dpi`): an image has no paper size.
   The printed scale replaces the estimate, and the estimate is kept as a second value of a `scale`
   conflict entry, so a difference of more than second_count.ESTIMATE_TOLERANCE (10%) shows; the
-  printed one is kept. Unless the two are more than second_count.ESTIMATE_RANGE (2x) apart: then
-  one of them is a misread, the estimate stays the sheet's scale and no rule decides the conflict.
+  printed one is kept. When the two are more than second_count.ESTIMATE_RANGE (2x) apart, one of
+  them is a misread: a measured bar still wins (the pixel distance between two of its labelled
+  ticks is a measurement; the estimate can rest on one door), and the takeoff flags every area
+  and length on the sheet (`takeoff.disputed_scale`); a ratio does not (it needs a resolution and
+  can belong to another detail): the estimate stays the sheet's scale and no rule decides.
 - Printed facts. A printed count of an element class, of a room type or of all rooms becomes a
   second value of that count (method `printed_total`). It never replaces the count read off the
   drawing: no rule decides between the two, so a difference stays open for a person.
@@ -40,7 +43,7 @@ from app.core.drawing.model import (
 from app.core.model import Frozen
 from app.core.pipeline.model import Extracted, Measurement
 from app.core.pipeline.raster_scale import rooms_with_areas
-from app.core.pipeline.second_count import ESTIMATE_RANGE, far_apart
+from app.core.pipeline.second_count import ESTIMATE_RANGE, far_apart, mm_per_px
 
 INCH_M = 0.0254
 MIN_BAR_PX = 20.0  # a bar shorter than this on the image is not measured: a few px off is 10%
@@ -240,6 +243,7 @@ def with_printed(
         and found.scale.status == "estimated"
         and found.scale.m_per_unit is not None
         and far_apart(scale.m_per_unit, found.scale.m_per_unit)
+        and "scale_bar" not in scale.evidence
     ):  # one of the two is a misread: the estimate stays, the conflict is left to a person
         measurements = [*scale_measurements(scale, found.scale), *measurements]
         notes.append(
@@ -247,6 +251,19 @@ def with_printed(
             "estimated from the doors: not used, left for a person to check"
         )
         scale = None
+    elif (
+        scale is not None
+        and scale.m_per_unit is not None
+        and found.scale.status == "estimated"
+        and found.scale.m_per_unit is not None
+        and far_apart(scale.m_per_unit, found.scale.m_per_unit)
+    ):  # a measured bar: it wins, and the takeoff flags what rests on it
+        notes.append(
+            f"printed scale bar ({mm_per_px(scale.m_per_unit)}) is more than "
+            f"{ESTIMATE_RANGE:g}x the scale estimated from the doors "
+            f"({mm_per_px(found.scale.m_per_unit)}): the bar is used, its areas and lengths "
+            "are flagged for a person to check"
+        )
     elif scale is None and printed.printed_scale:
         notes.append(
             f"printed scale {printed.printed_scale}: read, not used (no scale bar was measured "

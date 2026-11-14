@@ -87,6 +87,11 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
 }
 
 
+def mm_per_px(m_per_unit: float) -> str:
+    """A raster scale in words a user reads: "1 px = 8.5 mm"."""
+    return f"1 px = {m_per_unit * 1000:.3g} mm"
+
+
 def far_apart(a: float, b: float) -> bool:
     """Whether two scales are more than ESTIMATE_RANGE times apart (either way)."""
     low, high = sorted((a, b))
@@ -210,8 +215,8 @@ def _resolution(
     rule = RULES.get((quantity, frozenset(value.method for value in values)))
     if quantity == "scale" and any(value.method == "detector" for value in values):
         numbers = [value.value for value in values]
-        if far_apart(min(numbers), max(numbers)):
-            rule = None
+        if far_apart(min(numbers), max(numbers)) and (rule is None or rule.prefer != "scale_bar"):
+            rule = None  # a measured bar keeps its rule (printed.py); a ratio does not
     if rule is None:
         return None if apart else Resolution(rule=AGREE, value=values[0].value)
     preferred = next(value.value for value in values if value.method == rule.prefer)
