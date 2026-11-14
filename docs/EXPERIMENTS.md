@@ -3,8 +3,8 @@
 On the night of 13-14 November the team ran about a dozen experiment tracks on the CubiCasa5K raster sheets (the
 part of the Stoa dataset where we read a drawing from pixels). This page lists every arm worth naming, what it
 changed, what it scored, whether it shipped, and what it cost. It is the "how we improved" record that
-[GOLDEN.md](GOLDEN.md) points at. Final as of 2026-11-14 09:14: every track is closed (the last arm, integ-5, closed at
-08:59) and no GPU machine is running.
+[GOLDEN.md](GOLDEN.md) points at. Sections 1 to 13 are final as of 2026-11-14 09:14 (every track closed, the last arm, integ-5, at 08:59). Section 14
+covers the later round "local" (from 09:42) and is a draft.
 
 ## Protocol
 
@@ -533,6 +533,194 @@ pass, rooms) 1.04 s and 3.54 s; for reference the detector's eight views 1.98 s 
 about 1.6 s of wall time per page, or 0.6 s when the segmentation network already gives the rooms, since a source
 that is a part and a reader reads the sheet once. Not measured: the segmentation source turning its icon map into
 elements, which it does not do yet.
+
+---
+
+## 14. Round "local": fewer hosted calls, and answers that say when they are unsure (2026-11-14 from 09:42; logs: `fail-1` to `fail-5`, `think-acc.md`, `think-local.md`, `local-dec.md`, `fable-rooms.md`, `integ.md`, `golden.md`, `tables-fix.md`)
+
+**Status of this section: draft, written 2026-11-14 about 12:30.** The round is still running. Three things are not
+filled in yet and are marked `TODO` below: the final config pick, the single test read, and the golden series point.
+Everything else is val numbers from the logs.
+
+The round had two goals. First, find out where the 13.5% of val questions that config C gets wrong come from, and take
+whatever is cheap. Second, replace the hosted calls (Gemini's count swap, its gate score, its photo flag) with local
+models where that costs nothing measurable, and give every answer a way to say "check this" instead of being silently
+wrong. Same rules as the rest of the page: every arm is an A/B on the 376 val pages through the backend's own
+answering, B minus A in percentage points with a 95% bootstrap interval over images, and a difference under about 2 pp
+between two separate trainings is noise. Nothing here read the test split. Hosted-model spend for the whole round was 0:
+every Gemini reply came from the caches.
+
+### 14.1 Failure analysis of config C on val (fail-1 to fail-5)
+
+Five read-only reviews looked at the overlays of C's wrong answers (gold green, C red). C loses 910 of 6,764 val
+questions (1 pp = 67.6 questions). Where the loss sits:
+
+| family | wrong questions | share of C's errors | what the overlays showed |
+| --- | --- | --- | --- |
+| window | 344 | 38% | 172 of 376 pages wrong. 41% of those are only pane granularity (a window drawn as k panes, counted as 1 or j in gold), 36% missed windows (balcony glazing drawn as one line, curved walls, 3-plan pages), 15% extra or mixed. Merging abutting boxes as a blanket rule is worse (174-197 right of 376 against 204). |
+| door | 152 | 17% | 76 of 279 pages wrong; 53% extra boxes (a doorway with no leaf, clutter), 33% missed doors. A score floor does not help (best floor is no floor). |
+| shower+bathtub, sink, toilet | 88, 86, 36 | 23% | Small symbols: 239 of 452 gold shower boxes are under 12 px wide and one-view recall there is 57%; toilets under 12 px 14%. Washers and dishwashers read as sinks. |
+| rooms (bedroom, kitchen, bathroom, wc, balcony), sauna, plan | 204 | 22% | 38% of room errors are rooms the gold left untyped (printed label `MH`, gold `UNDEFINED`) or never drew; wc/bathroom swaps 16%; the kitchen prior beats the reader (96.2% against 91.7%) because the reader under-counts. |
+
+Two results shaped the rest of the round:
+
+- **The answer layer loses nothing.** Answering over the gold extraction gives 6,762 of 6,764 val questions right
+  (99.97%); the two misses are one sauna whose gold boxes disagree with the dataset's own answer. "Extraction right,
+  answer wrong" is empty, so the whole error is reading.
+- **About 70% of the wrong answers no reader change fixes.** On the pages with the symbol, the gold marks something
+  with no symbol, or skips something that is drawn, or counts a window per pane on this sheet and per opening on the
+  next. The unfixable floor under agreement is roughly 2 pp.
+
+A fifth review (fail-4) looked at golden v2's misses outside CubiCasa: all 64 non-CubiCasa misses were
+`opening_design` questions on three sheets. The extracted tables equal gold cell for cell on the schedule sheet; the
+question parser refused or mis-parsed 20 of its questions. That became PR #122 and #123 (14.6).
+
+### 14.2 Arms, with their val numbers
+
+"Parent" is config C (86.5% on val, 5854/6764) unless a row says otherwise. Rows marked in-sample had their rule chosen
+on val; they are confirmed on train gold or held-out train pages where the log says so.
+
+| arm | what it changed | val result | cost | verdict |
+| --- | --- | --- | --- | --- |
+| Kitchen from the prior (#115) | CubiCasa kitchen answers come from the train prior (1 kitchen), picked per family on cross-fit gate halves | 86.9% (5878); +0.35 pp [+0.12, +0.60]; kitchen +4.5 [+1.5, +7.5] | 0 | **shipped** (demo config) |
+| Room label rules (`ROOM_POLICY=gold-labels`, #116) | four rules on printed labels (section 5): empty-label bedroom not counted, ALK is a hall, WC is a wc, APUK/TUPAK is a kitchen | +0.6 [+0.3, +1.0]; bedroom +6.6 [+3.3, +10.3] | 0 | **shipped as a setting.** Decision (product owner, 11:54): scored runs use `gold-labels`, the demo uses `furniture`, because on an unlabelled plan the label rule answers 0 bedrooms though the drawing shows beds. |
+| Label rules plus "at least one kitchen" (think-acc `rooms-labels-kfloor`) | the four rules and a kitchen floor | +0.8 [+0.5, +1.2] | 0 | the floor is not shipped: it overlaps the prior policy, and in the held-out train check it lost 4 after gaining 14 on val |
+| Label table from gold labels (`rooms-table-kfloor`) | every room retyped from an 84-entry label table | -0.2 [-0.5, +0.1] against the hand rules | 0 | not shipped: annotators label many printed `H` rooms `MH` |
+| Eight views of the L detector (#117) | `detector-v8:<arm>` reads eight rotations and mirrors and fuses them before thresholds; default off | like for like (both thresholds cross-fit): +1.0 [+0.4, +1.6] with the swap, +0.6 [+0.1, +1.2] with four views; shower+bathtub +4.1 [+2.1, +6.5], toilet +2.4 [+1.1, +4.0]. Without the swap: -0.1 [-0.8, +0.6] against shipped C | 2.64 s per page median (one view 0.41 s, four 1.47 s), 4 CPU threads, busy host | **shipped as a source**; eight against four views is no difference (+0.4 [-0.1, +0.9]) |
+| Room-guided zoom for fixtures | the L model re-reads 2x windows around the segmentation network's bathrooms and wcs | -0.1 [-0.2, +0.1] against eight views | 1.69 s per page extra (overloaded host) | **killed**: kill rule was an interval above 0 for any family; cross-fit chose "add nothing" for toilet and sauna and added 8 boxes (fixed 2 pages, broke 4) |
+| Per-plan windows on L (`L-perplan-multi`) | region's per-plan windows on the 67 multi-plan sheets | +0.1 [-0.6, +0.7] | 289 s CPU | **killed**: kill line was +0.3 |
+| Window strip reader | CNN on native-resolution gold window strips, target = windows in the strip, 24,077 train strips | strips with 2+ windows right 56.7% (line 80%); page level with gold strips 61.4% | 18 min CPU | **killed** on both lines |
+| Local rooms (LOCAL1) | L eight views, segmentation-network rooms, region mask, no hosted call | -0.5 [-1.4, +0.5] against C; balcony -3.2, wc -1.7 | 0 | no hosted call at the price of about half a point, all intervals include 0 |
+| Sauna rooms from stoves (#118) | retype the `other` room that holds a stove as `sauna` (section 6) | sauna +1.8 [+0.4, +3.7] against the stove count | 0 | **shipped as a function**, not wired yet; the local rooms source will call it |
+| Rooms arbiter fit on val halves | gradient boosting picks seg's or OCR's count per page and type | -0.0 [-0.5, +0.4] | 0 | dead: 370 units per half are too few for rooms |
+| Local count arbiter, cross-fit on val (A1-lr, A5, A6) | logistic regression over candidate counts from the local readers and a page-count model (ConvNeXt-T, 0.48 s per page on CPU) | +0.4 [-0.6, +1.4] (A1-lr), +0.7 [-0.3, +1.6] (A5), +0.6 [-0.3, +1.5] (A6); toilet +2.7 [+1.1, +4.5], kitchen +4.2 [+1.1, +7.5], sauna -1.8 [-3.7, -0.4] | 0 | equal to the Gemini swap with no hosted call; sauna loses until #118's rule is in |
+| **Local count arbiter T1** (#130) | the same, fitted on out-of-fold train pages (3,007; detectors trained on halves) instead of val; element families and plans | **+0.9 [-0.1, +1.8]** (87.4%), McNemar p 0.011; shower+bathtub +3.8 [+0.6, +7.0], toilet +2.1 [+0.5, +3.7], kitchen +4.2 [+1.1, +7.5] | about 1.1 EUR (rented A100, about 1 h, machine deleted) | **shipped as a source** (`arbiter-t1:<arm>`, off by default). The element part is out of sample. The interval touches 0, so the honest word is "equal to the swap or a little better". |
+| Kind classifier, local (K2) | DINOv2-S plus a logistic head on synthetic phone photos, tight crops included | Commons photos 30/30; 4 of 376 val scans flagged and all four are phone photos by eye; other drawings 1/104 | 0 | no accuracy effect; replaces the last hosted call, not yet wired |
+| Gate score, local | learned gate on the detector views, the arbiter's own probability, the page model's probability | failure AUROC 0.974 (detector views, against 0.959 for Gemini), 0.892 (arbiter, against 0.851), 0.856 (page model on C, against 0.830) | 0 | better than the hosted score on every pair measured; the cost rule below decides what ships |
+
+Candidate configs through the backend runtime on val (`integ.md`, integ-8 to integ-11; "-shipped" means thresholds and
+the answer policy fitted on all val, so it is in-sample; the C-xf rows are cross-fit):
+
+| candidate | what it is | exact | against C-shipped (86.9%) |
+| --- | --- | --- | --- |
+| C-shipped | swap, detector one view, kitchen policy | 86.9% | - |
+| C1-furn-shipped | swap, eight views, `furniture` rooms | 87.7% | +0.8 [+0.1, +1.4] |
+| C1-shipped | swap, eight views, `gold-labels` | 88.3% | +1.4 [+0.7, +2.0] |
+| C2-shipped | eight views, no swap, `gold-labels` | 87.9% | +1.0 [+0.2, +1.7] |
+| L-T1-furn | fully local: T1 elements, segmentation rooms | 87.4% | +0.5 [-0.4, +1.4] |
+| C1-T1 | C1 with T1's counts for door, window, sink, toilet, shower, bathtub | 88.5% | +1.6 [+0.9, +2.3]; against C1-shipped +0.2 [-0.1, +0.6], p 0.076 |
+
+C1's in-sample optimism is about 0.4 pp (C1-shipped minus C1 cross-fit). `gold-labels` does not apply to the
+segmentation rooms (they carry no printed label): L-T1 with it drops to 83.7%.
+
+A golden v2 look at the same candidates (a look, not a pick; Swiss, IFC, `opening_design` and every non-CubiCasa
+answer are byte-identical in all five): C 2717 (92.2%), C1 2727, C1-furn 2725, C2 2725, C2-furn 2723. Holdout 516 of 560
+for C1 against 520 for C: four questions on 560, too few to read either way.
+
+**TODO (final config pick):** which of C1, C1-T1 or a fully local config the demo and the scored run use. Decided by
+the orchestrator after the integration window; fill in the name, the setting string and why.
+
+**TODO (single test read):** accuracy and error recall of the picked config on the CubiCasa test split, read once, with
+the certificate. Format as in section 13: exact % (n/N), 95% CI, train prior, per family. The older read (config C,
+85.0% [83.4, 86.5]) does not carry over: the sure-flag certificate, the check policy's threshold and the kitchen policy
+were all fitted on C or C1's val output.
+
+**TODO (golden series point):** the golden v2 series row for the picked config (commit, time, all, holdout). The
+schedule fixes (14.6) are in main but are an answer-only rerun, not a series point. Add the row to `GOLDEN.md` too.
+
+### 14.3 Double-check: answers that say when they are unsure
+
+The product owner's idea: an answer we cannot vouch for keeps its value and asks the person to check it at the
+places where the readers disagree. It is not a refusal. Three pure functions find the places, a policy decides which
+answers ask, and the API carries it as `check` on `/api/ask`.
+
+**Where to look (PRs #124, #125, #126, #127).**
+
+| piece | what it lists | val result |
+| --- | --- | --- |
+| `disputed_marks` (#124), doors and fixtures | counted marks other readers do not see, and places they see that were not counted, k = 2 | 170 wrong door and fixture answers; the set chosen for cost lists an error for 93 of them (95 without the 5-place cap), 19% of listed places are errors, 99 of 392 not-sure answers get none |
+| `room_disputes` (#125), rooms | rooms where the segmentation network, the printed labels and the answer disagree | 993 room answers, 63 wrong: 35 of the 63 are right after a person settles only the listed places, 813 of 930 right answers list nothing, 1.2 places per answer, 4 at most. With the crop typer it was 38 and 793; the typer was dropped to save a model |
+| `window_panes` (#126), windows | the count as whole windows and as panes, and the places that differ | 37 of 376 sheets clean, 36 of them right (97.3%); on the rest the first five places reach at least one error on 87% of wrong sheets. In-sample: the clean rule was chosen on val |
+| readers at ingest (#127, `DOUBLE_CHECK_READERS`) | stores what extra readers saw, never counted | about 1.6 s wall per page for all three extra readers (0.6 s when the segmentation network already gives the rooms) |
+
+None of the three finders is wired into the API yet, so today a request has a sentence and no places.
+
+**Which answers ask (D455 and D476, PR #129, open).** Two rules were fitted on C1's val answers with the gate halves
+(each rule picked on one half and scored on the other):
+
+- *Cost rule (D455).* Per family, answer as sure only where the threshold maximises coverage minus 10 x wrong answers.
+  Pooled, cross-fit: 72.7% of answers certified at 97.8% exact with the agents' signals (lambda 5: 76.6% at 97.0%;
+  lambda 20: 65.9% at 98.2%); with Gemini's score alone, the one signal at runtime today, 65.4% at 97.2%. By family at
+  lambda 10: toilet 94.7% certified (99.2% exact), sauna 96.7% (99.6), plan 98.1% (99.7), sink 70.6% (97.3), door 36.9%
+  (94.2), window 9.8% (97.3, fixed cut).
+- *Error-recall rule (D476), the 96% gate.* One cut on P(wrong), calibrated per family by logistic regression, chosen so
+  that at least 96% of wrong answers ask for a check. On C1 with `gold-labels`: 3,382 answers, 421 wrong (87.6%
+  exact). Cross-fit, **45.2% of answers ask and 96.2% of the wrong ones are among them; the 54.8% that do not ask are
+  99.14% exact.** With the shipped (all-val) thresholds: 42.8% ask, 96.4% of wrong flagged, 99.22% exact. At 95% recall:
+  38.2% ask, 95.0%, 99.00%; at 97%: 60.6% ask, 97.1%, 99.10%. With Gemini's score alone at 96%: 63.7% ask and 98.70%
+  exact for the rest. Door, window, bedroom and shower+bathtub ask almost always, so the saving is in toilet, sauna,
+  plan, kitchen and bathroom.
+
+What a person sees on val, over all 12 families (`double-check-demo.md`): 9 answers per plan, 2 ask for a check (median),
+5 places marked (9 or fewer on 90% of plans); 74% of answers are sure, 97.7% of those exact; 84 wrong answers that ask
+are fixed by one click on one listed place. Windows carry most of it: 68% of all marked places are window panes.
+
+Caveats, all stated in the logs: the per-family signal was picked on val by a kill rule (5 points of coverage at equal
+accuracy at 97, 98 or 99%), so these are slightly optimistic; 421 wrong answers is a small sample, and differences of 2
+to 3 points between signals are noise; the recall rule's signals other than Gemini's have no runtime scorer yet, so the
+backend loads the file today and certifies only the plan family on the raster route. **TODO:** the golden v2 version of
+this table (raster golden answers carry only Gemini's score so far) and the test-read recall.
+
+### 14.4 What we learned
+
+- **A blind spot we can measure: 17% of the wrong answers are wrong in every reader.** For the 421 wrong answers of C1
+  on val, 70 units (140 questions, 2.1 pp) have the six icon readers (detector L in one and eight views, M, X, two
+  segmentation networks) or the four room readers all agreeing. With detectors alone it is 35%. Door, window, sink and
+  shower+bathtub stay at 82.6, 89.8, 96.0 and 95.4% exact even when every reader agrees; toilet, sauna, plan and the
+  rooms reach 98 to 100% (in-sample). Of 48 blind overlays viewed: 42% gold marks something with no symbol or label, 27%
+  readers see a symbol gold does not count, 13% a neighbouring flat, 13% pane granularity. So agreement among readers
+  cannot certify a window at 99%, and no cheap page rule finds the blind answers; the only selective one (two or more
+  plans on the page) catches 30% of them at 11% cost. The readers share training data and a model family, so their
+  agreement is far from independent. One of the demo drawings is chosen to show this: two
+  bedrooms printed `MH 1` and `MH 2`, every reader agrees, the dataset says 0.
+- **Local readers replace the hosted swap and gate at no measurable loss.** Eight views match shipped C without the swap
+  (-0.1 [-0.8, +0.6]); T1 is +0.9 [-0.1, +1.8] on top; the local gate scores beat Gemini's. The cost of going fully
+  local is in the rooms (-1.6 to -2.2 on bathroom, wc, balcony) and sauna, not in elements.
+- **Rooms and elements behave differently.** Fixtures gain from every learned arbiter; rooms never did, with 370 units
+  per half too few to fit and the segmentation network carrying no printed labels for the label rules.
+- **Zoom is dead three ways** (tiles, per-plan windows, room-guided zoom): the misses left on small fixtures are not a
+  size problem for this model. Doors and windows have no cheap lever left; windows stayed at 54 to 55% in every arm.
+- **Cross-fit matters.** C's thresholds are fitted on val; its cross-fit twin scores 0.6 pp lower (-0.6 [-1.0, -0.2]).
+  Every "against C" row that mixes a cross-fit arm with shipped C understates the gain, and the like-for-like pair is
+  given where it exists.
+- **Parser changes moved golden more than any detector arm.** 19 golden questions came from them (14.6).
+
+### 14.5 Costs
+
+- Hosted models: 0 USD in the round; all replies came from the caches (placeholder key in every run).
+- GPU rental: about 1.1 EUR (one A100, about 1 h, for the out-of-fold half detectors behind T1; deleted 11:36).
+  Earlier-round totals are in "Gaps and caveats".
+- CPU per page at runtime (4 ONNX threads, busy host, so upper bounds): detector one view 0.41 s, four views 1.47 s,
+  eight views 2.64 s; page-count model 0.48 s a view; the three extra double-check readers about 1.6 s together.
+
+### 14.6 Schedule questions on `opening_design` sheets (PR #122, #123)
+
+Answer layer only, scored on bd2471f's own extraction (golden v2, 2,948 questions): 2717 to 2734 after #122 (opening
+design counts 20/39 to 36/39, text 7/16 to 8/16; 18 answers changed, all on one sheet; Swiss, IFC, CubiCasa identical)
+and 2736 after #123 (largest-area room and "how many, total area": text 8/16 to 10/16). On main the rerun reproduces
+the run's answers exactly (0 of 3,058 differ), a parse check over 104,709 question texts changed only the 18 golden
+answers and refused nothing new. Not fixed: one answer that differs from gold by a parenthetical, a width formula, a
+legend drawn as a label, and enlarged-plan symbols that have no reader. Not a series point yet.
+
+### 14.7 Gaps in this section
+
+- Every val number is from precomputed arms or the backend runtime on the same 376 pages the rules were chosen on, and
+  is optimistic by the size of the choice (about 0.4 pp for C1). The single test read is the real number (TODO above).
+- T1's element part is the only learned part fitted off val; its rooms (A6) and the thresholds are fitted on val halves
+  or all val.
+- Missing intervals: the gate-score rows are AUROCs without intervals; the D455 and D476 tables are single draws of the
+  halves; the window finder's 97.3% is 36 of 37 sheets.
+- The finders and the check policy are not wired into the running product; the numbers describe the functions on val.
 
 ---
 
