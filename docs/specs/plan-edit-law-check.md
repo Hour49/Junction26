@@ -94,6 +94,12 @@ Zürich** (`?pack=ch-zh`).
   This stays inside 0009's own rule: a fail stands on a printed area or a drawn vector outline at a real scale; an
   estimate or a picture stays cannot tell. A proposal on a scan can therefore say "can't tell", never "would not
   meet". No verdict is ever stronger than the engine gives.
+  - Deferred (QA lawcheck-1, 2026-11-14): `law_check.py` `_change` gives no finding when a rule stays cannot tell,
+    even on a touched room, so an estimated room the proposal changes shows nothing instead of "can't tell" (still
+    never a fail). The QA triage deferred it as unreachable: plan edits refuse scans (`plan_tools.py` refuses a
+    raster route, "its walls are not geometry", and a page with no scale). Reopen it when plan edits work on
+    scans: a touched room that stays cannot tell then gets a "still cannot tell" finding, and the "an estimated
+    area → cannot tell" tests below need it.
 - LC-5 `note` = "A pre-check of {n} rules from {pack_name}, not a permit check. Structure, fire safety, escape routes
   and services are not checked." (n = the pack's rule count).
 
