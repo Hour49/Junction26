@@ -440,3 +440,20 @@ def test_the_budget_is_asked_again_before_the_second_try(
     )
     assert isinstance(found, Unavailable) and "Gemini budget used up" in found.note
     assert network.calls == 1
+
+
+def test_a_set_aside_sheet_is_never_advanced_and_a_doubt_keeps_the_flag(tmp_path: Path) -> None:
+    big = png(ADVANCED_LONG_SIDE + 10, 100)
+    hard = PIPING | {"advanced": True, "advanced_why": "dense annotation"}
+    found = classifier(tmp_path, FakeModel(reply(hard))).classify(big, PNG_PROBED)
+    assert isinstance(found, Classified) and found.sheet is not None
+    assert (found.sheet.decision, found.sheet.advanced, found.sheet.advanced_why) == (
+        "set_aside",
+        False,
+        None,
+    )
+    warned = SheetKindClassifier(
+        None, SheetKindReader(FakeModel(reply(hard)), tmp_path / "warn"), CUT, set_aside=False
+    ).classify(big, PNG_PROBED)
+    assert isinstance(warned, Classified) and warned.sheet is not None
+    assert (warned.sheet.decision, warned.sheet.advanced) == ("doubt", True)  # it is read

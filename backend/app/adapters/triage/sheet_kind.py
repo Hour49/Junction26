@@ -418,7 +418,9 @@ class SheetKindClassifier:
         form, decision = found.form, decide(found.form, self._cut)
         if decision == "set_aside" and not self._set_aside:  # read it, its answers say the kind
             decision = "doubt"
-        hard, why = advanced(form, long_side(image))
+        # a set-aside sheet is not read, so it routes no reader (hardphotos: the size rule marked
+        # 13 of 14 set-aside non-plans advanced)
+        hard, why = (False, None) if decision == "set_aside" else advanced(form, long_side(image))
         sheet = Sheet(
             kind=form["sheet_kind"],
             kind_words=KINDS[form["sheet_kind"]],
