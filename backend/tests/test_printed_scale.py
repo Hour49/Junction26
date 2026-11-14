@@ -16,6 +16,7 @@ from app.core.drawing.model import Drawing, Element, Page, Room, Scale
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
 from app.core.pipeline.printed import (
+    Dimension,
     PrintedFact,
     PrintedSheet,
     ScaleBar,
@@ -35,6 +36,11 @@ FILE = DrawingFile(path="plan.png", size=1, sha256="0" * 64, kind="png")
 SHEET = Sheet(file=FILE, pages=(PAGE,))
 # A 5 m bar 250 px long: 0.02 m/px
 BAR = ScaleBar(page=1, start=(0.1, 0.9), end=(0.225, 0.9), length_m=5.0, text="0 1 2 5 m")
+# A printed 6000 (mm) 300 px long: 0.02 m/px; two more, 1% off either way
+DIMS = tuple(
+    Dimension(page=1, start=(0.3, 0.5), end=(0.3 + 0.15 * k, 0.5), length_m=6.0, text="6000")
+    for k in (1.0, 1.01, 0.99)
+)
 
 
 @pytest.mark.parametrize(
@@ -230,6 +236,39 @@ def test_a_ratio_more_than_twice_the_estimate_is_left_to_a_person() -> None:
     assert entry.status == "conflict"
     assert [v.method for v in entry.values] == ["detector", "scale_text"]
     assert entry.resolution is None  # no rule decides: a person does
+
+
+def test_printed_dimensions_give_the_scale_when_no_bar_does() -> None:
+    scale = printed_scale(PrintedSheet(printed_scale="1:50", dimensions=DIMS), [PAGE], dpi=None)
+    assert scale is not None and scale.m_per_unit == pytest.approx(0.02)  # the median of three
+    assert scale.evidence == ("dimension_lines",)
+    assert scale.source == "printed dimension (median of 3)"
+    both = printed_scale(PrintedSheet(bars=(BAR,), dimensions=DIMS[1:]), [PAGE], dpi=None)
+    assert both is not None and both.evidence == ("scale_bar",)  # a bar comes first
+
+
+def test_a_printed_dimension_replaces_the_door_estimate_by_its_rule() -> None:
+    found = read(Fixed(side_px=DOOR_M / 0.02 * 1.5), PrintedSheet(dimensions=DIMS))
+    assert found.scale.status == "scaled" and found.scale.m_per_unit == pytest.approx(0.02)
+    (room,) = found.rooms
+    assert room.area_m2 == pytest.approx(200 * 200 * 0.02**2)
+    (entry,) = [c for c in second_count(measured(found), found.printed) if c.quantity == "scale"]
+    assert [v.method for v in entry.values] == ["detector", "dimension_lines"]
+    assert entry.resolution is not None and entry.resolution.value == pytest.approx(0.02)
+    assert entry.resolution.rule == "the printed dimension over the scale estimated from the doors"
+
+
+def test_a_dimension_more_than_twice_the_estimate_wins_and_flags_what_rests_on_it() -> None:
+    found = read(Fixed(side_px=DOOR_M / 0.02 * 20), PrintedSheet(dimensions=DIMS))
+    assert found.scale.m_per_unit == pytest.approx(0.02)
+    assert any("printed dimension (1 px = 20 mm) is more than 2x" in n for n in found.notes)
+    drawing = drawing_of(found)
+    (entry,) = [c for c in drawing.conflicts or () if c.quantity == "scale"]
+    assert entry.resolution is not None and entry.resolution.value == pytest.approx(0.02)
+    quantities = take_off(drawing, apply_rules(drawing.marks_by_quantity()))
+    flagged = "measured at the printed dimension (1 px = 20 mm), which is more than twice"
+    areas = [q for q in quantities.values() if q.unit in ("m2", "m")]
+    assert areas and all(q.estimate is not None and flagged in q.estimate for q in areas)
 
 
 def test_a_printed_scale_within_ten_percent_of_the_estimate_agrees() -> None:

@@ -10,6 +10,11 @@ Per sheet, page 1 of the image file:
 3. One call per bar on a full-resolution crop around it (TICKS_PROMPT): the two numbered ticks
    furthest apart, their values in metres and their points. The crop is sent as the contract sends
    any image (`jpeg`: at most 3072 px, so a bar on a 14000 px sheet keeps its pixels).
+4. Only when no bar was read: a small page call for the printed dimensions (DIMS_PROMPT: up to 4,
+   the longest first, each box and value), then one call per dimension, at most MAX_DIMENSIONS,
+   on a full-resolution crop around it (ENDS_PROMPT, which names the value): its length in
+   metres and the two ends of its dimension line. The median of their metres per pixel is the
+   sheet's scale when it prints no bar and no ratio with a resolution to trust (printed.py).
 
 Calls go through `CarbonModel` (CarbonClient: GEMINI_API_KEY, the spend guard, the trace's cost)
 one after the other on the reading thread. Each checked reply is cached as a whole under a name
@@ -35,7 +40,7 @@ from app.adapters.raster_ocr.gemini import GeminiError, pixel_digest, reply_text
 from app.adapters.whole_file import write_whole
 from app.core.pipeline.model import DrawingFile, Sheet
 from app.core.pipeline.ports import DrawingFiles
-from app.core.pipeline.printed import PrintedFact, PrintedSheet, ScaleBar
+from app.core.pipeline.printed import Dimension, PrintedFact, PrintedSheet, ScaleBar
 
 MAX_TOKENS = 8192
 FT2 = 0.09290304  # m² per square foot, as the contract converts a printed area
@@ -66,11 +71,33 @@ TICKS_SCHEMA: dict[str, Any] = {
         "required": ["label", "metres", "point"]}}},
     "required": ["ticks"],
 }  # fmt: skip
+DIMS_PROMPT = """This is an architectural drawing sheet. Find the printed dimensions of its floor plan: a dimension line (a straight line with ticks, dots, slashes or arrows at its two ends, usually between two extension lines) with its length printed along it, for example 12'-0", 3600, 12,00 or 4.50. Report up to 4, the longest first; prefer long overall dimensions across the building over short ones, and skip chains of several values on one line unless it is one value per line segment you report. For each: box_2d: [ymin, xmin, ymax, xmax] in 0-1000 coordinates of this image around the dimension line from end to end and its value; text: the value as printed. dimensions is [] when none is printed. Answer in JSON."""
+DIMS_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {"dimensions": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+        "box_2d": {"type": "ARRAY", "items": {"type": "INTEGER"}},
+        "text": {"type": "STRING"}}, "required": ["box_2d", "text"]}}},
+    "required": ["dimensions"],
+}  # fmt: skip
+ENDS_PROMPT = """This crop shows a printed dimension of an architectural drawing: a dimension line with its length printed along it. The value meant: {text}. Report text: the value as printed; metres: that length in metres (feet x 0.3048 plus inches x 0.0254; on a metric drawing a plain number without a decimal separator is millimetres, 3600 = 3.6, and one with a decimal comma or point is metres, 12,00 = 12); start and end: [y, x] of the two ends of that dimension line, each where the line meets its extension line, or the centre of its end tick, dot or slash, or the tip of its arrow, in 0-1000 coordinates of this crop. Answer in JSON."""
+ENDS_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "text": {"type": "STRING"}, "metres": {"type": "NUMBER"},
+        "start": {"type": "ARRAY", "items": {"type": "NUMBER"}},
+        "end": {"type": "ARRAY", "items": {"type": "NUMBER"}},
+    },
+    "required": ["text", "metres", "start", "end"],
+}  # fmt: skip
+MAX_DIMENSIONS = 3  # ends calls per sheet: the median of three is robust to one misread
+DIM_PAD = 0.08  # of the dimension's longer side, added each way, at least PAD_MIN of the page
 _SHAS = {
     kind: hashlib.sha256((prompt + json.dumps(schema, sort_keys=True)).encode()).hexdigest()
     for kind, prompt, schema in (
         ("bars", BARS_PROMPT, BARS_SCHEMA),
         ("ticks", TICKS_PROMPT, TICKS_SCHEMA),
+        ("dims", DIMS_PROMPT, DIMS_SCHEMA),
+        ("ends", ENDS_PROMPT, ENDS_SCHEMA),
     )
 }
 
@@ -89,6 +116,18 @@ def cache_name(kind: str, pixel_sha256: str) -> str:
 def check_bars(form: object) -> dict[str, Any]:
     if not isinstance(form, dict) or not isinstance(form.get("scale_bars"), list):
         raise ValueError("the bars reply has no scale_bars list")
+    return form
+
+
+def check_dims(form: object) -> dict[str, Any]:
+    if not isinstance(form, dict) or not isinstance(form.get("dimensions"), list):
+        raise ValueError("the dimensions reply has no dimensions list")
+    return form
+
+
+def check_ends(form: object) -> dict[str, Any]:
+    if not isinstance(form, dict) or not all(key in form for key in ("metres", "start", "end")):
+        raise ValueError("the ends reply has no metres, start and end")
     return form
 
 
@@ -124,20 +163,46 @@ class CarbonPrinted:
             bar = _bar(ticks, crop, entry.get("labels"))
             if bar is not None:
                 bars.append(bar)
+        dimensions: list[Dimension] = []
+        if not bars:  # a sheet with no bar: its printed dimensions give the scale
+            dims_form = self._ask("dims", page, notes)
+            entries = [e for e in (dims_form or {}).get("dimensions") or [] if isinstance(e, dict)]
+            for entry in entries[:MAX_DIMENSIONS]:
+                box = contract.box_of(entry.get("box_2d"))
+                if box is None:
+                    continue
+                crop = _around(box)
+                said = str(entry.get("text") or "")[:40]
+                ends = self._ask("ends", page.crop(_pixels(crop, page.size)), notes, said)
+                dimension = _dimension(ends, crop)
+                if dimension is not None:
+                    dimensions.append(dimension)
         facts = _facts(form["printed_facts"]) if form is not None else []
         return PrintedSheet(
             printed_scale=str(text) if text else None,
             bars=tuple(bars),
+            dimensions=tuple(dimensions),
             printed_facts=tuple(facts),
             notes=tuple(notes),
         )
 
-    def _ask(self, kind: str, image: Image.Image, notes: list[str]) -> dict[str, Any] | None:
-        """One checked reply, from the cache or paid for; None, with a note, when it failed."""
+    def _ask(
+        self, kind: str, image: Image.Image, notes: list[str], said: str = ""
+    ) -> dict[str, Any] | None:
+        """One checked reply, from the cache or paid for; None, with a note, when it failed.
+        `said`: the value the dims reply printed, which the ends prompt names."""
         digest = pixel_digest(image)
+        if said:  # the same crop asked about another value is another question
+            digest = hashlib.sha256(f"{digest}:{said}".encode()).hexdigest()
         name = contract.cache_name("page", digest) if kind == "page" else cache_name(kind, digest)
         path = None if self._cache is None else self._cache / name
-        check = {"page": contract.check_page, "bars": check_bars, "ticks": check_ticks}[kind]
+        check = {
+            "page": contract.check_page,
+            "bars": check_bars,
+            "ticks": check_ticks,
+            "dims": check_dims,
+            "ends": check_ends,
+        }[kind]
         if path is not None and path.is_file():
             try:
                 return check(json.loads(reply_text(json.loads(path.read_text()))))
@@ -147,6 +212,12 @@ class CarbonPrinted:
             "page": (contract.PAGE_PROMPT, contract.PAGE_SCHEMA, contract.PAGE_MAX_TOKENS),
             "bars": (BARS_PROMPT, BARS_SCHEMA, MAX_TOKENS),
             "ticks": (TICKS_PROMPT, TICKS_SCHEMA, MAX_TOKENS),
+            "dims": (DIMS_PROMPT, DIMS_SCHEMA, MAX_TOKENS),
+            "ends": (
+                ENDS_PROMPT.replace("{text}", said or "the one printed"),
+                ENDS_SCHEMA,
+                MAX_TOKENS,
+            ),
         }[kind]
         try:
             answer = self._model.generate(jpeg(image), prompt, schema, tokens)
@@ -168,6 +239,13 @@ def _padded(box: Frac) -> Frac:
     pad_x = PAD_X * (x1 - x0) + PAD_MIN
     pad_y = PAD_Y * (y1 - y0) + PAD_MIN
     return max(0.0, x0 - pad_x), max(0.0, y0 - pad_y), min(1.0, x1 + pad_x), min(1.0, y1 + pad_y)
+
+
+def _around(box: Frac) -> Frac:
+    """A dimension's crop: its box with DIM_PAD of its longer side each way."""
+    x0, y0, x1, y1 = box
+    pad = DIM_PAD * max(x1 - x0, y1 - y0) + PAD_MIN
+    return max(0.0, x0 - pad), max(0.0, y0 - pad), min(1.0, x1 + pad), min(1.0, y1 + pad)
 
 
 def _pixels(crop: Frac, size: tuple[int, int]) -> tuple[int, int, int, int]:
@@ -200,6 +278,34 @@ def _bar(ticks: dict[str, Any] | None, crop: Frac, labels: object) -> ScaleBar |
         return None
     text = labels if isinstance(labels, str) and labels else None
     return ScaleBar(page=1, start=low[1], end=high[1], length_m=high[0] - low[0], text=text)
+
+
+def _point(value: object, crop: Frac) -> tuple[float, float] | None:
+    """A reply's [y, x] in 0-1000 crop coordinates as a page point, or None."""
+    if not isinstance(value, list) or len(value) != 2:
+        return None
+    if not all(isinstance(v, int | float) and not isinstance(v, bool) for v in value):
+        return None
+    y, x = (min(1.0, max(0.0, float(v) / 1000)) for v in value)
+    x0, y0, x1, y1 = crop
+    return x0 + x * (x1 - x0), y0 + y * (y1 - y0)
+
+
+def _dimension(ends: dict[str, Any] | None, crop: Frac) -> Dimension | None:
+    """The dimension an ends reply gives; None without a positive finite length or two ends."""
+    if ends is None:
+        return None
+    metres = ends.get("metres")
+    if not isinstance(metres, int | float) or isinstance(metres, bool):
+        return None
+    if not math.isfinite(metres) or metres <= 0:
+        return None
+    start, end = _point(ends.get("start"), crop), _point(ends.get("end"), crop)
+    if start is None or end is None:
+        return None
+    text = ends.get("text")
+    return Dimension(page=1, start=start, end=end, length_m=float(metres),
+                     text=text if isinstance(text, str) and text else None)  # fmt: skip
 
 
 def _facts(entries: list[Any]) -> list[PrintedFact]:

@@ -637,22 +637,25 @@ def _percent(spread: float) -> str:
 
 def disputed_scale(drawing: Drawing) -> str | None:
     """What an area or length rests on, in words a user reads, when the sheet's scale is a
-    measured scale bar more than second_count.ESTIMATE_RANGE from the scale estimated from the
-    doors (printed.py: the bar is used, but one of the two is a misread), naming both."""
+    measured scale bar or printed dimension more than second_count.ESTIMATE_RANGE from the scale
+    estimated from the doors (printed.py: it is used, but one of the two is a misread), naming
+    both."""
     m_per_unit = drawing.scale.m_per_unit
     if drawing.scale.status != "scaled" or m_per_unit is None:
         return None
     for entry in drawing.conflicts or ():
         values = {value.method: value.value for value in entry.values}
-        bar, doors = values.get("scale_bar"), values.get("detector")
-        if entry.quantity != "scale" or bar is None or doors is None or bar != m_per_unit:
-            continue
-        if far_apart(bar, doors):
-            return (
-                f"measured at the printed scale bar ({mm_per_px(bar)}), which is more than twice "
-                f"the scale estimated from the doors ({mm_per_px(doors)}), so one of them is "
-                "misread"
-            )
+        doors = values.get("detector")
+        for method, what in (("scale_bar", "scale bar"), ("dimension_lines", "dimension")):
+            printed = values.get(method)
+            if entry.quantity != "scale" or printed is None or doors is None:
+                continue
+            if printed == m_per_unit and far_apart(printed, doors):
+                return (
+                    f"measured at the printed {what} ({mm_per_px(printed)}), which is more than "
+                    f"twice the scale estimated from the doors ({mm_per_px(doors)}), so one of "
+                    "them is misread"
+                )
     return None
 
 

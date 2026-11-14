@@ -78,6 +78,9 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
     ("scale", frozenset({"scale_text", "detector"})): Rule(
         "scale_text", "the printed scale over the scale estimated from the doors"
     ),
+    ("scale", frozenset({"dimension_lines", "detector"})): Rule(
+        "dimension_lines", "the printed dimension over the scale estimated from the doors"
+    ),
     ("element_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
         "plan_drawing", "count what the sheet draws"
     ),
@@ -215,8 +218,9 @@ def _resolution(
     rule = RULES.get((quantity, frozenset(value.method for value in values)))
     if quantity == "scale" and any(value.method == "detector" for value in values):
         numbers = [value.value for value in values]
-        if far_apart(min(numbers), max(numbers)) and (rule is None or rule.prefer != "scale_bar"):
-            rule = None  # a measured bar keeps its rule (printed.py); a ratio does not
+        measured = rule is not None and rule.prefer in ("scale_bar", "dimension_lines")
+        if far_apart(min(numbers), max(numbers)) and not measured:
+            rule = None  # a measured bar or dimension keeps its rule (printed.py); a ratio does not
     if rule is None:
         return None if apart else Resolution(rule=AGREE, value=values[0].value)
     preferred = next(value.value for value in values if value.method == rule.prefer)

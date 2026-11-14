@@ -96,7 +96,7 @@ schedule or a detector.
 | room area | `printed_label` | `polygon_x_scale` | 2% | trust the printed label; a bigger gap means the scale or the polygon is wrong |
 | floor or apartment area | `printed_total` | `summed_rooms` | 2% | report the printed total; show the room list |
 | scale | `scale_text` | `scale_bar` or `dimension_lines` | 2% | measured value over text; text found next to a detail drawing is ignored (see below) |
-| scale (raster) | `detector` (door estimate) | `scale_bar` or `scale_text` | 10% | the printed scale; the estimate stays as the other value (`RASTER_PRINTED_SCALE`); over 2x apart only a bar wins, and flags the areas |
+| scale (raster) | `detector` (door estimate) | `scale_bar`, `dimension_lines` or `scale_text` | 10% | the printed scale; the estimate stays as the other value (`RASTER_PRINTED_SCALE`); over 2x apart only a bar or a dimension wins, and flags the areas |
 | element or room count (raster) | the reader's (`detector`...) | `printed_total` | 0 | no rule: show both; a printed "48 DORMS" never replaces the count (`RASTER_PRINTED_SCALE`) |
 | room count | `plan_drawing` | `ifc_model` | 0 | keep spaces of the sheet's storey (foreign spaces are greyed) |
 | element count | `plan_drawing` | `ifc_model` | 0 | count what the sheet draws of its storey; an element of another storey seen through the cut is left out, listed with why (the sheet's count is its storey's, so the plain question carries the conflict too) |
@@ -106,8 +106,9 @@ schedule or a detector.
 Raster printed scale and facts (2026-11-14, r8 AY, `RASTER_PRINTED_SCALE=off|carbon`, default off;
 `app/core/pipeline/printed.py`): a scale bar gives metres per pixel (its labelled length over its pixel length); a
 printed ratio gives it only when the image states a resolution that can be trusted (PNG pHYs or JPEG density, 100-1200
-dpi, not 72 or 96). The printed scale replaces the door estimate and the room areas are measured again at it. When
-the two are more than 2x apart (`ESTIMATE_RANGE`), one is a misread: a measured bar still wins, and every area and
+dpi, not 72 or 96); with neither, printed dimensions do: the median of up to three, each its stated length over
+the pixel length of its dimension line (r8 BM). The printed scale replaces the door estimate and the room areas are measured again at it. When
+the two are more than 2x apart (`ESTIMATE_RANGE`), one is a misread: a measured bar or dimension still wins, and every area and
 length on the sheet becomes an estimate naming both scales (never certified, Low); a ratio does not win (the
 estimate stays, no rule decides). A printed count of an element class, a room type or all rooms is a second value
 of that count. `carbon` reads them with the Carbon client (page call shared with `CARBON_READER`, a bars call, one

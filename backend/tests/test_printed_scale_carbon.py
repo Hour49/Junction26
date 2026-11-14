@@ -13,6 +13,7 @@ from PIL import Image
 from app.adapters.carbon import contract
 from app.adapters.printed_scale.carbon import (
     BARS_PROMPT,
+    DIMS_PROMPT,
     TICKS_PROMPT,
     CarbonPrinted,
 )
@@ -55,6 +56,9 @@ TICKS_FORM = {"ticks": [
     {"label": "5 m", "metres": 5, "point": [500, 870.37]},
 ]}  # fmt: skip
 
+DIMS_FORM = {"dimensions": [{"box_2d": [100, 200, 120, 800], "text": "6000"}]}
+ENDS_FORM = {"text": "6000", "metres": 6.0, "start": [500, 100], "end": [500, 900]}
+
 
 def envelope(form: object) -> dict[str, Any]:
     text = json.dumps(form)
@@ -66,17 +70,24 @@ class Model:
 
     def __init__(self, fail: str | None = None) -> None:
         self.calls: list[tuple[str, tuple[int, int]]] = []
+        self.prompts: list[str] = []
         self.fail = fail
 
     def generate(
         self, jpeg: bytes, prompt: str, schema: dict[str, Any], max_tokens: int
     ) -> dict[str, Any]:
-        kind = {contract.PAGE_PROMPT: "page", BARS_PROMPT: "bars", TICKS_PROMPT: "ticks"}[prompt]
+        kind = {
+            contract.PAGE_PROMPT: "page", BARS_PROMPT: "bars", TICKS_PROMPT: "ticks",
+            DIMS_PROMPT: "dims",
+        }.get(prompt, "ends")  # fmt: skip
+        self.prompts.append(prompt)
         with Image.open(io.BytesIO(jpeg)) as image:
             self.calls.append((kind, image.size))
         if kind == self.fail:
             raise GeminiError("budget used up")
-        return envelope({"page": PAGE_FORM, "bars": BARS_FORM, "ticks": TICKS_FORM}[kind])
+        forms = {"page": PAGE_FORM, "bars": BARS_FORM, "ticks": TICKS_FORM, "dims": DIMS_FORM,
+                 "ends": ENDS_FORM}  # fmt: skip
+        return envelope(forms[kind])
 
 
 class Files:
@@ -157,3 +168,30 @@ def test_carbon_is_wired_with_a_key_and_refused_without_one(tmp_path: Path) -> N
         build_pipeline(Settings(_env_file=None, **on), tmp_path)  # pyright: ignore[reportCallIssue]
     keyed = Settings(_env_file=None, gemini_api_key="k", **on)  # pyright: ignore[reportCallIssue]
     build_pipeline(keyed, tmp_path)  # builds; no call is made until a sheet is read
+
+
+def test_a_sheet_with_no_bar_is_measured_by_its_printed_dimensions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(BARS_FORM, "scale_bars", [])
+    model = Model()
+    printed = CarbonPrinted(model, Files(png()), tmp_path).read(FILE, SHEET)
+    assert [kind for kind, _ in model.calls] == ["page", "bars", "dims", "ends"]
+    assert "The value meant: 6000." in model.prompts[-1]  # the ends call names the value
+    (dimension,) = printed.dimensions
+    assert dimension.length_m == 6.0 and dimension.text == "6000"
+    # the crop: the box 0.2-0.8 x 0.1-0.12 with 0.08 x 0.6 + 0.005 each way: x 0.147-0.853
+    assert dimension.start == pytest.approx((0.147 + 0.1 * 0.706, 0.047 + 0.5 * 0.126))
+    assert dimension.end == pytest.approx((0.147 + 0.9 * 0.706, 0.047 + 0.5 * 0.126))
+    scale = printed_scale(printed, [PAGE], dpi=None)
+    assert scale is not None and scale.evidence == ("dimension_lines",)
+    assert scale.m_per_unit == pytest.approx(6.0 / (0.8 * 0.706 * 2000))
+    again = Model()
+    CarbonPrinted(again, Files(png()), tmp_path).read(FILE, SHEET)
+    assert again.calls == []  # the dims and ends replies are cached too
+
+
+def test_a_sheet_with_a_bar_asks_for_no_dimension(tmp_path: Path) -> None:
+    model = Model()
+    printed = CarbonPrinted(model, Files(png()), tmp_path).read(FILE, SHEET)
+    assert "dims" not in [kind for kind, _ in model.calls] and printed.dimensions == ()

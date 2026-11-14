@@ -63,6 +63,17 @@ class ScaleBar(Frozen):
     text: str | None = None  # the labels as printed, e.g. "0 1 2 5 m"
 
 
+class Dimension(Frozen):
+    """A printed dimension: the image points (page fractions) of the two ends of its dimension
+    line (ticks, arrows or extension lines) and the length it states, in metres."""
+
+    page: int = Field(ge=1)
+    start: tuple[float, float]
+    end: tuple[float, float]
+    length_m: float = Field(gt=0)
+    text: str | None = None  # as printed, e.g. "12'-0\"", "3600"
+
+
 class PrintedFact(Frozen):
     """A quantity the sheet prints, as the Carbon reader gives it: `subject` an element class,
     room:<type>, room (all rooms), floor_area, apartment_area, storey or other."""
@@ -78,6 +89,7 @@ class PrintedFact(Frozen):
 class PrintedSheet(Frozen):
     printed_scale: str | None = None  # as printed: "1:100", "1/4 in = 1 ft", "bar"
     bars: tuple[ScaleBar, ...] = ()
+    dimensions: tuple[Dimension, ...] = ()  # read only when no bar was
     printed_facts: tuple[PrintedFact, ...] = ()
     notes: tuple[str, ...] = ()  # what the reader could not read, and why
 
@@ -127,8 +139,9 @@ def trusted_dpi(dpi: tuple[float, float] | None) -> float | None:
     return x
 
 
-def bar_m_per_px(bar: ScaleBar, pages: Sequence[Page]) -> float | None:
-    """Metres per pixel from a scale bar; None for a bar on no page or shorter than MIN_BAR_PX."""
+def bar_m_per_px(bar: ScaleBar | Dimension, pages: Sequence[Page]) -> float | None:
+    """Metres per pixel from a scale bar or a printed dimension; None for one on no page or
+    shorter than MIN_BAR_PX."""
     page = next((page for page in pages if page.page == bar.page), None)
     if page is None:
         return None
@@ -163,7 +176,30 @@ def printed_scale(printed: PrintedSheet, pages: Sequence[Page], dpi: float | Non
             text=shown,
             source=f"printed scale {shown} at the image's {dpi:g} dpi",
         )
+    dimensions = [
+        m for m in (bar_m_per_px(one, pages) for one in printed.dimensions) if m is not None
+    ]
+    if dimensions:
+        n = len(dimensions)
+        return Scale(
+            status="scaled",
+            m_per_unit=statistics.median(dimensions),
+            evidence=("dimension_lines",),
+            text=shown,
+            source=f"printed dimension ({'one' if n == 1 else f'median of {n}'})",
+        )
     return None
+
+
+MEASURED: tuple[MeasureMethod, ...] = ("scale_bar", "dimension_lines")  # read off the image
+
+
+def scale_method(scale: Scale) -> MeasureMethod:
+    """How a printed scale was got, as a stage-8 method: a bar or a dimension measured on the
+    image, else the printed ratio."""
+    if "scale_bar" in scale.evidence:
+        return "scale_bar"
+    return "dimension_lines" if "dimension_lines" in scale.evidence else "scale_text"
 
 
 def _bars(n: int) -> str:
@@ -177,7 +213,7 @@ def scale_measurements(printed: Scale, before: Scale) -> list[Measurement]:
     estimate = before if before.status == "estimated" else None
     if estimate is None or estimate.m_per_unit is None or printed.m_per_unit is None:
         return []
-    method: MeasureMethod = "scale_bar" if "scale_bar" in printed.evidence else "scale_text"
+    method = scale_method(printed)
     sheet = Subject(kind="sheet", ref=None)
     return [
         Measurement(
@@ -243,7 +279,7 @@ def with_printed(
         and found.scale.status == "estimated"
         and found.scale.m_per_unit is not None
         and far_apart(scale.m_per_unit, found.scale.m_per_unit)
-        and "scale_bar" not in scale.evidence
+        and scale_method(scale) not in MEASURED
     ):  # one of the two is a misread: the estimate stays, the conflict is left to a person
         measurements = [*scale_measurements(scale, found.scale), *measurements]
         notes.append(
@@ -257,11 +293,12 @@ def with_printed(
         and found.scale.status == "estimated"
         and found.scale.m_per_unit is not None
         and far_apart(scale.m_per_unit, found.scale.m_per_unit)
-    ):  # a measured bar: it wins, and the takeoff flags what rests on it
+    ):  # a measured bar or dimension: it wins, and the takeoff flags what rests on it
+        what = "scale bar" if scale_method(scale) == "scale_bar" else "dimension"
         notes.append(
-            f"printed scale bar ({mm_per_px(scale.m_per_unit)}) is more than "
+            f"printed {what} ({mm_per_px(scale.m_per_unit)}) is more than "
             f"{ESTIMATE_RANGE:g}x the scale estimated from the doors "
-            f"({mm_per_px(found.scale.m_per_unit)}): the bar is used, its areas and lengths "
+            f"({mm_per_px(found.scale.m_per_unit)}): the {what} is used, its areas and lengths "
             "are flagged for a person to check"
         )
     elif scale is None and printed.printed_scale:
