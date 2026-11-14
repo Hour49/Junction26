@@ -133,6 +133,13 @@ def test_an_answer_held_for_a_check_is_low_whatever_its_score() -> None:
     assert made(asked(score=0.95, drawing=disagreeing, route="bim")) == ("low", "held")
     edited = ReviewState(rejected={"door": ("m1",)})  # the score rated our 2 doors, not their 1
     assert made(asked(score=0.95, state=edited)) == ("low", "held")
+    # a bedroom typed from what is drawn in it, no printed label: it keeps its score and is still
+    # Low, as the policy's own counts put it (eval's `always_flag`), not Medium by that score
+    bedrooms = POLICY.model_copy(update={"medium": {"room:bedroom": 0.4}})
+    question = "How many bedrooms are there?"
+    assert made(asked(question, score=0.7, check=bedrooms)) == ("medium", "score")  # labelled
+    unlabelled = SCAN.model_copy(update={"rooms": (ROOMS[0].model_copy(update={"label": None}),)})
+    assert made(asked(question, score=0.7, check=bedrooms, drawing=unlabelled)) == ("low", "held")
 
 
 def test_a_value_a_person_signed_or_settled_a_refusal_and_no_policy_have_no_level() -> None:

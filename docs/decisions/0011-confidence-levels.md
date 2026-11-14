@@ -77,8 +77,9 @@ answers that ask there have no Medium or Low count yet.
 
 ## Consequences
 
-- `CHECK_POLICY` must point at a policy file generated with `--medium` for levels to show; until then `level` is
-  null and nothing else changes.
+- `CHECK_POLICY` must point at a policy file generated with `--medium` for levels to show
+  (`eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json` for config C1-T1); with a file that has
+  no levels, `level` is null and nothing else changes.
 - Known limits. High is "certified": 98.9% exact on val cross-fit and 99.0% on the corrected test certificate,
   which is a measured rate, not a guarantee for one answer. Every window answer is Low: no
   runtime signal separates windows. The policy is fit on CubiCasa scans read with `ROOM_POLICY=gold-labels`.
