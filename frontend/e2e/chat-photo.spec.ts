@@ -43,9 +43,12 @@ test('CH-17 CH-18: a photo added from the agent chat is read, then a question is
     buffer: planPng(testInfo.config.rootDir),
   });
   const line = page.getByRole('status').filter({ hasText: 'phone.png' });
-  await expect(line).toHaveText(/^phone\.png (is read: you can ask about it|was not read)/, {
-    timeout: 30_000,
-  });
+  await expect(line).toHaveText(
+    /^phone\.png (is read: you can ask about it|is flagged|was not read)/,
+    {
+      timeout: 30_000,
+    },
+  );
   await expect(page.getByRole('button', { name: 'Add a photo' })).toBeEnabled();
   const after = (
     (await (await page.request.get(`/api/projects/${id}`)).json()) as {

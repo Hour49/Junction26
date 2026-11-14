@@ -168,7 +168,7 @@ it('CH-18 agent chat: a photo read as a plan makes a project with no askable dra
   });
   expect(await screen.findByText('Reading plan.jpg…')).toBeTruthy();
   expect(
-    await screen.findByText('plan.jpg is read: you can ask about it.', {}, { timeout: 4000 }),
+    await screen.findByText(/^plan\.jpg is read: you can ask about it \(/, {}, { timeout: 4000 }),
   ).toBeTruthy();
   expect(screen.queryByText('No drawing in this project can be asked yet.')).toBeNull();
   const post = api.calls.find((c) => c.url.startsWith(`/api/projects/${PID}/files`));

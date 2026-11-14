@@ -1,5 +1,26 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInfo } from '../shell/info';
+
+const PHONE = '(max-width: 480px)';
+
+/** Whether the window is phone-wide (PHONE), following resizes; false where matchMedia is missing. */
+function usePhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window.matchMedia === 'function' && window.matchMedia(PHONE).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(PHONE);
+    const follow = () => {
+      setPhone(query.matches);
+    };
+    query.addEventListener('change', follow);
+    return () => {
+      query.removeEventListener('change', follow);
+    };
+  }, []);
+  return phone;
+}
 
 /** The question input; sends the trimmed question, nothing when empty, over the server's limit or while
  * an answer is pending. Before `/api/info` answers there is no limit here: the server's 422 shows. */
@@ -11,8 +32,11 @@ export function AskBox(props: {
   /** The chat's paperclip (chat.md CH-17): shown only when passed; `attaching` disables it. */
   onAttach?: (photo: File) => void;
   attaching?: boolean;
+  /** A shorter `file` for the placeholder on phones (CH-22), where the paperclip takes its room. */
+  short?: string;
 }) {
-  const { file, busy, asked, onAsk, onAttach, attaching = false } = props;
+  const { file, busy, asked, onAsk, onAttach, attaching = false, short } = props;
+  const phone = usePhone();
   const [text, setText] = useState('');
   const picker = useRef<HTMLInputElement>(null);
   const limit = useInfo().info?.limits.question_chars;
@@ -36,7 +60,7 @@ export function AskBox(props: {
         <input
           id="en-question"
           value={text}
-          placeholder={`Ask about ${file}`}
+          placeholder={`Ask about ${phone && short ? short : file}`}
           autoComplete="off"
           aria-describedby={tooLong ? 'en-too-long' : undefined}
           onChange={(e) => {

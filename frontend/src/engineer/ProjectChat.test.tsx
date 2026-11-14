@@ -359,10 +359,21 @@ const photoDrawing = {
   state: 'ready' as const,
 };
 /** The project after the photo: f4 in `state`, and its drawing when it was read as a plan. */
-const withPhoto = (state: 'running' | 'ready' | 'set_aside'): ProjectView => ({
+/** The backend's reason for each end state (judge.py's wording). */
+const REASONS = {
+  running: 'being read.',
+  ready: 'read on the image route: 4 elements, 2 rooms, scale found.',
+  flagged:
+    'not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet).',
+  set_aside: 'not a plan: a photo of a cat.',
+};
+const withPhoto = (state: keyof typeof REASONS): ProjectView => ({
   ...project,
-  files: [...project.files, { ...added, state, reason: 'not a plan: a photo of a cat.' }],
-  drawings: state === 'ready' ? [...project.drawings, photoDrawing] : project.drawings,
+  files: [...project.files, { ...added, state, reason: REASONS[state] }],
+  drawings:
+    state === 'ready' || state === 'flagged'
+      ? [...project.drawings, photoDrawing]
+      : project.drawings,
 });
 /** The project route answers `project` first, then each of `polls` in turn (the last repeats). */
 function openWithPhoto(addReply: unknown, polls: ProjectView[]) {
@@ -387,6 +398,7 @@ async function pick() {
   });
 }
 const slow = { timeout: 4000 };
+const READ = `${PHOTO} is read: you can ask about it (read on the image route: 4 elements, 2 rooms, scale found).`;
 
 it('CH-17 the chat has "Add a photo" for png and jpeg; the ask bar without onAttach has none', async () => {
   openWithPhoto(added, [withPhoto('ready')]);
@@ -408,7 +420,7 @@ it('CH-18 a picked photo is posted, read while polled, then askable', async () =
   const post = api.calls.find((c) => c.url.startsWith(`/api/projects/${PID}/files`));
   expect(post?.url).toBe(`/api/projects/${PID}/files?name=${PHOTO}`);
   expect(post?.body).toBeInstanceOf(File);
-  expect(await screen.findByText(`${PHOTO} is read: you can ask about it.`, {}, slow)).toBeTruthy();
+  expect(await screen.findByText(READ, {}, slow)).toBeTruthy();
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Add a photo' }).disabled).toBe(
     false,
   );
@@ -443,10 +455,50 @@ it('CH-20 a refused post says so, polls nothing and frees the paperclip', async 
   ).toHaveLength(1);
 });
 
+it('CH-19 a flagged photo that nothing read says so in the backend words, never "you can ask"', async () => {
+  openWithPhoto(added, [withPhoto('flagged')]);
+  await pick();
+  expect(
+    await screen.findByText(
+      `${PHOTO} is flagged: not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet).`,
+      {},
+      slow,
+    ),
+  ).toBeTruthy();
+  expect(screen.queryByText(/you can ask about it/)).toBeNull();
+});
+
+it('CH-21 unmounting while a photo is read stops the polling', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    const api = openWithPhoto(added, [withPhoto('running')]);
+    const { unmount } = render(<ProjectChat projectId={PID} />);
+    await vi.waitFor(() => screen.getByTestId('photo-input'));
+    fireEvent.change(screen.getByTestId('photo-input'), {
+      target: { files: [new File(['jpeg'], PHOTO, { type: 'image/jpeg' })] },
+    });
+    const polls = () =>
+      api.calls.filter((c) => c.method === 'GET' && c.url === `/api/projects/${PID}`).length;
+    for (let t = 0; t < 2; t++) {
+      await vi.advanceTimersByTimeAsync(1000);
+      await new Promise((r) => setImmediate(r));
+    }
+    expect(polls()).toBe(3); // the open, then two polls
+    unmount();
+    for (let t = 0; t < 5; t++) {
+      await vi.advanceTimersByTimeAsync(1000);
+      await new Promise((r) => setImmediate(r));
+    }
+    expect(polls()).toBe(3);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('CH-21 a failed poll is retried; a file never read frees the paperclip after 3 minutes', async () => {
   openWithPhoto(added, [reply(500, error) as unknown as ProjectView, withPhoto('ready')]);
   await pick();
-  expect(await screen.findByText(`${PHOTO} is read: you can ask about it.`, {}, slow)).toBeTruthy();
+  expect(await screen.findByText(READ, {}, slow)).toBeTruthy();
   cleanup();
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   try {
@@ -502,4 +554,22 @@ it('CH-38 once the thread starts the project name is for screen readers only', a
   expect(screen.getByRole('heading', { level: 1, name: project.name }).className).toContain(
     'en-sr',
   );
+});
+
+it('CH-22 on a phone the ask bar says "Ask about the drawings" so the paperclip does not cut it', async () => {
+  vi.stubGlobal('matchMedia', (q: string) => ({
+    matches: q === '(max-width: 480px)',
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+  try {
+    openWithPhoto(added, [project]);
+    render(<ProjectChat projectId={PID} />);
+    expect(await screen.findByPlaceholderText('Ask about the drawings')).toBeTruthy();
+    cleanup();
+    render(<AskBox file="plan.pdf" busy={false} asked={0} onAsk={() => undefined} />);
+    expect(screen.getByPlaceholderText('Ask about plan.pdf')).toBeTruthy(); // no `short`: unchanged
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

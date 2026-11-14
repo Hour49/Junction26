@@ -186,6 +186,7 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
       asked={turns.length}
       onAsk={ask}
       onAttach={photo.attach}
+      short="the drawings"
       attaching={photo.attaching}
     />
   );

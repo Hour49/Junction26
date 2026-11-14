@@ -10,6 +10,16 @@ interface Photo {
 const POLL_MS = 1000;
 const MAX_POLLS = 180; // 3 minutes, then the paperclip is freed (Tudor #203 c6877912716)
 
+/** What became of the added file, in the backend's own words (CH-18, CH-19): `ready` is read; `flagged` says
+ * its reason, which may be that nothing was read ("not read: this setup has no reader ..."), so it never
+ * promises answers; anything else was not read as a plan, with why. */
+export function readLine(name: string, read: FileStatus | undefined): string {
+  const why = (read?.reason ?? 'it is not in the project').replace(/\.$/, '');
+  if (read?.state === 'ready') return `${name} is read: you can ask about it (${why}).`;
+  if (read?.state === 'flagged') return `${name} is flagged: ${why}.`;
+  return `${name} was not read as a plan: ${why}.`;
+}
+
 /** A photo added to the project from either chat (chat.md CH-17..21): `attach` posts it, then polls the project
  * until that file is read and hands the new project to `onProject` (its drawing becomes askable). `line` is the
  * status line to show, `attaching` disables the paperclip while it is read. */
@@ -50,14 +60,7 @@ export function usePhotoAdd(projectId: string, onProject: (project: ProjectView)
         const read = project.files.find((f) => f.id === added.id);
         if (read && (read.state === 'queued' || read.state === 'running')) continue;
         onProjectNow.current(project);
-        const asked = read?.state === 'ready' || read?.state === 'flagged';
-        const why = (read?.reason ?? 'it is not in the project').replace(/\.$/, '');
-        setPhoto({
-          line: asked
-            ? `${name} is read: you can ask about it.`
-            : `${name} was not read as a plan: ${why}.`,
-          reading: false,
-        });
+        setPhoto({ line: readLine(name, read), reading: false });
         return;
       }
       if (!signal.aborted) {

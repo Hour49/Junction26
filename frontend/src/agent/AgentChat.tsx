@@ -286,6 +286,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         asked={rows.length}
         onAsk={ask}
         onAttach={photo.attach}
+        short="the drawings"
         attaching={photo.attaching}
       />
     </div>

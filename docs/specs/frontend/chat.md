@@ -127,14 +127,19 @@ agent chat's next turn sees the new drawing because the backend reads the projec
 - CH-17 With `onAttach` the ask bar shows a button named "Add a photo" whose input accepts png and jpeg; without
   it (the engineer page) there is none. [component]
 - CH-18 Picking `plan.jpg` posts its bytes to `/api/projects/{pid}/files?name=plan.jpg`; "Reading plan.jpg…" shows
-  and the paperclip is disabled; once a poll answers the file `ready` (or `flagged`) the line says "plan.jpg is read:
-  you can ask about it." and the next ask is sent while N includes its drawing. [component]
-- CH-19 The file ends `text_only` or `set_aside`: "plan.jpg was not read as a plan: <reason>." [component]
+  and the paperclip is disabled; once a poll answers the file `ready` the line says "plan.jpg is read: you can ask
+  about it (<reason>)." and the next ask is sent while N includes its drawing. [component]
+- CH-19 The line uses the backend's own state and reason (amended 2026-11-14 after review r9, S1): `flagged`:
+  "plan.jpg is flagged: <reason>." (the reason may say nothing was read, "not read: this setup has no reader ...",
+  so a flagged file never gets "you can ask"); `text_only`, `set_aside` or missing: "plan.jpg was not read as a plan:
+  <reason>." [unit `readLine` + component]
 - CH-20 The post fails (409 project not done, 413, 415 not png/jpeg, network): "Could not add plan.jpg: <detail>";
   nothing is polled and the paperclip works again. [component]
 - CH-21 A poll that fails after the post succeeded is retried on the next tick (the file is added either way); after
   180 polls (3 minutes) still queued or running: "plan.jpg is still being read. Reload later to ask about it.", the
-  paperclip freed. [component]
+  paperclip freed. Leaving the chat while a photo is read stops the polling. [component]
+- CH-22 On a phone (`max-width: 480px`) the chats' ask bar reads "Ask about the drawings", so the paperclip does not
+  cut the placeholder; the engineer page's ask bar (no `short`) is unchanged. [component]
 
 ## Demo parity (Tudor 16:25, brief `fe-demo-parity.md`)
 
