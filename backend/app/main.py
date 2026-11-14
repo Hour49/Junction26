@@ -23,6 +23,7 @@ from app.api import (
     chat,
     checks,
     drawings,
+    evidence,
     health,
     info,
     issues,
@@ -32,7 +33,7 @@ from app.api import (
 )
 from app.api.deps import Ingest
 from app.api.views import ErrorBody
-from app.composition import build_answering, build_ingest
+from app.composition import EvidenceIndexes, build_answering, build_evidence, build_ingest
 from app.core.errors import (
     DomainError,
     InvalidInputError,
@@ -101,7 +102,8 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     settings = settings or Settings()
     logging.basicConfig(level=settings.log_level)
     rule_packs = load_packs(settings.rule_packs_dir)  # a pack that fails stops here, first
-    service = ingest or build_ingest(settings, settings.projects_dir)
+    index = build_evidence(settings, settings.projects_dir)  # shared: one embedder session
+    service = ingest or build_ingest(settings, settings.projects_dir, evidence=index)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -116,11 +118,24 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.credits = DatasetCredits(
         settings.credit_dataset, settings.credit_photos, settings.sample_archive
     )
+    app.state.evidence = EvidenceIndexes(index, service.status, app.state.credits.of)
     app.state.admission = projects.Admission()  # the 429 limit
     app.state.kept_reviews = projects.KeptReviews()  # the project list's review counts
     app.state.rule_packs = rule_packs
     app.state.chats = JsonChatStore(settings.projects_dir)  # the agent chats (decision 0013)
-    for router in (health, info, projects, drawings, ask, takeoff, project_ask, issues, checks):
+    routers = (
+        health,
+        info,
+        projects,
+        drawings,
+        ask,
+        takeoff,
+        project_ask,
+        issues,
+        checks,
+        evidence,
+    )
+    for router in routers:
         app.include_router(router.router)
     app.include_router(chat.router)
     for error in STATUS_BY_ERROR:

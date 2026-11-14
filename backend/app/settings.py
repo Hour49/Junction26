@@ -178,3 +178,6 @@ class Settings(BaseSettings):
     agent_price_out_per_m: float = Field(default=9.00, ge=0)
     agent_turn_usd: float = Field(default=0.10, gt=0)
     agent_max_steps: int = Field(default=8, ge=1, le=20)
+    # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
+    # folder's manifest. No file there (or ""): the index searches with BM25 alone
+    evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

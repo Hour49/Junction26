@@ -331,6 +331,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/evidence/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Evidence
+         * @description Up to `k` files, best first, one hit each with its best-matching passage. Files judged
+         *     unrelated are searched only with `include_unrelated`.
+         */
+        get: operations["search_evidence_api_projects__project_id__evidence_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/evidence/{evidence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence
+         * @description One passage (`f7-detail-2`) or a file as a whole (`f7`, its summary), with the file's
+         *     description, register and relevance.
+         */
+        get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/files/{file_id}/preview.png": {
         parameters: {
             query?: never;
@@ -1020,6 +1062,33 @@ export interface components {
             what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
         };
         /**
+         * DescriptionView
+         * @description The file's description as the tools show it (its cost left out).
+         */
+        DescriptionView: {
+            /** Detail */
+            detail: string;
+            /** Language */
+            language: string | null;
+            /** Model */
+            model: string;
+            /** Shows Building */
+            shows_building: boolean;
+            /** Subject */
+            subject: string;
+            /** Text */
+            text: string;
+            /** Text Seen */
+            text_seen: string[];
+            /** Visible Text */
+            visible_text: string;
+            /**
+             * What It Is
+             * @enum {string}
+             */
+            what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
+        };
+        /**
          * Disputed
          * @description One place to double-check, as the answer gives it.
          */
@@ -1160,6 +1229,82 @@ export interface components {
             /** Page */
             page: number;
         };
+        /**
+         * EvidenceDetail
+         * @description `register` is a pydantic model attribute, so the field is `register_` under `register`.
+         */
+        EvidenceDetail: {
+            /** Credit */
+            credit: string | null;
+            description: components["schemas"]["DescriptionView"];
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Page */
+            page: number;
+            /**
+             * Part
+             * @enum {string}
+             */
+            part: "summary" | "detail" | "visible_text";
+            register: components["schemas"]["Register"] | null;
+            relevance: components["schemas"]["Relevance"] | null;
+            /** Text */
+            text: string;
+            /** Verdict */
+            verdict: ("related" | "unrelated" | "unsure") | null;
+        };
+        /** EvidenceHit */
+        EvidenceHit: {
+            /** Credit */
+            credit: string | null;
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Language */
+            language: string | null;
+            /** Page */
+            page: number;
+            /**
+             * Part
+             * @enum {string}
+             */
+            part: "summary" | "detail" | "visible_text";
+            /** Score */
+            score: number;
+            /** Snippet */
+            snippet: string;
+            /** Subject */
+            subject: string;
+            /** Verdict */
+            verdict: ("related" | "unrelated" | "unsure") | null;
+            why: components["schemas"]["HitWhy"];
+        };
+        /** EvidenceSearch */
+        EvidenceSearch: {
+            /** Hits */
+            hits: components["schemas"]["EvidenceHit"][];
+            /** Indexed Files */
+            indexed_files: number;
+            /** Method */
+            method: string;
+            /** Note */
+            note: string | null;
+            /** Query */
+            query: string;
+            /** Unrelated Left Out */
+            unrelated_left_out: number;
+        };
         /** FileStatus */
         FileStatus: {
             /**
@@ -1243,6 +1388,15 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** HitWhy */
+        HitWhy: {
+            /** Bm25 Rank */
+            bm25_rank: number | null;
+            /** Dense Rank */
+            dense_rank: number | null;
+            /** Terms */
+            terms: string[];
         };
         /** Info */
         Info: {
@@ -3097,6 +3251,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectChecks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_evidence_api_projects__project_id__evidence_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                k?: number;
+                include_unrelated?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceSearch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_api_projects__project_id__evidence__evidence_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evidence_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceDetail"];
                 };
             };
             /** @description Validation Error */
