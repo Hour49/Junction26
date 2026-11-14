@@ -3,6 +3,7 @@
 import type { DrawingView, FileStatus, FileTrace, ProjectView, Row, Takeoff } from '../api';
 import {
   STAGE_LABEL,
+  STEPS,
   activeStep,
   isFinished,
   kindLabel,
@@ -12,48 +13,76 @@ import {
 
 export type Visual = 'files' | 'lanes' | 'plan' | 'pairs' | 'ready';
 
-/** Per step (index 0 = step 1): heading, visual and the one-sentence explanation, true for the backend today. */
-export const STEP_VIEW: readonly { heading: string; visual: Visual; explain: string }[] = [
+type RouteId = 'bim' | 'cad' | 'vector' | 'raster';
+
+export interface StepView {
+  heading: string;
+  visual: Visual;
+  explain: string;
+  /** What the step does on each route, where the routes differ (advanced-ingest.md "Per-route lines"). */
+  routes?: Partial<Record<RouteId, string>>;
+}
+
+/** Per step (index 0 = step 1): heading, visual, explanation and per-route lines, true for the backend today. */
+export const STEP_VIEW: readonly StepView[] = [
   {
     heading: 'Unpacking',
     visual: 'files',
     explain:
-      'Every file in the upload is listed with its size and sha256, and every path is checked to stay inside the project folder.',
+      'Every file in the upload is listed with its size and sha256, and every path is checked to stay inside the project folder. Each drawn page of a PDF set becomes a file of its own.',
   },
   {
     heading: 'Identifying',
     visual: 'lanes',
     explain:
-      "The format comes from each file's first bytes, not its name. Files with the same folder and name are one plan.",
+      "The format comes from each file's first bytes, not its name. A picture is asked whether it is a floor plan: a doubtful sheet is read and flagged, anything else is set aside with a description.",
   },
   {
     heading: 'Routing',
     visual: 'lanes',
     explain:
-      'Each plan is read from its richest file: a BIM model, then CAD, then a drawn PDF, then an image. A file read before is reused.',
+      'Files of the same plan are grouped, and each plan is read once from its richest file: an IFC model, then CAD, then a drawn PDF, then an image. A scanned PDF is read as an image. A plan read before is reused.',
   },
   {
     heading: 'Normalising',
     visual: 'plan',
     explain: 'Each sheet gets one page frame, and every mark and box is placed in it.',
+    routes: {
+      bim: 'A model has no page: nothing to place.',
+      vector: 'Pages are taken as the PDF gives them.',
+      raster: "Turned upright by its EXIF tag; a phone photo is flattened to its paper's corners.",
+    },
   },
   {
     heading: 'Extracting',
     visual: 'plan',
     explain:
       'Rooms, doors, windows and fixtures are read from the drawing, with its scale. A class the reader does not read gets no count, not a zero.',
+    routes: {
+      bim: 'Every object is listed with its GlobalId: spaces, storeys, doors, windows, fixtures.',
+      vector:
+        "Read from the PDF's text and lines: rooms with areas, doors, windows, fixtures, the printed scale and schedule tables.",
+      raster:
+        "A symbol detector and room readers read it; a large or sparse sheet is also counted by Gemini Carbon and flagged; more readers count again to set each count's level.",
+    },
   },
   {
-    heading: 'Cross\u2011checking', // a non-breaking hyphen: the heading never breaks at it
+    heading: 'Counting a second way',
     visual: 'pairs',
     explain:
       'Quantities that can be measured a second way are measured again by an independent method. When the two disagree, it goes to you as a conflict.',
+    routes: {
+      bim: 'A model is what the sheets are checked against; it has no second count of its own.',
+      vector:
+        'The scale text against the scale bar, the room areas printed on the sheet, and the sheet against its IFC model.',
+      raster: 'The printed scale and any printed totals against what was read.',
+    },
   },
   {
-    heading: 'Indexing',
+    heading: 'Working out the quantities',
     visual: 'ready',
     explain:
-      'The counting rules are applied and every quantity of the plan is computed in advance, so questions are answered from it straight away.',
+      'The counting rules are applied and every quantity of the plan is computed in advance, with the marks it comes from, so questions are answered from it straight away.',
   },
   {
     heading: 'Storing the drawing model',
@@ -61,7 +90,27 @@ export const STEP_VIEW: readonly { heading: string; visual: Visual; explain: str
     explain:
       'One drawing model per plan is stored, with the marks that show where each quantity comes from.',
   },
+  {
+    heading: 'Indexing for questions',
+    visual: 'files',
+    explain:
+      "Once every file is through, each set-aside file is judged against the project, the files that are not plans are described or their text read, and everything goes into the project's search index for the chat.",
+  },
 ];
+
+const ROUTE_ORDER: readonly RouteId[] = ['bim', 'cad', 'vector', 'raster'];
+
+/** The step's per-route lines for the routes some file of the project is on, route in words ("drawn PDF route"). */
+export function routeLines(
+  view: StepView,
+  project: ProjectView,
+): { route: string; line: string }[] {
+  const on = new Set(project.files.map((f) => f.route));
+  return ROUTE_ORDER.flatMap((r) => {
+    const line = view.routes?.[r];
+    return line && on.has(r) ? [{ route: routeLabel(r), line }] : [];
+  });
+}
 
 export type StepStatus = 'working' | 'waiting' | 'done' | 'none';
 
@@ -74,11 +123,23 @@ export const STATUS_WORD: Record<StepStatus, string> = {
 
 const running = (p: ProjectView) => p.state === 'queued' || p.state === 'running';
 
-/** Step `k` (1-8) from the files' latest stages alone (spec "Step status"). */
+/** Index: the one step with no stage, the backend's last phase. */
+const isIndex = (k: number) => STEPS[k - 1]?.stages.length === 0;
+
+/** Step `k` from the files' latest stages alone (spec "Step status"). */
 export function stepStatus(
   project: ProjectView,
   k: number,
 ): { status: StepStatus; setAside: number } {
+  if (isIndex(k)) {
+    if (project.state === 'done' || project.state === 'failed')
+      return {
+        status: project.state === 'done' && project.files.length ? 'done' : 'none',
+        setAside: 0,
+      };
+    const through = project.files.length > 0 && project.files.every(isFinished);
+    return { status: through ? 'working' : 'waiting', setAside: 0 };
+  }
   const at = (f: FileStatus) => stepOf(f.stage ?? null);
   const open = project.files.filter((f) => !isFinished(f));
   const reached = project.files.some((f) => f.stage != null && at(f) >= k);
@@ -97,7 +158,7 @@ export function currentStep(project: ProjectView): number | null {
   return running(project) ? activeStep(project.files) : null;
 }
 
-/** The panel shown before the user picks one: the current step, else Index (what is ready to ask). */
+/** The panel shown before the user picks one: the current step, else Takeoff (what is ready to ask). */
 export function defaultStep(project: ProjectView): number {
   return currentStep(project) ?? 7;
 }
@@ -112,12 +173,27 @@ export interface LogLine {
   cost: number;
 }
 
-/** Every trace entry of step `k` over the files, in file order then stage order. */
+/** Every trace entry of step `k` over the files, in file order then stage order; Index: each file's evidence. */
 export function stepLines(
   files: readonly FileStatus[],
   traces: ReadonlyMap<string, FileTrace>,
   k: number,
 ): LogLine[] {
+  if (isIndex(k))
+    return files.flatMap(({ id, path, evidence }) =>
+      evidence
+        ? [
+            {
+              key: `${id}-index`,
+              path,
+              what: evidence.why,
+              text: `Index ${path} ${evidence.why}`,
+              failure: null,
+              cost: evidence.cost_usd,
+            },
+          ]
+        : [],
+    );
   return files.flatMap((file) =>
     (traces.get(file.id)?.stages ?? [])
       .filter((s) => stepOf(s.stage) === k)

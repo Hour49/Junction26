@@ -1,6 +1,6 @@
 # Ingest: home, project status, file trace (spec, frontend v2: Vellum)
 
-Status: v2 (Vellum redesign, built), 2026-11-14, by fe-ingest; v3 demo parity (section "Demo parity", IN-74..IN-82) by preqa-a, GO from frontend-orch 2026-11-14 16:27 (P1 "Back to Documents" yes, P2 keep Cost); API fields of PR #120 read directly.  Story: #33.  API: docs/API.md (v1, main eb3552c).
+Status: v2 (Vellum redesign, built), 2026-11-14, by fe-ingest; v3 demo parity (section "Demo parity", IN-74..IN-82) by preqa-a, GO from frontend-orch 2026-11-14 16:27 (P1 "Back to Documents" yes, P2 keep Cost); API fields of PR #120 read directly; v4 pipeline steps (section "Pipeline steps v4", IN-89..IN-92) by m3d-front for w3:p1, 2026-11-14 23:55 (Tudor 23:40: the steps as the backend runs them today).  Story: #33.  API: docs/API.md (v1, main eb3552c).
 Design: Tudor's "Vellum redesign" canvas, screen 1 "Drop files or a zip" (`Main.dc.html`) and screen 2 "Reading the
 drawings" (`Ingest.dc.html`), local copies in `.agents/design/vellum/project/` (look only; their mock data is never
 used). v1 behaviour that QA verified stays unless a criterion below says it changed.
@@ -56,8 +56,8 @@ below.
 3. Or the user presses "Try the sample project": the card shows "Starting the sample…", and on `202` the app goes to
    `#/p/<id>`.
 4. The project screen (Simple) shows the state ("Analysing now"), the project name, the Simple/Advanced toggle, and
-   the progress card: "Step n of 8" with the step's name, a ring with the percent of files finished, the stats
-   (Elapsed, Files through, Drawings ready, Cost) and the 8 steps (done, working with its hint and file bar,
+   the progress card: "Step n of 9" with the step's name, a ring with the percent of files finished, the stats
+   (Elapsed, Files through, Drawings ready, Cost) and the 9 steps (done, working with its hint and file bar,
    waiting). Under the card: the drawings (each with "Open") and the files (each a link to its trace). While the
    project is `queued` or `running` it refreshes every 500 ms.
 5. "Advanced" sets `?view=advanced`: the same title row, then `AdvancedIngest` with the polled project. "Simple"
@@ -114,7 +114,7 @@ project screen mounts, then 500 ms after each response while `state` is `queued`
 | --- | --- | --- |
 | "Analysing now" | the state word | `state` (words above) |
 | "harbour-block-archive.zip" | the `h1` | `name` |
-| "Step 3 of 8" | "Step <activeStep> of 8"; "All 8 steps done" when `done`; nothing when `failed` | `activeStep(files)`: the lowest `stepOf(file.stage)` among files not finished (`queued`/`running`); 1 when there are no files yet |
+| "Step 3 of 8" | "Step <activeStep> of 9"; "All 9 steps done" when `done`; nothing when `failed` (the count is `STEPS.length`) | `activeStep(files)`: the lowest `stepOf(file.stage)` among files not finished (`queued`/`running`); 1 when there are no files yet; 9 (Index) when every file is finished and the project still runs |
 | "Route" (the `h2`) | `STEPS[activeStep].name`; "Ready" when `done`; "Stopped" when `failed` | as above |
 | 35 % (ring) | `percentDone` = round(100 × finished / files); 0 with no files | `files[].state` (`progressOf`); ring `role="img"`, `aria-label` "<n> percent done" |
 | Elapsed "5 s" | `formatMs(elapsedMs)` | `done`/`failed`: `ms` (set by the backend when ingest ends). `queued`/`running`: browser time of the last poll − `started_at`, at least 0; "—" while `started_at` is null (queued) |
@@ -122,22 +122,24 @@ project screen mounts, then 500 ms after each response while `state` is `queued`
 | (none) | Cost "$0.00" | `cost_usd` (`formatCost`); API.md: "0.0 with no paid reader, which is the point to show" |
 | Files through "4 / 14" | "<finished> / <files>"; "—" while `queued`/`running` with no files (R1-1-4) | `progressOf(files)` |
 | Drawings ready "1 / 9" | "<drawings.length> / <expected>"; the count alone while `expected` is null | `drawings[]` (each entry is a written drawing); `expected` = `expected_drawings` (null while queued; final once done) |
-| The 8-step list | `STEPS`, each row done / working / waiting (icon + word) | `activeStep`: rows before it done, it working, after it waiting; all done when `done`; the list is left out when `failed` |
+| The 9-step list | `STEPS`, each row done / working / waiting (icon + word) | `activeStep`: rows before it done, it working, after it waiting; all done when `done`; the list is left out when `failed` |
 | The working row's hint | the step's hint (`STEPS`) | fixed text |
-| The working row's bar "6 / 12 files" | "<passed> / <through> files" and a bar of that ratio | `stepFiles(files, step)`: `through` = files minus those finished at an earlier step; `passed` = files at a later step, plus files finished at this step |
+| The working row's bar "6 / 12 files" | "<passed> / <through> files" and a bar of that ratio; none on Index (no file stage) | `stepFiles(files, step)`: `through` = files minus those finished at an earlier step; `passed` = files at a later step, plus files finished at this step |
 
-`STEPS` (the design's 8 rows, in the API's stage order; the hints say only what the stages do):
+`STEPS` (v4, section "Pipeline steps v4": the backend's stages in its own order, each step named by its stage's
+`STAGE_LABEL`, the stage id in words; the hints say only what the code does today):
 
 | # | Name | Stages (`stepOf`) | Hint |
 | --- | --- | --- | --- |
-| 1 | Unpack | `unpack`, `hash`, and `null` | opening the archive safely |
-| 2 | Identify | `identify`, `group` | what each file really is |
-| 3 | Route | `route`, `cache` | picking the best source per drawing |
-| 4 | Normalise | `normalise` | one page frame per sheet |
-| 5 | Extract | `extract` | rooms, doors, windows, fixtures |
-| 6 | Cross-check | `second_count` | a second, independent count |
-| 7 | Index | `takeoff` | precomputing the answers |
-| 8 | Drawing model | `write` | one stored model per drawing |
+| 1 | Unpack | `unpack`, `hash`, and `null` | opening the upload safely, one fingerprint per file |
+| 2 | Identify | `identify` | what each file is, and whether it is a floor plan |
+| 3 | Route | `group`, `route`, `cache` | one source per drawing: the model, the drawn PDF or the image |
+| 4 | Normalise | `normalise` | one page frame per sheet; photos made upright and flat |
+| 5 | Extract | `extract` | rooms, doors, windows, fixtures, scale and schedules |
+| 6 | Second count | `second_count` | the same quantities measured another way |
+| 7 | Takeoff | `takeoff` | counting rules applied, every quantity worked out |
+| 8 | Store | `write` | one drawing model per drawing, with its marks |
+| 9 | Index | none: the project's last phase | every file made searchable for questions |
 
 **`GET /api/projects/{project_id}/files/{file_id}/trace`** (`getTrace(projectId, fileId)`; API.md "…/trace"; fixture `trace.json`). When the trace
 screen mounts, then 500 ms after each response while `file.state` is `queued` or `running`. Fields:
@@ -289,7 +291,7 @@ Project screen
 
 - IN-15: `#/p/<id>` requests `GET /api/projects/<id>` and shows "Loading project…" until the first answer.
   [component]
-- IN-16: With `project.json` the screen shows the `name`, "Done", "All 8 steps done", "Ready", the ring "100 percent
+- IN-16: With `project.json` the screen shows the `name`, "Done", "All 9 steps done", "Ready", the ring "100 percent
   done", and the stats Files through "3 / 3", Drawings ready "<drawings.length>" (with " / <expected>" when known,
   IN-68), Cost "$0.00". [component]
 - IN-17: `progressOf` counts `ready`, `flagged`, `text_only` and `set_aside` as finished and `queued`, `running`
@@ -326,13 +328,13 @@ Project screen
   same object the last poll returned), and no progress card, drawing or file list; going to Simple and back sends no
   extra `GET /api/projects/<id>` beyond the 500 ms polls. [component, `AdvancedIngest` mocked with `vi.mock`,
   `running` then `project.json`]
-- IN-56: `stepOf` maps `unpack`, `hash`, null → 1; `identify`, `group` → 2; `route`, `cache` → 3; `normalise` → 4;
-  `extract` → 5; `second_count` → 6; `takeoff` → 7; `write` → 8. `activeStep` of `running` is 5, of `queued` 1, of
-  `files: []` 1. [unit]
-- IN-57: With `running` the card shows "Analysing now", "Step 5 of 8" and the `h2` "Extract"; with `queued`
-  "Waiting to start", "Step 1 of 8", "Unpack". [component]
-- IN-58: The step list has 8 rows in `STEPS` order; with `running` rows 1-4 read "done", row 5 "working" with the hint
-  "rooms, doors, windows, fixtures" and "2 / 3 files", rows 6-8 "waiting"; with `project.json` all 8 read "done" and
+- IN-56 (v4): `stepOf` maps `unpack`, `hash`, null → 1; `identify` → 2; `group`, `route`, `cache` → 3; `normalise` → 4;
+  `extract` → 5; `second_count` → 6; `takeoff` → 7; `write` → 8; no stage maps to 9. `activeStep` of `running` is 5,
+  of `queued` 1, of `files: []` 1. [unit]
+- IN-57: With `running` the card shows "Analysing now", "Step 5 of 9" and the `h2` "Extract"; with `queued`
+  "Waiting to start", "Step 1 of 9", "Unpack". [component]
+- IN-58: The step list has 9 rows in `STEPS` order; with `running` rows 1-4 read "done", row 5 "working" with the hint
+  "rooms, doors, windows, fixtures, scale and schedules" and "2 / 3 files", rows 6-9 "waiting"; with `project.json` all 9 read "done" and
   no row has a hint or bar. Each state is an icon with `role="img"` and its word as name. [component]
 - IN-59: `stepFiles(files, 5)` of `running` is `{passed: 2, through: 3}`; of `set-aside` with step 3 the set-aside
   file (finished at step 2) is not in `through`. [unit]
@@ -418,7 +420,7 @@ Across the screens
   the step (`through` 0): a `queued` project with `files: []` shows no "0 / 0 files". [component]
 - IN-72 (R4-a-7, Bogdan 12:45): A `done` project with no drawings (an empty zip, a lone .exe, a password zip) shows,
   in Simple, a plain card (`section` "Nothing read") "Nothing could be read from this upload" listing every file and
-  every skipped entry with its reason, then the Files list; no progress card (no ring, no "All 8 steps done"), no
+  every skipped entry with its reason, then the Files list; no progress card (no ring, no "All 9 steps done"), no
   "Settle the conflicts", no Drawings list. Backend unchanged. [component: `done`, `drawings: []`, set-aside files;
   browser 1440 and 390 with a synthetic upload]
 - IN-73 (R4-a-4): Drawing cards show the route as `routeLabel` ("drawn PDF route", "image route", "BIM model
@@ -548,7 +550,7 @@ progress card's last row (`ProgressCard` gets a `footer` slot); Advanced places 
 
 - IN-88 (judge's path, Bogdan #14, orch 19:18): on the finished Simple screen the chat row ("Start a new chat",
   "Open the workspace", or the locked button with "Settle the conflicts that need you first.") sits in the progress
-  card right under "Ready", above the 8 steps, and appears once (not again after the conflicts list); visible
+  card right under "Ready", above the 9 steps, and appears once (not again after the conflicts list); visible
   without scrolling at 1440x900 and 390x844 (was y 1087 and 1299). Its lock still follows the conflicts list's
   counts (IN-77). Advanced keeps `IngestFinished`'s row after the list (fe-scaffold's screen). Replaces IN-75's
   "then the chat row" order and IN-81's focus order (now: "Start a new chat", "Open the workspace", then the
@@ -586,6 +588,44 @@ IN-63 (no "Settle the conflicts"); IN-64; IN-48 (no credit; IN-80); IN-65's "Bac
 - P1: "Back to Documents" (IN-79), not the demo's "Back to the project" (that screen no longer lists files).
 - P2: the card keeps Cost (no demo PR changed it to Set aside). Reversed 16:43 by orch (Tudor asked for the demo's
   look): "Set aside" replaces Cost (IN-86).
+
+## Pipeline steps v4 (Tudor 2026-11-14 23:40: "make the ui pipeline stages accurate to our current architecture/flow")
+
+The step list (Simple's card, Advanced's rail) follows what the backend runs today, read from the code
+(`backend/app/core/ingest/service.py` `_run`, `groups.py`, `judge.py`, `app/core/pipeline/ingest.py`), not from the
+design. Each file's trace names its stages (`StageTrace.stage`, API.md "…/trace"); a step is named by its stage in
+words (`STAGE_LABEL`), so the screen and the trace use one word for one stage.
+
+What the backend does, in order:
+
+| # | Step | Stages | What runs (demo config: `tools/qa-env.sh` `DEMO_ENV`) |
+| --- | --- | --- | --- |
+| 1 | Unpack | `unpack`, `hash` | the zip opened with a path check and size caps; a PDF set's later drawn pages become files of their own; a sha256 per file |
+| 2 | Identify | `identify` | the format from the first bytes; triage asks whether a picture is a floor plan (`SHEET_KIND=carbon`): a doubtful sheet is read and flagged, a non-plan is set aside and described (`TRIAGE_DESCRIBER=carbon`); a text PDF is text only |
+| 3 | Route | `group`, `route`, `cache` | files of one plan grouped (same folder and name, an IFC model with its sheets); the richest source picked: IFC model, then CAD, then drawn PDF, then image (a scanned PDF goes to the image route); a group read before is reused (`cache`) |
+| 4 | Normalise | `normalise` | an image turned upright by its EXIF tag and a phone photo flattened to its paper's corners (`RECTIFIER=r3`); a PDF's pages as the file gives them; a model has no page |
+| 5 | Extract | `extract` | drawn PDF: the vector reader (rooms with areas, doors, windows, fixtures, scale from text and bar) and the schedule reader; image: the detector and room readers, Gemini Carbon on a large or sparse sheet (flagged), the printed scale, second readers that set each count's level (`DOUBLE_CHECK_READERS`, `CARBON_LEVELS=ladder`); IFC model: every object with its GlobalId |
+| 6 | Second count | `second_count` | drawn PDF: scale text against bar, printed room areas, the sheet against its IFC model; image: the printed scale and printed totals against the reading; a disagreement is a conflict; an IFC model on its own has none |
+| 7 | Takeoff | `takeoff` | the counting rules, then every quantity with its marks (one timed stage in the backend) |
+| 8 | Store | `write` | one drawing model per sheet (or per model) stored by content |
+| 9 | Index | none | once every file is finished, while the project still runs: triage judges whether each set-aside file belongs to the project (`TRIAGE_JUDGE=rules`), every non-plan file is described or its text read (`EVIDENCE_SCOPE=all_non_plan`), and the project's evidence index is updated for the chat |
+
+Not steps, because they do not run at ingest: the conflict resolver (`RESOLVER`, at ask time, off in the demo), the
+IFC fact sheet (`IFC_FACTS`, at ask time), the 3D view's GLB (`MODEL_3D`, converted on the first "View in 3D").
+
+Index has no stage id: the backend keeps the project `running` with every file finished while it runs, so
+`activeStep` is 9 then (no file bar); `ProjectStatus` has no phase field to name it (backend change not made: a
+`phase` field would make it explicit).
+
+- IN-89: With a `running` project whose files are all finished, `activeStep` is 9 and the card shows "Step 9 of 9",
+  the `h2` "Index", rows 1-8 "done" and row 9 "working" with the hint "every file made searchable for questions" and no
+  file bar. [unit + component]
+- IN-90: Every step but Index is named `STAGE_LABEL` of its own stage (`unpack`, `identify`, `route`, `normalise`,
+  `extract`, `second_count`, `takeoff`, `write`): Unpack, Identify, Route, Normalise, Extract, Second count, Takeoff,
+  Store; `STAGE_LABEL.write` is "Store", also on the trace screen. No step reads
+  "Cross-check" or "Drawing model". [unit]
+- IN-91: e2e at 1440 and 390: a finished sample project shows "All 9 steps done" and the nine names in order on Simple;
+  Advanced's rail shows the same nine. Screenshots `ingest-steps-<width>.png`, `advanced-steps-<width>.png`. [e2e]
 
 ## Out of scope
 
@@ -653,6 +693,7 @@ once ingest ends, and every skipped file is already a "set aside" file row with 
     `second_count`, `takeoff`, `write`. `STEPS` follows the backend (Cross-check, Index, Drawing model) so the working
     step never moves backwards. Hints changed where the design claims what no stage does: Normalise "upright sheets,
     views and scale" → "one page frame per sheet" (no stage checks rotation, R1-3-5; scale is read in extract).
+    Superseded by "Pipeline steps v4" (9 steps, named after the backend's stages).
 13. **Way out of screen 2.** The design has no link from screen 2 to anything but Advanced. The Simple view keeps the
     drawing "Open" links and the file rows (the golden path and QA use them) and adds "Settle the conflicts" to
     screen 3 when done. Recommend fe-surveyor's ConflictsScreen says when there is nothing to settle.

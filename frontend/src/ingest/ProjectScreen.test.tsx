@@ -66,7 +66,7 @@ describe('ProjectScreen', () => {
     expect(api.calls[0]?.url).toBe(`/api/projects/${ID}`);
   });
 
-  it('IN-16 done: name, Done, All 8 steps done, Ready, ring 100, Files through, Drawings ready, Cost', async () => {
+  it('IN-16 done: name, Done, All 9 steps done, Ready, ring 100, Files through, Drawings ready, Cost', async () => {
     mockApi({ [GET]: project });
     render(<ProjectScreen projectId={ID} />);
     await flush();
@@ -75,7 +75,7 @@ describe('ProjectScreen', () => {
     expect(must(screen.getByText('Analysis done').closest('.ingest-eyebrow')).className).toContain(
       'ok',
     );
-    expect(screen.getByText('All 8 steps done')).toBeTruthy();
+    expect(screen.getByText('All 9 steps done')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Ready' })).toBeTruthy();
     expect(screen.getByRole('img', { name: '100 percent done' })).toBeTruthy();
     expect(stat('Files through')).toBe('3 / 3');
@@ -185,7 +185,7 @@ describe('ProjectScreen', () => {
     expect(panel.textContent).toContain('not a file type we read');
     expect(screen.queryByRole('region', { name: 'Progress' })).toBeNull();
     expect(screen.queryByRole('img', { name: /percent done/ })).toBeNull();
-    expect(screen.queryByText('All 8 steps done')).toBeNull();
+    expect(screen.queryByText('All 9 steps done')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Drawings' })).toBeNull();
     // IN-78: the files are listed on Documents now; no conflicts list, no chat row
@@ -309,18 +309,18 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText('Analysing now')).toBeTruthy();
-    expect(screen.getByText('Step 5 of 8')).toBeTruthy();
+    expect(screen.getByText('Step 5 of 9')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Extract' })).toBeTruthy();
     cleanup();
     mockApi({ [GET]: variants.queued });
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText('Waiting to start')).toBeTruthy();
-    expect(screen.getByText('Step 1 of 8')).toBeTruthy();
+    expect(screen.getByText('Step 1 of 9')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Unpack' })).toBeTruthy();
   });
 
-  it('IN-58 the 8 steps: done, working (hint and file bar), waiting; all done when the project is', async () => {
+  it('IN-58 the 9 steps: done, working (hint and file bar), waiting; all done when the project is', async () => {
     mockApi({ [GET]: variants.running });
     render(<ProjectScreen projectId={ID} />);
     await flush();
@@ -334,16 +334,17 @@ describe('ProjectScreen', () => {
       'waiting',
       'waiting',
       'waiting',
+      'waiting',
     ]);
     const working = must(rows[4]);
     expect(working.textContent).toContain('Extract');
-    expect(working.textContent).toContain('rooms, doors, windows, fixtures');
+    expect(working.textContent).toContain('rooms, doors, windows, fixtures, scale and schedules');
     expect(working.textContent).toContain('2 / 3 files');
     cleanup();
     mockApi({ [GET]: project });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(stepRows().map(iconOf)).toEqual(Array<string>(8).fill('done'));
+    expect(stepRows().map(iconOf)).toEqual(Array<string>(9).fill('done'));
     expect(stepRows().some((r) => r.textContent.includes(' files'))).toBe(false);
     expect(stepRows().map((r) => r.querySelector('.ingest-step-name')?.textContent)).toEqual([
       'Unpack',
@@ -351,10 +352,23 @@ describe('ProjectScreen', () => {
       'Route',
       'Normalise',
       'Extract',
-      'Cross-check',
+      'Second count',
+      'Takeoff',
+      'Store',
       'Index',
-      'Drawing model',
     ]);
+  });
+
+  it('IN-89 every file finished while the project runs: Step 9 of 9, Index working, no file bar', async () => {
+    mockApi({ [GET]: { ...variants.running, files: project.files } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.getByText('Step 9 of 9')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Index' })).toBeTruthy();
+    const rows = stepRows();
+    expect(rows.map(iconOf)).toEqual([...Array<string>(8).fill('done'), 'working']);
+    expect(must(rows[8]).textContent).toContain('every file made searchable for questions');
+    expect(must(rows[8]).textContent).not.toContain(' files');
   });
 
   it('IN-60 the ring reads "<n> percent done": 67 running, 0 queued', async () => {
@@ -412,7 +426,7 @@ describe('ProjectScreen', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Stopped' })).toBeTruthy();
     expect(screen.getByText('the server restarted during ingest')).toBeTruthy();
     expect(screen.queryByRole('list', { name: 'Steps' })).toBeNull();
-    expect(screen.queryByText(/Step \d of 8/)).toBeNull();
+    expect(screen.queryByText(/Step \d of 9/)).toBeNull();
   });
 
   it('IN-44 strings from files render as text (the "Nothing read" card)', async () => {
