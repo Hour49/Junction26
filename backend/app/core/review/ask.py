@@ -53,6 +53,7 @@ from app.core.review.check import (
     no_disputes,
     schedule_check,
     score_of,
+    summed_check,
 )
 from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
@@ -248,6 +249,9 @@ def ask(
             if reason is None and agrees is False:
                 reason = disagree(shown)
             request = double_check(shown, marks, disputes(drawing, shown), reason)
+    elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
+        request, level = summed_check(check)
+        sure = False
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None
@@ -266,6 +270,16 @@ def ask(
         check=request,
         level=level,
     )
+
+
+def _summed(parsed: object, answer: Answer) -> bool:
+    """A schedule answer outside the single-cell lookups the schedule route was measured on: a
+    room's area the room schedule gives for a takeoff question (answering's fallback), or a sum
+    over more than one row."""
+    if isinstance(parsed, Query):
+        return True
+    summing = isinstance(parsed, TableQuery) and parsed.op in ("sum", "count_sum")
+    return summing and len(answer.evidence) > 1
 
 
 def _flagged(

@@ -11,8 +11,12 @@ from app.adapters.question_templates import TemplateParser
 from app.core.answering.answer import SCHEDULE, answer_question
 from app.core.answering.model import Answer, Prior, Question, TableQuery
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import Table, TableRow
+from app.core.drawing.model import Drawing, Page, Scale, Table, TableRow
 from app.core.pipeline.model import Quantity
+from app.core.review.ask import Asked
+from app.core.review.ask import ask as review_ask
+from app.core.review.check import SUMMED_REASON, SUMMED_TEXT, CheckPolicy, Counts, Level
+from app.core.review.model import ReviewState
 
 PARSE = TemplateParser().parse
 FILE = "data/demo/schedules.pdf"
@@ -111,3 +115,68 @@ def test_the_takeoff_s_own_room_wins_over_the_schedule() -> None:
         (ROOMS,),
     )
     assert (found.answer, found.unit) == (13.2, "m2") and found.method != SCHEDULE
+
+
+# fail-1's review of #273 (.agents/qa/r9/review-273.md)
+
+
+def test_a_room_named_by_a_name_two_rows_print_is_refused_saying_so() -> None:
+    """MUST: "the room 'OFFICE'" is one room; two rows print OFFICE, so no sum is given."""
+    one = ask("What is the net floor area of the room 'OFFICE'?", {}, (ROOMS,))
+    assert one.answer is None and one.method != SCHEDULE
+    assert one.explanation is not None and "2 rows of ROOM FINISH SCHEDULE are OFFICE" in (
+        one.explanation
+    )
+    every = ask("What is the total net area of all rooms labelled 'OFFICE'?", {}, (ROOMS,))
+    assert (every.answer, every.method) == (268, SCHEDULE)  # a label is every room printing it
+
+
+def test_a_read_whose_rows_differ_says_so() -> None:
+    """S1: no wrong number, and the refusal says why."""
+    found = ask("What are the width and height of a window in the window schedule?", {},
+                (DIFFERENT,))  # fmt: skip
+    assert found.answer is None and found.explanation is not None
+    assert "the rows of WINDOW SCHEDULE print different values for Width" in found.explanation
+
+
+POLICY = CheckPolicy(
+    thresholds={},
+    routes=frozenset({"schedule"}),  # single-cell schedule lookups are certified
+    route_levels={"schedule": "high"},
+    route_counts={"schedule": Counts(units=39, exact=39)},
+    counts={
+        "high": Counts(units=10, exact=10),
+        "medium": Counts(units=10, exact=9),
+        "low": Counts(units=10, exact=5),
+    },
+)
+SHEET = Drawing(
+    file="schedules.pdf",
+    pages=(Page(page=1, width=100, height=100, unit="pt"),),
+    scale=Scale(status="no_scale"),
+    tables=(ROOMS, SAME),
+)
+
+
+def checked(text: str) -> Asked:
+    return review_ask(
+        text, SHEET, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
+        state=ReviewState(), check=POLICY, route="vector",
+    )  # fmt: skip
+
+
+def test_a_room_area_from_the_schedule_or_a_sum_of_rows_is_never_certified() -> None:
+    """S3: the schedule route was measured on single-cell lookups; these are not those."""
+    for text in (
+        "What is the net floor area of room 1.01 ('OFFICE') in m²?",  # the fallback, one row
+        "What is the total net area of all rooms labelled 'OFFICE'?",  # the fallback, 2 rows
+        "What is the total area of all rooms in the room finish schedule?",  # a sum of 3 rows
+    ):
+        found = checked(text)
+        assert found.answer.method == SCHEDULE, text
+        assert found.answer.sure is False and found.check is not None, text
+        assert found.check.reason == SUMMED_REASON
+        assert found.level == Level(level="low", basis="held", text=SUMMED_TEXT)
+    lookup = checked("What are the width and height of a window in the window schedule?")
+    assert lookup.answer.sure is True and lookup.check is None  # a lookup stays as it was
+    assert lookup.level is not None and lookup.level.level == "high"

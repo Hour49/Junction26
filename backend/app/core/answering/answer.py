@@ -24,7 +24,7 @@ from app.core.answering.ports import (
     DrawingSource,
     QuestionParser,
 )
-from app.core.answering.tables import TableAnswer, answer_table
+from app.core.answering.tables import TableAnswer, answer_table, why_none
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
 from app.core.pipeline.second_count import METHODS
@@ -87,7 +87,7 @@ def answer_question(
         if (row := answer_table(parsed, tables)) is not None:
             return read(_from_table(question, row, clock() - start))
         method = NOT_IN_DRAWING
-        why = f"no schedule on the sheet resolves {parsed.family()}"
+        why = why_none(parsed, tables) or f"no schedule on the sheet resolves {parsed.family()}"
     else:
         found = quantities.get(parsed.key())
         scheduled = None if found is not None else _scheduled_room(parsed)
@@ -95,6 +95,8 @@ def answer_question(
             return read(_from_table(question, row, clock() - start))
         method = NOT_IN_DRAWING if found is None else TAKEOFF
         why = f"the drawing model does not give {parsed.key()}"
+        if scheduled is not None and (said := why_none(scheduled, tables)) is not None:
+            why = f"{why}, and {said}"
         source, family = source_of(question.file), parsed.family()
         if (source, family) in prior_families and (
             estimate := prior.prior(source, family)
@@ -186,7 +188,11 @@ def _scheduled_room(parsed: Query) -> TableQuery | None:
     if parsed.storey or parsed.apartment or parsed.model or parsed.largest or parsed.indoor:
         return None
     return TableQuery(
-        op="sum", kind="room", column=(("area",),), filters=(TableFilter(values=(named,)),)
+        op="sum",
+        kind="room",
+        column=(("area",),),
+        filters=(TableFilter(values=(named,)),),
+        one_row=parsed.name is not None,  # the one room; a label is every room printing it
     )
 
 

@@ -231,6 +231,14 @@ PAGE_TEXT = (
     "Low confidence: this page was flagged when it was uploaded, and answers on such pages are "
     "not measured." + ASK["low"]
 )
+SUMMED_REASON = (
+    "Please double-check this value against the schedule printed on the sheet: it is added up "
+    "from several rows, or a room's area taken from the schedule, which is not measured."
+)
+SUMMED_TEXT = (
+    "Low confidence: this value is added up from schedule rows or taken from the room schedule, "
+    "and such values are not measured." + ASK["low"]
+)
 HELD_TEXT = (
     "Low confidence: this value is held for a check whatever its score; the double-check "
     "request says why." + ASK["low"]
@@ -395,6 +403,14 @@ def double_check(
 def schedule_check(policy: CheckPolicy) -> Check | None:
     """The request on a value read from a schedule: none when the policy certified the route."""
     return None if SCHEDULE in policy.routes else Check(reason=SCHEDULE_REASON, disputed=())
+
+
+def summed_check(policy: CheckPolicy) -> tuple[Check, Level | None]:
+    """The request and level on a value a schedule gives by adding up several rows, or a room's
+    area read from the room schedule because the plan has no such room: never certified, since
+    the schedule route was measured on single-cell lookups, not on these."""
+    level = None if policy.counts is None else Level(level="low", basis="held", text=SUMMED_TEXT)
+    return Check(reason=SUMMED_REASON, disputed=()), level
 
 
 def _shown(row: Row, value: float) -> str:
