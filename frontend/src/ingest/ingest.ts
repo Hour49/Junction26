@@ -74,6 +74,11 @@ export function stageCounts(files: readonly Pick<FileStatus, 'stage' | 'state'>[
   };
 }
 
+/** "1 file", "0 files", "2 files". */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${String(n)} ${n === 1 ? one : many}`;
+}
+
 export function formatMs(ms: number): string {
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
   return `${ms >= 10 ? ms.toFixed(1) : ms.toFixed(2)} ms`;

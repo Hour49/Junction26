@@ -212,11 +212,12 @@ surveyor" buttons. The header replaces those with one place for the role switch.
 `style.css` tokens.
 
 - **Desktop 1440x900.** One header row, 56 px: "Countersign" (link to `#/`) left; the project picker (max 320 px
-  wide) next to it; the view links Ingest · Engineer · Surveyor centred (only on project, file and drawing routes);
+  wide, shrinks with the header) next to it; the view links Ingest · Engineer · Surveyor centred (only on project, file and drawing routes);
   nothing on the right. Under it the info strip, one line, 32 px: offline text left, "What runs" right; open, it
   drops a two-column list (port, reader) under the strip, pushing content down (not over it). The route's screen
   fills the rest, max width 1440, no horizontal scroll.
-- **Phone 390x844.** Header in rows: "Countersign"; the picker full width; the view links as three equal
+- **Phone 390x844.** Header in rows: "Countersign"; the picker full width and never wider (a long project name is cut
+  off in the closed select and shown in full in its open list, R1-5-4); the view links as three equal
   tabs full width, each at least 44 px high. The strip under them wraps the full offline text (no shortened form),
   and "What runs" is a full-width disclosure under it. No horizontal scroll
   at 390 px with the longest fixture name.

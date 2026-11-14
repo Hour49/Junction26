@@ -311,4 +311,32 @@ describe('ProjectScreen', () => {
     await flush();
     expect(items().some((li) => li.textContent.includes('working'))).toBe(false);
   });
+
+  it('R1-1-1 progress of one file reads "1 of 1 file finished"', async () => {
+    mockApi({ [GET]: { ...project, files: [must(project.files[0])] } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.getByText('1 of 1 file finished')).toBeTruthy();
+  });
+
+  it('R1-1-4 a queued project with no files yet gives no verdict: "Waiting for the files…"', async () => {
+    mockApi({ [GET]: { ...variants.queued, files: [] } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.getByText('Waiting to start')).toBeTruthy();
+    expect(screen.getAllByText('Waiting for the files…')).toHaveLength(2);
+    expect(screen.queryByText('This upload has no files.')).toBeNull();
+    expect(screen.queryByText(/^No drawings/)).toBeNull();
+    expect(screen.queryByText(/0 of 0/)).toBeNull();
+    expect(document.querySelector('progress')).toBeNull();
+    cleanup();
+
+    mockApi({ [GET]: { ...variants.running, drawings: [] } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(
+      within(screen.getByRole('region', { name: 'Drawings' })).getByText('Waiting for the files…'),
+    ).toBeTruthy();
+    expect(screen.queryByText(/^No drawings/)).toBeNull();
+  });
 });

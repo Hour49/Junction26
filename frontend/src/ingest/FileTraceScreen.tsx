@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { getTrace, type FileTrace } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
-import { STAGE_LABEL, formatCost, formatMs, formatSize, isFinished } from './ingest';
+import { STAGE_LABEL, formatCost, formatMs, formatSize, isFinished, plural } from './ingest';
 import { BeforeAfter } from './BeforeAfter';
 import { StaleNote, StateBadge } from './ProjectScreen';
 import { usePoll } from './usePoll';
@@ -113,7 +113,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
       </section>
       {takeoff.length > 0 && (
         <details className="ingest-takeoff">
-          <summary>What it ends as: {takeoff.length} quantities</summary>
+          <summary>What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}</summary>
           <dl>
             {takeoff.map(([key, value]) => (
               <div key={key}>

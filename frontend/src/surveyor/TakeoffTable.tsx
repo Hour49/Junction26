@@ -54,7 +54,7 @@ export function TakeoffTable({ takeoff, selected, onSelect }: Props) {
     </thead>
   );
   return (
-    <div className="sv-tables">
+    <>
       <table className="sv-table">
         <caption>To review</caption>
         {head}
@@ -75,6 +75,6 @@ export function TakeoffTable({ takeoff, selected, onSelect }: Props) {
           <Rows rows={rest} selected={selected} onSelect={onSelect} />
         </tbody>
       </table>
-    </div>
+    </>
   );
 }

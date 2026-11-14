@@ -73,7 +73,8 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | --- | --- |
 | `question` | the user's bubble (the server's echo, so a trimmed question shows as sent) |
 | `answer`, `unit` | the big value and unit (format below). Null: no number anywhere in the card. A string `answer` (schedule) shows as text, `unit` null shows no unit. |
-| `confidence.score`, `confidence.signal`, `confidence.calibrated` | the "Model score" line: "Model score 0.87 (<signal>, uncalibrated)" and under it the fixed text "A raw score from the model's choice, not the chance that the answer is right." `calibrated: false` is the only value in the contract; the score is never shown as a percent or called a probability or confidence. `confidence` null: the line is absent (no made-up figure). |
+| `confidence.score`, `confidence.calibrated` | the score line: "Second reader's score 0.87 (not a probability)". `calibrated: false` is the only value in the contract; the score is never shown as a percent, claimed as a probability, or called a confidence. `confidence` null: the line is absent (no made-up figure). |
+| `confidence.signal` | only in Details: "Signal: <signal>" (an internal name, never on the card itself) |
 | `quantity.label` | the card title |
 | `quantity.key` | "Query: `<key>`" in the details |
 | `quantity.status` | the status in words (table in States); never colour alone |
@@ -144,7 +145,7 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text`, the code in small text, one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
 | Answer, count | `answer.json` | value `2`, title "door count", viewer with marks 1 and 2, mark list "1 door", "2 door", rule "every element, room and plan the drawing lists counts once", status "One method" |
 | Answer, sum | `answer_area.json` | value `52.27 m²`, rooms shaded, mark list with "Küche 22.40 m²"…, the arithmetic line with what was left out, the viewer's colour key |
-| Answer with a model score | `answer_confidence.json` once the backend PR regenerates it with the object; until then derived: that file with `confidence: {"signal": "choice", "score": 0.87, "calibrated": false}` | as count plus "Model score 0.87 (choice, uncalibrated)" and the "not the chance" line; no "Picture of this answer" link |
+| Answer with a model score | `answer_confidence.json` (`confidence: {"signal": "g1main", "score": 0.87, "calibrated": false}`) | as count plus "Second reader's score 0.87 (not a probability)"; Details has "Signal: g1main"; no "Picture of this answer" link |
 | Answer, building model | `answer_model.json` | value `2`, no viewer; `ModelProof` with "Door 1", "Door 2", their storey and GlobalId, the storey table, the arithmetic line |
 | Answer, schedule | see Open points (no fixture yet) | the string answer, the schedule table, no rule or checks panel |
 | Verified | derived: `answer.json` with `quantity.status: "signed"`, `quantity.signed: {"by": "Ana", "at": "2026-11-14T01:40:00Z", "value": 2}` | status "Verified", "Verified by Ana, 2026-11-14 01:40 UTC" next to the value |
@@ -170,14 +171,17 @@ Desktop 1440x900 (mock: `#work/engineer/A`, "chat-mode"): one centred column, ma
 - Middle: the thread. Each turn: the question as a right-aligned bubble, then the answer: one sentence with the
   value in bold, then the card: viewer on the left (about 60 %, with its own legend and caption), on the right
   "The answer" (value, unit, status, model score, verified), "Counting rule", "Checks", "Where this came from";
-  under the viewer the mark list and the arithmetic line; footer row: Drawing, Cost, Time, "Details", "Picture of
-  this answer", "Send to surveyor".
+  under the viewer the mark list and the arithmetic line; footer row, one flex row aligned on the text baseline:
+  Drawing, Cost, Time, "Details" (its summary inline in the row; opened, its body takes a full line below),
+  "Picture of this answer", "Send to surveyor".
 - Bottom: the ask box, fixed to the bottom of the column, with "<n> asked" and the length counter when near the
   limit.
 
 Phone 390x844: same order, one column, 16 px gutters; in the card the viewer is full width and the right-hand
 blocks follow below it; the footer wraps to two lines; the ask box sticks to the bottom; tap targets at least
-44 px; no horizontal scroll (long file paths and keys wrap, `overflow-wrap: anywhere`).
+44 px; no horizontal scroll (long file paths and keys wrap, `overflow-wrap: anywhere`). Table cells (the building
+model's objects and storeys) never break inside a word (`overflow-wrap: normal`, `word-break: normal`); a table
+wider than the column scrolls sideways inside its own wrapper.
 
 ## Acceptance criteria
 
@@ -210,12 +214,12 @@ Answers
 - EN-20 The viewer gets `proof.legend` as `legend`: the Küche polygon's stroke is `#d62728` and the Reduit polygon's `#1f77b4` (VW-21); a derived legend `note` "1 counted without a mark (second reader)" shows as text. [component, `answer_area.json`, derived `answer.json`]
 - EN-21 An excluded mark shows in the list with the sign "–" and no number, as "– Balkon left out by the rule: outdoor room". [component, derived `answer_area.json`]
 - EN-22 The viewer gets `quantity.conflict` as `conflict`: tags "A" and "B" are on the page for the derived conflict answer; `answer.json` (conflict null) has no tag. [component, derived conflict, `answer.json`]
-- EN-23 With the `confidence` object, "Model score 0.87 (choice, uncalibrated)" and "A raw score from the model's choice, not the chance that the answer is right." show; the card contains no "%" next to the score and no word "probability" or "confidence". For `answer.json` (confidence null) no score line shows. [component, `answer_confidence.json` or its derived form (States)]
+- EN-23 With the `confidence` object, "Second reader's score 0.87 (not a probability)" shows; the signal name ("g1main") is not on the card outside Details, and Details shows "Signal: g1main". The card has no "%" next to the score, no word "confidence", and "probability" only in "not a probability". For `answer.json` (confidence null) no score line and no "Signal:" line show. [component, `answer_confidence.json`]
 - EN-24 The footer shows "Cost $0" and "Time 2.0 ms" for `answer.json`. [component]
 - EN-25 `engineer/format.ts` gives: cost 0 → "$0", 0.0004 → "$0.0004", 0.123 → "$0.12"; latency 0.0001622 → "0.2 ms", 0.002 → "2.0 ms", 1.25 → "1.25 s"; score 0.87 → "0.87". Values and times on screen come from the shared `formatValue`/`formatTime` (their criteria are in shared.md). [unit]
 - EN-26 "Where this came from" shows "pdf read plans/flat-a.pdf (vector route), second count by ifc". [component, `answer.json`]
-- EN-27 "Details" is collapsed by default; opened it shows "Query: door" and "Method: takeoff"; with `explanation` null no "How:" line. [component, `answer.json`]
-- EN-28 A building-model answer shows no viewer; it shows a table with "Door 1", "Ground floor", "000000000000000000000K", a storey table row "Ground floor" with door 2, window 3, and the line "2 door objects in the model on Ground floor". [component, `answer_model.json`]
+- EN-27 "Details" is collapsed by default, its summary in the footer row with Drawing, Cost and Time (the row aligns items on the baseline); opened it shows "Query: door" and "Method: takeoff"; with `explanation` null no "How:" line. [component, `answer.json`]
+- EN-28 A building-model answer shows no viewer; it shows a table with "Door 1", "Ground floor", "000000000000000000000K", a storey table row "Ground floor" with door 2, window 3, and the line "2 door objects in the model on Ground floor". Each table sits in a wrapper that scrolls sideways (`overflow-x: auto`), and its cells do not break inside words (`overflow-wrap: normal`, `word-break: normal`). [component, `answer_model.json`]
 - EN-29 "Picture of this answer" links to `/api/drawings/adeefbbcc17559fc/evidence.png?question=How%20many%20doors%20are%20there%3F&width=1600` and opens a new tab when `confidence` is null; with the `confidence` object set there is no "Picture of this answer" link. [component, `answer.json`, `answer_confidence.json` or its derived form]
 - EN-30 "Send to surveyor" links to `#/p/<project_id>/d/adeefbbcc17559fc/surveyor?q=door` (built with the shared `routeHref`; derived conflict: `?q=area%3Aroom%7Cname%3D1.01`), surveyor.md Open point 4. Absent when `quantity` is null. [component, `answer.json`, derived conflict]
 

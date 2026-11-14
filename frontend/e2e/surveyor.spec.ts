@@ -1,15 +1,7 @@
 // The surveyor's e2e criteria the golden path does not walk (surveyor.md SV-47, SV-48: reject and restore a door,
 // undo a sign-off), on the live no-keys backend.
-import { expect, test, type Page } from '@playwright/test';
-import { noKeys, shot, startSample, watchErrors } from './support';
-
-async function openSurveyor(page: Page) {
-  await startSample(page);
-  await page.locator('a[href*="/f/f"]').filter({ hasText: 'plans/flat-b.pdf' }).click();
-  await page.getByRole('link', { name: 'Open the drawing' }).click();
-  await page.getByRole('link', { name: 'Surveyor', exact: true }).click();
-  await expect(page).toHaveURL(/\/d\/[0-9a-f]{16}\/surveyor/);
-}
+import { expect, test } from '@playwright/test';
+import { noKeys, openSurveyor, shot, watchErrors } from './support';
 
 test('SV-47, SV-48: reject and restore a door, sign off and undo', async ({ page }, testInfo) => {
   const errors = watchErrors(page);

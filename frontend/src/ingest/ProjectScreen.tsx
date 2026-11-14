@@ -9,6 +9,7 @@ import {
   formatMs,
   formatSize,
   isFinished,
+  plural,
   progressOf,
 } from './ingest';
 import { StageStrip } from './StageStrip';
@@ -65,6 +66,9 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   }
 
   const { done, total } = progressOf(project.files);
+  // While ingest runs an empty list is not a verdict yet (R1-1-4).
+  const waiting = live(project);
+  const WAITING = 'Waiting for the files…';
   return (
     <div className="ingest">
       <header className="ingest-head">
@@ -79,12 +83,14 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
             Cost: {formatCost(project.cost_usd)}
           </p>
         </div>
-        <div className="ingest-progress">
-          <progress value={done} max={total} aria-label="Files finished" />
-          <span>
-            {done} of {total} files finished
-          </span>
-        </div>
+        {!(waiting && total === 0) && (
+          <div className="ingest-progress">
+            <progress value={done} max={total} aria-label="Files finished" />
+            <span>
+              {done} of {plural(total, 'file')} finished
+            </span>
+          </div>
+        )}
       </header>
       {error !== null && <StaleNote error={error} failedAt={failedAt} onRetry={retry} />}
       <StageStrip files={project.files} />
@@ -92,7 +98,9 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
         <section aria-label="Drawings" className="ingest-drawings">
           <h2>Drawings</h2>
           {project.drawings.length === 0 ? (
-            <p>No drawings: nothing in this upload could be read as a plan.</p>
+            <p>
+              {waiting ? WAITING : 'No drawings: nothing in this upload could be read as a plan.'}
+            </p>
           ) : (
             <ul>
               {project.drawings.map((d) => (
@@ -116,7 +124,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
         <section aria-label="Files" className="ingest-files">
           <h2>Files</h2>
           {project.files.length === 0 ? (
-            <p>This upload has no files.</p>
+            <p>{waiting ? WAITING : 'This upload has no files.'}</p>
           ) : (
             <ul>
               {project.files.map((f) => (

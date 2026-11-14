@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
-import { formatCost, formatMs, formatSize, progressOf, stageCounts } from './ingest';
+import { formatCost, formatMs, formatSize, plural, progressOf, stageCounts } from './ingest';
 import { variants } from './testing';
 
 describe('ingest.ts', () => {
@@ -39,5 +39,13 @@ describe('ingest.ts', () => {
     expect(formatCost(0.123)).toBe('$0.12');
     expect(formatSize(2263)).toBe('2.2 KB');
     expect(formatSize(1048576)).toBe('1.0 MB');
+  });
+
+  it('R1-1-1 plural: singular for 1, plural for 0 and 2', () => {
+    expect(plural(0, 'file')).toBe('0 files');
+    expect(plural(1, 'file')).toBe('1 file');
+    expect(plural(2, 'file')).toBe('2 files');
+    expect(plural(1, 'quantity', 'quantities')).toBe('1 quantity');
+    expect(plural(2, 'quantity', 'quantities')).toBe('2 quantities');
   });
 });

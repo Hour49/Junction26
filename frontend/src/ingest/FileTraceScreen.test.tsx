@@ -239,4 +239,11 @@ describe('FileTraceScreen', () => {
     await flush();
     expect(plain.calls.some((c) => c.url.startsWith('/api/drawings/'))).toBe(false);
   });
+
+  it('R1-1-1 a takeoff of one quantity reads "What it ends as: 1 quantity"', async () => {
+    mockApi({ [GET]: { ...trace, file: { ...trace.file, takeoff: { door: 2 } } } });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(must(document.querySelector('summary')).textContent).toBe('What it ends as: 1 quantity');
+  });
 });

@@ -44,3 +44,12 @@ export async function startSample(page: Page): Promise<string> {
   await expect(page.getByText('11 of 11 files finished').first()).toBeVisible({ timeout: 30_000 });
   return /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
 }
+
+/** The sample's plans/flat-b.pdf on the surveyor route (via its trace and the engineer page). */
+export async function openSurveyor(page: Page) {
+  await startSample(page);
+  await page.locator('a[href*="/f/f"]').filter({ hasText: 'plans/flat-b.pdf' }).click();
+  await page.getByRole('link', { name: 'Open the drawing' }).click();
+  await page.getByRole('link', { name: 'Surveyor', exact: true }).click();
+  await expect(page).toHaveURL(/\/d\/[0-9a-f]{16}\/surveyor/);
+}
