@@ -319,7 +319,10 @@ class _Run:
             if name in ("final_answer", SHOW_ON_PLAN) or name.startswith("propose_"):
                 break
             given: Any = function.get("arguments") or "{}"
-            lead.append((name, given if isinstance(given, str) else json.dumps(given)))
+            found = (name, given if isinstance(given, str) else json.dumps(given))
+            if self.seen[found] + lead.count(found) >= 2:
+                break  # its third time ends the turn (_calls): it must not run
+            lead.append(found)
         if len(lead) < 2 or self.caps.parallel < 2:
             return {}
         for at, (name, arguments) in enumerate(lead):
