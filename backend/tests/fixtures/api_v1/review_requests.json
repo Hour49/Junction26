@@ -27,13 +27,13 @@
   },
   {
     "quantity": "door",
-    "action": "unsettle"
+    "action": "reset"
+  },
+  {
+    "action": "reset"
   },
   {
     "quantity": "door",
-    "action": "reset"
-  },
-  {
-    "action": "reset"
+    "action": "unsettle"
   }
 ]

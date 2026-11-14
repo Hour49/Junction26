@@ -4539,14 +4539,14 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
   },
   {
     "quantity": "door",
-    "action": "unsettle"
+    "action": "reset"
+  },
+  {
+    "action": "reset"
   },
   {
     "quantity": "door",
-    "action": "reset"
-  },
-  {
-    "action": "reset"
+    "action": "unsettle"
   }
 ]
 ```

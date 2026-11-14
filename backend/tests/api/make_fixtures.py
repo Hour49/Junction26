@@ -121,9 +121,9 @@ def responses() -> dict[str, Any]:
         {"quantity": "door", "action": "restore", "mark": "m2"},
         {"quantity": "door", "action": "add", "page": 1, "box": [0.2, 0.5, 0.23, 0.53]},
         {"quantity": "door", "action": "settle", "value": 3},
-        {"quantity": "door", "action": "unsettle"},
         {"quantity": "door", "action": "reset"},
         {"action": "reset"},
+        {"quantity": "door", "action": "unsettle"},  # last: the frontend reads the others by index
     ]
     found["signoff_request"] = {"quantity": "door", "by": "Ana"}
     found["error"] = client.get("/api/drawings/0123456789abcdef").json()
