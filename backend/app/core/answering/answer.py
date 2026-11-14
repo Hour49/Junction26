@@ -7,8 +7,16 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
 from app.core.answering.facts import FactSource, answer_from_facts
-from app.core.answering.floors import FLOOR, FLOOR_AT, floor_number, floor_of
+from app.core.answering.floors import (
+    FLOOR,
+    FLOOR_AT,
+    floor_number,
+    floor_of,
+    glued,
+    glued_floors,
+)
 from app.core.answering.model import (
+    GLUED_FLOOR,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
     SEVERAL_FLOORS,
@@ -411,13 +419,18 @@ class RoomByType:
         "... on the 1st floor?" counted the whole sheet (fable-rooms r10 items 10, 11)."""
         if parsed.reason != UNQUOTED_PLACE:
             return None
-        asked = {floor_number(match) for match in FLOOR.finditer(text)}
+        matches = list(FLOOR.finditer(text))
+        if any(glued(match) for match in matches):  # "level-1": 1 or -1 (review-352 N5)
+            return Unsupported(reason=GLUED_FLOOR)
+        asked = {floor_number(match) for match in matches}
         if len(asked) != 1:
             return None
         number = asked.pop()
         named = [storey for storey in storeys(self._drawing) if floor_of(storey) == number]
         if len(named) > 1:
             return Unsupported(reason=SEVERAL_FLOORS)
+        if not named and any(number in glued_floors(s) for s in storeys(self._drawing)):
+            return Unsupported(reason=GLUED_FLOOR)  # a storey printed "LEVEL-1"
         if not named:
             rest = self._parser.parse(FLOOR_AT.sub(" ", text))
             return Unsupported(reason=NO_SUCH_FLOOR) if isinstance(rest, Query) else None

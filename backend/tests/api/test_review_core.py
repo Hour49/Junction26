@@ -881,6 +881,30 @@ def test_a_basement_level_is_not_the_first_floor() -> None:
     assert asked("How many doors are on the ground floor?", drawing).answer.answer == 2
 
 
+def test_a_hyphen_glued_to_a_floor_number_is_level_n_or_minus_n_and_is_refused() -> None:
+    """review-352 N5: "LEVEL-1" read as level -1, but many sheets write LEVEL-1 for level 1. A
+    hyphen glued between the word and the number names neither floor; a space before it makes
+    it a minus ("Level -1")."""
+    drawing = floors_drawing("LEVEL-1 PLAN", "LEVEL 2 PLAN")
+    for text in ("How many doors are on level 1?", "How many doors are on level -1?"):
+        found = asked(text, drawing)
+        assert found.answer.answer is None and found.refusal is not None, text
+        assert found.refusal.text.startswith(
+            "This drawing's storey LEVEL-1 PLAN could be floor 1 or floor -1 (below ground), so "
+            "I can't tell if it is the level"
+        ), found.refusal.text
+    assert asked("How many doors are on level 2?", drawing).answer.answer == 2
+    plain = floors_drawing("Level 1", "Level -1")
+    found = asked("How many doors are on level-1?", plain)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        '"level-1" could be level 1 or level -1 (below ground), so I can\'t tell which is meant. '
+        'Ask for "level 1" or "level -1".'
+    )
+    assert asked("How many doors are on level 1?", plain).answer.answer == 1
+    assert asked("How many doors are on level -1?", plain).answer.answer == 2
+
+
 def test_plans_that_share_a_floor_s_name_are_never_summed() -> None:
     """review-352 B2: three plans captioned "1st Floor Plan - Option 1/2/3" answered the first
     floor's doors as the sum of three alternative layouts."""
