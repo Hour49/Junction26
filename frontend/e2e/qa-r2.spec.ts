@@ -1,14 +1,13 @@
 // QA round 2 (#80): the template parser reads a misspelt question and says so in the answer's explanation. On the
 // live no-keys backend, at both widths.
 import { expect, test } from '@playwright/test';
-import { noKeys, shot, startSample } from './support';
+import { fileFromDocuments, noKeys, shot } from './support';
 
 // The backend reads 'mnay' as 'many' (explanation "read 'mnay' as 'many'"), checked on the e2e backend.
 const TYPO = 'How mnay doors are there?';
 
 test('R2: a misspelt question shows how it was read', async ({ page }, testInfo) => {
-  await startSample(page);
-  await page.locator('a[href*="/f/f"]').filter({ hasText: 'plans/flat-b.pdf' }).click();
+  await fileFromDocuments(page, 'plans/flat-b.pdf');
   await page.getByRole('link', { name: 'Open the drawing' }).click();
   await expect(page).toHaveURL(/\/d\/[0-9a-f]{16}\/engineer$/);
 
@@ -52,8 +51,7 @@ test('R2: a misspelt question shows how it was read', async ({ page }, testInfo)
 const SUM = 'What is the net floor area of all indoor rooms in m²?';
 
 test('R2-qa-1-3: area badges do not overlap', async ({ page }, testInfo) => {
-  await startSample(page);
-  await page.locator('a[href*="/f/f"]').filter({ hasText: 'plans/flat-b.pdf' }).click();
+  await fileFromDocuments(page, 'plans/flat-b.pdf');
   await page.getByRole('link', { name: 'Open the drawing' }).click();
   await page.getByRole('textbox', { name: 'Question' }).fill(SUM);
   await page.getByRole('button', { name: 'Ask' }).click();

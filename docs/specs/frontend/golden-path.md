@@ -1,5 +1,5 @@
 # Golden demo path and its end-to-end test (spec, frontend v1)
-Status: draft, 2026-11-14 11:20 (Vellum section added; round-1 fixes applied), by fe-spec-golden-path.  Story: #33.  API: docs/API.md (v1).
+Status: draft, 2026-11-14 16:40 (demo parity section planned; Vellum section 11:20), by fe-golden.  Story: #33.  API: docs/API.md (v1).
 
 ## Purpose
 
@@ -97,6 +97,112 @@ Open points (Vellum):
   (Advanced) for its screenshot and reaches V4 from there.
 - V-2 The pitch is 3 minutes: V3, V4 and V14 can be cut live; the test still walks them.
 - V-3 After V10-V12 the sample's flat-b has one conflict left (Küche), decided by rule, so "To review" is 1 in V15.
+
+## Demo parity: how the path walks the demo's screens (round 3, 2026-11-14 16:25)
+
+Tudor (16:25): "make the full frontend look more like our demo". Brief `fe-demo-parity.md`, change list
+`frontend-demo-parity.md` (demo PRs #201-#217). The story stays (one drawing, flat-b, from upload to a signed-off
+value and its CSV); what changes is where the conflicts, the issues and the files live: header tabs Ingest · Chat ·
+Documents, the conflicts under the finished progress card, a Documents tab with issues, drawings and files, a source
+figure on every conflict and issue, and no credits on screens. Same harness and per-screenshot checks as before
+(offline strip, no horizontal scroll, no console error), at 1440x900 and 390x844, run twice.
+
+Status: built (phase 2, 17:20, frozen tree fa8b19d). What the build settled, as the e2e now walks it:
+- No Surveyor tab and no surveyor link on the conflict card (CF-47): P10 reaches the surveyor through the area
+  answer's "Send to surveyor" on the engineer page; the other specs open it by URL (`openSurveyor`).
+- Drawings by plain name (#224, `drawingLabel`): the test reads each label from `GET /api/projects/<id>`
+  (`name`, else the file name), e.g. "Show it on Drawn plan 2", the conflict card's drawing line, "Source: Drawn
+  plan 2" as the preview's dialog name. Documents' issue rows still name the file as uploaded.
+- The conflict card is found by its heading, now the server's question ("Area of room (name Küche · 1.01): …?").
+- Documents lists every issue but the conflicts (those are on Ingest); a failed rule ("Fails a rule") is answered
+  with "Your name" and "Your answer"; the badge's name is "Documents, 1 issue to answer" with `?pack=ch-zh`, then
+  "Documents" once answered.
+- The file page folds its stages under "How it was read"; Checks is reached from Documents' "Building-code checks".
+- The About page is the footer link "About and credits" (`#/about?project=<id>`).
+
+| # | Screen | Action | Expected |
+| --- | --- | --- | --- |
+| P1 | Start, `#/` | open the app | as V1 |
+| P2 | Ingest Simple, finished, `#/p/<id>` | the sample button | the done state; header tabs exactly Ingest, Chat, Documents (no Conflicts, Issues, Checks); under the progress card the conflicts list with the sample's one conflict, "Küche · 1.01" on `plans/flat-b.pdf`, settled by the rule (AI-settled group first); its source figure starts minimized (thumbnail beside a numbered legend); then "Start a new chat" (enabled: nothing needs a person) and "Open the workspace"; the done line about issues in Documents, with its link; no issues list on this screen |
+| P2a | (P2) | "Expand" on the conflict's figure, then "Minimize" | the drawing opens in place with outline 1 on the kitchen; "Minimize" returns to the thumbnail |
+| P2b | (P2) | "Show source" | a dialog named by the file `plans/flat-b.pdf`, the same outline, focus on "Close"; Esc closes it and focus is back on "Show source" |
+| P3 | Ingest Advanced, `?view=advanced` | choose Advanced, then Simple | the step rail; the same finished layout (conflicts list, the two buttons, the done line) |
+| P4 | Old routes | open `#/p/<id>/conflicts` and `#/p/<id>/issues?pack=fi` | each lands on Ingest (`#/p/<id>`, query kept or dropped as shared.md says); no error |
+| P5 | Documents, `#/p/<id>/documents` | header "Documents" | issues first (each with its minimized source figure and "Show source"; notes shown, no answer box), then the drawings, then every ingested file (11) linking to its file page; the tab's badge shows the open issues that need a person (the sample: none, so no badge or the spec's zero form) |
+| P6 | File page, `#/p/<id>/f/<fid>` | open `plans/flat-b.pdf` from Documents' file list | as V4 (GP-4); no "Does it belong to this project?" block, no credit line |
+| P7 | New chat, `#/p/<id>/chat` | header "Chat" (or "Start a new chat" on Ingest) | as V5a |
+| P8 | (chat) | the doors chip | as V5b, in the new answer card: the reference image large on the left with its name above, left/right arrows on its sides when there is more than one reference, the references list on the right; sheets that are not floor plans listed first; follow-up question chips after the answer; no credit or "refused drawing" line |
+| P9 | Engineer, `…/d/<did>/engineer` | "Show it on plans/flat-b.pdf" (if chat.md keeps it; else by URL as V13) | as V6 without the credit line |
+| P10-P13 | engineer, surveyor | as V7-V14 | unchanged, except no credit line on any screen |
+| P14 | About | the About link (shared.md) | the licence credits of the sample's drawings are reachable there (CC BY) |
+| P15 | Workspaces | header "Workspaces" | as V15 |
+
+Screenshots per width: `01-home`, `02-ingest-done`, `02a-conflict-expanded`, `02b-show-source`, `03-advanced`,
+`05-documents`, `04-trace` (taken after Documents, kept for its name), `05a-chat`, `05b-chat-answer`, `06-engineer`
+… `12-verified`, `13-workspaces`, `14-about`. Dropped: `05-conflicts` (no Conflicts screen of its own).
+
+Acceptance criteria (GP-1 … GP-40 keep their checks where the screen still exists; these replace GP-31, GP-37,
+GP-38 and the credit check in GP-5):
+
+- GP-41 P2: on every project route the header's tabs are exactly "Ingest", "Chat", "Documents", in that order; no
+  "Conflicts", "Issues" or "Checks" tab. [e2e]
+- GP-42 P2: the finished Simple view lists the conflicts under the progress card, AI-settled first; the sample shows
+  one conflict on `plans/flat-b.pdf` for Küche · 1.01 with "22.40 m²" and "30.00 m²", settled by the rule; no issue
+  rows on the ingest screen. [e2e]
+- GP-43 P2, P2a: the conflict's source figure starts minimized (a thumbnail and a numbered legend, no full drawing);
+  "Expand" (or the thumbnail) shows the drawing in place with an outline numbered 1; "Minimize" goes back. [e2e]
+- GP-44 P2b: "Show source" opens a dialog titled `plans/flat-b.pdf` with focus on "Close"; Esc closes it and focus
+  returns to "Show source"; a click on the backdrop also closes it. [e2e]
+- GP-45 P2: "Start a new chat" is enabled (the sample has no conflict needing a person) and reaches the chat;
+  "Open the workspace" is present; the done line names the Documents issues count and links to `#/p/<id>/documents`.
+  [e2e]
+- GP-46 P3: Advanced shows the same conflicts list, the two buttons and the done line. [e2e]
+- GP-47 P4: `#/p/<id>/conflicts` and `#/p/<id>/issues` land on Ingest with no console error. [e2e]
+- GP-48 P5: Documents lists the issues first, then the drawings (5), then the files (11), each file linking to
+  `#/p/<id>/f/<fid>`; a note issue has no answer box; the tab badge equals the API's open needs-person issues
+  (`GET …/issues`, `severity == "needs_person" && state == "open"`; 0 on the sample). [e2e]
+- GP-49 P6: the file page shows no "Does it belong to this project?" heading. [e2e]
+- GP-50 P8: the doors answer card shows the reference image with its file name above it, the references list, and
+  at least one follow-up question chip; clicking a follow-up chip asks it (one more turn). [e2e]
+- GP-51 Every screen on the path: no text "Credit:" and no "refused" drawing line (GP-5's credit check is inverted).
+  [e2e]
+- GP-52 P14: the About page is reachable from the header or footer and lists the credit
+  `GET /api/drawings/<flat-b id>` gives (`credit`). [e2e]
+
+Other e2e files this round touches (phase 2, same run):
+
+| File | Change |
+| --- | --- |
+| `checks-issues.spec.ts` | IS-19/IS-20 move from `#/p/<id>/issues` to Documents (issues first; the "Where" panel becomes the source figure, so "Mark 1 outlined" is checked after Expand); the pack cases (`?pack=ch-zh` fail row, `?pack=fi` none) on Documents; CK-16 reaches Checks the way shared.md keeps it (no Checks tab), the fail still outlined in view; SH-70 sweeps Ingest/Chat/Documents and the tab heights |
+| `triage.spec.ts` | the site photo's issue on Documents; the trace has no "Does it belong…" block, so its "– Not judged" check on the card goes (the row keeps its pill if ingest.md keeps it) |
+| `golden-path.spec.ts` | the P-table above; the Conflicts-tab step becomes the finished-ingest steps |
+| `support.ts` | `startSample`'s done gate and `openSurveyor` follow ingest.md / shared.md (Surveyor tab on drawing routes, if kept) |
+| `qa-r1.spec.ts` | R1-5-4's loaded-gate if the done wording changes |
+
+Names to confirm (whose spec settles each; the test uses the current name until then):
+
+| Spec (owner) | What the test needs |
+| --- | --- |
+| shared.md (fe-shared) | the tab names and the Documents badge's accessible name and zero form; where old routes land and whether the query stays; the About link's name and place; whether the Surveyor tab stays on drawing routes and how Checks is reached |
+| conflicts.md (fe-surveyor) | the list's region name, the groups' headings, the card's name, the settled-by-rule wording, the button names "Expand", "Minimize", "Show source" |
+| viewer.md (fe-viewer) | SourceFigure: the thumbnail's and legend's names, the outline's accessible name; SourcePreview: dialog name, "Close", the left/right buttons' names |
+| ingest.md (preqa-a) | the done line wording ("N issues in Documents need you") and its zero form; whether the Simple file list stays; the triage row line |
+| advanced-ingest.md (fe-scaffold) | that Advanced uses the same names as Simple |
+| issues.md / documents.md (fe-ingest) | Documents' h1, the three sections' names, the issue row and its answer box / chips, how the pack is chosen there |
+| chat.md (fe-engineer) | the answer card's image name, arrows' names, references list name, the follow-up chips' group name; whether "Show it on <file>" stays |
+
+API asks (from the e2e): none of its own. It depends on the others' asks; where a feature stays client-side until
+the API lands (for example an issue's typed answer), the e2e checks it within one page load only and says so.
+
+QA.md §1 is rewritten to the P-table in phase 2, once the names above are settled (the flow changes: no Conflicts
+or Surveyor-first step; conflicts on Ingest, issues and files on Documents).
+
+Open points (demo parity):
+
+- DP-1 Does a `fails_rule` issue (a failed code check with a pack) count in the Documents badge and the done line?
+  The brief counts "needs a person and open"; a failed rule is its own severity. shared.md / issues.md decide; the
+  e2e follows.
+- DP-2 With 0 issues needing a person, what does the done line say (the sample's case)? ingest.md decides.
 
 ## Scope for the 06:00 merge
 
