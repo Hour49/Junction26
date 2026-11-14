@@ -27,6 +27,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.adapters.vector_pdf import swiss
+from app.adapters.vector_pdf.objects import read_page
+from app.adapters.vector_pdf.wall_fills import WallFill, wall_fills
 from app.api.checks import checks_of, find_pack
 from app.api.deps import Ingest
 from app.api.issues import issues_of
@@ -131,8 +134,9 @@ PIPELINE_TOOLS: list[dict[str, Any]] = [
     _tool(
         "get_plan_geometry",
         "Where things are on one page of a drawing, in page fractions (0-1, x then y, from the "
-        "top left): the plan frame, scale, rooms, openings (doors, windows) and walls. A part "
-        "the drawing's reader does not give is null with the reason.",
+        "top left): the plan frame, scale, rooms, openings (doors, windows) and walls; for a "
+        "swiss-style vector PDF also `walls_drawn`, its wall fills as polygons (never sure). A "
+        "part the drawing's reader does not give is null with the reason.",
         project_id=PROJECT,
         drawing_id=DRAWING,
         page=_string("the page number, 1 for a single sheet"),
@@ -295,14 +299,40 @@ def _geometry(store: PipelineStore, args: Mapping[str, str]) -> dict[str, Any]:
     drawing = store.ingest.drawing(entry.drawing_id)
     if not any(shown.page == page for shown in drawing.pages):
         raise ToolError(f"drawing {entry.drawing_id} has no page {page}")
-    return geometry_of(drawing, entry.route, entry.drawing_id, page)
+    return geometry_of(
+        drawing, entry.route, entry.drawing_id, page, _fills(store, drawing, entry, page)
+    )
 
 
-def geometry_of(drawing: Drawing, route: str | None, drawing_id: str, page: int) -> dict[str, Any]:
+def _fills(
+    store: PipelineStore, drawing: Drawing, entry: DrawingEntry, page: int
+) -> list[WallFill] | None:
+    """The walls a swiss-style vector PDF draws as grey fills; None: not such a sheet."""
+    if entry.route != "vector":
+        return None
+    sheet = store.ingest.sheet(entry.drawing_id)
+    if sheet.kind != "pdf":
+        return None
+    shown = read_page(sheet.data, page - 1)
+    if not swiss.matches(shown):
+        return None
+    return wall_fills(shown, drawing.scale.m_per_unit)
+
+
+def geometry_of(
+    drawing: Drawing,
+    route: str | None,
+    drawing_id: str,
+    page: int,
+    fills: list[WallFill] | None = None,
+) -> dict[str, Any]:
     """One page of the drawing model as geometry. Boxes are page fractions
     [x0, y0, x1, y1]. A source that gives none of a part has it null, with `reasons[part]`.
-    `walls_sure`: the walls are what the model or reader says they are (a building model's
-    IfcWall), not cut solids that may also be columns (an IFC sheet read from its PDF)."""
+    `walls_drawn`: the walls a swiss-style vector PDF draws as grey fills (`fills`, from
+    wall_fills), outside the extraction: polygons in page fractions, never sure; null with a
+    reason on any other source. `walls_sure`: the walls are what the model or reader says they
+    are (a building model's IfcWall), not cut solids that may also be columns (an IFC sheet
+    read from its PDF)."""
     read = drawing.read
     reasons: dict[str, str] = {}
 
@@ -330,7 +360,15 @@ def geometry_of(drawing: Drawing, route: str | None, drawing_id: str, page: int)
         else None,
         "walls": [_item(e) for e in walls] if walls or looked_for("wall") else None,
         "walls_sure": bool(walls) and route == "bim",
+        "walls_drawn": None if fills is None else [_fill(f) for f in fills],
+        "walls_drawn_source": None if fills is None else "vector fills",
+        "walls_drawn_area_m2": _fills_area(fills),
     }
+    if fills is None:
+        reasons["walls_drawn"] = (
+            "only a swiss-style vector PDF draws its walls as filled polygons; "
+            f"this drawing is read by route {route}"
+        )
     for part, present in (("rooms", rooms), ("openings", openings), ("walls", walls)):
         if out[part] is None:
             reasons[part] = f"the reader for this drawing (route {route}) does not look for {part}"
@@ -343,6 +381,21 @@ def geometry_of(drawing: Drawing, route: str | None, drawing_id: str, page: int)
         )
     out["reasons"] = reasons
     return out
+
+
+def _fill(fill: WallFill) -> dict[str, Any]:
+    return {
+        "polygon": [list(point) for point in fill.polygon],
+        "holes": [[list(point) for point in hole] for hole in fill.holes],
+        "box": list(fill.box),
+        "area_m2": fill.area_m2,
+    }
+
+
+def _fills_area(fills: list[WallFill] | None) -> float | None:
+    if not fills or any(f.area_m2 is None for f in fills):
+        return None
+    return round(sum(f.area_m2 or 0 for f in fills), 3)
 
 
 def _dump(item: BaseModel, *fields: str) -> dict[str, Any]:

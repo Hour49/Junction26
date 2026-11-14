@@ -8,6 +8,8 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from pdf_sheets import rect
+from test_vector_pdf import swiss_sheet
 
 from app.adapters.pipeline_tools import (
     _RUNNERS,
@@ -16,12 +18,19 @@ from app.adapters.pipeline_tools import (
     geometry_of,
     run_pipeline_tool,
 )
+from app.adapters.vector_pdf.objects import read_page
+from app.adapters.vector_pdf.scale import read_scale
+from app.adapters.vector_pdf.wall_fills import wall_fills
 from app.composition import build_ingest
 from app.core.drawing.model import Drawing
 from app.main import create_app
 from app.settings import Settings
 
 RULES = Path(__file__).parents[1] / "fixtures" / "rules"
+FLOOR = (
+    Path(__file__).parents[3]
+    / "data/stoa/full/junction-dataset/data/swiss_dwellings/site980_bldg2055_floor9178.pdf"
+)
 DOORS = "How many doors are there?"
 BOX = (0.1, 0.1, 0.2, 0.2)
 
@@ -249,3 +258,62 @@ def test_a_refused_call_is_not_logged_as_a_bug(
         call(store, "list_drawings", project_id="0123456789ab")  # no such project
         call(store, "nope")
     assert caplog.records == []
+
+
+WALL = (191, 191, 191)
+
+
+def walled_sheet() -> bytes:
+    """The synthetic swiss plan (1:100: 1 m = 28.35 pt) with two wall fills, one with a hole, and
+    a thin grey fill that is not a wall."""
+    sheet = swiss_sheet()
+    sheet.path(rect(50, 20, 450, 30), stroke=(0, 0, 0), width=0.99, fill=WALL)  # 14.11 x 0.35 m
+    sheet.path(
+        rect(50, 300, 150, 320), rect(70, 305, 90, 315), stroke=(0, 0, 0), width=0.99, fill=WALL
+    )
+    sheet.path(rect(200, 300, 220, 320), stroke=(0, 0, 0), width=0.5, fill=WALL)  # not a wall
+    return sheet.pdf()
+
+
+def test_wall_fills_of_a_swiss_pdf_are_walls_drawn_with_their_area() -> None:
+    page = read_page(walled_sheet())
+    found = wall_fills(page, 25.4 / 72 / 1000 * 100)
+    assert len(found) == 2  # the 0.5-wide grey fill is not one
+    by_area = sorted(found, key=lambda f: f.area_m2 or 0)
+    assert by_area[1].holes == () and len(by_area[0].holes) == 1  # the holed one is smaller
+    expected = (400 * 10 + 100 * 20 - 20 * 10) * (25.4 / 72 / 1000 * 100) ** 2
+    assert sum(f.area_m2 or 0 for f in found) == pytest.approx(expected, rel=0.05)
+    assert all(0 <= x <= 1 and 0 <= y <= 1 for f in found for x, y in f.polygon)
+
+
+def test_get_plan_geometry_gives_walls_drawn_of_a_swiss_pdf(checked: TestClient) -> None:
+    pid = checked.post("/api/projects", params={"name": "w.pdf"}, content=walled_sheet()).json()
+    status = checked.get(f"/api/projects/{pid['id']}").json()
+    drawing_id = status["drawings"][0]["drawing_id"]
+    found = call(
+        PipelineStore.of_app(checked.app),
+        "get_plan_geometry",
+        project_id=pid["id"],
+        drawing_id=drawing_id,
+        page=1,
+    )
+    assert len(found["walls_drawn"]) == 2 and found["walls_drawn_source"] == "vector fills"
+    assert found["walls_sure"] is False and found["walls"] is None  # the reader gives no walls
+    assert found["walls_drawn_area_m2"] == pytest.approx(
+        (400 * 10 + 100 * 20 - 20 * 10) * (25.4 / 72 / 1000 * 100) ** 2, rel=0.05
+    )
+
+
+def test_a_source_without_wall_fills_has_walls_drawn_null_and_why() -> None:
+    found = geometry_of(drawing(), "raster", "d" * 16, 1)
+    assert found["walls_drawn"] is None and found["walls_drawn_area_m2"] is None
+    assert "swiss-style vector PDF" in found["reasons"]["walls_drawn"]
+
+
+@pytest.mark.skipif(not FLOOR.exists(), reason="the dataset is not on this machine")
+def test_floor9178_walls_are_about_the_dxf_wall_layer() -> None:
+    page = read_page(FLOOR.read_bytes())
+    scale, _ = read_scale(page)
+    found = wall_fills(page, scale.m_per_unit)
+    assert len(found) == 9
+    assert sum(f.area_m2 or 0 for f in found) == pytest.approx(22.4, rel=0.06)  # DXF: 22.4 m²
