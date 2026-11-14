@@ -187,7 +187,7 @@ def test_the_api_passes_the_ladder_to_ask(monkeypatch: pytest.MonkeyPatch, ladde
     reviews = SimpleNamespace(get=lambda pid, did: None)  # pyright: ignore[reportUnknownLambdaType]
     answering = SimpleNamespace(
         parser=None, clock=None, prior=None, prior_families=None, sure_at=None, check=None,
-        disputes=None, scorers=None, carbon_ladder=ladder,
+        disputes=None, scorers=None, carbon_ladder=ladder, room_words=None,
     )  # fmt: skip
     api_ask.asked_on("q", SCAN, "d1", reviews, answering, ingest, "p1")  # type: ignore[arg-type]
     assert seen["carbon_ladder"] is ladder

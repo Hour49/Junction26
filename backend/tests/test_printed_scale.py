@@ -37,7 +37,7 @@ from app.core.pipeline.raster_scale import (
 )
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, second_count
-from app.core.pipeline.takeoff import known_quantities, take_off
+from app.core.pipeline.takeoff import known_quantities, label_source, take_off
 from app.settings import Settings
 
 PAGE = Page(page=1, width=2000, height=1000, unit="px")
@@ -381,8 +381,25 @@ def test_label_area_fixes_s1_a_label_area_far_from_its_outline_is_left_to_a_pers
     kept = ask("mh 8 m²")
     assert (kept.answer, kept.abstain, kept.estimate) == (8.0, None, None)
     # the level note: where the value was printed reaches the answer's explanation
-    assert kept.explanation == "printed in the room's label"
+    assert kept.explanation == "read from the room's label on the image (a digit can be misread)"
     assert ask("lobby 7.4 m²").answer == 7.4
+
+
+def test_label_source_says_the_area_was_read_off_the_image() -> None:
+    """review-341-level: one, all and some of the rooms' areas read from their labels."""
+    one, two = (
+        label_room("mh", (0.1, 0.1, 0.2, 0.2), 8.0),
+        label_room("kh", (0.3, 0.1, 0.4, 0.2), 5.0),
+    )
+    plain = Room(id="r3", type="hall", page=1, box=(0.5, 0.1, 0.6, 0.2), area_m2=3.0)
+    assert label_source([one]) == "read from the room's label on the image (a digit can be misread)"
+    assert label_source([one, two]) == (
+        "read from the rooms' labels on the image (a digit can be misread)"
+    )
+    assert label_source([one, two, plain]) == (
+        "2 of 3 room areas read from the rooms' labels on the image"
+    )
+    assert label_source([plain]) is None
 
 
 def test_label_area_fixes_no_scale_no_check() -> None:

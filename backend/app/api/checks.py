@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.api.deps import DrawingId, Ingest, IngestDep, ProjectId, as_uploaded
+from app.api.deps import DrawingId, Ingest, IngestDep, ProjectId, SettingsDep, as_uploaded
 from app.api.views import View, drawings_of
 from app.core.checks.check import check_drawing, overall
 from app.core.checks.model import (
@@ -151,10 +151,12 @@ def drawing_checks(
     file_id: str | None,
     pack: RulePack,
     sheets: bool = False,
+    model_ids: bool = False,
 ) -> DrawingChecks:
-    """`sheets`: a building model whose sheets are in the project (`on_sheets`)."""
+    """`sheets`: a building model whose sheets are in the project (`on_sheets`). `model_ids`:
+    subjects with their model GlobalIds (MODEL_3D on; off, the payload as before)."""
     route = ingest.drawing_info(drawing_id).route  # raster or unknown: read off a picture
-    rules = check_drawing(ingest.drawing(drawing_id), pack, route, sheets)
+    rules = check_drawing(ingest.drawing(drawing_id), pack, route, sheets, model_ids)
     return DrawingChecks(
         drawing_id=drawing_id,
         file=file,
@@ -171,6 +173,7 @@ def checks(
     request: Request,
     drawing_id: DrawingId,
     ingest: IngestDep,
+    settings: SettingsDep,
     pack: Annotated[str, PACK],
     project: Annotated[str | None, Query(description="the project it is shown in")] = None,
 ) -> DrawingChecks:
@@ -178,12 +181,16 @@ def checks(
     chosen = pack_of(request, pack)
     found = ingest.drawing(drawing_id)  # 404 for an unknown drawing, before the project
     if project is None:
-        return drawing_checks(ingest, drawing_id, found.file, None, chosen)
+        return drawing_checks(
+            ingest, drawing_id, found.file, None, chosen, model_ids=settings.model_3d
+        )
     named = as_uploaded(ingest, ingest.drawing_info(drawing_id), project)
     status = ingest.status(project)
     file_id = file_id_of(status, drawing_id, named.path)
     sheets = on_sheets(status, drawing_id)
-    return drawing_checks(ingest, drawing_id, named.path, file_id, chosen, sheets)
+    return drawing_checks(
+        ingest, drawing_id, named.path, file_id, chosen, sheets, model_ids=settings.model_3d
+    )
 
 
 @router.get("/projects/{project_id}/checks")

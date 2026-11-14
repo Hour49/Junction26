@@ -1164,6 +1164,8 @@ export interface components {
         };
         /** CheckSubject */
         CheckSubject: {
+            /** Global Id */
+            global_id?: string | null;
             /**
              * Kind
              * @enum {string}
@@ -1868,6 +1870,8 @@ export interface components {
             file_id: string | null;
             /** Floor */
             floor: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
             /** Id */
             id: string;
             /**
@@ -1880,6 +1884,8 @@ export interface components {
             links: components["schemas"]["IssueLinks"];
             /** Mark Id */
             mark_id: string | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Page */
             page: number | null;
             /** Polygon */

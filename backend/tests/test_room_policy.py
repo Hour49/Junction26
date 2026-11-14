@@ -13,10 +13,10 @@ from test_raster_composite import FILE, LEFT, PNG, RIGHT, SHEET, Fake, gold
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
 from app.adapters.raster import assemble, parse_components
 from app.adapters.raster.precomputed import WholePagePlan
-from app.composition import build_ingest, build_pipeline
+from app.composition import _room_policy, build_ingest, build_pipeline
 from app.core.drawing.model import Box, Room
 from app.core.pipeline.model import Extracted
-from app.core.pipeline.room_policy import gold_label_rooms
+from app.core.pipeline.room_policy import generic_word_rooms, gold_label_rooms
 from app.core.pipeline.takeoff import known_quantities
 from app.settings import Settings
 
@@ -158,3 +158,47 @@ def test_the_setting_is_part_of_the_ingest_reuse_key_only_when_not_the_default(
 
     assert "room_policy" not in readers()  # the default keeps the keys it had before
     assert readers(room_policy="gold-labels")["room_policy"] == "gold-labels"
+
+
+def plain(kind: str, label: str | None) -> str:
+    return generic_word_rooms([room(kind, label)])[0].type
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["Rum", "RUM", "Rum 3", "HUONE", "Huone\n12,5 m²", "HUON.", "H", "H 2", "h.", "Room", "ROOM 4"],
+)
+def test_a_bedroom_whose_label_says_only_room_is_not_a_bedroom(label: str) -> None:
+    assert plain("bedroom", label) == "other"
+
+
+@pytest.mark.parametrize(
+    ("kind", "label"),
+    [
+        ("bedroom", "Sovrum"),  # a word that names a bedroom stays, whatever it ends in
+        ("bedroom", "Vardagsrum"),
+        ("bedroom", "Makuuhuone"),
+        ("bedroom", "MH"),
+        ("bedroom", "Bedroom 2"),
+        ("bedroom", "Zimmer"),  # the Swiss table types it a bedroom
+        ("bedroom", "MH\nHUONE"),  # only the label's first line is read
+        ("bedroom", None),  # no label: the furniture typed it (ROOM_POLICY decides)
+        ("living", "HUONE"),  # only a bedroom is retyped
+        ("hall", "H"),
+    ],
+)
+def test_a_room_with_any_other_label_or_type_keeps_its_type(kind: str, label: str | None) -> None:
+    assert generic_word_rooms([kept := room(kind, label)]) == (kept,)
+
+
+def test_a_room_retyped_for_its_generic_label_says_what_the_reader_typed() -> None:
+    (changed,) = generic_word_rooms([first := room("bedroom", "Rum")])
+    assert changed == first.model_copy(
+        update={"type": "other", "attrs": {"retyped_from": "bedroom"}}
+    )
+
+
+@pytest.mark.parametrize("policy", ["furniture", "gold-labels"])
+def test_every_raster_reading_gets_the_generic_word_rule(policy: str) -> None:
+    rooms = _room_policy(policy)([room("bedroom", "Rum"), room("bedroom", "MH", RIGHT)])  # type: ignore[arg-type]
+    assert [r.type for r in rooms] == ["other", "bedroom"]

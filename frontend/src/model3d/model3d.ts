@@ -4,6 +4,7 @@ import {
   errorText,
   type FileStatus,
   type Highlight,
+  type Issue,
   type Model3d,
   type ProjectAnswer,
 } from '../api';
@@ -27,6 +28,20 @@ export function paneHighlight(
         if (part.drawing_id === drawingId && part.answer.refusal === null)
           return part.highlight ?? [];
   return [];
+}
+
+/** An issue card's 3D model: the IFC file that shows its drawing (`model_file_id`), else the issue's own file,
+ * when that file can show 3D; its checked element highlighted. */
+export function issueModel(
+  issue: Issue,
+  files: readonly FileStatus[],
+): { fileId: string; highlight: Highlight[] } | null {
+  for (const id of [issue.model_file_id, issue.file_id]) {
+    const file = files.find((f) => f.id === id);
+    if (file && canShow3d(file.model_3d))
+      return { fileId: file.id, highlight: issue.highlight ?? [] };
+  }
+  return null;
 }
 
 export const UNAVAILABLE = 'the model cannot be shown in 3D';

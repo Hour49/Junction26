@@ -580,18 +580,7 @@
             "check": null,
             "level": null
           },
-          "file_id": "f8",
-          "model_file_id": "f8",
-          "highlight": [
-            {
-              "global_id": "000000000000000000000K",
-              "role": "affected"
-            },
-            {
-              "global_id": "000000000000000000000M",
-              "role": "affected"
-            }
-          ]
+          "file_id": "f8"
         },
         {
           "drawing_id": "3b3ce7db34257f63",
