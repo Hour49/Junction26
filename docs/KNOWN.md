@@ -23,6 +23,10 @@ per entry; an entry goes when its fix is merged.
 - K9 · cost · backend · The double-check policy asks about many answers: on the CubiCasa test pages 62.1% of
   answers are flagged to catch 97.0% of the wrong ones, with 98.98% of the unflagged ones exact (docs/GOLDEN.md,
   the test certificate; on val 55.1% flagged, 96.0% caught).
+- K10 · minor · backend · An evidence search that must first update the project's index (decision 0012) waits
+  behind another write to it and fails after SQLite's 5 s busy timeout ('database is locked'; a route gives 500, a
+  tool an error JSON). Seen only with a slow fake embedder and concurrent first opens (codecheck r9, e1b/e2b); a
+  search of an index already in step never waits (Sat 18:40)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).
