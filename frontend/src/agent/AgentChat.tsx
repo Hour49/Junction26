@@ -334,7 +334,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       model: modelFile
         ? { fileId: modelFile.id, highlight: paneHighlight(turns, d.drawing_id) }
         : null,
-      drawable: canDraw(d, drawn?.[d.drawing_id]),
+      drawable: canDraw(d),
     };
   });
   // The first file is open by default; the shown place's file is open too, until the user closes it.
@@ -344,6 +344,11 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const pen = {
     on: drawMode,
     can: files.some((f) => f.drawable && openIds.includes(f.drawing_id)),
+    // Why not, in the backend's words: the first open file that says so.
+    reason:
+      askable(project.drawings).find(
+        (d) => !d.drawable && openIds.includes(d.drawing_id) && d.not_drawable_reason,
+      )?.not_drawable_reason ?? null,
     onToggle: () => {
       setDrawMode((d) => !d);
       if (!drawMode && !wide) setSheet(true); // narrow: the files to draw on are in the sheet

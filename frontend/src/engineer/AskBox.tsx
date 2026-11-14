@@ -14,6 +14,8 @@ export const CANT_DRAW =
 export interface Pen {
   on: boolean;
   can: boolean;
+  /** The backend's reason it can't (`not_drawable_reason`); the generic sentence when absent. */
+  reason?: string | null;
   onToggle: () => void;
 }
 
@@ -64,7 +66,9 @@ function PenButton({ pen }: { pen: Pen }) {
             {icon}
           </Button>
         </TooltipTrigger>
-        <TooltipContent className="max-w-60">{CANT_DRAW}</TooltipContent>
+        <TooltipContent className="max-w-60">
+          {pen.reason ? `You can't draw on this plan: ${pen.reason}.` : CANT_DRAW}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -142,7 +146,9 @@ export function AskBox(props: {
           value={text}
           placeholder={
             drawing
-              ? 'Click a room or drag a rectangle on the plan'
+              ? phone
+                ? 'Click or drag on the plan'
+                : 'Click a room or drag a rectangle on the plan'
               : `Ask about ${phone && short ? short : file}`
           }
           disabled={drawing}

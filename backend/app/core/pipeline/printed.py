@@ -36,6 +36,7 @@ from app.core.drawing.model import (
     MeasuredValue,
     MeasureMethod,
     Page,
+    Room,
     Scale,
     ScaleEvidence,
     Subject,
@@ -43,6 +44,8 @@ from app.core.drawing.model import (
 from app.core.model import Frozen
 from app.core.pipeline.model import Extracted, Measurement
 from app.core.pipeline.raster_scale import (
+    AREA_REFUSED,
+    CARBON_DOORS,
     LABEL_NOTE,
     REFUSED_NOTE,
     label_area_checks,
@@ -57,6 +60,12 @@ DPI_RANGE = (100.0, 1200.0)  # a stated resolution outside it is not a scan's or
 DEFAULT_DPI = (72.0, 96.0)  # what software writes when it knows nothing: never trusted
 MAX_PAPER_INCHES = 6.0  # an imperial scale draws at most half size, 6" to the foot
 COUNT_UNIT = "count"
+# A sheet that prints a scale we could not read keeps no scale rather than one from Carbon's door
+# sizes: on integ's jf03 (a hand-written 1/4") that scale gave areas outside their stated band.
+CARBON_DOORS_REFUSED = (
+    "the sheet prints a scale that could not be read; "
+    "a scale from door sizes is not used in its place"
+)
 # A Finnish flat type: 4H+K is four rooms and a kitchen, 3h+k+s three rooms, kitchen and sauna. It
 # names the flat; it does not count the rooms a plan draws (live 2026-11-14: 4H+K against 18 read)
 FLAT_TYPE = re.compile(
@@ -311,16 +320,17 @@ def with_printed(
             f"printed scale {printed.printed_scale}: read, not used (no scale bar was measured "
             "and the image states no resolution to trust)"
         )
+        if CARBON_DOORS in (found.scale.source or ""):
+            dropped = f"scale estimate: {found.scale.source}"
+            notes = [n for n in notes if n != dropped and not n.startswith(REFUSED_NOTE)]
+            notes.append(CARBON_DOORS_REFUSED)
+            found = found.model_copy(
+                update={"scale": Scale(status="no_scale"), "rooms": _unestimated(found.rooms)}
+            )
     update: dict[str, object] = {"notes": tuple(notes), "printed": (*found.printed, *measurements)}
     if scale is not None:
         measurements = [*scale_measurements(scale, found.scale), *measurements]
-        rooms = [
-            room.model_copy(update={"area_m2": None, "area_status": None, "area_source": None,
-                                    "area_uncertainty": None})
-            if room.area_source == "geometry_x_estimate" else room
-            for room in found.rooms
-        ]  # fmt: skip
-        measured, refused = rooms_with_areas(rooms, scale, pages)
+        measured, refused = rooms_with_areas(_unestimated(found.rooms), scale, pages)
         update |= {
             "scale": scale,
             "rooms": tuple(measured),
@@ -332,6 +342,19 @@ def with_printed(
             ),
         }
     return _label_checked(found.model_copy(update=update), pages)
+
+
+def _unestimated(rooms: Sequence[Room]) -> tuple[Room, ...]:
+    """`rooms` without the areas an estimated scale gave them, or its refusals."""
+    cleared = {"area_m2": None, "area_status": None, "area_source": None, "area_uncertainty": None}
+    return tuple(
+        room.model_copy(
+            update={**cleared, "attrs": {k: v for k, v in room.attrs.items() if k != AREA_REFUSED}}
+        )
+        if room.area_source == "geometry_x_estimate" or AREA_REFUSED in room.attrs
+        else room
+        for room in rooms
+    )
 
 
 def _label_checked(found: Extracted, pages: Sequence[Page]) -> Extracted:

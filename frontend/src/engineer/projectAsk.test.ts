@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { drawing, project, projectAsk } from '../api/fixtures';
+import { project, projectAsk } from '../api/fixtures';
 import { askable, canDraw, followUps, orderParts, starters } from './projectAsk';
 
 const ids = project.drawings.map((d) => d.drawing_id);
@@ -84,12 +84,11 @@ it('CH-36 followUps: up to 3 unasked questions, the first of each kind first, th
   expect(followUps([flatA], q(flatA))).toEqual([]);
 });
 
-it('ui-bugs 1 canDraw: drawn PDFs and model sheets with pages; never a scan or photo, nor a drawing without pages', () => {
+it('ui-bugs 1 canDraw: the backend decides, by `drawable`, whatever the route or pages', () => {
   const [vector, , raster] = project.drawings;
   if (!vector || !raster) throw new Error('fixture drawings');
-  const read = { ...drawing };
-  expect(canDraw(vector, read)).toBe(true);
-  expect(canDraw(raster, read)).toBe(false);
-  expect(canDraw(vector, { ...read, pages: [] })).toBe(false);
-  expect(canDraw(vector, undefined)).toBe(false);
+  expect(canDraw({ ...vector, drawable: true })).toBe(true);
+  expect(canDraw({ ...vector, drawable: false })).toBe(false);
+  // not a guess from the route: a scan the backend says is drawable is drawable
+  expect(canDraw({ ...raster, drawable: true })).toBe(true);
 });

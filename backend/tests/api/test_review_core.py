@@ -1259,3 +1259,26 @@ def test_a_low_answer_with_or_without_a_partial_total_is_asked() -> None:
         assert got.answer.answer is not None and got.check is not None, text
         assert got.level is not None and got.level.level != "high", text
         assert (got.partial is not None) is partial, text
+
+
+def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
+    """judge-fresh §10 (r11): "the living room" was refused because the dining room is typed
+    living too, though only one room is printed LIVING ROOM. Two rooms printed so, or none,
+    still refuse; the count of living rooms is unchanged."""
+    living = Room(id="r1", type="living", label="LIVING ROOM", page=1, box=BOX_A, area_m2=23.16)
+    dining = Room(id="r2", type="living", label="DINING ROOM", page=1, box=BOX_B, area_m2=10.62)
+    found = asked("What is the area of the living room?", scaled(living, dining))
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == 23.16
+    assert asked("How many living rooms are there?", scaled(living, dining)).answer.answer == 2
+    # a number or letter the label lacks names another room: refused, as before (review-415)
+    for text in ("What is the area of the living room 1?", "What is the area of the living room B?",
+                 "What is the area of the living room no. 2?"):  # fmt: skip
+        assert asked(text, scaled(living, dining)).refusal is not None, text
+    found = asked("What is the area of the living room in m2?", scaled(living, dining))
+    assert found.answer.answer == 23.16, found.refusal
+    twice = dining.model_copy(update={"label": "LIVING ROOM"})
+    assert asked("What is the area of the living room?", scaled(living, twice)).refusal is not None
+    unlabelled = dining.model_copy(update={"label": None})
+    plain = living.model_copy(update={"label": None})
+    assert asked("What is the area of the living room?", scaled(plain, unlabelled)).refusal

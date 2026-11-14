@@ -104,8 +104,7 @@ export function ChatAnswer(props: {
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon-sm"
-                          className="rounded-full text-xs font-bold"
+                          className="size-11 rounded-full text-xs font-bold"
                           aria-label={`View in 3D: ${labelOf(model3d)}`}
                           onClick={(e) => {
                             opener.current = e.currentTarget;

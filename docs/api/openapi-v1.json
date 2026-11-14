@@ -2319,6 +2319,11 @@
             ],
             "title": "Credit"
           },
+          "drawable": {
+            "default": false,
+            "title": "Drawable",
+            "type": "boolean"
+          },
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
@@ -2345,6 +2350,17 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "not_drawable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Drawable Reason"
           },
           "other_renderings": {
             "items": {

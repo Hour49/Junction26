@@ -8,6 +8,11 @@ import { answerTurn, dontKnowTurn, model, needsInputTurn } from './fixtures';
 
 const PID = project.id;
 const CHAT = `POST /api/projects/${PID}/chat`;
+/** The project as the backend now sends it: the drawn PDFs are `drawable`; scans, photos and models say why not. */
+const drawable = {
+  ...project,
+  drawings: project.drawings.map((d) => ({ ...d, drawable: d.route === 'vector' })),
+};
 const drawings: Record<string, unknown> = Object.fromEntries<unknown>(
   project.drawings.flatMap((d) => [
     [`GET /api/drawings/${d.drawing_id}`, drawing],
@@ -24,7 +29,7 @@ afterEach(() => {
 });
 
 function open(chat: unknown, query?: string) {
-  const api = mockApi({ [`GET /api/projects/${PID}`]: project, ...drawings, [CHAT]: chat });
+  const api = mockApi({ [`GET /api/projects/${PID}`]: drawable, ...drawings, [CHAT]: chat });
   render(<AgentChat projectId={PID} query={new URLSearchParams(query)} />);
   return api;
 }
@@ -226,6 +231,31 @@ it('ui-bugs 1 the pen click again puts it down too', async () => {
   expect(screen.getByLabelText('Question')).toHaveProperty('disabled', false);
 });
 
+it('ui-bugs 1 with no reason from the backend the pen says the generic sentence', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const bare = {
+    ...project,
+    drawings: project.drawings
+      .filter((d) => d.route === 'raster')
+      .map((d) => ({ ...d, not_drawable_reason: null })),
+  };
+  mockApi({ [`GET /api/projects/${PID}`]: bare, ...drawings, [CHAT]: answerTurn });
+  render(<AgentChat projectId={PID} />);
+  const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
+  fireEvent.click(pen);
+  expect((await screen.findByRole('tooltip')).textContent).toContain(
+    "You can't draw on this plan: it is a photo/scan.",
+  );
+  vi.unstubAllGlobals();
+});
+
 it('ui-bugs 1 on a photo or scan the pen is greyed out and says why on focus; a tap does not draw', async () => {
   vi.stubGlobal(
     'ResizeObserver',
@@ -236,15 +266,18 @@ it('ui-bugs 1 on a photo or scan the pen is greyed out and says why on focus; a 
     },
   );
   const photos = { ...project, drawings: project.drawings.filter((d) => d.route === 'raster') };
+  const reason = photos.drawings[0]?.not_drawable_reason ?? '';
+  expect(reason).not.toBe('');
   mockApi({ [`GET /api/projects/${PID}`]: photos, ...drawings, [CHAT]: answerTurn });
   render(<AgentChat projectId={PID} />);
   const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
   await new Promise((r) => setTimeout(r, 0));
   expect(pen.getAttribute('aria-disabled')).toBe('true');
   fireEvent.click(pen);
-  expect((await screen.findByRole('tooltip')).textContent).toContain(
-    "You can't draw on this plan: it is a photo/scan.",
-  );
+  // the backend's own reason, not the generic sentence
+  const tip = (await screen.findByRole('tooltip')).textContent;
+  expect(tip).toContain(reason);
+  expect(tip).not.toContain('Drawing works on drawn PDF plans');
   expect(screen.getByLabelText('Question')).toHaveProperty('disabled', false);
   expect(document.querySelector('.ag-drawing')).toBeNull();
   vi.unstubAllGlobals();
