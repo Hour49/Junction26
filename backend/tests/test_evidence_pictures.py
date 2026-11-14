@@ -4,6 +4,7 @@ network)."""
 
 import json
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -19,10 +20,22 @@ from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.triage.gemini_describer import GeminiDescriber
 from app.adapters.triage.sheet_kind import GeminiSheetKindClient, SheetKindReader
 from app.composition import build_ingest, uses_keys
+from app.core import cost
 from app.core.evidence.pictures import FLOOR_PLAN, NO_DESCRIBER, picture_evidence
 from app.core.ingest.model import ProjectStatus, SheetKindName
 from app.core.spend import SpendGuard
 from app.settings import Settings
+
+
+@pytest.fixture(autouse=True)
+def _cost_put_back() -> Iterator[None]:
+    """The describers charge this thread's running cost total, which nothing resets; put back
+    after each test, so a later test comparing a cost exactly (test_raster_latency) is not off
+    by a float rounding (as in tests/test_triage_describer.py)."""
+    before = cost.spent()
+    yield
+    cost._local.usd = before  # pyright: ignore[reportPrivateUsage]
+
 
 IMAGE = b"\x89PNG a picture"
 DESCRIBER = FakeDescriber({IMAGE: ("the north elevation of a house", ("A203",))}, usd=0.03)
