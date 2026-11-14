@@ -1,0 +1,247 @@
+{
+  "question": "What is the area of room 1.01?",
+  "drawing_id": "6d153ea15dca9ab4",
+  "file": "plans/flat-b.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": 30.0,
+  "unit": "m2",
+  "confidence": null,
+  "quantity": {
+    "key": "area:room|name=1.01",
+    "label": "area of room (name 1.01)",
+    "measure": "area",
+    "subject": "room",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": "1.01",
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 30.0,
+    "unit": "m2",
+    "original_value": 30.0,
+    "status": "signed",
+    "needs_person": false,
+    "rule": {
+      "id": "room-area",
+      "text": "the room's net floor area as the drawing gives it"
+    },
+    "estimate": null,
+    "first": {
+      "method": "polygon_x_scale",
+      "value": 22.401
+    },
+    "second": {
+      "method": "printed_label",
+      "value": 30.0
+    },
+    "conflict": {
+      "values": [
+        {
+          "value": 22.401,
+          "unit": "m2",
+          "method": "polygon_x_scale",
+          "page": 1,
+          "box": [
+            0.16667,
+            0.125,
+            0.5,
+            0.375
+          ]
+        },
+        {
+          "value": 30.0,
+          "unit": "m2",
+          "method": "printed_label",
+          "page": 1,
+          "box": [
+            0.17367,
+            0.17946,
+            0.21269,
+            0.19027
+          ]
+        }
+      ],
+      "resolution": {
+        "rule": "the printed label over the outline at the sheet's scale",
+        "value": 30.0
+      },
+      "note": null,
+      "derived": null,
+      "status": "conflict"
+    },
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ],
+        "polygon": [
+          [
+            0.16667,
+            0.125
+          ],
+          [
+            0.16667,
+            0.375
+          ],
+          [
+            0.5,
+            0.375
+          ],
+          [
+            0.5,
+            0.125
+          ]
+        ],
+        "state": "counted",
+        "value": 30.0,
+        "label": "Küche",
+        "ref": "r1",
+        "reason": null
+      }
+    ],
+    "signed": {
+      "by": "Ana",
+      "at": "2026-11-14T08:05:00Z",
+      "value": 30.0
+    },
+    "unlocated": {}
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.16667,
+        0.125,
+        0.5,
+        0.375
+      ],
+      "polygon": [
+        [
+          0.16667,
+          0.125
+        ],
+        [
+          0.16667,
+          0.375
+        ],
+        [
+          0.5,
+          0.375
+        ],
+        [
+          0.5,
+          0.125
+        ]
+      ],
+      "state": "counted",
+      "value": 30.0,
+      "label": "Küche",
+      "ref": "r1",
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-b.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 30.0,
+    "unit": "m2",
+    "evidence": [
+      {
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "estimate": null,
+    "conflicts": [
+      {
+        "value": 22.401,
+        "unit": "m2",
+        "method": "polygon_x_scale",
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      },
+      {
+        "value": 30.0,
+        "unit": "m2",
+        "method": "printed_label",
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.17367,
+          0.17946,
+          0.21269,
+          0.19027
+        ]
+      }
+    ],
+    "resolution": "kept 30: the printed label over the outline at the sheet's scale"
+  },
+  "proof": {
+    "kind": "sum",
+    "legend": [
+      {
+        "label": "Küche",
+        "colour": "#d62728",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": "30 = 30 m2",
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m2, the printed room areas 30 m2; kept 30 m2: the printed label over the outline at the sheet's scale"
+  }
+}

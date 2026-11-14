@@ -10,6 +10,9 @@ credit comes from:
 - `<commons>/manifest.jsonl`: one JSON line per photo, `file`, `author` (HTML), `licence`,
   `source`.
 
+- the sample archive (`sample`, scripts/make_sample_archive.py): its files are drawn by code, so
+  their credit says that (`SAMPLE`).
+
 Anything else, such as a user's own drawing, has no credit (None).
 """
 
@@ -18,9 +21,11 @@ import html
 import json
 import re
 import threading
+import zipfile
 from pathlib import Path, PurePosixPath
 
 TAG = re.compile(r"<[^>]+>")
+SAMPLE = "Synthetic drawing made by code (backend/scripts/make_sample_archive.py); no partner data"
 ALL_FILES = "All files: "
 
 
@@ -96,9 +101,13 @@ class DatasetCredits:
     """Credits of the files under `dataset` (the junction-dataset folder) and `commons`. A folder
     that does not exist gives no credits. The index is built on the first lookup."""
 
-    def __init__(self, dataset: Path | None, commons: Path | None) -> None:
+    def __init__(
+        self, dataset: Path | None, commons: Path | None, sample: Path | None = None
+    ) -> None:
         self._dataset = dataset
         self._commons = commons
+        self._sample = sample
+        self._sample_files: set[tuple[int, str]] | None = None
         self._lock = threading.Lock()
         self._by_size: dict[int, list[Path]] | None = None
         self._credit: dict[Path, str | None] = {}
@@ -106,12 +115,26 @@ class DatasetCredits:
 
     def of(self, size: int, sha256: str) -> str | None:
         with self._lock:
+            if (size, sha256) in self._sampled():
+                return SAMPLE
             for path in self._index().get(size, []):
                 if path not in self._sha:
                     self._sha[path] = sha256_of(path)
                 if self._sha[path] == sha256:
                     return self._credit[path]
         return None
+
+    def _sampled(self) -> set[tuple[int, str]]:
+        """Size and sha256 of each file in the sample archive (none when it is not built)."""
+        if self._sample_files is None:
+            self._sample_files = set()
+            if self._sample is not None and self._sample.is_file():
+                with zipfile.ZipFile(self._sample) as archive:
+                    for entry in archive.infolist():
+                        if not entry.is_dir():
+                            data = archive.read(entry)
+                            self._sample_files.add((len(data), hashlib.sha256(data).hexdigest()))
+        return self._sample_files
 
     def _index(self) -> dict[int, list[Path]]:
         if self._by_size is None:

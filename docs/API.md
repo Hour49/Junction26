@@ -86,6 +86,16 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | A photo with no plan, a lone DXF | 200, `state: "done"`, the file `set_aside` with its reason, `drawings: []` |
 | A question the drawing cannot answer | 200, `refusal` set |
 
+An edit of a signed-off quantity (409):
+
+<!-- fixture: error_not_allowed.json -->
+```json
+{
+  "detail": "area:room|name=1.01 is signed off by Ana; undo the sign-off first",
+  "code": "not-allowed"
+}
+```
+
 ## Endpoints at a glance
 
 | Method and path | What | Story |
@@ -606,6 +616,107 @@ Ingest's project status, plus `drawings`:
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
   `set_aside`: no screen polls it for ever.
 
+A project while it runs (held after unpacking, its file queued), and the same project as the server finds it
+after a restart cut that run off:
+
+<!-- fixture: project_running.json -->
+```json
+{
+  "id": "5e0c1a2b3d51",
+  "name": "plan.pdf",
+  "state": "running",
+  "created_at": "2026-11-14T08:00:00+00:00",
+  "files": [
+    {
+      "id": "f1",
+      "path": "plan.pdf",
+      "size": 2749,
+      "sha256": "087bbbfbcc05f949a3dd1d2c7e9af861fba668f28449e8869b60f065bd15c755",
+      "kind": "pdf_vector",
+      "state": "queued",
+      "reason": "",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null
+    }
+  ],
+  "counts": {
+    "queued": 1
+  },
+  "readers": {
+    "bim": "ifc",
+    "cad": "hello",
+    "vector": "pdf",
+    "raster": "hello",
+    "raster_components": "",
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "decisions_kind": "False"
+  },
+  "error": null,
+  "ms": 12.5,
+  "cost_usd": 0.0,
+  "drawings": []
+}
+```
+
+<!-- fixture: project_failed.json -->
+```json
+{
+  "id": "5e0c1a2b3d51",
+  "name": "plan.pdf",
+  "state": "failed",
+  "created_at": "2026-11-14T08:00:00+00:00",
+  "files": [
+    {
+      "id": "f1",
+      "path": "plan.pdf",
+      "size": 2749,
+      "sha256": "087bbbfbcc05f949a3dd1d2c7e9af861fba668f28449e8869b60f065bd15c755",
+      "kind": "pdf_vector",
+      "state": "set_aside",
+      "reason": "not ingested: the server restarted during ingest",
+      "group": null,
+      "route": null,
+      "source": null,
+      "drawing_id": null,
+      "reused": false,
+      "takeoff": {},
+      "ms": 12.5,
+      "stage": "identify",
+      "cost_usd": 0.0,
+      "normalised": null
+    }
+  ],
+  "counts": {
+    "set_aside": 1
+  },
+  "readers": {
+    "bim": "ifc",
+    "cad": "hello",
+    "vector": "pdf",
+    "raster": "hello",
+    "raster_components": "",
+    "tables": "pdf",
+    "second_counter": "ifc",
+    "rectifier": "none",
+    "decisions_kind": "False"
+  },
+  "error": "the server restarted during ingest",
+  "ms": 12.5,
+  "cost_usd": 0.0,
+  "drawings": []
+}
+```
+
 ### `GET /api/projects/{project_id}/files/{file_id}/trace`
 
 <!-- fixture: trace.json -->
@@ -794,6 +905,45 @@ Ingest's project status, plus `drawings`:
 - `did`: one readable line of what the stage did; `output`: what it produced; `ms`: its time.
 - `failure`: set when the stage failed; the file then ends `set_aside` with this as its reason.
 
+A file set aside at a stage that failed (a zip entry that would be written outside the project folder): the
+stage carries `failure`, and later stages are not run:
+
+<!-- fixture: trace_set_aside.json -->
+```json
+{
+  "project_id": "5e0c1a2b3d50",
+  "file": {
+    "id": "f1",
+    "path": "../outside.pdf",
+    "size": 8,
+    "sha256": null,
+    "kind": null,
+    "state": "set_aside",
+    "reason": "unsafe path: it could be written outside the project folder",
+    "group": null,
+    "route": null,
+    "source": null,
+    "drawing_id": null,
+    "reused": false,
+    "takeoff": {},
+    "ms": 12.5,
+    "stage": "unpack",
+    "cost_usd": 0.0,
+    "normalised": null
+  },
+  "stages": [
+    {
+      "stage": "unpack",
+      "did": "refused",
+      "ms": 12.5,
+      "output": "",
+      "failure": "unsafe path: it could be written outside the project folder",
+      "cost_usd": 0.0
+    }
+  ]
+}
+```
+
 ### `GET /api/projects/{project_id}/review`
 
 What the end of ingest and the workspace's sidebar need without one takeoff request per drawing: per drawing how
@@ -836,7 +986,7 @@ many quantities are left to review and how many are signed off, and every confli
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
-      "quantities": 26
+      "quantities": 31
     }
   ],
   "conflicts": [
@@ -906,7 +1056,7 @@ a rule ("AI decision") or settled by a surveyor.
     "second_counter": "ifc",
     "question_parser": "templates"
   },
-  "credit": null,
+  "credit": "Synthetic drawing made by code (backend/scripts/make_sample_archive.py); no partner data",
   "pages": [
     {
       "page": 1,
@@ -1927,6 +2077,637 @@ A question the drawing cannot answer:
 `refusal.text` is written for the person at the screen. `can_answer` lists up to six questions this drawing
 answers, as `suggestions` on the drawing does.
 
+An answer whose quantity two methods measured differently (`quantity.conflict`, `proof.check`), on the sample's
+`plans/flat-b.pdf`; `marks` trimmed to two:
+
+<!-- fixture: answer_conflict.json -->
+```json
+{
+  "question": "What is the area of room 1.01?",
+  "drawing_id": "6d153ea15dca9ab4",
+  "file": "plans/flat-b.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": 30.0,
+  "unit": "m2",
+  "confidence": null,
+  "quantity": {
+    "key": "area:room|name=1.01",
+    "label": "area of room (name 1.01)",
+    "measure": "area",
+    "subject": "room",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": "1.01",
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 30.0,
+    "unit": "m2",
+    "original_value": 30.0,
+    "status": "conflict",
+    "needs_person": false,
+    "rule": {
+      "id": "room-area",
+      "text": "the room's net floor area as the drawing gives it"
+    },
+    "estimate": null,
+    "first": {
+      "method": "polygon_x_scale",
+      "value": 22.401
+    },
+    "second": {
+      "method": "printed_label",
+      "value": 30.0
+    },
+    "conflict": {
+      "values": [
+        {
+          "value": 22.401,
+          "unit": "m2",
+          "method": "polygon_x_scale",
+          "page": 1,
+          "box": [
+            0.16667,
+            0.125,
+            0.5,
+            0.375
+          ]
+        },
+        {
+          "value": 30.0,
+          "unit": "m2",
+          "method": "printed_label",
+          "page": 1,
+          "box": [
+            0.17367,
+            0.17946,
+            0.21269,
+            0.19027
+          ]
+        }
+      ],
+      "resolution": {
+        "rule": "the printed label over the outline at the sheet's scale",
+        "value": 30.0
+      },
+      "note": null,
+      "derived": null,
+      "status": "conflict"
+    },
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ],
+        "polygon": [
+          [
+            0.16667,
+            0.125
+          ],
+          [
+            0.16667,
+            0.375
+          ],
+          [
+            0.5,
+            0.375
+          ],
+          [
+            0.5,
+            0.125
+          ]
+        ],
+        "state": "counted",
+        "value": 30.0,
+        "label": "Küche",
+        "ref": "r1",
+        "reason": null
+      }
+    ],
+    "signed": null,
+    "unlocated": {}
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.16667,
+        0.125,
+        0.5,
+        0.375
+      ],
+      "polygon": [
+        [
+          0.16667,
+          0.125
+        ],
+        [
+          0.16667,
+          0.375
+        ],
+        [
+          0.5,
+          0.375
+        ],
+        [
+          0.5,
+          0.125
+        ]
+      ],
+      "state": "counted",
+      "value": 30.0,
+      "label": "Küche",
+      "ref": "r1",
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-b.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 30.0,
+    "unit": "m2",
+    "evidence": [
+      {
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "estimate": null,
+    "conflicts": [
+      {
+        "value": 22.401,
+        "unit": "m2",
+        "method": "polygon_x_scale",
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      },
+      {
+        "value": 30.0,
+        "unit": "m2",
+        "method": "printed_label",
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.17367,
+          0.17946,
+          0.21269,
+          0.19027
+        ]
+      }
+    ],
+    "resolution": "kept 30: the printed label over the outline at the sheet's scale"
+  },
+  "proof": {
+    "kind": "sum",
+    "legend": [
+      {
+        "label": "Küche",
+        "colour": "#d62728",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": "30 = 30 m2",
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m2, the printed room areas 30 m2; kept 30 m2: the printed label over the outline at the sheet's scale"
+  }
+}
+```
+
+The same question after the quantity was signed off (`quantity.status` `signed`, `quantity.signed`):
+
+<!-- fixture: answer_signed.json -->
+```json
+{
+  "question": "What is the area of room 1.01?",
+  "drawing_id": "6d153ea15dca9ab4",
+  "file": "plans/flat-b.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": 30.0,
+  "unit": "m2",
+  "confidence": null,
+  "quantity": {
+    "key": "area:room|name=1.01",
+    "label": "area of room (name 1.01)",
+    "measure": "area",
+    "subject": "room",
+    "scope": {
+      "storey": null,
+      "label": null,
+      "name": "1.01",
+      "apartment": null,
+      "indoor": false,
+      "model": false,
+      "largest": false
+    },
+    "value": 30.0,
+    "unit": "m2",
+    "original_value": 30.0,
+    "status": "signed",
+    "needs_person": false,
+    "rule": {
+      "id": "room-area",
+      "text": "the room's net floor area as the drawing gives it"
+    },
+    "estimate": null,
+    "first": {
+      "method": "polygon_x_scale",
+      "value": 22.401
+    },
+    "second": {
+      "method": "printed_label",
+      "value": 30.0
+    },
+    "conflict": {
+      "values": [
+        {
+          "value": 22.401,
+          "unit": "m2",
+          "method": "polygon_x_scale",
+          "page": 1,
+          "box": [
+            0.16667,
+            0.125,
+            0.5,
+            0.375
+          ]
+        },
+        {
+          "value": 30.0,
+          "unit": "m2",
+          "method": "printed_label",
+          "page": 1,
+          "box": [
+            0.17367,
+            0.17946,
+            0.21269,
+            0.19027
+          ]
+        }
+      ],
+      "resolution": {
+        "rule": "the printed label over the outline at the sheet's scale",
+        "value": 30.0
+      },
+      "note": null,
+      "derived": null,
+      "status": "conflict"
+    },
+    "settled": null,
+    "marks": [
+      {
+        "id": "m1",
+        "n": 1,
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ],
+        "polygon": [
+          [
+            0.16667,
+            0.125
+          ],
+          [
+            0.16667,
+            0.375
+          ],
+          [
+            0.5,
+            0.375
+          ],
+          [
+            0.5,
+            0.125
+          ]
+        ],
+        "state": "counted",
+        "value": 30.0,
+        "label": "Küche",
+        "ref": "r1",
+        "reason": null
+      }
+    ],
+    "signed": {
+      "by": "Ana",
+      "at": "2026-11-14T08:05:00Z",
+      "value": 30.0
+    },
+    "unlocated": {}
+  },
+  "marks": [
+    {
+      "id": "m1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.16667,
+        0.125,
+        0.5,
+        0.375
+      ],
+      "polygon": [
+        [
+          0.16667,
+          0.125
+        ],
+        [
+          0.16667,
+          0.375
+        ],
+        [
+          0.5,
+          0.375
+        ],
+        [
+          0.5,
+          0.125
+        ]
+      ],
+      "state": "counted",
+      "value": 30.0,
+      "label": "Küche",
+      "ref": "r1",
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "takeoff",
+  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "reader": {
+    "route": "vector",
+    "source": "plans/flat-b.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": 30.0,
+    "unit": "m2",
+    "evidence": [
+      {
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      }
+    ],
+    "method": "takeoff",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "estimate": null,
+    "conflicts": [
+      {
+        "value": 22.401,
+        "unit": "m2",
+        "method": "polygon_x_scale",
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.16667,
+          0.125,
+          0.5,
+          0.375
+        ]
+      },
+      {
+        "value": 30.0,
+        "unit": "m2",
+        "method": "printed_label",
+        "file": "plans/flat-b.pdf",
+        "page": 1,
+        "box": [
+          0.17367,
+          0.17946,
+          0.21269,
+          0.19027
+        ]
+      }
+    ],
+    "resolution": "kept 30: the printed label over the outline at the sheet's scale"
+  },
+  "proof": {
+    "kind": "sum",
+    "legend": [
+      {
+        "label": "Küche",
+        "colour": "#d62728",
+        "count": 1,
+        "unlocated": 0,
+        "note": null
+      }
+    ],
+    "arithmetic": "30 = 30 m2",
+    "objects": null,
+    "storeys": null,
+    "schedule": null,
+    "check": "Checked twice, they disagree: the room outlines at the sheet's scale 22.4 m2, the printed room areas 30 m2; kept 30 m2: the printed label over the outline at the sheet's scale"
+  }
+}
+```
+
+A cell read from a door schedule: a string `answer`, `unit` null, `proof.kind` `schedule` with the row it
+rests on:
+
+<!-- fixture: answer_schedule.json -->
+```json
+{
+  "question": "What are the width and height of door 111.B?",
+  "drawing_id": "5c4ed01e00000001",
+  "file": "doors.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "width": 600.0,
+      "height": 400.0,
+      "unit": "pt",
+      "url": "/api/drawings/5c4ed01e00000001/pages/1.png",
+      "normalised": null
+    }
+  ],
+  "answer": "2'-8\" wide x 7'-0\" high",
+  "unit": null,
+  "confidence": null,
+  "quantity": null,
+  "marks": [
+    {
+      "id": "e1",
+      "n": 1,
+      "page": 1,
+      "box": [
+        0.03333,
+        0.2225,
+        0.53333,
+        0.2525
+      ],
+      "polygon": null,
+      "state": "counted",
+      "value": null,
+      "label": null,
+      "ref": null,
+      "reason": null
+    }
+  ],
+  "refusal": null,
+  "method": "schedule",
+  "explanation": null,
+  "reader": {
+    "route": "vector",
+    "source": "doors.pdf",
+    "extractor": "pdf",
+    "second_counter": "ifc",
+    "question_parser": "templates"
+  },
+  "cost_usd": 0.0,
+  "latency_s": 0.002,
+  "line": {
+    "id": 1,
+    "answer": "2'-8\" wide x 7'-0\" high",
+    "unit": null,
+    "evidence": [
+      {
+        "file": "doors.pdf",
+        "page": 1,
+        "box": [
+          0.03333,
+          0.2225,
+          0.53333,
+          0.2525
+        ]
+      }
+    ],
+    "method": "schedule",
+    "cost_usd": 0.0,
+    "latency_s": 0.002,
+    "confidence": null,
+    "abstain": null,
+    "explanation": null,
+    "estimate": null,
+    "conflicts": null,
+    "resolution": null
+  },
+  "proof": {
+    "kind": "schedule",
+    "legend": [],
+    "arithmetic": "1 of the 3 rows of DOOR SCHEDULE",
+    "objects": null,
+    "storeys": null,
+    "schedule": {
+      "table": "t1",
+      "title": "DOOR SCHEDULE",
+      "page": 1,
+      "box": [
+        0.03333,
+        0.05,
+        0.53333,
+        0.2525
+      ],
+      "columns": [
+        "Mark",
+        "Door Width",
+        "Door Height",
+        "Matl",
+        "Notes"
+      ],
+      "rows": [
+        {
+          "n": 1,
+          "box": [
+            0.03333,
+            0.2225,
+            0.53333,
+            0.2525
+          ],
+          "cells": [
+            "111.B",
+            "2'-8\"",
+            "7'-0\"",
+            "AL-1",
+            "A, B"
+          ]
+        }
+      ],
+      "of": 3
+    },
+    "check": null
+  }
+}
+```
+
 ## Takeoff and review (surveyor)
 
 ### `GET /api/drawings/{drawing_id}/takeoff?zeros=<bool>`
@@ -2322,6 +3103,287 @@ Signs off the quantity's current value: its row gets `"status": "signed"` and `"
 Returns the whole takeoff. A row with `needs_person: true` answers 409: settle it first. `"undo": true` removes the
 sign-off.
 
+The takeoff of `plans/flat-b.pdf` after review calls (door `m1` rejected and a door added, the window count
+settled at 3, the conflicting room area signed off by Ana), trimmed to those three rows:
+
+<!-- fixture: takeoff_edited.json -->
+```json
+{
+  "drawing_id": "6d153ea15dca9ab4",
+  "file": "plans/flat-b.pdf",
+  "quantities": [
+    {
+      "key": "door",
+      "label": "door count",
+      "measure": "count",
+      "subject": "door",
+      "scope": {
+        "storey": null,
+        "label": null,
+        "name": null,
+        "apartment": null,
+        "indoor": false,
+        "model": false,
+        "largest": false
+      },
+      "value": 2,
+      "unit": "count",
+      "original_value": 2,
+      "status": "edited",
+      "needs_person": false,
+      "rule": {
+        "id": "each-once",
+        "text": "every element, room and plan the drawing lists counts once"
+      },
+      "estimate": null,
+      "first": null,
+      "second": null,
+      "conflict": null,
+      "settled": null,
+      "marks": [
+        {
+          "id": "m1",
+          "n": null,
+          "page": 1,
+          "box": [
+            0.49333,
+            0.225,
+            0.50667,
+            0.275
+          ],
+          "polygon": null,
+          "state": "rejected",
+          "value": 1.0,
+          "label": "door",
+          "ref": "e1",
+          "reason": null
+        },
+        {
+          "id": "m2",
+          "n": 1,
+          "page": 1,
+          "box": [
+            0.66,
+            0.225,
+            0.67333,
+            0.275
+          ],
+          "polygon": null,
+          "state": "counted",
+          "value": 1.0,
+          "label": "door",
+          "ref": "e2",
+          "reason": null
+        },
+        {
+          "id": "a1",
+          "n": 2,
+          "page": 1,
+          "box": [
+            0.2,
+            0.5,
+            0.23,
+            0.53
+          ],
+          "polygon": null,
+          "state": "added",
+          "value": 1.0,
+          "label": null,
+          "ref": null,
+          "reason": null
+        }
+      ],
+      "signed": null,
+      "unlocated": {}
+    },
+    {
+      "key": "window",
+      "label": "window count",
+      "measure": "count",
+      "subject": "window",
+      "scope": {
+        "storey": null,
+        "label": null,
+        "name": null,
+        "apartment": null,
+        "indoor": false,
+        "model": false,
+        "largest": false
+      },
+      "value": 3,
+      "unit": "count",
+      "original_value": 2,
+      "status": "edited",
+      "needs_person": false,
+      "rule": {
+        "id": "each-once",
+        "text": "every element, room and plan the drawing lists counts once"
+      },
+      "estimate": null,
+      "first": null,
+      "second": null,
+      "conflict": null,
+      "settled": {
+        "value": 3,
+        "at": "2026-11-14T08:05:00Z"
+      },
+      "marks": [
+        {
+          "id": "m1",
+          "n": 1,
+          "page": 1,
+          "box": [
+            0.2,
+            0.115,
+            0.3,
+            0.13
+          ],
+          "polygon": null,
+          "state": "counted",
+          "value": 1.0,
+          "label": "window",
+          "ref": "e3",
+          "reason": null
+        },
+        {
+          "id": "m2",
+          "n": 2,
+          "page": 1,
+          "box": [
+            0.71667,
+            0.115,
+            0.81667,
+            0.13
+          ],
+          "polygon": null,
+          "state": "counted",
+          "value": 1.0,
+          "label": "window",
+          "ref": "e4",
+          "reason": null
+        }
+      ],
+      "signed": null,
+      "unlocated": {}
+    },
+    {
+      "key": "area:room|name=1.01",
+      "label": "area of room (name 1.01)",
+      "measure": "area",
+      "subject": "room",
+      "scope": {
+        "storey": null,
+        "label": null,
+        "name": "1.01",
+        "apartment": null,
+        "indoor": false,
+        "model": false,
+        "largest": false
+      },
+      "value": 30.0,
+      "unit": "m2",
+      "original_value": 30.0,
+      "status": "signed",
+      "needs_person": false,
+      "rule": {
+        "id": "room-area",
+        "text": "the room's net floor area as the drawing gives it"
+      },
+      "estimate": null,
+      "first": {
+        "method": "polygon_x_scale",
+        "value": 22.401
+      },
+      "second": {
+        "method": "printed_label",
+        "value": 30.0
+      },
+      "conflict": {
+        "values": [
+          {
+            "value": 22.401,
+            "unit": "m2",
+            "method": "polygon_x_scale",
+            "page": 1,
+            "box": [
+              0.16667,
+              0.125,
+              0.5,
+              0.375
+            ]
+          },
+          {
+            "value": 30.0,
+            "unit": "m2",
+            "method": "printed_label",
+            "page": 1,
+            "box": [
+              0.17367,
+              0.17946,
+              0.21269,
+              0.19027
+            ]
+          }
+        ],
+        "resolution": {
+          "rule": "the printed label over the outline at the sheet's scale",
+          "value": 30.0
+        },
+        "note": null,
+        "derived": null,
+        "status": "conflict"
+      },
+      "settled": null,
+      "marks": [
+        {
+          "id": "m1",
+          "n": 1,
+          "page": 1,
+          "box": [
+            0.16667,
+            0.125,
+            0.5,
+            0.375
+          ],
+          "polygon": [
+            [
+              0.16667,
+              0.125
+            ],
+            [
+              0.16667,
+              0.375
+            ],
+            [
+              0.5,
+              0.375
+            ],
+            [
+              0.5,
+              0.125
+            ]
+          ],
+          "state": "counted",
+          "value": 30.0,
+          "label": "Küche",
+          "ref": "r1",
+          "reason": null
+        }
+      ],
+      "signed": {
+        "by": "Ana",
+        "at": "2026-11-14T08:05:00Z",
+        "value": 30.0
+      },
+      "unlocated": {}
+    }
+  ],
+  "review_queue": [
+    "area:room|name=küche"
+  ]
+}
+```
+
 ### `GET /api/drawings/{drawing_id}/takeoff.csv?zeros=<bool>`
 
 `text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="<file stem>-takeoff.csv"`. One row per
@@ -2352,3 +3414,7 @@ formula in a spreadsheet.
   (answer_v1.1) is unchanged.
 - 2026-11-14, additive: `proof.check`, `proof.legend[].unlocated` and `.note`, takeoff rows' `unlocated`,
   schedule and building-model `suggestions`, `info.no_keys` computed from the readers.
+- 2026-11-14, additive: drawing `credit` for the sample archive's files is now "Synthetic drawing made by code
+  (backend/scripts/make_sample_archive.py); no partner data" instead of null. New example fixtures:
+  `answer_conflict`, `answer_signed`, `answer_schedule`, `takeoff_edited`, `error_not_allowed`,
+  `trace_set_aside`, `project_running`, `project_failed`.
