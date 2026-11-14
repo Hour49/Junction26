@@ -52,9 +52,11 @@ def test_a_project_lists_the_files_set_aside_with_their_reason(client: TestClien
 
 
 def test_expected_drawings_counts_a_group_and_a_copy_once() -> None:
-    def file(path: str, group: str, sha: str, state: str = "ready") -> FileStatus:
+    def file(
+        path: str, group: str | None, sha: str, state: str = "ready", kind: str = "png_plan"
+    ) -> FileStatus:
         return FileStatus.model_validate(
-            {"id": "f1", "path": path, "size": 1, "sha256": sha, "kind": "png_plan",
+            {"id": "f1", "path": path, "size": 1, "sha256": sha, "kind": kind,
              "group": group, "state": state}
         )  # fmt: skip
 
@@ -63,7 +65,9 @@ def test_expected_drawings_counts_a_group_and_a_copy_once() -> None:
         file("a.png", "a", "2"),  # another rendering of a
         file("copy.png", "copy", "2"),  # a copy of a's png under another name
         file("b.png", "b", "3"),
-        file("c.png", "c", "4", state="set_aside"),
+        file("c.png", None, "4", state="set_aside"),  # set aside before grouping
+        file("d.dxf", "d", "5", state="set_aside", kind="dxf"),  # no sheet: no drawing
+        file("e.png", "e", "6", state="set_aside"),  # grouped, then its reading failed
     )
 
     def status(state: str) -> ProjectStatus:
@@ -71,7 +75,7 @@ def test_expected_drawings_counts_a_group_and_a_copy_once() -> None:
             {"id": "p", "name": "p", "state": state, "created_at": "t", "files": files}
         )
 
-    assert expected_drawings_of(status("running")) == 2
+    assert expected_drawings_of(status("running")) == 3  # a, b, e: e still counts (never drops)
     assert expected_drawings_of(status("queued")) is None
 
 
@@ -207,13 +211,15 @@ def test_the_project_list_counts_what_is_left_to_review(client: TestClient) -> N
 
 
 def test_a_project_still_running_has_no_counts() -> None:
-    from app.api.projects import summary_of
+    from app.api.projects import KeptReviews, summary_of
 
     status = ProjectStatus.model_validate(
         {"id": "p", "name": "p", "state": "running", "created_at": "t"}
     )
-    found = summary_of(status, None, None)  # type: ignore[arg-type]  # never read while running
-    assert (found.to_review, found.conflicts_open) == (None, None)
+    found = KeptReviews().counts(status, None, None, None)  # type: ignore[arg-type]  # never read
+    assert found is None
+    summary = summary_of(status, found)
+    assert (summary.to_review, summary.conflicts_open, summary.issues_open) == (None, None, None)
 
 
 def test_the_questions_asked_in_a_project_are_listed_newest_first(client: TestClient) -> None:
@@ -258,3 +264,24 @@ def test_signoff_with_settle_signs_a_conflict_in_one_call(
     assert again.status_code == 409  # signed off already, as for any edit
     undo = {**plain, "settle": True, "undo": True}
     assert client.post(f"{drawing}/signoff", params=at, json=undo).status_code == 422
+
+
+def test_a_takeoff_lists_each_disagreement_once_as_the_review_counts_it(
+    client: TestClient, plan_pdf: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA R4-a-8: on a sheet of one storey a disagreement sits on the sheet's row and on the
+    storey's; screen 11 counted both (16 on the demo zip, the review 8). `disputes` lists it once,
+    the rows the project review counts."""
+    windows = disputed(False)
+    found = {
+        key: quantity(key, 2, "count", BOX_A, conflict=windows)
+        for key in ("window", "window|storey=p1")
+    }
+    monkeypatch.setattr(takeoff, "known_quantities", lambda drawing: found)
+    project = upload(client, plan_pdf)
+    (entry,) = client.get(f"/api/projects/{project}").json()["drawings"]
+    shown = client.get(f"/api/drawings/{entry['drawing_id']}/takeoff").json()
+    assert sum(row["conflict"] is not None for row in shown["quantities"]) == 2
+    assert shown["disputes"] == ["window"]
+    review = client.get(f"/api/projects/{project}/review").json()
+    assert [found["quantity"] for found in review["conflicts"]] == shown["disputes"]

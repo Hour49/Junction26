@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import ContentKind, FileState, Normalised, Stage, StageTrace
 from app.core.pipeline.model import Route
-from app.core.wording import SCALE_WORDS, count
+from app.core.wording import CONFLICT_WORDS, SCALE_WORDS, count
 
 # The pipeline's trace line prefixes (app/core/pipeline/ingest.py) after stage 5, by stage.
 # The counting rules and the takeoff run together, so they are one timed stage.
@@ -40,18 +40,26 @@ def judge(
     flags: list[str] = []
     conflicts = [entry for entry in drawing.conflicts or () if entry.status == "conflict"]
     if conflicts:
-        what = ", ".join(sorted({entry.quantity for entry in conflicts}))
+        what = ", ".join(sorted({CONFLICT_WORDS[entry.quantity] for entry in conflicts}))
         flags.append(f"{count(len(conflicts), 'conflict')} between the two methods ({what})")
-    read_nothing = drawing.read == () and not drawing.tables  # a schedule sheet reads tables
-    if read_nothing and reader == "hello":
-        flags.append(f"no reader for the {route} route yet: nothing was read")
-    elif read_nothing:
-        why = drawing.notes[0] if drawing.notes else "nothing it knows was found"
-        flags.append(f"the {route} reader read nothing: {why}")
+    empty = read_nothing(drawing, route, reader)
+    if empty is not None:
+        flags.append(empty)
     flags += reading_flags(kind, frame)
     if flags:
         return "flagged", f"{'; '.join(flags)} ({found})"
     return "ready", f"read on the {route} route: {found}"
+
+
+def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:
+    """Why the route's reader read nothing from the drawing, or None when it read something
+    (a schedule sheet reads tables). `reader` "hello" is the do-nothing stand-in."""
+    if drawing.read != () or drawing.tables:
+        return None
+    if reader == "hello":
+        return f"no reader for the {route} route yet: nothing was read"
+    why = drawing.notes[0] if drawing.notes else "nothing it knows was found"
+    return f"the {route} reader read nothing: {why}"
 
 
 def reading_flags(kind: ContentKind, frame: Normalised | None) -> tuple[str, ...]:

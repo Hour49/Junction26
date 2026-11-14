@@ -387,6 +387,25 @@
             "title": "Question",
             "type": "string"
           },
+          "refusal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unsupported-question",
+                  "not-in-drawing",
+                  "not-read",
+                  "no-reader",
+                  "no-scale",
+                  "no-drawing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal"
+          },
           "refused": {
             "title": "Refused",
             "type": "boolean"
@@ -1247,6 +1266,300 @@
         "title": "Info",
         "type": "object"
       },
+      "Issue": {
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check"
+          },
+          "drawing_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing Id"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id"
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "conflict",
+              "refused_answer",
+              "set_aside",
+              "reading_flag",
+              "code_check_failed",
+              "double_check",
+              "unrelated_file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "links": {
+            "$ref": "#/components/schemas/IssueLinks"
+          },
+          "mark_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark Id"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "minItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "severity": {
+            "enum": [
+              "fails_rule",
+              "needs_person",
+              "note"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "settled",
+              "signed_off"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "severity",
+          "state",
+          "drawing_id",
+          "file",
+          "file_id",
+          "floor",
+          "page",
+          "box",
+          "polygon",
+          "mark_id",
+          "why",
+          "quantity",
+          "question",
+          "reason",
+          "check",
+          "links"
+        ],
+        "title": "Issue",
+        "type": "object"
+      },
+      "IssueLinks": {
+        "additionalProperties": false,
+        "description": "API paths to open the issue; None where there is nothing to open.",
+        "properties": {
+          "checks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checks"
+          },
+          "drawing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing"
+          },
+          "takeoff": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Takeoff"
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace"
+          }
+        },
+        "required": [
+          "drawing",
+          "takeoff",
+          "trace",
+          "checks"
+        ],
+        "title": "IssueLinks",
+        "type": "object"
+      },
       "Limits": {
         "additionalProperties": false,
         "properties": {
@@ -1940,6 +2253,40 @@
         "title": "ProjectAskRequest",
         "type": "object"
       },
+      "ProjectIssues": {
+        "additionalProperties": false,
+        "properties": {
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "pack",
+          "issues"
+        ],
+        "title": "ProjectIssues",
+        "type": "object"
+      },
       "ProjectList": {
         "additionalProperties": false,
         "properties": {
@@ -2033,6 +2380,17 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "issues_open": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues Open"
           },
           "name": {
             "title": "Name",
@@ -3304,6 +3662,13 @@
       "Takeoff": {
         "additionalProperties": false,
         "properties": {
+          "disputes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Disputes",
+            "type": "array"
+          },
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
@@ -3331,7 +3696,8 @@
           "drawing_id",
           "file",
           "quantities",
-          "review_queue"
+          "review_queue",
+          "disputes"
         ],
         "title": "Takeoff",
         "type": "object"
@@ -4255,6 +4621,172 @@
           }
         },
         "summary": "Trace"
+      }
+    },
+    "/api/projects/{project_id}/issues": {
+      "get": {
+        "description": "Every finding of the project as a located issue (decision 0008).",
+        "operationId": "project_issues_api_projects__project_id__issues_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+            "in": "query",
+            "name": "pack",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+              "title": "Pack"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectIssues"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Issues"
+      }
+    },
+    "/api/projects/{project_id}/issues.csv": {
+      "get": {
+        "description": "The same issues as GET …/issues, one CSV row each.",
+        "operationId": "project_issues_csv_api_projects__project_id__issues_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+            "in": "query",
+            "name": "pack",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+              "title": "Pack"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {}
+            },
+            "description": "the issues as CSV"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Issues Csv"
+      }
+    },
+    "/api/projects/{project_id}/issues.zip": {
+      "get": {
+        "description": "issues.csv with each issue's number `n` first, and one PNG per drawing page that has\nissues with a box: the page with each box drawn and labelled with its `n`.",
+        "operationId": "project_issues_zip_api_projects__project_id__issues_zip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+            "in": "query",
+            "name": "pack",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a building-code rule pack (decision 0009): its failed checks join the list",
+              "title": "Pack"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {}
+            },
+            "description": "issues.csv and marked pages"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Issues Zip"
       }
     },
     "/api/projects/{project_id}/questions": {

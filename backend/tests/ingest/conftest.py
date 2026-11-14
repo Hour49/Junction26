@@ -41,8 +41,9 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
         rectifier: Rectifier | None = None,
         clock: Callable[[], float] | None = None,
         probe: ContentProbe | None = None,
+        store: DiskProjectStore | None = None,
     ) -> IngestService:
-        store = DiskProjectStore(root)
+        store = store or DiskProjectStore(root)
 
         def readers(project_id: str) -> Pipeline:
             pipeline = build_pipeline(settings, store.files_dir(project_id))

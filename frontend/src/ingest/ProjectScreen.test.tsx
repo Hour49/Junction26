@@ -488,7 +488,7 @@ describe('ProjectScreen', () => {
   it('IN-68 Drawings ready: the count over expected_drawings; the count alone while it is null', async () => {
     for (const [body, text] of [
       [project, `${String(project.drawings.length)} / ${String(project.expected_drawings)}`],
-      [projectRunning, `0 / ${String(projectRunning.expected_drawings)}`],
+      [projectRunning, '0'],
       [variants.queued, '0'],
     ] as const) {
       mockApi({ [GET]: body });
