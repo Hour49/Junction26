@@ -1978,6 +1978,10 @@ upload lists the files, instead of one request per file.
         "drawing_id": "1db9bcf1e67e27a3",
         "reused": false,
         "takeoff": {
+          "area:room": 48.0,
+          "area:room|indoor": 48.0,
+          "area:room|indoor|model": 48.0,
+          "area:room|model": 48.0,
           "area:room|name=0.01|storey=ground floor": 30.0,
           "area:room|name=0.02|storey=ground floor": 18.0,
           "area:room|name=kitchen (0.02)|storey=ground floor": 18.0,
@@ -2090,9 +2094,9 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "takeoff",
-          "did": "takeoff: 47 quantities, 31 above zero",
+          "did": "takeoff: 51 quantities, 35 above zero",
           "ms": 12.5,
-          "output": "takeoff: 47 quantities, 31 above zero",
+          "output": "takeoff: 51 quantities, 35 above zero",
           "failure": null,
           "cost_usd": 0.0
         },
@@ -2100,7 +2104,7 @@ upload lists the files, instead of one request per file.
           "stage": "write",
           "did": "drawing model 1db9bcf1e67e27a3 stored",
           "ms": 12.5,
-          "output": "47 quantities",
+          "output": "51 quantities",
           "failure": null,
           "cost_usd": 0.0
         }
@@ -2351,7 +2355,7 @@ many quantities are left to review and how many are signed off, and every confli
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
-      "quantities": 31
+      "quantities": 35
     }
   ],
   "conflicts": [

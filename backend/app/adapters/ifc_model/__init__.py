@@ -49,6 +49,9 @@ from app.core.pipeline.ports import DrawingFiles, SecondCounter
 
 SAME_SHAPE = 0.01  # relative difference of width / height between the SVG frame and the page
 LOOKS_FOR: tuple[ReadClass, ...] = ("room", *CLASSES.values())
+# A model file has no sheet and so no printed scale: its objects carry metres (the model's own
+# units), so lengths and areas of it are measured, not refused as "no scale" (R4b-4).
+MODEL_SCALE = Scale(status="scaled", text="model units (IFC)", source="the IFC model's own metres")
 MODELS_KEPT = 8
 
 
@@ -84,7 +87,7 @@ class IfcModelExtractor:
         if source.kind == "ifc" and not sheet.pages:  # the model itself is asked about
             return Extracted(
                 method="ifc_model",
-                scale=Scale(status="no_scale"),
+                scale=MODEL_SCALE,
                 read=LOOKS_FOR,
                 model_objects=_listed(self._models.model(source), {}),
             )

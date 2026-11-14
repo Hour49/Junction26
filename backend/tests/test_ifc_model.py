@@ -523,7 +523,7 @@ def test_a_model_asked_about_itself_gives_its_objects_and_nothing_drawn() -> Non
     alone = extractor.extract(model_file(), Sheet(file=model_file(), pages=()))
     assert (alone.method, alone.read) == ("ifc_model", LOOKS_FOR)
     assert (alone.plans, alone.elements, alone.rooms) == ((), (), ())
-    assert alone.scale.status == "no_scale"
+    assert (alone.scale.status, alone.scale.text) == ("scaled", "model units (IFC)")
     assert files.reads == [MODEL]  # neither the sheet nor its twin
     on_the_sheet = extract().model_objects or ()
     assert len(on_the_sheet) == 14
