@@ -1,0 +1,499 @@
+{
+  "question": "How many doors are there?",
+  "parts": [
+    {
+      "drawing_id": "adeefbbcc17559fc",
+      "name": "plans/flat-a.pdf",
+      "answer": {
+        "question": "How many doors are there?",
+        "drawing_id": "adeefbbcc17559fc",
+        "file": "plans/flat-a.pdf",
+        "pages": [
+          {
+            "page": 1,
+            "width": 600.0,
+            "height": 400.0,
+            "unit": "pt",
+            "url": "/api/drawings/adeefbbcc17559fc/pages/1.png",
+            "normalised": null,
+            "scale": {
+              "status": "scaled",
+              "text": "1:100",
+              "ratio": 100.0,
+              "source": "sheet text 1:100; no scale bar found"
+            },
+            "scale_text": "1:100",
+            "storey": null
+          }
+        ],
+        "answer": 2,
+        "unit": "count",
+        "confidence": null,
+        "quantity": {
+          "key": "door",
+          "label": "door count",
+          "measure": "count",
+          "subject": "door",
+          "scope": {
+            "storey": null,
+            "label": null,
+            "name": null,
+            "apartment": null,
+            "indoor": false,
+            "model": false,
+            "largest": false
+          },
+          "value": 2,
+          "unit": "count",
+          "original_value": 2,
+          "status": "single",
+          "needs_person": false,
+          "rule": {
+            "id": "each-once",
+            "text": "every element, room and plan the drawing lists counts once"
+          },
+          "estimate": null,
+          "first": null,
+          "second": null,
+          "conflict": null,
+          "settled": null,
+          "marks": [
+            {
+              "id": "m1",
+              "n": 1,
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e1",
+              "reason": null,
+              "room_type": null
+            },
+            {
+              "id": "m2",
+              "n": 2,
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e2",
+              "reason": null,
+              "room_type": null
+            }
+          ],
+          "signed": null,
+          "unlocated": {},
+          "noun": "doors"
+        },
+        "marks": [
+          {
+            "id": "m1",
+            "n": 1,
+            "page": 1,
+            "box": [
+              0.49333,
+              0.225,
+              0.50667,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e1",
+            "reason": null,
+            "room_type": null
+          },
+          {
+            "id": "m2",
+            "n": 2,
+            "page": 1,
+            "box": [
+              0.66,
+              0.225,
+              0.67333,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e2",
+            "reason": null,
+            "room_type": null
+          }
+        ],
+        "refusal": null,
+        "method": "takeoff",
+        "explanation": null,
+        "reader": {
+          "route": "vector",
+          "source": "plans/flat-a.pdf",
+          "extractor": "pdf",
+          "second_counter": "none",
+          "question_parser": "templates"
+        },
+        "cost_usd": 0.0,
+        "latency_s": 0.002,
+        "line": {
+          "id": 1,
+          "answer": 2,
+          "unit": "count",
+          "evidence": [
+            {
+              "file": "plans/flat-a.pdf",
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ]
+            },
+            {
+              "file": "plans/flat-a.pdf",
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ]
+            }
+          ],
+          "method": "takeoff",
+          "cost_usd": 0.0,
+          "latency_s": 0.002,
+          "confidence": null,
+          "sure": null,
+          "abstain": null,
+          "explanation": null,
+          "estimate": null,
+          "conflicts": null,
+          "resolution": null
+        },
+        "proof": {
+          "kind": "count",
+          "legend": [
+            {
+              "label": "door",
+              "colour": "#d62728",
+              "count": 2,
+              "unlocated": 0,
+              "note": null
+            }
+          ],
+          "arithmetic": null,
+          "objects": null,
+          "storeys": null,
+          "schedule": null,
+          "check": null
+        }
+      }
+    },
+    {
+      "drawing_id": "6d153ea15dca9ab4",
+      "name": "plans/flat-b.pdf",
+      "answer": {
+        "question": "How many doors are there?",
+        "drawing_id": "6d153ea15dca9ab4",
+        "file": "plans/flat-b.pdf",
+        "pages": [
+          {
+            "page": 1,
+            "width": 600.0,
+            "height": 400.0,
+            "unit": "pt",
+            "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+            "normalised": null,
+            "scale": {
+              "status": "scaled",
+              "text": "1:100",
+              "ratio": 100.0,
+              "source": "sheet text 1:100; no scale bar found"
+            },
+            "scale_text": "1:100",
+            "storey": null
+          }
+        ],
+        "answer": 2,
+        "unit": "count",
+        "confidence": null,
+        "quantity": {
+          "key": "door",
+          "label": "door count",
+          "measure": "count",
+          "subject": "door",
+          "scope": {
+            "storey": null,
+            "label": null,
+            "name": null,
+            "apartment": null,
+            "indoor": false,
+            "model": false,
+            "largest": false
+          },
+          "value": 2,
+          "unit": "count",
+          "original_value": 2,
+          "status": "single",
+          "needs_person": false,
+          "rule": {
+            "id": "each-once",
+            "text": "every element, room and plan the drawing lists counts once"
+          },
+          "estimate": null,
+          "first": null,
+          "second": null,
+          "conflict": null,
+          "settled": null,
+          "marks": [
+            {
+              "id": "m1",
+              "n": 1,
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e1",
+              "reason": null,
+              "room_type": null
+            },
+            {
+              "id": "m2",
+              "n": 2,
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ],
+              "polygon": null,
+              "state": "counted",
+              "value": 1.0,
+              "label": "door",
+              "ref": "e2",
+              "reason": null,
+              "room_type": null
+            }
+          ],
+          "signed": null,
+          "unlocated": {},
+          "noun": "doors"
+        },
+        "marks": [
+          {
+            "id": "m1",
+            "n": 1,
+            "page": 1,
+            "box": [
+              0.49333,
+              0.225,
+              0.50667,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e1",
+            "reason": null,
+            "room_type": null
+          },
+          {
+            "id": "m2",
+            "n": 2,
+            "page": 1,
+            "box": [
+              0.66,
+              0.225,
+              0.67333,
+              0.275
+            ],
+            "polygon": null,
+            "state": "counted",
+            "value": 1.0,
+            "label": "door",
+            "ref": "e2",
+            "reason": null,
+            "room_type": null
+          }
+        ],
+        "refusal": null,
+        "method": "takeoff",
+        "explanation": null,
+        "reader": {
+          "route": "vector",
+          "source": "plans/flat-b.pdf",
+          "extractor": "pdf",
+          "second_counter": "none",
+          "question_parser": "templates"
+        },
+        "cost_usd": 0.0,
+        "latency_s": 0.002,
+        "line": {
+          "id": 1,
+          "answer": 2,
+          "unit": "count",
+          "evidence": [
+            {
+              "file": "plans/flat-b.pdf",
+              "page": 1,
+              "box": [
+                0.49333,
+                0.225,
+                0.50667,
+                0.275
+              ]
+            },
+            {
+              "file": "plans/flat-b.pdf",
+              "page": 1,
+              "box": [
+                0.66,
+                0.225,
+                0.67333,
+                0.275
+              ]
+            }
+          ],
+          "method": "takeoff",
+          "cost_usd": 0.0,
+          "latency_s": 0.002,
+          "confidence": null,
+          "sure": null,
+          "abstain": null,
+          "explanation": null,
+          "estimate": null,
+          "conflicts": null,
+          "resolution": null
+        },
+        "proof": {
+          "kind": "count",
+          "legend": [
+            {
+              "label": "door",
+              "colour": "#d62728",
+              "count": 2,
+              "unlocated": 0,
+              "note": null
+            }
+          ],
+          "arithmetic": null,
+          "objects": null,
+          "storeys": null,
+          "schedule": null,
+          "check": null
+        }
+      }
+    },
+    {
+      "drawing_id": "3b3ce7db34257f63",
+      "name": "scans/ground-floor.png",
+      "answer": {
+        "question": "How many doors are there?",
+        "drawing_id": "3b3ce7db34257f63",
+        "file": "scans/ground-floor.png",
+        "pages": [
+          {
+            "page": 1,
+            "width": 1200.0,
+            "height": 850.0,
+            "unit": "px",
+            "url": "/api/drawings/3b3ce7db34257f63/pages/1.png",
+            "normalised": {
+              "exif": null,
+              "rotated": 0,
+              "deskew_deg": 0.0,
+              "rectified": false,
+              "quad": null,
+              "width": 1200,
+              "height": 850,
+              "rectifier": null
+            },
+            "scale": {
+              "status": "no_scale",
+              "text": null,
+              "ratio": null,
+              "source": null
+            },
+            "scale_text": null,
+            "storey": null
+          }
+        ],
+        "answer": null,
+        "unit": null,
+        "confidence": null,
+        "quantity": null,
+        "marks": [],
+        "refusal": {
+          "code": "no-reader",
+          "text": "Nothing was read from this sheet: there is no reader for this kind of sheet yet.",
+          "can_answer": []
+        },
+        "method": "refused:not-in-drawing",
+        "explanation": "the drawing model does not give door",
+        "reader": {
+          "route": "raster",
+          "source": "scans/ground-floor.png",
+          "extractor": "hello",
+          "second_counter": "none",
+          "question_parser": "templates"
+        },
+        "cost_usd": 0.0,
+        "latency_s": 0.002,
+        "line": {
+          "id": 1,
+          "answer": null,
+          "unit": null,
+          "evidence": [],
+          "method": "refused:not-in-drawing",
+          "cost_usd": 0.0,
+          "latency_s": 0.002,
+          "confidence": null,
+          "sure": null,
+          "abstain": true,
+          "explanation": "the drawing model does not give door",
+          "estimate": null,
+          "conflicts": null,
+          "resolution": null
+        },
+        "proof": {
+          "kind": "none",
+          "legend": [],
+          "arithmetic": null,
+          "objects": null,
+          "storeys": null,
+          "schedule": null,
+          "check": null
+        }
+      }
+    }
+  ],
+  "total": null,
+  "total_unit": null,
+  "total_sure": false,
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
+}
