@@ -234,7 +234,8 @@ ConflictMethod = Literal[
 class Subject(_Strict):
     kind: Literal["room", "apartment", "class", "sheet"]
     ref: str | None = Field(
-        description="a room or apartment id in this file, an element class, or null for sheet"
+        description="a room or apartment id in this file, an element class or room:<type> "
+        "for class, or null for sheet"
     )
 
 
@@ -272,8 +273,10 @@ class Conflict(_Strict):
             raise ValueError(f"conflict {self.id}: each value needs a different method")
         if (self.subject.kind == "sheet") != (self.subject.ref is None):
             raise ValueError(f"conflict {self.id}: subject ref is null for a sheet, else set")
-        if self.subject.kind == "class" and self.subject.ref not in ELEMENT_CLASSES:
-            raise ValueError(f"conflict {self.id}: {self.subject.ref!r} is not an element class")
+        if self.subject.kind == "class" and not _class_ok(self.subject.ref or ""):
+            raise ValueError(
+                f"conflict {self.id}: {self.subject.ref!r} is not an element class or room:<type>"
+            )
         return self
 
 
@@ -307,9 +310,13 @@ class ModelObject(_Strict):
     attrs: dict[str, Attr] = Field(default_factory=dict[str, Attr])
 
 
-def _count_key_ok(key: str) -> bool:
+def _class_ok(key: str) -> bool:
     kind, _, room_type = key.partition(":")
-    return key == "plan" or key in ELEMENT_CLASSES or (kind == "room" and room_type in ROOM_TYPES)
+    return key in ELEMENT_CLASSES or (kind == "room" and room_type in ROOM_TYPES)
+
+
+def _count_key_ok(key: str) -> bool:
+    return key == "plan" or _class_ok(key)
 
 
 class ReaderView(_Strict):

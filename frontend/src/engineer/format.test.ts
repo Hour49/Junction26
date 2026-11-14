@@ -23,7 +23,7 @@ describe('engineer format', () => {
   });
 });
 
-it('EN-88 estimateLine: rounded value, unit and the API sentence; null without an estimate', () => {
+it('EN-88 estimateLine: about the rounded measure and the API sentence; a count only the caveat; null without', () => {
   const q = answerArea.quantity as NonNullable<typeof answerArea.quantity>;
   const est = {
     ...answerArea,
@@ -31,9 +31,22 @@ it('EN-88 estimateLine: rounded value, unit and the API sentence; null without a
     quantity: { ...q, estimate: 'the scale estimated from the doors' },
   };
   expect(estimateLine(est)).toBe('about 180 m², the scale estimated from the doors');
-  expect(estimateLine({ ...est, answer: 12.4, unit: 'count' })).toBe(
-    'about 12, the scale estimated from the doors',
+  // a count is a whole number: never "about"; the row shows it, the line is the caveat (Bogdan c6881747518)
+  const carbon = 'counted by Gemini Carbon, an AI reader: check its marks on the plan';
+  const count = {
+    ...est,
+    answer: 19,
+    unit: 'count' as const,
+    quantity: { ...q, estimate: carbon },
+  };
+  expect(estimateLine(count)).toBe(
+    'Counted by Gemini Carbon, an AI reader: check its marks on the plan',
   );
+  expect(estimateLine({ ...count, answer: 0 })).toBe(
+    'Counted by Gemini Carbon, an AI reader: check its marks on the plan',
+  );
+  // a measure that rounds to 0 is not "about 0 m²": the value as it is
+  expect(estimateLine({ ...est, answer: 0.3 })).toBe('0.30 m², the scale estimated from the doors');
   expect(estimateLine(answerArea)).toBeNull();
   expect(estimateLine(answer)).toBeNull();
 });

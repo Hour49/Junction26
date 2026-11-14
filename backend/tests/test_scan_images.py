@@ -17,8 +17,13 @@ from app.adapters import raster_detector, scan_images
 from app.adapters.archive.probe import is_scanned_pdf
 from app.adapters.decisions.g1main import FAMILIES, CountDist, PageCounts
 from app.adapters.extraction_v1 import ExtractionV1Writer
+from app.adapters.page_render import MAX_PIXELS
+from app.adapters.printed_scale import PrintedScale, stated_dpi
 from app.adapters.scan_images import ScanImages, ScanRenders
 from app.composition import build_answering, build_pipeline
+from app.core.drawing.model import Page, Scale
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.printed import INCH_M, PrintedSheet
 from app.settings import Settings
 
 PDF = "data/scans/plan.pdf"
@@ -186,3 +191,35 @@ def test_a_render_holds_up_only_the_readers_of_its_own_page(
         release.set()
         first.join(10)
     assert read[slow] == b"png of " + slow
+
+
+class Unscaled:
+    """A raster reader that found no scale (Carbon's reading: it does not scale the drawing)."""
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        return Extracted(method="detector", scale=Scale(status="no_scale"))
+
+
+class Prints:
+    """The printed-scale reader, reading the ratio the sheet prints."""
+
+    def read(self, source: DrawingFile, sheet: Sheet) -> PrintedSheet:
+        return PrintedSheet(printed_scale='1/4" = 1\'-0"')
+
+
+def test_a_scanned_pdfs_printed_ratio_becomes_its_scale() -> None:
+    """judge-path 2026-11-14: a scanned 39.1 x 24.5 in sheet printing 1/4" = 1'-0" had its ratio
+    read and dropped ("an image has no paper size"), areas about 17% low. The render states its
+    resolution, so the ratio scales the page: 48 x the paper's width across the image."""
+    data = scan(391, 245, dpi=10)  # the uscg-bldg125 floor plan's paper, 39.1 x 24.5 in
+    page = ScanImages(Files({PDF: data})).read(PDF)
+    with Image.open(io.BytesIO(page)) as image:
+        width, height = image.size
+    assert width < 39.1 * 150 and width * height == pytest.approx(MAX_PIXELS, rel=1e-3)  # capped
+    dpi = stated_dpi(page)
+    assert dpi is not None and dpi[0] == pytest.approx(width / 39.1, rel=1e-3) == dpi[1]
+    file = DrawingFile(path=PDF, size=len(data), sha256="0" * 64, kind="pdf")
+    sheet = Sheet(file=file, pages=(Page(page=1, width=width, height=height, unit="px"),))
+    found = PrintedScale(Unscaled(), Prints(), ScanImages(Files({PDF: data}))).extract(file, sheet)
+    assert found.scale.status == "scaled" and found.scale.m_per_unit is not None
+    assert found.scale.m_per_unit * width == pytest.approx(48 * 39.1 * INCH_M, rel=1e-3)

@@ -356,7 +356,11 @@ function Answer(props: {
   // Row.noun ("doors"); null for areas and where the backend has none: then the label sentence.
   const noun = typeof a.answer === 'number' ? (row?.noun ?? null) : null;
   const grade = gradeOf(a);
-  const estimate = estimateLine(a);
+  // EN-89 (as CH-46): the reason on screen (flagged section, or the double-check panel) already gives the estimate
+  const reasonShown =
+    !!a.check && !a.quantity?.signed && (pageFlagged(a) || a.level?.level !== 'high');
+  const said = a.quantity?.estimate && reasonShown && a.check?.reason.includes(a.quantity.estimate);
+  const estimate = said ? null : estimateLine(a);
   const confidence =
     row?.status === 'signed' ? (
       // A person's sign-off replaces the level (EN-83).
