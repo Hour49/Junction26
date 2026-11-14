@@ -1,5 +1,7 @@
 import { readerName, type DrawingView, type Suggestion } from '../api';
 import { routeLabel } from '../ingest/ingest';
+import { Tip } from '@/components/ui/tip';
+import { TIPS } from '../shell/tips';
 
 /** Reader ids are API values: shown by their names (`pdf` → "PDF vector reader"). */
 export function howRead({ reader }: DrawingView): string {
@@ -31,18 +33,18 @@ export function Suggestions(props: {
   return (
     <div className="en-suggest" role="group" aria-label={props.label ?? 'Suggested questions'}>
       {props.items.map((s) => (
-        <button
-          key={s.quantity}
-          type="button"
-          className="en-chip v-press"
-          title={s.label}
-          disabled={props.busy}
-          onClick={() => {
-            props.onAsk(s.question);
-          }}
-        >
-          {s.question}
-        </button>
+        <Tip key={s.quantity} text={`${s.label}. ${TIPS.suggested}`}>
+          <button
+            type="button"
+            className="en-chip v-press"
+            disabled={props.busy}
+            onClick={() => {
+              props.onAsk(s.question);
+            }}
+          >
+            {s.question}
+          </button>
+        </Tip>
       ))}
     </div>
   );

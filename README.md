@@ -133,7 +133,7 @@ time.
 
 ```mermaid
 flowchart TD
-    IN["Upload: zip, PDF, PNG, JPEG, IFC"] --> ID["Unpack, hash, identify each file by its content"]
+    IN["Upload: zip, PDF, PNG, JPEG, TIFF, WebP, IFC"] --> ID["Unpack, hash, identify each file by its content"]
     ID --> PLAN{"A drawing?"}
     PLAN -- no --> ASIDE["Set aside with a reason, kept"]
     PLAN -- yes --> ROUTE["Pick the richest source of each drawing"]

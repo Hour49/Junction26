@@ -40,19 +40,19 @@ function open(chat: Info['chat'], query?: string) {
   return api;
 }
 
-/** The ask chat after /api/info has answered: its box is there and no "Point at the plan". */
+/** The ask chat after /api/info has answered: its box is there and no pen ("Draw on the plan"). */
 async function askChatStays(api: ReturnType<typeof mockApi>) {
   await waitFor(() => {
     expect(api.calls.some((c) => c.url === '/api/info')).toBe(true);
   });
   await screen.findByLabelText('Question');
   await new Promise((r) => setTimeout(r, 0));
-  expect(screen.queryByRole('button', { name: 'Point at the plan' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Draw on the plan' })).toBeNull();
 }
 
 it('CH-43 chat.available true: the agent chat', async () => {
   open({ model: 'rules', available: true, reason: null, stream: false });
-  expect(await screen.findByRole('button', { name: 'Point at the plan' })).toBeTruthy();
+  expect(await screen.findByRole('button', { name: 'Draw on the plan' })).toBeTruthy();
 });
 
 it('CH-43 chat.available false or model off: the ask chat as before', async () => {

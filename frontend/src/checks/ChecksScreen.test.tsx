@@ -371,16 +371,18 @@ describe('ChecksScreen', () => {
     expect(screen.getAllByRole('list', { name: /Places to look at/ }).length).toBeGreaterThan(0);
   });
 
-  it('CK-18 checks.css: tokens only, no animation under reduced motion', () => {
-    const css = readFileSync('src/checks/checks.css', 'utf8');
-    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
-    expect(css).toMatch(/prefers-reduced-motion: reduce/);
+  // The screen is styled with Tailwind classes (shadcn migration): the rules live in the component source.
+  const tsx = () =>
+    readFileSync('src/checks/ChecksScreen.tsx', 'utf8').replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '');
+
+  it('CK-18 the screen names no colour literal; no animation under reduced motion', () => {
+    expect(tsx()).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+    expect(tsx()).toContain('motion-reduce:[&_*]:transition-none');
   });
 
-  it('CSS: table headers never break mid-word; the caption is inset from the clipped rounded corner', () => {
-    const css = readFileSync('src/checks/checks.css', 'utf8');
-    expect(css).toMatch(/\.ck-table th,\s*\.ck-table td \{[^}]*overflow-wrap: normal/);
-    expect(css).toMatch(/\.ck-table thead th \{[^}]*white-space: nowrap/);
-    expect(css).toMatch(/\.ck-table caption \{[^}]*padding: 12px 16px/);
+  it('CSS: row headers wrap, column headers never break mid-word; the caption is inset from the clipped corner', () => {
+    expect(tsx()).toMatch(/scope="row"\s+className="[^"]*whitespace-normal/);
+    expect(tsx()).not.toMatch(/scope="col"[^>]*whitespace-normal/); // TableHead is nowrap
+    expect(tsx()).toMatch(/<TableCaption className="[^"]*px-4 py-3/);
   });
 });

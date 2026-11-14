@@ -186,10 +186,9 @@ test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail
   await expect(issueList.filter({ hasText: 'Fails a rule' })).toHaveCount(0);
   await expect(main.getByRole('region', { name: 'Issues' }).getByRole('textbox')).toHaveCount(0);
   await noSideScroll(page, 'documents?pack=fi');
-  // The header's project list loads on its own: wait, or the shot shows "Loading projects…".
-  await expect(banner(page).getByRole('combobox', { name: 'Project' })).not.toContainText(
-    'Loading',
-  );
+  // ui-bugs 10, 11: the header has no project picker and no Workspaces link.
+  await expect(banner(page).getByRole('combobox')).toHaveCount(0);
+  await expect(banner(page).getByRole('link', { name: 'Workspaces' })).toHaveCount(0);
   await shot(page, testInfo, 'is-issues-fi', offline);
 
   // No pack: the notes, the export without a pack, and a note's file page.

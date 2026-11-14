@@ -203,7 +203,7 @@
   margin-top: 6px;
 }
 
-/* Point at the plan and the selection chips over the ask box; the band is sticky as the chat's ask box. */
+/* The selection chips over the ask box; the band is sticky as the chat's ask box. */
 .ag-bar {
   position: sticky;
   bottom: 0;
@@ -251,12 +251,6 @@
   color: inherit;
   font-size: 18px;
   cursor: pointer;
-}
-.ag-pointer {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 .ag-bubble-sel {
   display: block;
@@ -379,14 +373,14 @@
 }
 
 /* Chrome starts a native image drag when a mouse presses on the page <img> and moves: that cancels the viewer's
-   pointer drag (no pointerup). In the pointer the frame, not the image, takes the drag. */
-.ag-pointer .vw-frame img {
+   pointer drag (no pointerup). While drawing the frame, not the image, takes the drag. */
+.ag-drawing .vw-frame img {
   pointer-events: none;
   -webkit-user-drag: none;
 }
-/* edits-9: the viewer's fix-mode hint ("where a mark is missing") is the wrong task here; the pointer's heading
+/* edits-9: the viewer's fix-mode hint ("where a mark is missing") is the wrong task here; the line over the plan
    says what to do. */
-.ag-pointer .vw-hint {
+.ag-drawing .vw-hint {
   display: none;
 }
 
@@ -420,45 +414,8 @@
   box-shadow: var(--v-shadow);
   min-width: 0;
 }
-.ag-pane-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-.ag-pane-name {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-}
-.ag-pane-open {
-  color: var(--v-accent);
-  font-weight: 600;
-  font-size: 14px;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.ag-pane-open:hover,
-.ag-pane-open:focus-visible {
-  text-decoration: underline;
-}
-.ag-pane-pick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.ag-pane-pick .en-chip[aria-pressed='true'] {
-  background: var(--v-accent-soft);
-  color: var(--v-accent-strong);
-}
-.ag-pane-caption {
-  margin: 0;
-  color: var(--v-text-2);
-  font-size: 15px;
-}
 .ag-pane-view {
-  flex: 1;
-  min-height: 0;
+  max-height: 70dvh; /* an open file leaves room for the next names in the list */
   overflow: auto;
 }
 
@@ -484,13 +441,6 @@
   height: auto;
   margin: 0;
   padding: 12px;
-}
-.ag-pane-close {
-  flex: none;
-}
-.ag-pane-head .ag-pane-name {
-  flex: 1;
-  min-width: 0;
 }
 
 /* Live steps while the agent works (chat-ux #2): one line per tool, a spinner on the running one. */
@@ -568,47 +518,5 @@
   .ag-live-step--running .ag-live-mark::before {
     animation: none;
     border-color: var(--v-accent);
-  }
-}
-/* The empty chat's "What I read" (chat-ux #8): one quiet block per drawing between the title and the ask bar. */
-.ag-read {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px 20px;
-  border-radius: var(--v-radius);
-  background: var(--v-surface);
-  border: 1px solid var(--v-line);
-}
-.ag-read h2 {
-  margin: 0;
-}
-.ag-read ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.ag-read li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.ag-read p {
-  margin: 0;
-}
-.ag-read-line {
-  font-weight: 600;
-}
-.ag-read-why {
-  color: var(--v-text-2);
-  font-size: 14px;
-}
-/* On a phone the block would push the ask box below the fold (keycheck 334): it goes under the bar and the chips. */
-@media (max-width: 600px) {
-  .en-chat--empty > .ag-read {
-    order: 1;
   }
 }

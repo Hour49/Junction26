@@ -1,3 +1,5 @@
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { useEffect, useRef, useState, type JSX } from 'react';
 import {
   ApiError,
@@ -26,9 +28,29 @@ import {
   viewerMarks,
 } from './checks';
 import type { CheckResult, ProjectChecks, RuleCheck } from './types';
-import './checks.css';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 const NOT_DONE = 'The pre-check runs once the drawings are read.';
+const LINE = 'm-0 text-[17px]';
+const MUTED = 'text-muted-foreground';
+/** A link or button a thumb can hit: 44 px tall. */
+const TAP = 'inline-flex min-h-11 items-center';
+/** "cannot tell" is its own look: never the pass or fail colours. */
+const STATUS_BADGE = { fail: 'danger', cannot_tell: 'warn', pass: 'outline' } as const;
+/** At 390 px the table becomes one card per rule: the header hides, each cell says its column. */
+const CELL =
+  'px-4 py-2.5 text-right tabular-nums max-[600px]:text-left max-[600px]:before:block max-[600px]:before:text-xs max-[600px]:before:text-muted-foreground max-[600px]:before:content-[attr(data-label)]';
 
 type Load<T> =
   { state: 'loading' } | { state: 'ok'; value: T } | { state: 'error'; error: unknown };
@@ -108,7 +130,7 @@ export function ChecksScreen({
       for (const a of all) a.abort();
     };
   }, []);
-  // Under the list (below 1024 px, checks.css) the viewer is off screen: bring it up, or the tap seems to do nothing.
+  // Under the list (below 1024 px, Tailwind `lg`) the viewer is off screen: bring it up, or the tap seems to do nothing.
   const viewerBox = useRef<HTMLElement>(null);
   const showViewer = () => {
     const media = (q: string) =>
@@ -138,28 +160,38 @@ export function ChecksScreen({
       .finally(() => loads.current.delete(abort));
   };
 
-  const page = (body: JSX.Element) => <div className="v-page ck">{body}</div>;
+  const page = (body: JSX.Element) => (
+    <div className="v-page flex flex-col gap-4 motion-reduce:[&_*]:animate-none motion-reduce:[&_*]:transition-none">
+      {body}
+    </div>
+  );
   if (!pack)
-    return page(<p className="ck-line">Choose a country in the header to run its pre-check.</p>);
+    return page(<p className={LINE}>Choose a country in the header to run its pre-check.</p>);
   if (project.state === 'loading') return page(<Loading label="Loading the checks…" />);
   if (project.state === 'error') return page(<ErrorView error={project.error} />);
   const p = project.value;
 
   // fail_means says what a fail means for this pack: shown only when a rule failed
   const head = (note: string | null, failed = false) => (
-    <header className="ck-head">
-      <h1>Pre-check: {rulePack?.name ?? pack}</h1>
+    <header>
+      <h1 className="m-0 text-[clamp(26px,3vw,34px)] tracking-[-0.02em]">
+        <Tip text={REVIEW_TIPS.preCheck} wrap>
+          <span>Pre-check: {rulePack?.name ?? pack}</span>
+        </Tip>
+      </h1>
       {rulePack && (
-        <p className="ck-law">
+        <p className={cn('mt-1 mb-0', MUTED)}>
           {rulePack.country_name} · {rulePack.law}
         </p>
       )}
       {note && (
-        <p className="ck-note" role="note">
+        <p className="mt-3 mb-0 rounded-xl bg-muted px-3.5 py-2.5 font-semibold" role="note">
           {note}
         </p>
       )}
-      {failed && rulePack?.fail_means && <p className="ck-law">{rulePack.fail_means}</p>}
+      {failed && rulePack?.fail_means && (
+        <p className={cn('mt-1 mb-0', MUTED)}>{rulePack.fail_means}</p>
+      )}
     </header>
   );
   const packNote = rulePack?.note ?? null;
@@ -168,8 +200,8 @@ export function ChecksScreen({
     return page(
       <>
         {head(packNote)}
-        <p className="ck-line">{NOT_DONE}</p>
-        <p className="ck-muted">Project: {PROJECT_STATE_LABEL[p.state] ?? p.state}</p>
+        <p className={LINE}>{NOT_DONE}</p>
+        <p className={MUTED}>Project: {PROJECT_STATE_LABEL[p.state] ?? p.state}</p>
       </>,
     );
   if (checks.state === 'loading')
@@ -185,11 +217,9 @@ export function ChecksScreen({
       <>
         {head(packNote)}
         {notYet(e) ? (
-          <p className="ck-line">{NOT_DONE}</p>
+          <p className={LINE}>{NOT_DONE}</p>
         ) : unknownPack(e) ? (
-          <p className="ck-line">
-            These rules are not available. Pick another country in the header.
-          </p>
+          <p className={LINE}>These rules are not available. Pick another country in the header.</p>
         ) : (
           <ErrorView
             error={e}
@@ -236,30 +266,39 @@ export function ChecksScreen({
     return (
       <li key={`${rule.rule_id}-${id}`}>
         <article
-          className={`ck-card ck-${status}`}
+          className={cn(
+            `ck-card ck-${status}`,
+            'rounded-[18px] border-2 border-transparent bg-card p-4 text-card-foreground shadow-[var(--v-shadow)] [overflow-wrap:anywhere] aria-[current=true]:border-primary [&_p]:my-1.5',
+          )}
           aria-current={isPicked ? 'true' : undefined}
           aria-labelledby={`ck-${did}-${id}`}
         >
-          <p className="ck-status">
-            <span aria-hidden="true">{word.icon}</span> {word.word}
+          <p>
+            <Badge variant={STATUS_BADGE[status]} className="px-2.5 py-0.5 text-base font-semibold">
+              <span aria-hidden="true">{word.icon}</span> {word.word}
+            </Badge>
           </p>
-          <h3 id={`ck-${did}-${id}`}>{subject ? `${subject} · ${rule.title}` : rule.title}</h3>
-          {r && <p className="ck-value">{limitLine(r)}</p>}
+          <h3 className="my-1 text-base" id={`ck-${did}-${id}`}>
+            {subject ? `${subject} · ${rule.title}` : rule.title}
+          </h3>
+          {r && <p className="tabular-nums">{limitLine(r)}</p>}
           <p>{r?.why ?? rule.why}</p>
-          <div className="ck-clause">
-            <p className="ck-ref">{rule.clause.ref}</p>
-            <blockquote>{rule.clause.quote}</blockquote>
+          <div className="mt-2 rounded-r-[10px] border-l-[3px] border-border bg-background px-3 py-2.5 text-sm">
+            <p className="font-semibold">{rule.clause.ref}</p>
+            <blockquote className="mx-0 my-1 italic">{rule.clause.quote}</blockquote>
             {rule.clause.quote_en && rule.clause.quote_en !== rule.clause.quote && (
-              <p className="ck-en">{rule.clause.quote_en}</p>
+              <p className={MUTED}>{rule.clause.quote_en}</p>
             )}
-            <a href={rule.clause.url} target="_blank" rel="noopener noreferrer">
+            <a className={TAP} href={rule.clause.url} target="_blank" rel="noopener noreferrer">
               Read the clause (opens the source)
             </a>
           </div>
-          <p className="ck-actions">
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {r && located ? (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="pill"
+                className="px-4 text-base"
                 onClick={() => {
                   setPicked({ key: checksKey, drawingId: did, result: r });
                   loadDrawing(did);
@@ -267,11 +306,13 @@ export function ChecksScreen({
                 }}
               >
                 Show on the drawing
-              </button>
+              </Button>
             ) : (
-              <span className="ck-muted">Not located on the drawing</span>
+              <span className={MUTED}>Not located on the drawing</span>
             )}
-            <a href={surveyor(did, r?.quantity)}>Open in the surveyor</a>
+            <a className={TAP} href={surveyor(did, r?.quantity)}>
+              Open in the surveyor
+            </a>
           </p>
         </article>
       </li>
@@ -280,21 +321,22 @@ export function ChecksScreen({
 
   const viewer = () => {
     if (!picked)
-      return <p className="ck-muted">Pick “Show on the drawing” on a place to see it here.</p>;
+      return <p className={MUTED}>Pick “Show on the drawing” on a place to see it here.</p>;
     const v = views.get(picked.drawingId);
     if (!v || v.state === 'loading') return <Loading label="Loading the drawing…" />;
     if (v.state === 'error')
       return (
-        <p className="ck-muted">
+        <p className={MUTED}>
           Page not available.{' '}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               loadDrawing(picked.drawingId);
             }}
           >
             Retry
-          </button>
+          </Button>
         </p>
       );
     const { marks, tones } = viewerMarks(picked.result);
@@ -318,24 +360,38 @@ export function ChecksScreen({
     <>
       {head(c.note || packNote, ruleCounts(rows).failed > 0)}
       {!drawings.length ? (
-        <p className="ck-line">No drawing in this project to check.</p>
+        <p className={LINE}>No drawing in this project to check.</p>
       ) : (
         <>
-          <p className="ck-line">{summaryLine(rows, drawings.length)}</p>
-          <table className="ck-table">
-            <caption>Rules: places passed, failed and cannot tell</caption>
-            <thead>
-              <tr>
-                <th scope="col">Rule</th>
-                <th scope="col">Passed</th>
-                <th scope="col">Failed</th>
-                <th scope="col">Cannot tell</th>
-              </tr>
-            </thead>
-            <tbody>
+          <p className={LINE}>{summaryLine(rows, drawings.length)}</p>
+          <Table className="caption-top [overflow-wrap:normal] overflow-hidden rounded-[var(--v-radius)] bg-card text-base shadow-[var(--v-shadow)]">
+            {/* inset: the table's rounded, clipped corner would cut the first letter */}
+            <TableCaption className="mt-0 px-4 py-3 text-left text-base font-semibold text-foreground">
+              Rules: places passed, failed and cannot tell
+            </TableCaption>
+            <TableHeader className="max-[600px]:hidden">
+              <TableRow className="hover:bg-transparent">
+                <TableHead scope="col" className="px-4 font-semibold">
+                  Rule
+                </TableHead>
+                <TableHead scope="col" className="px-4 font-semibold">
+                  Passed
+                </TableHead>
+                <TableHead scope="col" className="px-4 font-semibold">
+                  Failed
+                </TableHead>
+                <TableHead scope="col" className="px-4 font-semibold">
+                  Cannot tell
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((r) => (
-                <tr key={r.id}>
-                  <th scope="row">
+                <TableRow key={r.id} className="max-[600px]:grid max-[600px]:grid-cols-3">
+                  <TableHead
+                    scope="row"
+                    className="h-auto px-4 py-2.5 font-semibold whitespace-normal max-[600px]:col-span-full [&>small]:block [&>small]:font-normal [&>small]:text-muted-foreground"
+                  >
                     {r.title}
                     <small>{r.ref}</small>
                     {r.status === 'not_applicable' && (
@@ -346,50 +402,71 @@ export function ChecksScreen({
                         Cannot tell on {plural(r.blind, 'drawing')}: nothing could be read
                       </small>
                     )}
-                  </th>
-                  <td data-label="Passed">{r.pass}</td>
-                  <td data-label="Failed">{r.fail}</td>
-                  <td data-label="Cannot tell">{r.cannot_tell}</td>
-                </tr>
+                  </TableHead>
+                  <TableCell data-label="Passed" className={CELL}>
+                    {r.pass}
+                  </TableCell>
+                  <TableCell data-label="Failed" className={CELL}>
+                    {r.fail}
+                  </TableCell>
+                  <TableCell data-label="Cannot tell" className={CELL}>
+                    {r.cannot_tell}
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
           {clean > 0 && listed.every((x) => !x.results.length) && (
-            <p className="ck-line">Every checked place passes these rules.</p>
+            <p className={LINE}>Every checked place passes these rules.</p>
           )}
         </>
       )}
-      <p className="ck-links">
-        <a href={withPack(`/p/${projectId}/issues`)}>Export issues and plans</a>
+      <p className="m-0">
+        <a className={TAP} href={withPack(`/p/${projectId}/issues`)}>
+          Export issues and plans
+        </a>
       </p>
-      <div className="ck-split">
-        <div className="ck-results">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="min-w-0">
           {listed
             .filter((x) => x.results.length)
             .map(({ d, results }) => (
               <section key={d.drawing_id} aria-labelledby={`ck-h-${d.drawing_id}`}>
-                <h2 id={`ck-h-${d.drawing_id}`}>{drawingName(p, d)}</h2>
-                <p className="ck-sub">
-                  <a href={surveyor(d.drawing_id)}>Open in the surveyor</a>
+                <h2
+                  className="mt-4 mb-1 font-mono text-[15px] [overflow-wrap:anywhere]"
+                  id={`ck-h-${d.drawing_id}`}
+                >
+                  {drawingName(p, d)}
+                </h2>
+                <p className="mt-0 mb-2">
+                  <a className={TAP} href={surveyor(d.drawing_id)}>
+                    Open in the surveyor
+                  </a>
                 </p>
-                <ul className="ck-list" aria-label={`Places to look at in ${drawingName(p, d)}`}>
+                <ul
+                  className="m-0 flex list-none flex-col gap-3 p-0"
+                  aria-label={`Places to look at in ${drawingName(p, d)}`}
+                >
                   {results.map(({ rule, result }) => card(d.drawing_id, rule, result))}
                 </ul>
               </section>
             ))}
           {clean > 0 && (
-            <p className="ck-line">
+            <p className={LINE}>
               {plural(clean, 'drawing')} {clean === 1 ? 'passes' : 'pass'} every checked place
             </p>
           )}
           {none > 0 && (
-            <p className="ck-line">
+            <p className={LINE}>
               {plural(none, 'drawing')} {none === 1 ? 'has' : 'have'} nothing these rules apply to
             </p>
           )}
         </div>
         {listed.some((x) => x.results.length) && (
-          <aside className="ck-viewer" ref={viewerBox}>
+          <aside
+            className="ck-viewer min-w-0 lg:sticky lg:top-[calc(var(--v-header-h)+16px)] lg:self-start"
+            ref={viewerBox}
+          >
             {viewer()}
           </aside>
         )}

@@ -104,6 +104,10 @@ async function send(message: string) {
 }
 
 const pane = () => screen.getByRole('complementary', { name: 'Plan' });
+/** The list row of a file, by its name. */
+const row = (name: string) =>
+  within(pane()).getByRole('heading', { name }).closest('li') as HTMLElement;
+const nameButton = (name: string) => within(pane()).getByRole('button', { name });
 
 describe('viewOf', () => {
   it("returns the server's view as sent, null included", () => {
@@ -157,9 +161,9 @@ describe('the plan beside the chat (wide window)', () => {
     expect(viewer().marks.map((m) => [m.n, m.label, m.polygon?.length])).toEqual([
       [1, 'Bagno 1.01', 4],
     ]);
-    expect(
-      within(pane()).getByRole('link', { name: 'Open in workspace' }).getAttribute('href'),
-    ).toContain('box=0.29%2C0.2%2C0.4%2C0.31');
+    // ui-bugs 13: no "Open in workspace" in the pane, neither in its head nor on a file's row
+    expect(within(pane()).queryByRole('link', { name: 'Open in workspace' })).toBeNull();
+    expect(within(pane()).queryByText('Open in workspace')).toBeNull();
   });
 
   it('[n] focuses that source on the plan and stays in the chat', async () => {
@@ -223,16 +227,47 @@ describe('the plan beside the chat (wide window)', () => {
     expect(viewer().marks.map((m) => m.n)).toEqual([1]);
   });
 
-  it('the drawing switcher shows another drawing, and back shows the view again', async () => {
+  it('ui-bugs 2 the empty chat lists the files by name; the first is open, a name opens and closes its plan', async () => {
+    open(viewTurn);
+    await waitFor(() => {
+      expect(within(row('Drawn plan 1')).getByTestId('viewer')).toBeTruthy();
+    });
+    const names = within(pane())
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent.slice(1)); // after the ▸/▾ mark
+    expect(names).toEqual([
+      'Drawn plan 1',
+      'Drawn plan 2',
+      'Plan image 1',
+      'Plan photo 1',
+      'Building model 1',
+    ]);
+    expect(nameButton('Drawn plan 1').getAttribute('aria-expanded')).toBe('true');
+    // only open files mount a viewer (their pages load on open)
+    expect(within(pane()).getAllByTestId('viewer')).toHaveLength(1);
+    expect(within(row('Drawn plan 2')).queryByTestId('viewer')).toBeNull();
+    fireEvent.click(nameButton('Drawn plan 2'));
+    expect(within(row('Drawn plan 2')).getByTestId('viewer')).toBeTruthy();
+    expect(within(pane()).getAllByTestId('viewer')).toHaveLength(2); // several open at once
+    fireEvent.click(nameButton('Drawn plan 1'));
+    expect(nameButton('Drawn plan 1').getAttribute('aria-expanded')).toBe('false');
+    expect(within(row('Drawn plan 1')).queryByTestId('viewer')).toBeNull();
+    expect(within(row('Drawn plan 2')).getByTestId('viewer')).toBeTruthy();
+  });
+
+  it('ui-bugs 2 [n] on a closed file opens it with its marks and scrolls it into view', async () => {
     open(viewTurn);
     await send('Where is Bagno 1.01?');
     await within(pane()).findByText('Bagno 1.01 on the plan');
-    const pick = within(pane()).getByRole('group', { name: 'Drawings' });
-    fireEvent.click(within(pick).getByRole('button', { name: 'Drawn plan 2' }));
-    expect(within(pane()).getByRole('heading', { name: 'Drawn plan 2' })).toBeTruthy();
-    expect(viewer().marks).toEqual([]);
-    fireEvent.click(within(pick).getByRole('button', { name: 'Drawn plan 1' }));
+    fireEvent.click(nameButton('Drawn plan 1')); // the user closes it
+    expect(within(row('Drawn plan 1')).queryByTestId('viewer')).toBeNull();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- the beforeAll mock, read for its calls
+    const scroll = vi.mocked(Element.prototype.scrollIntoView);
+    scroll.mockClear();
+    fireEvent.click(screen.getByRole('link', { name: /^Source 1:/ }));
+    expect(within(row('Drawn plan 1')).getByTestId('viewer')).toBeTruthy();
     expect(viewer().marks.map((m) => m.n)).toEqual([1]);
+    expect(scroll.mock.contexts).toContain(row('Drawn plan 1'));
   });
 });
 

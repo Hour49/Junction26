@@ -21,6 +21,7 @@ import {
   project,
 } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
+import { TIPS } from '../shell/tips';
 import { mockApi, never } from '../test/mockApi';
 import { EngineerPage } from './EngineerPage';
 import { formatScore } from './format';
@@ -91,6 +92,13 @@ const scrollMock = vi.fn();
 beforeAll(() => {
   // jsdom has no layout, so no scrollIntoView.
   Element.prototype.scrollIntoView = scrollMock;
+  // Radix (the shared Tip) measures with ResizeObserver, which jsdom lacks; set directly, since mockApi's
+  // cleanup unstubs vi.stubGlobal after each test.
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
 });
 
 afterEach(() => {
@@ -920,14 +928,16 @@ describe('Vellum (screen 4)', () => {
     [answerSigned, 'Verified', 'A surveyor checked this value and signed it off.'],
   ])('EN-57 the status pill %#: words, and its tooltip on focus', async (a, word, tip) => {
     const t = await shownTurn(a);
+    // ui-bugs 7c: the shared Tip (components/ui/tip) on a focusable wrapper around the pill
     const pill = within(t).getByText(word, { selector: '.en-pill' });
-    expect(within(t).queryByRole('tooltip')).toBeNull();
-    fireEvent.focus(pill);
-    const tooltip = within(t).getByRole('tooltip');
+    const trigger = pill.parentElement as HTMLElement;
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    trigger.focus();
+    const tooltip = await screen.findByRole('tooltip');
     expect(tooltip.textContent).toBe(tip);
-    expect(pill.getAttribute('aria-describedby')).toBe(tooltip.id);
-    fireEvent.blur(pill);
-    expect(within(t).queryByRole('tooltip')).toBeNull();
+    expect(trigger.getAttribute('aria-describedby')).toBe(tooltip.id);
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
   const chips = (t: HTMLElement) => [...t.querySelectorAll<HTMLElement>('.en-refs li')];
@@ -1017,8 +1027,16 @@ describe('Vellum (screen 4)', () => {
     expect(within(block).getByText('Confidence')).toBeTruthy();
     expect(within(block).queryByText('Grade')).toBeNull();
     const pill = within(block).getByText(word);
-    expect(pill.getAttribute('title')).toBe(a.level?.text);
-    expect(block.textContent).toContain(a.level?.text ?? 'x');
+    expect(pill.getAttribute('title')).toBeNull(); // the shared Tip, not a native title (ui-bugs 7c)
+    (pill.parentElement as HTMLElement).focus();
+    expect((await screen.findByRole('tooltip')).textContent).toBe(a.level?.text);
+    fireEvent.keyDown(pill.parentElement as HTMLElement, { key: 'Escape' });
+    // ui-bugs 7: the sentence under the bar is behind "Why?", closed by default
+    const why = within(block).getByRole('button', { name: 'Why?' });
+    expect(why.getAttribute('aria-expanded')).toBe('false');
+    expect(within(block).getByText(a.level?.text ?? 'x').hidden).toBe(true);
+    fireEvent.click(why);
+    expect(within(block).getByText(a.level?.text ?? 'x').hidden).toBe(false);
     expect(t.textContent).not.toMatch(/Certified: on held-out|Sure check/);
     expect(within(t).queryByText(/^Sure/)).toBeNull();
   });
@@ -1253,5 +1271,58 @@ describe('judge path', () => {
     expect(t.querySelector('.en-estimate')?.textContent).toBe(
       'Counted by Gemini Carbon, an AI reader: check its marks on the plan',
     );
+  });
+});
+
+describe('hover tips on the engineer page (docs/ui-tooltips.md)', () => {
+  /** Focus the tip's trigger (the nearest focusable wrapper) and wait for its words. */
+  async function tipOf(el: HTMLElement, text: string) {
+    (el.closest('[tabindex]') as HTMLElement).focus();
+    expect((await screen.findAllByText(text)).length).toBeGreaterThan(0);
+  }
+
+  it('the "how it was read" line says what it is', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    const line = await screen.findByText(/^(.*), read from /);
+    await tipOf(line, TIPS.howRead);
+  });
+
+  it('a suggested question says what the chips are', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    const chip = await screen.findByRole('button', { name: drawing.suggestions[0]?.question });
+    chip.focus();
+    expect((await screen.findAllByText(new RegExp(TIPS.suggested))).length).toBeGreaterThan(0);
+  });
+
+  it('the greyed-out send button says why: type a question first', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    const send = await screen.findByRole('button', { name: 'Ask' });
+    expect(send).toHaveProperty('disabled', true);
+    await tipOf(send, TIPS.sendDisabled);
+  });
+
+  it('the checks, second reader score and counting rule explain themselves', async () => {
+    const t = await shownTurn(answerConfidence);
+    await tipOf(within(t).getByText('Checks'), TIPS.checks);
+    await tipOf(within(t).getByText(/^Second reader's score/), TIPS.secondScore);
+    await tipOf(within(t).getByText(/^Counting rule:/), TIPS.rule);
+  });
+
+  it('the flagged box says what a flag means', async () => {
+    const low: AnswerView = { ...answerLow, drawing_id: DRAWING };
+    const flaggedProject = {
+      ...project,
+      drawings: project.drawings.map((d) =>
+        d.drawing_id === DRAWING ? { ...d, state: 'flagged' as const } : d,
+      ),
+    };
+    open({
+      [PROJECT_ROUTE]: flaggedProject,
+      [DRAWING_ROUTE]: drawing,
+      'POST /api/ask': answers(low),
+    });
+    await typeAndAsk(low.question);
+    const t = await turn(low.question);
+    await tipOf(await within(t).findByText('This drawing was flagged'), TIPS.flagged);
   });
 });

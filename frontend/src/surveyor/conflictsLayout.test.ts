@@ -1,6 +1,7 @@
 // Pre-QA c (2026-11-14): conflicts card layout rules jsdom cannot see, checked on the CSS text.
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
+import { SOFT } from './ConflictCard';
 
 const css = readFileSync('src/surveyor/conflicts.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''); // vitest runs in frontend/
 
@@ -37,8 +38,9 @@ it('CF-26 on a phone the pill comes after the title block (demo .c-head column),
 });
 
 it("CF-47 Modify is the demo's soft button: accent text on the soft accent", () => {
-  expect(rulesFor('.cf-btn.cf-soft')).toMatch(/background:\s*var\(--v-accent-soft\)/);
-  expect(rulesFor('.cf-btn.cf-soft')).toMatch(/color:\s*var\(--v-accent\)/);
+  // bg-accent is --v-accent-soft, text-primary is --v-accent (src/index.css)
+  expect(SOFT).toContain('bg-accent');
+  expect(SOFT).toContain('text-primary');
 });
 
 it('CF-27 the button row stays right-aligned whatever the action line says (also when it wraps)', () => {

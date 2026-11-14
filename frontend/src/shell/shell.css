@@ -324,8 +324,7 @@ main[tabindex='-1']:focus-visible {
   font-weight: 700;
   letter-spacing: -0.025em;
 }
-.header-pill,
-.project-picker {
+.header-pill {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -342,42 +341,6 @@ main[tabindex='-1']:focus-visible {
 }
 .header-pill:hover {
   color: var(--v-text);
-}
-.workspaces-link[aria-current='page'] {
-  color: var(--v-accent-strong);
-  background: var(--v-accent-soft);
-}
-/* A native <select> sizes to its longest option: cap it so a long project name never widens the page
-   (R1-5-4). The open list still shows each option in full. */
-.project-picker {
-  /* SH-84: a large shrink weight, so it gives way first (never below 200px); then the country pill truncates. */
-  flex: 0 1000 320px;
-  min-width: 200px;
-  max-width: 100%;
-  margin-left: auto;
-  padding-right: 36px;
-  appearance: none;
-  text-overflow: ellipsis;
-  /* The chevron, from two token-coloured triangles (no image, no hard-coded colour). */
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--v-muted) 50%),
-    linear-gradient(135deg, var(--v-muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 20px) 50%,
-    calc(100% - 15px) 50%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
-}
-.project-picker:disabled {
-  color: var(--v-muted);
-}
-.project-picker-error {
-  flex-wrap: wrap;
-  overflow-wrap: anywhere;
-  font-size: 13px;
-  font-weight: 500;
-  background-image: none;
-  padding-right: 16px;
 }
 .view-links {
   flex: 0 0 auto;
@@ -407,9 +370,10 @@ main[tabindex='-1']:focus-visible {
 /* Country picker (shared.md "Country picker"). */
 .country {
   position: relative;
-  /* One line at every width (SH-71). SH-84: the project picker (shrink weight 1000) gives way first; the pill
-     truncates its name only once the picker is at its 200px floor. */
+  /* One line at every width (SH-71); the name truncates when the row is short (SH-84). It starts the right-hand
+     group (country, Export) now the header has no project picker (ui-bugs 11). */
   flex: 0 1 auto;
+  margin-left: auto;
   min-width: 0;
   max-width: 240px;
 }
@@ -456,25 +420,6 @@ main[tabindex='-1']:focus-visible {
 .info-bar-error {
   color: var(--v-danger);
 }
-.what-runs {
-  margin-left: auto;
-}
-.what-runs summary {
-  cursor: pointer;
-}
-.what-runs dl {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 2px 16px;
-  margin: 6px 0 2px;
-}
-.what-runs dl div {
-  display: contents;
-}
-.what-runs dd {
-  margin: 0;
-  font-family: var(--mono);
-}
 
 /* File strings (names, paths) can be one unbreakable word: let them wrap rather than widen the page (R1-5-4). */
 main {
@@ -508,17 +453,6 @@ main {
   }
   .brand {
     order: 1;
-  }
-  .workspaces-link {
-    order: 2;
-    margin-left: auto;
-  }
-  .project-picker {
-    order: 3;
-    flex: 1 1 180px;
-    min-width: 0;
-    max-width: 100%;
-    margin-left: 0;
   }
   .country {
     order: 4;
@@ -573,10 +507,6 @@ main {
   }
   .info-bar {
     padding: 8px 16px;
-  }
-  .what-runs {
-    margin-left: 0;
-    width: 100%;
   }
 }
 

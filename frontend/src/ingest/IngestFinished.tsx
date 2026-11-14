@@ -5,6 +5,11 @@ import type { ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
 import { ConflictsList, type ConflictCounts } from '../surveyor/ConflictsScreen';
 import { plural } from './ingest';
+import { TAP } from './ui';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS } from '../shell/tips-ingest';
 
 /** What the conflicts list reports after each load or settle (fe-surveyor's `onCounts`). */
 export type { ConflictCounts };
@@ -26,9 +31,16 @@ export function DoneLine({
 }): JSX.Element | null {
   if (!finished(project)) return null;
   return (
-    <p className="ingest-done-line">
+    <p className="ingest-done-line m-0 text-[15px] text-text-2 [&_a]:font-semibold [&_a]:text-primary">
       {`${plural(project.drawings.length, 'drawing')} ready.`}
-      {counts !== null && counts.total > 0 && ' Conflicts are below.'}
+      {counts !== null && counts.total > 0 && (
+        <>
+          {' '}
+          <Tip text={INGEST_TIPS.conflicts} wrap>
+            <span>Conflicts are below.</span>
+          </Tip>
+        </>
+      )}
       {/* mounted only once done: the API answers 409 to the issues list until then (IN-87) */}
       <IssuesSentence projectId={projectId} />
     </p>
@@ -95,33 +107,39 @@ export function ChatRow({
   const locked = counts === null || counts.needsPerson > 0;
   const first = project.drawings[0];
   return (
-    <div className="ingest-chat-row">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
       {locked ? (
         <>
-          <button
-            type="button"
-            className="v-btn v-press"
+          <Button
+            size="pill"
+            className="disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 max-[720px]:w-full"
             disabled
             aria-describedby="ingest-chat-why"
           >
             Start a new chat
-          </button>
-          <span id="ingest-chat-why" className="ingest-chat-why">
+          </Button>
+          <span id="ingest-chat-why" className="text-[13px] text-muted-foreground">
             Settle the conflicts that need you first.
           </span>
         </>
       ) : (
         <>
-          <a className="v-btn v-press" href={`#/p/${projectId}/chat`}>
-            Start a new chat
-          </a>
+          <Button
+            asChild
+            size="pill"
+            className="no-underline hover:text-primary-foreground max-[720px]:w-full"
+          >
+            <a href={`#/p/${projectId}/chat`}>Start a new chat</a>
+          </Button>
           {first && (
-            <a
-              className="ingest-chat-link"
-              href={`#/p/${projectId}/d/${first.drawing_id}/engineer`}
-            >
-              Open the workspace
-            </a>
+            <Tip text={INGEST_TIPS.openWorkspace}>
+              <a
+                className={cn(TAP, 'text-[13px] text-primary')}
+                href={`#/p/${projectId}/d/${first.drawing_id}/engineer`}
+              >
+                Open the workspace
+              </a>
+            </Tip>
           )}
         </>
       )}

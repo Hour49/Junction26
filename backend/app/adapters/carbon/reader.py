@@ -107,10 +107,15 @@ class CarbonClient:
 
 def jpeg(image: Image.Image) -> bytes:
     """An image (the page or a tile's crop) as sent: RGB, `sent_size` (Lanczos), JPEG 90."""
-    rgb = image.convert("RGB")
-    size = contract.sent_size(*rgb.size)
-    if size != rgb.size:
-        rgb = rgb.resize(size, Image.Resampling.LANCZOS)
+    size = contract.sent_size(*image.size)
+    if image.mode == "L":  # the same pixels, but the full-size RGB copy is never made
+        if size != image.size:
+            image = image.resize(size, Image.Resampling.LANCZOS)
+        rgb = image.convert("RGB")
+    else:
+        rgb = image.convert("RGB")
+        if size != rgb.size:
+            rgb = rgb.resize(size, Image.Resampling.LANCZOS)
     buffer = io.BytesIO()
     rgb.save(buffer, format="JPEG", quality=contract.JPEG_QUALITY)
     return buffer.getvalue()
@@ -124,7 +129,8 @@ class CarbonReader:
         self._cache = cache_dir
 
     def read(self, image: Image.Image) -> Extracted:
-        page = eight_bit(image).convert("RGB")
+        page = eight_bit(image)  # jpeg and pixel_digest convert what they send, a cut at a time
+        page.load()  # the pool's threads share it
         width, height = page.size
         with ThreadPoolExecutor(WORKERS, thread_name_prefix="carbon") as pool:
             if max(width, height) <= contract.TILE:  # one tile, the page: both calls at once

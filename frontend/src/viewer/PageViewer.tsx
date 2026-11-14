@@ -1,4 +1,7 @@
 import { type CSSProperties, useId, useLayoutEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Tip } from '@/components/ui/tip';
+import { VIEWER_TIPS } from '../shell/tips-viewer';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
 import { formatValue, methodName } from '../api/format';
 import { PageFrame } from './PageFrame';
@@ -167,6 +170,14 @@ function whyTip(text: string, where: CSSProperties) {
     </span>
   );
 }
+
+// The page switcher and zoom buttons: 44 px pills on the surface colour (taps at least 44 px).
+const barButton = {
+  variant: 'outline',
+  size: 'pill',
+  className:
+    'min-w-11 border-0 bg-card px-3 text-[13px] shadow-[var(--v-shadow)] disabled:text-muted-foreground disabled:opacity-100',
+} as const;
 
 function words(mark: MarkView): string {
   const w = STATE_WORDS[mark.state];
@@ -455,35 +466,41 @@ export function PageViewer({
         <div className="vw-bar">
           {pages.length > 1 && (
             <div className="vw-switcher">
-              <button
-                type="button"
-                aria-label="Previous page"
-                disabled={index === 0}
-                onClick={() => {
-                  setCurrent(pages[index - 1]?.page);
-                }}
-              >
-                ‹
-              </button>
-              <span>
-                Page {index + 1} of {pages.length} · {countText(onPage.length)}
-                {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
-              </span>
-              <button
-                type="button"
-                aria-label="Next page"
-                disabled={index === pages.length - 1}
-                onClick={() => {
-                  setCurrent(pages[index + 1]?.page);
-                }}
-              >
-                ›
-              </button>
+              <Tip text={VIEWER_TIPS.prevPage} wrap>
+                <Button
+                  {...barButton}
+                  aria-label="Previous page"
+                  disabled={index === 0}
+                  onClick={() => {
+                    setCurrent(pages[index - 1]?.page);
+                  }}
+                >
+                  ‹
+                </Button>
+              </Tip>
+              <Tip text={VIEWER_TIPS.pageLine} wrap>
+                <span>
+                  Page {index + 1} of {pages.length} · {countText(onPage.length)}
+                  {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
+                </span>
+              </Tip>
+              <Tip text={VIEWER_TIPS.nextPage} wrap>
+                <Button
+                  {...barButton}
+                  aria-label="Next page"
+                  disabled={index === pages.length - 1}
+                  onClick={() => {
+                    setCurrent(pages[index + 1]?.page);
+                  }}
+                >
+                  ›
+                </Button>
+              </Tip>
             </div>
           )}
           <div className="vw-zoom">
-            <button
-              type="button"
+            <Button
+              {...barButton}
               aria-label="Zoom out"
               disabled={zoom === 1}
               onClick={() => {
@@ -491,10 +508,10 @@ export function PageViewer({
               }}
             >
               −
-            </button>
+            </Button>
             <span>{zoom * 100}%</span>
-            <button
-              type="button"
+            <Button
+              {...barButton}
               aria-label="Zoom in"
               disabled={zoom === 4}
               onClick={() => {
@@ -502,23 +519,27 @@ export function PageViewer({
               }}
             >
               +
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              {...barButton}
               onClick={() => {
                 setZoom(1);
               }}
             >
               Fit
-            </button>
+            </Button>
           </div>
         </div>
       )}
       {fixing && (
-        <p className="vw-hint">
-          <span className="vw-hint-wide">Click or drag on the drawing where a mark is missing</span>
-          <span className="vw-hint-narrow">Tap the drawing where a mark is missing</span>
-        </p>
+        <Tip text={VIEWER_TIPS.fixHint} wrap>
+          <p className="vw-hint">
+            <span className="vw-hint-wide">
+              Click or drag on the drawing where a mark is missing
+            </span>
+            <span className="vw-hint-narrow">Tap the drawing where a mark is missing</span>
+          </p>
+        </Tip>
       )}
       <div
         className="vw-scroll"
@@ -794,35 +815,37 @@ export function PageViewer({
               if (doubt !== undefined) setTip(on ? m.id : null);
             };
             return [
-              <button
-                key={m.id}
-                type="button"
-                className={`vw-badge ${tone ? `vw-badge--${tone}` : `vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}`}${m.id === highlighted ? ' vw-hot' : ''}${doubt === undefined ? '' : ' vw-badge--disputed'}`}
-                aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
-                aria-describedby={doubt === undefined ? undefined : whyId}
-                aria-pressed={isSelected}
-                style={{ ...where, ...tint(colourOf(m)) }}
-                onClick={() => onSelect?.(m.id)}
-                onPointerEnter={() => {
-                  show(true);
-                }}
-                onPointerLeave={() => {
-                  show(false);
-                }}
-                onFocus={() => {
-                  show(true);
-                }}
-                onBlur={() => {
-                  show(false);
-                }}
-              >
-                {spot ? spot.text : value === null ? badgeText(m) : `${badgeText(m)} · ${value}`}
-                {doubt !== undefined && (
-                  <span className="vw-q-tag" aria-hidden="true">
-                    {doubt.tag ?? '?'}
-                  </span>
-                )}
-              </button>,
+              // A mark the readers doubt has its own "why" tip (below); the others say what a mark is.
+              <Tip key={m.id} text={doubt === undefined ? VIEWER_TIPS.mark : ''}>
+                <button
+                  type="button"
+                  className={`vw-badge ${tone ? `vw-badge--${tone}` : `vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}`}${m.id === highlighted ? ' vw-hot' : ''}${doubt === undefined ? '' : ' vw-badge--disputed'}`}
+                  aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
+                  aria-describedby={doubt === undefined ? undefined : whyId}
+                  aria-pressed={isSelected}
+                  style={{ ...where, ...tint(colourOf(m)) }}
+                  onClick={() => onSelect?.(m.id)}
+                  onPointerEnter={() => {
+                    show(true);
+                  }}
+                  onPointerLeave={() => {
+                    show(false);
+                  }}
+                  onFocus={() => {
+                    show(true);
+                  }}
+                  onBlur={() => {
+                    show(false);
+                  }}
+                >
+                  {spot ? spot.text : value === null ? badgeText(m) : `${badgeText(m)} · ${value}`}
+                  {doubt !== undefined && (
+                    <span className="vw-q-tag" aria-hidden="true">
+                      {doubt.tag ?? '?'}
+                    </span>
+                  )}
+                </button>
+              </Tip>,
               doubt !== undefined && (
                 <span key={`${m.id}-why`} id={whyId} className="vw-sr">
                   {ask(doubt.why, doubt.prefix)}

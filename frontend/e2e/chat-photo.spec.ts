@@ -35,7 +35,7 @@ test('CH-17 CH-18: a photo added from the agent chat is read, then a question is
     }
   ).files.length;
   await page.goto(`/#/p/${id}/chat`);
-  await expect(page.getByRole('button', { name: 'Point at the plan' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Draw on the plan' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add a photo' })).toBeEnabled();
   await page.getByTestId('photo-input').setInputFiles({
     name: 'phone.png',
