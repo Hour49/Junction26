@@ -5,9 +5,11 @@
   const V = window.VData, P = window.VPlan, esc = P.esc;
   const A = () => window.VApp;
   const ROLE = { read: 'Read: the value comes from this file', shown: 'Shown: the rendering the marks are drawn on',
-    second: 'Checked: an independent second count' };
+    second: 'Checked: an independent second count', source: 'Asked about: the answer key\'s question is on this file',
+    same: 'The same floor in another format' };
   const SUGGEST = ['How many doors are on this floor?', 'How many windows?', 'What is the net floor area?', 'How many rooms?',
     'What fire rating do the stair doors need?'];
+  const KEY_TIP = 'Answer key: the value the Stoa dataset gives for this question. Vellum did not read it from the drawing here.';
   const SURE_TIP = 'Sure: exact CAD geometry and nothing in dispute, so the answer is certified and no person needs to check it.';
 
   const cur = () => V.DRAWINGS[A().S.p.di];
@@ -27,9 +29,9 @@
       <button class="round press" data-act="drawing" data-d="-1" aria-label="Previous drawing"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
       <button class="round press" data-act="drawing" data-d="1" aria-label="Next drawing"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>`;
     const empty = turns.length ? '' : `<section class="card"><div style="padding:20px;background:#fafafc">${P.plain(d, 'clean')}</div>
-      <p style="margin:0;padding:16px 22px 20px">Ask about this drawing: doors, windows, rooms or the net floor area. Every answer points at the places it counted.</p></section>`;
+      <p style="margin:0;padding:16px 22px 20px">${d.image ? 'Ask about this floor: its answer key holds counts and net floor areas.' : 'Ask about this drawing: doors, windows, rooms or the net floor area. Every answer points at the places it counted.'}</p></section>`;
     return `<main class="w1040 ask">${bar}${empty}${turns.map(turnHtml).join('')}
-      <div class="chips-row" aria-label="Suggested questions">${SUGGEST.map((q) => `<button class="qchip press" data-act="ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+      <div class="chips-row" aria-label="Suggested questions">${(V.SUGGEST || SUGGEST).map((q) => `<button class="qchip press" data-act="ask" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
       <form class="askbar" data-ask><label class="sr" for="q">Ask about ${esc(d.name)}</label>
         <input id="q" name="q" autocomplete="off" placeholder="Ask about ${esc(d.name)}" maxlength="200">
         <button class="round press" aria-label="Ask" type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></button></form></main>`;
@@ -39,11 +41,12 @@
     const d = V.drawing(t.drawing), a = V.answer(d.id, t.question, A().picks());
     const q = `<p class="bubble">${esc(t.question)}</p>`;
     if (a.refusal) {
-      return `<article class="turn">${q}<div class="refusal"><span><span class="pill grey">No answer</span></span><p style="margin:0">${esc(a.refusal)}</p></div></article>`;
+      const near = (a.near || []).slice(0, 4).map((x) => `<button class="qchip press" data-act="ask" data-q="${esc(x)}">${esc(x)}</button>`).join('');
+      return `<article class="turn">${q}<div class="refusal"><span><span class="pill grey">No answer</span></span><p style="margin:0">${esc(a.refusal)}</p>${near ? `<div class="chips-row">${near}</div>` : ''}</div></article>`;
     }
     const ck = a.check ? checkOf(t) : null;
     const edits = ck && (ck.state === 'fixing' || ck.state === 'confirm') ? ck : null;
-    const value = ck && ck.state === 'checked' ? ck.value : V.valueOf(a.marks, a.quantity, edits);
+    const value = a.key ? a.value : ck && ck.state === 'checked' ? ck.value : V.valueOf(a.marks, a.quantity, edits);
     const shown = V.formatValue(a.quantity, value);
     const lead = a.quantity === 'area' ? `The net floor area is <strong>${shown}</strong>.` : `There ${value === 1 ? 'is' : 'are'} <strong>${shown}</strong> on this drawing.`;
     const flagged = new Map(ck && ck.state !== 'checked' ? a.check.disputed.map((x) => [x.mark_id || x.place, x.why]) : []);
@@ -58,27 +61,32 @@
         <button class="x press" data-act="close-ov" aria-label="Close the original"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
         <div class="sheet-body">${P.original(d, f, a)}</div></div>`;
     })();
-    const legend = [`<span><i class="lg" aria-hidden="true"></i>counted</span>`];
+    const legend = a.marks.length ? [`<span><i class="lg" aria-hidden="true"></i>counted</span>`] : [];
     if (a.marks.some((m) => m.excluded)) legend.push('<span><i class="lg dash" aria-hidden="true"></i>open doorway, left out by the rule</span>');
     if (flagged.size) legend.push('<span><i class="lg warn" aria-hidden="true"></i>not sure, please look</span>');
-    const refs = files.map((f, i) => `<li><button class="ref press" data-act="ref" data-t="${t.id}" data-f="${i}" aria-pressed="${ov === i}">
-      <span class="num">${i + 1}</span><span><span class="mono" style="font-weight:600">${esc(f.path)}</span><span class="muted">${esc(ROLE[f.role])}</span></span></button></li>`).join('');
-    const status = !a.check
-      ? `<span class="tip" tabindex="0"><span class="pill ok">Sure</span><span role="tooltip" class="tip-body">${SURE_TIP}</span></span>` : '';
+    // in Stoa mode only the image file can be opened; the PDF and DXF are listed, not shipped
+    const refs = files.map((f, i) => {
+      const body = `<span class="num">${i + 1}</span><span><span class="mono" style="font-weight:600">${esc(f.path)}</span><span class="muted">${esc(ROLE[f.role])}</span></span>`;
+      return d.image && !f.image ? `<li><span class="ref">${body}</span></li>`
+        : `<li><button class="ref press" data-act="ref" data-t="${t.id}" data-f="${i}" aria-pressed="${ov === i}">${body}</button></li>`;
+    }).join('');
+    const status = a.key ? `<span class="tip" tabindex="0"><span class="pill grey">Answer key</span><span role="tooltip" class="tip-body">${KEY_TIP}</span></span>`
+      : !a.check ? `<span class="tip" tabindex="0"><span class="pill ok">Sure</span><span role="tooltip" class="tip-body">${SURE_TIP}</span></span>` : '';
     return `<article class="turn">${q}<p class="lead">${lead} <span class="muted">${esc(V.ruleOf(a))}</span></p>
       <div class="card"><div class="answer">
         <figure aria-label="Drawing"><span style="display:flex;flex-direction:column"><span class="mono" style="font-size:14px;font-weight:600">${esc(d.name)}</span><span class="small">${esc(d.meta)}</span></span>
           <div class="plan-box">${P.answerPlan(d, a, { flagged, rejected: edits ? edits.rejected : null, added: edits ? edits.added : null, fixing, turn: t.id })}${sheet}</div>
           <figcaption class="legend">${legend.join('')}</figcaption></figure>
         <div class="side">
-          <div class="value"><b>${a.quantity === 'area' ? value.toFixed(1) : value}</b><span>${a.quantity === 'area' ? 'm² net' : nounOf(a.quantity, value)}</span>${status}</div>
-          ${a.check ? checkHtml(t, a, ck, value) : '<p class="small">Certified: exact geometry and nothing in dispute. No person needs to check this.</p>'}
+          <div class="value"><b>${V.formatValue(a.quantity, value).split(' ')[0]}</b><span>${a.quantity === 'area' ? 'm² net' : nounOf(a.quantity, value)}</span>${status}</div>
+          ${a.check ? checkHtml(t, a, ck, value) : a.key ? '' : '<p class="small">Certified: exact geometry and nothing in dispute. No person needs to check this.</p>'}
           <div style="display:flex;flex-direction:column;gap:4px"><span class="label">How it was found</span><p class="small">${methodLine(d, a)}</p></div>
           <div style="display:flex;flex-direction:column;gap:8px"><span class="label">References</span><ol class="refs">${refs}</ol></div>
         </div></div></div></article>`;
   }
 
   function methodLine(d, a) {
+    if (a.key) return `From the dataset's answer key: “${esc(a.keyQuestion)}” The data has no positions, so there are no marks.`;
     const pk = A().picks();
     const c = V.CONFLICTS.find((x) => x.drawing === d.id && x.variants.some((v) => v.kind === a.quantity));
     if (c && pk[c.id] === null) return 'A conflict on this drawing is open: <a href="#/conflicts">settle it in Conflicts</a>.';
