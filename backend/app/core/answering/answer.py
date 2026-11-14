@@ -11,6 +11,7 @@ from app.core.answering.model import (
     Evidence,
     Query,
     Question,
+    TableFilter,
     TableQuery,
     Unsupported,
     source_of,
@@ -23,7 +24,7 @@ from app.core.answering.ports import (
     DrawingSource,
     QuestionParser,
 )
-from app.core.answering.tables import answer_table
+from app.core.answering.tables import TableAnswer, answer_table
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
 from app.core.pipeline.second_count import METHODS
@@ -84,25 +85,14 @@ def answer_question(
         method, why = UNSUPPORTED_QUESTION, parsed.reason
     elif isinstance(parsed, TableQuery):
         if (row := answer_table(parsed, tables)) is not None:
-            return read(
-                Answer(
-                    id=question.id,
-                    answer=row.value,
-                    unit=row.unit,
-                    evidence=tuple(
-                        Evidence(file=question.file, page=row.page, box=box) for box in row.boxes
-                    ),
-                    method=SCHEDULE,
-                    cost_usd=0.0,
-                    latency_s=clock() - start,
-                    abstain=True if row.abstain_why else None,
-                    explanation=row.abstain_why,
-                )
-            )
+            return read(_from_table(question, row, clock() - start))
         method = NOT_IN_DRAWING
         why = f"no schedule on the sheet resolves {parsed.family()}"
     else:
         found = quantities.get(parsed.key())
+        scheduled = None if found is not None else _scheduled_room(parsed)
+        if scheduled is not None and (row := answer_table(scheduled, tables)) is not None:
+            return read(_from_table(question, row, clock() - start))
         method = NOT_IN_DRAWING if found is None else TAKEOFF
         why = f"the drawing model does not give {parsed.key()}"
         source, family = source_of(question.file), parsed.family()
@@ -168,6 +158,36 @@ def _sure(
     if family in AGREEING_FAMILIES and agrees is not True:
         return False  # the signal's own count differs: two readers disagree, nothing is sure
     return value >= sure_at[family]
+
+
+def _from_table(question: Question, row: TableAnswer, latency_s: float) -> Answer:
+    """The answer a schedule printed on the sheet gives."""
+    return Answer(
+        id=question.id,
+        answer=row.value,
+        unit=row.unit,
+        evidence=tuple(Evidence(file=question.file, page=row.page, box=box) for box in row.boxes),
+        method=SCHEDULE,
+        cost_usd=0.0,
+        latency_s=latency_s,
+        abstain=True if row.abstain_why else None,
+        explanation=row.abstain_why,
+    )
+
+
+def _scheduled_room(parsed: Query) -> TableQuery | None:
+    """The area of a room named by its name or number (or of the rooms with a printed name) as
+    a room schedule's lookup: the sum of its area column over the rows that print that name.
+    Asked when the takeoff has no such room (a schedule sheet with no plan, or a room the plan
+    reader missed); None for any other question."""
+    named = parsed.name or parsed.label
+    if parsed.measure != "area" or parsed.subject != "room" or named is None:
+        return None
+    if parsed.storey or parsed.apartment or parsed.model or parsed.largest or parsed.indoor:
+        return None
+    return TableQuery(
+        op="sum", kind="room", column=(("area",),), filters=(TableFilter(values=(named,)),)
+    )
 
 
 def _read(parsed: Query | TableQuery | Unsupported) -> Callable[[Answer], Answer]:
