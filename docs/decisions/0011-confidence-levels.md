@@ -89,4 +89,20 @@ the prior, all certified at one fixed score), gave High 41.8% at 98.2%, Medium 3
   pre-registered, and after the test read. It costs 0 certified answers on CubiCasa val and golden v2 dev (no such
   page in either) and catches 1 of the 2 archive Sure-and-wrong toilet counts (61261280, read as blank); the
   blueprint case (1373, three bowls answered 2 with the detectors agreeing) stays open.
+- Amendment, 2026-11-14 (brief r8 BQ; Bogdan 19:4x: "1. turn it on. 2. make them high I think", then "Make them
+  High" after being told High would fall from about 99% exact): `CARBON_LEVELS=ladder`. Gemini Carbon reads each
+  raster sheet beside the reader; a Medium answer it counts the same becomes High (basis `carbon`, "checked by
+  Carbon: two readers agree"), one it counts differently becomes Low (as `demote`); refusing or failing changes
+  nothing; it never certifies (`sure` stays false), and Low and High answers are left as they are. Measured at 0
+  USD on the 256 val pages of integ's pre-registration 2 (.agents/exp/integ.md BQ; 2,271 units, Wilson 95%):
+
+  | | High | Medium | Low |
+  | --- | --- | --- | --- |
+  | before (level B) | 44.9%, 99.0% [98.2, 99.5] | 35.5%, 92.4% [90.4, 94.1] | 19.6%, 58.4% [53.8, 62.9] |
+  | ladder | 69.7%, 97.7% [96.8, 98.3] | 5.9%, 96.3% [91.6, 98.4] | 24.4%, 61.4% [57.3, 65.3] |
+
+  The 563 Medium units Carbon agreed with are 95.2% exact [93.1, 96.7]: below the certified High, and below the
+  135 Medium units it refused (96.3%). With ladder on, "High" no longer means certified, and the 99% figure
+  holds only for basis `certified`. This was decided after the val numbers, not pre-registered, and is not
+  measured on test.
 - Revisit when the check policy changes (the levels are regenerated with it) or when a family gets a new signal.

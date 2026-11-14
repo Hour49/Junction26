@@ -214,6 +214,22 @@ def test_match_query_drops_short_words_stopwords_and_repeats() -> None:
     assert match_query("x § ja an es") is None
 
 
+@pytest.mark.parametrize(
+    ("pack", "question", "clause"),
+    [
+        ("ch-zh", "What does Zürich say about daylight?", "ch-zh-ls-700-1-302"),
+        ("fi", "What does Finland say about bedroom size", "fi-631-2024-4-2"),
+    ],
+)
+def test_a_whole_question_finds_what_its_topic_word_finds(
+    pack: str, question: str, clause: str
+) -> None:
+    """answers-11: "does", "say", "about" and "Zürich" outranked "daylight": § 246 Abs. 4 came
+    first and § 302 Abs. 1 third."""
+    shipped = SqliteLawIndex(load_laws(Settings().laws_dir))
+    assert clause in ids(shipped.search(pack, question, limit=3))
+
+
 def test_a_two_letter_word_is_an_exact_term() -> None:
     """Review: "WC", "m2" are what a designer types; exact, since "do"* would find "door"."""
     assert match_query("accessible WC 10 m2") == '"accessible"* OR "wc" OR "10" OR "m2"'

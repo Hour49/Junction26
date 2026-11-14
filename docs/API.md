@@ -5241,7 +5241,9 @@ so every client shows the same one: show `level` as the pill and `text` with it,
 
 - `level`: `high`, `medium` or `low`.
   - `high`: the answer is certified. It is high exactly when `line.sure` is true and `check` is null, so a level
-    never contradicts the request.
+    never contradicts the request. With `CARBON_LEVELS=ladder` (off by default) a Medium raster answer that Gemini
+    Carbon, read as a second reader, answered with the same value is high too (basis `carbon`): `check` is null,
+    but `line.sure` stays false, because Carbon never certifies an answer.
   - `medium`: the answer asks for a double-check, and its score is at or above its family's Medium threshold: the
     calibrated chance that it is wrong is at most the policy's cut (0.20).
   - `low`: every other rated answer. It asks for a double-check too.
@@ -5258,6 +5260,9 @@ so every client shows the same one: show `level` as the pill and `text` with it,
     signed off, a bedroom with no printed label). Low; `check.reason` says why.
   - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
     route with no level). Low.
+  - `carbon` (`CARBON_LEVELS=demote` or `ladder`): Gemini Carbon read the raster sheet beside the reader. A Medium
+    answer it counted differently is low; with `ladder`, one it counted the same is high ("checked by Carbon: two
+    readers agree"). When Carbon could not check the sheet, the level stays as it was and `text` says so.
 - `text`: one plain sentence to show with the pill. For `certified` and `score` it quotes the validation counts of
   that level from the policy file, e.g. `Medium confidence: on our validation plans, 91% of the answers rated this
   way were exact (1084 of 1185). Please double-check it.`; for `route`, the route's reference counts.
@@ -9170,6 +9175,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-14, behaviour (brief r8 BQ, Bogdan "make them high"): `CARBON_LEVELS=ladder`. As `demote`, and a Medium
+  raster answer Gemini Carbon counted the same gets `level` high with basis `carbon` and no `check`; `line.sure`
+  stays false. Off and `demote` are unchanged. No shape change.
 - 2026-11-14, additive (decision 0012 Amendment 1, contract v1.3): text documents and unread files in the
   evidence index: `how` `text` and `listed`, the part `text` (ids `f7-text-12`; a hit's `page` is the passage's
   page), the kinds `text_document`, `text_file`, `text_pages`, `not_read` and the listed probe kinds, and `FileStatus.evidence.text_pages`

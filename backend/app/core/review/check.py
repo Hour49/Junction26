@@ -62,6 +62,7 @@ LEVELS: tuple[LevelName, ...] = ("low", "medium", "high")  # lowest first
 # What a level rests on: the policy's certificate on a raster answer; the route's own reference
 # answers; the answer's score against its family's Medium threshold; a page flagged at upload; a
 # value held for a check whatever its score; nothing measured; Gemini Carbon reading it otherwise
+# (Low), or the same (High, CARBON_LEVELS=ladder)
 Basis = Literal["certified", "route", "score", "page", "held", "unrated", "carbon"]
 
 
@@ -252,21 +253,39 @@ BLANK_TEXT = (
 # integ's pre-registered test of CARBON_LEVELS=demote on 256 unseen val pages (.agents/exp/integ.md
 # AW pre-registration 2, 2026-11-14): of the 109 Medium answers Carbon counted otherwise, 80 exact
 CARBON_DEMOTED = Counts(units=109, exact=80)
+# CARBON_LEVELS=ladder on the same pages (.agents/exp/integ.md BQ): of the 563 Medium answers it
+# counted the same, 536 exact
+CARBON_AGREED = Counts(units=563, exact=536)
 
 
-def carbon_checked(level: Level, check: CarbonCheck, carbon: object, said: object) -> Level:
+def carbon_checked(
+    level: Level, check: CarbonCheck, carbon: object, said: object, *, ladder: bool = False
+) -> Level:
     """CARBON_LEVELS=demote on an answer's level: a Medium answer whose question Carbon answers
     with another value (`carbon`) than the one shown (`said`) becomes Low; Carbon agreeing or
-    refusing (None) changes nothing. When Carbon checked nothing (`check.failed`), the level stays
-    and its sentence says so. Other levels are left as they are."""
+    refusing (None) changes nothing. With `ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon
+    answers with the same value becomes High: two readers agree (Carbon alone never makes one).
+    When Carbon checked nothing (`check.failed`), the level stays and its sentence says so.
+    Other levels are left as they are."""
     if level.level != "medium":
         return level
     if check.failed is not None:
         return level.model_copy(
             update={"text": f"{level.text} Gemini Carbon did not check it: {check.failed}."}
         )
-    if carbon is None or carbon == said:
+    if carbon is None:
         return level
+    if carbon == said:
+        if not ladder:
+            return level
+        measured = round(100 * CARBON_AGREED.exact / CARBON_AGREED.units)
+        text = (
+            "High confidence: checked by Carbon: two readers agree. Gemini Carbon, read as a "
+            f"second reader, counted the same here. On our validation plans, {measured}% of the "
+            f"answers checked this way were exact ({CARBON_AGREED.exact} of "
+            f"{CARBON_AGREED.units})." + ASK["high"]
+        )
+        return Level(level="high", basis="carbon", text=text)
     read = int(carbon) if isinstance(carbon, float) and carbon.is_integer() else carbon
     measured = round(100 * CARBON_DEMOTED.exact / CARBON_DEMOTED.units)
     text = (

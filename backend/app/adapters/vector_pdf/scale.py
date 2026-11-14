@@ -1,5 +1,10 @@
-"""The scale of a sheet, read from the sheet alone: the printed ratio ("1:100") and the drawn scale
-bar. A PDF point is 1/72 inch of paper, so a ratio 1:N gives metres per point without any guess.
+"""The scale of a sheet, read from the sheet alone: the printed ratio ("1:100", "1/4\" = 1'-0\"")
+and the drawn scale bar. A PDF point is 1/72 inch of paper, so a printed ratio gives metres per
+point without any guess.
+
+A sheet that prints several different ratios (a plan at 1/8", its details at 3") has no one
+scale: each belongs to a view, so no ratio is the sheet's, and a note lists them. A ratio printed
+next to a slope word ("(1:12 RAMP SLOPE)", "SLOPE | 1:10 MAX") is a slope, not a scale.
 
 The bar is a second reading of the same quantity. When both are there and agree, the ratio gives
 the value. When they differ by more than stage 8's tolerance, the bar does (docs/PIPELINE.md
@@ -13,19 +18,41 @@ from itertools import pairwise
 
 from app.adapters.vector_pdf.objects import FILL_NONE, Bounds, PdfPage, PdfPath
 from app.core.drawing.model import Scale, ScaleEvidence
+from app.core.pipeline.printed import imperial_scales
 from app.core.pipeline.second_count import TOLERANCE, differ
 
 M_PER_PT_ON_PAPER = 25.4 / 72 / 1000
 RATIO = re.compile(r"(?<![\d.,:])1\s*:\s*(\d{1,4})(?![\d.,:])")
+SLOPE_WORD = r"(?:slopes?|ramps?|gradient|falls?|gefälle|neigung|steigung|rampe|kaltevuus)"
+SLOPE_QUALIFIER = r"(?:max(?:imum)?|min(?:imum)?|grade|pitch)"
+# a slope word up to three characters before a ratio ("SLOPE | 1:10") or after it ("1:12 RAMP"),
+SLOPE_BEFORE = re.compile(rf"\b{SLOPE_WORD}\W{{0,3}}$", re.IGNORECASE)
+# or slope words and qualifiers that close the text after it ("1:10 MAX", "1:12 MAX SLOPE")
+SLOPE_AFTER = re.compile(
+    rf"\W{{0,3}}{SLOPE_WORD}\b|(?:\s+(?:{SLOPE_WORD}|{SLOPE_QUALIFIER})\b)+\W*$", re.IGNORECASE
+)
 PRINTED_AREA = re.compile(r"(\d+[.,]\d+)\s*m²")
-BAR_LABEL = re.compile(r"(\d+)(?:\s*m)?")
+_BAR_UNIT = r"(m|meters?|metres?|ft|feet|foot|'|\u2019)"  # ' or a right single quote: feet
+BAR_LABEL = re.compile(rf"(\d+)\s*{_BAR_UNIT}?", re.IGNORECASE)
+BAR_UNIT = re.compile(_BAR_UNIT, re.IGNORECASE)
+M_PER_FOOT = 0.3048
 BAR_FILLS = ((0, 0, 0), (255, 255, 255))
 BAR_HEIGHT = (2.0, 8.0)  # points
 
 
 def read_scale(page: PdfPage) -> tuple[Scale, tuple[str, ...]]:
     """The scale in metres per point of `page`, and notes about it."""
-    ratio, bar = read_ratio(page), read_bar(page)
+    printed, bar = printed_scales(page), read_bar(page)
+    ratio = sheet_ratio(printed)
+    several: tuple[str, ...] = ()
+    if printed and ratio is None:
+        texts: dict[float, str] = {}
+        for value, text, _ in printed:
+            texts.setdefault(value, text)
+        several = (
+            f"scale: the sheet prints {len(texts)} different scales ({', '.join(texts.values())}),"
+            " one per view; none of them is the sheet's",
+        )
     evidence: list[ScaleEvidence] = []
     if ratio:
         evidence.append("scale_text")
@@ -38,7 +65,8 @@ def read_scale(page: PdfPage) -> tuple[Scale, tuple[str, ...]]:
         off = abs(bar[0] - value) / max(bar[0], value)
         if differ(value, bar[0], TOLERANCE):
             source = (
-                f"scale bar: its length against its metre label; the text {text} is {off:.1%} off"
+                "scale bar: its drawn length against the length printed on it; "
+                f"the text {text} is {off:.1%} off"
             )
             note = f"scale: the bar and the text {text} disagree by {off:.1%}; the bar is used"
             return _scaled(bar[0], evidence, text, source), (note,)
@@ -48,25 +76,65 @@ def read_scale(page: PdfPage) -> tuple[Scale, tuple[str, ...]]:
         value, text, _ = ratio
         return _scaled(value, evidence, text, f"sheet text {text}; no scale bar found"), ()
     if bar:
-        return _scaled(bar[0], evidence, None, "scale bar: its length against its metre label"), ()
+        source = "scale bar: its drawn length against the length printed on it"
+        return _scaled(bar[0], evidence, None, source), several
+    if several:
+        return Scale(status="no_scale", source="several printed scales and no scale bar"), several
     return Scale(status="no_scale", source="no scale text and no scale bar on the sheet"), ()
 
 
 def read_ratio(page: PdfPage) -> tuple[float, str, Bounds | None] | None:
-    """Metres per point from the printed ratio, the ratio as text ("1:100"), and where it is
-    printed when one text object holds it."""
-    ratio = RATIO.search(page.text)
-    if ratio is None:
+    """Metres per point from the sheet's printed ratio, the ratio as printed ("1:100"), and where
+    it is printed when one text object holds it; None when the sheet prints none, or several
+    different ones."""
+    return sheet_ratio(printed_scales(page))
+
+
+def sheet_ratio(
+    printed: list[tuple[float, str, Bounds | None]],
+) -> tuple[float, str, Bounds | None] | None:
+    """The first of `printed` when every printed ratio is the same, else None."""
+    if not printed or len({value for value, _, _ in printed}) > 1:
         return None
-    at = next(
-        (
-            text.bounds
-            for text in page.texts
-            if (found := RATIO.search(text.text)) and found.group(1) == ratio.group(1)
-        ),
-        None,
-    )
-    return int(ratio.group(1)) * M_PER_PT_ON_PAPER, f"1:{ratio.group(1)}", at
+    return printed[0]
+
+
+def printed_scales(page: PdfPage) -> list[tuple[float, str, Bounds | None]]:
+    """Every ratio the sheet prints, as `read_ratio` gives one. A ratio 1:N is read one line of
+    the page text at a time, so a label broken into one character per line ("1", ":", "1", "2")
+    is not read. It is a slope, and skipped, when every text object that prints it prints it as
+    one (`is_slope`), or, when no one object holds it, its line does: the page text joins the
+    objects on one baseline, so a word far off on the line ("RAMP UP") would read as next to it.
+    An imperial ratio is read from each text object on its own (`printed.imperial_scales`):
+    across objects, a view number or a ZIP code before a fraction would be read as whole
+    inches."""
+    printed: list[tuple[float, str, Bounds | None]] = []
+    for line in page.text.splitlines():
+        for ratio in RATIO.finditer(line):
+            places = [
+                (text, found)
+                for text in page.texts
+                for found in RATIO.finditer(text.text)
+                if found.group(1) == ratio.group(1)
+            ]
+            scales = [text.bounds for text, found in places if not is_slope(text.text, found)]
+            if (not scales) if places else is_slope(line, ratio):
+                continue
+            at = scales[0] if scales else None
+            printed.append((int(ratio.group(1)) * M_PER_PT_ON_PAPER, f"1:{ratio.group(1)}", at))
+    for text in page.texts:
+        for value, as_printed in imperial_scales(text.text):
+            printed.append((value * M_PER_PT_ON_PAPER, as_printed, text.bounds))
+    return printed
+
+
+def is_slope(text: str, ratio: re.Match[str]) -> bool:
+    """Whether `ratio`, found in `text`, is printed as a slope: a slope word up to three
+    characters before or after it ("SLOPE | 1:10", "(1:12 RAMP SLOPE)"), or slope words, max,
+    min, grade or pitch closing the text after it ("1:10 MAX"). A word further off names
+    something else: "RAMP LEVEL PLAN 1:100", "SLAB ON GRADE 1:50", "1:100 MAX SHEET SIZE A1"."""
+    before = SLOPE_BEFORE.search(text, 0, ratio.start())
+    return before is not None or SLOPE_AFTER.match(text, ratio.end()) is not None
 
 
 def _scaled(value: float, evidence: list[ScaleEvidence], text: str | None, source: str) -> Scale:
@@ -89,8 +157,10 @@ def _is_block(path: PdfPath) -> bool:
 
 def read_bar(page: PdfPage) -> tuple[float, Bounds] | None:
     """Metres per point from a scale bar, and where the bar is: a row of touching blocks, at
-    least one black, with metre labels next to it; the largest label is the length of the whole
-    bar."""
+    least one black, with number labels next to it and one unit, metres or feet, printed with a
+    label ("5 m", "16'") or on its own beside them; the largest label is the length of the whole
+    bar. Without a unit it is no bar: a view callout (a black and a white half beside the view
+    number, "12" over "A-400") looks like one."""
     rows: dict[tuple[int, int], set[tuple[float, float]]] = defaultdict(set)
     black: set[tuple[int, int]] = set()
     for path in filter(_is_block, page.paths):
@@ -106,13 +176,22 @@ def read_bar(page: PdfPage) -> tuple[float, Bounds] | None:
         if any(abs(a[1] - b[0]) > 1.0 for a, b in pairwise(blocks)):
             continue
         left, right = blocks[0][0], blocks[-1][1]
-        labels = [
-            int(found.group(1))
+        near = [
+            text.text
             for text in page.texts
-            if (found := BAR_LABEL.fullmatch(text.text))
-            and left - 5 <= text.centre[0] <= right + 15
+            if left - 5 <= text.centre[0] <= right + 15
             and abs(text.centre[1] - (top + bottom) / 2) < 25
         ]
-        if labels and max(labels) > 0:
-            return max(labels) / (right - left), (left, top, right, bottom)
+        labels = [found for text in near if (found := BAR_LABEL.fullmatch(text))]
+        units = {_metres(found.group(2)) for found in labels if found.group(2)} | {
+            _metres(text) for text in near if BAR_UNIT.fullmatch(text)
+        }
+        length = max((int(found.group(1)) for found in labels), default=0)
+        if length > 0 and len(units) == 1:
+            return length * units.pop() / (right - left), (left, top, right, bottom)
     return None
+
+
+def _metres(unit: str) -> float:
+    """Metres in one `unit` of a bar label: a metre, or a foot."""
+    return 1.0 if unit.lower().startswith("m") else M_PER_FOOT

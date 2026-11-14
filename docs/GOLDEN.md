@@ -611,6 +611,11 @@ Finnish question with one verdict), with Wilson 95% intervals.
 | Medium | 41.1% (1,381) | 92.8% [91.3, 94.0] | 100 | 34.6%, 91.6% |
 | Low | 21.0% (706) | 54.2% [50.6, 57.9] | 323 | 20.4%, 58.6% |
 
+These levels are without Carbon. With `CARBON_LEVELS=ladder` (decision 0011, amendment 2026-11-14), a Medium
+answer Gemini Carbon counts the same is High too (basis `carbon`), and High is no longer only the certified
+answers: on 256 val pages it went from 99.0% to 97.7% exact (not measured on test). The 99% figures here hold for
+basis `certified`.
+
 Per family on test (share of the family's answers, their number, exact rate with its interval):
 
 | family | answers | High | Medium | Low |
