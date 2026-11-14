@@ -131,6 +131,12 @@ class Settings(BaseSettings):
     # `gemini: budget_exhausted`. Unset: no limit. 0: no Gemini call at all (the kill switch)
     gemini_budget_usd: Usd = None
     gemini_budget_usd_per_hour: Usd = None
+    # Where the spend guard keeps its ledger (app/adapters/spend_file.py): a JSON file outside the
+    # app's folder, so a restart (each deploy) keeps the total and the hourly window and two
+    # processes on it share one ledger. Unset or empty: in memory, a restart starts at 0
+    spend_ledger_path: Annotated[
+        Path | None, BeforeValidator(lambda value: None if value == "" else value)
+    ] = None
     # Gemini Decisions count distributions (app/adapters/decisions/, same GEMINI_API_KEY). The
     # count swap is on when RASTER_COMPONENTS names decisions:<source>; the answer confidence when
     # DECISIONS_CONFIDENCE is true. Seconds per request, and the folder replies are cached in

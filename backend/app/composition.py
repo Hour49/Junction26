@@ -82,6 +82,7 @@ from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
 from app.adapters.resolver.carbon import CarbonResolver
 from app.adapters.scan_images import ScanImages
+from app.adapters.spend_file import FileSpend
 from app.adapters.triage.gemini_describer import (
     CARBON_MIN_TIMEOUT_S,
     DESCRIBERS,
@@ -945,12 +946,20 @@ def spend_guard(settings: Settings) -> SpendGuard:
     """The process's one Gemini ledger (GEMINI_BUDGET_USD, GEMINI_BUDGET_USD_PER_HOUR; how to use
     it: app/core/spend.py), shared by every Gemini caller built from these limits. With neither
     set it only counts and never refuses."""
-    return _spend_guard(settings.gemini_budget_usd, settings.gemini_budget_usd_per_hour)
+    return _spend_guard(
+        settings.gemini_budget_usd, settings.gemini_budget_usd_per_hour, settings.spend_ledger_path
+    )
 
 
 @cache
-def _spend_guard(total_usd: float | None, per_hour_usd: float | None) -> SpendGuard:
-    return SpendGuard(total_usd, per_hour_usd)
+def _spend_guard(
+    total_usd: float | None, per_hour_usd: float | None, ledger: Path | None = None
+) -> SpendGuard:
+    """SPEND_LEDGER_PATH: the ledger in a file shared by processes and kept across restarts, its
+    hourly window on the wall clock; unset: in this process's memory."""
+    if ledger is None:
+        return SpendGuard(total_usd, per_hour_usd)
+    return SpendGuard(total_usd, per_hour_usd, clock=time.time, store=FileSpend(ledger))
 
 
 def _eu(settings: Settings) -> OpenVlmClient:
