@@ -13,6 +13,8 @@ import {
 import { MUTED, PANEL } from './ui';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS } from '../shell/tips-ingest';
 
 const ICON = { done: '✓', working: '◌', waiting: '○' } as const;
 /** Each step row and its icon by state (the demo's .step look). */
@@ -82,16 +84,28 @@ export function ProgressCard({
           <dd>{elapsed === null ? '—' : formatMs(elapsed)}</dd>
         </div>
         <div>
-          <dt>Files through</dt>
+          <dt>
+            <Tip text={INGEST_TIPS.filesThrough} wrap>
+              <span>Files through</span>
+            </Tip>
+          </dt>
           <dd>{live && total === 0 ? '—' : `${String(done)} / ${String(total)}`}</dd>
         </div>
         <div>
-          <dt>Drawings ready</dt>
+          <dt>
+            <Tip text={INGEST_TIPS.drawingsReady} wrap>
+              <span>Drawings ready</span>
+            </Tip>
+          </dt>
           <dd>{expected === null ? ready : `${ready} / ${String(expected)}`}</dd>
         </div>
         <div>
           {/* the demo's 4th stat (IN-86) */}
-          <dt>Set aside</dt>
+          <dt>
+            <Tip text={INGEST_TIPS.setAside} wrap>
+              <span>Set aside</span>
+            </Tip>
+          </dt>
           <dd>{files.filter((f) => f.state === 'set_aside').length}</dd>
         </div>
       </dl>
@@ -117,9 +131,12 @@ export function ProgressCard({
                 >
                   {ICON[st]}
                 </span>
-                <span className={cn('ingest-step-name', st === 'working' && 'font-semibold')}>
-                  {s.name}
-                </span>
+                {/* the hint on hover too, not only while the step runs (ui-tooltips P2) */}
+                <Tip text={s.hint} wrap className="justify-self-start">
+                  <span className={cn('ingest-step-name', st === 'working' && 'font-semibold')}>
+                    {s.name}
+                  </span>
+                </Tip>
                 {st === 'working' && <span className={cn('col-start-2', MUTED)}>{s.hint}</span>}
                 {bar && bar.through > 0 && (
                   // no "0 / 0 files" before any file reached the step (IN-71)
