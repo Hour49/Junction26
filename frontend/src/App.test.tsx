@@ -252,8 +252,9 @@ describe('shell', () => {
 
   it('SH-68 with a pack the tabs add Checks and every href carries ?pack', async () => {
     window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`;
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList });
+    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
     render(<App screens={stubs} />);
+    await screen.findByText(OFFLINE);
     expect(links().map((l) => [l.text, l.href, l.current])).toEqual([
       ['Ingest', `#/p/${P}?pack=fi`, null],
       ['Conflicts', `#/p/${P}/conflicts?pack=fi`, null],
@@ -272,7 +273,24 @@ describe('shell', () => {
     ]);
     go(`#/p/${P}/issues?pack=fi`);
     expect(links().find((l) => l.current)?.text).toBe('Issues');
+  });
+
+  it('SH-72 the Checks tab only for a pack info lists (not while info loads); always on its own route', async () => {
+    window.location.hash = `#/p/${P}/issues?pack=fi`;
+    mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList });
+    render(<App screens={stubs} />);
+    expect(links().map((l) => l.text)).not.toContain('Checks');
     await screen.findByText(OFFLINE);
+    expect(links().map((l) => l.text)).toContain('Checks');
+    go(`#/p/${P}/issues?pack=xx`);
+    expect(links().map((l) => [l.text, l.href])).toEqual([
+      ['Ingest', `#/p/${P}?pack=xx`],
+      ['Conflicts', `#/p/${P}/conflicts?pack=xx`],
+      ['Issues', `#/p/${P}/issues?pack=xx`],
+      ['Chat', `#/p/${P}/chat?pack=xx`],
+    ]);
+    go(`#/p/${P}/checks?pack=xx`);
+    expect(links().find((l) => l.text === 'Checks')?.current).toBe('page');
   });
 
   it('SH-68 the project picker keeps ?pack', async () => {

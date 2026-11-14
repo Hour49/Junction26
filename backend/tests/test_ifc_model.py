@@ -2,6 +2,7 @@
 model, its sheet PDF and the sheet's SVG twin: what the model lists, what the sheet draws of it,
 and what the drawing carries of both."""
 
+import ast
 import hashlib
 import json
 import math
@@ -20,7 +21,7 @@ from app.adapters.extraction_v1 import ExtractionV1Writer
 from app.adapters.ifc_model import LOOKS_FOR, IfcModelExtractor, IfcModels, IfcSecondCounter
 from app.adapters.ifc_model.objects import read_model
 from app.adapters.ifc_model.svg import read_svg
-from app.adapters.vector_pdf.ifc_render import room_type
+from app.adapters.vector_pdf.ifc_render import ROOM_WORDS, room_type
 from app.composition import build_pipeline
 from app.core.drawing.model import MeasuredValue, ModelObject, Page, Subject
 from app.core.errors import InvalidInputError, NotFoundError
@@ -911,3 +912,20 @@ def test_a_label_no_word_names_stays_other(label: str) -> None:
 )
 def test_the_added_words_leave_typed_labels_as_they_were(label: str, kind: str) -> None:
     assert room_type(label) == kind
+
+
+GOLD = Path(__file__).parents[2] / "prototypes" / "extraction-gold" / "ifc_gold.py"
+
+
+def test_the_gold_types_rooms_with_the_readers_words() -> None:
+    """The Part 1 gold of the model sheets keeps a copy of the table (it must not import what it
+    scores). A word in one and not in the other is a room typed two ways: scored wrong."""
+    (words,) = [
+        node.value
+        for node in ast.parse(GOLD.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.Assign)
+        and [target.id for target in node.targets if isinstance(target, ast.Name)] == ["ROOM_WORDS"]
+    ]
+    assert [tuple(row) for row in ast.literal_eval(words)] == list(ROOM_WORDS), (
+        "add the word to both tables, then rebuild the gold (prototypes/extraction-gold/README.md)"
+    )

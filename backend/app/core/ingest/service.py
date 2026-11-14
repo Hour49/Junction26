@@ -13,11 +13,16 @@ import threading
 from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
-from pathlib import PurePosixPath
 
 from app.core import cost
 from app.core.drawing.model import Drawing
-from app.core.errors import DomainError, InvalidInputError, NoDescriptionError, NotFoundError
+from app.core.errors import (
+    DomainError,
+    InvalidInputError,
+    NoDescriptionError,
+    NotFoundError,
+    NotTriagedError,
+)
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
@@ -34,8 +39,10 @@ from app.core.ingest.model import (
     Probed,
     ProjectState,
     ProjectStatus,
+    ReadAsPlan,
     SheetFile,
     Unavailable,
+    page_path,
 )
 from app.core.ingest.ports import (
     Clock,
@@ -57,10 +64,13 @@ from app.core.ingest.triage import (
     NOTE_RUNNING,
     Triaged,
     TriageSteps,
+    called_not_plan,
     context_of,
     judged,
     kind_after,
     overruled,
+    plan_kind,
+    read_as_plan,
     relevance_of,
     set_aside_reason,
     triaged,
@@ -203,17 +213,20 @@ class IngestService:
 
     def recover(self) -> list[str]:
         """At startup: a project the store says is queued or running was cut off by a restart.
-        It becomes failed, its unfinished files set aside, so no screen polls it for ever.
-        Returns the ids it marked. Call before the first `start`."""
+        It becomes failed, its unfinished files set aside, so no screen polls it for ever. A
+        done project's file cut off while it was read again as a floor plan is set aside, and
+        the project stays done. Returns the ids it marked. Call before the first `start`."""
         marked: list[str] = []
         for project_id in self._store.project_ids():
             status, traces = self._store.load_project(project_id)
-            if status.state not in ("queued", "running") or self._running(project_id):
+            cut = status.state in ("queued", "running")
+            unfinished = any(file.state in ("queued", "running") for file in status.files)
+            if not (cut or unfinished) or self._running(project_id):
                 continue
+            done = "not ingested" if cut else "not read as a floor plan"
+            reason = f"{done}: {RESTARTED}"
             files = tuple(
-                file.model_copy(
-                    update={"state": "set_aside", "reason": f"not ingested: {RESTARTED}"}
-                )
+                file.model_copy(update={"state": "set_aside", "reason": reason})
                 if file.state in ("queued", "running")
                 else file
                 for file in status.files
@@ -225,12 +238,44 @@ class IngestService:
             counts: dict[FileState, int] = {}
             for file in files:
                 counts[file.state] = counts.get(file.state, 0) + 1
-            failed = status.model_copy(
-                update={"state": "failed", "error": RESTARTED, "files": files, "counts": counts}
-            )
-            self._store.save_project(failed, traces)
+            update: dict[str, object] = {"files": files, "counts": counts}
+            if cut:
+                update |= {"state": "failed", "error": RESTARTED}
+            self._store.save_project(status.model_copy(update=update), traces)
             marked.append(project_id)
         return marked
+
+    def read_as_plan(self, project_id: str, file_id: str, call: ReadAsPlan) -> FileStatus:
+        """A person says a file triage set aside is a floor plan (decision 0010): it is read as
+        one in the background, alone, through the usual group, route and readers, while the
+        project stays done. Returns the file as queued; poll the project for the rest."""
+        with self._lock:
+            if project_id in self._live:
+                raise NotAllowedError(f"project {project_id} is still being read; try again")
+            status, traces = self._store.load_project(project_id)
+            if status.state != "done":
+                raise NotAllowedError(f"project {project_id} is {status.state}, not done")
+            if file_id not in traces:
+                raise NotFoundError(f"project {project_id} has no file {file_id}")
+            file = traces[file_id].file
+            if file.triage is None or not called_not_plan(file):
+                raise NotTriagedError(
+                    f"file {file_id} was not set aside by triage as not a floor plan"
+                )
+            if file.triage.read_as_plan is not None:
+                raise NotAllowedError(
+                    f"file {file_id} was read as a floor plan already "
+                    f"({file.triage.read_as_plan.by})"
+                )
+            run = Run.resumed(status, traces)
+            triage = read_as_plan(file.triage, call)
+            reason = "queued to be read as a floor plan"
+            run.set(file.path, triage=triage, state="queued", reason=reason)
+            self._live[project_id] = run
+        queued = run.file(file.path)
+        self._save(run)
+        self._runner.submit(lambda: self._reread(run, file.path, call))
+        return queued
 
     def overrule(self, project_id: str, file_id: str, overrule: Overrule | None) -> FileStatus:
         """A person's call on a triaged file's relevance (decision 0010), kept in the project's
@@ -308,6 +353,7 @@ class IngestService:
                 drawings[path] = found
             if probed.exception() is None:  # a failed probe was set aside by `_identify`
                 for page in probed.result()[0].pages:
+                    run.split.add(path)
                     self._page_file(run, path, page, first_of, frames, drawings)
 
         with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="probe") as pool:
@@ -350,8 +396,7 @@ class IngestService:
         """A later drawn page of the PDF at `path`, unpacked as a file of its own
         (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload."""
         started = self._clock()
-        at = PurePosixPath(path)
-        named = str(at.with_name(f"{at.stem}#p{page.number}.pdf"))
+        named = page_path(path, page.number)
         if run.has(named):
             run.add(Entry(path=named, size=len(page.data), refused="a second file at a path"))
             run.stage(named, "unpack", "refused", 0.0, failure="a second file at a path")
@@ -449,6 +494,51 @@ class IngestService:
                 "rectifier": found.method,
             }
         )
+
+    def _reread(self, run: Run, path: str, call: ReadAsPlan) -> None:
+        """Reads one file of a finished project as a floor plan: framed as an image, then its
+        group, route and readers as at upload. A failure sets the file aside with its reason;
+        the project stays done."""
+        started = self._clock()
+        run.set(path, state="running")
+        self._save(run)
+        try:
+            data = self._store.read_file(run.id, path)
+            file = run.file(path)
+            file_format = sniff(data)
+            kind = plan_kind(file.kind, file_format)
+            if kind is None or file_format is None or kind not in DRAWING_KINDS:
+                found = kind_words(file.kind or "unknown")
+                raise InvalidInputError(f"a file read as {found} can't be read as a floor plan")
+            frames: dict[str, Normalised] = {}
+            if kind in IMAGE_KINDS:
+                framed = self._upright(data, kind)
+                if framed is not None:
+                    upright, frames[path] = framed
+                    run.set(path, normalised=frames[path])
+                    if upright is not data:
+                        self._store.put_upload(run.id, path, data)
+                        self._store.put_file(run.id, path, upright)
+                        data = upright
+            run.stage(path, "identify", f"read as a floor plan, as {call.by} asked",
+                      self._ms(started), output=kind_words(kind))  # fmt: skip
+            run.set(path, kind=kind)
+            run.kinds[path] = kind
+            drawing = DrawingFile(
+                path=path, size=len(data), sha256=hashlib.sha256(data).hexdigest(), kind=file_format
+            )
+            groups = Groups(self._store, self._clock, self._names, frames)
+            groups.run(run, self._readers(run.id), {path: drawing}, lambda: self._save(run))
+        except DomainError as failure:
+            run.finish(path, "set_aside", f"not read as a floor plan: {failure}")
+        except Exception as failure:  # a bug: the file says so, the project stays done
+            logger.exception("reading %s of project %s as a floor plan failed", path, run.id)
+            run.finish(path, "set_aside", f"not read as a floor plan: {type(failure).__name__}")
+        finally:
+            self._save(run)
+            with self._lock:
+                del self._live[run.id]
+            run.done.set()
 
     def _judge(self, run: Run, failed: bool) -> None:
         """Triage step 3, once every file is finished: each described file judged against the

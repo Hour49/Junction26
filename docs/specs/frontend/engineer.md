@@ -326,7 +326,9 @@ Desktop 1440x900: one centred column, max 1040 px, padding 32 px 24 px, sections
   (shared.md: 76 px while the header is sticky, 0 on the phone), so the opaque header never covers the bubble.
 - **Plan column padding:** the viewer pads itself (viewer.md, 20 px / 16 px), so the left column adds no padding
   above or beside it; the position and "Also as" row sits over the right end of the viewer's file-name row on
-  desktop and in flow above it at ≤900 px.
+  desktop and in flow above it at ≤900 px. On desktop the two share that row: the file name wraps within the left
+  half (`max-width: 50%`), the place row within the right half less a 12 px gap (`max-width: calc(50% - 32px)`),
+  so neither covers the other (EN-80).
 
 Motion: press feedback by the shared `.v-press` (scale 0.97, 100 ms) on chips and buttons; the overlay opens with opacity and
 scale 0.97 → 1 in 220 ms; both off under `prefers-reduced-motion`.
@@ -461,6 +463,11 @@ Thread and pages
   focus-visible (`.en-askpill:has(input:focus-visible)`: `outline: 2px solid var(--v-accent)`, `outline-offset: 2px`;
   the outline follows the pill's 980 px radius). Chat and engineer share it (`AskBox`). [unit on the CSS text;
   browser: Tab into the bar at 1440 and 390]
+- EN-80 (QA R5-c-2, Bogdan #14 c6876702863) "Also as <file>" and the position never cover the viewer's file name:
+  on desktop `.en-plan:has(> .en-place) .vw-name` has `max-width: 50%` and `.en-place` `max-width: calc(50% - 32px)`
+  (the viewer pads 20 px, so the name ends at the plan's middle and the place row starts 12 px right of it); at
+  ≤900 px the place row is in flow above the viewer. [unit on the CSS text; browser: a long file name with "Also
+  as" at 1440x900 and 390x844, the two boxes do not intersect]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

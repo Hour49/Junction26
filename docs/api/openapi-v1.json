@@ -3370,6 +3370,26 @@
         "title": "QuantityConflict",
         "type": "object"
       },
+      "ReadAsPlan": {
+        "additionalProperties": false,
+        "description": "A person's call that a file triage set aside is a floor plan: it was read as one.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "by",
+          "at"
+        ],
+        "title": "ReadAsPlan",
+        "type": "object"
+      },
       "Reader": {
         "additionalProperties": false,
         "description": "How a drawing was read: its route, the file it was read from and that route's reader.",
@@ -4660,6 +4680,16 @@
             "title": "P Plan",
             "type": "number"
           },
+          "read_as_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadAsPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "relevance": {
             "anyOf": [
               {
@@ -4693,6 +4723,29 @@
           "method"
         ],
         "title": "Triage",
+        "type": "object"
+      },
+      "TriageRequest": {
+        "additionalProperties": false,
+        "description": "A person's call that a file triage set aside is a floor plan (decision 0010): it is read\nas one. `by` as a sign-off's.",
+        "properties": {
+          "by": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "class": {
+            "const": "floor_plan",
+            "title": "Class",
+            "type": "string"
+          }
+        },
+        "required": [
+          "class",
+          "by"
+        ],
+        "title": "TriageRequest",
         "type": "object"
       },
       "ValidationError": {
@@ -5793,6 +5846,65 @@
           }
         },
         "summary": "Trace"
+      }
+    },
+    "/api/projects/{project_id}/files/{file_id}/triage": {
+      "post": {
+        "description": "A person has a file triage set aside read as a floor plan: it is read in the background,\nalone, while the project stays done. Returns the file, queued; poll the project. 409 until\nthe project is done or while a file of it is read again; 422 `not-triaged` for a file triage\ndid not set aside as not a floor plan. No undo: a reading is not unread.",
+        "operationId": "triage_api_projects__project_id__files__file_id__triage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "title": "File Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Triage"
       }
     },
     "/api/projects/{project_id}/issues": {

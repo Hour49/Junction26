@@ -235,6 +235,15 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
     url = f"/api/projects/{project_id}/files/{site_id}/relevance"
     assert client.post(url, json=found["relevance_request"]).status_code == 200
     found["project_triaged"] = client.get(f"/api/projects/{project_id}").json()
+    # then a person has the elevation read as a floor plan (POST …/triage): queued, then read
+    south = next(file["id"] for file in site["files"] if file["path"] == "elevations/south.png")
+    found["triage_request"] = {"class": "floor_plan", "by": "Ana"}
+    url = f"/api/projects/{project_id}/files/{south}/triage"
+    started = client.post(url, json=found["triage_request"])
+    assert started.status_code == 202, started.text
+    found["triage_started"] = started.json()
+    read = client.get(f"/api/projects/{project_id}").json()["files"]
+    found["file_read_as_plan"] = next(file for file in read if file["id"] == south)
     return project_id
 
 
