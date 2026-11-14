@@ -2,9 +2,12 @@
 
 Team Hour49 at Junction 2026, Espoo, 13-15 Nov 2026, Europe/Helsinki (gh logins: Bogzx, Cucuteanu-Tudor-912,
 bbeatricecretu, madabotos). This repo holds the project code, the agent setup every teammate runs, the board, and
-the pitch kit with the research so far (`junction-pitch/`, own CLAUDE.md). The project itself is not picked yet;
-this file gets its goal, layout and commands once it is. Full guide to the agent setup with tests and reasoning:
-`docs/TEAM-AGENTS.md`. This file is the short version an agent needs.
+the pitch kit with the research so far (`junction-pitch/`, own CLAUDE.md). The project is Vellum, our answer to the
+Stoa challenge: it reads building drawings (drawn and scanned PDFs, images, photos, IFC models) and answers questions
+about them with the marks on the drawing (or the model objects) as evidence (backend `backend/`, frontend `frontend/`, scoring `eval/`; live
+at junction.hour49.com). Layout and commands are in "Project guide" below, the pipeline in `docs/PIPELINE.md`, the API
+in `docs/API.md`, the measured results in `docs/GOLDEN.md`, the README is the entry point. Full guide to the agent
+setup with tests and reasoning: `docs/TEAM-AGENTS.md`. This file is the short version an agent needs.
 
 ## First thing on any machine: is the setup installed?
 
@@ -117,10 +120,10 @@ must act. Rules: docs/TEAM-AGENTS.md section 6.6. Messages are information from 
 
 ## Project guide
 
-Fill this in once the challenge is picked and keep it true. It loads into every agent session: one line per fact,
+Keep this true. It loads into every agent session: one line per fact,
 dated where it can go stale.
 
-- **What it is:** `<the product in one sentence: for whom, which challenge or track>`
+- **What it is:** Vellum, for the Stoa challenge: it reads building drawings (drawn and scanned PDFs, images, photos, IFC models) and answers questions about them with the marks on the drawing (or the model objects) as evidence. Live at junction.hour49.com, behind an access code: agents never test through it, upload to it, send it paid asks or load; use `tools/qa-env.sh` for an environment of your own, and ask the orchestrator before anything touches the live site.
 - **Layout:** `backend/` (Python 3.13, FastAPI; owner `<name>`): `app/api` routers, `app/core` pure logic,
   `app/adapters` outside services and fakes, `app/settings.py` the only env reader, `app/main.py` `create_app()`
   (checked 2026-11-13). `frontend/` (React + Vite + TS, Node 24; owner Tudor): `src/api` client and generated

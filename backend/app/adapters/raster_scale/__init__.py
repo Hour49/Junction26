@@ -5,12 +5,18 @@
 reader detected, status `estimated`, and every room without an area gets its outline's area at
 that scale, `area_status` estimated. A sheet whose doors were not read, or where no door was
 detected, keeps `no_scale` with a note saying why: area and length questions are then refused.
-A scale the inner reader found is kept as it is.
+A scale the inner reader found is kept as it is. An area printed in a room's label that is far
+from the room's outline at the estimated scale becomes a conflict (`label_area_checks`).
 """
 
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.raster_scale import door_sides, estimate_scale, rooms_with_areas
+from app.core.pipeline.raster_scale import (
+    door_sides,
+    estimate_scale,
+    label_area_checks,
+    rooms_with_areas,
+)
 
 
 class PriorScale:
@@ -28,10 +34,12 @@ class PriorScale:
         if scale is None:
             note = "scale estimate: not made, no door was detected"
             return found.model_copy(update={"notes": (*found.notes, note)})
+        checks, said = label_area_checks(found.rooms, scale, sheet.pages)
         return found.model_copy(
             update={
                 "scale": scale,
                 "rooms": tuple(rooms_with_areas(found.rooms, scale, sheet.pages)),
-                "notes": (*found.notes, f"scale estimate: {scale.source}"),
+                "printed": (*found.printed, *checks),
+                "notes": (*found.notes, f"scale estimate: {scale.source}", *said),
             }
         )

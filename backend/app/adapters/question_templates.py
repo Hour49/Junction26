@@ -209,7 +209,9 @@ MODEL = re.compile(
     r"\bmodel\b|\bmodell\w*|\bmodelo\b|\bmodelu\b|\bmudelis\b|\bmodèle\b|\bmodello\b"
     r"|\bmodellen\b"
 )
-ROOM_NUMBER = re.compile(r"(?<![\w.])(U?\d+\.\d+)(?![\w.])")
+# A room number, with its sign ("room -1.2" is a basement room, not 1.2; review-354 re-check): a
+# minus at the start or after a space is a sign, one after a letter joins ("Zimmer-1.05" is 1.05)
+ROOM_NUMBER = re.compile(r"(?:(?<![\w.\-])|(?<=[^\W\d_]-))(-?U?\d+\.\d+)(?![\w.])")
 # A number with a unit or in a product is a measure, not a room number: "2.5 m high", "3.5 m2",
 # "1.5 x 2.0" (review-313 S2)
 MEASURE_AFTER = re.compile(r"\s*(?:[x\u00d7*]|m|cm|mm|ft|sq|acres?|ha|m2|m²|%)(?![^\W\d_])")
@@ -357,12 +359,20 @@ class TemplateParser:
         if largest and measure != "area":
             return Unsupported(reason="only the largest room by area is taken off")
         if measure == "count":
+            things = [s for s in subjects if not s.startswith("room")]
+            if things and len({n.group(1) for n in numbers}) > 1:
+                return Unsupported(reason=SEVERAL_ROOMS)
+            if things and name is not None:  # a room's number or quoted name: what is inside it
+                if set(things) == {"shower", "bathtub"}:
+                    return Query(measure="count", subject="shower+bathtub", name=name, **common)
+                if len(things) > 1:
+                    return Unsupported(reason=SEVERAL_THINGS)
+                return Query(measure="count", subject=things[0], name=name, **common)
             if {"shower", "bathtub"} == set(subjects):
                 return Query(measure="count", subject="shower+bathtub", **common)
             # Never drop part of a question: two element classes ("doors and windows", "doors
             # near the window"), or elements counted in one room ("doors the kitchen has"), are
             # not one count of the sheet. Room types name the same rooms ("WC rooms").
-            things = [s for s in subjects if not s.startswith("room")]
             if len(things) > 1:
                 return Unsupported(reason=SEVERAL_THINGS)
             if (

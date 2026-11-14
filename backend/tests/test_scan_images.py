@@ -18,10 +18,11 @@ from app.adapters.archive.probe import is_scanned_pdf
 from app.adapters.decisions.g1main import FAMILIES, CountDist, PageCounts
 from app.adapters.extraction_v1 import ExtractionV1Writer
 from app.adapters.page_render import MAX_PIXELS
+from app.adapters.page_sizes import PageSizes
 from app.adapters.printed_scale import PrintedScale, stated_dpi
 from app.adapters.scan_images import ScanImages, ScanRenders
 from app.composition import build_answering, build_pipeline
-from app.core.drawing.model import Page, Scale
+from app.core.drawing.model import Scale
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.printed import INCH_M, PrintedSheet
 from app.settings import Settings
@@ -219,7 +220,15 @@ def test_a_scanned_pdfs_printed_ratio_becomes_its_scale() -> None:
     dpi = stated_dpi(page)
     assert dpi is not None and dpi[0] == pytest.approx(width / 39.1, rel=1e-3) == dpi[1]
     file = DrawingFile(path=PDF, size=len(data), sha256="0" * 64, kind="pdf")
-    sheet = Sheet(file=file, pages=(Page(page=1, width=width, height=height, unit="px"),))
+    # The sheet's pages as the pipeline reads them: the PDF's own, in points, not the render's
+    # pixels. The scale is metres per page unit, so it is 48 x 0.0254 / 72 whatever the render's
+    # resolution (r10, 2026-11-14: it was metres per render pixel, and areas came out x0.31).
+    sheet = Sheet(file=file, pages=PageSizes(Files({PDF: data})).pages(file))
+    assert sheet.pages[0].unit == "pt"
+    assert sheet.pages[0].width == pytest.approx(39.1 * 72, rel=1e-3)
     found = PrintedScale(Unscaled(), Prints(), ScanImages(Files({PDF: data}))).extract(file, sheet)
     assert found.scale.status == "scaled" and found.scale.m_per_unit is not None
-    assert found.scale.m_per_unit * width == pytest.approx(48 * 39.1 * INCH_M, rel=1e-3)
+    assert found.scale.m_per_unit * sheet.pages[0].width == pytest.approx(
+        48 * 39.1 * INCH_M, rel=1e-3
+    )
+    assert found.scale.source == "printed scale 1/4\" = 1'-0\" on the page's paper size"

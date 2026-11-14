@@ -8,10 +8,13 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
+from test_answering import NoPrior
 
 from app.adapters.printed_scale import PrintedScale, stated_dpi
 from app.adapters.raster_scale import PriorScale
 from app.composition import build_ingest
+from app.core.answering.answer import answer_question
+from app.core.answering.model import Answer, Query, Question, Unsupported
 from app.core.drawing.model import Drawing, Element, Page, Room, Scale
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
@@ -25,10 +28,16 @@ from app.core.pipeline.printed import (
     ratio_of,
     trusted_dpi,
 )
-from app.core.pipeline.raster_scale import DOOR_M
+from app.core.pipeline.raster_scale import (
+    BOX_RATIO,
+    DOOR_M,
+    LABEL_NOTE,
+    LABEL_RANGE,
+    label_area_checks,
+)
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, second_count
-from app.core.pipeline.takeoff import take_off
+from app.core.pipeline.takeoff import known_quantities, take_off
 from app.settings import Settings
 
 PAGE = Page(page=1, width=2000, height=1000, unit="px")
@@ -110,6 +119,20 @@ def test_a_bar_wins_over_a_ratio_and_a_ratio_needs_a_trusted_resolution() -> Non
     assert ratio.evidence == ("scale_text",)
     assert printed_scale(PrintedSheet(printed_scale="1:100"), [PAGE], dpi=None) is None
     assert printed_scale(PrintedSheet(printed_scale="bar"), [PAGE], dpi=150.0) is None
+
+
+def test_a_ratio_on_a_page_in_points_is_metres_per_point_whatever_the_renders_resolution() -> None:
+    """A scanned PDF's page is in points (r10, 2026-11-14: its ratio became metres per pixel of
+    the 129 dpi render, so a 47.7 m wide sheet measured 26.6 m and its areas came out x0.31)."""
+    paper = Page(page=1, width=39.1 * 72, height=24.5 * 72, unit="pt")
+    quarter_inch = PrintedSheet(printed_scale='1/4" = 1\'-0"')
+    for dpi in (129.286, 150.0):
+        scale = printed_scale(quarter_inch, [paper], dpi=dpi)
+        assert scale is not None and scale.m_per_unit is not None
+        assert scale.m_per_unit == pytest.approx(48 * 0.0254 / 72)
+        assert scale.m_per_unit * paper.width == pytest.approx(48 * 39.1 * 0.0254)
+        assert scale.source == "printed scale 1/4\" = 1'-0\" on the page's paper size"
+    assert printed_scale(quarter_inch, [paper], dpi=None) is None  # no trusted paper size
 
 
 def doors(side_px: float, n: int) -> tuple[Element, ...]:
@@ -307,6 +330,64 @@ def drawing_of(found: Extracted) -> Drawing:
         conflicts=tuple(second_count(measured(found), found.printed)),
         read=found.read,
     )
+
+
+def label_room(id_: str, box: tuple[float, float, float, float], printed: float) -> Room:
+    """A room as the Gemini room reader gives it with an area printed in its label."""
+    return Room(id=id_, type="other", label=f"{id_.upper()} {printed:g} m²", page=1, box=box,
+                area_m2=printed, area_status="exact", area_source="printed")  # fmt: skip
+
+
+class AreaOf:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def parse(self, text: str) -> Query | Unsupported:
+        return Query(measure="area", subject="room", name=self.name)
+
+
+def test_label_area_fixes_s1_a_label_area_far_from_its_outline_is_left_to_a_person() -> None:
+    """qa-c S1: "KH 97 m²" (its decimal comma lost) on a 3 x 3 m box at a printed scale came
+    out 97.0 exact. More than LABEL_RANGE from the outline, both values stand and no rule
+    decides; within it the label stands, and so does a label-sized box's."""
+    inner = Fixed(side_px=DOOR_M / 0.02)  # the doors agree with the bar: 0.02 m/px
+    kh = label_room("kh", (0.30, 0.10, 0.375, 0.25), 97.0)  # 150 x 150 px: 3 x 3 m
+    mh = label_room("mh", (0.40, 0.10, 0.475, 0.25), 8.0)  # the same box, a plausible label
+    lobby = label_room("lobby", (0.50, 0.10, 0.54, 0.115), 7.4)  # 0.3 m tall: boxes its label
+    inner.found = inner.found.model_copy(update={"rooms": (*inner.found.rooms, kh, mh, lobby)})
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+
+    outline = round(150 * 150 * 0.02**2 / BOX_RATIO, 2)
+    assert [(m.subject.ref, m.value.value, m.value.method) for m in found.printed
+            if m.quantity == "room_area"] == [("kh", 97.0, "printed_label"),
+                                              ("kh", outline, "detector")]  # fmt: skip
+    said = [note for note in found.notes if note.startswith(LABEL_NOTE)]
+    assert said == [  # once: the door estimate's check is replaced by the printed scale's
+        f"{LABEL_NOTE}kh prints 97 m², its outline at the sheet's scale is about 8.15 m² (more "
+        f"than {LABEL_RANGE:g}x apart): left for a person"
+    ]
+    drawing = drawing_of(found)
+    (entry,) = [c for c in drawing.conflicts or () if c.quantity == "room_area"]
+    assert (entry.status, entry.resolution) == ("conflict", None)
+
+    def ask(name: str) -> Answer:
+        question = Question(id=1, file=FILE.path, text="How big is it?")
+        quantities = known_quantities(drawing)
+        return answer_question(question, quantities, AreaOf(name), iter(range(9)).__next__,
+                               NoPrior())  # fmt: skip
+
+    disputed = ask("kh 97 m²")
+    assert disputed.abstain is True and "no rule decides" in (disputed.explanation or "")
+    kept = ask("mh 8 m²")
+    assert (kept.answer, kept.abstain, kept.estimate) == (8.0, None, None)
+    # the level note: where the value was printed reaches the answer's explanation
+    assert kept.explanation == "printed in the room's label"
+    assert ask("lobby 7.4 m²").answer == 7.4
+
+
+def test_label_area_fixes_no_scale_no_check() -> None:
+    room = label_room("kh", (0.3, 0.1, 0.375, 0.25), 97.0)
+    assert label_area_checks([room], Scale(status="no_scale"), [PAGE]) == ([], [])
 
 
 def test_a_printed_count_stands_against_the_counted_one_and_never_replaces_it() -> None:
