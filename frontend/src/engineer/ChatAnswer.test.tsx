@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
 import { drawingLabel } from '../api';
-import { project, projectAsk } from '../api/fixtures';
+import { answerResolved, project, projectAsk } from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
 import { ChatAnswer } from './ChatAnswer';
@@ -239,4 +239,32 @@ it('CH-42 one pill per row: Signed off, else the level with its text, else the s
   cleanup();
   show({ ...projectAsk, total: 4, total_unit: 'count', total_level: null });
   expect((document.querySelector('.en-lead') as HTMLElement).querySelector('.v-pill')).toBeNull();
+});
+
+it('RS-23 the chat rows show the pick, cannot_tell and resolver_note lines as the answer card', () => {
+  const picked = answerResolved.resolved as NonNullable<typeof answerResolved.resolved>;
+  show({
+    ...projectAsk,
+    parts: [
+      { ...flatA, answer: { ...flatA.answer, unit: 'count', resolved: picked } },
+      { ...flatB, answer: { ...flatB.answer, resolved: null, resolver_note: 'Carbon counted 3.' } },
+    ],
+  });
+  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  expect(a.querySelector('.en-resolved')?.textContent).toContain(
+    `Picked by Carbon: 2. ${picked.reason}`,
+  );
+  expect(b.querySelector('.en-resolvernote')?.textContent).toBe('Carbon counted 3.');
+  expect(document.body.textContent).not.toMatch(/gemini-4-carbon/);
+  cleanup();
+  show({
+    ...projectAsk,
+    parts: [
+      {
+        ...flatA,
+        answer: { ...flatA.answer, resolved: { ...picked, verdict: 'cannot_tell', value: null } },
+      },
+    ],
+  });
+  expect(rows()[0]?.querySelector('.en-resolved')?.textContent).toContain('Carbon could not tell');
 });

@@ -7,6 +7,7 @@ import {
   answerConfidence,
   answerModel,
   answerRefused,
+  answerResolved,
   drawing,
   error,
   info,
@@ -1055,5 +1056,46 @@ describe('Vellum (screen 4)', () => {
     expect(text).toContain('PDF vector · drawn PDF route');
     expect(text.split('Ground floor')).toHaveLength(2);
     expect(text.split('1:100')).toHaveLength(2);
+  });
+});
+
+describe('resolver (#252)', () => {
+  // DoubleCheck reads this drawing's marks: give the fixture this page's drawing id
+  const resolved: AnswerView = { ...answerResolved, drawing_id: DRAWING };
+  const picked = resolved.resolved as NonNullable<AnswerView['resolved']>;
+
+  it('RS-20 a pick beside the answer: value, level and check unchanged; never sure/high', async () => {
+    const t = await shownTurn(resolved);
+    expect(within(t).getByTestId('answer-value').textContent).toBe('2');
+    expect(within(t.querySelector('.en-grade') as HTMLElement).getByText('Medium')).toBeTruthy();
+    const line = t.querySelector('.en-resolved') as HTMLElement;
+    expect(line.textContent).toContain('Picked by Carbon: 2');
+    expect(line.textContent).toContain(picked.reason);
+    expect(
+      within(line)
+        .getByText(/^Picked by Carbon/)
+        .getAttribute('title'),
+    ).toBe('gemini-4-carbon');
+    expect(t.textContent).not.toMatch(/Sure|High|[Cc]ertified|gemini-4-carbon/);
+  });
+
+  it('RS-21 cannot_tell: "Carbon could not tell" and the reason', async () => {
+    const t = await shownTurn({
+      ...resolved,
+      resolved: { ...picked, verdict: 'cannot_tell', value: null },
+    });
+    const line = t.querySelector('.en-resolved') as HTMLElement;
+    expect(line.textContent).toContain('Carbon could not tell');
+    expect(line.textContent).toContain(picked.reason);
+    expect(line.textContent).not.toContain('Picked');
+  });
+
+  it('RS-22 resolver_note without resolved: a muted line; null: nothing', async () => {
+    const t = await shownTurn({ ...resolved, resolved: null, resolver_note: 'Carbon counted 3.' });
+    expect(t.querySelector('.en-resolvernote')?.textContent).toBe('Carbon counted 3.');
+    expect(t.querySelector('.en-resolved')).toBeNull();
+    cleanup();
+    const u = await shownTurn({ ...resolved, resolved: null, resolver_note: null });
+    expect(u.querySelector('.en-resolvernote, .en-resolved')).toBeNull();
   });
 });

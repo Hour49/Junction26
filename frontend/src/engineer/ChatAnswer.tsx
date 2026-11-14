@@ -3,6 +3,7 @@ import { drawingLabel, formatValue, type ProjectAnswer, type ProjectView } from 
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { GRADE_TONE, StatusPill } from './AnswerCard';
+import { ResolverLines } from './Resolver';
 import { gradeOf, kindName, levelWord, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
@@ -147,6 +148,7 @@ export function ChatAnswer(props: {
                 >
                   Show it on {labelOf(p)}
                 </a>
+                <ResolverLines a={p.answer} />
               </li>
             ))}
           </ul>

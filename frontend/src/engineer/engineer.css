@@ -752,6 +752,15 @@ button.en-cref {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* RS-20..23: Carbon's pick or note, its own line (a full row in the chat's per-drawing list). */
+.en-resolved {
+  margin: 0;
+  font-size: 14px;
+}
+.en-parts .en-resolved,
+.en-parts .en-resolvernote {
+  flex-basis: 100%;
+}
 .en-parts a {
   min-height: 44px;
   display: inline-flex;

@@ -14,6 +14,7 @@ import {
 } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
+import { ResolverLines } from './Resolver';
 import { routeHref } from '../shell/route';
 import { ChecksPanel } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
@@ -414,6 +415,7 @@ function Answer(props: {
               onChanged={onChanged}
             />
           )}
+          <ResolverLines a={a} />
           {row?.signed && (
             <p className="en-verified">
               Verified by {row.signed.by}, {formatTime(row.signed.at)}
