@@ -212,4 +212,5 @@ def test_a_not_drawing_verdict_sets_the_image_aside() -> None:
              "elevation_section": 0.085, "site_plan": 0.047, "schedule": 0.045}  # fmt: skip
     probed = kind_probe("jpeg_plan", FakeDecider(reply=kind_reply(probs))).probe(png(20, 20))
     assert probed.kind == "unknown"
-    assert probed.did.startswith("not a drawing: the probe's words; sheet kind not_drawing (0.56)")
+    assert probed.did.startswith("not a drawing: sheet kind not_drawing (0.56)")
+    assert probed.did.endswith("(the pixels alone: the probe's words)")

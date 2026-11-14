@@ -30,7 +30,8 @@ class KindProbe:
         if not isinstance(signal, KindSignal):
             return probed.model_copy(update={"did": f"{probed.did}; {signal.note}"})
         if signal.not_drawing:
-            return Probed(kind="unknown", did=f"not a drawing: {probed.did}; {signal.line()}")
+            said = f"not a drawing: {signal.line()} (the pixels alone: {probed.did})"
+            return Probed(kind="unknown", did=said)
         if signal.photo:
             return Probed(kind="photo_plan", did=f"{probed.did}; {signal.line()} -> photo_plan")
         return probed.model_copy(update={"did": f"{probed.did}; {signal.line()}"})
