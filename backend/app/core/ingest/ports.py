@@ -6,6 +6,7 @@ from typing import Protocol
 
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import (
+    CarbonRead,
     Classified,
     ContentKind,
     Description,
@@ -120,9 +121,10 @@ class Readers(Protocol):
         ...
 
     @property
-    def carbon_read(self) -> Callable[[str], bool] | None:
-        """Whether the raster route's drawing of a file (by path) is read by Gemini Carbon
-        alone (CARBON_READER); such a drawing is flagged. None: no file is."""
+    def carbon_read(self) -> Callable[[str], CarbonRead | None] | None:
+        """What Gemini Carbon read of the raster route's drawing of a file (by path): its
+        elements (CARBON_READER) or another part (a composite's `carbon` source); None: nothing.
+        Such a drawing is flagged. None: no file is."""
         ...
 
     @property

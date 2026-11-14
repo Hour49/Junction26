@@ -5,6 +5,8 @@ import {
   error,
   project,
   projectIssues,
+  projectReviewResolved,
+  resolving,
   projectRunning,
   projectTriaged,
   relevanceRequest,
@@ -16,6 +18,7 @@ import { mockApi, reply } from '../test/mockApi';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { flush, must, sheet } from '../ingest/testing';
 import { issuesChanged } from '../shell/issueCount';
+import { issueRoute } from '../surveyor/issueLinks';
 import { DocumentsScreen } from './DocumentsScreen';
 
 vi.mock('../shell/issueCount', async (original) => ({
@@ -43,7 +46,7 @@ const ANSWER = `POST /api/projects/${PID}/issues/needs/answer`;
 const drawingsOf = (issues: Issue[]) =>
   Object.fromEntries(
     issues
-      .filter((i) => i.kind !== 'conflict' && i.drawing_id && i.page !== null)
+      .filter((i) => (i.kind !== 'conflict' || i.resolved) && i.drawing_id && i.page !== null)
       .map((i) => [`GET /api/drawings/${String(i.drawing_id)}`, drawing]),
   );
 
@@ -330,6 +333,38 @@ describe('DocumentsScreen (documents.md)', () => {
     await flush();
     const files = screen.getByRole('region', { name: 'Files' });
     expect(files.textContent).toContain('A floor plan · Looks like: an elevation');
+  });
+
+  it('RS-30 RS-31 Carbon’s pick and can-not-tell on a conflict issue, with a link to its card', async () => {
+    const conflict = issueOf('conflict');
+    const pick = must(projectReviewResolved.conflicts[0]?.resolved);
+    const issues: Issue[] = [
+      { ...conflict, id: 'picked', state: 'open', severity: 'note', resolved: pick },
+      {
+        ...conflict,
+        id: 'cannot',
+        state: 'open',
+        severity: 'needs_person',
+        resolved: resolving.review.conflicts[0]?.resolved,
+      },
+    ];
+    show(project, { ...projectIssues, issues });
+    await flush();
+    const [cannot, picked] = [within(must(cards()[0])), within(must(cards()[1]))];
+    const card = must(issueRoute(conflict, PID)); // the conflict card on Ingest (fe-surveyor)
+    expect(picked.getByText('Picked by Carbon').getAttribute('title')).toBe('gemini-4-carbon');
+    expect(picked.getByText(pick.reason)).toBeTruthy();
+    expect(picked.getByText('Note')).toBeTruthy();
+    expect(picked.getByRole('link', { name: 'You can change it' }).getAttribute('href')).toBe(card);
+    expect(picked.queryByRole('textbox')).toBeNull();
+    expect(cannot.getByText('Needs a person')).toBeTruthy();
+    expect(cannot.getByText('Carbon could not tell')).toBeTruthy();
+    expect(cannot.getByText(must(resolving.review.conflicts[0]?.resolved).reason)).toBeTruthy();
+    expect(cannot.getByRole('link', { name: 'Settle the conflict' }).getAttribute('href')).toBe(
+      card,
+    );
+    expect(cannot.queryByRole('textbox')).toBeNull();
+    expect(issuesRegion().getByText(/1 issue needs your answer/)).toBeTruthy();
   });
 
   it('DOC-10 drawings and files: names, route words, Open and file links', async () => {

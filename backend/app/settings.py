@@ -66,6 +66,9 @@ RoomPolicyName = Literal["furniture", "gold-labels"]
 # large: on raster images over 4,000 px on their long side (from the file's header), Carbon counts
 # the things drawn and the shipped reader the rooms
 CarbonReaderName = Literal["off", "advanced", "all", "large"]
+# The Carbon check of the levels (CARBON_LEVELS): off; demote: Carbon reads every raster drawing
+# beside its reader, and a Medium answer it counts differently becomes Low
+CarbonLevelsName = Literal["off", "demote"]
 # Dollars, zero or more; an empty value (`GEMINI_BUDGET_USD=`) is unset: no limit
 Usd = Annotated[
     Annotated[float, Field(ge=0)] | None,
@@ -152,6 +155,11 @@ class Settings(BaseSettings):
     # certified. As a source it is `carbon` in RASTER_COMPONENTS or DOUBLE_CHECK_READERS.
     # Seconds per call, and the folder replies are cached in (gitignored)
     carbon_reader: CarbonReaderName = "off"
+    # CARBON_LEVELS=demote (brief r8 BG; integ's pre-registered rule, .agents/exp/integ.md): the
+    # Carbon reader (same key, timeout, cache and spend guard) reads every raster drawing beside
+    # its reader, never counted; CHECK_POLICY's Medium answer whose question Carbon answers with
+    # another value becomes Low. Needs EXTRACTOR_RASTER=composite
+    carbon_levels: CarbonLevelsName = "off"
     carbon_timeout_s: float = 120.0
     carbon_cache_dir: Path = Path("../data/cache/carbon-reader")
     # EU open models (app/adapters/openvlm/): our vLLM server on Verda (Finland), reached by an SSH
@@ -223,13 +231,18 @@ class Settings(BaseSettings):
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set
-    # aside, a doubtful one is read and its answers say so. Replies cached in the folder by file
-    # content. Off until its gate passes
+    # aside. A doubtful one is read; with a non-plan kind (in either SHEET_KIND_SET_ASIDE mode) it
+    # is flagged, so its answers are never certified and are Low, until a person has it read as a
+    # floor plan. Replies cached in the folder by file content. Off until its gate passes
     sheet_kind: SheetKindName = "off"
     sheet_kind_cache_dir: Path = Path("../data/cache/sheet-kind")
     # 0.9: the lowest cut that set aside none of checked-200's 75 plans (0.8 set aside 1; gate
     # run, .agents/exp/vlm-kind.md section 3)
     sheet_kind_cut: float = Field(default=0.9, ge=0, le=1)
+    # false: warn only (Bogdan, 2026-11-14 18:1x: Carbon names sheet kinds as a warning; its
+    # set-aside gate failed, 7 of 227 plans): a sheet it would set aside is read and flagged with
+    # the kind it looks like, so its answers are never certified and are Low (orchestrator)
+    sheet_kind_set_aside: bool = True
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

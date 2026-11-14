@@ -28,6 +28,7 @@ from app.adapters.archive import (
 )
 from app.adapters.archive.probe import is_scanned_pdf
 from app.adapters.carbon import (
+    CarbonChecked,
     CarbonClient,
     CarbonExtractor,
     CarbonReader,
@@ -47,6 +48,7 @@ from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
+from app.adapters.evidence.texts import FileTextReader, StoredTexts
 from app.adapters.gate_policy import load_gate
 from app.adapters.hello import (
     HelloExtractor,
@@ -111,7 +113,7 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.ingest.model import ProjectStatus
+from app.core.ingest.model import CarbonRead, ProjectStatus
 from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -183,9 +185,10 @@ class Pipeline:
     confidence: AnswerConfidence | None = None
     # GATE_POLICY: family -> the confidence at or above which an answer is sure; None: ungated
     sure_at: Mapping[str, float] | None = None
-    # CARBON_READER: whether the raster route's drawing of a file (by path) is read by Carbon
-    # alone, the same yes/no its switch uses; ingest flags those drawings. None: no file is
-    carbon_read: Callable[[str], bool] | None = None
+    # What Carbon read of the raster route's drawing of a file (by path): "elements" when
+    # CARBON_READER sent it there (the same yes/no its switch uses), "part" when a composite takes
+    # a part from the `carbon` source; ingest flags those drawings. None: no file is
+    carbon_read: Callable[[str], CarbonRead | None] | None = None
     # VECTOR_FALLBACK=raster: whether a drawn PDF has no sheet style the vector reader has rules
     # for; stage 5 routes it to the raster route (in `scanned` too) and ingest flags it. None: off
     unruled: Callable[[bytes], bool] | None = None
@@ -294,28 +297,32 @@ def _carbon_counted(
     settings: Settings,
     use_carbon: Callable[[str], bool] | None,
     kind_of: Callable[[str], str | None],
-) -> Callable[[str], bool] | None:
-    """Whether Carbon read a counted part of a file's raster drawing, by path: CARBON_READER sent
-    it there, or the composite that reads it takes a part (elements, a class, rooms, plans or
-    scale) from the `carbon` source. Ingest flags those drawings, so no answer on them is
-    certified (a Carbon answer is never sure, brief r8 AS). A double-check reader counts nothing
-    and is not a part. None: no file is."""
+) -> Callable[[str], CarbonRead | None] | None:
+    """What Carbon read of a file's raster drawing, by path: its elements when CARBON_READER sent
+    it there ("elements"), a part when the composite that reads it takes one (elements, a class,
+    rooms, plans or scale) from the `carbon` source ("part"; the elements are then not known to
+    be all Carbon's), else None. Ingest flags those drawings, so no answer on them is certified
+    (a Carbon answer is never sure, brief r8 AS). A double-check reader counts nothing and is not
+    a part. None: no file is."""
     if settings.extractor_raster != "composite":
-        return use_carbon
+        return None if use_carbon is None else _elements_if(use_carbon)
     main = _carbon_part(settings.raster_components)
     photo = settings.raster_photo_components
     on_photos = _carbon_part(photo) if photo else main
     if use_carbon is None and not main and not on_photos:
         return None
 
-    def counted(path: str) -> bool:
+    def counted(path: str) -> CarbonRead | None:
         if use_carbon is not None and use_carbon(path):
-            return True
-        if main == on_photos:
-            return main
-        return on_photos if kind_of(path) == PHOTO else main
+            return "elements"
+        part = main if main == on_photos else on_photos if kind_of(path) == PHOTO else main
+        return "part" if part else None
 
     return counted
+
+
+def _elements_if(use_carbon: Callable[[str], bool]) -> Callable[[str], CarbonRead | None]:
+    return lambda path: "elements" if use_carbon(path) else None
 
 
 def _carbon_part(spec: str) -> bool:
@@ -409,7 +416,9 @@ def _triage(settings: Settings) -> TriageSteps | None:
     name = f"classifier={settings.triage_classifier}, "
     if settings.sheet_kind == "carbon":
         reader = _sheet_kind_reader(settings)
-        classifier: Classifier = SheetKindClassifier(inner, reader, settings.sheet_kind_cut)
+        classifier: Classifier = SheetKindClassifier(
+            inner, reader, settings.sheet_kind_cut, settings.sheet_kind_set_aside
+        )
         name += f"sheet_kind={settings.sheet_kind}, "  # named only when on: the same keys as before
     elif inner is None:
         return None
@@ -458,7 +467,7 @@ def _evidence_steps(settings: Settings) -> EvidenceSteps | None:
     if settings.evidence_scope == "set_aside":
         return None
     kinds = SheetKindPictures(_sheet_kind_reader(settings), settings.sheet_kind_cut)
-    return EvidenceSteps(kinds=kinds, describer=_describer(settings))
+    return EvidenceSteps(kinds=kinds, describer=_describer(settings), texts=FileTextReader())
 
 
 def _rectifier(name: RectifierName) -> Rectifier:
@@ -589,7 +598,7 @@ def uses_keys(settings: Settings) -> bool:
     )
     sources = [part.partition("=")[2] for spec in specs for part in spec.split(",") if part]
     keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
-    carbon = settings.carbon_reader != "off"
+    carbon = settings.carbon_reader != "off" or settings.carbon_levels != "off"
     raster = settings.extractor_raster == "composite" and (keyed or carbon)
     # the describer is built only when triage is on (`_triage`)
     triage = settings.triage_classifier != "off" or settings.sheet_kind != "off"
@@ -616,7 +625,8 @@ def build_evidence(settings: Settings, root: Path) -> SqliteEvidenceIndex:
         raise InvalidInputError(f"EVIDENCE_EMBEDDER_MANIFEST={manifest}: {error}") from error
     if embedder is None:
         logger.info("evidence index: no embedder manifest, BM25 only")
-    return SqliteEvidenceIndex(root, passages, embedder)
+    texts = StoredTexts(DiskProjectStore(root), FileTextReader())
+    return SqliteEvidenceIndex(root, passages, embedder, texts)
 
 
 class EvidenceIndexes:
@@ -680,6 +690,8 @@ def build_ingest(
     if settings.carbon_reader != "off" or _names_carbon(settings):  # the same; with the
         # contract's hash, so a changed prompt or rule reads the files again
         names["carbon_reader"] = f"{settings.carbon_reader}:{READER_SHA[:12]}"
+    if settings.carbon_levels != "off":  # the same
+        names["carbon_levels"] = f"{settings.carbon_levels}:{READER_SHA[:12]}"
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -737,6 +749,8 @@ def _raster(
                 raise InvalidInputError("RASTER_PHOTO_COMPONENTS needs EXTRACTOR_RASTER=composite")
             if settings.carbon_reader != "off":
                 raise InvalidInputError("CARBON_READER needs EXTRACTOR_RASTER=composite")
+            if settings.carbon_levels != "off":
+                raise InvalidInputError("CARBON_LEVELS needs EXTRACTOR_RASTER=composite")
             if settings.double_check_readers:
                 raise InvalidInputError("DOUBLE_CHECK_READERS needs EXTRACTOR_RASTER=composite")
             return _scaled(settings, HelloExtractor())
@@ -759,11 +773,14 @@ def _raster(
                     "CARBON_READER=advanced reads the sheet-kind step's `advanced` flag: set "
                     "SHEET_KIND=carbon, or use CARBON_READER=off or all"
                 )
-            if use_carbon is None:
-                return shipped
-            if settings.carbon_reader == "large":  # the things drawn from Carbon, rooms not
-                return CarbonThings(shipped, _carbon(settings, files), use_carbon)
-            return CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
+            read = shipped
+            if use_carbon is not None and settings.carbon_reader == "large":  # things drawn
+                read = CarbonThings(shipped, _carbon(settings, files), use_carbon)
+            elif use_carbon is not None:
+                read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
+            if settings.carbon_levels == "demote":  # Carbon reading on its own, as integ's test
+                return CarbonChecked(read, _carbon(settings, files, policy))
+            return read
 
 
 def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:

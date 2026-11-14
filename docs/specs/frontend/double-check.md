@@ -172,6 +172,12 @@ door m2.", disputed: [{mark_id: "m2", why: "only the vector reader saw it", read
 - DC-17: a drawing (credit) error shows a line with Retry; the panel still works; Retry fetches again.
 - DC-19: `doublecheck.css`: `.dc` is an inline-size container; below `@container (min-width: 680px)` the body is one
   column and `.dc-plan` is hidden; the 320px list column exists only inside that query.
+- DC-20 (Bogdan #14 c6880945211, carbon-reader fail-5; brief fe-carbon-flag.md): on a page flagged as a whole
+  (`answer.level.basis === "page"`, API.md: flagged at upload, levels not measured there) the request line is one
+  sentence about the page: "Please double-check the whole page: it was flagged when it was read, so every one of
+  these `noun` is in doubt." (never "we're not sure about N of these"), and the generic `check.reason` line (the
+  rule "every element, room and plan the drawing lists counts once") is not shown; the flag's reason is the answer
+  card's level text at the top (fe-engineer, engineer.md). [unit `check.test.ts`, component]
 - DC-18 [e2e, fe-golden, 1440 and 390, after Bogdan's check PR]: an answer with `check` on the sample: Fix it, reject
   a door, the card's value drops by 1; Done fixing, Confirm as "Ana": "Checked by Ana". No sideways scroll.
 

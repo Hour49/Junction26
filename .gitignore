@@ -14,3 +14,7 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 frontend/screenshots/
+
+# the access gate Worker: the demo assets it serves are built by site/build-assets.sh
+site/assets/
+site/.wrangler/

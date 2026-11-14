@@ -512,6 +512,26 @@ map to existing tokens or a token asked of fe-shared (asks below); none in confl
 4. The checks row (`?pack=`, CF-30..33) has no place in the demo's finished ingest; `ChecksRow` stays exported for a
    host that wants it. Drop it, or put it above the list on the ingest page?
 
+## Resolver picks (#252, resolver.md RS-10..15)
+
+The criteria are in `resolver.md`; this is how the card and list build them. Helpers `resolverName`, `resolverModel`,
+`pickInUse` come from `src/api/format.ts` (fe-shared).
+
+- `cardState` has a fourth state `picked` (`pickInUse(c)`), checked after `settled` and before `rule`. Pill
+  "Picked by Carbon" (`cf-accent`), kicker "picked by Carbon", action line "You can change it." beside Modify.
+- The model's line `p.cf-resolved`: "**Picked by Carbon** <reason>" (picked state) or "**Carbon could not tell**
+  <reason>" (`cannot_tell` on an open card); the bold name carries `title` = the model id. Hidden once a person
+  settled or signed (the model's answer is no longer what is in use).
+- Places: after the `value_marks` places, a pick in use adds one place per `resolved.marks` entry, label
+  "Picked by Carbon: <mark label>", same page rule (another page → legend only, ", on page p").
+- A person's choice over a pick (no rule resolution): the second button reads "Use Carbon's pick" and sends
+  `unsettle` (the server brings the pick back), like "Use the rule's value".
+- `whyText(c)`: with `resolved` set, the server's `why` up to and including "No rule decides between them." (the
+  rest names the model id); missing sentence → the rule-sentence list.
+- `subLine`: "N picked by Carbon, check them." after the rule count; `progressText` counts a pick as settled.
+- Takeoff table (surveyor workspace): a row with a pick in use reads "Picked by Carbon" (`data-status="picked"`,
+  neutral look, `title` = model id) instead of `statusText`.
+
 ## Not in the API
 
 1. **`signed` on `ConflictEntry`** (`SignOff | null`, as on `Row`): the card cannot tell a signed-off conflict, so
