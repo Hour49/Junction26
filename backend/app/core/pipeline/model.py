@@ -6,6 +6,7 @@ from pydantic import Field
 
 from app.core.drawing.model import (
     Apartment,
+    ArbiterReading,
     ConflictQuantity,
     Element,
     Mark,
@@ -92,6 +93,8 @@ class Extracted(Frozen):
     model_objects: tuple[ModelObject, ...] | None = None  # the model's objects; None: no model
     # what each double-check reader saw, by its name, never counted; None: none ran
     double_check: dict[str, ReaderView] | None = None
+    # what the local count arbiter read, by count family, never counted; None: it did not run
+    count_arbiter: dict[str, ArbiterReading] | None = None
     notes: tuple[str, ...] = ()
 
 
