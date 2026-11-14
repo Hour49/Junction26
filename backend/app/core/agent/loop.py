@@ -86,6 +86,7 @@ LABELS = {
     "get_clause": "Read clause {clause_id}",
     "search_evidence": "Searched the evidence for: {query}",
     "get_evidence": "Read evidence {evidence_id}",
+    "show_on_plan": "Showed {caption} on the plan",
 }
 # A proposal the plan tool refused is no proposal (QA edits-6)
 FAILED_LABELS = {
@@ -108,12 +109,30 @@ PLAIN = {
     "get_clause": "Read a law clause",
     "search_evidence": "Searched the evidence",
     "get_evidence": "Read a piece of evidence",
+    "show_on_plan": "Showed places on the plan",
 }
 FAILED_PLAIN = {
     "propose_remove_wall": "Could not remove a wall",
     "propose_room": "Could not place a room in the drawn area",
 }
 ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth")
+
+
+# What the stream says when the server sends an answer back (contract C `checking`), by the
+# start of the first problem the validator found
+RETRY = (
+    ("numbers", "a number in the answer is not in the drawings' results"),
+    ("evidence ids", "the answer cited a place no tool returned"),
+    ("text too long", "the answer was too long"),
+    ("kind edit", "the answer named no proposal a plan tool made"),
+    ("kind needs_input", "the answer asked a question without 2 to 4 choices"),
+    ("kind answer", "every tool said it could not answer"),
+)
+Emit = Callable[[str, Json], None]  # (event type, data): the step stream (contract C)
+
+
+def _quiet(kind: str, data: Json) -> None:
+    """No stream: the sync route."""
 
 
 class _EndedError(Exception):
@@ -131,12 +150,16 @@ def run_turn(
     clock: Callable[[], float] = time.monotonic,
     names: Mapping[str, str] | None = None,
     context: str = "",
+    emit: Emit = _quiet,
 ) -> ChatTurn:
     """Runs one turn and records it in `chat` (messages, turns, proposals, results).
     `names`: drawing id → the drawing's plain name ("Drawn plan 1"), for evidence and steps.
-    `context`: this turn's lines after the system prompt (the chosen country, its laws)."""
+    `context`: this turn's lines after the system prompt (the chosen country, its laws).
+    `emit`: gets the turn's events as they happen (contract C), all in the server's words; the
+    final `answer` event is the caller's (it is the returned turn)."""
     run = _Run(chat, model, toolbox, caps, guard, clock, names or {})
     run.system = f"{SYSTEM}\n{context}" if context else SYSTEM
+    run.emit = emit
     return run.turn(message, selection)
 
 
@@ -154,6 +177,7 @@ class _Run:
         self.chat, self.model, self.toolbox, self.caps = chat, model, toolbox, caps
         self.guard, self.clock, self.names = guard, clock, names
         self.system = SYSTEM
+        self.emit: Emit = _quiet
         self.tools = [*toolbox.tools, SHOW_ON_PLAN_TOOL, FINAL_ANSWER_TOOL]
         self.started = clock()
         self.ledger: dict[str, Json] = {}  # this turn's places
@@ -175,6 +199,7 @@ class _Run:
 
     def turn(self, message: str, selection: Sequence[Selection]) -> ChatTurn:
         chat = self.chat
+        self.emit("turn", {"chat_id": chat.chat_id, "turn": len(chat.turns) + 1})
         chat.starts.append(len(chat.messages))
         lines = [self.toolbox.describe(chosen) for chosen in selection]
         chat.messages.append({"role": "user", "content": "\n".join([message, *lines])})
@@ -195,8 +220,9 @@ class _Run:
 
     def _loop(self) -> FinalAnswer:
         nudged = False
-        for _ in range(self.caps.max_steps):
+        for at in range(self.caps.max_steps):
             self._check_caps()
+            self.emit("thinking", {"step": at + 1})
             try:
                 reply = self.model.complete(self._window(), self.tools)
             except ChatModelError as error:
@@ -213,10 +239,26 @@ class _Run:
                 nudged = True
                 self.chat.messages.append({"role": "user", "content": NUDGE})
                 continue
+            self._plan(at + 1, calls)
             answer = self._calls(calls)
             if answer is not None:
                 return answer
         raise _EndedError(STOPS["steps"])
+
+    def _plan(self, at: int, calls: list[Json]) -> None:
+        """The `plan` event: the tool calls of this step that will run, as their steps will read."""
+        planned: list[Json] = []
+        for call in calls[: self.caps.calls_per_step]:
+            function: Json = call.get("function") or {}
+            name = str(function.get("name", ""))
+            if name == "final_answer":
+                break
+            given: Any = function.get("arguments") or "{}"
+            arguments = given if isinstance(given, str) else json.dumps(given)
+            n = len(self.steps) + len(planned) + 1
+            planned.append({"n": n, "tool": name, "label": self._label(name, arguments)})
+        if planned:
+            self.emit("plan", {"step": at, "calls": planned})
 
     def _check_caps(self) -> None:
         if why := self.guard.exhausted():  # the total and the hourly limit read differently
@@ -248,6 +290,8 @@ class _Run:
                 self.seen[(name, arguments)] += 1
                 if self.seen[(name, arguments)] >= 3:
                     raise _EndedError(STOPS["repeat"])
+                label = self._label(name, arguments)
+                self.emit("tool_call", {"n": len(self.steps) + 1, "tool": name, "label": label})
                 if name == SHOW_ON_PLAN:
                     self._show(call, arguments)
                     continue
@@ -279,6 +323,7 @@ class _Run:
             soft.insert(0, f"text too long ({len(long)} characters): shorten it to {TEXT_CHARS}")
         if not wrong and not soft:
             self._reply(call, json.dumps({"ok": True}))
+            self.emit("checking", {"status": "ok", "reason": None})
             return answer
         self.refused += 1
         if self.refused >= 2:
@@ -286,8 +331,13 @@ class _Run:
                 self._reply(call, _error("; ".join(wrong)))
                 raise _EndedError(UNBACKED)
             self._reply(call, json.dumps({"ok": True, "fixed_by_server": soft}))
+            self.emit("checking", {"status": "ok", "reason": None})
             return fixed  # wording and law naming never end an edit as dont_know (LC-8)
         self._reply(call, _error("final_answer refused: " + "; ".join(wrong + soft) + ". Fix it."))
+        first = (wrong + soft)[0]
+        why = next((plain for start, plain in RETRY if first.startswith(start)), None)
+        reason = why or "the answer did not pass the server's check"
+        self.emit("checking", {"status": "retry", "reason": reason})
         return None
 
     def _law(self, answer: FinalAnswer) -> tuple[list[str], FinalAnswer]:
@@ -401,6 +451,8 @@ class _Run:
         )
         self.steps.append(Step(n=len(self.steps) + 1, tool=name, label=label,
                                status="error" if bad else "ok", ms=ms))  # fmt: skip
+        summary = _summary(name, found, self.names)
+        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": summary})
         self._reply(call, text if isinstance(found, str) else _for_model(found))
 
     def _show(self, call: Json, arguments: str) -> None:
@@ -446,6 +498,9 @@ class _Run:
             caption = f"{len(ids)} {'place' if len(ids) == 1 else 'places'} on {name}, page {page}"
             label = f"Showed {caption}"
         self.shown = (ids, caption)
+        numbered = {ev: n for n, ev in enumerate(ids, start=1)}  # the final turn may renumber
+        shown = view_of((drawing, page), ids, places, numbered, name, caption, "show_on_plan")
+        self.emit("view", shown.model_dump(mode="json"))
         others = [{"drawing": self._name(d, places[evs[0]]), "page": p, "places": len(evs)}
                   for (d, p), evs in groups.items() if (d, p) != (drawing, page)]  # fmt: skip
         result: Json = {"status": "ok", "shown": len(ids), "drawing": name, "page": page}
@@ -461,6 +516,7 @@ class _Run:
         ms = round((self.clock() - start) * 1000, 1)
         self.steps.append(Step(n=len(self.steps) + 1, tool=SHOW_ON_PLAN, label=label,
                                status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
+        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
         self._reply(call, reply)
 
     def _name(self, drawing_id: str, place: Json) -> str:
@@ -657,6 +713,50 @@ def _evs(items: Any) -> list[str]:
         if isinstance(ev, str):
             out.append(ev)
     return out
+
+
+def _summary(name: str, found: Any, names: Mapping[str, str]) -> str | None:
+    """What a tool found, in one line of the server's words (contract C `tool_result`), every
+    number from the result itself; None when there is no safe one-liner."""
+    if isinstance(found, list):
+        listed: list[Any] = found  # pyright: ignore[reportUnknownVariableType]
+        return (
+            f"{len(listed)} drawing{'' if len(listed) == 1 else 's'}"
+            if name == "list_drawings"
+            else None
+        )
+    if not isinstance(found, dict):
+        return None
+    result: Json = found  # pyright: ignore[reportUnknownVariableType]
+    if failed(result):
+        why = result.get("error") or result.get("reason")
+        return str(why)[:160] if why else None
+    if name == ASK:
+        given: list[Any] = result.get("parts") or []
+        parts: list[Json] = [p for p in given if isinstance(p, dict)]
+        lines = [_part(part, names) for part in parts[:3]]
+        more = f"; {len(parts) - 3} more drawings" if len(parts) > 3 else ""
+        return "; ".join(lines) + more if lines else None
+    if name == "list_walls":
+        walls: list[Any] = result.get("walls") or []
+        rooms: list[Any] = result.get("rooms") or []
+        return f"{len(walls)} walls, {len(rooms)} rooms"
+    if name.startswith("propose_"):
+        return "Proposal ready"
+    return None
+
+
+def _part(part: Json, names: Mapping[str, str]) -> str:
+    """One drawing's answer in an ask_drawings result: "Drawn plan 1: 7.56 m2 (high)"."""
+    name = names.get(str(part.get("drawing_id"))) or part.get("name") or "a drawing"
+    answer: Json = part.get("answer") or {}
+    if answer.get("refusal") or answer.get("answer") is None:
+        return f"{name}: cannot answer"
+    unit = answer.get("unit")
+    unit = f" {unit}" if unit and unit != "count" else ""
+    level: Json = answer.get("level") or {}
+    said = f" ({level['level']})" if level.get("level") else ""
+    return f"{name}: {answer['answer']}{unit}{said}"
 
 
 def _refused(asked: Json) -> bool:

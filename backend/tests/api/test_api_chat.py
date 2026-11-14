@@ -140,6 +140,7 @@ def test_ac24_ac25_off_is_503_and_info_says_so(settings: Settings) -> None:
         "model": "off",
         "available": False,
         "reason": "the agent chat is off (CHAT_MODEL=off)",
+        "stream": True,
     }
 
 
@@ -152,7 +153,7 @@ def test_ac24_info_gemini_without_a_key_is_not_available(settings: Settings) -> 
 
 def test_ac24_info_rules_is_available(client: TestClient) -> None:
     assert client.get("/api/info").json()["chat"] == {
-        "model": "rules", "available": True, "reason": None}  # fmt: skip
+        "model": "rules", "available": True, "reason": None, "stream": True}  # fmt: skip
 
 
 FLOOR9178 = (
@@ -281,7 +282,7 @@ def test_robust_3_ac24_the_rules_chat_runs_when_the_gemini_budget_is_used_up(
     turn = ask(client, sample(client), "How many doors are there?")
     assert turn["kind"] == "answer" and "budget" not in turn["text"]
     assert client.get("/api/info").json()["chat"] == {
-        "model": "rules", "available": True, "reason": None}  # fmt: skip
+        "model": "rules", "available": True, "reason": None, "stream": True}  # fmt: skip
 
 
 class Seen:
@@ -358,3 +359,55 @@ def test_item1_an_answer_turn_moves_the_plan_to_its_sources(client: TestClient) 
     assert 0 <= x0 <= first["box"][0] and first["box"][2] <= x1 <= 1 and y0 < y1
     dont = ask(client, project, "Is that wall load-bearing?", chat_id=turn["chat_id"])
     assert dont["kind"] == "dont_know" and dont["view"] is None
+
+
+def stream(client: TestClient, project: str, message: str, **more: Any) -> list[tuple[str, Any]]:
+    """The SSE events of one streamed turn (contract C), pings left out."""
+    with client.stream(
+        "POST", f"/api/projects/{project}/chat/stream", json={"message": message, **more}
+    ) as response:
+        assert response.status_code == 200, response.read()
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert response.headers["cache-control"] == "no-cache"
+        body = "".join(response.iter_text())
+    out: list[tuple[str, Any]] = []
+    for frame in body.split("\n\n"):
+        lines = dict(line.split(": ", 1) for line in frame.splitlines() if not line.startswith(":"))
+        if lines:
+            out.append((lines["event"], json.loads(lines["data"])))
+    return out
+
+
+def test_item2_a_streamed_turn_ends_with_the_turn_the_sync_route_gives(client: TestClient) -> None:
+    project = sample(client)
+    got = stream(client, project, "How many doors are there?")
+    kinds = [kind for kind, _ in got]
+    assert kinds[0] == "turn" and kinds[-1] == "answer" and kinds.count("answer") == 1
+    assert {"thinking", "plan", "tool_call", "tool_result", "checking"} <= set(kinds)
+    answer = got[-1][1]
+    assert (answer["chat_id"], answer["turn"]) == (got[0][1]["chat_id"], 1)
+    results = [data for kind, data in got if kind == "tool_result"]
+    assert [{k: v for k, v in r.items() if k != "summary"} for r in results] == answer["steps"]
+    synced = ask(client, project, "How many doors are there?")
+    same = ("turn", "kind", "text", "evidence", "view", "edit", "options", "model", "cost_usd")
+    assert {k: answer[k] for k in same} == {k: synced[k] for k in same}
+    assert answer.keys() == synced.keys()
+    again = stream(client, project, "How many windows?", chat_id=answer["chat_id"])
+    assert again[0][1] == {"chat_id": answer["chat_id"], "turn": 2}
+
+
+def test_item2_stream_errors_before_the_turn_are_plain_http(client: TestClient) -> None:
+    project = sample(client)
+    missing = client.post("/api/projects/ffffffffffff/chat/stream", json={"message": "hi"})
+    assert missing.status_code == 404
+    url = f"/api/projects/{project}/chat/stream"
+    chat = client.post(url, json={"message": "hi", "chat_id": "0" * 12})
+    assert chat.status_code == 404
+    assert (
+        client.post(f"/api/projects/{project}/chat/stream", json={"message": " "}).status_code
+        == 422
+    )
+
+
+def test_item2_info_says_the_chat_streams(client: TestClient) -> None:
+    assert client.get("/api/info").json()["chat"]["stream"] is True

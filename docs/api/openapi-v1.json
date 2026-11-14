@@ -918,6 +918,11 @@
               }
             ],
             "title": "Reason"
+          },
+          "stream": {
+            "default": true,
+            "title": "Stream",
+            "type": "boolean"
           }
         },
         "required": [
@@ -8863,6 +8868,59 @@
           }
         },
         "summary": "Chat"
+      }
+    },
+    "/api/projects/{project_id}/chat/stream": {
+      "post": {
+        "description": "One turn as a step stream (.agents/chat/contract.md C). Errors known before the turn are\nplain HTTP, as on POST .../chat; the turn runs to its end even when the client goes away.",
+        "operationId": "chat_stream_api_projects__project_id__chat_stream_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-Sent Events: turn, thinking, plan, tool_call, tool_result, view, checking, then answer (the ChatTurn of POST .../chat) or error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "CHAT_MODEL=off"
+          }
+        },
+        "summary": "Chat Stream"
       }
     },
     "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {

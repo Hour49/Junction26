@@ -7838,7 +7838,8 @@ The project chat as a tool-calling agent: it calls the pipeline tools (`list_dra
 every number in `text` came from a tool result of this turn, else the turn is `dont_know`. The model never writes
 coordinates: places are evidence ids the server resolves. `CHAT_MODEL` picks the model: `rules` (default, no key,
 deterministic), `gemini` (`AGENT_MODEL`, every call charged to the Gemini spend guard), `off` (503).
-`GET /api/info` `chat` says which, and whether a turn can run now.
+`GET /api/info` `chat` says which, whether a turn can run now, and (`stream`) whether `POST
+.../chat/stream` exists: a client streams only when it is true.
 
 ### `POST /api/projects/{project_id}/chat`
 
@@ -9374,6 +9375,21 @@ without wall fills) gets `dont_know` saying so.
 
 Errors: 404 unknown project or chat, 409 project not done or a turn of this chat still running, 422 a bad body,
 503 `CHAT_MODEL=off`.
+
+### `POST /api/projects/{project_id}/chat/stream`
+
+The same body and the same turn as `POST .../chat`, sent as Server-Sent Events while the turn runs (added
+2026-11-14). Read it with `fetch` and the response body's reader (`EventSource` cannot POST). Errors known before the
+turn starts (404, 409, 422, 503) are plain JSON responses as on `POST .../chat`. After a 200, each event is
+`event: <type>` and one line of JSON `data`; `: ping` comes when nothing else was sent for 10 s. Events in order:
+`turn` `{chat_id, turn}` (first); per model step `thinking` `{step}`, `plan` `{step, calls: [{n, tool, label}]}`
+(the step's tool calls, in the server's words), and per call `tool_call` `{n, tool, label}` then `tool_result` (a
+`steps` item plus `summary`, a server-written line of what the tool found, or null); `view` (a `View`, when
+`show_on_plan` ran; its mark numbers may change in the final turn); `checking` `{status: "ok" | "retry", reason}`
+when the agent hands in its answer (`retry`: the server sent it back, the reason in plain words); last, exactly
+one of `answer` (the `ChatTurn`, as `POST .../chat` returns it) or `error` `{status, detail}`. Nothing the model
+writes is streamed except through the checked `answer`. A client that goes away does not stop the turn: it runs to
+its end and is stored.
 
 ### `POST /api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}`
 
