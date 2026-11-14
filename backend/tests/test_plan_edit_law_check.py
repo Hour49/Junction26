@@ -22,6 +22,7 @@ from app.core.laws.model import ClauseView, Limit
 from app.core.plan_edit.law_check import (
     LawCheck,
     LawNote,
+    Verdict,
     _after,
     check_proposal,
     related_query,
@@ -411,6 +412,66 @@ def test_lc9b_a_note_that_repeats_a_rule_pack_finding_is_dropped() -> None:
                          packs()["ch-zh"], "vector")  # fmt: skip
     pbg = clause(ref="§ 303 Abs. 1")  # the pack cites "... (PBG, LS 700.1), § 303 Abs. 1"
     assert validate_law_note(GOOD, law, {GOOD.clause_id: pbg}, [9.0]) is None
+
+
+# lawai-2: a limit per dwelling (building, storey, in total) is not one room's: the storage
+# room's 3 m2 against Zurich's "8 m2 of storage per dwelling" is a check, the rest unknown
+def storage_note(what: str, verdict: Verdict = "would_not_meet") -> tuple[LawNote, ClauseView]:
+    limits = (Limit(what=what, comparison=">=", value=8, unit="m2"),)
+    bbv = clause("ch-zh-ls-700-21-39", "§ 39", limits=limits)
+    note = LawNote(clause_id=bbv.id, subject="Storage", value=3.0, comparison=">=", limit=8,
+                   unit="m2", verdict=verdict)  # fmt: skip
+    return note, bbv
+
+
+def test_lawai2_per_dwelling_limit_on_one_room_is_check() -> None:
+    note, bbv = storage_note("storage floor area per dwelling")
+    kept = validate_law_note(note, checked(), {bbv.id: bbv}, [])
+    assert kept is not None and kept.verdict == "check" and kept.value == 3.0
+
+
+@pytest.mark.parametrize(
+    "what",
+    [
+        "storage floor area per dwelling with at most two rooms",  # ch-zh, as in the law files
+        "total sales area of a shopping centre",
+        "Abstellfläche pro Wohnung",
+        "varastotilaa asuntoa kohden",
+        "surface de rangement par logement",
+        "dwelling unit floor area",  # fi, as in the law files from here on
+        "student flat floor area with suitable shared spaces",
+        "floor area, two-storey building",
+        "floor area of a small building",  # ch-zh
+    ],
+)
+def test_lawai2_aggregate_limits_are_check_whatever_the_model_said(what: str) -> None:
+    said: Verdict
+    for said in ("would_not_meet", "meets", "check"):
+        note, bbv = storage_note(what, said)
+        kept = validate_law_note(note, checked(), {bbv.id: bbv}, [])
+        assert kept is not None and kept.verdict == "check", (what, said)
+
+
+@pytest.mark.parametrize(
+    "what",
+    [
+        "storage room floor area",
+        "habitable room area",
+        "door clear width",
+        "room floor area (not single-family houses)",  # ch-zh, as in the law files from here on
+        "kitchen floor area in one-room dwellings",
+        "clear width of doors and openings on internal routes, stairwell-to-dwelling doors",  # fi
+        "reduced dwelling exit width with lift in existing building",
+        "reduced exit width (exit area up to 60 persons, or small residential building)",
+        "turning space diameter in dwelling hall and kitchen",
+    ],
+)
+def test_lawai2_a_per_room_limit_still_would_not_meet(what: str) -> None:
+    note, bbv = storage_note(what)
+    kept = validate_law_note(note, checked(), {bbv.id: bbv}, [])
+    assert kept is not None and kept.verdict == "would_not_meet"
+    assert validate_law_note(note.model_copy(update={"verdict": "check"}), checked(),
+                             {bbv.id: bbv}, []) is None  # fmt: skip
 
 
 # The golden path (spec §1 steps 1-4) on the real sheet, when the dataset is on this machine

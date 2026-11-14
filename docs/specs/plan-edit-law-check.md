@@ -130,7 +130,9 @@ Zürich** (`?pack=ch-zh`).
   subject's own** numbers (`law.subject_values` of the most specific id or label the subject names, after a
   mm/cm limit is put back in metres), so another room's area, though a tool gave it this turn, never stands for
   it; no value only with verdict `check`; `verdict` agrees with `value comparison limit` (computed
-  again in code, never taken from the model). A failing note is dropped and the turn gets one retry; a note that
+  again in code, never taken from the model), and `check` whatever the model said when the limit's `what` is on a
+  whole (any dwelling/apartment/flat/unit/building/storey/house word or total, FI/DE/FR too, unless it only says
+  where the element is, e.g. "in one-room dwellings": lawai-2), since the subject is one room or door. A failing note is dropped and the turn gets one retry; a note that
   repeats a rule-pack finding (same clause ref) is dropped as duplicate. Kept notes → `law.ai_findings`, each with
   the full clause (`ref`, `url`, `quote`, `quote_en`, law title) filled in by the server.
 - LC-9c The text: a kept `would_not_meet` note must be named in the answer with its ref ("PBG § 303 Abs. 1 asks at

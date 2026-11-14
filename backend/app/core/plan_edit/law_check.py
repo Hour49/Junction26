@@ -250,6 +250,31 @@ def related_query(drawing: Drawing, proposal: Proposal) -> str:
     return " ".join(dict.fromkeys(words.split()))
 
 
+# A limit's `what` that measures a whole (a dwelling, a building, a sum), not one room or door
+# (lawai-2). A wrong `check` is safe, a wrong `would_not_meet` is not, so a bare scope word is
+# enough; the words stem-match, as Finnish and German build compounds on them.
+AGGREGATE = re.compile(
+    r"dwelling|apartment|\bflats?\b|\bunits?\b(?! area)|building|storey|\bhouses?\b|\btotal\b"
+    r"|asunto|asuinhuoneisto|rakennus|yhteensä|wohnung|gebäude|insgesamt|logement|bâtiment",
+    re.IGNORECASE,
+)
+# A scope word that only says where the element is ("kitchen floor area in one-room dwellings",
+# "stairwell-to-dwelling doors", "room floor area (not single-family houses)", an exit's width "with
+# lift in existing building"): cut before AGGREGATE looks.
+# shortcut: English only (both corpora's `what`s are English); add DE/FI/FR if a corpus gets them.
+WHERE = re.compile(
+    r"\b(?:in|inside|within)\s+(?:an?\s+|the\s+)?(?:[\w-]+\s+)?"
+    r"(?:dwellings?|houses?|apartments?|flats?)\b"
+    r"(?:\s+(?:or|and)\s+[\w-]+\s+(?:units?|dwellings?))?|-to-dwelling\b|\(not [\w\s-]*houses?\)"
+    r"|\bdwelling exit\b|\bwith lift in existing building\b|\bor small residential building\b",
+    re.IGNORECASE,
+)
+
+
+def _aggregate(what: str) -> bool:
+    return AGGREGATE.search(WHERE.sub(" ", what)) is not None
+
+
 def validate_law_note(
     note: LawNote,
     law_check: LawCheck,
@@ -260,16 +285,22 @@ def validate_law_note(
     clause of this turn by id. A value must be one of its subject's own (`law_check.
     subject_values`), so another room's area cannot stand for it; `tool_values` (the turn's
     numbers, untied to a subject) is not read and stays for the posted signature. The verdict is
-    recomputed from the numbers, never taken from the model."""
+    recomputed from the numbers, never taken from the model, and is `check` for a limit on a
+    whole (`_aggregate`): the subject is one room or door."""
     clause = clauses.get(note.clause_id)
     if clause is None:
         return None
-    if not any(
-        limit.comparison == note.comparison
-        and limit.unit == note.unit
-        and math.isclose(limit.value, note.limit)
-        for limit in clause.limits
-    ):
+    limit = next(
+        (
+            limit
+            for limit in clause.limits
+            if limit.comparison == note.comparison
+            and limit.unit == note.unit
+            and math.isclose(limit.value, note.limit)
+        ),
+        None,
+    )
+    if limit is None:
         return None
     if not _subject_known(note.subject, law_check.subjects):
         return None
@@ -285,7 +316,9 @@ def validate_law_note(
         if not any(math.isclose(note.value * scale, value, abs_tol=TOLERANCE) for value in known):
             return None
         verdict = "meets" if _holds(note.value, note.comparison, note.limit) else "would_not_meet"
-        if note.verdict != verdict:
+        if _aggregate(limit.what):  # lawai-2: one room is not the dwelling's whole
+            verdict = "check"
+        elif note.verdict != verdict:
             return None
     return AiFinding(
         **note.model_dump(exclude={"verdict"}),
