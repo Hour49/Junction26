@@ -9,7 +9,7 @@ the step off (describing for the index is decoupled from setting aside, so no pl
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from app.core.evidence.ports import PictureKinds
+from app.core.evidence.ports import FileTexts, PictureKinds
 from app.core.ingest.model import (
     Classified,
     ContentKind,
@@ -32,11 +32,12 @@ NO_DESCRIBER = "not described: no description model is set up"
 
 @dataclass(frozen=True)
 class EvidenceSteps:
-    """EVIDENCE_SCOPE=all_non_plan as composition built it: the kind call, and the describer
-    (None: pictures are not described and say so)."""
+    """EVIDENCE_SCOPE=all_non_plan as composition built it: the kind call, the describer (None:
+    pictures are not described and say so) and the reader of a file's own text."""
 
     kinds: PictureKinds
     describer: Describer | None
+    texts: FileTexts
 
 
 def is_picture(file: FileStatus, read: Callable[[], bytes]) -> bool:

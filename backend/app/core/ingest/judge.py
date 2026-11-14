@@ -3,7 +3,14 @@
 from collections.abc import Mapping, Sequence
 
 from app.core.drawing.model import Drawing
-from app.core.ingest.model import ContentKind, FileState, Normalised, Stage, StageTrace
+from app.core.ingest.model import (
+    CarbonRead,
+    ContentKind,
+    FileState,
+    Normalised,
+    Stage,
+    StageTrace,
+)
 from app.core.pipeline.model import Route
 from app.core.wording import CONFLICT_WORDS, ROUTE_WORDS, SCALE_WORDS, count, route_words
 
@@ -24,11 +31,11 @@ def judge(
     route: Route,
     reader: str | None,
     frame: Normalised | None = None,
-    carbon: bool = False,
+    carbon: CarbonRead | None = None,
 ) -> tuple[FileState, str]:
     """`ready` when the route's reader read the drawing and nothing needs a look; `flagged`
     with every reason a person should look at it. `reader`: the route's adapter name; `frame`:
-    how an image was normalised; `carbon`: the Carbon reader read it alone (CARBON_READER)."""
+    how an image was normalised; `carbon`: what Gemini Carbon read of it (reading_flags)."""
     if drawing.model_objects is not None and not drawing.pages:
         found = count(len(drawing.model_objects), "model object")
     else:
@@ -52,7 +59,12 @@ def judge(
     return "ready", f"read on the {route_words(route)}: {found}"
 
 
+# Carbon counted the drawing's elements (CARBON_READER); review/ask.py reads this flag as "a class
+# Carbon counted and found none of is a read 0" (brief r8 BD), so it is never set for a part
 CARBON_FLAG = "counted by Gemini Carbon: its counts are not measured yet"
+# a composite took another part from Carbon (rooms, plans, scale, one class): its elements are not
+# all Carbon's (fail-1's S-D, .agents/qa/r9/review-269.md)
+CARBON_PART_FLAG = "read in part by Gemini Carbon: its counts are not measured yet"
 
 
 def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:
@@ -67,12 +79,13 @@ def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | No
 
 
 def reading_flags(
-    kind: ContentKind, frame: Normalised | None, carbon: bool = False
+    kind: ContentKind, frame: Normalised | None, carbon: CarbonRead | None = None
 ) -> tuple[str, ...]:
     """The flags about how the page itself was read (a phone photo, a scan, by Gemini Carbon
     alone): every answer on the drawing carries them, none of its answers is certified, and a
     group the reader found nothing of is not a count of 0 (review/ask.py). A conflict or an
-    empty read is said where it shows (its row, no-reader)."""
+    empty read is said where it shows (its row, no-reader). They are part of the stored reading;
+    the sheet-kind step's flag is the project's (triage.sheet_flag, with_sheet_flag)."""
     flags: tuple[str, ...] = ()
     if kind == "pdf_scan":
         flags = ("a scanned PDF, read as an image",)
@@ -80,9 +93,20 @@ def reading_flags(
         flags = (f"a phone photo, rectified by {frame.rectifier}: check the paper's corners",)
     elif kind == "photo_plan":
         flags = ("a phone photo, read without perspective correction",)
-    if carbon:  # its counts have no measured level yet (.agents/exp/carbon-reader.md 1.4)
+    if carbon == "elements":  # its counts have no measured level yet (carbon-reader.md 1.4)
         flags += (CARBON_FLAG,)
+    elif carbon == "part":
+        flags += (CARBON_PART_FLAG,)
     return flags
+
+
+def with_sheet_flag(state: FileState, reason: str, flag: str | None) -> tuple[FileState, str]:
+    """A read file's state and reason in its project: the stored reading's, flagged when the
+    project's triage doubts the sheet is a floor plan (triage.sheet_flag). The flag is not in the
+    stored reading, which is shared by content across projects and triage settings."""
+    if flag is None:
+        return state, reason
+    return "flagged", f"{flag}; {reason}"
 
 
 def pipeline_stages(

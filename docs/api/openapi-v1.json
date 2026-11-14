@@ -2064,7 +2064,8 @@
             "enum": [
               "summary",
               "detail",
-              "visible_text"
+              "visible_text",
+              "text"
             ],
             "title": "Part",
             "type": "string"
@@ -2186,7 +2187,8 @@
             "enum": [
               "summary",
               "detail",
-              "visible_text"
+              "visible_text",
+              "text"
             ],
             "title": "Part",
             "type": "string"
@@ -3215,7 +3217,8 @@
               "score",
               "page",
               "held",
-              "unrated"
+              "unrated",
+              "carbon"
             ],
             "title": "Basis",
             "type": "string"
@@ -7918,7 +7921,7 @@
     },
     "/api/projects/{project_id}/files/{file_id}/triage": {
       "post": {
-        "description": "A person has a file triage set aside read as a floor plan: it is read in the background,\nalone, while the project stays done. Returns the file, queued; poll the project. 409 until\nthe project is done or while a file of it is read again; 422 `not-triaged` for a file triage\ndid not set aside as not a floor plan. No undo: a reading is not unread.",
+        "description": "A person has a file triage set aside read as a floor plan: it is read in the background,\nalone, while the project stays done. Returns the file, queued; poll the project. 409 until\nthe project is done or while a file of it is read again; 422 `not-triaged` for a file triage\ndid not set aside as not a floor plan. A sheet the sheet-kind step doubted (flagged) was read\nalready: its flag is dropped at once, nothing is read again. No undo: a reading is not\nunread.",
         "operationId": "triage_api_projects__project_id__files__file_id__triage_post",
         "parameters": [
           {
