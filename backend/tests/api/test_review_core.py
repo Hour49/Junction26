@@ -788,3 +788,22 @@ def test_a_room_s_names_are_one_disagreement_only_when_the_rows_point_at_one_roo
     assert storey_twins(rooms()) == {}  # no marks: not known to be one room
     assert len(disputes([row(q, DRAWING, ReviewState(), {}) for q in rooms().values()])) == 2
     assert storey_twins(rooms(BOX_A)) == {"area:room|name=kitchen": "area:room|name=1.01"}
+
+
+def test_a_room_number_printed_in_the_label_names_the_room() -> None:
+    """fail-1, .agents/qa/r10/stanza-107.md: the raster room reader keeps "Stanza 1.07" as one
+    label (the vector reader stores the number apart), so "What is the area of Stanza 1.07?"
+    (the parser's name 1.07) was refused on the PNG while the PDF answered 19.98 m²."""
+
+    def room(n: int, label: str, area: float, page: int = 1) -> Room:
+        return Room(id=f"r{n}", type="bedroom", label=label, page=page, box=BOX_A, area_m2=area,
+                    attrs={"reader": "gemini"})  # fmt: skip
+
+    drawing = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno\n4.5 m²", 4.5))
+    assert asked("What is the area of Stanza 1.07?", drawing).answer.answer == 19.98
+    assert asked("What is the net floor area of room 1.07?", drawing).answer.answer == 19.98
+    # a measure in the label is not a room number
+    assert asked("What is the net floor area of room 4.5?", drawing).answer.answer is None
+    # a number two rooms print names neither: never one room's area for both, never a sum
+    two = scaled(room(1, "Stanza 1.07", 19.98), room(2, "Bagno 1.07", 5.0, page=2))
+    assert asked("What is the net floor area of room 1.07?", two).answer.answer is None

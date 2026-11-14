@@ -20,6 +20,7 @@ the entry does not matter.
 """
 
 import math
+import re
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
@@ -810,15 +811,26 @@ def _left_out(rooms: Sequence[Room], shafts: bool) -> list[tuple[Mark, str]]:
     return out
 
 
+# A room number printed inside a label ("Stanza 1.07"), as the parser reads one (U1.05, 4.01),
+# and not a measure ("PH 4.5 m²")
+LABEL_NUMBER = re.compile(
+    r"(?<![\w.])(U?\d+\.\d+)(?![\w.])(?!\s*(?:m\b|m2|m²|cm\b|mm\b|ft\b|sq\b|%))"
+)
+
+
 def room_names(room: Room) -> tuple[str, ...]:
-    """Every name a room answers to (its numbers, names, printed label), normalised and sorted, so
-    the takeoff's keys come in the same order on every run (golden-311)."""
+    """Every name a room answers to (its numbers, names, printed label, and a room number printed
+    in the label), normalised and sorted, so the takeoff's keys come in the same order on every
+    run (golden-311). The raster room reader keeps "Stanza 1.07" as one label where the vector
+    reader stores the number apart, so "the area of Stanza 1.07" (the parser's name 1.07) was
+    refused on the PNG and answered on the PDF (fail-1, .agents/qa/r10/stanza-107.md)."""
 
     def texts(keys: Iterable[str]) -> set[str]:
         return {value for key in keys if isinstance(value := room.attrs.get(key), str) and value}
 
     numbers, names = texts(ROOM_NUMBERS), texts(ROOM_NAMES)
     found = {*numbers, *names, *([room.label] if room.label else [])}
+    found |= set(LABEL_NUMBER.findall(room.label or ""))
     found |= {f"{name} ({number})" for name in names for number in numbers if name != number}
     return tuple(sorted({normalised(value) for value in found}))
 
