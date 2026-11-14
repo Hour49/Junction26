@@ -12,7 +12,7 @@ from collections.abc import Callable, Mapping
 
 from app.core.drawing.model import Drawing, Page
 from app.core.ingest.judge import judge, pipeline_stages, reading_flags, with_sheet_flag
-from app.core.ingest.model import PAGE_NUMBER, Normalised, Outcome, SheetKind, StageTrace
+from app.core.ingest.model import Normalised, Outcome, SheetKind, StageTrace, split_from
 from app.core.ingest.ports import Clock, ProjectStore, Readers
 from app.core.ingest.progress import Run
 from app.core.ingest.timing import (
@@ -245,17 +245,18 @@ def _scans(run: Run, members: DrawingGroup) -> set[str]:
 
 def _fallback(run: Run, readers: Readers) -> Callable[[str], bool] | None:
     """VECTOR_FALLBACK=raster: whether a file the vector route read nothing of is a drawn PDF it
-    has no rules for, which the raster route then reads as the image of its page (pipeline/ingest.py
-    `fallback`); None when the fallback is off. Page 1 of an upload only: a set's later pages
-    (`<name>#p<n>.pdf`) stay as the vector route reads them, so one upload costs at most one image
-    reading (Carbon on a large page: 0.03 to 0.38 USD, median 0.10; an 8-page set read whole was
-    0.66 USD, think-local r10)."""
+    has no rules for, which the raster route then reads as the image of its page
+    (pipeline/ingest.py `fallback`); None when the fallback is off. Page 1 of an upload only: the
+    later pages ingest split off a set (`split_from` its record, not the file's name) stay as the
+    vector route reads them, so one upload costs at most one image reading (Carbon on a large
+    page: 0.03 to 0.38 USD, median 0.10; an 8-page set read whole was 0.66 USD, think-local r10).
+    That reading is paid for even when it finds nothing and is dropped (review-348 N1)."""
     unruled = readers.unruled
     if unruled is None:
         return None
     return lambda path: (
         run.kinds.get(path) == "pdf_vector"
-        and not PAGE_NUMBER.search(path)
+        and split_from(path, run.split) is None
         and unruled(readers.files.read(path))
     )
 

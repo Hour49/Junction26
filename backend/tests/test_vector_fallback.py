@@ -257,18 +257,56 @@ def test_only_page_1_of_an_upload_falls_back(
     assert files["plan#p2.pdf"].route == "vector" and "read nothing" in files["plan#p2.pdf"].reason
 
 
+def schedule_plot() -> bytes:
+    """A drawn PDF in no style the vector reader knows, with a door schedule it reads."""
+    sheet = SheetPdf(600, 400)
+    door_schedule(sheet)
+    for n in range(12):
+        x, y = 40 + 45 * n, 260 + 10 * (n % 3)
+        sheet.path(rect(x, y, x + 30, y + 30), width=1.0)
+    return sheet.pdf()
+
+
 def test_a_drawn_pdf_whose_schedule_is_read_keeps_the_vector_route(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """r10 fix 3: the vector route read its schedule, so it is not read again as an image nor
     flagged (golden's A-801 kept its answers but lost their level)."""
     detector(tmp_path, monkeypatch)
-    sheet = SheetPdf(600, 400)
-    door_schedule(sheet)
-    for n in range(12):
-        x, y = 40 + 45 * n, 260 + 10 * (n % 3)
-        sheet.path(rect(x, y, x + 30, y + 30), width=1.0)
-    data = sheet.pdf()
+    data = schedule_plot()
     assert Unruled()(data)  # no reading rules: the fallback would read it before
     (file,) = upload(tmp_path, "schedule.pdf", data)
     assert file.route == "vector" and file.state == "ready" and UNRULED_FLAG not in file.reason
+
+
+@pytest.mark.parametrize(("data", "route", "flags"), [
+    (schedule_plot(), "vector", ()),  # the vector route read its schedule: not read as an image
+    (plot(), "raster", (UNRULED_FLAG,)),  # read as an image: flagged
+])  # fmt: skip
+def test_the_cli_flags_only_a_pdf_it_read_as_an_image(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    data: bytes,
+    route: str,
+    flags: tuple[str, ...],
+) -> None:
+    """review-348 S1: the golden/answer path flagged every drawn PDF without reading rules, so
+    with a GATE_POLICY a schedule sheet the vector route read could never be sure there, while
+    the product keeps its level."""
+    detector(tmp_path, monkeypatch)
+    dataset = tmp_path / "dataset"
+    (dataset / PDF).parent.mkdir(parents=True)
+    (dataset / PDF).write_bytes(data)
+    pipeline = build_pipeline(Settings(vector_fallback="raster"), dataset, lambda _: "pdf_vector")
+    (sheet,) = pipeline.ingest([PDF], ExtractionV1Writer(tmp_path / "out", {PDF: "dev"})).sheets
+    assert sheet.route == route
+    assert pipeline.flags is not None and pipeline.flags(PDF) == flags
+
+
+def test_an_upload_named_like_a_later_page_is_page_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """review-348 N3: a later page is a file ingest split off a set, not any name ending #p2."""
+    detector(tmp_path, monkeypatch)
+    (file,) = upload(tmp_path, "plan#p2.pdf", plot())
+    assert file.route == "raster" and file.takeoff["door"] == 1
