@@ -69,6 +69,7 @@ export function AdvancedIngest({
   const takeoffs = [...data.takeoffs.values()];
   const pairs = pairsOf(takeoffs, project);
 
+  const takeoffFailed = (id: string) => data.failed.has(`takeoff:${id}`);
   const elapsed = (): Stat => {
     const ms = elapsedMs(project, now);
     return { label: 'Elapsed', value: ms === null ? '–' : formatMs(ms) };
@@ -113,25 +114,19 @@ export function AdvancedIngest({
         ];
       }
       case 'pairs': {
-        if (takeoffs.length) {
-          const agree = pairs.filter((p) => p.row.status === 'agree').length;
-          const conflicts = pairs.filter((p) => p.row.status === 'conflict').length;
-          return [
-            elapsed(),
-            { label: 'Measured twice', value: String(pairs.length) },
-            { label: 'Agree', value: String(agree) },
-            { label: 'Conflicts', value: String(conflicts) },
-          ];
-        }
-        // Before any takeoff is loaded: the traces' second counts; "…" while loading, "–" when none ran.
-        const counts = [...traces.values()].flatMap((t) => t.second_count ?? []);
-        const sum = (f: (c: { measured: number; conflicts: number }) => number) =>
-          counts.length ? String(counts.reduce((n, c) => n + f(c), 0)) : traces.size ? '–' : '…';
+        // Counts only once every finished drawing's takeoff is in (or failed): a partial sum jumps (AV-31).
+        const loaded = project.drawings
+          .filter((d) => isFinished(d))
+          .every((d) => data.takeoffs.has(d.drawing_id) || takeoffFailed(d.drawing_id));
+        const count = (n: number) => (loaded ? String(n) : '–');
         return [
           elapsed(),
-          { label: 'Measured twice', value: sum((c) => c.measured) },
-          { label: 'Agree', value: sum((c) => c.measured - c.conflicts) },
-          { label: 'Conflicts', value: sum((c) => c.conflicts) },
+          { label: 'Measured twice', value: count(pairs.length) },
+          { label: 'Agree', value: count(pairs.filter((p) => p.row.status === 'agree').length) },
+          {
+            label: 'Conflicts',
+            value: count(pairs.filter((p) => p.row.status === 'conflict').length),
+          },
         ];
       }
       case 'ready':
@@ -144,7 +139,6 @@ export function AdvancedIngest({
     }
   };
 
-  const takeoffFailed = (id: string) => data.failed.has(`takeoff:${id}`);
   const visual = () => {
     switch (view.visual) {
       case 'files':

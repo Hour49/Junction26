@@ -133,7 +133,7 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   this upload"`) row of file cards in `project.files` order: path, `formatSize(size)`, kind word (or "not
   identified"), `StateBadge`. Each card shows the upload itself, `previewUrl(projectId, id, 400)`, when its kind
   has a preview (`previewNote` null: images and PDFs, the backend's `PREVIEW_KINDS`), else the line for its kind:
-  "A model: no picture to show" (ifc), "No preview for <kind> files", "Not identified yet" (kind null). The card of the file the step is working on (unfinished, its stage in the step) is framed, as
+  "A model: no picture to show" (ifc), "<kindLabel>: no preview" (AV-29), "Not identified yet" (kind null). The card of the file the step is working on (unfinished, its stage in the step) is framed, as
   the design frames the centre. No auto-scrolling film: the band scrolls by hand.
 - Caption (mono, under the band): while working, `"<path> · <formatSize(size)>"` of that file; else
   `plural(files.length, 'file')`, total `formatSize` of all files.
@@ -190,8 +190,7 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   list, each with a filled dot when the drawing's file is `ready` or `flagged`, and a link "Ask this drawing" to
   `#/p/<projectId>/d/<drawing_id>/engineer`. No drawings: "No drawing to ask yet."
 - Stats, Cross-check: **Elapsed**, **Measured twice** (pairs), **Agree** (`status === 'agree'`), **Conflicts**
-  (`status === 'conflict'`), from the takeoffs; before any takeoff has loaded, summed over the traces' `second_count`
-  ("…" while the trace loads, "–" when no file has one). Index: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
+  (`status === 'conflict'`), from the takeoffs, once every finished drawing's takeoff has loaded or failed; "–" until then (AV-31). Index: **Elapsed**, **Drawings** (`drawings.length`), **Questions ready** (keys of the drawings' files'
   `takeoff`, summed over `project.drawings`), **Cost** (`formatCost(project.cost_usd)`).
 
 ## States
@@ -288,6 +287,16 @@ Layout and access
   `drawing_id`, else `project.drawings[].file`), never `Takeoff.file` or `DrawingView.file`: drawings are
   content-addressed and shared, so those may be another project's path for the same bytes. Kinds show as
   `kindLabel` words ("photo of a plan"), never raw ids. [unit `pairsOf` with a shared drawing; component Cross-check]
+- AV-29 (R4-a-4): No raw id or doubled path in Advanced text: a file with no preview reads "<kindLabel>: no
+  preview" ("SVG: no preview", no "a SVG"); a log line whose `output` is the file's own path uses `did` instead (never
+  "Unpack a.pdf a.pdf"); an Identify line's output shows as `kindLabel`, a Route line's and the route chip as
+  `routeLabel` ("drawn PDF route", never "route vector" or "vector"). [unit `previewNote`, `stepLines`, `routeLabel`]
+- AV-30 (R4-a-5): The "File" and "Drawing" picker labels never break inside the word at 390 or 1440: `.adv-pick`
+  sets `overflow-wrap: normal` and the select `min-width: 0` (the page's `overflow-wrap: anywhere` let the select
+  squeeze the label to one letter per line). [unit: CSS text; browser 1440 and 390]
+- AV-31 (R4-a-8): Cross-check's Measured twice, Agree and Conflicts show "–" until every finished drawing's takeoff
+  has loaded or failed, then the counts; they never show a partial sum that changes as takeoffs arrive (QA saw
+  100/8, 27/0, 61/8). [component: one takeoff pending -> "–"; all loaded -> counts]
 
 ## Not in the API
 
