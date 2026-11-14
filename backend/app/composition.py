@@ -69,6 +69,11 @@ from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
+from app.adapters.triage.sheet_kind import (
+    GeminiSheetKindClient,
+    SheetKindClassifier,
+    SheetKindReader,
+)
 from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
@@ -84,7 +89,7 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.ingest.model import ProjectStatus
-from app.core.ingest.ports import ContentProbe, Rectifier
+from app.core.ingest.ports import Classifier, ContentProbe, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
 from app.core.pipeline.ingest import ingest
@@ -266,21 +271,34 @@ def _probe(settings: Settings) -> ContentProbe:
 
 
 def _triage(settings: Settings) -> TriageSteps | None:
-    """File triage (decision 0010); None when the classifier is off, whatever else is set."""
+    """File triage (decision 0010); None when both the classifier and the sheet-kind step are
+    off, whatever else is set. SHEET_KIND wraps the classifier (or stands alone)."""
+    inner: Classifier | None = None
     match settings.triage_classifier:
         case "off":
-            return None
+            pass
         case "rules":
-            classifier = RulesClassifier()
+            inner = RulesClassifier()
         case "siglip":
             try:
-                classifier = SiglipClassifier.from_folder()
+                inner = SiglipClassifier.from_folder()
             except DomainError as error:
                 raise InvalidInputError(f"TRIAGE_CLASSIFIER=siglip: {error}") from error
-    name = (
-        f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
-        f"judge={settings.triage_judge}"
-    )
+    name = f"classifier={settings.triage_classifier}, "
+    if settings.sheet_kind == "carbon":
+        client = GeminiSheetKindClient(
+            settings.gemini_api_key.get_secret_value(),
+            settings.gemini_timeout_s,
+            budget=spend_guard(settings),
+        )
+        reader = SheetKindReader(client, settings.sheet_kind_cache_dir)
+        classifier: Classifier = SheetKindClassifier(inner, reader, settings.sheet_kind_cut)
+        name += f"sheet_kind={settings.sheet_kind}, "  # named only when on: the same keys as before
+    elif inner is None:
+        return None
+    else:
+        classifier = inner
+    name += f"describer={settings.triage_describer}, judge={settings.triage_judge}"
     judge = RulesJudge() if settings.triage_judge == "rules" else None
     describer = None
     if settings.triage_describer == "gemini":
@@ -395,8 +413,16 @@ def uses_keys(settings: Settings) -> bool:
     keyed = any(source.split(":", 1)[0] in KEYED_SOURCES for source in sources)
     raster = settings.extractor_raster == "composite" and keyed
     # the describer is built only when triage is on (`_triage`)
-    describer = settings.triage_classifier != "off" and settings.triage_describer == "gemini"
-    return raster or settings.decisions_confidence or settings.decisions_kind or describer
+    triage = settings.triage_classifier != "off" or settings.sheet_kind != "off"
+    describer = triage and settings.triage_describer == "gemini"
+    sheet_kind = settings.sheet_kind != "off"
+    return (
+        raster
+        or settings.decisions_confidence
+        or settings.decisions_kind
+        or describer
+        or sheet_kind
+    )
 
 
 def build_evidence(settings: Settings, root: Path) -> SqliteEvidenceIndex:

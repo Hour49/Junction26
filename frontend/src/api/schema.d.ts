@@ -2155,6 +2155,43 @@ export interface components {
             /** Value */
             value: number;
         };
+        /**
+         * Sheet
+         * @description Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The
+         *     title, sheet number and printed scale are shown, never acted on.
+         */
+        Sheet: {
+            /** Advanced */
+            advanced: boolean;
+            /** Advanced Why */
+            advanced_why: string | null;
+            /** Confidence */
+            confidence: number;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "read" | "doubt" | "set_aside";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "architectural_floor_plan" | "multi_view_sheet" | "mep_plan" | "structural_plan" | "roof_or_ceiling_plan" | "site_plan_or_map" | "elevation" | "section" | "detail" | "perspective_or_axonometric" | "schedule_or_text" | "not_a_drawing" | "other";
+            /** Kind Words */
+            kind_words: string;
+            /** Model */
+            model: string;
+            /** Printed Scale */
+            printed_scale: string | null;
+            /** Seen */
+            seen: string;
+            /** Sheet Number */
+            sheet_number: string | null;
+            /** Takeoff Possible */
+            takeoff_possible: boolean;
+            /** Title */
+            title: string | null;
+        };
         /** SignOff */
         SignOff: {
             /** At */
@@ -2295,6 +2332,7 @@ export interface components {
             read_as_plan?: components["schemas"]["ReadAsPlan"] | null;
             register?: components["schemas"]["Register"] | null;
             relevance?: components["schemas"]["Relevance"] | null;
+            sheet?: components["schemas"]["Sheet"] | null;
             /** Verdict */
             verdict?: ("related" | "unrelated" | "unsure") | null;
         };

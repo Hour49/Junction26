@@ -934,7 +934,7 @@ after a restart cut that run off:
 
 ### File triage (decision 0010)
 
-Off by default (`TRIAGE_CLASSIFIER=off`). With it on, every image file (a PNG or JPEG, a photo, a scanned PDF;
+Off by default (`TRIAGE_CLASSIFIER=off` and `SHEET_KIND=off`). With either on, every image file (a PNG or JPEG, a photo, a scanned PDF;
 not vector PDFs, IFC, DXF or SVG) is asked "is this a floor plan?" in the `identify` stage, before any reader. A
 floor plan goes on as before. Any other image is kept, set aside, described in words, and once the project's plans
 are read, judged against the project. Nothing is deleted, and a person's call is never a reading: an image called
@@ -984,6 +984,18 @@ the `identify` stage's line.
 - `read_as_plan`: `{by, at}` once a person had the file read as a floor plan (`POST …/triage`); `class` stays the
   classifier's.
 - `verdict`: the one value that counts: `overruled.verdict`, else `relevance.verdict`, else null.
+- `sheet` (left out unless `SHEET_KIND=carbon` asked about the file; off by default): what gemini-4-carbon calls
+  the sheet. `kind` (`architectural_floor_plan`, `multi_view_sheet`, `mep_plan`, `structural_plan`,
+  `roof_or_ceiling_plan`, `site_plan_or_map`, `elevation`, `section`, `detail`, `perspective_or_axonometric`,
+  `schedule_or_text`, `not_a_drawing`, `other`) with `kind_words` to show, `decision` (`set_aside`: no floor plan
+  on the sheet and a non-plan kind at confidence >= `SHEET_KIND_CUT` (default 0.9), the file is set aside with the reason "not a
+  floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it; `doubt`: it is read, and every
+  answer with a value from it ends its `explanation` with "This sheet may not be a floor plan[: it looks like
+  <kind_words>]."; `read`), `takeoff_possible`, `confidence` (of a floor plan on the sheet), `title`,
+  `sheet_number`, `printed_scale` (as printed, shown only), `advanced` and `advanced_why` (harder than a clean scan
+  of one small home plan, or an upload over 4,000 px on its long side; nothing reads it yet), `seen`, `model`. A
+  call that fails leaves the file as triage would have it without the step ("triage not available: ...; read as
+  today" with no classifier). A model answer alone; never a certified value.
 - `note`: why `description` or `relevance` is null, a plain sentence: "a floor plan: it is read, so it is not
   described or judged"; "not described: no description model is set up, so it is not judged" (no describer: the
   offline demo); "not described: <why>" (the model refused or failed); "not judged yet: the project is still being
