@@ -26,6 +26,7 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
+from app.adapters.check_policy import load_check
 from app.adapters.count_arbiter import ArbiterCountExtractor
 from app.adapters.dataset_files import DatasetFiles, DatasetSheetModels
 from app.adapters.decisions.client import DecisionsClient
@@ -41,6 +42,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.local_gate import load_local_gate
 from app.adapters.openvlm.client import OpenVlmClient
 from app.adapters.openvlm.decider import OpenVlmDecider
 from app.adapters.openvlm.rooms import OpenVlmRoomExtractor, OpenVlmRoomModel
@@ -61,6 +63,7 @@ from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.triage.rules import RulesClassifier
+from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
@@ -88,6 +91,15 @@ from app.core.pipeline.ports import (
 )
 from app.core.pipeline.room_policy import gold_label_rooms
 from app.core.pipeline.route import RICHEST_FIRST
+from app.core.review.check import (
+    NO_SCORERS,
+    CheckPolicy,
+    Disputes,
+    Scorer,
+    gate_scorer,
+    no_disputes,
+)
+from app.core.review.disputes import find_disputes
 from app.settings import (
     AnswerPriorName,
     ExtractorName,
@@ -252,7 +264,8 @@ def _triage(settings: Settings) -> TriageSteps | None:
         f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
         f"judge={settings.triage_judge}"
     )
-    return TriageSteps(classifier=classifier, describer=None, judge=None, name=name)
+    judge = RulesJudge() if settings.triage_judge == "rules" else None
+    return TriageSteps(classifier=classifier, describer=None, judge=judge, name=name)
 
 
 def _rectifier(name: RectifierName) -> Rectifier:
@@ -289,6 +302,9 @@ class Answering:
     confidence: Callable[[DrawingFiles], AnswerConfidence] | None = None
     signal: str | None = None  # what that confidence's score is, by name (`g1main`)
     sure_at: Mapping[str, float] | None = None  # GATE_POLICY on that signal; None: ungated
+    check: CheckPolicy | None = None  # CHECK_POLICY; None: off, no answer asks for a check
+    disputes: Disputes = no_disputes  # where a double-check request points
+    scorers: Mapping[str, Scorer] = NO_SCORERS  # LOCAL_GATES, by signal name (lower case)
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -298,6 +314,8 @@ def build_answering(settings: Settings) -> Answering:
         reader = decisions_reader(settings)  # one reader: its disk cache is the count swap's too
         confidence = partial(DecisionsConfidence, reader=reader)
         signal = DECISIONS_SIGNAL
+    # LOCAL_GATES only serve CHECK_POLICY: with it off, a bad path can't stop startup
+    scorers = _scorers(settings.local_gates) if settings.check_policy else {}
     return Answering(
         parser=_parser(settings.question_parser),
         prior=_prior(settings.answer_prior),
@@ -306,6 +324,13 @@ def build_answering(settings: Settings) -> Answering:
         confidence=confidence,
         signal=signal,
         sure_at=_gate(settings),
+        check=(
+            load_check(Path(settings.check_policy), signal, scorers)
+            if settings.check_policy
+            else None
+        ),
+        disputes=find_disputes,
+        scorers=scorers,
     )
 
 
@@ -629,6 +654,18 @@ def _gate(settings: Settings) -> dict[str, float] | None:
     if not settings.gate_policy or not settings.decisions_confidence:
         return None
     return load_gate(Path(settings.gate_policy), DECISIONS_SIGNAL)
+
+
+def _scorers(paths: str) -> dict[str, Scorer]:
+    """LOCAL_GATES: the local gate models a check policy's family may be certified on, by their
+    signal name in lower case (app/adapters/check_policy.py compares names without case)."""
+    scorers: dict[str, Scorer] = {}
+    for path in filter(None, (part.strip() for part in paths.split(","))):
+        model = load_local_gate(Path(path))
+        if (name := model.name.lower()) in scorers:
+            raise InvalidInputError(f"LOCAL_GATES: two models are named {model.name}")
+        scorers[name] = gate_scorer(model)
+    return scorers
 
 
 def _policy(path: str) -> frozenset[tuple[str, str]]:

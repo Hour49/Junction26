@@ -37,6 +37,9 @@ All under `frontend/src/ingest/`; each `*.tsx`/`*.ts` with logic has a `*.test.t
 Removed in v2: `ProjectList.tsx` (the list moves to screen 5, `src/account/`, fe-golden) and `StageStrip.tsx` (the
 11-chip strip is replaced by the 8-step list; per-stage detail is the Advanced view's).
 
+File triage (decision 0010: the class, description, relevance and a person's call on a triaged file's row and trace,
+the project's `not_plans`): `file-triage.md` (FT-*).
+
 [e2e] criteria are built by the e2e worker (golden-path.md), who owns `frontend/e2e/`. The shell (shared spec)
 owns the router, the info banner and the API client; this spec calls the client's functions for the endpoints named
 below.

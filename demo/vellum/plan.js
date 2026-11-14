@@ -109,7 +109,7 @@
 
   // A small thumbnail for the unpack film strip.
   function thumb(file) {
-    if (!file.drawing) return P_DOC(file);
+    if (!file.drawing) return window.VTriage && window.VTriage.of(file.path) ? window.VTriage.picture(file.path, file.path).replace('class="plan tri-pic', 'class="plan thumb tri-pic') : P_DOC(file);
     const d = V.drawing(file.drawing);
     if (d.image) return file.image ? img(file.image, file.path).replace('class="plan"', 'class="plan thumb"') : P_DOC(file);
     return plain(d, lookOfFile(file.kind), file.path).replace('class="plan ', 'class="plan thumb ');

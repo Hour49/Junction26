@@ -12,7 +12,7 @@ from triage_fakes import FakeClassifier, steps
 
 from app.adapters.archive import DiskProjectStore
 from app.core.errors import NotFoundError, NotTriagedError
-from app.core.ingest.model import ReadAsPlan
+from app.core.ingest.model import FileStatus, ReadAsPlan
 from app.core.review.review import NotAllowedError
 
 CALL = ReadAsPlan(by="Ana", at="2026-11-14T12:00:00Z")
@@ -113,4 +113,53 @@ def test_a_reread_cut_off_by_a_restart_sets_the_file_aside_and_the_project_stays
     status = restarted.status(project.id)
     scan = file_of(status, "scan.png")
     assert (status.state, scan.state) == ("done", "set_aside")
-    assert scan.reason == "not read as a floor plan: the server restarted during ingest"
+    assert scan.reason == (
+        "not read as a floor plan: the server restarted while it was read as a floor plan"
+    )
+    # back to triage's set-aside, so a person can ask again (R6-a-1)
+    assert scan.triage is not None and scan.triage.read_as_plan is None
+    gate.held = False
+    queued = restarted.read_as_plan(project.id, scan.id, CALL)
+    assert queued.triage is not None and queued.triage.read_as_plan == CALL
+    read = file_of(restarted.wait(project.id), "scan.png")
+    assert read.state in ("ready", "flagged") and read.drawing_id is not None
+
+
+class FailingStore(DiskProjectStore):
+    """A store whose next read of `path`'s file fails, as a reader that raises would; it keeps
+    the file's saved status at that moment."""
+
+    def __init__(self, root: Path, path: str) -> None:
+        super().__init__(root)
+        self.path, self.fail = path, False
+        self.seen: FileStatus | None = None
+
+    def read_file(self, project_id: str, path: str) -> bytes:
+        if self.fail and path == self.path:
+            self.fail = False
+            status, _ = self.load_project(project_id)
+            self.seen = next(file for file in status.files if file.path == path)
+            raise RuntimeError("the reader broke")
+        return super().read_file(project_id, path)
+
+
+def test_a_failed_reread_keeps_its_reason_and_can_be_asked_again(
+    make_service: MakeService, tmp_path: Path
+) -> None:
+    store = FailingStore(tmp_path / "store", "scan.png")
+    ingest = make_service(triage=steps(classifier()), store=store)
+    project = ingest.wait(ingest.start("site.zip", zipped({"scan.png": SCAN})))
+    scan = file_of(project, "scan.png")
+    store.fail = True
+    ingest.read_as_plan(project.id, scan.id, CALL)
+    status = ingest.wait(project.id)
+    assert store.seen is not None  # while it was read, the reason said so (R6-a-5)
+    assert (store.seen.state, store.seen.reason) == ("running", "being read as a floor plan")
+    failed = file_of(status, "scan.png")
+    assert (status.state, failed.state) == ("done", "set_aside")
+    assert failed.reason == "not read as a floor plan: RuntimeError"
+    assert failed.triage is not None and failed.triage.read_as_plan is None
+    ingest.read_as_plan(project.id, scan.id, CALL)  # no 409: it was never read
+    read = file_of(ingest.wait(project.id), "scan.png")
+    assert read.state in ("ready", "flagged") and read.drawing_id is not None
+    assert read.triage is not None and read.triage.read_as_plan == CALL

@@ -89,6 +89,16 @@ def test_a_long_window_alone_does_not_make_a_page_unclean() -> None:
     assert check(windows(A, long, C)) == WindowPanes(whole=3, panes=3, clean=True, places=())
 
 
+def test_a_window_every_reader_sees_but_scores_low_says_its_reading_is_weak() -> None:
+    """The reason is the score, not the readers: "only 2 of 2 readers see" was false here."""
+    counted = [window(A, "w1", 0.3), window(B, "w2"), window(C, "w3")]
+    found = check(counted)
+    assert not found.clean
+    (place,) = found.places
+    assert place.mark_id == "w1"
+    assert place.why == "Counted as a window, but the reading of this one is weak."
+
+
 def test_a_counted_window_few_readers_see_is_a_place_to_check() -> None:
     counted = windows(A, B, C)
     views = [list(counted) for _ in range(3)] + [counted[:2] for _ in range(5)]

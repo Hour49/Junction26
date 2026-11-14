@@ -202,7 +202,8 @@
           "storeys": null,
           "schedule": null,
           "check": null
-        }
+        },
+        "check": null
       }
     },
     {
@@ -406,7 +407,8 @@
           "storeys": null,
           "schedule": null,
           "check": null
-        }
+        },
+        "check": null
       }
     },
     {
@@ -488,7 +490,8 @@
           "storeys": null,
           "schedule": null,
           "check": null
-        }
+        },
+        "check": null
       }
     }
   ],

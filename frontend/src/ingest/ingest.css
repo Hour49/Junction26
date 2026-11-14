@@ -363,6 +363,67 @@
   text-align: right;
 }
 
+/* File triage card (file-triage.md "Layout") */
+.ingest-triage {
+  display: grid;
+  gap: 8px;
+}
+.ingest-triage p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ingest-triage .output,
+.ingest-not-plans {
+  color: var(--v-muted);
+  font-size: 14px;
+}
+.ingest-triage-h {
+  margin: 12px 0 0;
+  font-size: 16px;
+}
+.ingest-triage-preview {
+  display: block;
+  max-width: min(100%, 400px);
+  height: auto;
+  border: 1px solid var(--v-line);
+  border-radius: 12px;
+}
+.ingest-triage summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.ingest-triage-call {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.ingest-triage-call label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+.ingest-triage-call input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--v-line);
+  border-radius: 12px;
+  background: var(--v-surface);
+  color: var(--v-text);
+  font: inherit;
+  font-size: 16px; /* no iOS zoom on focus */
+}
+.ingest-triage-call input:focus-visible {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 1px;
+}
+.ingest-triage-call p {
+  flex-basis: 100%;
+}
+
 @media (max-width: 720px) {
   .ingest-head {
     flex-direction: column;
@@ -377,5 +438,10 @@
   }
   .ingest-files ul {
     padding: 4px 16px;
+  }
+  .ingest-triage-call {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
   }
 }

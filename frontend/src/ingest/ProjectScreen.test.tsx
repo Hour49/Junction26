@@ -1,12 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { error, project, projectRunning } from '../api/fixtures';
+import { error, fileReadAsPlan, project, projectRunning, triageStarted } from '../api/fixtures';
 import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { formatMs, kindLabel, routeLabel } from './ingest';
 import { ProjectScreen } from './ProjectScreen';
-import { flush, must, variants } from './testing';
+import { flush, must, triaged, triagedVariants, variants } from './testing';
 
 vi.mock('../advanced/AdvancedIngest', () => ({
   AdvancedIngest: vi.fn(() => <p>the advanced view</p>),
@@ -536,6 +536,93 @@ describe('ProjectScreen', () => {
     project.files.forEach((f, i) => {
       expect(rows[i]?.textContent).toContain(f.path);
       expect(rows[i]?.textContent).toContain(f.state === 'ready' ? 'ready' : 'flagged');
+    });
+  });
+
+  describe('file triage (file-triage.md)', () => {
+    const show = async (body: ProjectView) => {
+      mockApi({ [`GET /api/projects/${body.id}`]: body });
+      window.location.hash = `#/p/${body.id}`;
+      render(<ProjectScreen projectId={body.id} />);
+      await flush();
+    };
+    const row = (path: string) =>
+      must(
+        within(screen.getByRole('region', { name: 'Files' }))
+          .getByText(path)
+          .closest('li'),
+      ).textContent;
+    const filesHead = () => must(screen.getByRole('region', { name: 'Files' }).textContent);
+
+    it('FT-1 with triage off the rows and the Files heading are as before', async () => {
+      await show(project);
+      expect(filesHead()).not.toContain('floor plan');
+      expect(filesHead()).not.toContain('Not judged');
+    });
+
+    it('FT-2 a related elevation: class line and pill, not its reason', async () => {
+      await show(triaged);
+      const r = row('elevations/south.png');
+      expect(r).toContain(
+        'Not a floor plan: another kind of drawing · the south elevation of a two-storey house',
+      );
+      expect(r).toContain('✓ Related');
+      expect(r).not.toContain('P(plan)');
+    });
+
+    it('FT-3 a call shows whose; an undescribed file reads not judged', async () => {
+      await show(triaged);
+      const site = row('photos/site.jpg');
+      expect(site).toContain('Not a floor plan: not a drawing · a building site with a crane');
+      expect(site).toContain('✓ Related');
+      expect(site).toContain('Ana’s call');
+      const street = row('photos/street.jpg');
+      expect(street).toContain('Not a floor plan: not a drawing');
+      expect(street).toContain('– Not judged');
+      expect(row('plans/flat-a.pdf')).not.toContain('floor plan');
+    });
+
+    it.each([
+      [triaged, '3 not floor plans: kept, not read'],
+      [triagedVariants.notPlansZero, 'No image set aside as not a floor plan'],
+    ])('FT-4 not_plans: %#', async (body, line) => {
+      await show(body);
+      expect(filesHead()).toContain(line);
+    });
+
+    it('FT-19 a file read as a plan: its reason and whose call, no triage line', async () => {
+      await show({
+        ...triaged,
+        files: triaged.files.map((f) => (f.id === 'f2' ? fileReadAsPlan : f)),
+      });
+      const r = row('elevations/south.png');
+      expect(r).toContain('Read as a floor plan on Ana’s call');
+      expect(r).toContain(fileReadAsPlan.reason);
+      expect(r).not.toContain('Not a floor plan');
+    });
+
+    it('FT-20 a done project polls again while a file is being read', async () => {
+      fakeClock();
+      const reading = {
+        ...triaged,
+        files: triaged.files.map((f) => (f.id === 'f2' ? triageStarted : f)),
+      };
+      const read = {
+        ...triaged,
+        files: triaged.files.map((f) => (f.id === 'f2' ? fileReadAsPlan : f)),
+      };
+      const api = mockApi({ [`GET /api/projects/${triaged.id}`]: sequence(reading, read) });
+      render(<ProjectScreen projectId={triaged.id} />);
+      await flush();
+      await advance(600);
+      await advance(600);
+      expect(gets(api)).toBe(2);
+    });
+
+    it('FT-4 no not_plans line while running or with triage off', async () => {
+      await show({ ...triagedVariants.running, state: 'done' });
+      expect(filesHead()).not.toContain('kept, not read');
+      expect(filesHead()).not.toContain('No image set aside');
     });
   });
 });

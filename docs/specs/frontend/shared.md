@@ -379,6 +379,8 @@ as below or rejects with `ApiError`. Path ids go through `encodeURIComponent`; q
 | `getTakeoff(drawingId, opts?: {zeros?, project?, signal?})` | `GET /api/drawings/{drawing_id}/takeoff[?zeros=][&project=]` | `Takeoff` |
 | `postReview(drawingId, edit: Edit, opts?: {zeros?, project?, signal?})` | `POST /api/drawings/{drawing_id}/review[?zeros=][&project=]`, JSON body | `Takeoff` |
 | `postSignoff(drawingId, body: SignOffRequest, opts?: {zeros?, project?, signal?})` | `POST /api/drawings/{drawing_id}/signoff[?zeros=][&project=]`, JSON body | `Takeoff` |
+| `postRelevance(projectId, fileId, body: RelevanceRequest, opts?: {signal?})` | `POST /api/projects/{project_id}/files/{file_id}/relevance`, JSON body (0010, file-triage.md) | `FileStatus` |
+| `readAsPlan(projectId, fileId, by, opts?: {signal?})` | `POST /api/projects/{project_id}/files/{file_id}/triage`, JSON body `{class: 'floor_plan', by}` (#166, 202) | `FileStatus` (queued) |
 
 URL builders (no request; for `<img src>` and `<a href download>`):
 
@@ -728,6 +730,13 @@ Vellum round (round 2)
 - SH-72 (QA R5-c-4) With packs `[fi]` in info: `?pack=fi` shows the Checks tab once info has loaded; `?pack=xx`
   (not listed) shows none, its other tabs still carry `?pack=xx`; while info loads `?pack=fi` shows none; on
   `#/p/<pid>/checks?pack=xx` Checks shows, current. [component]
+- SH-73 (triage) `postRelevance('5e0c1a2b3d52', 'f2', relevance_request.json)` sends `POST
+  /api/projects/5e0c1a2b3d52/files/f2/relevance` with the fixture as the JSON body and resolves with the `FileStatus`;
+  `types.ts` exports `Triage`, `Description`, `Relevance`, `Overrule`, `RelevanceRequest`; `fixtures.ts` exports
+  `projectTriaged` and `relevanceRequest`. [unit, mockApi]
+- SH-74 (triage) `readAsPlan('5e0c1a2b3d52', 'f2', 'Ana')` sends `POST /api/projects/5e0c1a2b3d52/files/f2/triage`
+  with `triage_request.json` as the body and resolves with the 202's `triage_started.json`; `fixtures.ts` exports
+  `triageRequest`, `triageStarted`, `fileReadAsPlan`; `types.ts` exports `TriageRequest`, `ReadAsPlan`. [unit, mockApi]
 - SH-63 `index.html`'s `<title>` equals `PRODUCT_NAME` ("Vellum"). [unit]
 - SH-61 The country picker: a button "Country rules: Finland" with `data-pending="country-rules"` and
   `aria-expanded="false"`; clicking opens the group "Building rules the agent follows" with Finland

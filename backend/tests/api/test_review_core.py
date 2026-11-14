@@ -549,6 +549,7 @@ class Scored:
 
     value: float | None = 0.99
     note: str = "decisions: 0.99"
+    agrees: bool | None = None
 
     def probability(self, path: str, family: str, value: object) -> "Scored":
         return self

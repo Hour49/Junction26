@@ -143,6 +143,7 @@ Rect = tuple[float, float, float, float]
 MIN_LABEL = 10  # px: a label is not shrunk below this
 RINGS = 8  # how far out a label moved off its mark is tried, in label heights
 DIRECTIONS = 16
+SHEET = 0.5  # a mark's box over this share of the page marks the whole sheet, not a place on it
 
 
 class Label(NamedTuple):
@@ -170,16 +171,23 @@ def place_labels(
 ) -> list[Placed]:
     """Where each label's box goes, so no two boxes overlap. A label sits inside its own outline,
     sized to it; when it doesn't fit there at a readable size (60% of its own) it moves outside on
-    a leader line, shrinking down to MIN_LABEL, clear of the other labels and marks; then inside
-    at MIN_LABEL; when all fail it gets no place (the picture lists it under the page). Small
-    outlines are placed first: they have the fewest spots."""
+    a leader line, shrinking down to MIN_LABEL, clear of the other labels and marks (but not of a
+    mark over the whole sheet); then inside at MIN_LABEL; when all fail it gets no place (the
+    picture lists it under the page). Small outlines are placed first: they have the fewest
+    spots."""
     boxes = [_bounds(label.points) for label in labels]
     taken: list[Rect] = []
     out: list[Placed] = [Placed(None, 0, None)] * len(labels)
     for at in sorted(range(len(labels)), key=lambda at: _area(boxes[at])):
         label, own = labels[at], boxes[at]
         readable = max(MIN_LABEL, int(label.size * 0.6))
-        others = [box for other, box in enumerate(boxes) if other != at]
+        # a whole-sheet box covers every spot, so it would push the numbers of the marks that
+        # have a place off the page (QA R6-c-1)
+        others = [
+            box
+            for other, box in enumerate(boxes)
+            if other != at and _area(box) <= SHEET * width * height
+        ]
         found = (
             _inside(label, own, measure, taken, readable)
             or _outside(label, own, measure, taken, others, width, height)
@@ -294,9 +302,13 @@ def _zoom(picture: Image.Image, box: tuple[float, float, float, float]) -> Image
 
 
 def _points(mark: MarkView, width: int, height: int) -> list[tuple[float, float]]:
-    if mark.polygon:
-        return [(x * width, y * height) for x, y in mark.polygon]
+    """The mark's polygon, or its box when it has none or the polygon spans less than half of
+    the box either way (a dashed railing's polygon is its first dash: QA R6-c-1)."""
     x0, y0, x1, y1 = mark.box
+    if mark.polygon:
+        xs, ys = [x for x, _ in mark.polygon], [y for _, y in mark.polygon]
+        if max(xs) - min(xs) >= (x1 - x0) / 2 and max(ys) - min(ys) >= (y1 - y0) / 2:
+            return [(x * width, y * height) for x, y in mark.polygon]
     return [(x0 * width, y0 * height), (x1 * width, y0 * height), (x1 * width, y1 * height),
             (x0 * width, y1 * height)]  # fmt: skip
 
