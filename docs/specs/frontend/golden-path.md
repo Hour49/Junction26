@@ -465,7 +465,7 @@ Selectors
    (choice, uncalibrated)"), never as a probability. The path runs with `DECISIONS_CONFIDENCE=false`, so it shows no
    confidence either way.
 8. **Fixture ids are stand-ins.** The fixtures' project id is fixed; the live backend makes new project ids and
-   content-hash drawing ids (flat-b is `6d153ea15dca9ab4` today). The test never asserts an id, only its pattern
+   content-hash drawing ids (flat-b is `44cc9f0d991eafe3` today). The test never asserts an id, only its pattern
    (GP-3, GP-5, GP-27).
 9. **Not checked:** the `upload-artifact` SHA (the build worker pins it); the sign-off button's exact text for an
    area (surveyor.md shows "Sign off 2" for a count; the test matches the name's start "Sign off").
