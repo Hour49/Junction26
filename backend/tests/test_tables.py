@@ -139,3 +139,88 @@ def test_a_finish_is_read_with_its_key_and_abstains_on_the_wording() -> None:
     door = TableFilter(values=("100.B",), cue=("door",))
     material = answer("read", door, column=(("door", "material"),))
     assert material is not None and (material.value, material.abstain_why) == ("AL-1/GL-1", None)
+
+
+# A schedule of door types (one row per type, its count printed) beside a schedule of door
+# numbers, and a window schedule whose type marks are capitals only: the CTR sheet's layout.
+BY_NUMBER = table(
+    "DOOR SCHEDULE - NUMBER",
+    ("Level", "Mark", "Type", "Fire Rating", "Door Type"),
+    ("1ST FLOOR", "101A", "HM - METAL LEAF", "1HR", "A1"),
+    ("1ST FLOOR", "104", "ALUM. STILE W/ GLASS INSET", None, "B1"),
+)
+BY_TYPE = table(
+    "DOOR SCHEDULE - TYPE",
+    ("Count", "Type Mark", "Type", "Fire Rating", "Frame Material"),
+    ("71", "U01", "UNIT DOOR", "20 MIN.", "HM"),
+    ("55", "U06", "SLIDING - FLUSH - 5-0 x 6-8", None, "WD"),
+    ("52", "U41", "SWING - WITH ACOUSTICAL SEAL", None, "WD"),
+    ("10", "U44", "SLIDING - FLUSH - 6-0 x 6-8", None, "WD"),
+    ("2", "U2-LR", "LR-MARVIN ESSENTIAL SLIDING - 2ND FLOOR", None, "AL"),
+    ("6", "U3-LR", "LR-MARVIN ESSENTIAL SLIDING - 3RD FLOOR", None, "AL"),
+    ("14", "U46", "SWING - PRIVACY AT 3RD FLOOR (AT 1ST AND 2ND FLOOR ONLY)", None, "WD"),
+    key=1,
+)
+WINDOWS = table(
+    "WINDOW SCHEDULE - SIMPLIFIED",
+    ("Type Mark", "Type", "Qty", "Width"),
+    ("RR", "1-WIDE (TEMP LOWER) ESDH3066", "84", '35 1/2"'),
+    ("SS", "2-WIDE (TEMP ALL LOW) ESDH3066", "118", '35 1/2"'),
+    ("TT", "2-WIDE (TEMP LOW L/ ALL R) ESDH3066", "4", '35 1/2"'),
+)
+TYPES_SHEET = (BY_NUMBER, BY_TYPE, WINDOWS)
+
+
+def on_types(op: str, *filters: TableFilter, **fields: object) -> object:
+    query = TableQuery.model_validate({"op": op, "filters": filters, **fields})
+    found = answer_table(query, TYPES_SHEET)
+    return None if found is None else (found.value, found.unit)
+
+
+def test_a_count_over_a_schedule_with_a_count_column_adds_the_counts() -> None:
+    """A row of a type schedule is one type: "how many doors of type U41" is its printed Count
+    (52), not one row."""
+    u41 = TableFilter(values=("U41",), cue=("seal", "type"))
+    assert on_types("count", u41, kind="door") == (52, "count")
+    both = TableFilter(values=("U06", "U44"), cue=("doors", "types"))
+    assert on_types("count", both, kind="door") == (65, "count")
+    ss = TableFilter(values=("SS",), cue=("type",))
+    assert on_types("count", ss, kind="window") == (118, "count")  # a Qty column too
+    assert on_types("count", kind="window", every_row=True) == (206, "count")
+    # a schedule of numbered doors has no count column: a row is a door
+    assert on_types("count", TableFilter(values=("1HR",)), kind="door") == (1, "count")
+
+
+def test_a_count_cell_that_is_no_number_is_no_answer() -> None:
+    blank = table("DOOR SCHEDULE - TYPE", ("Count", "Type Mark"), ("12", "U01"), (None, "U02"))
+    query = TableQuery(op="count", kind="door", every_row=True)
+    assert answer_table(query, (blank,)) is None
+
+
+def test_the_schedule_the_question_names_is_the_one_counted() -> None:
+    """Both door schedules can count all their rows; "the door type schedule" names one."""
+    assert on_types("count", kind="door", every_row=True) is None  # 2 rows or 136 doors
+    named = on_types("count", kind="door", table=("door", "type"), every_row=True)
+    assert named == (210, "count")
+    # a name no title carries narrows nothing
+    assert on_types("count", kind="door", table=("hardware",), every_row=True) is None
+
+
+def test_a_type_is_read_from_the_type_schedule() -> None:
+    u01 = TableFilter(values=("U01",), cue=("unit", "doors", "type"))
+    assert on_types("read", u01, kind="door", column=(("fire", "rating"),)) == ("20 MIN.", None)
+    assert on_types("read", u01, kind="door", column=(("frame", "material"),)) == ("HM", None)
+
+
+def test_rows_are_named_by_words_their_description_has_or_starts_with() -> None:
+    marvin = TableFilter(values=("Marvin Essential",), match="contains")
+    assert on_types("count", marvin, kind="door") == (8, "count")
+    third = TableFilter(values=("3rd floor",), match="contains")
+    assert on_types("count", marvin, third, kind="door") == (6, "count")
+    # "3RD FLOOR" is in U3-LR and U46; only U3-LR is a Marvin door
+    assert on_types("count", third, kind="door") == (20, "count")
+    swing = TableFilter(values=("SWING",), match="starts")
+    assert on_types("count", swing, kind="door") == (66, "count")  # not "...SLIDING", not U01
+    # whole words only: "Marvin Ess" is no name the schedule prints
+    part = TableFilter(values=("Marvin Ess",), match="contains")
+    assert on_types("count", part, kind="door") is None

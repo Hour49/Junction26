@@ -93,21 +93,26 @@ class TableFilter(Frozen):
     """Rows whose cell, in the column that holds one of `values`, is one of them. The column is
     found from the values (the one column whose cells hold them); `cue`, the words the question
     puts before them ("frame", "note", "wide"), picks among several. `every`: each column the
-    cue names must hold it ("all four walls finished with W1")."""
+    cue names must hold it ("all four walls finished with W1"). `match`: the cell is a value
+    ("cell"), has one among its words ("contains": "Marvin Essential", "3rd floor"), or starts
+    with one ("starts": "description starts with 'SWING'"); case and spacing never count."""
 
     values: tuple[str, ...] = Field(min_length=1)  # as printed: a code, a number, a dimension
     cue: tuple[str, ...] = ()
     every: bool = False
+    match: Literal["cell", "contains", "starts"] = "cell"
 
 
 class TableQuery(Frozen):
     """A question about a schedule printed on the sheet (Drawing.tables): count its rows, sum a
-    column, or read cells. `kind`: what its rows are ("door", "room"); `column` (sum, read): the
+    column, or read cells. `kind`: what its rows are ("door", "window", "room"); `table`: the words
+    of the schedule's name when the question names one ("door type"); `column` (sum, read): the
     words that name the column(s) to sum or read; `meaning`: a read also gives what each code
     means, from the sheet's legend tables."""
 
     op: Literal["count", "sum", "read"]
     kind: str | None = None
+    table: tuple[str, ...] = ()
     column: tuple[tuple[str, ...], ...] = ()  # one tuple of words per column read or summed
     filters: tuple[TableFilter, ...] = ()
     every_row: bool = False  # a count or sum over the whole table was asked for ("all", "listed")
