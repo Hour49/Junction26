@@ -1,0 +1,191 @@
+{
+  "schema": "answer_policy_v1",
+  "generated": "2026-11-14T10:20:00+02:00",
+  "part": "val",
+  "split_sha256": "9c762d68a698dd45a6c1ca4fa7fae39f19199aae470d1b195ed82a873d8c48e9",
+  "config": "C (tools/qa-env.sh config): its val output answered by the backend, no prior on refusals (0 refused)",
+  "prior": "the answer prior fit on the experiment's train questions only (room:kitchen = 1 there and in the dev prior)",
+  "rule": "val cut in two halves by image (stoa_eval.gate.halves, seed 20261114: 188 + 188 images). Per family the prior wins a half when it answers more of the family's questions on that half exactly than the reader. A family goes to the prior only when it wins both halves. Policy picked on one half and scored on the other: half 1 -> half 2 +14 questions of 3430 (+0.41 pp, 95% interval [+0.11, +0.76]); half 2 -> half 1 +10 of 3334 (+0.30 pp, [-0.06, +0.66]). source 'reader' = answered by the configured readers (RASTER_COMPONENTS); only 'prior' is read by the backend.",
+  "families": {
+    "door": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 268,
+          "reader_exact": 188,
+          "prior_exact": 24
+        },
+        {
+          "questions": 290,
+          "reader_exact": 218,
+          "prior_exact": 24
+        }
+      ]
+    },
+    "plan": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 376,
+          "reader_exact": 374,
+          "prior_exact": 298
+        },
+        {
+          "questions": 376,
+          "reader_exact": 370,
+          "prior_exact": 320
+        }
+      ]
+    },
+    "room:balcony": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 130,
+          "reader_exact": 122,
+          "prior_exact": 82
+        },
+        {
+          "questions": 120,
+          "reader_exact": 108,
+          "prior_exact": 68
+        }
+      ]
+    },
+    "room:bathroom": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 178,
+          "reader_exact": 154,
+          "prior_exact": 140
+        },
+        {
+          "questions": 186,
+          "reader_exact": 180,
+          "prior_exact": 176
+        }
+      ]
+    },
+    "room:bedroom": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 236,
+          "reader_exact": 198,
+          "prior_exact": 84
+        },
+        {
+          "questions": 250,
+          "reader_exact": 214,
+          "prior_exact": 72
+        }
+      ]
+    },
+    "room:kitchen": {
+      "source": "prior",
+      "halves": [
+        {
+          "questions": 262,
+          "reader_exact": 244,
+          "prior_exact": 254
+        },
+        {
+          "questions": 268,
+          "reader_exact": 242,
+          "prior_exact": 256
+        }
+      ]
+    },
+    "room:wc": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 176,
+          "reader_exact": 156,
+          "prior_exact": 102
+        },
+        {
+          "questions": 180,
+          "reader_exact": 178,
+          "prior_exact": 104
+        }
+      ]
+    },
+    "sauna": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 264,
+          "reader_exact": 262,
+          "prior_exact": 128
+        },
+        {
+          "questions": 278,
+          "reader_exact": 274,
+          "prior_exact": 168
+        }
+      ]
+    },
+    "shower+bathtub": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 324,
+          "reader_exact": 284,
+          "prior_exact": 250
+        },
+        {
+          "questions": 358,
+          "reader_exact": 310,
+          "prior_exact": 270
+        }
+      ]
+    },
+    "sink": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 370,
+          "reader_exact": 328,
+          "prior_exact": 192
+        },
+        {
+          "questions": 372,
+          "reader_exact": 328,
+          "prior_exact": 200
+        }
+      ]
+    },
+    "toilet": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 374,
+          "reader_exact": 354,
+          "prior_exact": 230
+        },
+        {
+          "questions": 376,
+          "reader_exact": 360,
+          "prior_exact": 236
+        }
+      ]
+    },
+    "window": {
+      "source": "reader",
+      "halves": [
+        {
+          "questions": 376,
+          "reader_exact": 198,
+          "prior_exact": 46
+        },
+        {
+          "questions": 376,
+          "reader_exact": 210,
+          "prior_exact": 60
+        }
+      ]
+    }
+  }
+}

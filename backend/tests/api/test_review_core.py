@@ -536,3 +536,33 @@ def test_a_room_s_name_in_the_card_title_is_as_printed() -> None:
     mh1 = Room(id="r1", type="bedroom", label="MH1", page=1, box=BOX_A, area_m2=11.5)
     found = asked("What is the area of the MH1?", scaled(mh1))
     assert found.row is not None and found.row.label == "area of room (name MH1)"
+
+
+class Scored:
+    """DECISIONS_CONFIDENCE's stand-in: every answer scores 0.99."""
+
+    value: float | None = 0.99
+    note: str = "decisions: 0.99"
+
+    def probability(self, path: str, family: str, value: object) -> "Scored":
+        return self
+
+
+def test_a_flagged_page_s_answers_are_never_marked_sure() -> None:
+    """O1 (orchestrator, 2026-11-14): the gate's certificate was earned on CubiCasa test scans,
+    so a page ingest flagged (a phone photo, a scanned PDF) gets sure null, not true, even when
+    its score clears the threshold; the score itself stays on the line."""
+    door = Element(id="e1", class_="door", page=1, box=BOX_A)
+    drawing = photo(Room(id="r1", type="kitchen", page=1, box=BOX_B), elements=(door,))
+
+    def sure(flags: tuple[str, ...]) -> tuple[object, float | None, bool | None]:
+        found = ask(
+            "How many doors are there?", drawing, parser=TemplateParser(), clock=lambda: 0.0,
+            prior=NoPrior(), state=ReviewState(), confidence=Scored(),
+            sure_at={"door": 0.8}, flags=flags, raster=True,
+        )  # fmt: skip
+        return found.answer.answer, found.answer.confidence, found.answer.sure
+
+    assert sure((PHOTO_FLAG,)) == (1, 0.99, None)
+    assert sure(("a scanned PDF, read as an image",)) == (1, 0.99, None)
+    assert sure(()) == (1, 0.99, True)  # the same page unflagged: the gate's verdict

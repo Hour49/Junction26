@@ -60,7 +60,11 @@ overall and per family (a family's interval holds for a family named in advance;
 count
 per key against the dev gold (exact share, MAE); and each arm's 10 images with the most wrong answers. JSON
 goes to `data/stoa/exp/ab/<a>-vs-<b>-<part>.json`. `--orientation <json>` (file -> label) splits by
-orientation; the gold has none.
+orientation; the gold has none. `--policy <answer_policy_v1 file>` answers B with that answer policy, read by the
+backend's own ANSWER_POLICY loader: the families it sends to the prior are answered from the train prior, and
+nothing else is (B's other refusals stay null), so `--a X --b X --policy P` measures the policy alone. B is
+named `<arm>+<file stem>`. Config C's frozen policy (`results/policy/policy-C-L-swap.json`, the demo's
+ANSWER_POLICY) was checked that way: kitchens from the prior, +0.35 pp [+0.12, +0.60] on val.
 
 `gate` (E5) scores each answer (a family on an image) with four built-in signals: `top3` (mean of the 3 highest
 `attrs.score` of the family's detections), `pb_mode` (probability of the modal Poisson-binomial count, scores

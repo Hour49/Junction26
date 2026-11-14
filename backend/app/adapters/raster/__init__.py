@@ -19,6 +19,9 @@ the plans, and every element and room is put on the plan whose box holds its cen
 plan does), so plan ids stay consistent whichever source an item came from. Ids are renumbered
 (`p1`, `e1`, `r1`...) and each item keeps its source's attrs (`attrs.score`) plus
 `attrs.component`, the source name.
+
+`room_policy` (ROOM_POLICY, app/core/pipeline/room_policy.py) retypes the rooms' source's rooms
+before they are placed, whichever source that is; None keeps the reader's types.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -38,6 +41,7 @@ from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 
+RoomPolicy = Callable[[Sequence[Room]], Sequence[Room]]
 GROUPS = ("elements", "rooms", "plans", "scale")
 PARTS: tuple[str, ...] = (*GROUPS, *ELEMENT_CLASSES)
 
@@ -75,7 +79,9 @@ def parse_components(spec: str) -> dict[str, str]:
 
 
 def assemble(
-    parts: Mapping[str, str], build: Callable[[str], Extractor]
+    parts: Mapping[str, str],
+    build: Callable[[str], Extractor],
+    room_policy: RoomPolicy | None = None,
 ) -> "CompositeRasterExtractor":
     """The composite for parsed parts; `build` makes the reader of a source name, called once
     per distinct name, so two parts from one source read the sheet once."""
@@ -97,6 +103,7 @@ def assemble(
         rooms=None if rooms is None else component(rooms),
         plans=component(parts["plans"]),
         scale=None if scale is None else component(scale),
+        room_policy=room_policy,
     )
 
 
@@ -108,11 +115,13 @@ class CompositeRasterExtractor:
         rooms: Component | None,
         plans: Component,
         scale: Component | None,
+        room_policy: RoomPolicy | None = None,
     ) -> None:
         self._elements = dict(elements)
         self._rooms = rooms
         self._plans = plans
         self._scale = scale
+        self._room_policy = room_policy
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found: dict[str, Extracted] = {}
@@ -145,8 +154,20 @@ class CompositeRasterExtractor:
                         )
                     )
         rooms: list[Room] = []
+        retyped: str | None = None
         if self._rooms is not None and _looked_for((got := read_by(self._rooms)).read, "room"):
             read.append("room")
+            typed = got.rooms
+            if self._room_policy is not None:
+                typed = self._room_policy(got.rooms)
+                changed = sum(
+                    new.type != old.type for new, old in zip(typed, got.rooms, strict=True)
+                )
+                if changed:
+                    retyped = (
+                        f"room policy: {changed} of {len(typed)} rooms retyped by their "
+                        "printed label"
+                    )
             rooms = [
                 room.model_copy(
                     update={
@@ -156,12 +177,14 @@ class CompositeRasterExtractor:
                         "attrs": {**room.attrs, "component": self._rooms.name},
                     }
                 )
-                for index, room in enumerate(got.rooms, start=1)
+                for index, room in enumerate(typed, start=1)
             ]
         scale = Scale(status="no_scale") if self._scale is None else read_by(self._scale).scale
         notes = [f"raster composite: {_who(self.parts())}"]
         for name, got in found.items():
             notes.extend(f"{name}: {note}" for note in got.notes)
+        if retyped is not None:
+            notes.append(retyped)
         return Extracted(
             method="detector",
             scale=scale,

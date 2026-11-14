@@ -48,7 +48,7 @@ from app.adapters.paths import inside
 from app.adapters.pdf_tables import PdfTables
 from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
 from app.adapters.question_templates import TemplateParser
-from app.adapters.raster import assemble, parse_components
+from app.adapters.raster import RoomPolicy, assemble, parse_components
 from app.adapters.raster.photo import PhotoSwitch
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster_detector import OnnxDetector
@@ -83,12 +83,14 @@ from app.core.pipeline.ports import (
     SecondCounter,
     SourceFinder,
 )
+from app.core.pipeline.room_policy import gold_label_rooms
 from app.core.pipeline.route import RICHEST_FIRST
 from app.settings import (
     AnswerPriorName,
     ExtractorName,
     QuestionParserName,
     RectifierName,
+    RoomPolicyName,
     SecondCounterName,
     Settings,
     TablesName,
@@ -343,6 +345,8 @@ def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> 
         names["raster_scale"] = settings.raster_scale
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
+    if settings.room_policy != "furniture":  # the same
+        names["room_policy"] = settings.room_policy
     service = IngestService(
         unpacker=ZipUnpacker(),
         probe=_probe(settings),
@@ -394,18 +398,29 @@ def _raster(
             return HelloExtractor()
         case "composite":
             built = cache(lambda source: _raster_component(source, settings, files, decisions))
-            shipped = _composite("RASTER_COMPONENTS", settings.raster_components, built)
+            policy = _room_policy(settings.room_policy)
+            shipped = _composite("RASTER_COMPONENTS", settings.raster_components, built, policy)
             if not photo:
                 return shipped
             return PhotoSwitch(
-                shipped, _composite("RASTER_PHOTO_COMPONENTS", photo, built), kind_of
+                shipped, _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy), kind_of
             )
 
 
-def _composite(name: str, components: str, build: Callable[[str], Extractor]) -> Extractor:
+def _room_policy(name: RoomPolicyName) -> RoomPolicy | None:
+    match name:
+        case "furniture":
+            return None
+        case "gold-labels":
+            return gold_label_rooms
+
+
+def _composite(
+    name: str, components: str, build: Callable[[str], Extractor], policy: RoomPolicy | None
+) -> Extractor:
     """A spec's composite; a source both specs name is built once (`build` is cached)."""
     try:
-        return assemble(parse_components(components), build)
+        return assemble(parse_components(components), build, policy)
     except DomainError as error:
         raise InvalidInputError(f"{name}={components!r}: {error}") from error
 
