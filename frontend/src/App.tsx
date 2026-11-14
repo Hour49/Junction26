@@ -118,9 +118,11 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
         {body}
       </main>
       {/* Licence credits are off every screen (Tudor, #204) and reachable here (CC BY): shared.md "Credits". */}
-      <footer className="app-foot">
-        <a href={project ? `#/about?project=${project}` : '#/about'}>About and credits</a>
-      </footer>
+      {route.name !== 'about' && (
+        <footer className="app-foot">
+          <a href={project ? `#/about?project=${project}` : '#/about'}>About and credits</a>
+        </footer>
+      )}
     </InfoProvider>
   );
 }

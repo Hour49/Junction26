@@ -26,6 +26,8 @@
   --v-seg: #e8e8ed;
   --v-grey: #ececf0;
   --v-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  /* The paper a drawing sits on in the viewer (demo; fe-viewer's ask). */
+  --v-plan: #fbf8ef;
   /* What the sticky header covers at the top of the viewport: other sticky elements use `top: var(--v-header-h)`.
      76px = row padding 14 + 14 and the 48 px pills; 0 on the phone, where the header is not sticky. */
   --v-header-h: 76px;
@@ -339,8 +341,9 @@ main[tabindex='-1']:focus-visible {
 /* A native <select> sizes to its longest option: cap it so a long project name never widens the page
    (R1-5-4). The open list still shows each option in full. */
 .project-picker {
-  flex: 0 1 320px;
-  min-width: 0;
+  /* SH-84: a large shrink weight, so it gives way first (never below 200px); then the country pill truncates. */
+  flex: 0 1000 320px;
+  min-width: 200px;
   max-width: 100%;
   margin-left: auto;
   padding-right: 36px;
@@ -395,8 +398,10 @@ main[tabindex='-1']:focus-visible {
 /* Country picker (shared.md "Country picker"). */
 .country {
   position: relative;
-  /* One line at every width (SH-71): the project picker gives way first; a long name ellipsises at the cap. */
-  flex: 0 0 auto;
+  /* One line at every width (SH-71). SH-84: the project picker (shrink weight 1000) gives way first; the pill
+     truncates its name only once the picker is at its 200px floor. */
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 240px;
 }
 .country-button {
@@ -612,6 +617,7 @@ main {
   .project-picker {
     order: 3;
     flex: 1 1 180px;
+    min-width: 0;
     max-width: 100%;
     margin-left: 0;
   }

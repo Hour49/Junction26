@@ -3,9 +3,9 @@ import { renderHook } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
-import type { Issue, ProjectList } from './api';
-import { error as errorBody, info, projectIssues, projectList, rulePackFi } from './api/fixtures';
-import { setAnswer } from './shell/issueAnswers';
+import type { ProjectList } from './api';
+import { error as errorBody, info, project, projectList, rulePackFi } from './api/fixtures';
+import { issuesChanged } from './shell/issueCount';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
@@ -48,11 +48,11 @@ function DocumentsStub({ projectId, pack }: { projectId: string; pack: string | 
   );
 }
 
-/** The header's badge asks for the issues on project routes; a 409 (ingest not done) shows no badge. */
+/** The header's badge asks for the project's state on project routes; a failed project asks no issues, no badge. */
 const noIssues = Object.fromEntries(
   [P, 'aaaaaaaaaaaa', 'bbbbbbbbbbbb'].map((id) => [
-    `GET /api/projects/${id}/issues`,
-    reply(409, { detail: 'not done', code: 'not-ready' }),
+    `GET /api/projects/${id}`,
+    { ...project, id, state: 'failed' },
   ]),
 );
 
@@ -215,6 +215,21 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
+  it('SH-86 the About page: no footer link to itself; the picker shows its ?project', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    window.location.hash = `#/about?project=${P}`;
+    render(<App screens={stubs} />);
+    await screen.findByText(OFFLINE);
+    expect(screen.queryByRole('link', { name: 'About and credits' })).toBeNull();
+    const picker = await screen.findByRole<HTMLSelectElement>('combobox', { name: 'Project' });
+    await waitFor(() => {
+      expect(picker.value).toBe(P);
+    });
+    go('#/about');
+    expect(screen.queryByRole('link', { name: 'About and credits' })).toBeNull();
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Project' }).value).toBe('');
+  });
+
   it('SH-64 the chat route mounts ProjectChat with its query', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
@@ -295,15 +310,12 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-78 the Documents badge: the issues to answer, named on the link, gone at 0 and on a 409', async () => {
-    const GET = `GET /api/projects/${P}/issues`;
-    const base: Issue = { ...(projectIssues.issues[0] as Issue), kind: 'reading_flag' };
-    const open = (id: string): Issue => ({ ...base, id, severity: 'needs_person', state: 'open' });
-    let body: unknown = { ...projectIssues, issues: [open('a'), open('b')] };
+  it('SH-78 SH-87 the Documents badge: the server count, named on the link, refreshed by issuesChanged, gone at 0', async () => {
+    let toAnswer = 2;
     const api = mockApi({
       'GET /api/info': info,
       'GET /api/projects': projectList,
-      [GET]: () => body,
+      [`GET /api/projects/${P}`]: () => ({ ...project, state: 'done', issues_to_answer: toAnswer }),
     });
     window.location.hash = `#/p/${P}`;
     render(<App screens={stubs} />);
@@ -314,29 +326,24 @@ describe('shell', () => {
     const badge = tab().querySelector('.tab-badge');
     expect(badge?.textContent).toBe('2');
     expect(badge?.getAttribute('aria-hidden')).toBe('true');
+    toAnswer = 1;
     act(() => {
-      setAnswer(P, 'a', 'Bedroom');
+      issuesChanged(P);
     });
-    expect(tab().getAttribute('aria-label')).toBe('Documents, 1 issue to answer');
-    act(() => {
-      setAnswer(P, 'b', 'Hall');
+    await waitFor(() => {
+      expect(tab().getAttribute('aria-label')).toBe('Documents, 1 issue to answer');
     });
-    expect(tab().getAttribute('aria-label')).toBeNull();
-    expect(tab().querySelector('.tab-badge')).toBeNull();
-    act(() => {
-      setAnswer(P, 'a', null);
-      setAnswer(P, 'b', null);
-    });
-    body = reply(409, { detail: 'not done', code: 'not-ready' });
-    const issueCalls = () => api.calls.filter((c) => c.url.endsWith('/issues')).length;
-    const before = issueCalls();
+    toAnswer = 0;
+    const asked = () => api.calls.filter((c) => c.url.endsWith(`/projects/${P}`)).length;
+    const before = asked();
     go(`#/p/${P}/chat`);
     await waitFor(() => {
-      expect(issueCalls()).toBe(before + 1);
+      expect(asked()).toBe(before + 1);
     });
     await waitFor(() => {
       expect(tab().querySelector('.tab-badge')).toBeNull();
     });
+    expect(tab().getAttribute('aria-label')).toBeNull();
     await screen.findByText(OFFLINE);
   });
 

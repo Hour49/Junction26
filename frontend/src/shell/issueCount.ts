@@ -1,31 +1,67 @@
-import { useEffect, useState } from 'react';
-import { getIssues, type Issue } from '../api';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { getIssues, getProject } from '../api';
 import { needsYou } from '../documents/documents';
-import { useIssueAnswers } from './issueAnswers';
 
-/** The Documents badge number for a project (`needsYou` over its issues and typed answers); null while loading, on
- * any error (a 409 before the ingest is done) and without a project. `reload` asks again when it changes (the
- * header passes the route). */
+/** How often a running project is asked whether its ingest is done. */
+const WAIT_MS = 1000;
+
+// "The issues of this project changed" (an answer was posted): every badge and done line asks again.
+const versions = new Map<string, number>();
+const listeners = new Set<() => void>();
+
+/** Call after `answerIssue` resolves: every `useIssuesToAnswer(projectId)` asks the server again. */
+export function issuesChanged(projectId: string): void {
+  versions.set(projectId, (versions.get(projectId) ?? 0) + 1);
+  for (const listener of listeners) listener();
+}
+
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+/** The Documents badge number for a project (shared.md "Documents badge"): the server's `issues_to_answer` (#223),
+ * else `needsYou` over its issues with `Issue.answer` as answered; null while loading, on any error, for a failed
+ * project and without a project. `reload` asks again when it changes (the header passes the route). */
 export function useIssuesToAnswer(projectId: string | null, reload?: unknown): number | null {
-  const [loaded, setLoaded] = useState<{ projectId: string; issues: Issue[] } | null>(null);
-  const answers = useIssueAnswers(projectId ?? '');
+  const [loaded, setLoaded] = useState<{ projectId: string; count: number } | null>(null);
+  const version = useSyncExternalStore(subscribe, () =>
+    projectId === null ? 0 : (versions.get(projectId) ?? 0),
+  );
 
   useEffect(() => {
     if (projectId === null) return;
     const abort = new AbortController();
-    getIssues(projectId, { signal: abort.signal }).then(
-      (list) => {
-        setLoaded({ projectId, issues: list.issues });
-      },
-      () => {
-        if (!abort.signal.aborted) setLoaded(null);
-      },
-    );
+    const signal = abort.signal;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The issues answer 409 until the ingest is done (a console error in the browser): wait for `done` first.
+    const ask = async () => {
+      const project = await getProject(projectId, { signal });
+      if (project.state === 'queued' || project.state === 'running') {
+        timer = setTimeout(() => {
+          ask().catch(fail);
+        }, WAIT_MS);
+        return;
+      }
+      if (project.state !== 'done') {
+        setLoaded(null);
+        return;
+      }
+      let count = project.issues_to_answer;
+      if (count === null || count === undefined) {
+        count = needsYou((await getIssues(projectId, { signal })).issues);
+      }
+      setLoaded({ projectId, count });
+    };
+    const fail = () => {
+      if (!signal.aborted) setLoaded(null);
+    };
+    ask().catch(fail);
     return () => {
       abort.abort();
+      clearTimeout(timer);
     };
-  }, [projectId, reload]);
+  }, [projectId, reload, version]);
 
-  if (projectId === null || loaded?.projectId !== projectId) return null;
-  return needsYou(loaded.issues, answers);
+  return projectId !== null && loaded?.projectId === projectId ? loaded.count : null;
 }

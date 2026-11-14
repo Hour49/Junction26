@@ -17,6 +17,7 @@ import {
   evidenceUrl,
   getModel,
   postReview,
+  answerIssue,
   postRelevance,
   readAsPlan,
   postSignoff,
@@ -163,6 +164,15 @@ describe('API client', () => {
     for (const edit of fx.reviewRequests) expect(await postReview(tid, edit)).toEqual(fx.takeoff);
     expect(await postSignoff(tid, fx.signoffRequest)).toEqual(fx.takeoff);
     expect(api.calls.map((c) => c.body)).toEqual([...fx.reviewRequests, fx.signoffRequest]);
+  });
+
+  it('SH-87 answerIssue posts the answer (or the undo) and resolves with the issue', async () => {
+    const pid = fx.projectIssues.project_id;
+    const id = fx.issueAnswered.id;
+    const api = mockApi({ [`POST /api/projects/${pid}/issues/${id}/answer`]: fx.issueAnswered });
+    expect(await answerIssue(pid, id, fx.issueAnswerRequest)).toEqual(fx.issueAnswered);
+    await answerIssue(pid, id, { undo: true });
+    expect(api.calls.map((c) => c.body)).toEqual([fx.issueAnswerRequest, { undo: true }]);
   });
 
   it('SH-73 postRelevance sends the request fixture and resolves with the file', async () => {

@@ -228,10 +228,15 @@ verbatim; "cannot tell" is never shown as pass or fail; nothing is invented.
 - The button: flag (inline SVG for `FI` and `CH` by the pack's ISO `country`, none for others), the chosen pack's
   `country_name`, chevron; accessible name "Country rules: <country_name>", or "Country rules: none" with no pack
   (no pack is preselected and "no pack" is a valid choice, 13:44). No `data-pending`.
-- The button stays on one line at every width (QA 13:30: "No checks" wrapped at 1440): `white-space: nowrap`; it does
-  not shrink (`.country` `flex: 0 0 auto`; the project picker, already ellipsised, gives way first: shrinking both
-  cut "No checks" to "No ch…"), it is at most 240px wide and a long `country_name` ends in an ellipsis; flag and
-  chevron never shrink.
+- The button stays on one line at every width (QA 13:30: "No checks" wrapped at 1440): `white-space: nowrap`; it is
+  at most 240px wide and a long `country_name` ends in an ellipsis; flag and chevron never shrink. Who gives way
+  (follow-up 17:20, "Canton of Zürich" squeezed the project picker to "sa…"): the project picker first, down to
+  `min-width: 200px` (above 1100 px; below, it has its own line and `min-width: 0`), then the country pill. The
+  picker's shrink weight is 1000 (`flex: 0 1000 320px`), the pill's 1 (`.country` `flex: 0 1 auto`, `min-width: 0`),
+  so the pill keeps its full width while the picker can still shrink and truncates its name only after the picker
+  reached 200px. (A near-zero weight on the pill does not work: free space is scaled down when the shrink weights
+  left sum to less than 1.) Supersedes the
+  `flex: 0 0 auto` of SH-71.
 - The popover (group "Building rules the agent follows"): first "No checks" (pressed when the route has no `?pack`),
   then one button per pack (flag, `country_name`, under it the pack `name` · `version` in `--v-muted`, check on the
   chosen one, `aria-pressed`). Its closing line is the chosen pack's `note`, verbatim ("A pre-check of a few rules, not a
@@ -302,29 +307,29 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
 
 ### Documents badge (#212)
 
-- The Documents tab shows an orange badge with the number of issues still to answer: fe-ingest's
-  `needsYou(issues, answers)` (documents.md DOC-12, the one rule: not a `conflict`, severity not `note`, `state`
-  `open`, not answered in the store; a failed rule counts, it is answered by typing). Orch 16:55: fe-ingest owns the
-  rule, fe-shared the store and the hook.
-- Source: `useIssuesToAnswer(projectId, reload?): number | null` in `src/shell/issueCount.ts` (fe-shared): one
-  `getIssues(projectId)` (no pack) per project and per change of `reload` (the header passes the route), then
-  `needsYou(list.issues, useIssueAnswers(projectId))`; it re-renders when the store changes, without a request. A
-  409 (ingest not done), any error, a load in flight or no project → `null` → no badge; 0 → no badge. The
-  finished-ingest done line ("N issues in Documents need you", preqa-a / fe-scaffold) reads the same hook. The hook imports
-  `needsYou` from `src/documents/documents.ts` (one rule).
+- The Documents tab shows an orange badge with the number of issues still to answer: the project's
+  `issues_to_answer` (#223), else fe-ingest's `needsYou(issues)` (documents.md DOC-12: not a `conflict`, severity
+  not `note`, `open`, no `Issue.answer`).
+- Source: `useIssuesToAnswer(projectId, reload?): number | null` in `src/shell/issueCount.ts` (fe-shared):
+  `getProject(projectId)`, asked again every 1 s while `queued` or `running` (the issues answer 409 until the ingest
+  is done, and the browser logs that as a console error: re-sweep item 9); `failed` → null; `done` → its
+  `issues_to_answer`, or when that is null one `getIssues(projectId)` and `needsYou`. Asked again on every change of
+  `reload` (the header passes the route) and on `issuesChanged(projectId)`. Any error, a load in flight or no
+  project → `null` → no badge; 0 → no badge. The finished-ingest done line reads the same hook.
 - Badge: `<span class="tab-badge" aria-hidden="true">N</span>` inside the tab link; the link's accessible name
   becomes "Documents, N issues to answer" ("1 issue"). Look (demo `.seg .badge`): absolute, top -8px, right -8px,
   20px high, min-width 20px, padding 0 5px, radius 10px, `--v-badge` (#e8740c) background, white 12px/700 text;
   the tab gets `position: relative`. Never colour alone: the number is the content, the name says what it counts.
 
-### Answers store (client-side until the API saves answers; API ask A1)
+### Answers (server-side since #223; API ask A1 done)
 
-- `src/shell/issueAnswers.ts` (fe-shared): `answerOf(projectId, issueId): string | null`, `setAnswer(projectId,
-  issueId, text: string | null): void` (null clears), `useIssueAnswers(projectId): ReadonlyMap<string, string>`
-  (issue id → typed text; a new map on every change of that project, so it is the `answers` argument of `needsYou`
-  and a React dependency). In memory only until API ask A1 lands (Open point 26, decided): a reload forgets the
-  typed answers and the badge counts them again; the Documents screen says so (its owner). fe-ingest's Documents
-  writes it (instead of its planned `localAnswers`/localStorage); the badge and the done line read it.
+- `answerIssue(projectId, issueId, body: {text, by} | {undo: true}, opts?): Promise<Issue>` in `src/api/client.ts`:
+  `POST /api/projects/{pid}/issues/{issue_id}/answer`, the issue as it now stands (`answer: {text, by, at} | null`;
+  answering does not close it). Types `IssueAnswer`, `IssueAnswerRequest`; fixtures `issueAnswerRequest`,
+  `issueAnswered`.
+- `issuesChanged(projectId)` in `src/shell/issueCount.ts`: the caller (fe-ingest's Documents) calls it after
+  `answerIssue` resolves; every `useIssuesToAnswer(projectId)` asks the server again. The in-memory store
+  (`issueAnswers.ts`, Open point 26) is deleted.
 
 ### Credits move to an About page (#204; CC BY needs them reachable)
 
@@ -332,12 +337,12 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
   retired with it).
 - New route `about`: `#/about` (optionally `?project=<pid>`) → `AboutScreen` (`src/shell/AboutScreen.tsx`,
   fe-shared): h1 "About Vellum", one line on what it is, then "Drawing credits": with `?project`, the project's name
-  and one row per drawing (`file`, then its `credit` verbatim with a leading "Credit:" stripped as before; null →
-  "No credit recorded for this file"), loaded with `getProject` + one `getDrawing(id, {project})` per drawing
-  (shortcut until API ask A2: N requests); without `?project`, "Open a project to see its drawings' credits." Loading
+  and one row per drawing (`drawingLabel(d)`, its `file`, then its `credit` verbatim with a leading "Credit:" stripped
+  as before; null → "No credit recorded for this file"), all from one `getProject` (#224 put `name` and `credit` on
+  the project's drawings: API asks A2 and A3 done); without `?project`, "Open a project to see its drawings' credits." Loading
   ("Loading the credits…"), error (ErrorView with Retry) and a project without drawings ("This project has no
   drawings.").
-- Every page ends with a footer (`<footer class="app-foot">`, demo `.foot`: centred 12px `--v-muted`, padding
+- Every page but About itself ends with a footer (`<footer class="app-foot">`, demo `.foot`: centred 12px `--v-muted`, padding
   0 24px 32px) holding one link "About and credits" → `#/about`, with `?project=<pid>` on project routes. The tab
   title stays "Vellum".
 
@@ -348,7 +353,7 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
   `--v-grey: #ececf0` (plain buttons, grey pills), `--v-mono: "JetBrains Mono", ui-monospace, Menlo, monospace`
   (no web font is loaded: the stack falls back). Other `--v-*` values already equal the demo's. Owners use these
   instead of the demo's literals; the demo's #e9efec (soft button) and #f2f2f5 (tag) map to `--v-accent-soft` and
-  `--v-fill` (no new token for a near-equal shade).
+  `--v-fill` (no new token for a near-equal shade). `--v-plan: #fbf8ef` (re-sweep 9): the paper a drawing sits on.
 - Header: as the demo's `.top-in`: padding 14px 24px, gap 12px; brand 44px logo (radius 12px, `--v-text` backing,
   6px padding) and "Vellum" 26px/700, letter-spacing -0.025em; Workspaces pill as `.pill-link` (`rgba(0,0,0,0.04)`
   fill, 980px radius, min-height 48px, 600); at ≤720 px the logo is 36px (padding 5px, radius 10px) and "Vellum"
@@ -357,9 +362,10 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
 
 ### Plain drawing names (#201)
 
-- `drawingName(file: string): string` in `src/api/format.ts`: the path's last segment (folders dropped), extension
-  kept: `plans/flat-a.pdf` → `flat-a.pdf`. Used where a screen names a drawing. No prettifying of dataset ids
-  (`site980_bldg2055_floor9178` stays as given): a plain name needs the backend (API ask A3).
+- `drawingLabel(d: {name?: string | null; file: string}): string` in `src/api/format.ts` is the one place that decides
+  a drawing's on-screen name: the backend's plain `name` (#224: "Drawn plan 1", "Scanned plan 1", "Building model 1",
+  "…, page 2"), else `drawingName(d.file)`, the path's last segment (folders dropped, extension kept:
+  `plans/flat-a.pdf` → `flat-a.pdf`). No prettifying of dataset ids here. Every screen that names a drawing uses it.
 
 ### API asks (fe-shared, for Bogdan's fleet on #14 via the orchestrator)
 
@@ -845,24 +851,37 @@ Vellum round (round 2)
 - SH-77 (parity) `#/p/<pid>/conflicts?q=a&pack=fi` and `#/p/<pid>/issues?pack=fi` parse as `project` with that
   query (`packOf` → `fi`, `q` kept); ProjectScreen mounts and Ingest is current; the hash is not rewritten. [unit +
   component]
-- SH-78 (parity) Badge: the store keeps answers per project (`answerOf`, `setAnswer`, null clears);
-  `useIssuesToAnswer(pid)` is null while loading, then `needsYou` over `project_issues.json` variants (a failed rule
-  counts; a settled one, a note and a conflict do not); `setAnswer` lowers it and clearing raises it back with no new
-  request; a new `reload` asks again, a null project asks nothing; a 409 and a 500 give null. In the header: the
-  link's name "Documents, 2 issues to answer" (singular "1 issue"), the badge `aria-hidden`, none for 0 or null.
-  [unit + component, mockApi]
+- SH-78 (parity, #223) Badge: `useIssuesToAnswer(pid)` is null while loading, then the project's `issues_to_answer`
+  with no issues request; with it null, `needsYou` over the issues (an `Issue.answer` counts as answered); a new
+  `reload` asks again, a null project asks nothing; a project 500 or an issues 409 give null; nothing is asked about
+  issues while the project is `running`, and the count comes once it reads `done`; a `failed` project gives null. In
+  the header: the link's name "Documents, 2 issues to answer" (singular "1 issue"), the badge `aria-hidden`, none
+  for 0 or null. [unit + component, mockApi]
+- SH-87 (#223) `answerIssue(pid, id, issue_answer_request.json)` and `answerIssue(pid, id, {undo: true})` post those
+  bodies to `/api/projects/<pid>/issues/<id>/answer` and resolve with the issue; `issuesChanged(pid)` makes the hook
+  (and the header badge) ask again, `issuesChanged('other')` does not. [unit + component, mockApi]
 - SH-79 (parity) No element with class `credit` and no text starting "Credit:" on any route of App with stub
   screens; the footer link "About and credits" is on every route, `#/about?project=<pid>` on project routes and
   `#/about` elsewhere. [component]
 - SH-80 (parity) `parseRoute('#/about')` → `about` (`/about/x` not-found, `?project` round-trips);
   `#/about?project=<pid>` lists the project's drawings with their credits ("Credit:" stripped once,
-  null → "No credit recorded for this file"), one `getProject` and one `getDrawing` per drawing; `#/about` says
+  null → "No credit recorded for this file"), each by `drawingLabel` and its file, from one `getProject`; `#/about` says
   "Open a project to see its drawings' credits." and sends no project request; a 500 shows ErrorView with Retry.
   [component, mockApi]
 - SH-81 (parity) `shell.css` defines `--v-warn-mark #d9860b`, `--v-warn-mark-fill rgba(217, 134, 11, 0.12)`, `--v-badge #e8740c`, `--v-seg #e8e8ed`, `--v-grey
   #ececf0`, `--v-mono`; `.tab-badge` uses `var(--v-badge)` with a `0 0 0 2px var(--v-surface)` ring; the focus ring is 3px; at ≤720 px
   `.brand-logo` is 36px and `.brand-name` 22px; the segmented control uses `var(--v-seg)`; no colour
   literal outside `:root` (the existing token test). [unit: parse the CSS]
+- SH-84 (follow-up) Header give-way order: `.project-picker` has `min-width: 200px` (and `min-width: 0` in the
+  ≤1100 px block); `.project-picker` `flex: 0 1000 320px`; `.country` has `flex: 0 1 auto` and `min-width: 0`, still `max-width: 240px`; at 1440x900,
+  1110x800 and 390x844 with `?pack=ch-zh` and without a pack: the picker ≥200px wide above 1100 px, "No checks"
+  never cut, no horizontal scroll, one header row above 1100 px. [unit: parse the CSS; browser]
+- SH-85 (#224) `drawingLabel({name: 'Drawn plan 1', file: 'plans/flat-a.pdf'})` → `Drawn plan 1`; with `name` null,
+  empty or absent → `flat-a.pdf`. [unit]
+- SH-86 (re-sweep 9) On `#/about` and `#/about?project=<pid>` there is no "About and credits" footer link; the
+  header's project picker shows the `?project` project (none without it); `:root` has `--v-plan: #fbf8ef` (the paper
+  a drawing sits on, fe-viewer); every `:focus-visible` ring in fe-shared's CSS (`shell.css`, `account.css`) is 3px.
+  [component + unit: parse the CSS]
 - SH-82 (parity) `drawingName('plans/flat-a.pdf')` → `flat-a.pdf`, `drawingName('flat-a.pdf')` → `flat-a.pdf`,
   `drawingName('a/b/site980_bldg2055_floor9178.png')` → `site980_bldg2055_floor9178.png`. [unit]
 - SH-83 (parity) At 1440x900 and 390x844 on project, documents, chat and about: no horizontal scroll, the badge
@@ -958,6 +977,7 @@ Vellum round (round 2)
 25. **Checks route without a tab** (parity; DECIDED 16:50 orch: checks page stays, no tab, linked from Documents): the brief drops the Checks tab; `#/p/<pid>/checks` stays as a route,
     reached from Documents' code-check issues ("See the check"). If Tudor wants checks gone entirely, the route goes
     too.
-26. **Answers in memory only** until A1 (DECIDED 16:50 orch: in memory until A1): a reload loses typed answers and the badge comes back. Alternative:
+26. **Answers in memory only** until A1 (DECIDED 16:50 orch: in memory until A1; RESOLVED 16:55: #223 saves
+    answers, the store is deleted): a reload loses typed answers and the badge comes back. Alternative:
     `sessionStorage` per tab (survives a reload, not other viewers); not chosen to keep one source of truth for
     when A1 lands. Orchestrator's call.

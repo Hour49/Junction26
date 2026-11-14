@@ -20,6 +20,8 @@ import type {
   Started,
   Takeoff,
   DrawingChecks,
+  Issue,
+  IssueAnswerRequest,
   IssueList,
   ProjectChecks,
 } from './types';
@@ -175,6 +177,15 @@ export const readAsPlan = (projectId: string, fileId: string, by: string, opts?:
     { class: 'floor_plan', by } satisfies TriageRequest,
     opts,
   );
+
+/** A person's answer to an issue, or `{undo: true}` (#223); answers the issue as it now stands. Answering does
+ * not close it. */
+export const answerIssue = (
+  projectId: string,
+  issueId: string,
+  body: IssueAnswerRequest,
+  opts?: Opts,
+) => postJson<Issue>(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/answer`, body, opts);
 
 export const pageUrl = (drawingId: string, page: number, width: PageWidth = 1600) =>
   withQuery(`/api/drawings/${seg(drawingId)}/pages/${String(page)}.png`, { width });

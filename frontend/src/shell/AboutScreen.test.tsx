@@ -1,35 +1,33 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { drawing, error, project } from '../api/fixtures';
+import { error, project } from '../api/fixtures';
 import { mockApi, reply } from '../test/mockApi';
 import { AboutScreen } from './AboutScreen';
 
 const PID = project.id;
-const [first, second] = project.drawings;
 afterEach(cleanup);
 
 describe('AboutScreen', () => {
-  it('SH-80 with a project: each drawing with its credit, "Credit:" stripped once, null said in words', async () => {
-    const routes: Record<string, unknown> = { [`GET /api/projects/${PID}`]: project };
-    for (const d of project.drawings) {
-      const credit =
-        d.drawing_id === first?.drawing_id
-          ? 'Credit: Example Org, CC BY 4.0'
-          : d.drawing_id === second?.drawing_id
-            ? null
-            : drawing.credit;
-      routes[`GET /api/drawings/${d.drawing_id}`] = { ...drawing, id: d.drawing_id, credit };
-    }
-    const api = mockApi(routes);
+  it('SH-80 with a project: one request; each drawing by its plain name and file, with its credit', async () => {
+    const [first, second, ...rest] = project.drawings;
+    if (!first || !second) throw new Error('project.json needs two drawings');
+    const drawings = [
+      { ...first, credit: 'Credit: Example Org, CC BY 4.0' },
+      { ...second, credit: null },
+      ...rest,
+    ];
+    const api = mockApi({ [`GET /api/projects/${PID}`]: { ...project, drawings } });
     render(<AboutScreen projectId={PID} />);
     expect(screen.getByRole('heading', { level: 1, name: 'About Vellum' })).toBeTruthy();
     expect(await screen.findByText('Example Org, CC BY 4.0')).toBeTruthy();
-    expect(screen.getByText(project.name, { exact: false })).toBeTruthy();
-    for (const d of project.drawings) expect(screen.getByText(d.file)).toBeTruthy();
+    expect(screen.getByText(project.name)).toBeTruthy();
+    for (const d of drawings) {
+      expect(screen.getByText(d.name)).toBeTruthy();
+      expect(screen.getByText(d.file)).toBeTruthy();
+    }
     expect(screen.getByText('No credit recorded for this file')).toBeTruthy();
     expect(screen.queryByText(/Credit:/)).toBeNull();
-    expect(api.calls).toHaveLength(1 + project.drawings.length);
-    expect(api.calls.slice(1).every((c) => c.url.endsWith(`?project=${PID}`))).toBe(true);
+    expect(api.calls).toHaveLength(1);
   });
 
   it('SH-80 without a project: the hint and no request', () => {

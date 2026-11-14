@@ -28,3 +28,9 @@ it('AC-31 at 720 px and below the fifth stat spans both columns', () => {
   const phone = css.slice(css.indexOf('@media (max-width: 720px)'));
   expect(rulesFor('.account-stats > div:nth-child(5)', phone)).toMatch(/grid-column:\s*1 \/ -1/);
 });
+
+it("SH-81 the account item focus ring is the shell's 3px", () => {
+  expect(rulesFor('.account-item:focus-visible', css)).toMatch(
+    /outline:\s*3px solid var\(--v-accent\)/,
+  );
+});

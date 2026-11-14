@@ -74,7 +74,13 @@ export function Header({ route }: { route: Route }) {
           </nav>
         )}
         <ProjectPicker
-          projectId={'projectId' in route ? route.projectId : null}
+          projectId={
+            'projectId' in route
+              ? route.projectId
+              : route.name === 'about'
+                ? route.query.get('project')
+                : null
+          }
           pack={packOf(route)}
         />
         {'projectId' in route && <CountryPicker pack={packOf(route)} />}
