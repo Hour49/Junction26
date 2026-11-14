@@ -29,7 +29,7 @@ export const STAGE_LABEL: Record<Stage, string> = {
   extract: 'Extract',
   second_count: 'Second count',
   takeoff: 'Takeoff',
-  write: 'Write',
+  write: 'Store',
 };
 
 /** File kinds (API.md "File kind") in words; an unknown id is shown as sent. */
@@ -93,26 +93,62 @@ export function progressOf(files: readonly Pick<FileStatus, 'state'>[]): {
   return { done: files.filter(isFinished).length, total: files.length };
 }
 
-/** Screen 2's 8 steps, in the backend's stage order (ingest.md "STEPS"). */
+/**
+ * The pipeline's steps in the backend's order, each named by its stage (ingest.md "Pipeline steps v4"). Index has
+ * no stage: the backend's last phase (triage's judge, the evidence step and index) runs once every file is finished.
+ */
 export const STEPS: readonly { name: string; hint: string; stages: readonly (Stage | null)[] }[] = [
-  { name: 'Unpack', hint: 'opening the archive safely', stages: ['unpack', 'hash', null] },
-  { name: 'Identify', hint: 'what each file really is', stages: ['identify', 'group'] },
-  { name: 'Route', hint: 'picking the best source per drawing', stages: ['route', 'cache'] },
-  { name: 'Normalise', hint: 'one page frame per sheet', stages: ['normalise'] },
-  { name: 'Extract', hint: 'rooms, doors, windows, fixtures', stages: ['extract'] },
-  { name: 'Cross-check', hint: 'a second, independent count', stages: ['second_count'] },
-  { name: 'Index', hint: 'precomputing the answers', stages: ['takeoff'] },
-  { name: 'Drawing model', hint: 'one stored model per drawing', stages: ['write'] },
+  {
+    name: STAGE_LABEL.unpack,
+    hint: 'opening the upload safely, one fingerprint per file',
+    stages: ['unpack', 'hash', null],
+  },
+  {
+    name: STAGE_LABEL.identify,
+    hint: 'what each file is, and whether it is a floor plan',
+    stages: ['identify'],
+  },
+  {
+    name: STAGE_LABEL.route,
+    hint: 'one source per drawing: the model, the drawn PDF or the image',
+    stages: ['group', 'route', 'cache'],
+  },
+  {
+    name: STAGE_LABEL.normalise,
+    hint: 'one page frame per sheet; photos made upright and flat',
+    stages: ['normalise'],
+  },
+  {
+    name: STAGE_LABEL.extract,
+    hint: 'rooms, doors, windows, fixtures, scale and schedules',
+    stages: ['extract'],
+  },
+  {
+    name: STAGE_LABEL.second_count,
+    hint: 'the same quantities measured another way',
+    stages: ['second_count'],
+  },
+  {
+    name: STAGE_LABEL.takeoff,
+    hint: 'counting rules applied, every quantity worked out',
+    stages: ['takeoff'],
+  },
+  {
+    name: STAGE_LABEL.write,
+    hint: 'one drawing model per drawing, with its marks',
+    stages: ['write'],
+  },
+  { name: 'Index', hint: 'every file made searchable for questions', stages: [] },
 ];
 
-/** The step (1-8) a stage belongs to; no stage yet is step 1. */
+/** The step (1-8) a stage belongs to; no stage yet is step 1. No stage is in Index (9). */
 export function stepOf(stage: Stage | null | undefined): number {
   return STEPS.findIndex((s) => s.stages.includes(stage ?? null)) + 1;
 }
 
 type Staged = Pick<FileStatus, 'stage' | 'state'>;
 
-/** The lowest step of a file not finished; 1 with no files, 8 when every file is finished. */
+/** The lowest step of a file not finished; 1 with no files, Index (the last) when every file is finished. */
 export function activeStep(files: readonly Staged[]): number {
   if (files.length === 0) return 1;
   const live = files.filter((f) => !isFinished(f)).map((f) => stepOf(f.stage));

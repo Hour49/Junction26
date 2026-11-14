@@ -13,7 +13,7 @@ import {
 
 const ICON = { done: '✓', working: '◌', waiting: '○' } as const;
 
-/** Screen 2's card: the step, a ring with the share of files finished, the stats and the 8 steps. */
+/** Screen 2's card: the step, a ring with the share of files finished, the stats and the steps. */
 /** `now`: browser time of the last poll, so Elapsed moves with each answer. */
 /** `footer`: the finished screen's done line, the card's last row (ingest.md v3). */
 /** `actions`: the chat row, right under "Ready" so it is seen without scrolling (IN-88). */
@@ -44,7 +44,9 @@ export function ProgressCard({
         <div>
           {state !== 'failed' && (
             <p className="v-caption">
-              {state === 'done' ? 'All 8 steps done' : `Step ${String(step)} of 8`}
+              {state === 'done'
+                ? `All ${String(STEPS.length)} steps done`
+                : `Step ${String(step)} of ${String(STEPS.length)}`}
             </p>
           )}
           <h2 className="v-h2">
@@ -85,14 +87,15 @@ export function ProgressCard({
           {STEPS.map((s, i) => {
             const n = i + 1;
             const st = status(n);
-            const bar = st === 'working' ? stepFiles(files, n) : null;
+            // Index has no file stage, so no file bar
+            const bar = st === 'working' && s.stages.length ? stepFiles(files, n) : null;
             return (
               <li key={s.name} className={`ingest-step is-${st}`}>
                 <span className="ingest-step-icon" role="img" aria-label={st}>
                   {ICON[st]}
                 </span>
                 <span className="ingest-step-name">{s.name}</span>
-                {bar && <span className="ingest-step-hint">{s.hint}</span>}
+                {st === 'working' && <span className="ingest-step-hint">{s.hint}</span>}
                 {bar && bar.through > 0 && (
                   // no "0 / 0 files" before any file reached the step (IN-71)
                   <span className="ingest-step-bar">
