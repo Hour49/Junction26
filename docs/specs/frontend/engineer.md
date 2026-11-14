@@ -502,7 +502,13 @@ Thread and pages
   name), the file name until the project loads. References keep the file path (files are files, #224). [component]
 - EN-88 (judge path) `quantity.estimate` set on a number answer: "about <rounded value> <unit>, <estimate>" under
   the value (`.en-estimate`, `estimateLine(a)` in format.ts; whole numbers, the estimate sentence as the API
-  writes it). None otherwise. [unit + component]
+  writes it). None otherwise. Amended (judge path re-run, Bogdan c6881747518): a count (`unit` "count") is
+  whole, never "about N": the line is only the estimate as a caveat, first letter capitalised ("Counted by Gemini
+  Carbon, an AI reader: check its marks on the plan"); a measure that rounds to 0 shows its value as is
+  ("0.30 m², <estimate>"). [unit + component]
+- EN-89 (judge path re-run, as CH-46) The caveat once: when the reason on screen (the flagged section's, EN-84, or
+  the double-check panel's, i.e. not High and not signed) already contains `quantity.estimate`, the estimate line
+  (EN-88) is left out. A High answer shows no panel, so its estimate line stays. [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
