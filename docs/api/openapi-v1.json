@@ -2853,6 +2853,17 @@
             "title": "Question",
             "type": "string"
           },
+          "refused_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused Note"
+          },
           "total": {
             "anyOf": [
               {
@@ -2893,6 +2904,17 @@
               }
             ],
             "title": "Total Unit"
+          },
+          "why_no_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why No Total"
           }
         },
         "required": [
@@ -2901,7 +2923,9 @@
           "total",
           "total_unit",
           "total_sure",
-          "total_note"
+          "total_note",
+          "why_no_total",
+          "refused_note"
         ],
         "title": "ProjectAnswer",
         "type": "object"
@@ -3488,6 +3512,17 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "value_marks": {
+            "default": [],
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/ValueMark"
+              },
+              "type": "array"
+            },
+            "title": "Value Marks",
+            "type": "array"
           },
           "values": {
             "items": {
@@ -4997,6 +5032,56 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "ValueMark": {
+        "additionalProperties": false,
+        "description": "Where one item a conflicting value counted or measured is on the drawing, named.",
+        "properties": {
+          "box": {
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            ],
+            "title": "Box",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "page": {
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "box",
+          "label"
+        ],
+        "title": "ValueMark",
         "type": "object"
       }
     }
