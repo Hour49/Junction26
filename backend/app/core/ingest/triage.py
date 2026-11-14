@@ -262,11 +262,17 @@ def sheet_flag(triage: Triage | None) -> str | None:
     warn-only set-aside, SHEET_KIND_SET_ASIDE=false): the drawing is flagged at upload like a
     Carbon-alone read, so none of its answers is certified and each is Low (orchestrator,
     2026-11-14). None otherwise, and once a person had it read as a floor plan."""
-    if triage is None or triage.sheet is None or triage.read_as_plan is not None:
+    if triage is None or triage.read_as_plan is not None or not doubted_not_plan(triage):
         return None
-    if triage.sheet.decision != "doubt" or triage.sheet.kind in SHEET_PLAN_KINDS:
-        return None
+    assert triage.sheet is not None  # doubted_not_plan
     return f"the sheet may not be a floor plan: it looks like {triage.sheet.kind_words}"
+
+
+def doubted_not_plan(triage: Triage) -> bool:
+    """The sheet-kind step doubted the sheet is a floor plan and called it a non-plan kind (read,
+    and flagged until a person has it read as a floor plan)."""
+    sheet = triage.sheet
+    return sheet is not None and sheet.decision == "doubt" and sheet.kind not in SHEET_PLAN_KINDS
 
 
 def _how(found: TriageClass, p_plan: float, method: str) -> str:

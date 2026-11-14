@@ -6,10 +6,11 @@ import io
 import json
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from conftest import plan_png
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 from pydantic import SecretStr
@@ -247,4 +248,60 @@ def test_a_warn_only_non_plan_sheet_is_flagged_so_its_answers_ask_and_are_low(
     alone = ask(off, alone_found, "plan.png", DOORS)
     for key in ("answer", "check", "level", "explanation", "sure"):
         assert plan.get(key) == alone.get(key), key
+    assert network == []
+
+
+def like(client: TestClient, **changes: Any) -> TestClient:
+    """Another app on the same projects folder (the same ingest outcome cache) and readers."""
+    app = cast(FastAPI, client.app)
+    settings = cast(Settings, app.state.settings).model_copy(update=changes)
+    ingest = build_ingest(settings, settings.projects_dir, background=False)
+    return TestClient(create_app(settings, ingest))
+
+
+def test_the_flag_follows_the_projects_triage_when_the_reading_is_reused(
+    settings: Settings, tmp_path: Path, network: list[str]
+) -> None:
+    """codecheck's M1 on #265: the reading is cached by content, the triage is the project's. A
+    sheet read first with SHEET_KIND off and then uploaded with warn-only on reuses the reading
+    and is still flagged; switched off again, a new upload is not."""
+    on = seeded(settings, tmp_path, sheet_kind_set_aside=False, check_policy=str(CHECK))
+    off = like(on, sheet_kind="off")
+    assert files_of(project(off, {"piping.png": PIPING_PNG}))["piping.png"]["state"] == "ready"
+    found = project(on, {"piping.png": PIPING_PNG})
+    piping = files_of(found)["piping.png"]
+    assert piping["reused"] is True and piping["state"] == "flagged"
+    flag = (
+        "the sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+        "electrical plan"
+    )
+    assert piping["reason"].startswith(f"{flag}; ")
+    answer = ask(on, found, "piping.png", DOORS)
+    assert answer["explanation"] == f"read from a page flagged at upload: {flag}"
+    assert answer["level"]["basis"] == "page" and answer["check"] is not None
+    issues = on.get(f"/api/projects/{found['id']}/issues").json()["issues"]
+    assert any(issue["kind"] == "reading_flag" and flag in issue["reason"] for issue in issues)
+    again = project(off, {"piping.png": PIPING_PNG})
+    assert files_of(again)["piping.png"]["state"] == "ready"
+    assert ask(off, again, "piping.png", DOORS)["explanation"] is None
+    assert network == []
+
+
+def test_a_person_reading_a_flagged_doubt_as_a_plan_clears_the_flag(
+    settings: Settings, tmp_path: Path, network: list[str]
+) -> None:
+    """codecheck's S2 on #265: "read as a floor plan" on a warn-only doubt sheet is accepted (was
+    422) and the person's call wins: the file is ready and its answers carry no flag."""
+    client = seeded(settings, tmp_path, sheet_kind_set_aside=False, check_policy=str(CHECK))
+    found = project(client, {"piping.png": PIPING_PNG})
+    assert files_of(found)["piping.png"]["state"] == "flagged"
+    assert read_as_plan(client, found, "piping.png").status_code == 202
+    found = client.get(f"/api/projects/{found['id']}").json()
+    piping = files_of(found)["piping.png"]
+    assert piping["state"] == "ready" and "may not be a floor plan" not in piping["reason"]
+    assert piping["triage"]["read_as_plan"] is not None
+    answer = ask(client, found, "piping.png", DOORS)
+    assert answer["answer"] == 1 and answer["explanation"] is None
+    assert answer["level"]["basis"] != "page"
+    assert read_as_plan(client, found, "piping.png").status_code == 409  # once
     assert network == []

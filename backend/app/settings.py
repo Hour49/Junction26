@@ -206,8 +206,9 @@ class Settings(BaseSettings):
     # The VLM sheet-kind step (.agents/exp/vlm-kind.md, app/adapters/triage/sheet_kind.py): carbon
     # asks gemini-4-carbon (GEMINI_API_KEY) what each image a triage classifier would have read
     # is; a sheet it calls no floor plan, with a non-plan kind, at confidence >= the cut is set
-    # aside, a doubtful one is read and its answers say so. Replies cached in the folder by file
-    # content. Off until its gate passes
+    # aside. A doubtful one is read; with a non-plan kind (in either SHEET_KIND_SET_ASIDE mode) it
+    # is flagged, so its answers are never certified and are Low, until a person has it read as a
+    # floor plan. Replies cached in the folder by file content. Off until its gate passes
     sheet_kind: SheetKindName = "off"
     sheet_kind_cache_dir: Path = Path("../data/cache/sheet-kind")
     # 0.9: the lowest cut that set aside none of checked-200's 75 plans (0.8 set aside 1; gate

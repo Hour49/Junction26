@@ -26,8 +26,8 @@ from app.core.answering.model import Answer, Unit
 from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
-from app.core.ingest.model import DrawingInfo
-from app.core.ingest.triage import sheet_doubt
+from app.core.ingest.model import DrawingInfo, FileStatus
+from app.core.ingest.triage import sheet_doubt, sheet_flag
 from app.core.review.ask import Asked, ask
 from app.core.review.check import Check, Level
 from app.core.review.model import (
@@ -141,8 +141,11 @@ def asked_on(
     no_reader: bool = False,
 ) -> Asked:
     """The question on the drawing, with the surveyor's edits of it in `project_id` applied (a
-    checked id: deps.project_of)."""
+    checked id: deps.project_of). The page's flags are the stored reading's plus the sheet-kind
+    step's on the file in that project (triage.sheet_flag): its triage, not the cache's."""
     info = ingest.drawing_info(drawing_id)
+    found = file_of(ingest, as_uploaded(ingest, info, project_id))
+    flag = None if found is None else sheet_flag(found.triage)
     return ask(
         question,
         drawing,
@@ -153,7 +156,7 @@ def asked_on(
         prior_families=answering.prior_families,
         confidence=confidence_of(drawing, drawing_id, ingest, answering),
         sure_at=answering.sure_at,
-        flags=info.flags,
+        flags=info.flags if flag is None else (*info.flags, flag),
         raster=info.route == "raster",
         check=answering.check,
         route=info.route,
@@ -163,14 +166,19 @@ def asked_on(
     )
 
 
-def doubt_of(ingest: Ingest, named: DrawingInfo) -> str | None:
-    """The sheet-kind step's doubt line for the file the drawing was read from, in the project
-    that names it (SHEET_KIND, .agents/exp/vlm-kind.md); None when it had no doubt."""
+def file_of(ingest: Ingest, named: DrawingInfo) -> FileStatus | None:
+    """The file the drawing was read from, in the project that names it (deps.as_uploaded)."""
     try:
         files = ingest.status(named.project_id).files
     except NotFoundError:
         return None
-    found = next((file for file in files if file.path == named.path), None)
+    return next((file for file in files if file.path == named.path), None)
+
+
+def doubt_of(ingest: Ingest, named: DrawingInfo) -> str | None:
+    """The sheet-kind step's doubt line for the file the drawing was read from, in the project
+    that names it (SHEET_KIND, .agents/exp/vlm-kind.md); None when it had no doubt."""
+    found = file_of(ingest, named)
     return None if found is None else sheet_doubt(found.triage)
 
 
