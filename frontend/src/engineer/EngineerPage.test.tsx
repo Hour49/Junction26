@@ -587,6 +587,23 @@ describe('extended answers', () => {
     expect(within(area as HTMLElement).queryByText(/^Query: area:room/)).toBeNull();
   });
 
+  it('EN-53 line.sure: true shows a "Sure" badge after the value, with a tooltip and screen-reader text', async () => {
+    const t = await shownTurn({ ...answer, line: { ...answer.line, sure: true } });
+    const tip =
+      'Certified: on held-out test plans, at least 96% of the plans marked sure had every sure answer exact';
+    expect(within(t).getByTestId('answer-value').textContent).toBe('2');
+    const badge = within(t).getByTitle(tip);
+    expect(badge.textContent).toContain('Sure');
+    expect(badge.textContent).toContain(tip);
+    expect(badge.closest('[data-testid="answer-value"]')).toBeNull();
+  });
+
+  it.each([null, false, undefined])('EN-53 line.sure: %s shows no badge', async (sure) => {
+    const t = await shownTurn({ ...answer, line: { ...answer.line, sure } });
+    expect(within(t).queryByTitle(/^Certified:/)).toBeNull();
+    expect(within(t).queryByText(/^Sure/)).toBeNull();
+  });
+
   it('EN-27 printed-names: Query falls back to the key when the label is empty', async () => {
     if (!answer.quantity) throw new Error('answer.json has a quantity');
     const bare = await shownTurn({ ...answer, quantity: { ...answer.quantity, label: '' } });
