@@ -214,6 +214,18 @@ Findings: the gold room labels look like the annotation tool's defaults, not the
 gold), so "read the printed label" has a ceiling well below 100%, and a reader that types rooms by furniture can pass it.
 Total spend: about 0.6 EUR of GPU and about 3.1 USD of Gemini, against caps of 15 EUR and 5 USD.
 
+**Room policy (`ROOM_POLICY`, 2026-11-14).** The failure review of config C's room answers found four points where the
+reader types by what it sees and the answers by the printed label. `ROOM_POLICY=gold-labels` takes the label's side: a
+bedroom with no label is `other`, ALK... (alcove) is a hall, a bathroom labelled WC is a wc, APUK/APK/TUPAK... is a
+kitchen. Through the backend on the 376 val pages (config C, cached replies, 0 spend): 87.2% (5896/6764) against C's
+86.5% (5854), +0.6 pp [+0.3, +1.0]; bedroom +6.6 pp [+3.3, +10.3], bathroom +1.6 [+0.0, +3.8], wc +0.6 [-1.1, +2.8],
+kitchen +0.4 [-1.1, +1.9]; 59 rooms retyped on 47 pages. With the answer policy sending kitchen to the prior on both
+sides the gain is the same 0.6 pp (5918 against 5878). On 300 held-out train pages the empty-label rule gave +20
+questions [+6, +36], WC and ALK +4 each [0, +12] and [0, +10], the kitchen labels +2 [-6, +10]; a fifth rule (at least
+one kitchen per flat) gave -4 [-14, +6] there after +14 on val and was left out. The setting is off by default
+(`furniture`): on a plan with no printed labels `gold-labels` answers 0 bedrooms although the plan shows beds, which is
+right for the dataset's answers and wrong for a person asking. It is only for a rooms source that reads labels.
+
 ---
 
 ## 6. Segmentation network (log: `seg.md`)
