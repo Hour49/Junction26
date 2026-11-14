@@ -5,11 +5,11 @@ import {
   cardState,
   conflictCount,
   inUseIndex,
-  letter,
+  ordered,
+  parseAnswer,
   progressText,
   ruleIndex,
   subLine,
-  workspaceDrawing,
 } from './conflicts';
 
 const base = projectReview.conflicts[0] as ConflictEntry;
@@ -45,8 +45,25 @@ describe('conflicts.ts', () => {
     expect(inUseIndex(needs)).toBe(-1);
   });
 
-  it('letter gives A, B, C', () => {
-    expect([0, 1, 2].map(letter)).toEqual(['A', 'B', 'C']);
+  it('CF-37 ordered: a rule could decide first, then the rest, each in the server order', () => {
+    const r = { ...base, quantity: 'r' };
+    expect(ordered([needs, base, yours, r]).map((c) => c.quantity)).toEqual([
+      base.quantity,
+      yours.quantity,
+      'r',
+      needs.quantity,
+    ]);
+  });
+
+  it('CF-41 parseAnswer: numbers with a dot or comma; counts whole; else the line to show', () => {
+    expect(parseAnswer(' 25,5 ', 'm2')).toBe(25.5);
+    expect(parseAnswer('.5', 'm2')).toBe(0.5);
+    for (const bad of ['', 'abc', '0', '-3', '1e3', '12 m2'])
+      expect(parseAnswer(bad, 'm2')).toBe('Type a number, like 12.5.');
+    expect(parseAnswer('12', 'count')).toBe(12);
+    expect(parseAnswer('0', 'count')).toBe(0);
+    for (const bad of ['2.5', '-1', ''])
+      expect(parseAnswer(bad, 'count')).toBe('Type a whole number, like 12.');
   });
 
   it('conflictCount, subLine and progressText count the states', () => {
@@ -60,12 +77,5 @@ describe('conflicts.ts', () => {
     expect(subLine([needs, needs])).toBe('2 need you.');
     expect(subLine([])).toBe('Both methods agree wherever two of them measured.');
     expect(progressText([base, yours, needs])).toBe('2 of 3 settled');
-  });
-
-  it('workspaceDrawing is the first drawing with quantities, else the first, else none', () => {
-    expect(workspaceDrawing(projectReview.drawings)).toBe('adeefbbcc17559fc');
-    const empty = projectReview.drawings.map((d) => ({ ...d, quantities: 0 }));
-    expect(workspaceDrawing(empty)).toBe('adeefbbcc17559fc');
-    expect(workspaceDrawing([])).toBeNull();
   });
 });

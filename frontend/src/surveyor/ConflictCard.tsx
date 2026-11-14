@@ -8,10 +8,10 @@ import {
   type DrawingView,
 } from '../api';
 import { routeHref } from '../shell/route';
-import { PageViewer } from '../viewer/PageViewer';
-import { cardState, inUseIndex, letter, ruleIndex } from './conflicts';
+import { SourceFigure, type Source } from '../viewer/SourceFigure';
+import { cardState, inUseIndex, parseAnswer, ruleIndex } from './conflicts';
 
-/** A drawing for the evidence: loading (undefined), loaded, or failed. */
+/** A drawing for the source figure: loading (undefined), loaded, or failed. */
 export type DrawingLoad = DrawingView | { error: unknown } | undefined;
 
 interface Props {
@@ -31,6 +31,25 @@ interface Props {
 type Mode = 'idle' | 'choosing' | 'saving';
 
 const SIGNED = 'This value is signed off. Undo the sign-off in the surveyor workspace first.';
+
+const UNIT: Record<string, string> = { m2: 'm²', m3: 'm³', m: 'm', ft: 'ft', ft2: 'ft²' };
+
+/** One source: the drawing's page of the values, one place per value so the figure's numbers are the variants. */
+function sourceOf(c: ConflictEntry, d: DrawingView): Source {
+  const values = c.conflict.values;
+  const at = values.find((v) => v.page)?.page ?? 1;
+  return {
+    name: c.file,
+    page: d.pages.find((p) => p.page === at) ?? d.pages[0] ?? null,
+    places: values.map((v) => {
+      const here = !!v.box && (v.page ?? 1) === at;
+      return {
+        label: `${methodName(v.method)}: ${formatValue(v.value, v.unit ?? null)}${here ? '' : ', not located on this page'}`,
+        box: here ? v.box : null,
+      };
+    }),
+  };
+}
 
 const PILL = {
   open: ['Needs you', 'cf-warn'],
@@ -62,7 +81,8 @@ export function ConflictCard({
     setMode(state === 'open' ? 'choosing' : 'idle');
   }
   const [error, setError] = useState<unknown>(null);
-  const [open, setOpen] = useState(focused);
+  const [typed, setTyped] = useState('');
+  const [typedError, setTypedError] = useState<string | null>(null);
   const article = useRef<HTMLElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -75,10 +95,9 @@ export function ConflictCard({
   const rule = ruleIndex(c);
   const inUse = inUseIndex(c);
   const value = c.value;
-  const evidenceOpen = open || (state === 'open' && !signed);
   useEffect(() => {
-    if (evidenceOpen && drawing === undefined) onNeedDrawing();
-  }, [evidenceOpen, drawing, onNeedDrawing]);
+    if (drawing === undefined) onNeedDrawing();
+  }, [drawing, onNeedDrawing]);
 
   const choosing = mode === 'choosing' && !signed;
   const [pillWords, pillClass] = signed
@@ -116,6 +135,16 @@ export function ConflictCard({
       setMode('idle'); // already in use: just leave choosing
     else void send({ action: 'settle', value: v.value }, 'choosing');
   }
+  function submitTyped() {
+    const v = parseAnswer(typed, unit);
+    if (typeof v === 'string') {
+      setTypedError(v);
+      return;
+    }
+    setTypedError(null);
+    setTyped('');
+    void send({ action: 'settle', value: v }, 'choosing');
+  }
   function useRule() {
     void send({ action: 'unsettle' }, 'idle'); // drops the settled value only (no confirm: nothing else is lost)
   }
@@ -129,8 +158,8 @@ export function ConflictCard({
           ? 'Tap the right value.'
           : state === 'yours'
             ? inUse < 0
-              ? `You settled it at ${formatValue(c.settled?.value ?? 0, unit)} in the surveyor workspace.`
-              : `You kept ${letter(inUse)}${rule >= 0 && rule !== inUse ? ", over the rule's choice" : ''}.`
+              ? `Your answer: ${formatValue(c.settled?.value ?? 0, unit)}.` // typed here or in the workspace
+              : `You kept variant ${String(inUse + 1)}${rule >= 0 && rule !== inUse ? ", over the rule's choice" : ''}.`
             : inUse < 0 && state === 'rule'
               ? `In use: ${formatValue(value, unit)}.` // a recount in the workspace: neither variant
               : '';
@@ -145,7 +174,6 @@ export function ConflictCard({
     (x): x is string => !!x,
   );
   const busy = mode === 'saving';
-  const loaded = drawing && !('error' in drawing) ? drawing : null;
 
   return (
     <article
@@ -174,6 +202,31 @@ export function ConflictCard({
         </span>
       </div>
 
+      {drawing === undefined ? (
+        <p role="status" className="cf-loading">
+          Loading the drawing…
+        </p>
+      ) : 'error' in drawing ? (
+        <div role="alert" className="cf-error">
+          <p>{errorText(drawing.error).detail}</p>
+          <button
+            type="button"
+            className="cf-btn"
+            onClick={() => {
+              onNeedDrawing(true);
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
+        <SourceFigure
+          sources={[sourceOf(c, drawing)]}
+          label={`Source of conflict ${String(index + 1)}`}
+          defaultOpen={focused || undefined}
+        />
+      )}
+
       <div className="cf-tiles">
         {values.map((v, i) => (
           <button
@@ -181,7 +234,7 @@ export function ConflictCard({
             type="button"
             className="cf-tile"
             aria-label={[
-              `${letter(i)}: ${formatValue(v.value, v.unit ?? null)}`,
+              `Variant ${String(i + 1)}: ${formatValue(v.value, v.unit ?? null)}`,
               methodName(v.method),
               v.page ? `page ${String(v.page)}` : null,
               i === rule ? "the rule's choice" : null,
@@ -196,22 +249,64 @@ export function ConflictCard({
             }}
           >
             <span className="cf-tile-kicker">
-              {letter(i)}
+              Variant {i + 1}
               {i === rule ? " · the rule's choice" : ''}
+              {i === inUse && (
+                <svg className="cf-check" viewBox="0 0 20 20" aria-hidden="true">
+                  <circle cx="10" cy="10" r="10" />
+                  <path d="M5.5 10.5l3 3 6-6.5" />
+                </svg>
+              )}
             </span>
             <span className="cf-tile-value">{formatValue(v.value, v.unit ?? null)}</span>
             <span className="cf-tile-source">
               {methodName(v.method)}
               {v.page ? `, page ${String(v.page)}` : ''}
             </span>
-            {i === inUse && <span className="cf-badge">in use</span>}
           </button>
         ))}
       </div>
 
+      {choosing && (
+        <form
+          className="cf-own"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitTyped();
+          }}
+        >
+          <label htmlFor={`${id}-own`}>Or type your own answer</label>
+          <div className="cf-own-row">
+            <span className="cf-own-field">
+              <input
+                id={`${id}-own`}
+                inputMode="decimal"
+                autoComplete="off"
+                maxLength={20}
+                value={typed}
+                disabled={busy}
+                aria-describedby={typedError === null ? undefined : `${id}-own-err`}
+                onChange={(e) => {
+                  setTyped(e.target.value);
+                }}
+              />
+              {unit && UNIT[unit] && <span>{UNIT[unit]}</span>}
+            </span>
+            <button type="submit" className="cf-btn cf-primary" disabled={busy}>
+              Use my answer
+            </button>
+          </div>
+          {typedError !== null && (
+            <p role="alert" id={`${id}-own-err`} className="cf-error">
+              {typedError}
+            </p>
+          )}
+        </form>
+      )}
+
       <details className="cf-why">
         <summary>
-          {rule >= 0 ? `Why the rule chose ${letter(rule)}` : 'Why no rule decides'}
+          {rule >= 0 ? `Why the rule chose variant ${String(rule + 1)}` : 'Why no rule decides'}
         </summary>
         {why.length > 0 ? (
           <ul>
@@ -222,49 +317,6 @@ export function ConflictCard({
         ) : (
           <p>No rule decides between these methods. Both readings are on the drawing.</p>
         )}
-      </details>
-
-      <details className="cf-evidence" open={evidenceOpen}>
-        <summary
-          onClick={(e) => {
-            e.preventDefault();
-            setOpen(!evidenceOpen);
-          }}
-        >
-          Where each value was read
-        </summary>
-        {evidenceOpen &&
-          (drawing === undefined ? (
-            <p role="status">Loading the drawing…</p>
-          ) : 'error' in drawing ? (
-            <div role="alert" className="cf-error">
-              <p>{errorText(drawing.error).detail}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  onNeedDrawing(true);
-                }}
-              >
-                Retry
-              </button>
-            </div>
-          ) : (
-            loaded && (
-              <>
-                <PageViewer
-                  file={loaded.file}
-                  pages={loaded.pages}
-                  credit={loaded.credit}
-                  marks={[]}
-                  unit={unit}
-                  conflict={c.conflict}
-                />
-                {values.map((v, i) =>
-                  v.box ? null : <p key={i}>{letter(i)}: not located on the page.</p>,
-                )}
-              </>
-            )
-          ))}
       </details>
 
       <div className="cf-actions">

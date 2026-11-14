@@ -1,33 +1,21 @@
+// conflicts.md: the conflicts list the finished ingest views embed (demo parity CF-35..44) and its cards.
+import { useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  methodName,
-  type CheckResult,
-  type ConflictEntry,
-  type ProjectChecks,
-  type RuleCheck,
-  type ProjectReview,
-} from '../api';
-import {
-  drawing,
-  error as errorBody,
-  project,
-  projectChecks,
-  projectFailed,
-  projectReview,
-  projectRunning,
-} from '../api/fixtures';
-import { mockApi, never, reply } from '../test/mockApi';
-import type { PageViewerProps } from '../viewer/PageViewer';
+import { methodName, type ConflictEntry, type ProjectReview } from '../api';
+import { drawing, error as errorBody, project, projectReview } from '../api/fixtures';
+import { mockApi, reply } from '../test/mockApi';
+import type { SourceFigureProps } from '../viewer/SourceFigure';
 import { ProjectReviewSide } from './ProjectReviewSide';
-import { ConflictsScreen } from './ConflictsScreen';
+import { ConflictsList } from './ConflictsScreen';
 
-// The viewer is a test double recording its props (as in SurveyorScreen.test.tsx).
-const viewer = vi.hoisted(() => ({ props: [] as PageViewerProps[] }));
-vi.mock('../viewer/PageViewer', () => ({
-  PageViewer: (props: PageViewerProps) => {
-    viewer.props.push(props);
-    return <div data-testid="viewer" />;
+// The source figure is fe-viewer's; here a double recording its props and counting its mounts.
+const fig = vi.hoisted(() => ({ props: [] as SourceFigureProps[], mounts: 0 }));
+vi.mock('../viewer/SourceFigure', () => ({
+  SourceFigure: (props: SourceFigureProps) => {
+    useState(() => (fig.mounts += 1));
+    fig.props.push(props);
+    return <div data-testid="figure" />;
   },
 }));
 
@@ -61,26 +49,30 @@ const withConflicts = (conflicts: ConflictEntry[]): ProjectReview => ({
   conflicts,
 });
 
-function show(routes: Record<string, unknown> = {}, query?: string) {
+function show(
+  routes: Record<string, unknown> = {},
+  query?: string,
+  onCounts?: (c: { total: number; needsPerson: number }) => void,
+) {
   const api = mockApi({
-    [PATH.project]: project,
     [PATH.review]: projectReview,
     [PATH.drawing]: drawing,
     ...routes,
   });
   const view = render(
-    <ConflictsScreen
+    <ConflictsList
       projectId={pid}
       query={query === undefined ? undefined : new URLSearchParams(query)}
+      onCounts={onCounts}
     />,
   );
   return { api, ...view };
 }
-const ready = () => screen.findByRole('heading', { level: 1 });
+const ready = () => screen.findByRole('heading', { level: 2, name: /conflicts? found$/ });
 const cards = () => screen.getAllByRole('article');
 const card = (label: string) => screen.getByRole('article', { name: label });
-const tile = (scope: HTMLElement, l: string) =>
-  within(scope).getByRole('button', { name: new RegExp(`^${l}\\b`) });
+const tile = (scope: HTMLElement, n: number) =>
+  within(scope).getByRole('button', { name: new RegExp(`^Variant ${String(n)}:`) });
 const pressed = (b: HTMLElement) => b.getAttribute('aria-pressed') === 'true';
 const disabled = (b: HTMLElement) => (b as HTMLButtonElement).disabled;
 const click = (el: HTMLElement) => {
@@ -88,33 +80,114 @@ const click = (el: HTMLElement) => {
 };
 const gets = (api: ReturnType<typeof mockApi>, url: string) =>
   api.calls.filter((c) => c.method === 'GET' && c.url === url).length;
-const evidence = (scope: HTMLElement) => within(scope).getByText('Where each value was read');
+const own = (scope: HTMLElement) => within(scope).queryByLabelText('Or type your own answer');
 
 beforeEach(() => {
-  viewer.props = [];
+  fig.props = [];
+  fig.mounts = 0;
 });
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-describe('ConflictsScreen', () => {
-  it('CF-1 loads the project and its review in parallel, Loading until both answer', async () => {
-    const { api } = show({ [PATH.review]: never() });
+describe('ConflictsList', () => {
+  it('CF-35 loads only the review, renders the list heading, progress and card, reports counts', async () => {
+    const counts = vi.fn();
+    const { api, container } = show({}, undefined, counts);
     expect(screen.getByRole('status').textContent).toBe('Loading the conflicts…');
-    await waitFor(() => {
-      expect(api.calls.map((c) => c.url)).toEqual(
-        expect.arrayContaining([`/api/projects/${pid}`, `/api/projects/${pid}/review`]),
-      );
-    });
+    expect(counts).not.toHaveBeenCalled();
+    expect(container.querySelector('section#conflicts')).toBeTruthy(); // fe-scaffold's scroll target, also while loading
+    expect((await ready()).textContent).toBe('1 conflict found');
+    expect(screen.getByText('1 settled by a rule.')).toBeTruthy();
+    expect(screen.getByText('1 of 1 settled')).toBeTruthy();
+    expect(cards()).toHaveLength(1);
+    expect(api.calls.map((c) => c.url)).not.toContain(`/api/projects/${pid}`);
+    const list = screen.getByRole('region', { name: 'Conflicts' });
+    expect(list.id).toBe('conflicts');
+    expect(list.tabIndex).toBe(-1); // fe-scaffold's "Show the conflict" moves focus here
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.queryByText('Start a new chat')).toBeNull(); // the host's
+    expect(counts).toHaveBeenLastCalledWith({ total: 1, needsPerson: 0 });
   });
 
-  it('CF-2 the heading for the fixture review', async () => {
-    show();
-    expect((await ready()).textContent).toBe('1 conflict found');
-    expect(screen.getByText(`${project.name} · 5 drawings ready`)).toBeTruthy();
-    expect(screen.getByText('1 settled by a rule.')).toBeTruthy();
+  it('CF-35 onCounts follows a settle on a card that needed a person', async () => {
+    const counts = vi.fn();
+    let picked = false;
+    show(
+      {
+        [PATH.edit]: () => {
+          picked = true;
+          return {};
+        },
+        [PATH.review]: () =>
+          withConflicts([
+            picked
+              ? { ...needs, needs_person: false, settled: { value: 22.401, at: AT }, value: 22.401 }
+              : needs,
+          ]),
+      },
+      undefined,
+      counts,
+    );
+    await ready();
+    expect(counts).toHaveBeenLastCalledWith({ total: 1, needsPerson: 1 });
+    click(tile(card(needs.label), 1));
+    await waitFor(() => {
+      expect(counts).toHaveBeenLastCalledWith({ total: 1, needsPerson: 0 });
+    });
+  });
+
+  it('CF-36 a review error stays inside the list; Retry re-sends the GET', async () => {
+    let fail = true;
+    const { api } = show({
+      [PATH.review]: () => (fail ? reply(500, { ...errorBody, detail: 'boom' }) : projectReview),
+    });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('boom');
+    expect(alert.closest('section#conflicts')).toBeTruthy();
+    fail = false;
+    click(within(alert).getByRole('button', { name: 'Retry' }));
+    await ready();
+    expect(gets(api, `/api/projects/${pid}/review`)).toBe(2);
+  });
+
+  it('CF-37 rule-settled cards first, then the ones without a rule; settling keeps the order', async () => {
+    const r1 = { ...base, quantity: 'r1', label: 'r1' };
+    const r2 = { ...base, quantity: 'r2', label: 'r2' };
+    const p = { ...needs, quantity: 'p', label: 'p' };
+    const s = {
+      ...needs,
+      quantity: 's',
+      label: 's',
+      needs_person: false,
+      settled: { value: 22.401, at: AT },
+      value: 22.401,
+    };
+    let picked = false;
+    show({
+      [PATH.edit]: () => {
+        picked = true;
+        return {};
+      },
+      [PATH.review]: () =>
+        withConflicts([
+          picked ? { ...p, needs_person: false, settled: { value: 30, at: AT }, value: 30 } : p,
+          r1,
+          s,
+          r2,
+        ]),
+    });
+    await ready();
+    const order = () =>
+      cards().map((c) => c.getAttribute('aria-label') ?? c.querySelector('h2')?.textContent);
+    expect(order()).toEqual(['r1', 'r2', 'p', 's']);
+    expect(card('p').textContent).toContain('Conflict 3 of 4 · needs you');
+    click(tile(card('p'), 2));
+    await waitFor(() => {
+      expect(within(card('p')).getByText('Your choice')).toBeTruthy();
+    });
+    expect(order()).toEqual(['r1', 'r2', 'p', 's']);
   });
 
   it('CF-3 three conflicts: counts, sub line, progress', async () => {
@@ -127,41 +200,49 @@ describe('ConflictsScreen', () => {
     expect(cards()).toHaveLength(3);
   });
 
-  it('CF-4 no conflicts: agree line, no cards, the chat button unlocked', async () => {
-    show({ [PATH.review]: withConflicts([]) });
+  it('CF-4 no conflicts: agree line, no segments, no cards', async () => {
+    const counts = vi.fn();
+    const { container } = show({ [PATH.review]: withConflicts([]) }, undefined, counts);
     expect((await ready()).textContent).toBe('No conflicts found');
     expect(screen.getByText('Both methods agree wherever two of them measured.')).toBeTruthy();
     expect(screen.queryAllByRole('article')).toHaveLength(0);
-    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
+    expect(container.querySelector('.cf-segs')).toBeNull();
+    expect(counts).toHaveBeenLastCalledWith({ total: 0, needsPerson: 0 });
   });
 
-  it('CF-5 a rule card shows its kicker, label, file and lettered tiles', async () => {
+  it('CF-5 / CF-40 a rule card shows its kicker, label, file and numbered variant tiles', async () => {
     show();
     await ready();
     const c = card(base.label);
     expect(c.textContent).toContain('Conflict 1 of 1 · settled by a rule');
     expect(c.textContent).toContain(base.file);
-    const a = tile(c, 'A');
+    const a = tile(c, 1);
+    expect(a.textContent).toContain('Variant 1');
     expect(a.textContent).toContain('22.40 m²');
     expect(a.textContent).toContain(`${methodName('polygon_x_scale')}, page 1`);
     expect(pressed(a)).toBe(false);
-    const b = tile(c, 'B');
+    const b = tile(c, 2);
+    expect(b.textContent).toContain("Variant 2 · the rule's choice");
     expect(b.textContent).toContain('30.00 m²');
-    expect(b.textContent).toContain("· the rule's choice");
     expect(pressed(b)).toBe(true);
+    expect(b.getAttribute('aria-label')).toBe(
+      `Variant 2: 30.00 m², ${methodName('printed_label')}, page 1, the rule's choice, in use`,
+    );
     expect(within(c).getByText('Settled by rule')).toBeTruthy();
+    expect(within(c).getByText(/^Why the rule chose variant 2$/)).toBeTruthy();
   });
 
   it('CF-6 Modify enables the tiles, Cancel restores them, no request', async () => {
     const { api } = show();
     await ready();
     const c = card(base.label);
-    expect(disabled(tile(c, 'A'))).toBe(true);
+    expect(disabled(tile(c, 1))).toBe(true);
+    expect(own(c)).toBeNull();
     click(within(c).getByRole('button', { name: 'Modify' }));
-    expect(disabled(tile(c, 'A'))).toBe(false);
+    expect(disabled(tile(c, 1))).toBe(false);
     expect(within(c).getByText('Choosing')).toBeTruthy();
     click(within(c).getByRole('button', { name: 'Cancel' }));
-    expect(disabled(tile(c, 'A'))).toBe(true);
+    expect(disabled(tile(c, 1))).toBe(true);
     expect(within(c).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
   });
@@ -182,7 +263,7 @@ describe('ConflictsScreen', () => {
     await ready();
     const c = card(base.label);
     click(within(c).getByRole('button', { name: 'Modify' }));
-    click(tile(c, 'A'));
+    click(tile(c, 1));
     expect(within(c).getByText('Saving…')).toBeTruthy();
     const post = api.calls.find((x) => x.method === 'POST');
     expect(post?.url).toBe(`/api/drawings/${did}/review?project=${pid}`);
@@ -198,7 +279,7 @@ describe('ConflictsScreen', () => {
     expect(gets(api, `/api/projects/${pid}/review`)).toBe(2);
   });
 
-  it('CF-25 Why and Where each value was read stay open after a settle reloads the review', async () => {
+  it('CF-25 / CF-39 Why stays open and the figure is not remounted after a settle reloads the review', async () => {
     let settled = false;
     show({
       [PATH.edit]: () => {
@@ -212,12 +293,11 @@ describe('ConflictsScreen', () => {
     });
     await ready();
     const c = card(base.label);
+    await within(c).findByTestId('figure');
     const why = within(c).getByText(/^Why /).closest('details') as HTMLDetailsElement;
     why.open = true;
-    click(evidence(c));
-    await within(c).findByTestId('viewer');
     click(within(c).getByRole('button', { name: 'Modify' }));
-    click(tile(c, 'A'));
+    click(tile(c, 1));
     await waitFor(() => {
       expect(within(card(base.label)).getByText('Your choice')).toBeTruthy();
     });
@@ -225,10 +305,9 @@ describe('ConflictsScreen', () => {
     expect((within(after).getByText(/^Why /).closest('details') as HTMLDetailsElement).open).toBe(
       true,
     );
-    expect((evidence(after).closest('details') as HTMLDetailsElement).open).toBe(true);
-    // the card's mode still starts over from the server's new state
+    expect(fig.mounts).toBe(1);
     expect(within(after).getByRole('button', { name: 'Modify' })).toBeTruthy();
-    expect(disabled(tile(after, 'A'))).toBe(true);
+    expect(disabled(tile(after, 1))).toBe(true);
   });
 
   it('CF-8 a settled card shows Your choice, the kept tile and both buttons', async () => {
@@ -240,9 +319,9 @@ describe('ConflictsScreen', () => {
     await ready();
     const c = card(base.label);
     expect(within(c).getByText('Your choice')).toBeTruthy();
-    expect(pressed(tile(c, 'A'))).toBe(true);
-    expect(pressed(tile(c, 'B'))).toBe(false);
-    expect(within(c).getByText("You kept A, over the rule's choice.")).toBeTruthy();
+    expect(pressed(tile(c, 1))).toBe(true);
+    expect(pressed(tile(c, 2))).toBe(false);
+    expect(within(c).getByText("You kept variant 1, over the rule's choice.")).toBeTruthy();
     expect(within(c).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(within(c).getByRole('button', { name: "Use the rule's value" })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
@@ -267,7 +346,6 @@ describe('ConflictsScreen', () => {
     expect(confirm).not.toHaveBeenCalled();
     const posts = api.calls.filter((x) => x.method === 'POST');
     expect(posts).toHaveLength(1);
-    expect(posts[0]?.url).toBe(`/api/drawings/${did}/review?project=${pid}`);
     expect(posts[0]?.body).toEqual({ quantity: QTY, action: 'unsettle' });
   });
 
@@ -286,56 +364,77 @@ describe('ConflictsScreen', () => {
       'This value is signed off. Undo the sign-off in the surveyor workspace first.',
     );
     expect(within(c).getByText('Your choice')).toBeTruthy();
-    expect(within(c).getByRole('button', { name: "Use the rule's value" })).toBeTruthy();
   });
 
-  it('CF-10 a card that needs a person: open tiles, evidence open, workspace locked', async () => {
+  it('CF-10 a card that needs a person: open tiles, none pressed, the typed box shown', async () => {
     show({ [PATH.review]: withConflicts([needs]) });
     await ready();
     const c = card(needs.label);
     expect(within(c).getByText('Needs you')).toBeTruthy();
-    for (const l of ['A', 'B']) {
-      expect(disabled(tile(c, l))).toBe(false);
-      expect(pressed(tile(c, l))).toBe(false);
+    for (const n of [1, 2]) {
+      expect(disabled(tile(c, n))).toBe(false);
+      expect(pressed(tile(c, n))).toBe(false);
     }
     expect(within(c).getByText('Tap the right value.')).toBeTruthy();
-    expect(c.querySelector('details.cf-evidence')?.hasAttribute('open')).toBe(true);
-    const lock = screen.getByRole('button', { name: 'Start a new chat' });
-    expect(disabled(lock)).toBe(true);
-    const why = document.getElementById(lock.getAttribute('aria-describedby') ?? '');
-    expect(why?.textContent).toBe('Settle the conflicts that need you first.');
-    expect(screen.queryByRole('link', { name: 'Start a new chat' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Open the workspace' })).toBeNull();
+    expect(own(c)).toBeTruthy();
+    expect(within(c).getByText(/^Why no rule decides$/)).toBeTruthy();
   });
 
-  it('CF-11 a settled value no tile has: none pressed, settled-elsewhere words', async () => {
+  it('CF-11 / CF-43 a settled value no tile has: none pressed, Your answer', async () => {
     show({
-      [PATH.review]: withConflicts([{ ...base, settled: { value: 25, at: AT }, value: 25 }]),
+      [PATH.review]: withConflicts([{ ...base, settled: { value: 25.5, at: AT }, value: 25.5 }]),
     });
     await ready();
     const c = card(base.label);
-    expect(pressed(tile(c, 'A')) || pressed(tile(c, 'B'))).toBe(false);
-    expect(
-      within(c).getByText('You settled it at 25.00 m² in the surveyor workspace.'),
-    ).toBeTruthy();
+    expect(pressed(tile(c, 1)) || pressed(tile(c, 2))).toBe(false);
+    expect(within(c).getByText('Your answer: 25.50 m².')).toBeTruthy();
   });
 
-  it('CF-12 the evidence fetches each drawing once and shows the viewer with the conflict', async () => {
+  it('CF-12 / CF-38 each drawing is fetched once; the figure gets one place per value, minimized', async () => {
     const { api } = show({
       [PATH.review]: withConflicts([base, { ...base, quantity: 'x', label: 'x' }]),
     });
     await ready();
-    click(evidence(card(base.label)));
-    click(evidence(card('x')));
     await waitFor(() => {
-      expect(screen.getAllByTestId('viewer')).toHaveLength(2);
+      expect(screen.getAllByTestId('figure')).toHaveLength(2);
     });
     expect(gets(api, `/api/drawings/${did}?project=${pid}`)).toBe(1);
-    const last = viewer.props.at(-1);
-    expect(last?.marks).toEqual([]);
-    expect(last?.conflict).toEqual(base.conflict);
-    expect(last?.file).toBe(drawing.file);
-    expect(last?.pages).toEqual(drawing.pages);
+    const p = fig.props.at(-1);
+    expect(p?.label).toBe('Source of conflict 2');
+    expect(p?.defaultOpen).toBeFalsy();
+    expect(p?.sources).toEqual([
+      {
+        name: base.file,
+        page: drawing.pages[0],
+        places: [
+          {
+            label: `${methodName('polygon_x_scale')}: 22.40 m²`,
+            box: base.conflict.values[0]?.box,
+          },
+          {
+            label: `${methodName('printed_label')}: 30.00 m²`,
+            box: base.conflict.values[1]?.box,
+          },
+        ],
+      },
+    ]);
+    expect(screen.queryByText('Where each value was read')).toBeNull();
+  });
+
+  it('CF-38 a value without a box is in the legend only, never outlined', async () => {
+    const [v0, v1] = base.conflict.values;
+    if (!v0 || !v1) throw new Error('fixture has two values');
+    show({
+      [PATH.review]: withConflicts([
+        { ...base, conflict: { ...base.conflict, values: [v0, { ...v1, box: null }] } },
+      ]),
+    });
+    await ready();
+    await screen.findByTestId('figure');
+    expect(fig.props.at(-1)?.sources[0]?.places[1]).toEqual({
+      label: `${methodName('printed_label')}: 30.00 m², not located on this page`,
+      box: null,
+    });
   });
 
   it('CF-13 a drawing error shows an error line with Retry inside that card only', async () => {
@@ -345,13 +444,12 @@ describe('ConflictsScreen', () => {
     });
     await ready();
     const c = card(base.label);
-    click(evidence(c));
     const alert = await within(c).findByRole('alert');
     expect(alert.textContent).toContain('boom');
-    expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
+    expect(tile(c, 1)).toBeTruthy();
     fail = false;
     click(within(alert).getByRole('button', { name: 'Retry' }));
-    await within(c).findByTestId('viewer');
+    await within(c).findByTestId('figure');
     expect(gets(api, `/api/drawings/${did}?project=${pid}`)).toBe(2);
   });
 
@@ -360,60 +458,78 @@ describe('ConflictsScreen', () => {
     await ready();
     const c = card(base.label);
     click(within(c).getByRole('button', { name: 'Modify' }));
-    click(tile(c, 'A'));
+    click(tile(c, 1));
     const alert = await within(c).findByRole('alert');
     expect(alert.textContent).toContain(
       'This value is signed off. Undo the sign-off in the surveyor workspace first.',
     );
-    expect(within(c).getByRole('link', { name: 'Open in the surveyor workspace' })).toBeTruthy();
     expect(within(c).getByRole('button', { name: 'Cancel' })).toBeTruthy();
-    expect(disabled(tile(c, 'A'))).toBe(false);
+    expect(disabled(tile(c, 1))).toBe(false);
   });
 
-  it('CF-15 a 404 leads back to projects; a 500 retries both loads', async () => {
-    show({ [PATH.project]: reply(404, { ...errorBody, code: 'not_found' }) });
-    expect(
-      (await screen.findByRole('link', { name: 'Back to workspaces' })).getAttribute('href'),
-    ).toBe('#/workspaces');
-    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
-    cleanup();
-    let fail = true;
-    const { api } = show({ [PATH.review]: () => (fail ? reply(500, errorBody) : projectReview) });
-    const retry = await screen.findByRole('button', { name: 'Retry' });
-    fail = false;
-    click(retry);
-    await ready();
-    expect(gets(api, `/api/projects/${pid}`)).toBe(2);
-    expect(gets(api, `/api/projects/${pid}/review`)).toBe(2);
-  });
-
-  it('CF-16 a running project says so and Check again reloads both', async () => {
-    const { api } = show({ [PATH.project]: projectRunning });
-    await ready();
-    expect(
-      screen.getByText('Still reading the drawings: these are the conflicts so far.'),
-    ).toBeTruthy();
-    click(screen.getByRole('button', { name: 'Check again' }));
-    await waitFor(() => {
-      expect(gets(api, `/api/projects/${pid}`)).toBe(2);
+  it('CF-41 the typed answer sends a number as settle; not a number sends nothing', async () => {
+    let settled = false;
+    const { api } = show({
+      [PATH.edit]: () => {
+        settled = true;
+        return {};
+      },
+      [PATH.review]: () =>
+        withConflicts([
+          settled ? { ...base, settled: { value: 25.5, at: AT }, value: 25.5 } : base,
+        ]),
     });
-    expect(gets(api, `/api/projects/${pid}/review`)).toBe(2);
-    cleanup();
-    show({ [PATH.project]: projectFailed });
     await ready();
-    expect(screen.getByText(`Reading stopped: ${String(projectFailed.error)}.`)).toBeTruthy();
+    const c = card(base.label);
+    click(within(c).getByRole('button', { name: 'Modify' }));
+    const box = own(c) as HTMLInputElement;
+    expect(box.getAttribute('inputmode')).toBe('decimal');
+    expect(within(c).getByText('m²')).toBeTruthy();
+    fireEvent.change(box, { target: { value: 'abc' } });
+    click(within(c).getByRole('button', { name: 'Use my answer' }));
+    const alert = within(c).getByRole('alert');
+    expect(alert.textContent).toBe('Type a number, like 12.5.');
+    expect(box.getAttribute('aria-describedby')).toBe(alert.id);
+    expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
+    fireEvent.change(box, { target: { value: ' 25,5 ' } });
+    fireEvent.submit(box.closest('form') as HTMLFormElement);
+    await waitFor(() => {
+      expect(within(card(base.label)).getByText('Your answer: 25.50 m².')).toBeTruthy();
+    });
+    const posts = api.calls.filter((x) => x.method === 'POST');
+    expect(posts.map((x) => x.body)).toEqual([{ quantity: QTY, action: 'settle', value: 25.5 }]);
+    expect(own(card(base.label))).toBeNull(); // back to idle
   });
 
-  it('CF-17 Start a new chat goes to the project chat; a quiet link opens the workspace', async () => {
-    show();
+  it('CF-41 a count takes whole numbers only', async () => {
+    const doors: ConflictEntry = {
+      ...needs,
+      conflict: {
+        ...needs.conflict,
+        values: needs.conflict.values.map((v, i) => ({
+          ...v,
+          unit: 'count' as const,
+          value: 11 + 2 * i,
+        })),
+      },
+    };
+    const { api } = show({ [PATH.review]: withConflicts([doors]) });
     await ready();
-    const chat = screen.getByRole('link', { name: 'Start a new chat' });
-    expect(chat.getAttribute('href')).toBe(`#/p/${pid}/chat`);
-    expect(screen.queryByText(/Ask anything about/)).toBeNull(); // Tudor: no line under the button
-    const first = projectReview.drawings.find((d) => d.quantities > 0);
-    expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
-      `#/p/${pid}/d/${String(first?.drawing_id)}/engineer`,
-    );
+    const c = card(needs.label);
+    const box = own(c) as HTMLInputElement;
+    for (const bad of ['2.5', '-1', '']) {
+      fireEvent.change(box, { target: { value: bad } });
+      click(within(c).getByRole('button', { name: 'Use my answer' }));
+      expect(within(c).getByRole('alert').textContent).toBe('Type a whole number, like 12.');
+    }
+    expect(api.calls.filter((x) => x.method === 'POST')).toHaveLength(0);
+  });
+
+  it('CF-42 no suggestion chips on any card', async () => {
+    const { container } = show({ [PATH.review]: withConflicts([needs, base, yours]) });
+    await ready();
+    click(within(card(base.label)).getByRole('button', { name: 'Modify' }));
+    expect(container.querySelector('.cf-chips, .qchip')).toBeNull();
   });
 
   it('CF-27 after a person picks a value on a card that needed one, the button is Modify', async () => {
@@ -431,25 +547,12 @@ describe('ConflictsScreen', () => {
         ]),
     });
     await ready();
-    click(tile(card(needs.label), 'A'));
+    click(tile(card(needs.label), 1));
     await waitFor(() => {
       expect(within(card(needs.label)).getByText('Your choice')).toBeTruthy();
     });
     expect(within(card(needs.label)).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
-  });
-
-  it('CF-28 the chat block comes after the last card, not in the heading', async () => {
-    show();
-    await ready();
-    const chat = screen.getByRole('link', { name: 'Start a new chat' });
-    const last = cards().at(-1);
-    if (!last) throw new Error('no card');
-    expect(last.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 1 }).closest('.cf-head')?.contains(chat)).toBe(
-      false,
-    );
   });
 
   it('CF-18 each card links to its quantity in the surveyor workspace', async () => {
@@ -463,11 +566,11 @@ describe('ConflictsScreen', () => {
     expect(new URLSearchParams(href.split('?')[1]).get('q')).toBe(QTY);
   });
 
-  it('CF-19 the side panel links to the conflicts screen when there are conflicts', async () => {
+  it('CF-19 the side panel links to the project (the conflicts are on Ingest) when there are conflicts', async () => {
     mockApi({ [PATH.review]: projectReview });
     render(<ProjectReviewSide projectId={pid} drawingId={did} />);
     const link = await screen.findByRole('link', { name: 'Settle the conflicts' });
-    expect(link.getAttribute('href')).toBe(`#/p/${pid}/conflicts`);
+    expect(link.getAttribute('href')).toBe(`#/p/${pid}`);
     cleanup();
     mockApi({ [PATH.review]: withConflicts([]) });
     render(<ProjectReviewSide projectId={pid} drawingId={did} />);
@@ -508,241 +611,45 @@ describe('ConflictsScreen', () => {
     await ready();
     const c = card(base.label);
     expect(within(c).getByText('Signed off by Ana')).toBeTruthy();
-    expect(disabled(tile(c, 'A'))).toBe(true);
+    expect(disabled(tile(c, 1))).toBe(true);
     expect(within(c).queryByRole('button', { name: 'Modify' })).toBeNull();
   });
 
   it('CF-24 a row value no tile has (a recount) presses no tile and reads In use', async () => {
-    const { container } = show({ [PATH.review]: withConflicts([{ ...base, value: 27.5 }]) });
+    show({ [PATH.review]: withConflicts([{ ...base, value: 27.5 }]) });
     await ready();
-    expect(container.querySelector('[data-pending]')).toBeNull();
     const c = card(base.label);
-    expect(pressed(tile(c, 'A')) || pressed(tile(c, 'B'))).toBe(false);
+    expect(pressed(tile(c, 1)) || pressed(tile(c, 2))).toBe(false);
     expect(within(c).getByText('In use: 27.50 m².')).toBeTruthy();
   });
 
-  describe('checks and issues (#139 / #140)', () => {
-    const CHECKS = `GET /api/projects/${pid}/checks`;
-    const NOTE = 'A pre-check of a few rules, not a compliance certificate.';
-    const result = (rule: string, status: CheckResult['status']): CheckResult => ({
-      id: `${rule}-${status}`,
-      rule_id: rule,
-      status,
-      subject: { kind: 'room', ref: null, label: 'room' },
-      value: status === 'cannot_tell' ? null : 1,
-      limit: 1,
-      unit: 'm',
-      comparison: '>=',
-      comparison_text: 'at least',
-      why: 'a plain sentence',
-      quantity: null,
-      marks: [],
+  it('CF-29 / CF-39 d + q bring that card into view, mark it, open its figure, focus its title', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    show({}, `d=${did}&q=${encodeURIComponent(QTY)}`);
+    await ready();
+    const c = card(base.label);
+    await waitFor(() => {
+      expect(scroll.mock.contexts).toContain(c);
     });
-    /** Hand-made counting cases: rules per drawing, as [rule id, statuses]. */
-    const checks = (...drawings: [string, CheckResult['status'][]][][]): ProjectChecks => ({
-      project_id: pid,
-      pack: 'fi',
-      note: NOTE,
-      status: 'pass',
-      drawings: drawings.map((rules, i) => ({
-        drawing_id: `d${String(i)}`,
-        file: `plans/d${String(i)}.pdf`,
-        file_id: null,
-        pack: 'fi',
-        note: NOTE,
-        status: 'pass',
-        rules: rules.map(([rule, statuses]) => ({
-          rule_id: rule,
-          title: rule,
-          // as the backend: a rule with no result here does not apply (its status comes from its results otherwise)
-          status: statuses.length ? 'pass' : 'not_applicable',
-          why: '',
-          clause: { ref: '§1', url: 'https://example.org', quote: 'q', quote_en: null },
-          results: statuses.map((st) => result(rule, st)),
-        })),
-      })),
-    });
-    const four = checks(
-      [
-        ['R1', ['pass']],
-        ['R2', ['pass']],
-        ['R3', ['pass']],
-        ['R4', []],
-      ],
-      [
-        ['R1', ['pass']],
-        ['R2', ['fail']],
-        ['R3', ['cannot_tell']],
-      ],
-    );
-    const row = () => screen.getByRole('region', { name: /^Building-code pre-check/ });
+    expect(c.getAttribute('aria-current')).toBe('true');
+    await within(c).findByTestId('figure');
+    expect(fig.props.at(-1)?.defaultOpen).toBe(true);
+    expect(document.activeElement).toBe(within(c).getByRole('heading', { level: 2 }));
+    cleanup();
+    scroll.mockClear();
+    show({}, `d=${did}&q=nope`);
+    await ready();
+    expect(card(base.label).getAttribute('aria-current')).toBeNull();
+    expect(scroll).not.toHaveBeenCalled();
+  });
 
-    it('CF-29 d + q in the query bring that card into view, mark it, open its evidence, focus its title', async () => {
-      const scroll = vi.fn();
-      Element.prototype.scrollIntoView = scroll;
-      show({}, `d=${did}&q=${encodeURIComponent(QTY)}`);
-      await ready();
-      const c = card(base.label);
-      await waitFor(() => {
-        expect(scroll.mock.contexts).toContain(c);
-      });
-      expect(c.getAttribute('aria-current')).toBe('true');
-      expect(c.querySelector('details.cf-evidence')?.hasAttribute('open')).toBe(true);
-      expect(document.activeElement).toBe(within(c).getByRole('heading', { level: 2 }));
-      cleanup();
-      scroll.mockClear();
-      show({}, `d=${did}&q=nope`);
-      await ready();
-      expect(card(base.label).getAttribute('aria-current')).toBeNull();
-      expect(scroll).not.toHaveBeenCalled();
-      expect(screen.queryByRole('alert')).toBeNull();
-    });
-
-    it('CF-30 with a pack: one checks request, counts per rule, the note verbatim, a link to the checks', async () => {
-      const { api } = show({ [CHECKS]: four }, 'pack=fi');
-      await ready();
-      await waitFor(() => {
-        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe(
-          '1 rule passed · 1 failed · 1 cannot tell',
-        );
-      });
-      expect(
-        api.calls.filter((c) => c.url.startsWith(`/api/projects/${pid}/checks`)).map((c) => c.url),
-      ).toEqual([`/api/projects/${pid}/checks?pack=fi`]);
-      expect(within(row()).getByText(NOTE)).toBeTruthy();
-      expect(within(row()).getByRole('link', { name: 'See the checks' }).getAttribute('href')).toBe(
-        `#/p/${pid}/checks?pack=fi`,
-      );
-      cleanup();
-      const plain = show();
-      await ready();
-      expect(screen.queryByRole('region', { name: /^Building-code pre-check/ })).toBeNull();
-      expect(plain.api.calls.some((c) => c.url.includes('/checks'))).toBe(false);
-    });
-
-    it('CF-31 cannot tell is its own count; fail beats cannot tell; no results: nothing to check', async () => {
-      show(
-        {
-          [CHECKS]: checks([
-            ['R1', ['cannot_tell']],
-            ['R2', ['cannot_tell', 'cannot_tell']],
-          ]),
-        },
-        'pack=fi',
-      );
-      await ready();
-      await waitFor(() => {
-        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe('2 rules cannot tell');
-      });
-      cleanup();
-      show({ [CHECKS]: checks([['R1', ['fail', 'cannot_tell']]]) }, 'pack=fi');
-      await ready();
-      await waitFor(() => {
-        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe('1 rule failed');
-      });
-      cleanup();
-      show({ [CHECKS]: checks([['R1', []]]) }, 'pack=fi');
-      await ready();
-      expect(
-        await within(row()).findByText('Nothing on these drawings that these rules check.'),
-      ).toBeTruthy();
-    });
-
-    it('CF-30b counts like the checks screen: a rule that cannot tell with no results is cannot tell, not_applicable is not counted', async () => {
-      const d0 = projectChecks.drawings[0];
-      const rule0 = d0?.rules[0];
-      if (!d0 || !rule0) throw new Error('project_checks.json has no rule');
-      const blind = (rule_id: string, status: RuleCheck['status']): RuleCheck => ({
-        ...rule0,
-        rule_id,
-        title: rule_id,
-        status,
-        results: [],
-      });
-      // Bogdan's fixture as is: one rule, failed
-      show({ [CHECKS]: projectChecks }, 'pack=fi');
-      await ready();
-      await waitFor(() => {
-        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe('1 rule failed');
-      });
-      cleanup();
-      const passed = {
-        ...rule0,
-        rule_id: 'Z',
-        status: 'pass' as const,
-        results: rule0.results[0]
-          ? [{ ...rule0.results[0], rule_id: 'Z', status: 'pass' as const }]
-          : [],
-      };
-      const derived: ProjectChecks = {
-        ...projectChecks,
-        drawings: [
-          { ...d0, rules: [rule0, passed] },
-          {
-            ...d0,
-            drawing_id: 'second',
-            rules: [
-              blind(rule0.rule_id, 'cannot_tell'), // its fail elsewhere still wins
-              blind('X', 'cannot_tell'), // nothing read: cannot tell, not left out
-              blind('Y', 'not_applicable'), // never pass or fail: not counted
-              blind('Z', 'cannot_tell'), // passed on the first drawing, blind here: cannot tell
-            ],
-          },
-        ],
-      };
-      show({ [CHECKS]: derived }, 'pack=fi');
-      await ready();
-      await waitFor(() => {
-        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe(
-          '1 rule failed · 2 cannot tell',
-        );
-      });
-    });
-
-    it('CF-32 checks errors stay inside the row; Retry re-sends only the checks', async () => {
-      const cases: [unknown, string][] = [
-        [reply(409, { ...errorBody, code: 'not_done' }), 'The checks run when reading is done.'],
-        [
-          reply(404, { ...errorBody, code: 'unknown-pack' }),
-          'These rules are not available. Pick another country.',
-        ],
-      ];
-      for (const [answer, words] of cases) {
-        show({ [CHECKS]: answer }, 'pack=fi');
-        await ready();
-        expect(await within(row()).findByText(words)).toBeTruthy();
-        expect(cards()).toHaveLength(1);
-        expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
-        cleanup();
-      }
-      let fail = true;
-      const { api } = show(
-        { [CHECKS]: () => (fail ? reply(500, { ...errorBody, detail: 'boom' }) : four) },
-        'pack=fi',
-      );
-      await ready();
-      const alert = await within(row()).findByRole('alert');
-      expect(alert.textContent).toContain('boom');
-      fail = false;
-      click(within(alert).getByRole('button', { name: 'Retry' }));
-      await waitFor(() => {
-        expect(row().querySelector('.cf-checks-counts')?.textContent).toBe(
-          '1 rule passed · 1 failed · 1 cannot tell',
-        );
-      });
-      expect(api.calls.filter((c) => c.url.includes('/checks'))).toHaveLength(2);
-      expect(api.calls.filter((c) => c.url === `/api/projects/${pid}/review`)).toHaveLength(1);
-    });
-
-    it('CF-33 with a pack, the chat button, the workspace link and a card link carry it', async () => {
-      show({ [CHECKS]: four }, 'pack=fi');
-      await ready();
-      const hrefs = [
-        screen.getByRole('link', { name: 'Start a new chat' }),
-        screen.getByRole('link', { name: 'Open the workspace' }),
-        within(card(base.label)).getByRole('link', { name: 'Open in the surveyor workspace' }),
-      ].map((a) => new URLSearchParams(a.getAttribute('href')?.split('?')[1]).get('pack'));
-      expect(hrefs).toEqual(['fi', 'fi', 'fi']);
-    });
+  it('CF-33 a pack in the query rides on the card link', async () => {
+    show({}, 'pack=fi');
+    await ready();
+    const href = within(card(base.label))
+      .getByRole('link', { name: 'Open in the surveyor workspace' })
+      .getAttribute('href');
+    expect(new URLSearchParams(href?.split('?')[1]).get('pack')).toBe('fi');
   });
 });

@@ -1,6 +1,5 @@
 // The conflicts screen's pure parts (docs/specs/frontend/conflicts.md "Field map").
-import type { CheckStatus, ConflictEntry, DrawingReview, ProjectChecks } from '../api';
-import { ruleCounts, ruleSummary } from '../checks/checks';
+import type { ConflictEntry } from '../api';
 
 export type CardState = 'open' | 'rule' | 'yours';
 
@@ -21,8 +20,6 @@ export function inUseIndex(c: ConflictEntry): number {
   if (c.needs_person) return -1; // nobody chose yet: no tile is in use
   return c.conflict.values.findIndex((x) => x.value === c.value);
 }
-
-export const letter = (i: number) => String.fromCharCode(65 + i);
 
 export const keyOf = (c: ConflictEntry) => `${c.drawing_id} ${c.quantity}`;
 
@@ -50,27 +47,16 @@ export function progressText(conflicts: ConflictEntry[]): string {
   return `${String(s)} of ${String(conflicts.length)} settled`;
 }
 
-/** The drawing "Open the workspace" goes to: the first with quantities, else the first. */
-export function workspaceDrawing(drawings: DrawingReview[]): string | null {
-  return (drawings.find((d) => d.quantities > 0) ?? drawings[0])?.drawing_id ?? null;
-}
+/** Cards a rule could decide first, then the rest, each in the server's order (CF-37); settling never moves a card. */
+export const ordered = (conflicts: ConflictEntry[]) => [
+  ...conflicts.filter((c) => c.conflict.resolution !== null),
+  ...conflicts.filter((c) => c.conflict.resolution === null),
+];
 
-/** Rules by status, counted exactly as the checks screen (src/checks/checks.ts: a rule that cannot tell with no
- * results is cannot tell; one that does not apply is not counted), so both screens agree on the same data. */
-export const ruleCountsOf = (checks: ProjectChecks) => ruleCounts(ruleSummary(checks, null));
-
-/** "1 rule passed", "1 failed", "1 cannot tell": zero parts left out, the noun on the first part only. */
-export function countParts(
-  c: ReturnType<typeof ruleCountsOf>,
-): { kind: CheckStatus; text: string }[] {
-  const parts = [
-    { kind: 'pass' as const, n: c.passed, word: 'passed' },
-    { kind: 'fail' as const, n: c.failed, word: 'failed' },
-    { kind: 'cannot_tell' as const, n: c.cannotTell, word: 'cannot tell' },
-  ].filter((p) => p.n > 0);
-  return parts.map((p, i) => ({
-    kind: p.kind,
-    text:
-      i === 0 ? `${String(p.n)} rule${p.n === 1 ? '' : 's'} ${p.word}` : `${String(p.n)} ${p.word}`,
-  }));
+/** A typed answer as the value to settle, or the line saying what to type (CF-41). */
+export function parseAnswer(text: string, unit: string | null): number | string {
+  const t = text.trim().replace(',', '.');
+  const n = /^\d+(\.\d+)?$|^\.\d+$/.test(t) ? Number(t) : NaN;
+  if (unit === 'count') return Number.isInteger(n) ? n : 'Type a whole number, like 12.';
+  return n > 0 ? n : 'Type a number, like 12.5.';
 }
