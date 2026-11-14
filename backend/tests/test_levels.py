@@ -276,3 +276,18 @@ def test_a_file_without_the_levels_loads_as_before(tmp_path: Path) -> None:
 def test_the_loader_refuses_levels_it_can_t_trust(tmp_path: Path, change: dict) -> None:
     with pytest.raises(InvalidInputError):
         load_check(policy_file(tmp_path, **change), "g1main")
+
+
+def test_the_committed_levels_policy_of_c1_t1_loads_with_its_levels() -> None:
+    """eval's `check-policy --medium 0.20` file, as committed: the loader reads every field it
+    writes, so the demo's answers get a level from it."""
+    path = Path(__file__).resolve().parents[2] / (
+        "eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json"
+    )
+    policy = load_check(path, "g1main", ["lgate2-rt", "lgate-rt-nol1"])
+    assert len(policy.thresholds) == 12
+    assert set(policy.thresholds) - set(policy.medium) == {"window"}  # too few Medium on val
+    assert all(policy.medium[family] <= policy.thresholds[family] for family in policy.medium)
+    assert policy.route_levels == {"bim": "high", "vector": "high", "schedule": "medium"}
+    assert set(policy.route_counts) == {"bim", "vector", "schedule"}
+    assert policy.counts is not None and all(c.units >= 30 for c in policy.counts.values())
