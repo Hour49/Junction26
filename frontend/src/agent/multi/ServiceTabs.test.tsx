@@ -5,7 +5,7 @@ import { mockApi } from '../../test/mockApi';
 import { EditCard } from '../EditCard';
 import { DID, editTurn, proposal } from '../fixtures';
 import { followed, services, ventilation } from './fixtures';
-import { markStatus, ordered, placeOfAction, tabNote } from './services';
+import { focusOf, markStatus, ordered, placeOfAction, tabNote } from './services';
 
 afterEach(cleanup);
 
@@ -37,6 +37,16 @@ describe('services helpers', () => {
     expect(services.disciplines.map(tabNote)).toEqual([null, '3', 'not aligned', 'no model']);
   });
 
+  it('a lane is in focus on the changed walls, its terminals and what it proposes, plus a tenth', () => {
+    // x: the duct seen end-on at 0.36 to the terminal at 0.47 (the run from 0.33 is a line: left out);
+    // y: the wall, 0.20 to 0.30
+    const box = focusOf(ventilation, followed);
+    [0.349, 0.189, 0.481, 0.311].forEach((v, i) => {
+      expect(box?.[i]).toBeCloseTo(v);
+    });
+    expect(services.disciplines[0] && focusOf(services.disciplines[0], followed)).toBeNull();
+  });
+
   it('an action is placed at the middle of what it draws; a tally has no place', () => {
     const [through, reseat, , , tally] = ventilation.actions;
     expect(reseat && placeOfAction(ventilation, reseat)).toEqual([0.398, 0.226]);
@@ -46,6 +56,18 @@ describe('services helpers', () => {
 });
 
 describe('discipline tabs on the edit card', () => {
+  it('a discipline tab zooms the plan to what it draws; Plan and a lane that draws nothing keep the edit', async () => {
+    const { container } = await card();
+    const width = () => container.querySelector<HTMLElement>('.vw-frame')?.style.width;
+    expect(width()).toBe('200%'); // the merged room is 0.22 of the page wide
+    fireEvent.click(tab(/Ventilation/));
+    expect(width()).toBe('400%'); // the wall and its terminals span 0.13
+    fireEvent.click(tab(/Plumbing/));
+    expect(width()).toBe('200%');
+    fireEvent.click(tab('Plan'));
+    expect(width()).toBe('200%');
+  });
+
   it('a proposal without a follow-up has no tabs', async () => {
     await card(proposal);
     expect(screen.queryByRole('group', { name: 'Discipline' })).toBeNull();

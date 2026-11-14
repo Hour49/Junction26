@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { pointsOf } from '../agent';
+import { pointsOf, type Box, type Proposal } from '../agent';
 import './multi.css';
 import {
+  focusOf,
   isTerminal,
   laneName,
   markStatus,
@@ -226,13 +227,15 @@ function Panel({
 /** The edit card's discipline tabs: `Plan` and one per service discipline. A discipline tab draws that model's
  * runs and terminals near the change over the plan (with Before / After) and lists what the change does to them.
  * Null when the proposal carries no follow-up (SERVICES_FOLLOW off). The three parts go where the card has its
- * toggle, its page overlay and the foot of its plan. */
+ * toggle, its page overlay and the foot of its plan; `focus` is the part of the page the open tab draws on, for
+ * the card to zoom to. */
 export function useServiceTabs(
-  services: ServicesFollow | null | undefined,
+  p: Proposal,
   after: boolean,
-): { tabs: ReactNode; layer: ReactNode; panel: ReactNode } | null {
+): { tabs: ReactNode; layer: ReactNode; panel: ReactNode; focus: Box | null } | null {
   const [name, setName] = useState<string | null>(null);
   const [pickedId, setPickedId] = useState<string | null>(null);
+  const services = p.services;
   if (!services) return null;
   const lane = services.disciplines.find((l) => l.discipline === name) ?? null;
   const picked = lane?.actions.find((a) => a.id === pickedId) ?? null;
@@ -272,6 +275,7 @@ export function useServiceTabs(
         })}
       </div>
     ),
+    focus: lane && focusOf(lane, p),
     layer: lane && <Layer lane={lane} after={after} picked={picked} />,
     panel: lane && (
       <Panel

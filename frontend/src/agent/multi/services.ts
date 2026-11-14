@@ -1,7 +1,7 @@
 // A proposal's services follow-up (docs/specs/backend/services-follow.md "API"), typed from the OpenAPI schema,
 // and the pure helpers of its tabs.
 import type { components } from '../../api/schema';
-import type { Point } from '../agent';
+import type { Box, Point, Proposal } from '../agent';
 
 type Schemas = components['schemas'];
 
@@ -78,3 +78,21 @@ export function placeOfAction(l: Lane, a: ServiceAction): Point | null {
 const RUNS = new Set(['pipe', 'duct', 'cable', 'pipe fitting', 'duct fitting', 'cable fitting']);
 /** A run seen end-on or a fitting is a small dot; a terminal (fixture, outlet, damper) a bigger one. */
 export const isTerminal = (m: ServiceMark) => !RUNS.has(m.kind);
+
+/** The part of the page to look at under a lane's tab: the changed walls with the lane's terminals and what it
+ * proposes (all within a few metres of the change), plus a margin, so the card can zoom to it. A run's line is
+ * left out: it can cross the whole storey. Null when the lane draws nothing. */
+export function focusOf(l: Lane, p: Proposal): Box | null {
+  if (l.marks.length === 0) return null;
+  const pts = [
+    ...[...p.removed, ...p.added].flatMap((g) => g.polygon),
+    ...l.marks.flatMap((m) => (m.at ? [m.at] : [])),
+    ...l.actions.flatMap((a) => [...(a.moved_to ? [a.moved_to] : []), ...a.paths.flat()]),
+  ];
+  if (pts.length === 0) return null;
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const pad = 0.1 * Math.max(x1 - x0, y1 - y0);
+  return [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
+}
