@@ -7,6 +7,7 @@ from typing import Annotated, Protocol
 
 from fastapi import Depends, Request
 
+from app.adapters.ifc_model.glb import GlbModels
 from app.composition import Answering, EvidenceIndexes
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
@@ -92,6 +93,10 @@ def get_evidence(request: Request) -> EvidenceIndexes:
     return request.app.state.evidence
 
 
+def get_models_3d(request: Request) -> GlbModels | None:
+    return request.app.state.models_3d
+
+
 def get_answering(request: Request) -> Answering:
     return request.app.state.answering
 
@@ -129,6 +134,7 @@ AnsweringDep = Annotated[Answering, Depends(get_answering)]
 CreditsDep = Annotated[Credits, Depends(get_credits)]
 LawsDep = Annotated[LawIndex, Depends(get_laws)]
 EvidenceDep = Annotated[EvidenceIndexes, Depends(get_evidence)]
+Models3dDep = Annotated[GlbModels | None, Depends(get_models_3d)]  # None: MODEL_3D off
 
 
 def project_of(ingest: Ingest, drawing_id: str, project_id: str | None) -> str | None:

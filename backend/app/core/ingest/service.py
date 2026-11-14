@@ -495,12 +495,12 @@ class IngestService:
     def _probed(self, data: bytes) -> tuple[Probed, float, float, Triaged]:
         """Stage 3's probe, then triage's classifier and describer (decision 0010), their time
         and the model calls they paid for, on a probing thread."""
-        started, spent = self._clock(), cost.spent()
+        started, spent = self._clock(), cost.mark()
         probed = self._probe.probe(data)
         found = Triaged(None, "")
         if self._triage is not None:
             found = triaged(self._triage, data, probed, sniff(data))
-        return probed, self._ms(started), cost.spent() - spent, found
+        return probed, self._ms(started), cost.since(spent), found
 
     def _identify(
         self,
@@ -698,7 +698,7 @@ class IngestService:
         context = context_of(run.status().name, files, drawings)
         for file in to_judge(files, judge):
             assert file.triage is not None
-            spent = cost.spent()
+            spent = cost.mark()
             try:
                 found = relevance_of(
                     judge, file.triage.class_, file.triage.description, context, file.path
@@ -708,7 +708,7 @@ class IngestService:
                 note = judged_note(file.triage, NOTE_JUDGE_FAILED)
                 run.set(file.path, triage=judged(file.triage, None, note))
                 continue
-            paid = cost.spent() - spent  # counted in the file's and the project's cost
+            paid = cost.since(spent)  # counted in the file's and the project's cost
             if isinstance(found, Unavailable):
                 note = judged_note(file.triage, f"not judged: {found.note}")
                 triage = judged(file.triage, None, note)

@@ -56,7 +56,7 @@ function isAbort(error: unknown): boolean {
 async function call<T>(
   method: 'GET' | 'POST',
   url: string,
-  opts: Opts & { body?: BodyInit; type?: string } = {},
+  opts: Opts & { body?: BodyInit; type?: string; bytes?: boolean } = {},
 ): Promise<T> {
   let response: Response;
   try {
@@ -71,7 +71,7 @@ async function call<T>(
     throw new ApiError(0, 'network', 'cannot reach the server');
   }
   if (!response.ok) throw await errorOf(response);
-  return (await response.json()) as T;
+  return (opts.bytes ? await response.arrayBuffer() : await response.json()) as T;
 }
 
 function postJson<T>(url: string, body: unknown, opts: Opts = {}): Promise<T> {
@@ -116,6 +116,13 @@ export const getDrawing = (drawingId: string, opts: Opts & { project?: string } 
     withQuery(`/api/drawings/${seg(drawingId)}`, { project: opts.project }),
     opts,
   );
+
+/** The file's building model as one GLB (model-3d.md): 409 `converting`, 422 `too_big` / `no_geometry`. */
+export const getModelGlb = (projectId: string, fileId: string, opts?: Opts) =>
+  call<ArrayBuffer>('GET', `/api/projects/${seg(projectId)}/files/${seg(fileId)}/model.glb`, {
+    ...opts,
+    bytes: true,
+  });
 
 /** extraction_v1, not typed in the OpenAPI document. */
 export const getModel = (drawingId: string, opts?: Opts) =>
