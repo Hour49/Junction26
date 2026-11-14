@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from conftest import MakeService
 from PIL import Image
-from test_ingest_carbon import carbon_settings
+from test_ingest_carbon import FakeCarbon, carbon_settings, page_form, page_image, tile_form
 
 from app.adapters.archive import FileProbe
 from app.adapters.carbon import reader as carbon
@@ -208,6 +208,29 @@ def test_carbon_calls_in_flight_never_pass_the_cap(
     assert most[0] == cap
 
 
+@pytest.mark.parametrize("workers", [None, 7])
+def test_one_read_asks_its_workers_calls_at_once(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, workers: int | None
+) -> None:
+    """A read's tile calls run CARBON_READ_WORKERS at a time (None: the default, WORKERS)."""
+    pools: list[int] = []
+    real = carbon.ThreadPoolExecutor
+
+    def pool(max_workers: int, **kwargs: Any) -> Any:
+        pools.append(max_workers)
+        return real(max_workers, **kwargs)
+
+    monkeypatch.setattr(carbon, "ThreadPoolExecutor", pool)
+    model = FakeCarbon(page_form(), [tile_form(), tile_form()])
+    reader = (
+        carbon.CarbonReader(model, tmp_path)
+        if workers is None
+        else carbon.CarbonReader(model, tmp_path, workers)
+    )
+    reader.read(page_image(900, 700))
+    assert pools == [carbon.WORKERS if workers is None else workers]
+
+
 class Inside:
     """A local reader that counts how many reads are inside it at once."""
 
@@ -258,6 +281,7 @@ def test_the_composite_s_local_reading_is_wrapped_one_at_a_time(
         RASTER_SCALE="priors",
         INGEST_LOCAL_IN_FLIGHT="3",
         CARBON_CALLS_IN_FLIGHT="5",
+        CARBON_READ_WORKERS="7",
     )
     switch = build_pipeline(settings, tmp_path).extractors["raster"]._inner  # pyright: ignore[reportAttributeAccessIssue]
     local = switch._other._inner  # pyright: ignore[reportPrivateUsage]
@@ -265,6 +289,7 @@ def test_the_composite_s_local_reading_is_wrapped_one_at_a_time(
     assert local._slots is OneAtATime(local, 3)._slots  # pyright: ignore[reportPrivateUsage]
     client = switch._carbon._reader._model  # pyright: ignore[reportPrivateUsage]
     assert client._in_flight is carbon._in_flight(5)  # pyright: ignore[reportPrivateUsage]
+    assert switch._carbon._reader._workers == 7  # pyright: ignore[reportPrivateUsage]
 
 
 class Meeting:

@@ -1099,7 +1099,8 @@ def _carbon(
         budget=spend_guard(settings),
         in_flight=settings.carbon_calls_in_flight,
     )
-    return CarbonExtractor(files, CarbonReader(client, settings.carbon_cache_dir), policy)
+    reader = CarbonReader(client, settings.carbon_cache_dir, settings.carbon_read_workers)
+    return CarbonExtractor(files, reader, policy)
 
 
 def _names_carbon(settings: Settings) -> bool:

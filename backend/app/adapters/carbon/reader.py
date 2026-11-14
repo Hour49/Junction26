@@ -11,7 +11,7 @@ module makes the calls:
   Any failure (HTTP error, timeout, budget used up, not JSON) is a `GeminiError`.
 - `CarbonReader.read(image)`: the page call (the whole page) and the tile calls (`tile_plan`; a
   page of at most TILE px is one tile, asked at the same time as the page call; a larger page
-  waits for the page call's plan boxes, then its tiles run WORKERS at a time). Each reply is
+  waits for the page call's plan boxes, then its tiles run `workers` at a time). Each reply is
   cached under the contract's `cache_name` (the pixel sha256 of the image as decoded, for a tile
   of its crop) as the whole reply, and only once it passes `check_page` / `check_tile`; a cached
   file that does not parse is a miss. A failed call is not cached and is a `None` reply for
@@ -45,7 +45,7 @@ from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles
 from app.core.spend import SpendGuard
 
-WORKERS = 4  # calls in flight at once for one read (contract 1.1)
+WORKERS = 4  # calls in flight at once for one read (contract 1.1): CARBON_READ_WORKERS's default
 # Carbon calls in flight at once in this process, whatever asks them (the page and tile calls of
 # every sheet read at the same time, the printed-scale reader): ingest reads several drawings at
 # once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under CARBON_CALLS_IN_FLIGHT
@@ -142,15 +142,16 @@ def jpeg(image: Image.Image) -> bytes:
 class CarbonReader:
     name = contract.SOURCE
 
-    def __init__(self, model: CarbonModel, cache_dir: Path | None) -> None:
+    def __init__(self, model: CarbonModel, cache_dir: Path | None, workers: int = WORKERS) -> None:
         self._model = model
         self._cache = cache_dir
+        self._workers = workers  # CARBON_READ_WORKERS: one read's calls at once, under the cap
 
     def read(self, image: Image.Image) -> Extracted:
         page = eight_bit(image)  # jpeg and pixel_digest convert what they send, a cut at a time
         page.load()  # the pool's threads share it
         width, height = page.size
-        with ThreadPoolExecutor(WORKERS, thread_name_prefix="carbon") as pool:
+        with ThreadPoolExecutor(self._workers, thread_name_prefix="carbon") as pool:
             if max(width, height) <= contract.TILE:  # one tile, the page: both calls at once
                 pending = [pool.submit(self._ask, kind, page) for kind in ("page", "tile")]
                 (form, why, usd), tile = (job.result() for job in pending)

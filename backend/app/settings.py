@@ -257,6 +257,9 @@ class Settings(BaseSettings):
     ingest_local_in_flight: int = Field(default=1, ge=1)
     # Carbon calls in flight at once in the process, every reader's (app/adapters/carbon/reader.py)
     carbon_calls_in_flight: int = Field(default=8, ge=1)
+    # Carbon calls at once for one sheet's read (its tiles; app/adapters/carbon/reader.py), under
+    # CARBON_CALLS_IN_FLIGHT: a big sheet has tens of tiles, so this bounds the slowest file
+    carbon_read_workers: int = Field(default=4, ge=1)
     # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
     # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
     rule_packs_dir: Path = Path(__file__).parent / "rules"
