@@ -10109,7 +10109,8 @@ without wall fills) gets `dont_know` saying so.
       }
     ],
     "law": null,
-    "services": null
+    "services": null,
+    "services_change": null
   },
   "options": null,
   "steps": [
@@ -10339,7 +10340,8 @@ unchanged.
     }
   ],
   "law": null,
-  "services": null
+  "services": null,
+  "services_change": null
 }
 ```
 

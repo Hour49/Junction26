@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { withPack } from './route';
 import { errorText, formatTime, listProjects, type ProjectSummary } from '../api';
@@ -48,15 +49,16 @@ export function ProjectPicker({
     return (
       <span className="project-picker project-picker-error">
         Projects: {detail} ({code}){' '}
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="pill-sm"
           onClick={() => {
             setError(null);
             setAttempt(attempt + 1);
           }}
         >
           Retry
-        </button>
+        </Button>
       </span>
     );
   }

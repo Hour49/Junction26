@@ -1,3 +1,5 @@
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { errorText, readerName } from '../api';
 import { useInfo } from './info';
 import { OFFLINE_TEXT, READER_LABELS } from './strings';
@@ -13,9 +15,9 @@ export function InfoBar({ wide = false }: { wide?: boolean }) {
     return (
       <div className={`info-bar info-bar-error${width}`} role="alert">
         <span>The server did not answer: {text}</span>
-        <button type="button" onClick={reload}>
+        <Button variant="secondary" size="pill-sm" onClick={reload}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -28,7 +30,11 @@ export function InfoBar({ wide = false }: { wide?: boolean }) {
   }
   return (
     <div className={`info-bar${width}`}>
-      {info.no_keys && <span className="offline">{OFFLINE_TEXT}</span>}
+      {info.no_keys && (
+        <Badge variant="warn" className="px-2.5 py-[3px] text-[13px] font-semibold">
+          {OFFLINE_TEXT}
+        </Badge>
+      )}
       <details className="what-runs">
         <summary>What runs</summary>
         <dl>

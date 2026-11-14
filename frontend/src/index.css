@@ -1,0 +1,126 @@
+/* Tailwind without its preflight: the unconverted areas' CSS relies on browser defaults (heading sizes, list bullets,
+   margins). shadcn parts get the reset they need from the [data-slot] rule at the end instead. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
+
+/* Light only (Tudor: no dark mode). `dark:` utilities that shadcn components carry match nothing: no `.dark` is set. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* shadcn's variables, mapped onto the Vellum tokens. */
+:root {
+  --radius: 0.75rem;
+  --background: var(--v-bg);
+  --foreground: var(--v-text);
+  --card: var(--v-surface);
+  --card-foreground: var(--v-text);
+  --popover: var(--v-surface);
+  --popover-foreground: var(--v-text);
+  --primary: var(--v-accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--v-fill);
+  --secondary-foreground: var(--v-text);
+  --muted: var(--v-fill);
+  --muted-foreground: var(--v-muted);
+  --accent: var(--v-accent-soft);
+  --accent-foreground: var(--v-text);
+  --destructive: var(--v-danger);
+  --border: var(--v-line);
+  --input: var(--v-line);
+  --ring: var(--v-accent);
+  --chart-1: var(--v-accent);
+  --chart-2: var(--v-ok);
+  --chart-3: var(--v-warn);
+  --chart-4: var(--v-danger);
+  --chart-5: var(--v-muted);
+  --sidebar: var(--v-surface);
+  --sidebar-foreground: var(--v-text);
+  --sidebar-primary: var(--v-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--v-accent-soft);
+  --sidebar-accent-foreground: var(--v-text);
+  --sidebar-border: var(--v-line);
+  --sidebar-ring: var(--v-accent);
+}
+
+@theme inline {
+  --font-sans: var(--v-font);
+  --font-mono: var(--v-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* Vellum status colours as utilities (text-ok, bg-warn-soft, ...) for the converted areas. */
+  --color-ok: var(--v-ok);
+  --color-ok-soft: var(--v-ok-soft);
+  --color-warn: var(--v-warn);
+  --color-warn-soft: var(--v-warn-soft);
+  --color-danger: var(--v-danger);
+  --color-danger-soft: var(--v-danger-soft);
+  --color-accent-strong: var(--v-accent-strong);
+  --color-text-2: var(--v-text-2);
+}
+
+/* The slice of preflight shadcn's parts rely on, scoped to them (every shadcn part carries data-slot). Layered, so
+   any unlayered area CSS still wins. */
+@layer base {
+  [data-slot],
+  [data-slot]::before,
+  [data-slot]::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+  :where(button, input, select, textarea)[data-slot] {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    background-color: transparent;
+    border-radius: 0;
+    appearance: none;
+  }
+  :where(button)[data-slot] {
+    cursor: pointer;
+  }
+  :where(h1, h2, h3, h4, h5, h6)[data-slot] {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  :where(table)[data-slot] {
+    border-collapse: collapse;
+  }
+}

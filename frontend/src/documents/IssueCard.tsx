@@ -17,7 +17,17 @@ import { callError, callLine } from '../ingest/triage';
 import { issueRoute } from '../surveyor/issueLinks';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { ModelDialog } from '../model3d/ModelDialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { isAnswerable, issueSource, pillOf } from './documents';
+import { CARD, FOOT, MONO, SMALL } from './ui';
+
+/** An answer chip (the demo's .qchip): a soft pill, 44 px tall, its text wraps. */
+const CHIP =
+  'v-press h-auto min-h-11 rounded-full px-3.5 py-2 text-left text-sm font-normal whitespace-normal disabled:opacity-55';
+const FIELD = 'min-h-11 min-w-0 flex-1 rounded-xl bg-card px-3.5 text-base md:text-base';
 
 const NAME_KEY = 'countersign.surveyorName'; // the surveyor's key: one typed name for every call
 
@@ -39,9 +49,10 @@ function saveName(name: string) {
 
 function NameField({ name, onName }: { name: string; onName: (name: string) => void }) {
   return (
-    <label className="doc-small doc-name">
+    <label className={`${SMALL} grid max-w-80 gap-1`}>
       Your name
-      <input
+      <Input
+        className={FIELD}
         type="text"
         maxLength={100}
         value={name}
@@ -85,48 +96,52 @@ function RelevanceCall(props: {
   const blocked = sending || name.trim() === '';
 
   return (
-    <div className="doc-answer">
+    <div className="flex flex-col gap-2">
       {said ? (
-        <div className="doc-foot">
+        <div className={FOOT}>
           <span>{said}</span>
-          <button
+          <Button
             type="button"
-            className="v-btn v-btn--secondary v-press"
+            variant="secondary"
+            size="pill"
+            className="v-press font-medium"
             disabled={sending}
             onClick={() => void send({ undo: true })}
           >
             Change
-          </button>
+          </Button>
         </div>
       ) : (
         <>
           <NameField name={name} onName={setName} />
-          <div className="doc-chips">
-            <button
+          <div className="flex flex-wrap gap-2">
+            <Button
               type="button"
-              className="doc-chip v-press"
+              variant="secondary"
+              className={CHIP}
               disabled={blocked}
               onClick={() => {
                 call('related');
               }}
             >
               It belongs to this project
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="doc-chip v-press"
+              variant="secondary"
+              className={CHIP}
               disabled={blocked}
               onClick={() => {
                 call('unrelated');
               }}
             >
               It does not belong
-            </button>
+            </Button>
           </div>
         </>
       )}
       {failed && (
-        <p role="alert" className="doc-error">
+        <p role="alert" className="text-danger">
           {failed}
         </p>
       )}
@@ -172,21 +187,23 @@ function IssueAnswerForm(props: {
   };
   const noName = sending || name.trim() === '';
   const error = failed && (
-    <p role="alert" className="doc-error">
+    <p role="alert" className="text-danger">
       {failed}
     </p>
   );
 
   if (answer && !editing)
     return (
-      <div className="doc-answer">
-        <div className="doc-foot">
+      <div className="flex flex-col gap-2">
+        <div className={FOOT}>
           <span>
             “{answer.text}” · {answer.by}’s answer, {formatTime(answer.at)}
           </span>
-          <button
+          <Button
             type="button"
-            className="v-btn v-btn--secondary v-press"
+            variant="secondary"
+            size="pill"
+            className="v-press font-medium"
             disabled={sending}
             onClick={() => {
               setText(answer.text);
@@ -194,22 +211,24 @@ function IssueAnswerForm(props: {
             }}
           >
             Change
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="v-btn v-btn--secondary v-press"
+            variant="secondary"
+            size="pill"
+            className="v-press font-medium"
             disabled={sending}
             onClick={() => void send({ undo: true })}
           >
             Undo
-          </button>
+          </Button>
         </div>
         {error}
       </div>
     );
   return (
     <form
-      className="doc-answer"
+      className="flex flex-col gap-2"
       onSubmit={(e) => {
         e.preventDefault();
         if (text.trim() && !noName) answerWith(text);
@@ -217,27 +236,29 @@ function IssueAnswerForm(props: {
     >
       <NameField name={name} onName={setName} />
       {(issue.suggestions ?? []).length > 0 && (
-        <div className="doc-chips">
+        <div className="flex flex-wrap gap-2">
           {issue.suggestions?.map((s) => (
-            <button
+            <Button
               key={s}
               type="button"
-              className="doc-chip v-press"
+              variant="secondary"
+              className={CHIP}
               disabled={noName}
               onClick={() => {
                 answerWith(s);
               }}
             >
               {s}
-            </button>
+            </Button>
           ))}
         </div>
       )}
-      <label className="doc-small" htmlFor={inputId}>
+      <label className={SMALL} htmlFor={inputId}>
         Your answer
       </label>
-      <div className="doc-own">
-        <input
+      <div className="flex gap-2 max-[520px]:flex-col">
+        <Input
+          className={FIELD}
           id={inputId}
           maxLength={140}
           autoComplete="off"
@@ -246,19 +267,21 @@ function IssueAnswerForm(props: {
             setText(e.target.value);
           }}
         />
-        <button type="submit" className="v-btn v-press" disabled={noName || !text.trim()}>
+        <Button type="submit" size="pill" className="v-press" disabled={noName || !text.trim()}>
           Use my answer
-        </button>
+        </Button>
         {answer && (
-          <button
+          <Button
             type="button"
-            className="v-btn v-btn--secondary v-press"
+            variant="secondary"
+            size="pill"
+            className="v-press font-medium"
             onClick={() => {
               setEditing(false);
             }}
           >
             Cancel
-          </button>
+          </Button>
         )}
       </div>
       {error}
@@ -275,7 +298,7 @@ function ModelSaid({ projectId, issue }: { projectId: string; issue: Issue }) {
   const href = issueRoute(issue, projectId);
   const picked = r.verdict === 'picked';
   return (
-    <div className="doc-foot">
+    <div className={FOOT}>
       <span>
         <strong title={resolverModel(r.by)}>
           {picked ? `Picked by ${name}` : `${name} could not tell`}
@@ -283,9 +306,14 @@ function ModelSaid({ projectId, issue }: { projectId: string; issue: Issue }) {
         <span>{r.reason}</span>
       </span>
       {href && (
-        <a className="v-btn v-btn--secondary v-press" href={href}>
-          {picked ? 'You can change it' : 'Settle the conflict'}
-        </a>
+        <Button
+          asChild
+          variant="secondary"
+          size="pill"
+          className="v-press font-medium no-underline"
+        >
+          <a href={href}>{picked ? 'You can change it' : 'Settle the conflict'}</a>
+        </Button>
       )}
     </div>
   );
@@ -311,57 +339,69 @@ export function IssueCard(props: {
   const pill = pillOf(issue);
   const source = issueSource(issue, projectId, drawing, file);
   return (
-    <li className="v-card doc-issue">
-      <div className="doc-top">
-        <span className="doc-n" aria-hidden="true">
-          {n}
-        </span>
-        <span className={`v-pill${pill.tone ? ` v-pill--${pill.tone}` : ''}`}>{pill.word}</span>
-        {issue.drawing_name ? (
-          <span className="doc-small">{issue.drawing_name}</span>
-        ) : (
-          <span className="doc-mono doc-small">{issue.file}</span>
-        )}
-        {issue.file_id && (
-          <a className="doc-small doc-open" href={`#/p/${projectId}/f/${issue.file_id}`}>
-            Open the file
-          </a>
-        )}
-        {model && (
-          <button
-            ref={opener}
-            type="button"
-            className="v-btn v-btn--secondary v-press m3-open3d"
-            aria-label={`View in 3D: ${name}`}
-            onClick={() => {
-              setOpen3d(true);
-            }}
+    <li>
+      <Card className={`${CARD} gap-2.5 px-5 py-[18px] [&_p]:m-0`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="min-w-[22px] font-bold tabular-nums" aria-hidden="true">
+            {n}
+          </span>
+          <Badge
+            variant={pill.tone || 'secondary'}
+            className="px-[11px] py-[5px] text-xs data-[variant=secondary]:text-text-2"
           >
-            View in 3D
-          </button>
+            {pill.word}
+          </Badge>
+          {issue.drawing_name ? (
+            <span className={SMALL}>{issue.drawing_name}</span>
+          ) : (
+            <span className={`${MONO} ${SMALL}`}>{issue.file}</span>
+          )}
+          {issue.file_id && (
+            <a
+              className={`${SMALL} ml-auto inline-flex min-h-11 items-center`}
+              href={`#/p/${projectId}/f/${issue.file_id}`}
+            >
+              Open the file
+            </a>
+          )}
+          {model && (
+            <Button
+              ref={opener}
+              type="button"
+              variant="secondary"
+              size="pill"
+              className="v-press m3-open3d font-medium"
+              aria-label={`View in 3D: ${name}`}
+              onClick={() => {
+                setOpen3d(true);
+              }}
+            >
+              View in 3D
+            </Button>
+          )}
+        </div>
+        <p className="text-base [overflow-wrap:anywhere]">{issue.why}</p>
+        {source && <SourceFigure sources={[source]} label={`Source of issue ${String(n)}`} />}
+        <ModelSaid projectId={projectId} issue={issue} />
+        {isAnswerable(issue) &&
+          (issue.kind === 'unrelated_file' ? (
+            file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />
+          ) : (
+            <IssueAnswerForm projectId={projectId} issue={issue} pack={pack} onIssue={onIssue} />
+          ))}
+        {model && open3d && (
+          <ModelDialog
+            projectId={projectId}
+            fileId={model.fileId}
+            label={name}
+            highlight={model.highlight}
+            onClose={() => {
+              setOpen3d(false);
+              opener.current?.focus();
+            }}
+          />
         )}
-      </div>
-      <p className="doc-why">{issue.why}</p>
-      {source && <SourceFigure sources={[source]} label={`Source of issue ${String(n)}`} />}
-      <ModelSaid projectId={projectId} issue={issue} />
-      {isAnswerable(issue) &&
-        (issue.kind === 'unrelated_file' ? (
-          file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />
-        ) : (
-          <IssueAnswerForm projectId={projectId} issue={issue} pack={pack} onIssue={onIssue} />
-        ))}
-      {model && open3d && (
-        <ModelDialog
-          projectId={projectId}
-          fileId={model.fileId}
-          label={name}
-          highlight={model.highlight}
-          onClose={() => {
-            setOpen3d(false);
-            opener.current?.focus();
-          }}
-        />
-      )}
+      </Card>
     </li>
   );
 }

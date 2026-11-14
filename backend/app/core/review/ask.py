@@ -7,11 +7,12 @@ when the parser maps it back to that row's key, so asking a suggestion is never 
 """
 
 import re
-from collections.abc import Iterable, Mapping, Sequence, Set
+from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
 from app.core.answering.answer import (
     AGREEING_FAMILIES,
     NO_DRAWING,
+    NOT_IN_DRAWING,
     PRIOR_BY_POLICY,
     SCHEDULE,
     TAKEOFF,
@@ -24,13 +25,25 @@ from app.core.answering.answer import (
     printed_rooms,
     rooms_of_type,
 )
+from app.core.answering.floors import (
+    FLOOR,
+    FLOOR_AT,
+    floor_number,
+    floor_of,
+    glued,
+    glued_floors,
+)
 from app.core.answering.model import (
+    GLUED_FLOOR,
     IN_ONE_ROOM,
     NO_SUBJECT,
+    NO_SUCH_FLOOR,
     NOT_COUNTED,
+    SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
+    SHARED_FLOOR,
     Answer,
     Query,
     Question,
@@ -39,14 +52,30 @@ from app.core.answering.model import (
 )
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, CarbonCheck, Drawing, Room, Table, words
+from app.core.drawing.model import (
+    ELEMENT_CLASSES,
+    CarbonCheck,
+    Drawing,
+    Plan,
+    Room,
+    Table,
+    words,
+)
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Partial, Quantity
-from app.core.pipeline.takeoff import known_quantities, normalised, quantity_key, room_names
+from app.core.pipeline.takeoff import (
+    known_quantities,
+    normalised,
+    plan_counts,
+    quantity_key,
+    room_names,
+    storeys,
+)
 from app.core.review.check import (
     ASK,
+    LEVELS,
     NO_SCORERS,
     Check,
     CheckPolicy,
@@ -83,7 +112,15 @@ from app.core.review.model import (
     Suggestion,
 )
 from app.core.review.proof import NO_PROOF, Proof, schedule_proof, takeoff_proof
-from app.core.review.review import label, parse_key, pluralise, row, storey_twins, with_twins
+from app.core.review.review import (
+    ROOM_NOUNS,
+    label,
+    parse_key,
+    pluralise,
+    row,
+    storey_twins,
+    with_twins,
+)
 
 # Every counting rule's text by id, as the answer shows it.
 RULES: dict[str, str] = {
@@ -195,6 +232,17 @@ def ask(
     quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
     unsaid = _unsaid(quantities, drawing)
     quantities = {key: found for key, found in quantities.items() if key not in unsaid}
+
+    def area_of(asked: str) -> Asked:  # one room's area, as this question would be answered
+        return ask(
+            asked, drawing, parser=parser, clock=clock, prior=prior, state=state,
+            prior_families=prior_families, confidence=confidence, sure_at=sure_at, flags=flags,
+            raster=raster, check=check, route=route, disputes=disputes, no_reader=no_reader,
+            scorers=scorers, carbon_ladder=carbon_ladder,
+        )  # fmt: skip
+
+    if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
+        return compared
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -284,6 +332,11 @@ def ask(
                 else _room_counts(rooms, again.subject, quantities, parser)
             )
             can_answer = each or can_answer
+        if isinstance(parsed, Unsupported) and parsed.reason in FLOOR_REASONS:
+            # "How many toilets are on the second floor?" on a sheet that doesn't name it: which
+            # floors it does name, or what each of its unnamed plans holds (fable-rooms r10 10)
+            code = "not-in-drawing"
+            words = _floor_text(parsed.reason, text, drawing, quantities, parser)
         if (
             isinstance(parsed, Unsupported)
             and parsed.reason in (NO_SUBJECT, NOT_COUNTED)
@@ -482,6 +535,199 @@ def _unread_text(query: str, flags: Sequence[str]) -> str:
 
 
 NOT_LOCATED = "not located on the drawing"
+# Which room is the largest or smallest, or the larger of two rooms named: a room's name, from the
+# rooms' areas (judge-fresh §10: 5 of 23 refusals)
+# Anchored at both ends: "Which room has the largest window?" or "What is the largest room's
+# area?" are other questions (review-368 M1)
+WHICH_EXTREME = re.compile(
+    r"^\s*(?:which|what)\s+(?:(?:room|space)\s+(?:is|has)\s+(?:the\s+)?(?P<a>largest|biggest|smallest)"
+    r"(?:\s+(?:one|(?:floor\s+)?area|size))?|is\s+the\s+(?P<b>largest|biggest|smallest)\s+(?:room|space))"
+    r"\s*[?.!]?\s*$",
+    re.IGNORECASE,
+)
+WHICH_OF_TWO = re.compile(
+    r"^\s*which\s+(?:room\s+|one\s+)?is\s+(?P<more>larger|bigger|smaller)\s*[,:]?\s*(?:the\s+)?"
+    r"(?P<x>.+?)\s+or\s+(?:the\s+)?(?P<y>.+?)\s*\??\s*$",
+    re.IGNORECASE,
+)
+SCHEDULE_WORD = re.compile(r"\bschedule\b", re.IGNORECASE)  # a schedule's rows: its own path
+
+
+def which_room(
+    text: str,
+    drawing: Drawing,
+    quantities: Mapping[str, Quantity],
+    parser: QuestionParser,
+    area_of: Callable[[str], Asked],
+) -> Asked | None:
+    """ "Which room is the largest?", "Which is the biggest room?" (the drawing's indoor rooms) and
+    "Which is larger, the X or the Y?": the room's name, from each room's area as its own area
+    question answers it (`area_of`: its value, refusal, level and marks). The level is the
+    weakest of the areas compared, never higher than any of them. Refused when an area it needs
+    is refused, when a room has no area question, when both rooms named are one room, or when
+    the first two areas lie within each other's estimate band (`Room.area_uncertainty`). None:
+    not such a question."""
+    if SCHEDULE_WORD.search(text):
+        return None
+    rooms = [room for room in drawing.rooms if not room.outdoor]
+    if (two := WHICH_OF_TWO.match(text)) is not None:
+        word = two["more"].casefold()
+        asks = [(two[side], f"What is the area of the {two[side]}?") for side in ("x", "y")]
+    elif (extreme := WHICH_EXTREME.match(text)) is not None:
+        word = (extreme["a"] or extreme["b"]).casefold()
+        asks, left = _extreme_asks(rooms, quantities, parser, largest=word != "smallest")
+        if left or len(asks) < 2:
+            return _not_compared(f"I can't tell which room is the {word}: {_left_why(left, asks)}.")
+    else:
+        return None
+    got: dict[str | None, tuple[str, Asked]] = {}  # by the row it reads: one room counted once
+    for name, question in asks:
+        found = area_of(question)
+        if found.refusal is not None or not isinstance(found.answer.answer, int | float):
+            why = found.refusal.text if found.refusal is not None else "it has no area"
+            return _not_compared(
+                f"I can't tell which is {word}: the area of {name} isn't known. {why}", found
+            )
+        got.setdefault(found.query, (_named(found, drawing) or name, found))
+    if two is not None and len(got) == 1:
+        ((name, found),) = got.values()
+        return _not_compared(
+            f"I can't tell which is {word}: the {two['x']} and the {two['y']} both read as "
+            f"{name}, so I can't find them as two rooms.", found
+        )  # fmt: skip
+    ordered = sorted(
+        got.values(), key=lambda pair: float(pair[1].answer.answer or 0),
+        reverse=word != "smaller" and word != "smallest",
+    )  # fmt: skip
+    (first_name, first), (second_name, second) = ordered[0], ordered[1]
+    a, b = float(first.answer.answer or 0), float(second.answer.answer or 0)
+    ua, ub = _band(first, drawing), _band(second, drawing)
+    big, small = (a, b) if a >= b else (b, a)
+    u_big, u_small = (ua, ub) if a >= b else (ub, ua)
+    if big * (1 - u_big) <= small * (1 + u_small):
+        return _not_compared(
+            f"I can't tell which is {word}: {first_name} ({_m2(first)}) and {second_name} "
+            f"({_m2(second)}) are within each other's estimate band, so either could be.",
+            first,
+        )
+    if two is not None:
+        said = f"{first_name} ({_m2(first)}) is {word} than {second_name} ({_m2(second)})"
+    else:
+        said = (
+            f"{first_name} ({_m2(first)}) is the {word} of the {len(rooms)} rooms; next is "
+            f"{second_name} ({_m2(second)})"
+        )
+    compared = [found for _, found in ordered]
+    levels = [found.level for found in compared]
+    level = None if any(lv is None for lv in levels) else min(
+        (lv for lv in levels if lv is not None), key=lambda lv: LEVELS.index(lv.level)
+    )  # fmt: skip
+    sures = [found.answer.sure for found in compared]
+    sure = None if all(s is None for s in sures) else all(s is True for s in sures)
+    estimate = any(found.answer.estimate for found in compared) or None
+    why = "; ".join(e for e in (said, first.answer.explanation) if e)
+    answer = first.answer.model_copy(
+        update={"answer": first_name, "unit": None, "explanation": why, "sure": sure,
+                "estimate": estimate, "confidence": None}
+    )  # fmt: skip
+    checks = [found.check for found in compared if found.check is not None]
+    return Asked(
+        answer=answer, query=None, row=None, marks=first.marks, refusal=None, proof=first.proof,
+        check=checks[0] if checks else None, level=level,
+    )  # fmt: skip
+
+
+def _extreme_asks(
+    rooms: Sequence[Room],
+    quantities: Mapping[str, Quantity],
+    parser: QuestionParser,
+    largest: bool,
+) -> tuple[list[tuple[str, str]], list[Room]]:
+    """The area question of each room, by its own name; for the largest, a room no name gives
+    alone is asked as the largest room of its printed label, else of its type (that row's room is
+    a candidate too). The rooms no question reaches are returned as left."""
+    asks: list[tuple[str, str]] = []
+    left: list[Room] = []
+    for room in rooms:
+        if each := _room_areas([room], quantities, parser):
+            asks.append((_shown(room), each[0].question))
+            continue
+        texts = (
+            [f"What is the area of the largest room labelled '{' '.join(room.label.split())}'?"]
+            if room.label
+            else [f"What is the area of the largest {_noun(room)}?"]
+        ) if largest else []  # fmt: skip
+        found = next((t for t in texts if _key(parser, t) in quantities), None)
+        if found is None:
+            left.append(room)
+        elif found not in (question for _, question in asks):
+            asks.append((_shown(room), found))
+    return asks, left
+
+
+def _key(parser: QuestionParser, text: str) -> str | None:
+    parsed = parser.parse(text)
+    return parsed.key() if isinstance(parsed, Query) else None
+
+
+def _left_why(left: Sequence[Room], asks: Sequence[tuple[str, str]]) -> str:
+    if not left:
+        return f"this drawing has {len(asks)} room{'' if len(asks) == 1 else 's'} to compare"
+    named = ", ".join(_shown(room) for room in left[:4])
+    if all(room.area_m2 is None for room in left):
+        return f"{len(left)} of its rooms ({named}) have no area measured"
+    return f"{len(left)} of its rooms ({named}) have no name or number to ask their area by"
+
+
+def _named(found: Asked, drawing: Drawing) -> str | None:
+    """The one room an area answer's marks point at, as the answer names it."""
+    refs = {mark.ref for mark in found.marks}
+    rooms = [room for room in drawing.rooms if room.id in refs]
+    return _shown(rooms[0]) if len(rooms) == 1 else None
+
+
+def _shown(room: Room) -> str:
+    """A room as the answer names it: its printed label on one line, and its number."""
+    number = room.attrs.get("number")
+    parts = [" ".join(str(part).split()) for part in (room.label, number) if part]
+    return " ".join(parts) or f"the unlabelled {_noun(room)}"
+
+
+def _noun(room: Room) -> str:
+    return ROOM_NOUNS.get(room.type, words(room.type))
+
+
+def _m2(asked: Asked) -> str:
+    value = float(asked.answer.answer or 0)
+    return f"{round(value)} m²" if asked.answer.estimate else f"{value:.2f} m²"
+
+
+def _band(asked: Asked, drawing: Drawing) -> float:
+    """How far off the area of the room an area answer names may be (its relative estimate band;
+    0 for a printed or measured area)."""
+    refs = {mark.ref for mark in asked.marks}
+    rooms = [room for room in drawing.rooms if room.id in refs]
+    return max((room.area_uncertainty or 0.0 for room in rooms), default=0.0)
+
+
+def _not_compared(why: str, asked: Asked | None = None) -> Asked:
+    """A comparison refused, with why."""
+    base = Answer(
+        id=1, answer=None, unit=None, evidence=(), method=NOT_IN_DRAWING,
+        cost_usd=0.0, latency_s=0.0, abstain=True, explanation=why,
+    )  # fmt: skip
+    line = base if asked is None else asked.answer.model_copy(
+        update={"answer": None, "unit": None, "method": NOT_IN_DRAWING,
+                "abstain": True, "explanation": why, "sure": None}
+    )  # fmt: skip
+    can = () if asked is None or asked.refusal is None else asked.refusal.can_answer
+    return Asked(
+        answer=line, query=None, row=None, marks=(), refusal=Refusal(
+            code="not-in-drawing", text=why, can_answer=can
+        ), proof=NO_PROOF,
+    )  # fmt: skip
+
+
 # "How many doors are there, including closet doors?": the door count's rule, said once (Stoa
 # counts closet doors as doors; brief r8 BM)
 CLOSET = re.compile(r"\bcloset", re.IGNORECASE)
@@ -550,6 +796,118 @@ def suggestions(
                 found.append(Suggestion(quantity=key, label=label(key), question=text))
                 break
     return tuple(found)
+
+
+FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR)
+
+
+def _floor_text(
+    reason: str,
+    text: str,
+    drawing: Drawing,
+    quantities: Mapping[str, Quantity],
+    parser: QuestionParser,
+) -> str:
+    """Why a floor named in words can't be answered on this drawing (RoomByType._floor), in
+    words: the storeys that could be meant, the ones it has, or, on a sheet of several plans none
+    of which names its floor or several of which carry the floor, how many of the counted thing
+    each plan holds."""
+    found = FLOOR.search(text)
+    asked = "floor" if found is None else found.group().casefold()
+    number = None if found is None else floor_number(found)
+    named = storeys(drawing)
+    if reason == GLUED_FLOOR and found is not None and number is not None:
+        n = abs(number)
+        if glued(found):
+            word = found.group().split("-")[0]
+            return (
+                f'"{found.group()}" could be {word} {n} or {word} -{n} (below ground), so I can\'t '
+                f'tell which is meant. Ask for "{word} {n}" or "{word} -{n}".'
+            )
+        same = [storey for storey in named if number in glued_floors(storey)]
+        return (
+            f"This drawing's storey {same[0]} could be floor {n} or floor -{n} (below ground), so "
+            f"I can't tell if it is the {asked}. Ask with the storey's name in quotes, as in "
+            f"\"How many doors are on '{same[0]}'?\""
+        )
+    if reason == SEVERAL_FLOORS:
+        same = [storey for storey in named if floor_of(storey) == number]
+        return (
+            f"Several storeys of this drawing could be the {asked}: {', '.join(same)}. Ask with "
+            f"the storey's name in quotes, as in \"How many doors are on '{same[0]}'?\""
+        )
+    if reason == SHARED_FLOOR:
+        storey = next(storey for storey in named if floor_of(storey) == number)
+        shared = [plan for plan in drawing.plans if str(plan.storey) == storey]
+        words = (
+            f"{len(shared)} plans on this drawing are labelled {storey}, so I can't tell which "
+            "one is meant, and I don't add them up: they may be alternatives or parts of the floor."
+        )
+        each = _per_plan(text, drawing, quantities, parser, shared, total=False)
+        return words if each is None else f"{words} {each}"
+    if named and all(floor_of(storey) is not None for storey in named):
+        return f"This drawing's storeys are {', '.join(named)}; none of them is the {asked}."
+    if named:  # "Erdgeschoss", "1. Obergeschoss": names it can't read as floor numbers (S3)
+        return (
+            f"This drawing's storeys are {', '.join(named)}; I can't tell which of them is the "
+            f"{asked}. Ask with the storey's name in quotes, as in \"How many doors are on "
+            f"'{named[0]}'?\""
+        )
+    if len(drawing.plans) < 2:
+        return (
+            f"This drawing doesn't say which floor it shows, so I can't tell if it is the {asked}."
+        )
+    words = (
+        f"This drawing has {len(drawing.plans)} plans and none is labelled with its floor, so I "
+        f"can't tell which one is the {asked}."
+    )
+    each = _per_plan(text, drawing, quantities, parser, drawing.plans, total=True)
+    return words if each is None else f"{words} {each}"
+
+
+def _per_plan(
+    text: str,
+    drawing: Drawing,
+    quantities: Mapping[str, Quantity],
+    parser: QuestionParser,
+    plans: Sequence[Plan],
+    *,
+    total: bool,
+) -> str | None:
+    """How many of the thing the question counts (its floor left out) each of `plans` holds,
+    numbered as the drawing lists its plans; with `total`, the sheet's total and what lies
+    outside every plan, so the parts add up. None when the question is not a count the sheet
+    has."""
+    rest = parser.parse(FLOOR_AT.sub(" ", text))
+    if not isinstance(rest, Query) or rest.measure != "count" or rest.key() not in quantities:
+        return None
+    counted = {plan.id: n for plan, n in plan_counts(drawing, rest.key())}
+    if not counted:
+        return None
+    pages = len(drawing.pages) > 1
+    lines = [
+        f"plan {at} ({_where(plan, pages)}) {counted[plan.id]}"
+        for at, plan in enumerate(drawing.plans, 1)
+        if plan in plans
+    ]
+    kind = parse_key(rest.key())[1].removeprefix("room:")
+    said = f"{plural(kind).capitalize()} on each: {', '.join(lines)}"
+    if not total:
+        return f"{said}."
+    whole = int(quantities[rest.key()].value)
+    if (outside := whole - sum(counted.values())) > 0:
+        said += f", {outside} outside every plan"
+    return f"{said}; {whole} in all."
+
+
+def _where(plan: Plan, pages: bool) -> str:
+    """Where a plan is drawn, in words: top left, bottom, middle (and its page)."""
+    x0, y0, x1, y1 = plan.box
+    x, y = (x0 + x1) / 2, (y0 + y1) / 2
+    across = "left" if x < 0.4 else "right" if x > 0.6 else ""
+    down = "top" if y < 0.4 else "bottom" if y > 0.6 else ""
+    place = " ".join(word for word in (down, across) if word) or "middle"
+    return f"{place} of page {plan.page}" if pages else place
 
 
 def _room_lines(rooms: Sequence[Room], quantities: Mapping[str, Quantity]) -> list[str]:

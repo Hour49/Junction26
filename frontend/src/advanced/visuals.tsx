@@ -19,6 +19,11 @@ import {
 import { StateBadge } from '../ingest/ProjectScreen';
 import { CONFLICTS_ID } from '../ingest/IngestFinished';
 import { drawingFiles, previewNote, scaleChip, type Pair } from './advanced';
+import { Button } from '@/components/ui/button';
+
+/** The pair's 'Show the conflict': an outline pill in the verdict's own colour, 44 px tall. */
+export const VERDICT_BUTTON =
+  'v-press min-h-11 border-current bg-card px-3.5 text-[length:inherit] font-normal text-inherit hover:bg-card hover:text-inherit';
 
 /** An image that says so when it cannot load, instead of a broken icon. */
 function Img({ src, alt, missing }: { src: string; alt: string; missing: string }) {
@@ -280,14 +285,15 @@ export function PlanMarks({
       {failed(drawing.drawing_id) && (
         <p className="adv-error">
           Could not load the takeoff of {drawing.file}.{' '}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="pill-sm"
             onClick={() => {
               onRetry(drawing.drawing_id);
             }}
           >
             Retry
-          </button>
+          </Button>
         </p>
       )}
       {showNormalised && file && (
@@ -364,9 +370,14 @@ export function CheckPairs({ pairs, done }: { pairs: readonly Pair[]; done: bool
               {row.status === 'conflict' && done && (
                 <>
                   {' '}
-                  <button type="button" className="v-press" onClick={showConflicts}>
+                  <Button
+                    variant="outline"
+                    size="pill"
+                    className={VERDICT_BUTTON}
+                    onClick={showConflicts}
+                  >
                     Show the conflict
-                  </button>
+                  </Button>
                 </>
               )}
             </p>
@@ -374,15 +385,16 @@ export function CheckPairs({ pairs, done }: { pairs: readonly Pair[]; done: bool
         ))}
       </ul>
       {shown.length < pairs.length && (
-        <button
-          type="button"
-          className="adv-more"
+        <Button
+          variant="secondary"
+          size="pill"
+          className="mt-3 px-4 text-base font-normal"
           onClick={() => {
             setAll(true);
           }}
         >
           Show all {pairs.length} pairs
-        </button>
+        </Button>
       )}
     </div>
   );

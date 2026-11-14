@@ -10,6 +10,7 @@ from app.core.drawing.model import (
     Mark,
     MeasuredValue,
     Page,
+    Plan,
     Room,
     RoomType,
     Scale,
@@ -789,6 +790,285 @@ def test_a_room_s_names_are_one_disagreement_only_when_the_rows_point_at_one_roo
     assert storey_twins(rooms()) == {}  # no marks: not known to be one room
     assert len(disputes([row(q, DRAWING, ReviewState(), {}) for q in rooms().values()])) == 2
     assert storey_twins(rooms(BOX_A)) == {"area:room|name=kitchen": "area:room|name=1.01"}
+
+
+def floors_drawing(*storeys: str | None) -> Drawing:
+    """A sheet of len(storeys) plans side by side (one per storey name, None: unnamed), each
+    holding plan-number + 1 doors and, on the first and last, toilets."""
+    plans = tuple(
+        Plan(id=f"p{n}", page=1, box=(n / len(storeys), 0.1, (n + 1) / len(storeys), 0.4),
+             storey=storey)
+        for n, storey in enumerate(storeys)
+    )  # fmt: skip
+    things: list[Element] = []
+    for n, plan in enumerate(plans):
+        x = (plan.box[0] + plan.box[2]) / 2
+        kinds = ["door"] * (n + 1) + (["toilet"] if n in (0, len(plans) - 1) else [])
+        for at, kind in enumerate(kinds):
+            things.append(
+                Element.model_validate(
+                    {
+                        "id": f"e{n}-{at}",
+                        "class": kind,
+                        "page": 1,
+                        "plan": plan.id,
+                        "box": (x, 0.2 + at / 100, x + 0.005, 0.205 + at / 100),
+                    }
+                )
+            )
+    return Drawing(
+        file="x.png", pages=(PAGE,), scale=Scale(status="no_scale"), plans=plans,
+        elements=tuple(things),
+    )  # fmt: skip
+
+
+def test_a_floor_named_in_words_is_the_storey_the_drawing_prints_for_it() -> None:
+    """fable-rooms r10 item 11: page 2 of a scanned set, titled FIRST FLOOR PLAN (its plan's
+    storey, from Carbon), refused "How many doors are on the first floor?" as no count at all,
+    and "on the 1st floor" answered the whole sheet's count."""
+    drawing = floors_drawing("FIRST FLOOR")
+    for text in ("How many doors are on the first floor?", "How many doors are on the 1st floor?"):
+        found = asked(text, drawing)
+        assert found.answer.answer == 1, text
+        assert found.query == "door|storey=first floor"
+    other = asked("How many doors are on the second floor?", drawing)
+    assert other.answer.answer is None and other.refusal is not None
+    assert other.refusal.text == (
+        "This drawing's storeys are FIRST FLOOR; none of them is the second floor."
+    )
+    unnamed = asked("How many doors are on the 2nd floor?", floors_drawing(None))
+    assert unnamed.answer.answer is None and unnamed.refusal is not None  # not the sheet's 1
+    assert unnamed.refusal.text == (
+        "This drawing doesn't say which floor it shows, so I can't tell if it is the 2nd floor."
+    )
+    two = asked("How many doors are on level 1?", floors_drawing("Level 1", "Intermediate level 1"))
+    assert two.refusal is not None and two.refusal.text.startswith(
+        "Several storeys of this drawing could be the level 1: Intermediate level 1, Level 1."
+    )
+
+
+def test_a_floor_on_a_sheet_of_unnamed_plans_says_what_each_plan_holds() -> None:
+    """fable-rooms r10 item 10 (chat-eval's scan2, three plans on one image): "How many toilets
+    are on the second floor?" was refused as no count; "... on floor 2" counted all three
+    plans. Which plan is the second floor is not printed, so the answer gives each plan's count
+    and asks, never the sheet's total as the floor's."""
+    drawing = floors_drawing(None, None, None)
+    found = asked("How many toilets are on the second floor?", drawing)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.code == "not-in-drawing"
+    assert found.refusal.text == (
+        "This drawing has 3 plans and none is labelled with its floor, so I can't tell which one "
+        "is the second floor. Toilets on each: plan 1 (top left) 1, plan 2 (top) 0, "
+        "plan 3 (top right) 1; 2 in all."
+    )
+    doors = asked("How many doors are there on floor 2?", drawing)
+    assert doors.refusal is not None and doors.refusal.text.endswith(
+        "Doors on each: plan 1 (top left) 1, plan 2 (top) 2, plan 3 (top right) 3; 6 in all."
+    )
+    assert asked("How many doors are there?", drawing).answer.answer == 6  # the sheet: unchanged
+
+
+def test_a_basement_level_is_not_the_first_floor() -> None:
+    """review-352 B1: "Level -1" read as floor 1, so "doors on the first floor" answered the
+    basement's count."""
+    drawing = floors_drawing("Level -1", "Level 0")
+    first = asked("How many doors are on the first floor?", drawing)
+    assert first.answer.answer is None and first.refusal is not None
+    assert first.refusal.text == (
+        "This drawing's storeys are Level -1, Level 0; none of them is the first floor."
+    )
+    assert asked("How many doors are on level -1?", drawing).answer.answer == 1
+    assert asked("How many doors are on the ground floor?", drawing).answer.answer == 2
+
+
+def test_a_hyphen_glued_to_a_floor_number_is_level_n_or_minus_n_and_is_refused() -> None:
+    """review-352 N5: "LEVEL-1" read as level -1, but many sheets write LEVEL-1 for level 1. A
+    hyphen glued between the word and the number names neither floor; a space before it makes
+    it a minus ("Level -1")."""
+    drawing = floors_drawing("LEVEL-1 PLAN", "LEVEL 2 PLAN")
+    for text in ("How many doors are on level 1?", "How many doors are on level -1?"):
+        found = asked(text, drawing)
+        assert found.answer.answer is None and found.refusal is not None, text
+        assert found.refusal.text.startswith(
+            "This drawing's storey LEVEL-1 PLAN could be floor 1 or floor -1 (below ground), so "
+            "I can't tell if it is the level"
+        ), found.refusal.text
+    assert asked("How many doors are on level 2?", drawing).answer.answer == 2
+    plain = floors_drawing("Level 1", "Level -1")
+    found = asked("How many doors are on level-1?", plain)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        '"level-1" could be level 1 or level -1 (below ground), so I can\'t tell which is meant. '
+        'Ask for "level 1" or "level -1".'
+    )
+    assert asked("How many doors are on level 1?", plain).answer.answer == 1
+    assert asked("How many doors are on level -1?", plain).answer.answer == 2
+
+
+def test_plans_that_share_a_floor_s_name_are_never_summed() -> None:
+    """review-352 B2: three plans captioned "1st Floor Plan - Option 1/2/3" answered the first
+    floor's doors as the sum of three alternative layouts."""
+    found = asked("How many doors are on the first floor?", floors_drawing(*["1st Floor"] * 3))
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        "3 plans on this drawing are labelled 1st Floor, so I can't tell which one is meant, and "
+        "I don't add them up: they may be alternatives or parts of the floor. Doors on each: "
+        "plan 1 (top left) 1, plan 2 (top) 2, plan 3 (top right) 3."
+    )
+
+
+def test_storey_names_without_a_floor_number_are_not_said_to_be_another_floor() -> None:
+    """review-352 S3: on storeys Erdgeschoss and 1. Obergeschoss the refusal said "none of them is
+    the first floor", which is false (1. OG is the first floor)."""
+    found = asked("How many doors are on the first floor?", floors_drawing("Erdgeschoss", "1. OG"))
+    assert found.refusal is not None
+    assert found.refusal.text.startswith(
+        "This drawing's storeys are 1. OG, Erdgeschoss; I can't tell which of them is the first "
+        "floor."
+    )
+
+
+def test_the_per_plan_counts_add_up_to_the_sheet_s() -> None:
+    """review-352 N1: a door outside every plan is said, so the plans' counts and the total
+    agree."""
+    drawing = floors_drawing(None, None)
+    loose = Element.model_validate({"id": "loose", "class": "door", "page": 1, "box": BOX_B})
+    drawing = drawing.model_copy(update={"elements": (*drawing.elements, loose)})
+    found = asked("How many doors are on the second floor?", drawing)
+    assert found.refusal is not None and found.refusal.text.endswith(
+        "Doors on each: plan 1 (top left) 1, plan 2 (top right) 2, 1 outside every plan; 4 in all."
+    )
+
+
+BOX_C = (0.5, 0.5, 0.6, 0.6)
+BOX_D = (0.7, 0.7, 0.8, 0.8)
+
+
+def room(at: str, kind: RoomType, label: str | None, area: float | None, **more: object) -> Room:
+    box = {"r1": BOX_A, "r2": BOX_B, "r3": BOX_C}.get(at, BOX_D)
+    return Room(id=at, type=kind, label=label, page=1, box=box, area_m2=area, **more)  # type: ignore[arg-type]
+
+
+def test_which_room_is_the_largest_or_smallest_names_it_from_the_rooms_areas() -> None:
+    """judge-fresh §10: "Which room is the largest?" was refused as "isn't one I can turn into a
+    count, area, length or volume" although every room's area answers. Outdoor rooms are left
+    out; the answer names the room and gives both areas it rests on."""
+    drawing = scaled(
+        room("r1", "kitchen", "Küche", 12.0), room("r2", "living", "Wohnen", 31.5),
+        room("r3", "bathroom", "Bad", 5.25), room("r4", "balcony", "Balkon", 40.0, outdoor=True),
+    )  # fmt: skip
+    for text in ("Which room is the largest?", "What is the biggest room?",
+                 "Which room has the largest area?"):  # fmt: skip
+        found = asked(text, drawing)
+        assert found.refusal is None, (text, found.refusal)
+        assert (found.answer.answer, found.answer.unit) == ("Wohnen", None)
+        assert found.answer.explanation is not None
+        assert found.answer.explanation.replace("biggest", "largest").startswith(
+            "Wohnen (31.50 m²) is the largest of the 3 rooms; next is Küche (12.00 m²)"
+        )
+        assert [mark.ref for mark in found.marks] == ["r2"]
+    smallest = asked("Which room is the smallest?", drawing)
+    assert smallest.answer.answer == "Bad", smallest.refusal
+    # other questions that start the same way are not this one (review-368 M1)
+    for text in (
+        "Which room has the largest window?",
+        "Which room has the largest number of doors?",
+        "What is the largest room's area?",
+    ):
+        assert asked(text, drawing).answer.answer not in ("Wohnen", "Küche", "Bad"), text
+
+
+def test_which_of_two_rooms_is_larger_or_smaller() -> None:
+    drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.25))
+    larger = asked("Which is larger, the kitchen or the Bad?", drawing)
+    assert larger.answer.answer == "Küche", larger.refusal
+    assert larger.answer.explanation is not None
+    assert larger.answer.explanation.startswith("Küche (12.00 m²) is larger than Bad (5.25 m²)")
+    smaller = asked("Which room is smaller: the Küche or the bathroom?", drawing)
+    assert smaller.answer.answer == "Bad", smaller.refusal
+
+
+def test_rooms_without_a_name_of_their_own_are_ranked_by_their_label_s_or_type_s_largest() -> None:
+    """jf01/jf02 (fresh set): two rooms printed "BED ROOM" and three "CLOSET" have no area
+    question of their own, which refused the whole comparison. For the largest, each is asked as
+    the largest room of its printed label, an unlabelled room as the largest of its type."""
+    drawing = scaled(
+        room("r1", "bedroom", "BED ROOM", 14.0), room("r2", "bedroom", "BED ROOM", 12.0),
+        room("r3", "kitchen", "KITCHEN", 9.0), room("r4", "living", None, 23.0),
+    )  # fmt: skip
+    found = asked("Which room is the largest?", drawing)
+    assert found.answer.answer == "the unlabelled living room", found.refusal
+    assert found.answer.explanation is not None
+    assert "; next is BED ROOM (14.00 m²)" in found.answer.explanation
+    first = asked("Which room is the largest?", replace_rooms(drawing, r4=5.0))
+    assert first.answer.answer == "BED ROOM", first.refusal
+    assert [mark.ref for mark in first.marks] == ["r1"]
+    # the smallest has no such row: a room that no name gives alone refuses it, plainly
+    smallest = asked("Which room is the smallest?", drawing)
+    assert smallest.answer.answer is None and smallest.refusal is not None
+    assert (
+        "(BED ROOM, BED ROOM, the unlabelled living room) have no name or number"
+        in smallest.refusal.text
+    )
+
+
+def replace_rooms(drawing: Drawing, **areas: float) -> Drawing:
+    rooms = tuple(
+        r.model_copy(update={"area_m2": areas.get(r.id, r.area_m2)}) for r in drawing.rooms
+    )
+    return drawing.model_copy(update={"rooms": rooms})
+
+
+def test_which_room_refuses_when_an_area_it_needs_is_unknown() -> None:
+    no_scale = scaled(room("r1", "kitchen", "Küche", None), room("r2", "bathroom", "Bad", None))
+    found = asked("Which room is the largest?", no_scale)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        "I can't tell which room is the largest: 2 of its rooms (Küche, Bad) have no area measured."
+    )
+    one = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
+    named = asked("Which is larger, the Küche or the sauna?", one)  # no sauna on the sheet
+    assert named.answer.answer is None and named.refusal is not None
+    assert named.refusal.text.startswith("I can't tell which is larger: the area of sauna isn't")
+
+
+def test_two_areas_within_each_other_s_estimate_band_are_not_ranked() -> None:
+    def two(a: float, b: float) -> Drawing:
+        return scaled(
+            room("r1", "kitchen", "Küche", a, area_uncertainty=0.1),
+            room("r2", "living", "Wohnen", b, area_uncertainty=0.1),
+        )
+
+    close = asked("Which room is the largest?", two(10.0, 11.5))  # 11.5 * 0.9 <= 10 * 1.1
+    assert close.answer.answer is None and close.refusal is not None
+    assert "within each other's estimate band, so either could be" in close.refusal.text
+    apart = asked("Which room is the largest?", two(10.0, 12.5))  # 11.25 > 11
+    assert apart.answer.answer == "Wohnen", apart.refusal
+    # equal measured areas (no band) are a tie: refused, not the first one listed (review-368)
+    tie = scaled(room("r1", "kitchen", "Küche", 10.0), room("r2", "living", "Wohnen", 10.0))
+    tied = asked("Which room is the largest?", tie)
+    assert tied.answer.answer is None and tied.refusal is not None
+    assert "within each other's estimate band" in tied.refusal.text
+
+
+def test_two_names_that_read_as_one_room_are_not_compared() -> None:
+    """jf04 (fresh set): "the Assistant Superintendent's office" read as the room printed
+    SUPERINTENDENT, the other side's room, and was ranked against itself."""
+    drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
+    found = asked("Which is larger, the kitchen or the Küche?", drawing)
+    assert found.answer.answer is None and found.refusal is not None
+    assert found.refusal.text == (
+        "I can't tell which is larger: the kitchen and the Küche both read as Küche, so I can't "
+        "find them as two rooms."
+    )
+
+
+def test_a_schedule_s_largest_room_is_left_to_the_schedule() -> None:
+    """golden 89437 asks the finish room schedule which room is largest: not the rooms drawn."""
+    drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
+    for text in ("Which room in the finish room schedule has the largest area?",
+                 "Which room has the largest area in the room schedule?"):  # fmt: skip
+        assert asked(text, drawing).answer.answer != "Küche", text
 
 
 def test_a_room_number_printed_in_the_label_names_the_room() -> None:

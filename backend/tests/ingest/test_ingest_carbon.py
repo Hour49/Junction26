@@ -54,6 +54,38 @@ def test_tile_plan_sizes_and_limits() -> None:
     assert c.sent_size(926, 700) == (1536, 1161) and c.sent_size(6000, 3000) == (3072, 1536)
 
 
+def test_a_plan_is_the_floor_its_caption_or_the_one_plan_sheet_s_title_prints() -> None:
+    """fable-rooms r10 item 11: page 2 of a scanned set is titled FIRST FLOOR PLAN, yet its plan
+    had no storey, so "How many doors are on the first floor?" could not find it."""
+    one = c.assemble(1000, 800, page_form(title_block={"title": "FIRST FLOOR PLAN"}), None, [])
+    assert [plan["storey"] for plan in one["plans"]] == ["FIRST FLOOR"]
+    two = page_form(
+        title_block={"title": "FLOOR PLANS"},
+        plans=[{"name": "2ND FLOOR", "box_2d": [0, 0, 500, 1000]},
+               {"name": None, "box_2d": [0, 500, 1000, 1000]}],
+    )  # fmt: skip
+    assert [plan["storey"] for plan in c.assemble(1000, 800, two, None, [])["plans"]] == [
+        "2ND FLOOR",
+        None,  # the title is the sheet's, not this plan's
+    ]
+    assert [plan["storey"] for plan in c.assemble(1000, 800, page_form(), None, [])["plans"]] == [
+        None  # "PLAN" names no floor
+    ]
+    # a caption or title of several floors, or of part of one, names none (review-352 B2; the
+    # captions and titles of cached Carbon replies)
+    for printed in (
+        "二\uff5e五樓平面圖 2nd~5th Floor Plan", "GROUND & FIRST FLOOR PLANS",
+        "1ST & 2ND FLOOR PLAN",
+        "FIRST AND SECOND FLOOR PLANS", "BASEMENT & GROUND FLOOR", "FLOOR PLANS - LEVEL 1 & 2",
+        "1st Floor Plan - Option 1", "Enlarged First Floor Plan (West)",
+        "ENLARGED PLAN - 1ST FLOOR - B - SOUTHEAST CORNER", "PARTIAL FIRST FLOOR PLAN",
+    ):  # fmt: skip
+        captioned = page_form(plans=[{"name": printed, "box_2d": [0, 0, 1000, 1000]}])
+        titled = page_form(title_block={"title": printed})
+        for form in (captioned, titled):
+            assert c.assemble(1000, 800, form, None, [])["plans"][0]["storey"] is None, printed
+
+
 def test_assemble_without_tiles_reads_no_element_class() -> None:
     untiled = c.assemble(14000, 10000, page_form(), None, [])
     assert untiled["read"] == ["room"] and untiled["elements"] == []
@@ -330,7 +362,7 @@ def test_carbon_reader_all_sends_every_raster_drawing_to_carbon_with_no_door_pri
     assert uses_keys(settings)
     ingest = build_ingest(settings, tmp_path / "projects", background=False)
     names = ingest._names  # pyright: ignore[reportPrivateUsage]
-    assert names["carbon_reader"] == f"all:{c.READER_SHA[:12]}"
+    assert names["carbon_reader"] == f"all+storey:{c.READER_SHA[:12]}"
 
 
 def test_carbon_reader_advanced_refuses_to_start_without_the_sheet_kind_step(
@@ -363,7 +395,7 @@ def test_carbon_is_a_source_and_a_second_reader(
     assert uses_keys(settings)
     ingest = build_ingest(settings, tmp_path / "projects", background=False)
     names = ingest._names  # pyright: ignore[reportPrivateUsage]
-    assert names["carbon_reader"] == f"off:{c.READER_SHA[:12]}"  # a new prompt reads again
+    assert names["carbon_reader"] == f"off+storey:{c.READER_SHA[:12]}"  # a new prompt reads again
 
 
 # --- the flag at ingest ------------------------------------------------------------------------
@@ -447,7 +479,7 @@ def test_the_source_may_pin_the_reader_hash_and_a_stale_hash_is_refused(
     settings = carbon_settings(monkeypatch, tmp_path, RASTER_COMPONENTS=pinned)
     build_pipeline(settings, tmp_path)  # builds
     names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
-    assert names["carbon_reader"] == f"off:{c.READER_SHA[:12]}"
+    assert names["carbon_reader"] == f"off+storey:{c.READER_SHA[:12]}"
     stale = carbon_settings(monkeypatch, tmp_path, RASTER_COMPONENTS="plans=carbon:0123456789ab")
     with pytest.raises(
         InvalidInputError, match=f"not the Carbon reader this build has \\({c.SOURCE}"
@@ -547,7 +579,7 @@ def test_carbon_reader_advanced_builds_with_the_sheet_kind_step_and_uses_its_fla
     unrecorded = build_pipeline(settings, tmp_path)  # the CLI: no sheet record, so none is
     assert unrecorded.carbon_read is not None and not unrecorded.carbon_read("big.png")
     names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
-    assert names["carbon_reader"] == f"advanced:{c.READER_SHA[:12]}"
+    assert names["carbon_reader"] == f"advanced+storey:{c.READER_SHA[:12]}"
 
 
 # --- a Carbon count is never certified, whichever path puts Carbon on a part (fail-1, #254) ----
@@ -773,8 +805,8 @@ def test_carbon_reader_large_sends_only_images_over_4000_px_to_carbon(
     assert use("big.png") and not use("cubicasa.png")
     assert uses_keys(settings)
     names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
-    # 5.9's clause and #310's door snap read stored files again
-    assert names["carbon_reader"] == f"large+few3+snap:{c.READER_SHA[:12]}"
+    # 5.9's clause, #310's door snap and the plans' floors read stored files again
+    assert names["carbon_reader"] == f"large+few3+snap+storey:{c.READER_SHA[:12]}"
 
 
 class Doors:

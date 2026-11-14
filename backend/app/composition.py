@@ -66,6 +66,7 @@ from app.adapters.ifc_model.facts_source import IfcFactSource
 from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
+from app.adapters.one_at_a_time import OneAtATime
 from app.adapters.openvlm.client import OpenVlmClient
 from app.adapters.openvlm.decider import OpenVlmDecider
 from app.adapters.openvlm.rooms import OpenVlmRoomExtractor, OpenVlmRoomModel
@@ -866,7 +867,8 @@ def build_ingest(
             if settings.carbon_reader == "large"
             else settings.carbon_reader
         )
-        names["carbon_reader"] = f"{rule}:{READER_SHA[:12]}"
+        # +storey: a plan's floor from its caption or the sheet's title (contract.py)
+        names["carbon_reader"] = f"{rule}+storey:{READER_SHA[:12]}"
     if settings.discipline_pictures != "off":  # the same; with the lane's code version
         names["discipline_pictures"] = f"{settings.discipline_pictures}:{PICTURES_CODE}"
     if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
@@ -893,6 +895,7 @@ def build_ingest(
         triage=triage or _triage(settings),
         evidence=evidence or build_evidence(settings, root),
         evidence_steps=_evidence_steps(settings),
+        groups_in_flight=settings.ingest_groups_in_flight,
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service
@@ -955,6 +958,7 @@ def _raster(
                     _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
                     kind_of,
                 )
+            shipped = OneAtATime(shipped)  # one local reading in memory at a time (groups.py)
             shipped = _scaled(settings, shipped)  # PriorScale's door constants fit the detector
             if settings.carbon_reader == "advanced" and settings.sheet_kind == "off":
                 raise InvalidInputError(

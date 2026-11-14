@@ -23,6 +23,7 @@ import base64
 import http.client
 import io
 import json
+import threading
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Sequence
@@ -44,7 +45,12 @@ from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles
 from app.core.spend import SpendGuard
 
-WORKERS = 4  # calls in flight at once (contract 1.1)
+WORKERS = 4  # calls in flight at once for one read (contract 1.1)
+# Carbon calls in flight at once in this process, whatever asks them (the page and tile calls of
+# every sheet read at the same time, the printed-scale reader): ingest reads several drawings at
+# once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under this
+CALLS_IN_FLIGHT = 8
+_in_flight = threading.BoundedSemaphore(CALLS_IN_FLIGHT)
 SPENT_AS = "carbon reader"  # its name in the spend guard's ledger
 
 Form = dict[str, Any]
@@ -82,7 +88,7 @@ class CarbonClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+            with _in_flight, urllib.request.urlopen(request, timeout=self._timeout) as response:
                 answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None

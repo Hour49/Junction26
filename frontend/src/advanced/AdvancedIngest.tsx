@@ -19,6 +19,7 @@ import { useDrawingData } from './useDrawingData';
 import { useProjectTrace } from './useProjectTrace';
 import { CheckPairs, FileStrip, PlanMarks, ReadyList, RouteLanes } from './visuals';
 import './advanced.css';
+import { Button } from '@/components/ui/button';
 
 interface Stat {
   label: string;
@@ -261,9 +262,9 @@ export function AdvancedIngest({
               {failed && (
                 <li className="failed">
                   The trace did not load.{' '}
-                  <button type="button" onClick={retry}>
+                  <Button variant="outline" size="pill-sm" onClick={retry}>
                     Retry
-                  </button>
+                  </Button>
                 </li>
               )}
               {!lines.length && !failed && (

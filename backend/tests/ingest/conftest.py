@@ -50,6 +50,7 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
         evidence: EvidenceIndex | None = None,
         evidence_steps: EvidenceSteps | None = None,
         carbon_read: Callable[[str], CarbonRead | None] | None = None,
+        groups_in_flight: int = 1,
     ) -> IngestService:
         store = store or DiskProjectStore(root)
 
@@ -77,6 +78,7 @@ def make_service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> MakeService
             triage=triage,
             evidence=evidence,
             evidence_steps=evidence_steps,
+            groups_in_flight=groups_in_flight,
         )
 
     return make
