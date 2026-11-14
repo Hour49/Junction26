@@ -1,3 +1,5 @@
 # Reviewed false positives (gitleaks reads this file by default). One line per finding, with the reason above it.
-# Fake key in a unit test: KEY = "test-key-0123456789" (no real credential).
+# Fake key in a unit test (the KEY constant in backend/tests/test_gemini_rooms.py), no real credential.
 140640ab3db3585d145f6a5bea50cf811487f023:backend/tests/test_gemini_rooms.py:generic-api-key:28
+# The first version of this file quoted that fake key in its comment.
+e1cbdd0e5475923962a4dc3e16e6c56055272d95:.gitleaksignore:generic-api-key:2
