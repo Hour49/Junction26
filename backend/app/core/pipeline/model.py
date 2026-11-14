@@ -166,6 +166,7 @@ class Partial(Frozen):
     counted: int = Field(ge=0)
     missing: tuple[str, ...] = ()
     read: bool = True  # the rooms were read off a picture; False: drawn on the sheet (vector, IFC)
+    schedule: str | None = None  # the title of the table naming `missing`; None: it has none
 
 
 class Quantity(Frozen):

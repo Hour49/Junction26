@@ -273,7 +273,8 @@ def partial_text(partial: Partial) -> str:
         named += f" and {more} more"
     if not partial.read:  # a vector or IFC sheet has no reader: only a schedule makes it partial
         said = f"This is the sum of the {rooms} drawn on the sheet"
-        return f"{said}; the room schedule lists more: {named}."
+        table = f"the {partial.schedule}" if partial.schedule else "a schedule on the sheet"
+        return f"{said}; {table} lists more: {named}."
     said = f"This is the sum of the {rooms} the reader found; rooms it missed are not in it"
     return said + (f". Not in it: {named}." if partial.missing else ".")
 

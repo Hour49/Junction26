@@ -3,6 +3,8 @@ picked off a picture keeps its value, says it is the sum of the rooms found and 
 another source names that it lacks, and is Low (app/core/pipeline/takeoff.py `_mark_partial`,
 app/core/answering/answer.py `partial_text`, app/core/review/ask.py, app/api/ask.py)."""
 
+import pytest
+
 from app.adapters.answer_prior import NoPrior
 from app.adapters.question_templates import TemplateParser
 from app.api.ask import partial_fields
@@ -117,15 +119,32 @@ def test_a_total_that_is_not_partial_has_no_partial_fields() -> None:
     assert got.partial is None and partial_fields(got) == {}
 
 
-def test_a_finish_key_is_not_a_room_schedule() -> None:
-    assert known_quantities(drawing(VECTOR, (FINISH_KEY,)))["area:room"].partial is None
+# Numeric codes on the sheet's storey (its rooms are 101, 102): only the columns keep them out
+NUMERIC_KEY = FINISH_KEY.model_copy(
+    update={"rows": tuple(TableRow(cells=(key, "PAINT", "ACME")) for key in ("110", "111"))}
+)
+NUMBERED = NUMERIC_KEY.model_copy(update={"title": None, "columns": ("NO.", "MATERIAL", "MAKE")})
+
+
+@pytest.mark.parametrize("table", [FINISH_KEY, NUMERIC_KEY, NUMBERED], ids=["codes", "key", "no"])
+def test_a_table_without_a_room_column_is_not_a_room_schedule(table: Table) -> None:
+    assert known_quantities(drawing(VECTOR, (table,)))["area:room"].partial is None
+
+
+def test_the_sentence_names_the_table_that_lists_more_rooms() -> None:
+    door = SCHEDULE.model_copy(update={"title": "DOOR SCHEDULE"})
+    untitled = SCHEDULE.model_copy(update={"title": None})
+    door_said = asked(drawing(VECTOR, (door,)), route="vector").answer.explanation or ""
+    untitled_said = asked(drawing(VECTOR, (untitled,)), route="vector").answer.explanation or ""
+    assert "; the DOOR SCHEDULE lists more: 104 LOBBY" in door_said
+    assert "; a schedule on the sheet lists more: 104 LOBBY" in untitled_said
 
 
 def test_a_vector_total_a_schedule_shows_partial_is_never_certified() -> None:
     vector_sure = POLICY.model_copy(update={"routes": frozenset({"vector"})})
     got = asked(drawing(VECTOR, (SCHEDULE, FINISH_KEY)), vector_sure, route="vector")
     assert got.answer.explanation == (
-        "This is the sum of the 2 rooms drawn on the sheet; the room schedule lists more: "
+        "This is the sum of the 2 rooms drawn on the sheet; the ROOM SCHEDULE lists more: "
         "104 LOBBY, 107 STAIR, 108 STOR and 1 more."
     )
     assert got.answer.sure is False and got.check is not None

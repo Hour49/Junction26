@@ -163,13 +163,15 @@ def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
     the EU model, Carbon), which can miss rooms, or a room schedule on the sheet names rooms of
     this storey the drawing does not have. A vector or IFC room list, complete by construction,
     is partial only when a schedule says so."""
-    missing = _unlisted(drawing)
+    missing, schedule = _unlisted(drawing)
     read = any("reader" in room.attrs for room in drawing.rooms)
     if not (read or missing):
         return
     for key, quantity in found.items():
         if quantity.rule in PARTIAL_RULES and "label=" not in key and "name=" not in key:
-            partial = Partial(counted=len(quantity.marks), missing=missing, read=read)
+            partial = Partial(
+                counted=len(quantity.marks), missing=missing, read=read, schedule=schedule
+            )
             found[key] = quantity.model_copy(update={"partial": partial})
 
 
@@ -185,16 +187,18 @@ def _room_columns(table: Table) -> tuple[int, int | None] | None:
     return number, named
 
 
-def _unlisted(drawing: Drawing) -> tuple[str, ...]:
+def _unlisted(drawing: Drawing) -> tuple[tuple[str, ...], str | None]:
     """The rooms a room schedule prints (number and name, as printed) that no room of the drawing
     answers to by number, name or label, kept to this sheet's storey: the row's number less its
     last two digits is one the drawing's own room numbers have (a building-wide schedule names
-    other floors' rooms). A drawing without room numbers has no storey to keep, so none."""
+    other floors' rooms). A drawing without room numbers has no storey to keep, so none. With
+    them, the title of the first table that lists one (None: it has none)."""
     printed = {room.attrs.get(key) for room in drawing.rooms for key in ROOM_NUMBERS}
     numbers = {n.strip() for n in printed if isinstance(n, str) and n.strip()}
     storeys = {STOREY_DIGITS.sub("", n) for n in numbers}
     have = {name for room in drawing.rooms for name in room_names(room)}
     out: list[str] = []
+    title: str | None = None
     for table in drawing.tables or ():
         if (columns := _room_columns(table)) is None:
             continue
@@ -208,8 +212,9 @@ def _unlisted(drawing: Drawing) -> tuple[str, ...]:
             if not any(normalised(text) in have for text in texts):
                 shown = " ".join(dict.fromkeys(texts))
                 if shown not in out:
+                    title = title if out else (table.title or "").strip() or None
                     out.append(shown)
-    return tuple(out)
+    return tuple(out), title
 
 
 def _add_sheet(
