@@ -390,6 +390,7 @@ const state = {
   view: 'ingest', role: 'engineer', plan: 'A', focus: 'doors', addMode: false,
   thread: [],
   ing: { t: -1, timer: null, zip: null },
+  edit: { model: null, thread: [], pen: false, ink: [], cam: { yaw: -0.5, pitch: 0.95, zoom: 1 } },
 };
 
 /* ------------------------------------------------------------ plan → SVG */
@@ -548,9 +549,10 @@ function answerHTML(e, i) {
   const q = p.q[e.key], [pct, lvl, why] = confidence(p, q);
   const card = `<div class="rcard${e.hidden ? ' closed' : ''}">
     <div class="rhead"><span class="ricon">⌗</span><b>${esc(q.label)}</b><span class="rsub">${esc(p.file)} · ${p.route === 'vector' ? 'CAD' : 'scan'}</span>
+      <span class="seg ep-seg"><button data-dimq="${i}:2d" class="${e.dim === '3d' ? '' : 'on'}">2D</button><button data-dimq="${i}:3d" class="${e.dim === '3d' ? 'on' : ''}">3D</button></span>
       <button class="hide" data-hide="${i}">${e.hidden ? 'Show ⌄' : 'Hide ⌃'}</button></div>
     <div class="rbody">
-      <div class="shot">${planSVG(p, q, false)}</div>
+      <div class="shot">${e.dim === '3d' ? `<canvas class="shot-3d" data-3dq="${i}" title="Drag to rotate, scroll to zoom"></canvas>` : planSVG(p, q, false)}</div>
       <div class="rside">
         <span class="k">The answer</span>
         <dl><dt>Value</dt><dd><b>${fmt(q)}</b> ${esc(q.unit)}</dd><dt>Rule</dt><dd>${esc(q.rule)}</dd><dt>Method</dt><dd>${esc(q.method)}</dd><dt>Check</dt><dd>${esc(q.alt)}: ${q.kind === 'count' ? q.altValue : 'agrees'}</dd></dl>
@@ -574,7 +576,7 @@ function engineerHTML(p) {
   return `<section class="chat">
     ${state.thread.length ? '' : `<header class="hero"><h1>${esc(p.title)}</h1></header>${suggestHTML(p)}`}
     <div class="convo" id="convo">${state.thread.map(answerHTML).join('')}</div>
-    <form class="composer" id="ask"><span class="plus">+</span><input name="q" placeholder="Ask a question about this drawing…" autocomplete="off">
+    <form class="composer" id="ask"><button type="button" class="plus" id="toedit" title="Edit my plan: add a photo of a house plan">+</button><input name="q" placeholder="Ask a question about this drawing…" autocomplete="off">
       <span class="meta">${state.thread.length} asked</span><button aria-label="Ask">➤</button></form>
   </section>`;
 }
@@ -610,6 +612,7 @@ function renderWork() {
   if (survey && !q) { state.focus = 'doors'; q = p.q.doors; }
   $('#app').innerHTML = survey ? `<div class="work">${sideHTML()}${viewerHTML(p, q, survey)}${surveyorHTML(p)}</div>`
     : `<div class="work chat-mode">${engineerHTML(p)}</div>`;
+  drawAll3D();
 }
 
 function ask(text) {
@@ -639,6 +642,8 @@ function workClick(ev) {
   let el;
   if ((el = t('[data-plan]'))) { state.plan = el.dataset.plan; state.focus = 'doors'; state.addMode = false; return renderWork(); }
   if ((el = t('[data-ask]'))) return ask(el.dataset.ask);
+  if (t('#toedit')) { state.view = 'edit'; location.hash = 'edit'; return render(); }
+  if ((el = t('[data-dimq]'))) { const [i, v] = el.dataset.dimq.split(':'); state.thread[+i].dim = v; return renderWork(); }
   if ((el = t('[data-hide]'))) { const e = state.thread[+el.dataset.hide]; e.hidden = !e.hidden; return renderWork(); }
   if ((el = t('[data-survey]'))) { openWork('surveyor'); state.focus = el.dataset.survey; return renderWork(); }
   if (!survey) return;
@@ -706,7 +711,8 @@ function renderIngest() {
   const g = state.ing;
   if (g.t < 0) {
     $('#app').innerHTML = `<div class="landing"><div class="drop" id="drop"><h1>Drop a project archive here (.zip)</h1>
-      <div class="actions"><button class="btn primary" id="sample">Use the sample archive (14 files)</button><label class="btn">Choose a zip<input type="file" id="pick" accept=".zip" hidden></label></div></div></div>`;
+      <div class="actions"><button class="btn primary" id="sample">Use the sample archive (14 files)</button><label class="btn">Choose a zip<input type="file" id="pick" accept=".zip" hidden></label></div>
+      <a href="#edit" class="ep-link" id="toedit2">or edit a house plan from a photo →</a></div></div>`;
     return;
   }
   const done = g.t >= MAX_T;
@@ -826,6 +832,7 @@ function openWork(role, plan) {
 function ingestClick(ev) {
   const g = state.ing, t = (sel) => ev.target.closest(sel);
   if (t('#sample')) return startIngest('harbour-block-archive.zip');
+  if (t('#toedit2')) { ev.preventDefault(); state.view = 'edit'; location.hash = 'edit'; return render(); }
   if (t('#skip')) { clearInterval(g.timer); g.timer = null; g.t = MAX_T; return renderIngest(); }
   if (t('#again')) { clearInterval(g.timer); g.timer = null; g.t = -1; return updateIngest(); }
   if (t('#open')) return openWork('engineer');
@@ -833,17 +840,353 @@ function ingestClick(ev) {
 
 }
 
+/* -------------------------------------------------------------- plan edit */
+// "Edit my plan": the user adds a photo of a house plan, asks for changes in the chat, the plan redraws.
+// Mock only: the photo is always this synthetic flat; changes are scripted; rules are examples, not legal advice.
+
+const E = 40; // px per metre
+function samplePlan() {
+  return {
+    rooms: [
+      { id: 'living', name: 'Living room', x: 0, y: 0, w: 7, h: 4.5 },
+      { id: 'kitchen', name: 'Kitchen', x: 7, y: 0, w: 5, h: 4.5 },
+      { id: 'bed', name: 'Bedroom', x: 0, y: 4.5, w: 5, h: 3.5 },
+      { id: 'bath', name: 'Bathroom', x: 5, y: 4.5, w: 2.5, h: 3.5, wet: true },
+      { id: 'hall', name: 'Hall', x: 7.5, y: 4.5, w: 4.5, h: 3.5 },
+    ],
+    walls: [
+      { id: 'wN', x1: 0, y1: 0, x2: 12, y2: 0, ext: true }, { id: 'wE', x1: 12, y1: 0, x2: 12, y2: 8, ext: true },
+      { id: 'wS', x1: 0, y1: 8, x2: 12, y2: 8, ext: true }, { id: 'wW', x1: 0, y1: 0, x2: 0, y2: 8, ext: true },
+      { id: 'wLK', x1: 7, y1: 0, x2: 7, y2: 4.5, name: 'wall between kitchen and living room' },
+      { id: 'wMid', x1: 0, y1: 4.5, x2: 12, y2: 4.5, lb: true, name: 'middle wall' },
+      { id: 'wBB', x1: 5, y1: 4.5, x2: 5, y2: 8 }, { id: 'wBH', x1: 7.5, y1: 4.5, x2: 7.5, y2: 8 },
+    ],
+    wins: [
+      { id: 'win1', room: 'living', x1: 2, y1: 0, x2: 3.6, y2: 0 }, { id: 'win2', room: 'kitchen', x1: 9, y1: 0, x2: 10.4, y2: 0 },
+      { id: 'win3', room: 'bed', x1: 0.8, y1: 8, x2: 2, y2: 8 }, { id: 'win4', room: 'bed', x1: 3.2, y1: 8, x2: 4.4, y2: 8 },
+    ],
+    doors: [{ id: 'dIn', name: 'entrance door', x1: 12, y1: 5.6, x2: 12, y2: 6.5, w: 0.9 }],
+    fx: [
+      { id: 'f1', t: 'wc', x: 6.6, y: 7.3 }, { id: 'f2', t: 'shower', x: 5.5, y: 5.0 }, { id: 'f3', t: 'sink', x: 7.0, y: 5.1 },
+      { id: 'f4', t: 'sink', x: 11.2, y: 0.5 },
+    ],
+  };
+}
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const KINDS = ['rooms', 'walls', 'wins', 'doors', 'fx'];
+
+// Scripted edits. Refusals come first so "remove the middle wall" is caught before "remove a wall".
+const EXAMPLE_RULE = 'Example rule, not legal advice';
+const EDITS = [
+  { re: /load|middle wall|bearing|kantav/i, refuse: 'wMid', rule: 'Load-bearing walls',
+    why: 'The middle wall carries the floor above. Removing it needs a structural engineer\'s design and a building permit, so I won\'t draw it as a simple edit.' },
+  { re: /(remove|close|cover).*bedroom window|bedroom.*(no|without) window/i, refuse: 'win3', rule: 'Daylight in rooms for sleeping',
+    why: 'A bedroom needs a window to the outside for daylight and a way out in an emergency. Without one it can\'t be a bedroom any more.' },
+  { re: /bath.*(middle|centre|center|without|no ventil)|(middle|centre|center).*bath/i, refuse: ['living', 'open'], rule: 'Ventilation of wet rooms',
+    why: 'A bathroom needs mechanical exhaust ventilation. The middle of the living room has no route to the ventilation shaft, so the bathroom can\'t go there.' },
+  { re: /narrow|smaller.*door|door.*(smaller|narrow|70)/i, refuse: 'dIn', rule: 'Accessible entrance',
+    why: 'The entrance door is the exit route. Making it narrower than the accessible clear width isn\'t allowed.' },
+  { re: /move.*window|window.*(move|other wall)|siirr/i, text: 'Moved the living-room window from the north wall to the west wall. The room keeps its daylight.',
+    apply: (m) => { const w = m.wins.find((x) => x.id === 'win1'); Object.assign(w, { x1: 0, y1: 1.5, x2: 0, y2: 3.1 }); } },
+  { re: /add.*bath|bathroom|kylpy|wc/i, text: 'Added a second bathroom on the left of the hall, next to the existing one, so it can use the same ventilation shaft and drain (assumed). WC, shower and sink included; the hall keeps the entrance.',
+    apply: (m) => {
+      if (m.rooms.some((r) => r.id === 'bath2')) return;
+      Object.assign(m.rooms.find((r) => r.id === 'hall'), { x: 9.6, w: 2.4 });
+      m.rooms.push({ id: 'bath2', name: 'Bathroom 2', x: 7.5, y: 4.5, w: 2.1, h: 3.5, wet: true });
+      m.walls.push({ id: 'wB2', x1: 9.6, y1: 4.5, x2: 9.6, y2: 8 });
+      m.fx.push({ id: 'f6', t: 'shower', x: 7.95, y: 4.95 }, { id: 'f7', t: 'sink', x: 9.15, y: 4.85 }, { id: 'f5', t: 'wc', x: 9.15, y: 7.45 });
+    } },
+  { re: /split|add.*wall|divide/i, text: 'Added a wall that splits the bedroom in two. Each new bedroom keeps one window.',
+    apply: (m) => {
+      m.rooms = m.rooms.filter((r) => r.id !== 'bed');
+      m.rooms.push({ id: 'bed1', name: 'Bedroom 1', x: 0, y: 4.5, w: 2.6, h: 3.5 }, { id: 'bed2', name: 'Bedroom 2', x: 2.6, y: 4.5, w: 2.4, h: 3.5 });
+      m.walls.push({ id: 'wSplit', x1: 2.6, y1: 4.5, x2: 2.6, y2: 8 });
+      m.wins.find((w) => w.id === 'win3').room = 'bed1'; m.wins.find((w) => w.id === 'win4').room = 'bed2';
+    } },
+  { re: /remove|break|knock|tear|open/i, text: 'Removed the wall between the kitchen and the living room. They are now one open room.',
+    apply: (m) => {
+      m.walls = m.walls.filter((w) => w.id !== 'wLK');
+      m.rooms = m.rooms.filter((r) => r.id !== 'living' && r.id !== 'kitchen');
+      m.rooms.unshift({ id: 'open', name: 'Kitchen + living', x: 0, y: 0, w: 12, h: 4.5 });
+    } },
+];
+const EDIT_SUGGEST = ['Move this window to the other wall', 'Add a bathroom here', 'Remove the wall between the kitchen and living room',
+  'Add a wall to split the bedroom', 'Remove the middle wall', 'Remove the bedroom window', 'Put a bathroom in the middle of the living room',
+  'Make the entrance door narrower'];
+
+// What changed between two plans, by id: added or changed elements are highlighted, removed ones ghosted.
+function planDiff(a, b) {
+  const added = new Set(), ghosts = [];
+  for (const k of KINDS) {
+    const before = new Map(a[k].map((x) => [x.id, JSON.stringify(x)]));
+    for (const x of b[k]) if (before.get(x.id) !== JSON.stringify(x)) added.add(x.id);
+    const after = new Map(b[k].map((x) => [x.id, JSON.stringify(x)]));
+    for (const x of a[k]) if (after.get(x.id) !== JSON.stringify(x)) ghosts.push([k, x]);
+  }
+  return { added, ghosts };
+}
+
+function fxSVG(f, cls) {
+  const x = f.x * E, y = f.y * E;
+  if (f.t === 'wc') return `<g class="${cls}"><rect x="${x - 8}" y="${y - 12}" width="16" height="7" rx="2"/><ellipse cx="${x}" cy="${y + 2}" rx="8" ry="10"/></g>`;
+  if (f.t === 'shower') return `<g class="${cls}"><rect x="${x - 14}" y="${y - 14}" width="28" height="28"/><path d="M${x - 14} ${y - 14}L${x + 14} ${y + 14}M${x + 14} ${y - 14}L${x - 14} ${y + 14}"/></g>`;
+  return `<g class="${cls}"><rect x="${x - 10}" y="${y - 7}" width="20" height="14" rx="3"/><circle cx="${x}" cy="${y}" r="3"/></g>`;
+}
+const area2 = (r) => (r.w * r.h).toFixed(1);
+
+function editPlanSVG(m, diff, target, ink) {
+  const on = (id) => (diff && diff.added.has(id) ? ' add' : '');
+  const seg = (o, cls) => `<line class="${cls}" x1="${o.x1 * E}" y1="${o.y1 * E}" x2="${o.x2 * E}" y2="${o.y2 * E}"/>`;
+  let s = `<svg viewBox="${-1 * E} ${-1 * E} ${14 * E} ${10 * E}" role="img" aria-label="House plan">`;
+  s += m.rooms.map((r) => `<rect class="ep-room${r.wet ? ' wet' : ''}${on(r.id)}" x="${r.x * E}" y="${r.y * E}" width="${r.w * E}" height="${r.h * E}"/>`).join('');
+  if (diff) s += diff.ghosts.filter(([k]) => k !== 'rooms').map(([k, o]) => (k === 'fx' ? fxSVG(o, 'ep-fx ghost') : seg(o, 'ep-ghost'))).join('');
+  s += m.walls.map((w) => seg(w, 'ep-wall' + (w.ext ? ' ext' : '') + (w.lb ? ' lb' : '') + on(w.id))).join('');
+  s += m.wins.map((w) => seg(w, 'ep-win' + on(w.id))).join('');
+  s += m.doors.map((d) => seg(d, 'ep-door' + on(d.id))).join('');
+  s += m.fx.map((f) => fxSVG(f, 'ep-fx' + on(f.id))).join('');
+  s += m.rooms.map((r) => `<text class="ep-label" x="${(r.x + r.w / 2) * E}" y="${(r.y + r.h / 2) * E}">${esc(r.name)}</text><text class="ep-area" x="${(r.x + r.w / 2) * E}" y="${(r.y + r.h / 2) * E + 15}">${area2(r)} m²</text>`).join('');
+  if (target) {
+    // target: an id, or ids to try in order (the room may have been merged by an earlier edit)
+    const o = [].concat(target).map((id) => KINDS.flatMap((k) => m[k]).find((x) => x.id === id)).find(Boolean);
+    if (!o) return s + (ink ? Sketch.inkSVG(ink, E) : '') + '</svg>';
+    const bx = o.w !== undefined && o.h !== undefined ? [o.x, o.y, o.w, o.h] : [Math.min(o.x1, o.x2) - 0.3, Math.min(o.y1, o.y2) - 0.3, Math.abs(o.x2 - o.x1) + 0.6, Math.abs(o.y2 - o.y1) + 0.6];
+    s += `<rect class="ep-target" x="${bx[0] * E}" y="${bx[1] * E}" width="${bx[2] * E}" height="${bx[3] * E}"/>`;
+  }
+  return s + (ink ? Sketch.inkSVG(ink, E) : '') + '</svg>';
+}
+
+function editTurnHTML(e, i) {
+  const shot = e.photo ? editPlanSVG(e.photo) : '';
+  const user = `<div class="u-row"><div class="bubble">${shot ? `<div class="photo">${shot}</div><small>${esc(e.text)}</small>` : esc(e.text)}</div><span class="avatar">YOU</span></div>`;
+  const bot = (inner) => `<div class="a-row"><span class="bot" aria-hidden="true"></span><div class="a-body">${inner}</div></div>`;
+  if (e.photo) return `<article class="turn">${user}${bot(`<p>I read your plan: <b>${e.photo.rooms.length} rooms</b>, ${e.photo.wins.length} windows, ${e.photo.doors.length} entrance door. Tell me what to change, for example move a window, add a bathroom, add or remove a wall. Tap ✎ on the plan to mark where.</p>${planCard(e, i, e.photo)}`)}</article>`;
+  const read = e.reading ? `<p class="ep-read">✎ ${esc(e.reading)}</p>` : '';
+  if (e.pending) return `<article class="turn">${user}${bot(`${read}<p class="mute"><span class="spin"></span> Redrawing the plan…</p>`)}</article>`;
+  if (e.ask) return `<article class="turn">${user}${bot(`${read}<p>${esc(e.note)}</p><div class="try">${e.ask.map((t) => `<button data-edit="${esc(t)}">${esc(t)}</button>`).join('')}</div>`)}</article>`;
+  if (e.refused) {
+    return `<article class="turn">${user}${bot(`${read}<div class="ep-refuse"><b>I can't make that change.</b> ${esc(e.refused.why)}
+      <small>${EXAMPLE_RULE}: ${esc(e.refused.rule)}.</small></div>
+      ${planCard(e, i, e.before, null, e.refused.refuse)}`)}</article>`;
+  }
+  if (!e.after) return `<article class="turn">${user}${bot('<p>In this mock I can move a window, add a bathroom, add or remove a wall. Try one of the suggestions below.</p>')}</article>`;
+  return `<article class="turn">${user}${bot(`${read}<p>${esc(e.text2)}</p>${planCard(e, i, e.after, planDiff(e.before, e.after))}`)}</article>`;
+}
+
+// One plan card: the plan as it is after this message, changes in purple, with a 2D/3D switch.
+// The newest card is live: its ✎ turns on the pen and you draw straight on this plan.
+const lastCard = () => state.edit.thread.reduce((k, t, j) => (t.photo || t.after || t.refused ? j : k), -1);
+function planCard(e, i, m, diff, target) {
+  const d3 = e.dim === '3d', ed = state.edit, live = i === lastCard() && !d3, draw = live && ed.pen;
+  const marks = draw ? Sketch.classify(ed.ink) : [];
+  return `<div class="rcard"><div class="rhead">${live ? `<button type="button" class="ricon ep-pen${draw ? ' on' : ''}" id="ep-pen" title="Draw on the plan" aria-pressed="${draw}">✎</button>` : d3 ? '' : '<span class="ricon">✎</span>'}<b>Your plan</b>
+      <span class="rsub">${draw ? 'circle a place, X an element, or draw an arrow from a window to a new spot' : d3 ? 'drag to rotate, scroll to zoom, walls cut at 1.5 m' : diff ? 'changes in purple, removed parts dashed' : ''}</span>
+      <span class="seg ep-seg"><button data-dim="${i}:2d" class="${d3 ? '' : 'on'}">2D</button><button data-dim="${i}:3d" class="${d3 ? 'on' : ''}">3D</button></span></div>
+    ${d3 ? `<canvas class="ep-3d" data-3d="${i}"></canvas>` : `<div class="ep-shot${draw ? ' ep-draw' : ''}">${editPlanSVG(m, diff, target, draw ? ed.ink : null)}</div>`}
+    ${draw ? `<div class="rfoot"><span class="mute">${marks.length ? esc(Sketch.read(ed.model, marks)) + ' Now say what to do in the chat.' : 'Draw on the plan.'}</span>
+      <span class="seg ep-seg"><button type="button" id="ep-undo" ${ed.ink.length ? '' : 'disabled'}>Undo</button><button type="button" id="ep-clear" ${ed.ink.length ? '' : 'disabled'}>Clear</button></span></div>` : ''}
+    <div class="rfoot"><span class="fld"><small>Rooms</small> ${m.rooms.length}</span><span class="fld"><small>Total</small> ${m.rooms.reduce((s2, r) => s2 + r.w * r.h, 0).toFixed(1)} m²</span></div></div>`;
+}
+
+function renderEdit() {
+  const ed = state.edit;
+  $('#app').innerHTML = `<div class="work chat-mode"><section class="chat">
+    ${ed.thread.length ? '' : `<header class="hero"><h1>Edit my plan</h1></header>
+      <div class="ep-start"><button class="btn primary" id="ep-photo">📷 Take photo</button><label class="btn">🖼 Add image<input type="file" id="ep-file" accept="image/*" hidden></label></div>`}
+    <div class="convo" id="convo">${ed.thread.map(editTurnHTML).join('')}</div>
+    ${ed.model ? `<div class="try">${EDIT_SUGGEST.map((t) => `<button data-edit="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}
+    <form class="composer" id="editask"><span class="plus" title="Add a plan photo">+</span><input name="q" placeholder="${ed.model ? 'Tell me what to change…' : 'Add a photo of your plan first'}" autocomplete="off" ${ed.model ? '' : 'disabled'}>
+      <span class="meta">illustrative mock</span><button aria-label="Send">➤</button></form>
+  </section></div>`;
+  drawAll3D();
+}
+
+function loadPhoto(label) {
+  const ed = state.edit;
+  ed.model = samplePlan();
+  ed.thread.push({ text: label, photo: clone(ed.model), before: clone(ed.model) });
+  renderEdit();
+}
+
+function editAsk(text) {
+  text = text.trim(); const ed = state.edit;
+  if (!text || !ed.model) return;
+  const marks = ed.pen ? Sketch.classify(ed.ink) : [];
+  const hit = marks.length ? Sketch.interpret(text, marks, ed.model) : EDITS.find((x) => x.re.test(text));
+  const e = { text, before: clone(ed.model), pending: true };
+  if (marks.length) {
+    Object.assign(e, { ink: clone(ed.ink), reading: hit.reading });
+    if (hit.ask) Object.assign(e, { ask: hit.ask, note: hit.note, pending: false }); // keep the ink: the user answers with a chip
+    else { ed.ink = []; ed.pen = false; }
+  }
+  if (e.ask) { /* question only */ } else if (hit && hit.why) e.refused = hit;
+  else if (hit) { const m = clone(ed.model); hit.apply(m); e.after = m; e.text2 = hit.text; ed.model = m; }
+  ed.thread.push(e); renderEdit();
+  $('#convo').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => { e.pending = false; if (state.view === 'edit') renderEdit(); }, 800);
+}
+
+function editClick(ev) {
+  const t = (sel) => ev.target.closest(sel), ed = state.edit;
+  let el;
+  if (t('#ep-photo') || (t('.plus') && !ed.model)) return loadPhoto('📷 Photo of my plan (mock: the camera loads the sample plan)');
+  if ((el = t('[data-edit]'))) return editAsk(el.dataset.edit);
+  if (t('#ep-pen')) { ed.pen = !ed.pen; return renderEdit(); }
+  if (t('#ep-undo')) { ed.ink.pop(); return renderEdit(); }
+  if (t('#ep-clear')) { ed.ink = []; return renderEdit(); }
+  if ((el = t('[data-dim]'))) { const [i, v] = el.dataset.dim.split(':'); ed.thread[+i].dim = v; return renderEdit(); }
+}
+
+// 3D view of the same plan model, drawn on a canvas (no libraries): walls extruded with window and door openings,
+// fixtures as blocks, changed parts purple. Drag to orbit, scroll to zoom. Painter's algorithm, good enough for a mock.
+// Walls are cut at 1.5 m (like a cutaway view) so the rooms stay visible from above.
+const H3 = { wall: 1.5, sill: 0.6, head: 1.3, door: 1.3 };
+const FX_H = { wc: 0.45, shower: 0.12, sink: 0.85, basin: 0.85, bath: 0.55 };
+function faces3D(m, added) {
+  const F = [], col = (id, base) => (added.has(id) ? '#8d75ea' : base);
+  const quad = (pts, c, alpha, floor) => F.push({ p: pts, c, a: alpha || 1, floor: !!floor });
+  const box = (x0, z0, x1, z1, y0, y1, c, alpha) => {
+    quad([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], c, alpha);
+    quad([[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]], c, alpha);
+    quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], c, alpha);
+    quad([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], c, alpha);
+    quad([[x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0]], c, alpha);
+  };
+  for (const r of m.rooms) quad([[r.x, 0, r.y], [r.x + r.w, 0, r.y], [r.x + r.w, 0, r.y + r.h], [r.x, 0, r.y + r.h]], added.has(r.id) ? '#d6ccf8' : r.out ? '#ecebe6' : r.wet ? '#e3ebf6' : '#f1eef9', 1, true);
+  const openings = [...m.wins.map((o) => ({ ...o, win: true })), ...m.doors];
+  for (const w of m.walls) {
+    const hor = w.y1 === w.y2, t = (w.ext ? 0.25 : w.lb ? 0.2 : 0.14) / 2, c = col(w.id, w.lb ? '#b9b2d6' : '#d8d4e6'), top = w.low ? 0.5 : H3.wall;
+    const a0 = Math.min(hor ? w.x1 : w.y1, hor ? w.x2 : w.y2), a1 = Math.max(hor ? w.x1 : w.y1, hor ? w.x2 : w.y2), k = hor ? w.y1 : w.x1;
+    const piece = (b0, b1, y0, y1, cc, al) => (hor ? box(b0, k - t, b1, k + t, y0, y1, cc, al) : box(k - t, b0, k + t, b1, y0, y1, cc, al));
+    const ops = openings.filter((o) => (hor ? o.y1 === o.y2 && Math.abs(o.y1 - k) < 0.01 : o.x1 === o.x2 && Math.abs(o.x1 - k) < 0.01))
+      .map((o) => ({ o, b0: Math.min(hor ? o.x1 : o.y1, hor ? o.x2 : o.y2), b1: Math.max(hor ? o.x1 : o.y1, hor ? o.x2 : o.y2) }))
+      .filter((x) => x.b1 > a0 && x.b0 < a1).sort((p, q) => p.b0 - q.b0);
+    let at = a0;
+    for (const { o, b0, b1 } of ops) {
+      if (b0 > at) piece(at, b0, 0, top, c);
+      const head = o.win ? H3.head : H3.door;
+      if (top > head) piece(b0, b1, head, top, c);
+      if (o.win) { piece(b0, b1, 0, H3.sill, c); piece(b0, b1, H3.sill, H3.head, col(o.id, '#9cc7f0'), 0.55); }
+      at = Math.max(at, b1);
+    }
+    if (at < a1) piece(at, a1, 0, top, c);
+  }
+  for (const f of m.fx) {
+    const sx = f.t === 'bath' ? 0.8 : f.t === 'shower' ? 0.35 : 0.25, sz = f.t === 'bath' ? 0.35 : sx, rot = f.rot === 90 || f.rot === 270;
+    const [hx, hz] = rot ? [sz, sx] : [sx, sz];
+    box(f.x - hx, f.y - hz, f.x + hx, f.y + hz, 0, FX_H[f.t] || 0.5, col(f.id, '#ffffff'));
+  }
+  return F;
+}
+
+function draw3D(cv, m, added, pins) {
+  const ctx = cv.getContext && cv.getContext('2d');
+  if (!ctx) return;
+  const cam = state.edit.cam, dpr = window.devicePixelRatio || 1, W = cv.clientWidth, Hh = cv.clientHeight;
+  cv.width = W * dpr; cv.height = Hh * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, Hh);
+  const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), f = Math.min(W, Hh) * 1.6;
+  const xs = m.rooms.flatMap((r) => [r.x, r.x + r.w]), zs = m.rooms.flatMap((r) => [r.y, r.y + r.h]);
+  const mx = (Math.min(...xs) + Math.max(...xs)) / 2, mz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const D = (2 * Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs))) / cam.zoom;
+  const P = ([x, y, z]) => {
+    x -= mx; z -= mz; y -= 1;
+    const x1 = x * cy - z * sy, z1 = x * sy + z * cy, y2 = y * cp + z1 * sp, z2 = z1 * cp - y * sp + D;
+    return [W / 2 + (x1 * f) / z2, Hh * 0.5 - (y2 * f) / z2, z2];
+  };
+  const L = [0.35, 0.85, 0.4];
+  const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); return `rgb(${[16, 8, 0].map((s) => Math.round(((n >> s) & 255) * k)).join(',')})`; };
+  const list = faces3D(m, added).map((q) => {
+    const pr = q.p.map(P), [a, b, c] = q.p, u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], len = Math.hypot(...n) || 1;
+    const lit = 0.7 + 0.3 * Math.abs((n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / len);
+    return { pr, depth: pr.reduce((s2, p) => s2 + p[2], 0) / 4, fill: shade(q.c, lit), a: q.a, floor: q.floor };
+  }).sort((p, q) => q.floor - p.floor || q.depth - p.depth); // floors first: nothing is under them
+  for (const q of list) {
+    ctx.globalAlpha = q.a; ctx.beginPath(); q.pr.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+    ctx.fillStyle = q.fill; ctx.fill(); ctx.strokeStyle = 'rgba(47,33,112,0.25)'; ctx.lineWidth = 0.6; ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#2b2840';
+  for (const r of m.rooms) { const [x, y] = P([r.x + r.w / 2, 0.05, r.y + r.h / 2]); ctx.fillText(r.name, x, y); }
+  // pins: a stem from the floor to a numbered disc, drawn far to near so near pins stay on top
+  (pins || []).map((pn) => ({ pn, base: P([pn.x, 0, pn.z]), head: P([pn.x, 2.2, pn.z]) })).sort((a, b) => b.head[2] - a.head[2]).forEach(({ pn, base, head }) => {
+    ctx.strokeStyle = pn.c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(base[0], base[1]); ctx.lineTo(head[0], head[1]); ctx.stroke();
+    ctx.fillStyle = pn.c; ctx.beginPath(); ctx.arc(head[0], head[1], 9, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 10px system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText(pn.t, head[0], head[1] + 0.5); ctx.textBaseline = 'alphabetic';
+  });
+}
+
+// A takeoff plan (planA/planB) as a 3D model: walls from the room outlines, doors and windows as openings on them.
+function planModel3D(p) {
+  if (p.m3) return p.m3;
+  const walls = new Map(), edge = (x1, y1, x2, y2, low) => { const k = [x1, y1, x2, y2].map((v) => v.toFixed(2)).join(','); if (!walls.has(k) || !low) walls.set(k, { id: 'w' + walls.size, x1, y1, x2, y2, low }); };
+  for (const r of p.rooms) {
+    const low = r.kind === 'out';
+    edge(r.x, r.y, r.x + r.w, r.y, low); edge(r.x, r.y + r.h, r.x + r.w, r.y + r.h, low);
+    edge(r.x, r.y, r.x, r.y + r.h, low); edge(r.x + r.w, r.y, r.x + r.w, r.y + r.h, low);
+  }
+  const op = (o, len) => (o.wall === 'v' ? { id: o.id, x1: o.x, y1: o.y - len / 2, x2: o.x, y2: o.y + len / 2 } : { id: o.id, x1: o.x - len / 2, y1: o.y, x2: o.x + len / 2, y2: o.y });
+  p.m3 = {
+    rooms: p.rooms.map((r) => ({ id: r.id, name: r.name, x: r.x, y: r.y, w: r.w, h: r.h, out: r.kind === 'out', wet: /bath|wc|kh/i.test(r.name) })),
+    walls: [...walls.values()],
+    wins: p.windows.map((w) => op(w, w.len || 1.4)),
+    doors: p.doors.map((d) => op(d, d.double ? 1.5 : d.small ? 0.7 : 0.9)),
+    fx: p.fixtures.map((f) => ({ id: f.id, t: f.type, x: f.x, y: f.y, rot: f.rot })),
+  };
+  return p.m3;
+}
+const PIN_COLOR = { counted: '#c8402a', added: '#c8402a', contested: '#e0a21b' };
+function answerPins(q) {
+  if (q.kind !== 'count') return [];
+  let n = 0;
+  return q.marks.filter((mk) => PIN_COLOR[mk.state]).map((mk) => ({ x: mk.x, z: mk.y, c: PIN_COLOR[mk.state], t: mk.state === 'contested' ? '?' : String(++n) }));
+}
+
+function drawAll3D() {
+  document.querySelectorAll('canvas[data-3d]').forEach((cv) => { const e = state.edit.thread[+cv.dataset['3d']]; draw3D(cv, e.after || e.before, e.after ? planDiff(e.before, e.after).added : new Set()); });
+  document.querySelectorAll('canvas[data-3dq]').forEach((cv) => {
+    const e = state.thread[+cv.dataset['3dq']], p = PLANS[e.plan], q = p.q[e.key];
+    draw3D(cv, planModel3D(p), new Set(q.kind === 'area' ? q.parts.filter((x) => x.inc).map((x) => x.id) : []), answerPins(q));
+  });
+}
+
 /* ------------------------------------------------------------------- shell */
 
 function render() {
-  if (state.view === 'ingest') renderIngest(); else renderWork();
+  if (state.view === 'ingest') renderIngest(); else if (state.view === 'edit') renderEdit(); else renderWork();
 }
 
 const app = $('#app');
-app.addEventListener('click', (ev) => (state.view === 'ingest' ? ingestClick(ev) : workClick(ev)));
+app.addEventListener('click', (ev) => ({ ingest: ingestClick, edit: editClick }[state.view] || workClick)(ev));
+let orbit = null, stroke = null;
+// pen strokes on the pad: pointer position -> plan metres through the SVG's own transform
+const toPlan = (svg, ev) => { const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse()); return [+(p.x / E).toFixed(2), +(p.y / E).toFixed(2)]; };
+app.addEventListener('pointerdown', (ev) => {
+  const svg = ev.target.closest('.ep-draw svg');
+  if (!svg) return;
+  ev.preventDefault(); svg.setPointerCapture(ev.pointerId);
+  const g = svg.querySelector('.ep-ink'), line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  g.appendChild(line); stroke = { svg, line, pts: [toPlan(svg, ev)] };
+});
+app.addEventListener('pointermove', (ev) => {
+  if (!stroke) return;
+  stroke.pts.push(toPlan(stroke.svg, ev)); stroke.line.setAttribute('points', stroke.pts.map(([x, y]) => `${x * E},${y * E}`).join(' '));
+});
+app.addEventListener('pointerup', () => { if (!stroke) return; if (stroke.pts.length > 1) state.edit.ink.push(stroke.pts); stroke = null; renderEdit(); });
+app.addEventListener('pointerdown', (ev) => { const cv = ev.target.closest('canvas[data-3d],canvas[data-3dq]'); if (cv) { orbit = { cv, x: ev.clientX, y: ev.clientY }; cv.setPointerCapture(ev.pointerId); } });
+app.addEventListener('pointermove', (ev) => {
+  if (!orbit) return;
+  const cam = state.edit.cam;
+  cam.yaw = (cam.yaw + (ev.clientX - orbit.x) * 0.01) % (2 * Math.PI); cam.pitch = Math.max(0.35, Math.min(1.5, cam.pitch + (ev.clientY - orbit.y) * 0.01));
+  orbit.x = ev.clientX; orbit.y = ev.clientY; drawAll3D();
+});
+app.addEventListener('pointerup', () => { orbit = null; });
+app.addEventListener('wheel', (ev) => {
+  if (!ev.target.closest('canvas[data-3d],canvas[data-3dq]')) return;
+  ev.preventDefault(); const cam = state.edit.cam; cam.zoom = Math.max(0.5, Math.min(3, cam.zoom * (ev.deltaY < 0 ? 1.1 : 0.9))); drawAll3D();
+}, { passive: false });
 app.addEventListener('mouseover', (ev) => { if (state.view === 'work') workHover(ev); });
-app.addEventListener('submit', (ev) => { ev.preventDefault(); if (ev.target.id === 'ask') ask(ev.target.elements.q.value); });
+app.addEventListener('submit', (ev) => { ev.preventDefault(); if (ev.target.id === 'ask') ask(ev.target.elements.q.value); if (ev.target.id === 'editask') editAsk(ev.target.elements.q.value); });
 app.addEventListener('change', (ev) => {
+  if (ev.target.id === 'ep-file' && ev.target.files[0]) loadPhoto(`🖼 ${ev.target.files[0].name} (mock: shows the sample plan)`);
   if (ev.target.id === 'pick' && ev.target.files[0]) startIngest(ev.target.files[0].name, 'This mock does not read your file. It plays the sample archive under your file\'s name.');
 });
 app.addEventListener('dragover', (ev) => { if (ev.target.closest('#drop')) { ev.preventDefault(); $('#drop').classList.add('over'); } });
@@ -855,12 +1198,13 @@ app.addEventListener('drop', (ev) => {
   startIngest(f ? f.name : 'harbour-block-archive.zip', f ? 'This mock does not read your file. It plays the sample archive under your file\'s name.' : '');
 });
 
-// deep links for screenshots and for sending someone to one screen: #work/surveyor/B, #ingest/done
+// deep links for screenshots and for sending someone to one screen: #work/surveyor/B, #ingest/done, #edit
 (function boot() {
   const [v, a, b] = location.hash.slice(1).split('/');
   if (v === 'work') { state.view = 'work'; state.role = a === 'surveyor' ? 'surveyor' : 'engineer'; if (PLANS[b]) state.plan = b;
     if (state.role === 'engineer') { render(); return ask(SUGGEST[state.plan][0]); }
     if (state.plan === 'B') state.focus = 'windows'; }
+  if (v === 'edit') state.view = 'edit';
   if (v === 'ingest' && a === 'done') { state.ing.zip = 'harbour-block-archive.zip'; state.ing.t = MAX_T; }
   render();
 })();

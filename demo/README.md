@@ -17,6 +17,13 @@ Screens:
    add marks, include or leave out rooms in an area, sign off, export CSV. Signed values show as verified to the
    engineer.
 
-Deep links: `index.html#ingest/done`, `#work/engineer/A`, `#work/surveyor/B`.
+4. **Edit my plan** (`#edit`; from the landing link or the **+** in the chat): take a photo or add an image of a
+   house plan (the mock always loads one synthetic flat), then ask for changes in the chat: move a window, add a
+   bathroom, remove a wall, split a room. The plan redraws with the change in purple and removed parts dashed. A 2D/3D
+   switch shows the same plan in 3D (canvas, no libraries; walls cut at 1.5 m; drag to rotate, scroll to zoom). Changes a rule forbids (a load-bearing wall, a bedroom without a window, a
+   bathroom without ventilation, a narrower exit door) are refused with the reason. The rules are examples, not
+   legal advice.
+
+Deep links: `index.html#ingest/done`, `#work/engineer/A`, `#work/surveyor/B`, `#edit`.
 
 Requirements behind it: `../docs/REQUIREMENTS.md`.

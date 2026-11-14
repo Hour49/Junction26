@@ -482,3 +482,49 @@ body.theme { --pri: #6b4fd8; --pri-dark: #2f2170; --pri-soft: #efeafd; --ok: #6b
 .theme .cf.solved, .theme .cf.solved.done { box-shadow: 0 0 0 2px #2c9a5b, 0 6px 18px rgba(47, 33, 112, 0.06); }
 .approved { display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 8px; background: #dcf3e4; color: #1f7a45;
   font-weight: 700; border: 1px solid #9fd8b4; }
+
+/* plan edit (#edit): photo of a house plan, edits by chat */
+.composer button.plus { background: #fff; padding: 0; cursor: pointer; }
+.ep-link { font-size: 13px; color: var(--pri); text-decoration: none; }
+.ep-link:hover { text-decoration: underline; }
+.ep-start { display: flex; justify-content: center; gap: 10px; }
+.ep-start .btn { font-size: 15px; padding: 10px 18px; }
+.bubble .photo { background: #fff; border-radius: 8px; padding: 6px; width: 260px; max-width: 100%; margin-bottom: 4px; }
+.bubble .photo svg { width: 100%; height: auto; display: block; }
+.bubble small { opacity: 0.85; font-size: 12px; }
+.ep-shot { background: #fff; padding: 14px; }
+.ep-shot svg { width: 100%; height: auto; max-height: 60vh; display: block; }
+.ep-seg { margin-left: auto; display: inline-flex; border: 1px solid #e2ddf3; border-radius: 8px; overflow: hidden; }
+.ep-seg button { border: 0; background: #fff; padding: 5px 12px; font-size: 13px; }
+.ep-seg button.on { background: var(--pri); color: #fff; }
+.ep-room { fill: #faf9fe; }
+.ep-room.wet { fill: #eef4fb; }
+.ep-room.add { fill: var(--pri-soft); }
+.ep-wall { stroke: #3a3550; stroke-width: 6; stroke-linecap: square; }
+.ep-wall.ext { stroke-width: 10; }
+.ep-wall.lb { stroke: #2f2170; stroke-width: 9; }
+.ep-win { stroke: #7fb2e5; stroke-width: 8; }
+.ep-door { stroke: #fff; stroke-width: 10; }
+.ep-wall.add, .ep-win.add, .ep-door.add { stroke: var(--pri); }
+.ep-ghost { stroke: #9a96ad; stroke-width: 4; stroke-dasharray: 6 5; }
+.ep-fx { fill: #fff; stroke: #55506a; stroke-width: 1.5; }
+.ep-fx.add { stroke: var(--pri); fill: var(--pri-soft); }
+.ep-fx.ghost { stroke: #9a96ad; stroke-dasharray: 3 3; fill: none; }
+.ep-label { font: 600 13px var(--sans); fill: #2b2840; text-anchor: middle; }
+.ep-area { font: 11px var(--mono); fill: #7a7690; text-anchor: middle; }
+.ep-target { fill: rgba(200, 64, 42, 0.08); stroke: #c8402a; stroke-width: 3; stroke-dasharray: 8 5; }
+.ep-refuse { border-left: 4px solid #c8402a; background: #fdf0ed; border-radius: 8px; padding: 10px 14px; line-height: 1.5; }
+.ep-refuse small { display: block; color: var(--mute); margin-top: 4px; }
+.ep-3d { display: block; width: 100%; height: 440px; background: #fff; cursor: grab; touch-action: none; }
+.ep-3d:active { cursor: grabbing; }
+/* pen marks on the plan (sketch.js) */
+.ep-draw svg { touch-action: none; cursor: crosshair; }
+.ep-ink polyline { fill: none; stroke: #e0457b; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+button.ricon.ep-pen { border: 0; cursor: pointer; }
+button.ricon.ep-pen.on { background: var(--pri); color: #fff; border-color: var(--pri); }
+.ep-seg button:disabled { color: #b8b4c8; }
+.ep-read { color: #7a3a8f; font-size: 14px; }
+.shot-3d { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.shot-3d:active { cursor: grabbing; }
+.rhead .ep-seg { margin-left: auto; }
+.rhead .ep-seg + .hide { margin-left: 8px; }
