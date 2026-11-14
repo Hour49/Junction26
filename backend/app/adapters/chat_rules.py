@@ -10,6 +10,7 @@ from typing import Any
 
 from app.core.agent.loop import NUDGE, UNBACKED
 from app.core.agent.ports import Reply
+from app.core.agent.review import DOUBT, REVIEWED, pushed
 
 Json = dict[str, Any]
 
@@ -78,6 +79,9 @@ def _turn_of(messages: list[Json]) -> _Turn:
     )
     first, *rest = str(messages[start]["content"]).split("\n")
     turn = _Turn(first, [line for line in rest if line.startswith("sel_")])
+    for line in rest:  # the review the loop ran for a doubt (DOUBT), as a tool result
+        if line.startswith(REVIEWED):
+            turn.done.append(("review_answer", {}, json.loads(line.removeprefix(REVIEWED))))
     for message in messages[: start + 1]:  # the system prompt or the turn's context line
         if message.get("role") in ("system", "user") and (
             found_pack := PACK.search(str(message.get("content") or ""))
@@ -126,10 +130,59 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         return _remove_wall(turn, words)
     if LAW.search(words):
         return _law(turn, offered)
+    if DOUBT.search(words) and ("review_answer" in offered or turn.result("review_answer")):
+        return _sure(turn)
     found = turn.result("ask_drawings")
     if found is None:
         return "ask_drawings", {"question": turn.message[:500]}
     return _answer(found)
+
+
+def _sure(turn: _Turn) -> tuple[str, Json]:
+    """ "Are you sure?": the reviewed question, then per drawing its value, level and disputed
+    marks, cited. "Yes" only when every drawing is High and none of its marks is disputed."""
+    found = turn.result("review_answer")
+    if found is None:
+        return "review_answer", {}
+    drawings: list[Json] = [d for d in found.get("drawings") or [] if isinstance(d, dict)]
+    answered = [d for d in drawings if "answer" in d]
+    if found.get("status") == "ok" and drawings and not answered:  # a refusal: it stands
+        why = " ".join(f"{d['drawing']}: {d['refused']}" for d in drawings if d.get("refused"))
+        return _final("answer", f"Yes: the last answer was a refusal, and it stands. {why}")
+    if found.get("status") != "ok" or not answered:
+        why = found.get("reason") or "the last answer had no number to check"
+        return _final("dont_know", f"I can't check that: {why}.")
+    lines: list[str] = []
+    cited: list[str] = []
+    for drawing in answered:
+        unit = drawing.get("unit")
+        value = f"{drawing['answer']}{f' {unit}' if unit and unit != 'count' else ''}"
+        level = drawing.get("level_text") or f"Confidence: {drawing.get('level') or 'not given'}."
+        disputed: list[Json] = [d for d in drawing.get("disputed") or [] if isinstance(d, dict)]
+        evs = [str(d["ev"]) for d in disputed if d.get("ev")][: max(0, 4 - len(cited))]
+        cited += evs
+        count = drawing.get("disputed_count") or 0
+        if count:
+            noun = "marks is" if count == 1 else "marks are"
+            doubt = f" {count} of its {noun} disputed by the other readers"
+            doubt += ": " + " ".join(f"[{ev}]" for ev in evs) if evs else "."
+        else:
+            doubt = " No other reader disputes its marks."
+        lines.append(f"{drawing['drawing']}: {value}. {level}{doubt}")
+    sure = all(d.get("level") == "high" and not d.get("disputed_count") for d in answered)
+    question = found.get("question")
+    about = f'About "{question}": ' if question else ""
+    offered = pushed(turn.message)
+    ranged = [d["range"] for d in answered if d.get("range")]
+    if offered is not None and ranged:  # never "Yes" to a number the drawings do not show
+        low, high = ranged[0]
+        where = "within" if low <= offered <= high else "outside"
+        said = f"{offered:g} is {where} what the drawings show ({low} to {high})."
+        if where == "outside":
+            said += " A person counting on the plan would settle it."
+        return _final("answer", f"{about}" + " ".join(lines) + f" {said}", cited)
+    lead = "Yes, as far as the checks go." if sure else "Not for certain."
+    return _final("answer", f"{about}{lead} " + " ".join(lines), cited)
 
 
 def _law(turn: _Turn, offered: set[str]) -> tuple[str, Json]:

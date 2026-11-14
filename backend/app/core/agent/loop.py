@@ -27,6 +27,16 @@ from app.core.agent.model import (
 )
 from app.core.agent.ports import ChatModel, ChatModelError, Toolbox
 from app.core.agent.prompt import SYSTEM
+from app.core.agent.review import (
+    DOUBT,
+    NOTHING,
+    REVIEW_ANSWER,
+    REVIEW_ANSWER_TOOL,
+    REVIEWED,
+    outside,
+    pushed,
+    review_of,
+)
 from app.core.agent.validate import (
     FINAL_ANSWER_TOOL,
     TEXT_CHARS,
@@ -62,6 +72,12 @@ GEOMETRY = frozenset({"box", "polygon", "holes"})  # the model cites ev ids, nev
 NOT_FOR_MODEL = GEOMETRY | {"latency_s"}
 NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
+
+# a reply that opens by agreeing ("Yes, it could be 30")
+AGREE = re.compile(
+    r"^\W*(yes|yeah|yep|correct|right|indeed|sure|possibly|it (could|may|might|can) (well )?be)\b",
+    re.I,
+)
 
 STOPS = {
     "steps": "I ran out of steps before I could answer.",
@@ -112,6 +128,7 @@ PLAIN = {
     "search_evidence": "Searched the evidence",
     "get_evidence": "Read a piece of evidence",
     "show_on_plan": "Showed places on the plan",
+    "review_answer": "Reviewed the last answer",
 }
 FAILED_PLAIN = {
     "propose_remove_wall": "Could not remove a wall",
@@ -180,7 +197,7 @@ class _Run:
         self.guard, self.clock, self.names = guard, clock, names
         self.system = SYSTEM
         self.emit: Emit = _quiet
-        self.tools = [*toolbox.tools, SHOW_ON_PLAN_TOOL, FINAL_ANSWER_TOOL]
+        self.tools = [*toolbox.tools, SHOW_ON_PLAN_TOOL, REVIEW_ANSWER_TOOL, FINAL_ANSWER_TOOL]
         self.started = clock()
         self.ledger: dict[str, Json] = {}  # this turn's places
         self.known: dict[str, Json] = dict(chat.evidence)  # earlier turns' places
@@ -194,6 +211,10 @@ class _Run:
         self.asked: list[Json] = []  # this turn's ask_drawings results, as Chat.asked keeps them
         self.shown: tuple[list[str], str] | None = None  # show_on_plan's places and caption
         self.reattached: list[Json] = []  # earlier ask_drawings results show_on_plan showed
+        self.reviewed: list[str] = []  # the places of the answer review_answer reviewed
+        self.reviewed_refusal = False  # the reviewed answer was a refusal on every drawing
+        self.review: list[Json] = []  # the reviewed drawings (value, level, range)
+        self.pushed: float | None = None  # the number a doubt offers ("could it be 30?")
         self.laws: dict[str, Json] = {}  # proposal id -> its law check as the model read it (LC-8)
         self.clauses: dict[str, Json] = {}  # get_clause results of this turn, by clause id
         self.searched: set[str] = set()  # clause ids search_law returned this turn
@@ -204,6 +225,14 @@ class _Run:
         self.emit("turn", {"chat_id": chat.chat_id, "turn": len(chat.turns) + 1})
         chat.starts.append(len(chat.messages))
         lines = [self.toolbox.describe(chosen) for chosen in selection]
+        if DOUBT.search(message.lower()):  # reviewed before the model's first step
+            self.pushed = pushed(message)
+            start = self.clock()
+            if (reviewed := self._reviewed()) is not None:
+                label = PLAIN[REVIEW_ANSWER]
+                self.emit("tool_call", {"n": 1, "tool": REVIEW_ANSWER, "label": label})
+                self._loop_step(start, label, "ok", REVIEW_ANSWER)
+                lines.append(REVIEWED + reviewed)
         chat.messages.append({"role": "user", "content": "\n".join([message, *lines])})
         self.sources.append(message)
         try:
@@ -302,6 +331,9 @@ class _Run:
                 if name == SHOW_ON_PLAN:
                     self._show(call, arguments)
                     continue
+                if name == REVIEW_ANSWER:
+                    self._review(call)
+                    continue
                 self._tool(call, name, arguments)
             except _EndedError:
                 self._skip(calls[at:])
@@ -316,7 +348,7 @@ class _Run:
         for call in calls[: self.caps.calls_per_step]:
             function: Json = call.get("function") or {}
             name = str(function.get("name", ""))
-            if name in ("final_answer", SHOW_ON_PLAN) or name.startswith("propose_"):
+            if name in ("final_answer", SHOW_ON_PLAN, REVIEW_ANSWER) or name.startswith("propose_"):
                 break
             given: Any = function.get("arguments") or "{}"
             found = (name, given if isinstance(given, str) else json.dumps(given))
@@ -354,6 +386,8 @@ class _Run:
                 self.sources,
                 bool(self.failures) and all(self.failures),
             )
+            if (gave_in := self._gives_in(answer.text)) is not None:
+                wrong.append(gave_in)
         except ValidationError as error:
             answer, wrong = None, [f"bad final_answer arguments: {error.errors()[0]['msg']}"]
         soft, fixed = self._law(answer) if answer is not None else ([], None)
@@ -557,15 +591,83 @@ class _Run:
             self.sources.append(json.dumps(entry["answer"]))
         self._show_step(call, start, label, "ok", text)
 
+    def _gives_in(self, text: str) -> str | None:
+        """Why a reply may not go out when it agrees with a number the user offered that lies
+        outside what every reviewed drawing supports (chat-eval #339 t3: "Yes, it could be 30"
+        over a reading of 19)."""
+        if self.pushed is None or self.asked:
+            return None
+        ranges = outside(self.pushed, self.review)
+        number = f"{self.pushed:g}"
+        agrees = AGREE.search(text) or re.search(
+            rf"\b(could|may|might|can) (well )?be (about |around )?{re.escape(number)}\b",
+            text,
+            re.I,
+        )
+        if ranges is None or not agrees:
+            return None
+        said = ", ".join(f"{low} to {high}" for low, high in ranges)
+        return (
+            f"the user offered {number}, which is outside what the drawings show ({said}): do not "
+            "agree with it; say what the drawings show, its level and what would settle it"
+        )
+
+    def _review(self, call: Json) -> None:
+        """review_answer (item 3): the chat's latest ask_drawings result as its readers judged
+        it. It is a tool result of this turn (its numbers back the answer) and its answer card
+        comes back with the turn."""
+        start = self.clock()
+        reviewed = self._reviewed()
+        if reviewed is None:
+            reply = json.dumps({"status": "unknown", "reason": NOTHING})
+            return self._show_step(call, start, "Could not review the last answer", "error",
+                                   reply, REVIEW_ANSWER)  # fmt: skip
+        self._show_step(call, start, PLAIN[REVIEW_ANSWER], "ok", reviewed, REVIEW_ANSWER)
+
+    def _reviewed(self) -> str | None:
+        """The review of the chat's latest ask_drawings result, as the model reads it; None when
+        there is none. Its numbers back the answer, its card comes back with the turn and its
+        places are the turn's sources when the answer cites none."""
+        minted = next(
+            (r["result"] for r in reversed([*self.chat.results])
+             if r.get("tool") == ASK and isinstance(r.get("result"), dict)),
+            None,
+        )  # fmt: skip
+        if minted is None:
+            return None
+        found = review_of(minted, self.names)
+        text = json.dumps(found, ensure_ascii=False)
+        self.sources.append(text)
+        self.reattached.append([*self.chat.asked, *self.asked][-1]["answer"])
+        latest = [*self.chat.asked, *self.asked][-1]
+        self.reviewed = [ev for ev in latest["marks"] if ev in {**self.known, **self.ledger}]
+        drawings: list[Json] = found["drawings"]
+        self.review = drawings
+        self.reviewed_refusal = bool(drawings) and all("refused" in d for d in drawings)
+        return _for_model(found)
+
+    def _loop_step(self, start: float, label: str, status: str, tool: str) -> None:
+        """The step of a tool the loop runs itself: its tool_result event."""
+        ms = round((self.clock() - start) * 1000, 1)
+        self.steps.append(Step(n=len(self.steps) + 1, tool=tool, label=label,
+                               status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
+        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
+
     def _show_failed(self, call: Json, start: float, why: str) -> None:
         self._show_step(call, start, "Could not show that on the plan", "error",
                         _error(f"show_on_plan: {why}"))  # fmt: skip
 
-    def _show_step(self, call: Json, start: float, label: str, status: str, reply: str) -> None:
-        ms = round((self.clock() - start) * 1000, 1)
-        self.steps.append(Step(n=len(self.steps) + 1, tool=SHOW_ON_PLAN, label=label,
-                               status="ok" if status == "ok" else "error", ms=ms))  # fmt: skip
-        self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": None})
+    def _show_step(
+        self,
+        call: Json,
+        start: float,
+        label: str,
+        status: str,
+        reply: str,
+        tool: str = SHOW_ON_PLAN,
+    ) -> None:
+        """The step of a tool the loop runs itself (show_on_plan, review_answer)."""
+        self._loop_step(start, label, status, tool)
         self._reply(call, reply)
 
     def _name(self, drawing_id: str, place: Json) -> str:
@@ -625,6 +727,8 @@ class _Run:
         # The sources are the places the text cites, in its order; evidence_ids only when the
         # text cites none (AC-5)
         cited = list(dict.fromkeys(re.findall(r"ev_\d+", answer.text) or answer.evidence_ids))
+        if not cited and answer.kind == "answer" and self.reviewed and not self.asked:
+            cited = self.reviewed[:MARKS]  # a review's answer is about the reviewed answer's places
         shown = self.shown[0] if self.shown else []
         # the places show_on_plan showed are sources too, numbered after the cited ones
         number = {ev: n for n, ev in enumerate(dict.fromkeys([*cited, *shown]), start=1)}
@@ -633,6 +737,10 @@ class _Run:
             text = text.replace(file, self.names.get(drawing_id) or file)
         text = _plain_ids(text)
         kind: TurnKind = answer.kind
+        if kind == "dont_know" and self.reviewed_refusal and not self.asked:
+            # "are you sure?" about a refusal is answered by its review: the refusal stands and
+            # why. Not "I don't know." over "Yes, ..." (qa-a live, r10 live-photo #7)
+            kind = "answer"
         answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)

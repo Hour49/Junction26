@@ -8575,6 +8575,10 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
 
+"Are you sure?" (added 2026-11-14): the agent calls `review_answer`, which gives back the chat's latest `ask_drawings`
+answer as its readers judged it (value, level and why, the check's reason, the disputed marks with their evidence
+ids), so the turn answers from the level and the disputed marks, cites them, and returns that answer in `answers`.
+
 `view` (added 2026-11-14) is the plan the turn wants on screen, or null when it has no place: `{drawing_id, name,
 page, box, marks: [{n, label, box, polygon}], caption, source}`, all in page fractions. `source: "show_on_plan"`:
 the agent called the `show_on_plan` tool (places of this chat by evidence id, or every mark, or the disputed ones,
