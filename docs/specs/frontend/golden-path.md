@@ -402,7 +402,7 @@ Selectors
 - The upload of a user's own file (drop or pick): on stage the sample button is the path; upload has component
   tests (ingest spec IN-3…IN-10). If an `ingest.spec.ts` e2e is wanted for it, the ingest build worker writes it.
 - The phone photo, the raster scans and the IFC model on stage: with no keys they are flagged with "no reader for
-  the raster route yet" or carry no page; a real-services variant of the path (a photo read by the raster reader)
+  the image route yet" or carry no page; a real-services variant of the path (a photo read by the raster reader)
   is for the by-hand run only.
 - Visual regression (pixel diffs): screenshots are looked at by a person.
 - The loading and empty states of each screen, and their error states other than GP-20: each screen spec reaches

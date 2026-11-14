@@ -27,7 +27,7 @@ from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import DrawingFile, DrawingGroup, FileKind, Route
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.route import route
-from app.core.wording import count
+from app.core.wording import count, route_words
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class Groups:
         group_key = _hash(*content, *self._names)
         spent = _ms(self._clock, started) / len(asked)
         listed = ", ".join(file.path.rpartition("/")[2] for file in members.files)
-        how = f"{route_name}, read from {routed.source.path}"
+        how = f"{route_words(route_name)}, read from {routed.source.path}"
         if scanned:
             how += " (a scanned PDF: its page is an image, so the raster reader reads it)"
         for file in asked:
