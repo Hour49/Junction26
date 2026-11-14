@@ -16,11 +16,11 @@
       const mode = ctx.conflicts[c.id].mode, settled = mode === 'ai' || mode === 'own';
       const d = V.drawing(c.drawing), file = (V.FILES.find((f) => f.drawing === d.id && f.role === 'read') || V.FILES.find((f) => f.drawing === d.id)).path;
       out.push({ id: `conflict-${c.id}`, kind: 'conflict', severity: settled ? 'note' : 'needs_person', state: settled ? 'settled' : 'open',
-        file, file_id: V.FILES.findIndex((f) => f.path === file), drawing_id: d.id, order: V.DRAWINGS.indexOf(d), reason: null,
+        file, file_id: `f${V.FILES.findIndex((f) => f.path === file)}`, drawing_id: d.id, order: V.DRAWINGS.indexOf(d), reason: null,
         why: `${c.title}${/[.?!]$/.test(c.title) ? '' : '.'} ${settled ? (mode === 'own' ? 'Settled by a person\'s choice.' : 'Settled by the AI.') : 'The rules could not decide, so it needs a person.'}` });
     }
     V.FILES.forEach((f, i) => {
-      const base = { file: f.path, file_id: i, drawing_id: null, order: V.DRAWINGS.length + i };
+      const base = { file: f.path, file_id: `f${i}`, drawing_id: f.drawing || null, order: V.DRAWINGS.length + i };
       const tri = T.issueOf(f.path, ctx);
       if (tri) out.push({ id: `file-${i}`, kind: 'unrelated_file', ...base, ...tri });
       else if (!f.drawing && !T.of(f.path)) out.push({ id: `file-${i}`, kind: 'set_aside', severity: 'note', state: 'open', ...base, reason: f.reason, why: `Set aside at ingest: ${f.reason}.` });
@@ -34,7 +34,11 @@
     return [[n('open'), 'open'], [n('settled'), 'settled']].filter(([k]) => k).map(([k, w]) => `${k} ${w}`).join(' · ');
   }
 
-  const cell = (v) => (v === null || v === undefined ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  const cell = (v) => {
+    if (v === null || v === undefined) return '';
+    const t = /^[=+\-@]/.test(String(v)) ? `'${v}` : String(v);
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
   function csv(list) {
     return [CSV_COLUMNS.join(',')].concat(list.map((x) => CSV_COLUMNS.map((k) => cell(x[k])).join(','))).join('\n') + '\n';
   }
@@ -48,8 +52,8 @@
 
   function jump(x) {
     if (x.kind === 'conflict') return [x.state === 'open' ? 'Settle' : 'See the conflict', '#/conflicts'];
-    if (x.kind === 'set_aside') return ['Why it was set aside', `#/file/${x.file_id}`];
-    return [x.state === 'open' ? 'Make a call' : 'See the call', `#/file/${x.file_id}`];
+    if (x.kind === 'set_aside') return ['Why it was set aside', `#/file/${x.file_id.slice(1)}`];
+    return [x.state === 'open' ? 'Make a call' : 'See the call', `#/file/${x.file_id.slice(1)}`];
   }
 
   function screen() {

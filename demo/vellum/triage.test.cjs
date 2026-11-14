@@ -23,8 +23,9 @@ test('relevance is the rule: a building shown, or a printed word matching the pr
   const elev = T.relevanceOf('elevations/south-elevation.png', p);
   assert.equal(elev.verdict, 'related');
   assert.ok(elev.matched_on.some((m) => m.includes('"Harbour" (the project name)')));
-  assert.equal(T.relevanceOf('scans/annex-sketch.jpg', p).verdict, 'related');
-  assert.ok(T.relevanceOf('scans/annex-sketch.jpg', p).matched_on.some((m) => m.includes('"Kitchen" (the text on the plans)')));
+  // R7-c-3: the annex shows a building and prints only "Annex", which nothing in the project holds: a person decides
+  assert.equal(T.relevanceOf('scans/annex-sketch.jpg', p).verdict, 'unsure');
+  assert.equal(T.issueOf('scans/annex-sketch.jpg', ctx()).severity, 'needs_person');
   for (const path of ['photos/site.jpg', 'misc/poster.jpg']) {
     const r = T.relevanceOf(path, p);
     assert.equal(r.verdict, 'unrelated');
@@ -44,10 +45,12 @@ test('a building with no printed match is unsure, so its issue needs a person (#
 
 test('rows say not judged until the project is read, then the verdict, then the call; the call line names the rule', () => {
   assert.equal(T.rowLine('photos/site.jpg', ctx({ done: false })).pill, '– Not judged');
-  assert.equal(T.rowLine('photos/site.jpg', ctx()).text, 'Not a floor plan: not a drawing · photograph');
+  assert.equal(T.rowLine('photos/site.jpg', ctx()).text, 'Not a floor plan: not a drawing · a photo');
+  assert.equal(T.rowLine('photos/site.jpg', ctx()).tone, 'grey');
+  assert.equal(T.rowLine('scans/annex-sketch.jpg', ctx()).tone, 'warn');
   assert.equal(T.rowLine('photos/site.jpg', ctx()).pill, '✕ Not related');
   const called = ctx({ calls: { 'photos/site.jpg': { verdict: 'related', by: 'Ana', at: 0 } } });
-  assert.deepEqual(T.rowLine('photos/site.jpg', called), { text: 'Not a floor plan: not a drawing · photograph', pill: '✓ Related', by: 'Ana' });
+  assert.deepEqual(T.rowLine('photos/site.jpg', called), { text: 'Not a floor plan: not a drawing · a photo', pill: '✓ Related', tone: 'ok', by: 'Ana' });
   assert.equal(T.callLine('photos/site.jpg', called, '10:05'), 'Related to this project: Ana\'s call, 10:05. The rule said: not related.');
 });
 
@@ -56,13 +59,16 @@ test('read as a floor plan: the annex sketch becomes drawing 7 once its re-read 
   assert.equal(T.rapState(path, { ...c, now: 500 }), 'queued');
   assert.equal(T.rapState(path, { ...c, now: 2000 }), 'running');
   assert.equal(T.rapState(path, { ...c, now: 3000 }), 'ready');
-  assert.equal(T.notPlans(V.FILES, c), 3);
+  assert.equal(T.notPlans(V.FILES), 4);  // counted until the read gives it a drawing
   const n = V.DRAWINGS.length;
   try {
     const d = V.readAsPlan(path);
     assert.equal(V.readAsPlan(path), d);  // idempotent
     assert.equal(V.DRAWINGS.length, n + 1);
     assert.equal(V.FILES.find((f) => f.path === path).drawing, 'annex');
+    assert.equal(T.notPlans(V.FILES), 3);
+    const iss = I.issuesOf(V, T, { ...c, now: 3000 }).find((x) => x.file === path);
+    assert.equal(iss.drawing_id, 'annex');  // R7-c-6
     assert.equal(V.answer('annex', 'How many doors?', {}).value, 2);
     assert.equal(V.readAsPlan('photos/site.jpg'), null);  // no layout: the reading finds nothing
     assert.equal(T.rowLine(path, { ...c, now: 3000 }, true).text, 'Read as a floor plan on Ana\'s call');
@@ -78,12 +84,13 @@ test('issues: kinds, severity order, nothing before the reading ends', () => {
   const list = I.issuesOf(V, T, ctx());
   assert.deepEqual(list.map((x) => [x.kind, x.severity, x.state]), [
     ['conflict', 'needs_person', 'open'],  // c3, the open one
+    ['unrelated_file', 'needs_person', 'open'],  // annex-sketch.jpg: unsure
     ['conflict', 'note', 'settled'], ['conflict', 'note', 'settled'],
     ['unrelated_file', 'note', 'open'], ['unrelated_file', 'note', 'open'],  // site.jpg, poster.jpg
     ['set_aside', 'note', 'open'], ['set_aside', 'note', 'open'],  // readme.txt, __MACOSX
   ]);
-  assert.deepEqual(list.map((x) => x.n), [1, 2, 3, 4, 5, 6, 7]);
-  assert.equal(I.countsLine(list), '5 open · 2 settled');
+  assert.deepEqual(list.map((x) => x.n), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(I.countsLine(list), '6 open · 2 settled');
   assert.equal(list.find((x) => x.kind === 'set_aside').why, 'Set aside at ingest: not a drawing.');
 });
 
@@ -94,11 +101,33 @@ test('a call settles the unrelated_file issue in place; read as a plan adds one;
   assert.equal(after.n, before.n);
   assert.equal(after.state, 'settled');
   assert.match(after.why, /Ana says it is related\.$/);
-  const read = I.issuesOf(V, T, ctx({ rap: { 'scans/annex-sketch.jpg': { by: 'Ana', at: 0 } } })).find((x) => x.file === 'scans/annex-sketch.jpg');
+  // R7-c-2: the read settles the annex's issue in place: same id, same number, nothing renumbered
+  const all = I.issuesOf(V, T, ctx()), allRead = I.issuesOf(V, T, ctx({ rap: { 'scans/annex-sketch.jpg': { by: 'Ana', at: 0 } } }));
+  assert.deepEqual(allRead.map((x) => `${x.n}:${x.id}`), all.map((x) => `${x.n}:${x.id}`));
+  const read = allRead.find((x) => x.file === 'scans/annex-sketch.jpg');
   assert.equal(read.state, 'settled');
   assert.match(read.why, /Ana had it read as a floor plan\.$/);
   const csv = I.csv(I.issuesOf(V, T, ctx()));
   assert.equal(csv.split('\n')[0], I.CSV_COLUMNS.join(','));
-  assert.equal(csv.trim().split('\n').length, 8);
+  assert.equal(csv.trim().split('\n').length, 9);
+  assert.match(csv, /,f15,/);  // file_id is the FileStatus id
+  assert.equal(I.csv([{ why: '=1+1', file: '@x' }]).split('\n')[1].split(',').filter(Boolean).join(), "'@x,'=1+1");  // no formula
   assert.ok(csv.includes('"Set aside at ingest: a system file, skipped."'));  // a comma inside is quoted
+});
+
+test('the chat\'s elevation question quotes the description\'s sentences holding its words, else the summary', () => {
+  const files = V.FILES;
+  const st = T.described('How many storeys does the building in the elevation have?', files);
+  assert.equal(st.path, 'elevations/south-elevation.png');
+  assert.ok(st.matched && st.quote.includes('four-storey'));
+  const f = T.described('What does the facade show?', files);
+  assert.equal(f.matched, false);
+  assert.equal(f.quote, T.of(f.path).description.text);
+  assert.equal(T.described('How many doors are there?', files), null);
+});
+
+test('the chat\'s data follow-ups all answer on the sample (chat.js FOLLOW)', () => {
+  for (const q of ['How many rooms are there?', 'What is the net floor area?', 'What is the area of the living room?']) {
+    assert.ok(V.askProject(q, {}).parts.some((p) => !p.answer.refusal), q);
+  }
 });

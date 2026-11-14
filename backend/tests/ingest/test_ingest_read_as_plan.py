@@ -11,8 +11,10 @@ from test_ingest_triage import PHOTO, PLAN, SCAN, file_of, zipped
 from triage_fakes import FakeClassifier, steps
 
 from app.adapters.archive import DiskProjectStore
+from app.core.drawing.model import Scale
 from app.core.errors import NotFoundError, NotTriagedError
-from app.core.ingest.model import FileStatus, ReadAsPlan
+from app.core.ingest.model import FileStatus, FileTrace, ReadAsPlan
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.review.review import NotAllowedError
 
 CALL = ReadAsPlan(by="Ana", at="2026-11-14T12:00:00Z")
@@ -163,3 +165,76 @@ def test_a_failed_reread_keeps_its_reason_and_can_be_asked_again(
     read = file_of(ingest.wait(project.id), "scan.png")
     assert read.state in ("ready", "flagged") and read.drawing_id is not None
     assert read.triage is not None and read.triage.read_as_plan == CALL
+
+
+class Truncated:
+    """A raster reader that fails the way a truncated JPEG does (Pillow's OSError inside the
+    extract stage, caught by the group), `fails` times, then reads the file."""
+
+    def __init__(self, fails: int) -> None:
+        self.fails = fails
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        if self.fails:
+            self.fails -= 1
+            raise OSError("image file is truncated (0 bytes not processed)")
+        return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
+
+
+def test_a_reread_whose_reader_fails_goes_back_to_triage_and_can_be_asked_again(
+    make_service: MakeService,
+) -> None:  # R6-c-6: the reader's failure is caught by the group, nothing raises
+    reader = Truncated(fails=1)
+    ingest = make_service(triage=steps(classifier()), raster=lambda files: reader)
+    project = ingest.wait(ingest.start("site.zip", zipped({"site.jpg": PHOTO})))
+    photo = file_of(project, "site.jpg")
+    ingest.read_as_plan(project.id, photo.id, CALL)
+    status = ingest.wait(project.id)
+    failed = file_of(status, "site.jpg")
+    assert (status.state, failed.state, failed.drawing_id) == ("done", "set_aside", None)
+    assert failed.reason == (
+        "not read as a floor plan: failed at extract: "
+        "OSError: image file is truncated (0 bytes not processed)"
+    )
+    assert failed.triage is not None and failed.triage.read_as_plan is None
+    assert (failed.kind, failed.normalised) == (photo.kind, photo.normalised)  # triage's
+    asked = [s for s in ingest.trace(project.id, photo.id).stages if s.did.endswith("Ana asked")]
+    assert [s.failure for s in asked] == [
+        "at extract: OSError: image file is truncated (0 bytes not processed)"
+    ]  # R6-c-10: the screen adds "Failed:"
+    ingest.read_as_plan(project.id, photo.id, CALL)  # no 409
+    read = file_of(ingest.wait(project.id), "site.jpg")
+    assert read.state in ("ready", "flagged") and read.drawing_id is not None
+    assert read.kind == "photo_plan" and read.normalised is not None
+    assert read.triage is not None and read.triage.read_as_plan == CALL
+
+
+class Restart:
+    """A raster reader during which the server restarts: a new service on the same store
+    recovers the project, as at startup, and keeps the file and trace it then shows."""
+
+    def __init__(self, make_service: MakeService, store: DiskProjectStore) -> None:
+        self.make_service, self.store = make_service, store
+        self.seen: FileTrace | None = None
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        restarted = self.make_service(store=self.store)
+        (project_id,) = restarted.recover()
+        self.seen = restarted.trace(project_id, "f1")
+        return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
+
+
+def test_a_reread_cut_mid_read_keeps_triages_kind_and_says_it_was_cut(
+    make_service: MakeService, tmp_path: Path
+) -> None:  # R6-c-9
+    store = DiskProjectStore(tmp_path / "store")
+    reader = Restart(make_service, store)
+    ingest = make_service(triage=steps(classifier()), store=store, raster=lambda files: reader)
+    project = ingest.wait(ingest.start("site.zip", zipped({"site.jpg": PHOTO})))
+    photo = file_of(project, "site.jpg")
+    ingest.read_as_plan(project.id, photo.id, CALL)
+    assert reader.seen is not None
+    cut = reader.seen.file
+    assert (cut.state, cut.kind, cut.normalised) == ("set_aside", "photo", photo.normalised)
+    asked = [s for s in reader.seen.stages if s.did.endswith("Ana asked")]
+    assert [s.failure for s in asked] == ["the server restarted while it was read as a floor plan"]

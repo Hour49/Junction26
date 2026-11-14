@@ -22,6 +22,9 @@ Routes: `#/` drop, `#/ingest` reading (`/unpack`, `/identify`, `/normalise`, `/e
 `#/conflicts` (its "Start a new chat" unlocks once every conflict is settled), `#/chat` (the empty project chat with 3 suggested questions;
 each answer's "Show it on <file>" opens `#/ask` on that drawing), `#/ask` (no header tab), `#/issues` (the issues list, filters, CSV), `#/file/<n>` (a file's trace; on a file triage set aside, the triage card with its call, undo and "Read it as a floor plan"), `#/workspaces`. Opening a later route directly starts the sample already read.
 
+For the presenter: everything lives in the page's memory, so a reload starts the sample again
+(calls, conflicts, chat and sign-offs are gone). Use the in-page links, not reload, during a walk-through.
+
 Check: `node --test demo/vellum/*.test.cjs` (the counts derived from the data).
 
 Stoa mode, local only: `python3 -I demo/vellum/make_stoa_demo.py --dataset <path to junction-dataset>` copies one
