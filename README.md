@@ -23,6 +23,126 @@ demo screen gets checked against them.
 The flow these values imply: ingest → AI decision (a decision model) → the conflicts it found (for example
 "5 conflicts") → how each one was resolved.
 
+## The product
+
+Drawing Q&A for construction projects. A surveyor drops a project, asks questions about it, and gets answers
+that show where on the drawing they came from. In the order a user meets it:
+
+1. Upload. A zip, or single PDFs, images, IFC models and DXF files ([docs/API.md](docs/API.md), upload limits
+   under "Conventions").
+2. File triage. Each image is first sorted as a floor plan or not. A file that is not a plan is set aside, kept,
+   and described in words. A person can still ask for it to be read as a plan
+   ([decision 0010](docs/decisions/0010-file-triage.md)).
+3. Reading, one route per kind of file: a drawn PDF is read from its vectors, an image (scan, photo, sketch) by
+   detectors and a room reader, an IFC model through its own objects. Every drawing lists what was looked
+   for, so a class that was not read says so instead of showing a zero ([docs/PIPELINE.md](docs/PIPELINE.md)).
+4. Ask with proof. A question in plain words (11 languages) gets a value with its unit, marks on the plan page,
+   the method that produced it, and the credit for any licensed data. Its confidence is a level, High, Medium or
+   Low (#233), never a model score as a percentage. Where the evidence is too weak the answer says it does not know.
+5. Double-check requests. An answer the system cannot certify asks a person to look: it shows the disputed
+   marks, and the person signs it off or fixes it, instead of a silent guess
+   ([spec](docs/specs/frontend/double-check.md)).
+6. Conflicts and located issues. Where two readings of one quantity disagree, both values are shown. Conflicts,
+   refused answers, reading flags and set-aside files make one list of located issues (file, page, box, one
+   sentence of why), exported as JSON, CSV or a zip with the pages marked
+   ([decision 0008](docs/decisions/0008-located-issues.md)).
+7. Building-code pre-check, for Finland and the canton of Zürich. "A pre-check of a few rules, not a compliance
+   certificate." The failed checks join the issues list.
+
+Status on main, 2026-11-14: steps 1 to 7 are merged: the double-check request (#129), plan counts that are sure
+only when two readers agree (#174), the building-code pre-check with its rule packs for Finland and Zürich (#139,
+decision 0009), the located issues list (#140), and file triage with its register, description form, relevance
+verdict and overrule (#183). The Gemini describer (#193, `TRIAGE_DESCRIBER=gemini`) and the local SigLIP2 classifier (#202) are off by
+default, so triage stays off in the demo configuration unless its settings are switched on.
+
+Merged since:
+- Each drawing in the project response has a plain name and its licence credit (#224).
+- Issues have answers, answer chips and open counts on the project (#223).
+- A spend guard caps Gemini cost with `GEMINI_BUDGET_USD` and an hourly limit, and a public ledger API shows the
+  spend (#225).
+- Each conflict card has a plain title, a reason and suggested answers, and a settle keeps a typed answer as its
+  note (#226).
+- The demo archive holds no CubiCasa scan any more: their licence (CC BY-NC-SA) does not allow a public demo. It
+  has five plans we may serve with credit instead (#231).
+
+What we tried on the raster track, and what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
+Golden-set method and results: [docs/GOLDEN.md](docs/GOLDEN.md). Known issues: [docs/KNOWN.md](docs/KNOWN.md).
+All decision records: [docs/decisions/](docs/decisions/README.md).
+
+### Run it
+
+No keys needed. Without them the vector PDF and IFC readers run, and the rest use do-nothing stand-ins, so
+`GET /api/info` says `no_keys: true`. Needs Python 3.13 with uv, and Node 24 for the frontend.
+
+```bash
+# backend (http://127.0.0.1:8000)
+cd backend && uv sync --locked
+uv run python scripts/make_sample_archive.py     # the synthetic sample project, into data/samples/ (gitignored)
+uv run uvicorn app.main:create_app --factory
+
+# frontend (second terminal; /api goes to BACKEND_URL, default http://127.0.0.1:8000)
+cd frontend && npm ci && npm run build && npm run preview     # http://127.0.0.1:4173
+```
+
+On the home page, "Try the sample project" ingests the synthetic archive: 11 files, five drawings, no partner
+data. With no keys, 3 files are ready, 4 flagged, 2 set aside and 2 text only
+([docs/QA.md](docs/QA.md) has the golden path). `tools/qa-env.sh <commit> [port] --frontend` exports a commit
+and runs it with the demo config. Guides: [backend/README.md](backend/README.md),
+[frontend/README.md](frontend/README.md).
+
+What needs a key: the Gemini readers (`GEMINI_API_KEY`: rooms on images and photos, the count distributions behind
+the confidence, the sheet-kind signal) and the EU open-model alternative (`EU_VLM_*`). Put keys only in the
+gitignored `backend/.env` (template: `backend/.env.example`). `GEMINI_BUDGET_USD=0` refuses every Gemini call
+and the pipeline answers without them (`/api/info` then says `"gemini":"budget_exhausted"`). What runs fully local: the vector PDF reader, the IFC
+reader, the second count, the question parser, the dev answer prior, and the detectors when their weights are in
+`data/models`.
+
+Verified 2026-11-14, and the sample project again on main 7b5d697 with no key (3 ready, 4 flagged, 2 set aside, 2
+text only, 5 drawings): `uv sync --locked`, `make_sample_archive.py`, the backend start, `GET /health`, `GET /api/info`
+and `POST /api/projects/sample?fresh=true` (project `done` in 440 ms, no keys); then `npm ci`, `npm run build` and
+`npm run preview` against that backend (the page answers 200 on 4173, `/health` and `/api/info` pass through the
+proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a browser.
+
+### Numbers
+
+- Golden v2, whole pipeline, run from a clean export of commit bd2471f: 2717 of 2948 answers right (92.2%), 92.9%
+  on the holdout questions, 4.5% abstained. The dev column is in-sample because of the dev prior, so the holdout
+  is the honest one. The series is in [docs/GOLDEN.md](docs/GOLDEN.md).
+- Shipping raster config C1-T1, CubiCasa test split, read once through the API: 87.0% exact (5,846 of 6,718
+  questions, 376 test pages; kitchen counts 92.2%, read from the drawing). The same read scored through the CLI
+  gave 87.2% (5,860), because the CLI answers kitchen from the prior and the API never does for an uploaded file.
+  The validation split gave 88.5%. Config C's earlier test read was 85.0% (5708 of 6718, 95% CI [83.4, 86.5],
+  against 56.3% for the train prior, [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)).
+- Double-check policy, test certificate (the policy fit on validation, then run once on the test pages): it flags
+  97.0% of the wrong answers (846 of 872 questions; one-sided 95% bound 95.3%), asks on 62.1% of all answers, and
+  98.98% of the answers it leaves alone are exact (2518 of 2544). On validation it asked on 55.1% and flagged
+  96.0%. The certificate covers the raster route; vector and BIM are certified on golden v2's holdout
+  ([docs/GOLDEN.md](docs/GOLDEN.md)).
+- Confidence levels on the same test read (3,359 answers, one per page and family): High is 37.9% of answers and
+  99.0% exact (95% interval [98.3, 99.4]), Medium 41.1% and 92.8% [91.3, 94.0], Low 21.0% and 54.2% [50.6, 57.9].
+  The rule and its thresholds were written down before the test numbers were computed.
+- With `CARBON_LEVELS=ladder`, a Medium answer that Gemini Carbon, read as a second reader, counts the same becomes
+  High, and one it counts differently becomes Low. On 256 validation pages kept out of every earlier Carbon test
+  (2,271 answers, one per page and family), High goes from 44.9% of answers at 99.0% exact [98.2, 99.5] to 69.7%
+  at 97.7% [96.8, 98.3]; the promoted answers alone are 95.2% exact [93.1, 96.7]. Medium keeps 5.9% at 96.3%,
+  Low 24.4% at 61.4%. Not measured on the test pages.
+
+### Limits
+
+- Sketches: we claim no door counting. On 14 hand-drawn sheets the door count was in range on 0 of 10, and every
+  door, window and room count asked for a check (K8 in [docs/KNOWN.md](docs/KNOWN.md)).
+- The double-check policy asks about 62% of answers on the test pages to catch 97% of the wrong ones, so a
+  person reviews many right answers too (K9).
+- On an image, areas come from an estimated scale (`RASTER_SCALE=priors`) and are labelled estimates. One can be
+  far off while printing a narrow band (K5: +74%, +100% and -37% on three golden rooms).
+- On plans without printed room labels the reader types rooms by furniture, while the gold labels only count
+  what is printed, so "bedrooms" can be 0 on a plan that shows beds (EXPERIMENTS.md).
+- Windows stayed at about 45-55% in every track we tried (EXPERIMENTS.md).
+- Schedules are read on gold drawings only; the vector extractor reads no tables yet (backend/README.md).
+- No login: the sign-off name is typed by the surveyor (decision 0001), and the API is for localhost or a private
+  network only.
+- The building-code pre-check covers a few rules, in Finland and the canton of Zürich only. It is not a compliance check.
+
 ## Stoa: golden set and eval
 
 Stoa's challenge is to answer questions about construction drawings and BIM models, and to show where each answer

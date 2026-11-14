@@ -35,6 +35,8 @@ uv run python -m stoa_eval gate-policy --gate <val gate JSON> [--certificate <te
 uv run python -m stoa_eval gate-refit [--detector <val output>]  # gate.json refit on a runtime config
 uv run python -m stoa_eval leaderboard          # every arm under data/stoa/exp against prior on val
 uv run python -m stoa_eval annotated-region     # the region each train/val image's gold annotates
+uv run python -m stoa_eval hard-questions <labels.json> --root .. --out q.jsonl   # hard slice questions
+uv run python -m stoa_eval hard <labels.json> --run <answer out> --questions q.jsonl [--run ... --questions ...] [--pred P.jsonl]
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
 

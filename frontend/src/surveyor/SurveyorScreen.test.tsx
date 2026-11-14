@@ -31,6 +31,7 @@ const PATH = {
   takeoff: `GET /api/drawings/${did}/takeoff`,
   drawing: `GET /api/drawings/${did}`,
   review: `GET /api/projects/${pid}/review`,
+  project: `GET /api/projects/${pid}`, // the drawings' plain names (#224, SV-56)
   edit: `POST /api/drawings/${did}/review`,
   sign: `POST /api/drawings/${did}/signoff`,
 };
@@ -77,6 +78,7 @@ function show(query = '', routes: Record<string, unknown> = {}) {
     [PATH.takeoff]: takeoff,
     [PATH.drawing]: drawing,
     [PATH.review]: projectReview,
+    [PATH.project]: project,
     ...routes,
   });
   render(<SurveyorScreen projectId={pid} drawingId={did} query={new URLSearchParams(query)} />);
@@ -98,7 +100,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('loading and routing', () => {
-  it('SV-1 sends the three loads and shows loading until takeoff and drawing answer', async () => {
+  it('SV-1 sends the four loads (the project for names) and shows loading until takeoff and drawing answer', async () => {
     const api = show('', { [PATH.takeoff]: never() });
     expect(screen.getByText('Loading the takeoff…')).toBeTruthy();
     await waitFor(() => {
@@ -107,6 +109,7 @@ describe('loading and routing', () => {
           `/api/drawings/${did}/takeoff?project=${pid}`,
           `/api/drawings/${did}?project=${pid}`,
           `/api/projects/${pid}/review`,
+          `/api/projects/${pid}`,
         ]),
       );
     });
@@ -215,7 +218,7 @@ describe('table and detail', () => {
     expect(screen.getByRole('row', { name: /door count/ }).textContent).toContain('2');
     expect(screen.getByRole('row', { name: /door count/ }).textContent).not.toContain('count2 ');
     const indoor = screen.getByRole('row', { name: /indoor/ }).textContent;
-    expect(indoor).toContain('59.87 m²');
+    expect(indoor).toContain('53.00 m²');
     expect(indoor).not.toContain('32.49');
   });
 
@@ -777,7 +780,7 @@ describe('QA round 1', () => {
       expect(screen.getByRole('table', { name }).parentElement).toBe(panel);
     }
     const head = panel.querySelector('header.sv-panel-head');
-    expect(head?.textContent).toContain(`Takeoff: ${drawing.file}`);
+    expect(head?.textContent).toContain('Takeoff: Drawn plan 2');
     expect(head?.textContent).toContain('0 of 3 quantities signed off');
     expect(head?.querySelector('a[download]')?.textContent).toBe('Export CSV');
     const css = readFileSync('src/surveyor/surveyor.css', 'utf8'); // vitest runs in frontend/;
@@ -797,10 +800,18 @@ describe('QA round 1, project scope', () => {
     ).toEqual([`/api/drawings/${did}?project=${pid}`]);
   });
 
-  it("R1-PS-2 the title and the viewer use the project's name of the drawing, not the takeoff's", async () => {
-    show('', { [PATH.drawing]: { ...drawing, file: 'plans/kitchen-b.pdf' } });
+  it("R1-PS-2 / SV-56 the title names the drawing plainly (#224), else the project's file name, never the takeoff's", async () => {
+    const api = show('', { [PATH.drawing]: { ...drawing, file: 'plans/kitchen-b.pdf' } });
     await ready();
-    expect(screen.getByRole('heading', { name: 'Takeoff: plans/kitchen-b.pdf' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Takeoff: Drawn plan 2' })).toBeTruthy();
+    expect(api.calls.filter((c) => c.url === `/api/projects/${pid}`)).toHaveLength(1); // one, shared with the side panel
+    cleanup();
+    show('', {
+      [PATH.drawing]: { ...drawing, file: 'plans/kitchen-b.pdf' },
+      [PATH.project]: reply(500, errorBody),
+    });
+    await ready();
+    expect(screen.getByRole('heading', { name: 'Takeoff: kitchen-b.pdf' })).toBeTruthy();
     expect(screen.queryByText(`Takeoff: ${takeoff.file}`)).toBeNull();
     expect(viewer.props?.file).toBe('plans/kitchen-b.pdf');
   });

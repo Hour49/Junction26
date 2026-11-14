@@ -31,6 +31,7 @@ Field names and fixtures are those of `docs/API.md` and `backend/tests/fixtures/
 - `frontend/src/viewer/marks.ts`: pure functions: `pickWidth`, `startPage`, `markLook`, `pickBox`, `drawOrder`,
   `safeColour`, `normalisedNote`, `badgeSize`, `placeLabels`.
 - `frontend/src/viewer/viewer.css`
+- `frontend/src/viewer/SourceFigure.tsx`: the source figure and preview ("Source figure and preview").
 - Tests: `frontend/src/viewer/marks.test.ts` [unit], `frontend/src/viewer/PageViewer.test.tsx` [component].
   [e2e] criteria are built by the e2e worker (golden-path.md). The viewer build worker writes no e2e file.
 
@@ -45,7 +46,7 @@ interface PageViewerProps {
   file: string;                       // drawing's `file`, shown as the caption (text, never HTML)
   pages: Page[];                      // drawing.pages or answer.pages
   marks: Mark[];                      // every page's marks; the viewer filters by `mark.page`
-  credit: string | null;              // GET /api/drawings/{id} `credit`, rendered with the shell's <Credit>
+  credit?: string | null;             // ignored since demo parity (VW-29): screens show no credits
   unit?: string | null;               // row's (or answer's) `unit`; badges show mark values unless "count" or null
   unlocated?: Record<string, number>; // takeoff row's `unlocated` (the ask answer has it in `legend[].note`)
   legend?: LegendEntry[] | null;      // answer.proof.legend: colour per label, `note` lines
@@ -83,8 +84,7 @@ has no `?width=`: the frame adds it.
    mark with a number `n`. With no such mark it opens on the first mark's page, and with no marks on `pages[0]`.
 2. While the PNG loads, the frame already has the page's aspect ratio (`pages[].width / height`), says
    "Loading page 1…" and draws the marks over the blank frame.
-3. The image appears. Each mark is an outline or shaded region with a badge. Directly under the page is the
-   credit, then a legend that names, in words, each mark state on this page, then the file name.
+3. The image appears. Each mark is an outline or shaded region with a badge. Directly under the page is a legend that names, in words, each mark state on this page, then the file name.
 4. On a drawing with several pages the user moves between them with the page switcher, which says how many marks
    each page has.
 5. The user hovers over or focuses a badge. The viewer reports it (`onHover`) so the screen can light up its list
@@ -120,7 +120,7 @@ Fields read (fixtures in `backend/tests/fixtures/api_v1/`):
 | `pages[].page`, `.url` | page switcher numbers; image URL | `drawing.json`, `answer.json` |
 | `pages[].width`, `.height` | frame aspect ratio, `pickBox` square (unit `pt`/`px` ignored) | `drawing.json` |
 | `pages[].normalised` | one caption line saying what was done to the image (`normalisedNote`) | `project.json` f2 (shape) |
-| `credit` | the shell's `<Credit>` (shared.md) directly under the page: "Credit: <credit>", or "Credit: none recorded for this file" when null | `drawing.json` (null) |
+| `credit` | nothing (demo parity, VW-29): the prop is ignored; credits are on the About page | `drawing.json` (null) |
 | `file` | caption | `drawing.json`, `answer.json` |
 | `marks[].id` | key for `selected`, `highlighted`, `onSelect` | `answer.json` |
 | `marks[].n` | badge number; null → no number | `answer.json`, `takeoff.json` |
@@ -239,7 +239,7 @@ column, one column under 900 px; engineer.md).
      style.
   4. **Plan** (`.vw-scroll` with the frame): at most 70 vh (60 vh under 900 px), page fitted to the width at zoom
      1.
-  5. **Credit:** directly under the plan (shell `<Credit>`, unchanged, VW-29).
+  5. **Credit:** none (demo parity, VW-29); credits are on fe-shared's About page.
   6. **Page meta line** (`.vw-pagemeta`, 10 px `--v-muted`, right-aligned): `Page <n>`, then ` · <normalised
      note>` when there is one, then ` · <meta>` when `meta` is non-empty. Before `Page <n>`: `page.storey` and
      `page.scale_text` (PR #120), each left out when null (VW-57). When `page.scale.status` is not `scaled`, the
@@ -474,10 +474,10 @@ Legend and caption
   `answer_confidence.json`) shows that note as text in the legend. With `unlocated: {door: 2}` (derived from
   `takeoff.json` row `door`) the legend reads "2 door counted without a mark". With `{}` no such line shows.
   [component]
-- **VW-29** Directly under the page image, with `credit: "Plan © Example, CC BY 4.0"` (derived from
-  `drawing.json`) the viewer shows "Credit: Plan © Example, CC BY 4.0". With `credit: null` it shows "Credit:
-  none recorded for this file" (shell `<Credit>`, SH-40). The file name is shown either way. [component,
-  `drawing.json`]
+- **VW-29** (changed by demo parity, Tudor: no credits on screens; they move to fe-shared's About page) With
+  `credit: "Plan © Example, CC BY 4.0"` or `credit: null` the viewer shows no "Credit:" line and no "none
+  recorded"; the file name is shown either way. The prop stays optional and ignored so callers keep compiling.
+  [component, `drawing.json`]
 - **VW-30** `normalisedNote` gives "" for null and for
   `{exif: null, rotated: 0, deskew_deg: 0, rectified: false}`. For `{exif: 6, rotated: 90, deskew_deg: 1.5,
   rectified: true}` it gives "shown upright: EXIF turn applied, turned 90°, deskewed 1.5°, perspective
@@ -572,7 +572,7 @@ Vellum (screen 4)
 - **VW-56** At 390x844 and 1440x900, on the golden-path area answer:
   - The viewer's header, class line and toolbar are inside the viewport.
   - `scrollWidth <= innerWidth`.
-  - "Mark 1: Küche, counted", the image name "Page 1 of …" and the credit text are unchanged.
+  - "Mark 1: Küche, counted", the image name "Page 1 of …" are unchanged; no credit line.
   - A screenshot of each is taken and looked at.
 
   [e2e, built by the e2e worker, golden-path.md]
@@ -664,6 +664,187 @@ Checks and issues (#139/#140, board #142). Fixtures: hand-made check marks in `s
 
 Criteria kept as they are under Vellum: VW-1 to VW-22 and VW-24 to VW-47. Where they check a colour (VW-21), the
 build reads `--vw-c` instead of the `stroke` attribute, with the same values.
+
+## Source figure and preview (demo parity, 2026-11-14)
+
+From Tudor's demo parity brief (fe-demo-parity.md; demo PRs #209, #212, #216, #217, `demo/vellum/app.js`
+`srcFigure`, `sourceFig`, `srcModal`). One shared component pair for the conflict card (fe-surveyor) and the
+Documents issues (fe-ingest). The viewer owns them; the screens pass data they already fetched and own nothing of
+the figure's state.
+
+### Files
+
+- `frontend/src/viewer/SourceFigure.tsx`: `SourceFigure`, `SourcePreview`, the `Source`/`Place` types, and the pure
+  `cropOf(places)` (exported for its unit test). Styles in `viewer.css` (`.vw-src*`, `.vw-hl*`, `.vw-modal*`).
+- Tests: `frontend/src/viewer/SourceFigure.test.tsx` [component, unit].
+
+### Props (published 2026-11-14 16:40; code against this)
+
+```ts
+import type { PageView } from '../api';
+type Box = [number, number, number, number]; // page fractions [x0, y0, x1, y1], as MarkView.box
+
+export interface Place {
+  label: string;                        // the legend line, plain words, built by the screen
+  box?: Box | null;                     // absent/null: listed in the legend, not outlined
+  polygon?: [number, number][] | null;  // page fractions; drawn instead of the box when given
+}
+
+export interface Source {
+  name: string;            // plain file or drawing name shown in the preview head (screen's plain-name helper)
+  page: PageView | null;   // the page to show (drawing.pages, by the conflict value's or issue's `page`);
+                           // null: `image` if given, else "No picture of this file"; the legend still shows
+  image?: string | null;   // (added by frontend-orch) a picture URL for a source with no drawing page, e.g.
+                           // the file's preview image; shown whole at its own aspect, never outlined
+  places: Place[];         // outlined on this page; numbered across all sources in order: 1, 2, …
+}
+
+export interface SourceFigureProps {
+  sources: Source[];       // [] renders nothing
+  label: string;           // accessible name of the figure, e.g. "Source of conflict 1"
+  defaultOpen?: boolean;   // default false: starts minimized (a thumbnail beside the legend)
+}
+export function SourceFigure(props: SourceFigureProps): JSX.Element | null;
+
+export interface SourcePreviewProps {
+  sources: Source[];
+  start?: number;          // index of the first source shown; default 0
+  onClose: () => void;     // the opener gets focus back (SourceFigure does this itself)
+}
+export function SourcePreview(props: SourcePreviewProps): JSX.Element;
+```
+
+The screen maps its data to `Source[]`; suggested mappings (the screens own them):
+- Conflict (`ConflictEntry`): one `Source` for `file`, `page` = the drawing's page of the first value with a
+  `page` (else page 1); one `Place` per `conflict.values[i]` that has a `box`, label e.g.
+  `"<methodName(method)>: <formatValue(value)> <unit>"`. No value with a box → `places: []` (a drawing without
+  outlines).
+- Issue (`Issue`): one `Source` for `file`, `page` from `Issue.page` (null page or no `drawing_id` → `page:
+  null`), one `Place` `{label: why, box, polygon}` when `box` or `polygon` is set, else `places: []`.
+
+`SourceFigure` renders "Show source" itself and mounts `SourcePreview` when it is pressed, so a screen needs only
+`<SourceFigure sources label/>`. `SourcePreview` is exported for a screen that wants a preview without the figure.
+
+### Behaviour
+
+- **Minimized (start).** `<figure class="vw-src vw-src--min" aria-label={label}>`: a thumbnail button (named
+  "Expand the drawing", `aria-expanded="false"`) showing the crop of source 1, beside a caption with the numbered
+  legend (`<ol class="vw-hl-legend">`, one `<li>` per place: number disc + label) and two buttons: "Expand"
+  (`aria-expanded="false"`) and "Show source".
+- **Expanded.** The thumbnail button or "Expand" opens the figure in place: the crop at the card's width (max
+  640 px), the thumbnail button renamed "Minimize the drawing" and the caption button "Minimize", both
+  `aria-expanded="true"`. Either closes it again. Focus stays on the pressed button.
+- **Crop.** `cropOf(places)` = the union of the source's place boxes (polygon bounds), padded on each axis by
+  max(half the union's size, 0.08), clamped to [0, 1]. No places with a position → the whole page. The crop
+  keeps the page's aspect (box `aspect-ratio` = crop width × page width / (crop height × page height)).
+- **Outlines.** Each place with a box/polygon: an outline `.vw-hl` (2.5 px solid, rounded, soft fill) with its
+  number disc at the top-left corner, positioned in percent of the crop. Outlines and discs are `aria-hidden`; the
+  legend carries the words. Places without a position are numbered in the legend only.
+- **Image.** `page.url?width=<pickWidth(drawn css width ÷ crop width, dpr, 1)>`, `alt` = the source's name. While
+  loading: the frame keeps its aspect and shows nothing; on error: "Could not load the drawing" (no retry).
+- **No picture.** `page: null` → no thumbnail or crop, the text "No picture of this file", the legend and "Show
+  source" stay (the preview shows the same text).
+- **Show source → preview.** A modal dialog (`role="dialog"`, `aria-modal="true"`, name "Source: <name>"): head =
+  the name, "· i of n" when n > 1, and a "Close" button; body = the **whole page** (not the crop) with the same
+  numbered outlines (only this source's places, keeping their figure-wide numbers), then that source's legend.
+  With n > 1: "Previous source" / "Next source" round buttons on the image's sides (wrap around), and ←/→ keys.
+  Esc, "Close" or a click on the backdrop (not the card) closes; focus goes to "Close" on open and back to the
+  "Show source" button on close. Tab stays inside the dialog. The page behind does not scroll while it is open.
+- **Look.** Demo `style.css` lines 173-176, 200, 399-431 (`.c-plan`, `.src`, `.hl`, `.hl-legend`, `.modal*`,
+  `.ref-arrow`, `.c-plan.min`, `.src-btns`) in `--v-*` tokens only (VW-53). Thumbnail 150 px wide (104 px under
+  520 px), on the plan background, radius 12; buttons ≥ 44 px tall at 390.
+
+### Criteria
+
+Fixtures: `project_review.json`'s conflict (two values with page 1 boxes) and `drawing.json`'s page;
+`project_issues.json`'s first issue with a box, and one without.
+
+- **VW-82** With one source and two places, the figure starts minimized: `.vw-src--min`, a button "Expand the
+  drawing" with `aria-expanded="false"`, a legend with items "1 <label 1>" and "2 <label 2>", buttons "Expand" and
+  "Show source"; no dialog. [component]
+- **VW-83** Pressing "Expand" (or the thumbnail) removes `.vw-src--min`, renames the buttons "Minimize" /
+  "Minimize the drawing" with `aria-expanded="true"`; pressing "Minimize" goes back. Keyboard: Enter and Space on
+  the thumbnail toggle it. [component]
+- **VW-84** Outlines: two `.vw-hl` with discs "1" and "2", `aria-hidden`; for the crop of `[0.16667, 0.125, 0.5,
+  0.375]` ∪ `[0.17367, 0.17946, 0.21269, 0.19027]` the first outline's `left` is `(0.16667 − crop.x0) / crop.w`
+  in percent. A polygon place is drawn as a polygon. [component]
+- **VW-85** `cropOf`: no positioned places → `[0, 0, 1, 1]`; one box `[0.4, 0.4, 0.5, 0.5]` → `[0.32, 0.32, 0.58,
+  0.58]` (pad 0.08); a box at the page edge is clamped to [0, 1]; a polygon uses its bounds. [unit]
+- **VW-86** Places without a box: no `.vw-hl`, the image is the whole page, the legend still lists them;
+  `places: []` → no legend list, the drawing is shown. `page: null` → "No picture of this file", no `<img>`.
+  `sources: []` → renders nothing. [component]
+- **VW-87** "Show source" opens a dialog named "Source: <name>" with the whole page image and the same outlines;
+  focus is on "Close"; Esc closes it and focus returns to "Show source"; a click on the backdrop closes it, a
+  click inside the card does not. [component]
+- **VW-88** With two sources: the head reads "<name 1> · 1 of 2"; "Next source" shows source 2 ("· 2 of 2") with
+  only its places (numbers kept figure-wide); "Next source" again wraps to 1; ArrowLeft goes back. With one
+  source there are no arrow buttons. Tab from "Close" cycles inside the dialog. [component]
+- **VW-89** The image URL is `<page.url>?width=400` for the thumbnail (frame mocked at 150 px, dpr 1) and
+  `?width=1600` in the preview (frame mocked at 1000 px); an image error shows "Could not load the drawing".
+  [component]
+- **VW-92** A source with `page: null`, `image: "/api/files/abc/preview.png"` and a place with a box: the figure
+  shows that image (thumbnail button "Expand the drawing", no "No picture of this file"), no `.vw-hl`, the legend
+  lists the place; the preview shows the same image with no outlines. [component]
+- **VW-94** (re-sweep 6, demo `.btn-plain`/`.btn-soft`/`.c-plan`) "Expand"/"Minimize" carries `vw-btn-plain`
+  (`--v-grey`, 14px/500, padding 10px 18px) and "Show source" (and the preview's "Close") `vw-btn-soft`
+  (`--v-accent-soft`, `--v-accent` text, 14px/600); both win over `.v-btn--secondary` (`.v-btn.vw-btn-*`). The
+  thumbnail and the expanded drawing sit on cream `var(--v-plan, #fbf8ef)` (radius 12 / padding 8 minimized, 16 /
+  16 expanded); that fallback is the one literal VW-53 allows until fe-shared adds `--v-plan`. The buttons are the
+  figure's own row (`.vw-src-btns`, not in the caption): beside the legend at desktop; under 520 px the minimized
+  figure wraps and the two buttons sit in one row under the thumbnail and legend (`flex: 1 0 100%`, gap 8).
+  [component + css]
+- **VW-95** (follow-up, 390 overlap) Number discs never cover each other: `stackOf` moves a disc right in 24 px
+  steps (`--vw-k`, CSS `left: calc(-11px + var(--vw-k) * 24px)`) while it would overlap an earlier disc (20 px
+  discs, anchors in px from the measured frame; before measuring only identical anchors count). Three identical
+  boxes → `--vw-k` 0, 1, 2; the sample kitchen conflict on a 150 px thumbnail → 0, 1; far-apart boxes → 0, 0.
+  Applies to the figure and the preview (each measures its own frame). [component]
+- **VW-90** `viewer.css` `.vw-src*`, `.vw-hl*`, `.vw-modal*` rules use only `--v-*` tokens (VW-53 still passes).
+  [unit]
+- **VW-91** At 390x844 and 1440x900, on a conflict card and an issue with a box: minimized thumbnail beside the
+  legend, expand/minimize, the preview fits the viewport with no sideways page scroll, arrows and Close ≥ 44 px.
+  Screenshots taken and looked at. [e2e, fe-golden; live-checked by me before the report]
+
+### API asks (to frontend-orch for board #14)
+
+1. **Conflict places on a page.** `MeasuredValue.box`/`page` exist and the fixture has them; ask that every
+   conflict value with a position on a drawing sends them (today optional). Without them the figure shows the
+   drawing without outlines (no invented box).
+2. **What each conflicting value counted.** The demo's legend names the place ("two doors drawn twice, one exactly
+   on top of the other"); the API gives per-value one box, not the items. Ask: optional
+   `MeasuredValue.marks: [{page, box, label}]` for a count's items. Until then the legend line is the method and value.
+3. **Issue page image without a drawing.** An `Issue` with `drawing_id: null` (a set-aside or unrelated file) has
+   no page to show. Ask: a preview page (`file_id` → `/api/files/{id}/preview.png` with width/height) or accept
+   "No picture of this file".
+
+### Token ask (to fe-shared)
+
+- `--v-warn-mark` (demo `#d9860b`, the outline and disc colour, with `--v-warn-soft`-like 12 % fill
+  `--v-warn-mark-soft`). Until it lands the outlines use `--v-warn`.
+
+## Bare viewer (chat reference image, re-sweep, 2026-11-14)
+
+`bare?: boolean` (default false), asked by frontend-orch for fe-engineer's chat answer card: the viewer renders only
+the page image with its marks (`.vw--bare`). No `.vw-name`, class line, toolbar (page switcher, zoom), page meta,
+mark line or legend; badges, outlines and their names, hover/select and focus still work. The chat owns the name
+above the image and its left/right arrows.
+
+- **VW-93** With `bare`, two pages and `selected="m1"`: no `.vw-name`, `.vw-classes`, `.vw-bar`, `.vw-zoom`,
+  `.vw-switcher`, `.vw-pagemeta`, `.vw-selection`, `.vw-legend`; `.vw--bare` is set; the page image and the button
+  "Mark 1: door, counted" are there. Without `bare` the legend shows as before. [component]
+
+## Crowded pages (carbon flag, Bogdan #14 c6880945211, 2026-11-14)
+
+A flagged large sheet (Gemini Carbon reader) can carry 200 door marks; on a thumbnail or a phone their badges pile
+up. Rule: when more than 50 marks on the page would get a badge and the frame (zoom included) is under 600 px wide,
+the viewer draws the outlines only, keeps the selected mark's badge, and adds one line `.vw-many`: "<n> marks, too
+many to number at this size: zoom in to see their numbers" (bare: without the zoom part). Zooming in to 600 px or
+more brings every badge back; a frame of 600 px or more keeps today's behaviour. No clustering.
+
+- **VW-96** 60 marks, frame 400 px, `selected="d3"`: one badge ("4"), 60 `rect.vw-shape`, `.vw-many` reads "60 marks,
+  too many to number at this size: zoom in to see their numbers"; after "Zoom in" (800 px) 60 badges and no
+  `.vw-many`. `bare`: no badge, "60 marks, too many to number at this size". 50 marks at 400 px: 50 badges.
+  [component]
+- **VW-97** 60 marks in an 800 px frame: 60 badges, no `.vw-many`. [component]
 
 ## Not in the API
 

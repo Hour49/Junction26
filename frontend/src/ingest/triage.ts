@@ -32,8 +32,8 @@ export const verdictOf = (t: Pick<Triage, 'verdict'>) => VERDICT_LABEL[t.verdict
 /** A file triage looked at and set aside as not a floor plan. */
 export const isNotPlan = (f: FileStatus) => !!f.triage && f.triage.class !== 'floor_plan';
 
-/** A call needs a description (else 422 `no-description`). */
-export const canCall = (f: FileStatus) => isNotPlan(f) && !!f.triage?.description;
+/** Any non-plan, described or not (#183 lifted the 422 `no-description`; its line stays for older servers). */
+export const canCall = isNotPlan;
 
 /** Reserved route, built (#166): a set-aside non-plan nobody had read as a plan yet; no undo. */
 export const canReadAsPlan = (f: FileStatus) =>
@@ -44,9 +44,35 @@ export const readLine = (r: { by: string; at: string }) =>
 
 export const planChance = (p: number) => `${String(Math.round(100 * p))} %`;
 
+/** The card heading (FT-24): the sheet model's words when it set the file aside (#251), else the class words. */
+export function notPlanLine(t: Triage): string {
+  const s = t.sheet;
+  if (s?.decision !== 'set_aside') return `Not a floor plan: ${CLASS_LABEL[t.class]}`;
+  const more = [s.title, s.sheet_number].filter(Boolean).join(', ');
+  return `Not a floor plan: ${s.kind_words}${more ? ` (${more})` : ''}`;
+}
+
+// the backend's SHEET_PLAN_KINDS (app/core/ingest/model.py)
+const SHEET_PLAN_KINDS = new Set(['architectural_floor_plan', 'multi_view_sheet']);
+
+/** FT-25: "Looks like: <kind_words>" for a sheet the model doubts (read anyway) of a non-plan kind; else null. */
+export function looksLike(t: Triage): string | null {
+  const s = t.sheet;
+  return s?.decision === 'doubt' && !SHEET_PLAN_KINDS.has(s.kind)
+    ? `Looks like: ${s.kind_words}`
+    : null;
+}
+
+/** The class words with what the sheet looks like (FT-25); a non-plan's per FT-24. */
+export function classLine(t: Triage): string {
+  const hint = looksLike(t);
+  const line = t.class === 'floor_plan' ? 'A floor plan' : notPlanLine(t);
+  return hint ? `${line} · ${hint}` : line;
+}
+
 export function rowLine(t: Triage): string {
-  const subject = t.description?.subject;
-  return `Not a floor plan: ${CLASS_LABEL[t.class]}${subject ? ` · ${subject}` : ''}`;
+  const subject = t.sheet?.decision === 'set_aside' ? null : t.description?.subject;
+  return `${classLine(t)}${subject ? ` · ${subject}` : ''}`;
 }
 
 /** "Related to this project: Ana’s call, <time>. The judge said: Not related."; null with no call. */

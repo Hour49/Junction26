@@ -35,6 +35,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drawings/{drawing_id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Checks
+         * @description Every rule of the pack on one drawing: pass, fail or cannot tell per room, door or sheet.
+         */
+        get: operations["checks_api_drawings__drawing_id__checks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drawings/{drawing_id}/evidence.png": {
         parameters: {
             query?: never;
@@ -178,6 +198,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/laws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Packs */
+        get: operations["law_packs_api_laws_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/laws/clauses/{clause_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Clause */
+        get: operations["law_clause_api_laws_clauses__clause_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/laws/{pack}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Law Search */
+        get: operations["law_search_api_laws__pack__search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects": {
         parameters: {
             query?: never;
@@ -256,6 +327,127 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat */
+        post: operations["chat_api_projects__project_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/chat/{chat_id}/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Checks
+         * @description Every drawing of the project checked against the pack, in the project's drawing order.
+         *     409 `not-allowed` until the project's ingest is done, as for the project's questions.
+         */
+        get: operations["project_checks_api_projects__project_id__checks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/evidence/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Evidence
+         * @description Up to `k` files, best first, one hit each with its best-matching passage. Files judged
+         *     unrelated are searched only with `include_unrelated`.
+         */
+        get: operations["search_evidence_api_projects__project_id__evidence_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/evidence/{evidence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence
+         * @description One passage (`f7-detail-2`) or a file as a whole (`f7`, its summary), with the file's
+         *     description, register and relevance.
+         */
+        get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add File
+         * @description A photo added to a finished project from the chat (board #203). The body is the image's
+         *     bytes, png or jpeg; `name` its file name. It is read in the background, alone, while the
+         *     project stays done. Returns the new file, queued; poll the project. 404 unknown project,
+         *     409 until the project is done or while a file of it is read, 413 over the upload limit, 415
+         *     not a png or jpeg.
+         */
+        post: operations["add_file_api_projects__project_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/files/{file_id}/preview.png": {
         parameters: {
             query?: never;
@@ -289,8 +481,9 @@ export interface paths {
          * Relevance
          * @description A person says whether a file triage set aside belongs to the project, or takes that back
          *     (`undo`; with no call made, nothing changes). The file stays set aside either way: a call
-         *     is no reading. 409 until the project is done; 422 `no-description` for a file triage did
-         *     not describe.
+         *     is no reading. Any file triage called not a floor plan takes a call, described and judged
+         *     or not. 409 until the project is done; 422 `not-triaged` for a file triage did not set
+         *     aside as not a floor plan.
          */
         post: operations["relevance_api_projects__project_id__files__file_id__relevance_post"];
         delete?: never;
@@ -330,7 +523,9 @@ export interface paths {
          * @description A person has a file triage set aside read as a floor plan: it is read in the background,
          *     alone, while the project stays done. Returns the file, queued; poll the project. 409 until
          *     the project is done or while a file of it is read again; 422 `not-triaged` for a file triage
-         *     did not set aside as not a floor plan. No undo: a reading is not unread.
+         *     did not set aside as not a floor plan. A sheet the sheet-kind step doubted (flagged) was read
+         *     already: its flag is dropped at once, nothing is read again. No undo: a reading is not
+         *     unread.
          */
         post: operations["triage_api_projects__project_id__files__file_id__triage_post"];
         delete?: never;
@@ -400,6 +595,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/issues/{issue_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Issue
+         * @description Save a person's answer to an issue, replacing an earlier one, or take it back (`undo`).
+         *     Returns the issue with its answer. A code check's issue needs its `pack`. 404 for an unknown
+         *     project, pack or issue; 409 until the project is done.
+         */
+        post: operations["answer_issue_api_projects__project_id__issues__issue_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/questions": {
         parameters: {
             query?: never;
@@ -414,6 +631,29 @@ export interface paths {
         get: operations["project_questions_api_projects__project_id__questions_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve
+         * @description RESOLVER: a model looks at each conflict no rule decides and no person settled, and picks
+         *     a value or says it can't tell; one call per conflict, replies kept with the project's review,
+         *     so a second POST asks only about what changed. 409 when RESOLVER is off or before `done`.
+         *     It also runs on its own when an upload's ingest is done (`_resolve_when_done`).
+         */
+        post: operations["resolve_api_projects__project_id__resolve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -481,6 +721,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** After */
+        After: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Value */
+            value: number | null;
+            /** Why */
+            why: string | null;
+        };
+        /**
+         * AiFinding
+         * @description A law note the server kept (LC-9b): its verdict recomputed, its clause filled in.
+         */
+        AiFinding: {
+            /**
+             * Basis
+             * @default ai_reading
+             * @constant
+             */
+            basis: "ai_reading";
+            /** Clause Id */
+            clause_id: string;
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<" | "=";
+            /** Law */
+            law: string;
+            /** Limit */
+            limit: number;
+            /** Quote */
+            quote: string;
+            /** Quote En */
+            quote_en: string | null;
+            /** Ref */
+            ref: string;
+            /** Subject */
+            subject: string;
+            /** Unit */
+            unit: string;
+            /** Url */
+            url: string;
+            /** Value */
+            value?: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "would_not_meet" | "meets" | "check";
+        };
         /** Answer */
         Answer: {
             /** Abstain */
@@ -512,6 +806,21 @@ export interface components {
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
+        /**
+         * AnswerRequest
+         * @description A person's answer to an issue; `undo` takes it back and needs nothing else.
+         */
+        AnswerRequest: {
+            /** By */
+            by?: string | null;
+            /** Text */
+            text?: string | null;
+            /**
+             * Undo
+             * @default false
+             */
+            undo: boolean;
+        };
         /** AnswerView */
         AnswerView: {
             /** Answer */
@@ -528,6 +837,7 @@ export interface components {
             file: string;
             /** Latency S */
             latency_s: number;
+            level: components["schemas"]["app__core__review__check__Level"] | null;
             line: components["schemas"]["Answer"];
             /** Marks */
             marks: components["schemas"]["MarkView"][];
@@ -541,8 +851,44 @@ export interface components {
             question: string;
             reader: components["schemas"]["Reader"];
             refusal: components["schemas"]["Refusal"] | null;
+            resolved?: components["schemas"]["Resolved"] | null;
+            /** Resolver Note */
+            resolver_note?: string | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+        };
+        /**
+         * AppliesTo
+         * @description What a rule checks, in the drawing model's words (room types as MarkView.room_type,
+         *     element classes as the drawing model's). Room ops: the rooms of `room_types`, but not one
+         *     whose printed label is one of `skip_labels` (a dining nook typed living). door_width:
+         *     `element_classes` ["door"], only the doors that meet a room of `room_types` (every door when
+         *     empty) and none of `not_room_types`. A takeoff rule may name types or classes (for the
+         *     screen).
+         */
+        AppliesTo: {
+            /**
+             * Element Classes
+             * @default []
+             */
+            element_classes: ("door" | "window" | "toilet" | "sink" | "shower" | "bathtub" | "sauna_stove" | "stair" | "wall" | "column" | "beam" | "slab" | "railing" | "furniture")[];
+            /**
+             * Not Room Types
+             * @default []
+             */
+            not_room_types: ("bedroom" | "kitchen" | "bathroom" | "wc" | "sauna" | "balcony" | "living" | "hall" | "storage" | "outdoor" | "shaft" | "other")[];
+            /** Note */
+            note?: string | null;
+            /**
+             * Room Types
+             * @default []
+             */
+            room_types: ("bedroom" | "kitchen" | "bathroom" | "wc" | "sauna" | "balcony" | "living" | "hall" | "storage" | "outdoor" | "shaft" | "other")[];
+            /**
+             * Skip Labels
+             * @default []
+             */
+            skip_labels: string[];
         };
         /** AskRequest */
         AskRequest: {
@@ -572,6 +918,108 @@ export interface components {
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };
+        /** Before */
+        Before: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Value */
+            value: number | null;
+        };
+        /** ChatEvidence */
+        ChatEvidence: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Drawing Id */
+            drawing_id: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string | null;
+            level?: components["schemas"]["app__core__agent__model__Level"] | null;
+            /** N */
+            n: number;
+            /** Name */
+            name: string | null;
+            /** Page */
+            page: number;
+            /** Sure */
+            sure: boolean | null;
+        };
+        /**
+         * ChatInfo
+         * @description The project chat agent (decision 0013): CHAT_MODEL, and whether a turn can run now.
+         */
+        ChatInfo: {
+            /** Available */
+            available: boolean;
+            /**
+             * Model
+             * @enum {string}
+             */
+            model: "gemini" | "rules" | "off";
+            /** Reason */
+            reason: string | null;
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Chat Id */
+            chat_id?: string | null;
+            /** Message */
+            message: string;
+            /** Pack */
+            pack?: string | null;
+            /** Selection */
+            selection?: components["schemas"]["Selection"][];
+        };
+        /**
+         * ChatTurn
+         * @description A turn as the API returns it: `answers` typed as POST /api/projects/{id}/ask's answers.
+         */
+        ChatTurn: {
+            /**
+             * Answers
+             * @default []
+             */
+            answers: components["schemas"]["ProjectAnswer"][];
+            /** Chat Id */
+            chat_id: string;
+            /** Cost Usd */
+            cost_usd: number;
+            edit?: components["schemas"]["Proposal"] | null;
+            /**
+             * Evidence
+             * @default []
+             */
+            evidence: components["schemas"]["ChatEvidence"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "answer" | "dont_know" | "conflict" | "needs_input" | "edit";
+            /** Latency S */
+            latency_s: number;
+            /** Model */
+            model: string;
+            /** Options */
+            options?: components["schemas"]["Option"][] | null;
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["Step"][];
+            /** Text */
+            text: string;
+            /** Turn */
+            turn: number;
+        };
         /**
          * Check
          * @description The double-check request on an answer that is not certified.
@@ -581,6 +1029,92 @@ export interface components {
             disputed: components["schemas"]["Disputed"][];
             /** Reason */
             reason: string;
+        };
+        /**
+         * CheckMark
+         * @description An item a result is about, drawn on its page. subject: the room or door checked; counted:
+         *     what was counted for it (a room's windows).
+         */
+        CheckMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label?: string | null;
+            /** Mark Id */
+            mark_id?: string | null;
+            /** Page */
+            page: number;
+            /** Polygon */
+            polygon?: [
+                number,
+                number
+            ][] | null;
+            /** Quantity */
+            quantity?: string | null;
+            /** Ref */
+            ref?: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "subject" | "counted";
+        };
+        /**
+         * CheckResult
+         * @description One rule on one room, door or sheet. `value`: what was measured, in the takeoff's units;
+         *     None when nothing was (cannot tell); a value too uncertain to judge is kept, with cannot tell.
+         *     `quantity`: the takeoff row of the subject (Row.key), for the surveyor's view; None: none.
+         */
+        CheckResult: {
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<";
+            /** Comparison Text */
+            comparison_text: string;
+            /** Id */
+            id: string;
+            /** Limit */
+            limit: number;
+            /** Marks */
+            marks: components["schemas"]["CheckMark"][];
+            /** Quantity */
+            quantity: string | null;
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell";
+            subject: components["schemas"]["CheckSubject"];
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "m2" | "m" | "count";
+            /** Value */
+            value: number | null;
+            /** Why */
+            why: string;
+        };
+        /** CheckSubject */
+        CheckSubject: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "room" | "element" | "sheet";
+            /** Label */
+            label: string;
+            /** Ref */
+            ref: string | null;
         };
         /** ClassKey */
         ClassKey: {
@@ -598,6 +1132,70 @@ export interface components {
              */
             unlocated: number;
         };
+        /**
+         * Clause
+         * @description Where a limit comes from: the clause someone read, the page it is on, and its sentence.
+         */
+        Clause: {
+            /** Quote */
+            quote: string;
+            /** Quote En */
+            quote_en?: string | null;
+            /** Ref */
+            ref: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * ClauseView
+         * @description A clause with what citing it needs from its law.
+         */
+        ClauseView: {
+            /** Checked */
+            checked: string;
+            /** Drawing Checkable */
+            drawing_checkable: boolean;
+            /** Heading */
+            heading?: string | null;
+            /** Heading En */
+            heading_en?: string | null;
+            /** Id */
+            id: string;
+            /** Keywords */
+            keywords: string[];
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "fi" | "sv" | "de" | "fr" | "it" | "en";
+            /** Law Id */
+            law_id: string;
+            /** Law Number */
+            law_number: string;
+            /** Law Title */
+            law_title: string;
+            /** Law Title En */
+            law_title_en: string;
+            /**
+             * Limits
+             * @default []
+             */
+            limits: components["schemas"]["Limit"][];
+            /** Ref */
+            ref: string;
+            /** Status Note */
+            status_note: string | null;
+            /** Summary En */
+            summary_en: string;
+            /** Text */
+            text: string;
+            /** Text En */
+            text_en?: string | null;
+            /** Topics */
+            topics: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general")[];
+            /** Url */
+            url: string;
+        };
         /** ConflictEntry */
         ConflictEntry: {
             conflict: components["schemas"]["QuantityConflict"];
@@ -611,10 +1209,17 @@ export interface components {
             needs_person: boolean;
             /** Quantity */
             quantity: string;
+            resolved?: components["schemas"]["Resolved"] | null;
             settled: components["schemas"]["Settled"] | null;
             signed: components["schemas"]["SignOff"] | null;
+            /** Suggestions */
+            suggestions: string[];
+            /** Title */
+            title: string;
             /** Value */
             value: number;
+            /** Why */
+            why: string;
         };
         /**
          * ConflictValue
@@ -639,9 +1244,19 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** Decision */
+        Decision: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "accept" | "reject";
+        };
         /**
          * Description
-         * @description Step 2, for a file that is not a floor plan: what the picture shows, in words.
+         * @description Step 2, for a file that is not a floor plan: what the picture shows, as a fixed form and
+         *     a long text (decision 0010 section 8). `text` is the short form a file row shows; `detail`
+         *     the long one kept for later AI use. Nothing tested depends on `detail`.
          */
         Description: {
             /**
@@ -649,10 +1264,14 @@ export interface components {
              * @default 0
              */
             cost_usd: number;
+            /** Detail */
+            detail: string;
             /** Language */
             language?: string | null;
             /** Model */
             model: string;
+            /** Shows Building */
+            shows_building: boolean;
             /** Subject */
             subject: string;
             /** Text */
@@ -662,6 +1281,40 @@ export interface components {
              * @default []
              */
             text_seen: string[];
+            /** Visible Text */
+            visible_text: string;
+            /**
+             * What It Is
+             * @enum {string}
+             */
+            what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
+        };
+        /**
+         * DescriptionView
+         * @description The file's description as the tools show it (its cost left out).
+         */
+        DescriptionView: {
+            /** Detail */
+            detail: string;
+            /** Language */
+            language: string | null;
+            /** Model */
+            model: string;
+            /** Shows Building */
+            shows_building: boolean;
+            /** Subject */
+            subject: string;
+            /** Text */
+            text: string;
+            /** Text Seen */
+            text_seen: string[];
+            /** Visible Text */
+            visible_text: string;
+            /**
+             * What It Is
+             * @enum {string}
+             */
+            what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
         };
         /**
          * Disputed
@@ -686,11 +1339,33 @@ export interface components {
             /** Why */
             why: string;
         };
+        /** DrawingChecks */
+        DrawingChecks: {
+            /** Drawing Id */
+            drawing_id: string;
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string | null;
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Rules */
+            rules: components["schemas"]["RuleCheck"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+        };
         /**
          * DrawingEntry
          * @description One drawing of a project: one per group of renderings of the same plan.
          */
         DrawingEntry: {
+            /** Credit */
+            credit: string | null;
             /** Drawing Id */
             drawing_id: string;
             /** File */
@@ -699,6 +1374,8 @@ export interface components {
             group: string;
             /** Kind */
             kind: string | null;
+            /** Name */
+            name: string;
             /** Other Renderings */
             other_renderings: components["schemas"]["Rendering"][];
             /** Route */
@@ -757,6 +1434,8 @@ export interface components {
             ] | null;
             /** Mark */
             mark?: string | null;
+            /** Note */
+            note?: string | null;
             /** Page */
             page?: number | null;
             /** Quantity */
@@ -778,6 +1457,119 @@ export interface components {
             /** Page */
             page: number;
         };
+        /**
+         * EvidenceDetail
+         * @description `register` is a pydantic model attribute, so the field is `register_` under `register`.
+         */
+        EvidenceDetail: {
+            /** Credit */
+            credit: string | null;
+            description: components["schemas"]["DescriptionView"];
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string;
+            /**
+             * How
+             * @enum {string}
+             */
+            how: "described" | "text" | "listed";
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Page */
+            page: number;
+            /**
+             * Part
+             * @enum {string}
+             */
+            part: "summary" | "detail" | "visible_text" | "text";
+            register: components["schemas"]["Register"] | null;
+            relevance: components["schemas"]["Relevance"] | null;
+            /** Text */
+            text: string;
+            /** Verdict */
+            verdict: ("related" | "unrelated" | "unsure") | null;
+        };
+        /** EvidenceHit */
+        EvidenceHit: {
+            /** Credit */
+            credit: string | null;
+            /** File */
+            file: string;
+            /** File Id */
+            file_id: string;
+            /**
+             * How
+             * @enum {string}
+             */
+            how: "described" | "text" | "listed";
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Language */
+            language: string | null;
+            /** Page */
+            page: number;
+            /**
+             * Part
+             * @enum {string}
+             */
+            part: "summary" | "detail" | "visible_text" | "text";
+            /** Score */
+            score: number;
+            /** Snippet */
+            snippet: string;
+            /** Subject */
+            subject: string;
+            /** Verdict */
+            verdict: ("related" | "unrelated" | "unsure") | null;
+            why: components["schemas"]["HitWhy"];
+        };
+        /** EvidenceSearch */
+        EvidenceSearch: {
+            /** Hits */
+            hits: components["schemas"]["EvidenceHit"][];
+            /** Indexed Files */
+            indexed_files: number;
+            /** Method */
+            method: string;
+            /** Note */
+            note: string | null;
+            /** Query */
+            query: string;
+            /** Unrelated Left Out */
+            unrelated_left_out: number;
+        };
+        /**
+         * FileEvidence
+         * @description FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence
+         *     index, and from what (decision 0012 sources v2). Written by the evidence step for every file it
+         *     looked at; a file today's triage path set aside and described keeps its record in `triage`.
+         */
+        FileEvidence: {
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number;
+            description?: components["schemas"]["Description"] | null;
+            /** How */
+            how?: ("described" | "text" | "listed") | null;
+            /** Indexed */
+            indexed: boolean;
+            /** Kind */
+            kind?: string | null;
+            sheet?: components["schemas"]["Sheet"] | null;
+            /** Text Chars */
+            text_chars?: number | null;
+            /** Text Pages */
+            text_pages?: number | null;
+            /** Why */
+            why: string;
+        };
         /** FileStatus */
         FileStatus: {
             /**
@@ -787,6 +1579,7 @@ export interface components {
             cost_usd: number;
             /** Drawing Id */
             drawing_id?: string | null;
+            evidence?: components["schemas"]["FileEvidence"] | null;
             /** Group */
             group?: string | null;
             /** Id */
@@ -842,6 +1635,47 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageTrace"][];
         };
+        /**
+         * Finding
+         * @description One rule on one room or door whose result the proposal changes, or that still fails on a
+         *     room or door it touches (LC-3). `ev`: the chat's evidence id, set by the agent loop.
+         */
+        Finding: {
+            after: components["schemas"]["After"];
+            before: components["schemas"]["Before"];
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "newly_fails" | "now_passes" | "newly_cannot_tell" | "still_fails" | "still_passes";
+            clause: components["schemas"]["Clause"];
+            /** Comparison Text */
+            comparison_text: string;
+            /** Ev */
+            ev?: string | null;
+            /** Limit */
+            limit: number;
+            /** Rule Id */
+            rule_id: string;
+            /** Subject */
+            subject: string;
+            /** Subject Ref */
+            subject_ref: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "m2" | "m" | "count";
+        };
+        /** Flag */
+        Flag: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -855,8 +1689,22 @@ export interface components {
              */
             status: "ok";
         };
+        /** HitWhy */
+        HitWhy: {
+            /** Bm25 Rank */
+            bm25_rank: number | null;
+            /** Dense Rank */
+            dense_rank: number | null;
+            /** Terms */
+            terms: string[];
+        };
         /** Info */
         Info: {
+            chat?: components["schemas"]["ChatInfo"] | null;
+            /** Commit */
+            commit?: string | null;
+            /** Gemini */
+            gemini?: ("ok" | "budget_exhausted") | null;
             limits: components["schemas"]["Limits"];
             /** No Keys */
             no_keys: boolean;
@@ -864,9 +1712,12 @@ export interface components {
             readers: {
                 [key: string]: string;
             };
+            /** Rule Packs */
+            rule_packs?: components["schemas"]["RulePackView"][];
         };
         /** Issue */
         Issue: {
+            answer?: components["schemas"]["IssueAnswer"] | null;
             /** Box */
             box: [
                 number,
@@ -878,6 +1729,8 @@ export interface components {
             check: string | null;
             /** Drawing Id */
             drawing_id: string | null;
+            /** Drawing Name */
+            drawing_name?: string | null;
             /** File */
             file: string;
             /** File Id */
@@ -891,6 +1744,8 @@ export interface components {
              * @enum {string}
              */
             kind: "conflict" | "refused_answer" | "set_aside" | "reading_flag" | "code_check_failed" | "double_check" | "unrelated_file";
+            /** Label */
+            label?: string | null;
             links: components["schemas"]["IssueLinks"];
             /** Mark Id */
             mark_id: string | null;
@@ -907,6 +1762,7 @@ export interface components {
             question: string | null;
             /** Reason */
             reason: string | null;
+            resolved?: components["schemas"]["Resolved"] | null;
             /**
              * Severity
              * @enum {string}
@@ -917,8 +1773,19 @@ export interface components {
              * @enum {string}
              */
             state: "open" | "settled" | "signed_off";
+            /** Suggestions */
+            suggestions?: string[];
             /** Why */
             why: string;
+        };
+        /** IssueAnswer */
+        IssueAnswer: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /** Text */
+            text: string;
         };
         /**
          * IssueLinks
@@ -933,6 +1800,93 @@ export interface components {
             takeoff: string | null;
             /** Trace */
             trace: string | null;
+        };
+        /**
+         * Item
+         * @description A removed or added piece of geometry (a wall strip, a door, a new partition).
+         */
+        Item: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][];
+        };
+        /** LawCheck */
+        LawCheck: {
+            /**
+             * Ai Findings
+             * @default []
+             */
+            ai_findings: components["schemas"]["AiFinding"][];
+            /** Fail Means */
+            fail_means: string | null;
+            /** Findings */
+            findings: components["schemas"]["Finding"][];
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Pack Name */
+            pack_name: string;
+            /**
+             * Related
+             * @default []
+             */
+            related: components["schemas"]["ClauseView"][];
+            /** Subject Values */
+            subject_values?: {
+                [key: string]: number[];
+            };
+            /**
+             * Subjects
+             * @default []
+             */
+            subjects: string[];
+            /** Unchanged */
+            unchanged: number;
+        };
+        /** LawPack */
+        LawPack: {
+            /** Id */
+            id: string;
+            /** Laws */
+            laws: components["schemas"]["TocEntry"][];
+        };
+        /** LawPacks */
+        LawPacks: {
+            /** Packs */
+            packs: components["schemas"]["LawPack"][];
+        };
+        /** LawSearch */
+        LawSearch: {
+            /** Hits */
+            hits: components["schemas"]["SearchHit"][];
+            /** Pack */
+            pack: string;
+            /** Query */
+            query: string;
+        };
+        /**
+         * Limit
+         * @description A number a drawing could be checked against: "habitable room area >= 7 m2".
+         */
+        Limit: {
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<" | "=";
+            /** Unit */
+            unit: string;
+            /** Value */
+            value: number;
+            /** What */
+            what: string;
         };
         /** Limits */
         Limits: {
@@ -1080,6 +2034,13 @@ export interface components {
             /** Width */
             width: number;
         };
+        /** Option */
+        Option: {
+            /** Label */
+            label: string;
+            /** Message */
+            message: string;
+        };
         /**
          * Overrule
          * @description A person's call on a file's relevance; the judge's own verdict stays as it was.
@@ -1123,14 +2084,20 @@ export interface components {
             parts: components["schemas"]["ProjectAnswerPart"][];
             /** Question */
             question: string;
+            /** Refused Note */
+            refused_note: string | null;
             /** Total */
             total: number | null;
+            /** Total Level */
+            total_level: ("high" | "medium" | "low") | null;
             /** Total Note */
             total_note: string;
             /** Total Sure */
             total_sure: boolean;
             /** Total Unit */
             total_unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+            /** Why No Total */
+            why_no_total: string | null;
         };
         /** ProjectAnswerPart */
         ProjectAnswerPart: {
@@ -1144,6 +2111,22 @@ export interface components {
         ProjectAskRequest: {
             /** Question */
             question: string;
+        };
+        /** ProjectChecks */
+        ProjectChecks: {
+            /** Drawings */
+            drawings: components["schemas"]["DrawingChecks"][];
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Project Id */
+            project_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
         };
         /** ProjectIssues */
         ProjectIssues: {
@@ -1177,6 +2160,8 @@ export interface components {
         ProjectSummary: {
             /** Conflicts Open */
             conflicts_open: number | null;
+            /** Conflicts Picked */
+            conflicts_picked?: number | null;
             /** Created At */
             created_at: string;
             /** Drawings */
@@ -1187,6 +2172,8 @@ export interface components {
             id: string;
             /** Issues Open */
             issues_open?: number | null;
+            /** Issues To Answer */
+            issues_to_answer?: number | null;
             /** Name */
             name: string;
             /** Not Plans */
@@ -1211,6 +2198,10 @@ export interface components {
          * @description Ingest's project status, plus the project's drawings, one per plan.
          */
         ProjectView: {
+            /** Conflicts Open */
+            conflicts_open?: number | null;
+            /** Conflicts Picked */
+            conflicts_picked?: number | null;
             /**
              * Cost Usd
              * @default 0
@@ -1237,6 +2228,10 @@ export interface components {
             finished_at?: string | null;
             /** Id */
             id: string;
+            /** Issues Open */
+            issues_open?: number | null;
+            /** Issues To Answer */
+            issues_to_answer?: number | null;
             /**
              * Ms
              * @default 0
@@ -1279,6 +2274,47 @@ export interface components {
             /** Storeys */
             storeys: components["schemas"]["StoreyRow"][] | null;
         };
+        /** Proposal */
+        Proposal: {
+            /**
+             * Added
+             * @default []
+             */
+            added: components["schemas"]["Item"][];
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: components["schemas"]["Flag"][];
+            law?: components["schemas"]["LawCheck"] | null;
+            /** Page */
+            page: number;
+            /** Proposal Id */
+            proposal_id: string;
+            /**
+             * Removed
+             * @default []
+             */
+            removed: components["schemas"]["Item"][];
+            /**
+             * Rooms
+             * @default []
+             */
+            rooms: components["schemas"]["RoomChange"][];
+            /**
+             * State
+             * @default proposed
+             * @enum {string}
+             */
+            state: "proposed" | "accepted" | "rejected";
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
+        };
         /**
          * QuantityConflict
          * @description Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in
@@ -1297,6 +2333,11 @@ export interface components {
              * @enum {string}
              */
             status: "conflict" | "agree";
+            /**
+             * Value Marks
+             * @default []
+             */
+            value_marks: components["schemas"]["ValueMark"][][];
             /** Values */
             values: components["schemas"]["MeasuredValue"][];
         };
@@ -1340,6 +2381,35 @@ export interface components {
             code: "unsupported-question" | "not-in-drawing" | "not-read" | "no-reader" | "no-scale" | "no-drawing";
             /** Text */
             text: string;
+        };
+        /**
+         * Register
+         * @description Triage.register: what the classifier read off an image sheet, floor plans included. The
+         *     triage class is derived from it (`class_of`); the rest is shown, never acted on in this
+         *     version (a plan's scale_shown is not compared with what its reader found).
+         */
+        Register: {
+            /** Has Floor Plan */
+            has_floor_plan: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "floor_plan" | "multi_view_sheet" | "site_plan_or_map" | "elevation" | "section" | "detail" | "perspective_or_axonometric" | "engineering_non_building" | "cover_or_text_sheet" | "photograph" | "not_architecture" | "other";
+            /** Method */
+            method: string;
+            /** Photo Of Sheet */
+            photo_of_sheet: boolean;
+            /**
+             * Quality
+             * @enum {string}
+             */
+            quality: "good" | "fair" | "poor";
+            /**
+             * Scale Shown
+             * @enum {string}
+             */
+            scale_shown: "bar" | "ratio_text" | "dimensions" | "none" | "unreadable";
         };
         /**
          * Relevance
@@ -1397,6 +2467,68 @@ export interface components {
             value: number;
         };
         /**
+         * Resolved
+         * @description What the resolver (RESOLVER, app/core/review/resolve.py) said about a conflict or an answer
+         *     that is not certified: a value it picked, or that it can't tell, why, and where it looked.
+         *     Checked by a model: never a person's settle or sign-off, never certified.
+         */
+        Resolved: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ValueMark"][];
+            /**
+             * Of
+             * @default []
+             */
+            of: (number)[];
+            /** Reason */
+            reason: string;
+            /** Value */
+            value: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "picked" | "cannot_tell";
+        };
+        /**
+         * Resolving
+         * @description POST /api/projects/{id}/resolve: the review after the resolver's replies, and a note for
+         *     each conflict it gave no reply on (the budget used up, a timeout...).
+         */
+        Resolving: {
+            /** Notes */
+            notes: string[];
+            review: components["schemas"]["ProjectReview"];
+        };
+        /** RoomChange */
+        RoomChange: {
+            /** Area After M2 */
+            area_after_m2: number;
+            /** Area Before M2 */
+            area_before_m2: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Polygon */
+            polygon: [
+                number,
+                number
+            ][];
+            /**
+             * Was
+             * @default []
+             */
+            was: string[];
+        };
+        /**
          * Row
          * @description One quantity of the takeoff with its review state.
          */
@@ -1422,6 +2554,7 @@ export interface components {
             noun?: string | null;
             /** Original Value */
             original_value: number;
+            resolved?: components["schemas"]["Resolved"] | null;
             rule: components["schemas"]["RuleText"];
             scope: components["schemas"]["Scope"];
             second: components["schemas"]["MethodValue"] | null;
@@ -1446,12 +2579,93 @@ export interface components {
             /** Value */
             value: number;
         };
+        /**
+         * RuleCheck
+         * @description One rule on one drawing: fail when a result fails, else cannot tell when one is, else
+         *     pass. With no results: cannot tell when the drawing could not be checked (what the rule needs
+         *     was not read), not_applicable when it has nothing the rule applies to.
+         */
+        RuleCheck: {
+            clause: components["schemas"]["Clause"];
+            /** Results */
+            results: components["schemas"]["CheckResult"][];
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Title */
+            title: string;
+            /** Why */
+            why: string;
+        };
+        /**
+         * RulePackView
+         * @description A pack as GET /api/info lists it, for the country picker: the flag from `country`, the
+         *     country's name, the pack's name and law line, and every rule with the clause it quotes.
+         */
+        RulePackView: {
+            /** Country */
+            country: string;
+            /** Country Name */
+            country_name: string;
+            /** Fail Means */
+            fail_means: string | null;
+            /** Id */
+            id: string;
+            /** Law */
+            law: string;
+            /** Name */
+            name: string;
+            /** Note */
+            note: string;
+            /** Rules */
+            rules: components["schemas"]["RuleView"][];
+            /** Version */
+            version: string;
+        };
         /** RuleText */
         RuleText: {
             /** Id */
             id: string;
             /** Text */
             text: string;
+        };
+        /**
+         * RuleView
+         * @description A rule as the pack states it. `op` is the machine check type, never shown; `comparison`
+         *     is machine (">="), `comparison_text` the words the screen shows ("at least").
+         */
+        RuleView: {
+            applies_to: components["schemas"]["AppliesTo"];
+            clause: components["schemas"]["Clause"];
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<";
+            /** Comparison Text */
+            comparison_text: string;
+            /** Id */
+            id: string;
+            /** Key */
+            key: string | null;
+            /** Limit */
+            limit: number;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "room_area" | "room_windows" | "door_width" | "takeoff";
+            /** Title */
+            title: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "m2" | "m" | "count";
         };
         /**
          * ScaleView
@@ -1535,6 +2749,23 @@ export interface components {
             /** Storey */
             storey?: string | null;
         };
+        /** SearchHit */
+        SearchHit: {
+            /** Id */
+            id: string;
+            /** Law Id */
+            law_id: string;
+            /** Ref */
+            ref: string;
+            /** Score */
+            score: number;
+            /** Summary En */
+            summary_en: string;
+            /** Title En */
+            title_en: string;
+            /** Url */
+            url: string;
+        };
         /**
          * SecondCount
          * @description What the second method did on a drawing: quantities it measured and where it disagreed.
@@ -1546,14 +2777,79 @@ export interface components {
             measured: number;
         };
         /**
+         * Selection
+         * @description What the user pointed at on a plan: a room (`ref` its id) or a dragged rectangle (`box`).
+         */
+        Selection: {
+            /** Box */
+            box?: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
+            /** Drawing Id */
+            drawing_id: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "room" | "region";
+            /** Page */
+            page: number;
+            /** Ref */
+            ref?: string | null;
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
         Settled: {
             /** At */
             at: string;
+            /** Note */
+            note?: string | null;
             /** Value */
             value: number;
+        };
+        /**
+         * Sheet
+         * @description Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The
+         *     title, sheet number and printed scale are shown, never acted on.
+         */
+        Sheet: {
+            /** Advanced */
+            advanced: boolean;
+            /** Advanced Why */
+            advanced_why: string | null;
+            /** Confidence */
+            confidence: number;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "read" | "doubt" | "set_aside";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "architectural_floor_plan" | "multi_view_sheet" | "mep_plan" | "structural_plan" | "roof_or_ceiling_plan" | "site_plan_or_map" | "elevation" | "section" | "detail" | "perspective_or_axonometric" | "schedule_or_text" | "not_a_drawing" | "other";
+            /** Kind Words */
+            kind_words: string;
+            /** Model */
+            model: string;
+            /** Printed Scale */
+            printed_scale: string | null;
+            /** Seen */
+            seen: string;
+            /** Sheet Number */
+            sheet_number: string | null;
+            /** Takeoff Possible */
+            takeoff_possible: boolean;
+            /** Title */
+            title: string | null;
         };
         /** SignOff */
         SignOff: {
@@ -1639,6 +2935,22 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** Step */
+        Step: {
+            /** Label */
+            label: string;
+            /** Ms */
+            ms: number;
+            /** N */
+            n: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Tool */
+            tool: string;
+        };
         /** StoreyRow */
         StoreyRow: {
             /** Counts */
@@ -1674,6 +2986,22 @@ export interface components {
             review_queue: string[];
         };
         /**
+         * TocEntry
+         * @description One line of a pack's table of contents: what exists, for the prompt and the screen.
+         */
+        TocEntry: {
+            /** Clauses */
+            clauses: number;
+            /** Law Id */
+            law_id: string;
+            /** Number */
+            number: string;
+            /** Title En */
+            title_en: string;
+            /** Topics */
+            topics: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general")[];
+        };
+        /**
          * Triage
          * @description FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one
          *     with `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`.
@@ -1693,7 +3021,9 @@ export interface components {
             /** P Plan */
             p_plan: number;
             read_as_plan?: components["schemas"]["ReadAsPlan"] | null;
+            register?: components["schemas"]["Register"] | null;
             relevance?: components["schemas"]["Relevance"] | null;
+            sheet?: components["schemas"]["Sheet"] | null;
             /** Verdict */
             verdict?: ("related" | "unrelated" | "unsure") | null;
         };
@@ -1723,6 +3053,57 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * ValueMark
+         * @description Where one item a conflicting value counted or measured is on the drawing, named.
+         */
+        ValueMark: {
+            /** Box */
+            box: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Label */
+            label: string;
+            /** Page */
+            page: number;
+        };
+        /**
+         * Level
+         * @description An answer's confidence level as ask_drawings gives it (ADR 0011 'confidence levels').
+         */
+        app__core__agent__model__Level: {
+            /** Basis */
+            basis?: string | null;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text?: string | null;
+        };
+        /**
+         * Level
+         * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
+         *     with the measured counts behind it.
+         */
+        app__core__review__check__Level: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "certified" | "route" | "score" | "page" | "held" | "unrated" | "carbon";
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text: string;
         };
     };
     responses: never;
@@ -1787,6 +3168,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DrawingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    checks_api_drawings__drawing_id__checks_get: {
+        parameters: {
+            query: {
+                /** @description the rule pack to check against: an id from GET /api/info rule_packs */
+                pack: string;
+                /** @description the project it is shown in */
+                project?: string | null;
+            };
+            header?: never;
+            path: {
+                drawing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawingChecks"];
                 };
             };
             /** @description Validation Error */
@@ -2077,6 +3494,94 @@ export interface operations {
             };
         };
     };
+    law_packs_api_laws_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LawPacks"];
+                };
+            };
+        };
+    };
+    law_clause_api_laws_clauses__clause_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clause_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClauseView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    law_search_api_laws__pack__search_get: {
+        parameters: {
+            query: {
+                /** @description words to search for */
+                q: string;
+                /** @description only clauses of this topic */
+                topic?: ("rooms" | "accessibility" | "fire" | "escape-routes" | "stairs-railings" | "doors-windows" | "ventilation" | "energy" | "sound" | "moisture" | "structure" | "daylight" | "parking" | "outdoor" | "distances-heights" | "permits-procedure" | "general") | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                pack: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LawSearch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     project_list_api_projects_get: {
         parameters: {
             query?: never;
@@ -2212,6 +3717,219 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectAnswer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_api_projects__project_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatTurn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description CHAT_MODEL=off */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decide_api_projects__project_id__chat__chat_id__proposals__proposal_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: string;
+                proposal_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Decision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_checks_api_projects__project_id__checks_get: {
+        parameters: {
+            query: {
+                /** @description the rule pack to check against: an id from GET /api/info rule_packs */
+                pack: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectChecks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_evidence_api_projects__project_id__evidence_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                k?: number;
+                include_unrelated?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceSearch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_api_projects__project_id__evidence__evidence_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evidence_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_file_api_projects__project_id__files_post: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
                 };
             };
             /** @description Validation Error */
@@ -2466,6 +4184,45 @@ export interface operations {
             };
         };
     };
+    answer_issue_api_projects__project_id__issues__issue_id__answer_post: {
+        parameters: {
+            query?: {
+                /** @description a building-code rule pack (decision 0009): its failed checks join the list */
+                pack?: string | null;
+            };
+            header?: never;
+            path: {
+                issue_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Issue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     project_questions_api_projects__project_id__questions_get: {
         parameters: {
             query?: never;
@@ -2484,6 +4241,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectQuestions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_api_projects__project_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resolving"];
                 };
             };
             /** @description Validation Error */

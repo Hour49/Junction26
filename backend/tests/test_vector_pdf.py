@@ -1,6 +1,7 @@
 """The vector route's PDF extractor (`EXTRACTOR_VECTOR=pdf`) on synthetic sheets drawn in the two
 styles it has reading rules for. Each test names the rule it holds in place."""
 
+import ast
 import json
 import math
 from collections import Counter
@@ -112,12 +113,15 @@ def test_each_text_object_keeps_its_own_text() -> None:
 # --------------------------------------------------------------------------- the scale
 
 
-def bar(sheet: SheetPdf, left: float, block: float, label: str = "5") -> None:
-    """A scale bar of three blocks, black-white-black, with its end label above it."""
+def bar(sheet: SheetPdf, left: float, block: float, label: str = "5", unit: str = "m") -> None:
+    """A scale bar of three blocks, black-white-black, with its end label above it and its unit
+    on its own after the label, as the Swiss sheets print it ("" for none)."""
     for at, fill in enumerate((BLACK, WHITE, BLACK)):
         sheet.path(rect(left + at * block, 370, left + (at + 1) * block, 375), width=0.5, fill=fill)
     sheet.text("0", left, 366)
     sheet.text(label, left + 3 * block - 2, 366)
+    if unit:
+        sheet.text(unit, left + 3 * block + 4, 366)
 
 
 def test_the_printed_ratio_gives_metres_per_point() -> None:
@@ -137,6 +141,91 @@ def test_other_numbers_with_a_colon_are_not_a_scale(text: str) -> None:
     sheet.text(text, 400, 380)
     scale, _ = read_scale(read_page(sheet.pdf()))
     assert scale.status == "no_scale"
+
+
+IMPERIAL_EIGHTH = '1/8" = 1\'-0"'  # 1:96
+
+
+def test_an_imperial_scale_gives_metres_per_point() -> None:
+    sheet = SheetPdf()
+    for y in (200, 380):  # two views at the same scale, each with its number left of it
+        sheet.text("3", 380, y)  # not whole inches: "3 1/8\"" would be 1:3.84
+        sheet.text(IMPERIAL_EIGHTH, 390, y)
+    scale, notes = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text, scale.evidence) == (
+        "scaled",
+        IMPERIAL_EIGHTH,
+        ("scale_text",),
+    )
+    assert scale.m_per_unit == pytest.approx(96 * M_PER_PT_ON_PAPER)
+    assert notes == ()
+
+
+@pytest.mark.parametrize("slope", ["(1:12 RAMP SLOPE)", "SLOPE 1:10 MAX", "fall 1:40"])
+def test_a_slope_is_not_the_sheet_scale(slope: str) -> None:
+    sheet = SheetPdf()
+    sheet.text(slope, 100, 200)
+    sheet.text(IMPERIAL_EIGHTH, 400, 380)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text) == ("scaled", IMPERIAL_EIGHTH)
+
+
+def test_a_label_written_one_character_per_line_is_not_a_ratio() -> None:
+    sheet = SheetPdf()
+    # set along a ramp, one glyph per object: the page text has one glyph per line, as on the
+    # Sports_Complex site plans
+    for at, character in enumerate("(1:12RAMPSLOPE)"):
+        sheet.text(character, 200 + 6 * at, 200 + 6 * at)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert scale.status == "no_scale"
+
+
+@pytest.mark.parametrize(
+    ("texts", "ratio"),
+    [
+        ([("FOUNDATION PLAN - SLAB ON GRADE 1:50", 100)], 50),
+        ([("RAMP LEVEL PLAN 1:100", 100)], 100),
+        ([("ROOF PLAN 1:100  PITCH 30", 100)], 100),
+        ([("SCALE 1:100 MAX SHEET SIZE A1", 100)], 100),
+        # a slope word far off on the same baseline: the page text joins it to the scale's line
+        ([("FLOOR PLAN 1:50", 100), ("RAMP", 400)], 50),
+        ([("GROUND FLOOR PLAN", 100), ("1:50", 250), ("RAMP UP", 400)], 50),
+    ],
+)
+def test_a_slope_word_away_from_the_ratio_leaves_the_scale(
+    texts: list[tuple[str, float]], ratio: int
+) -> None:
+    sheet = SheetPdf()
+    for text, x in texts:
+        sheet.text(text, x, 380)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text) == ("scaled", f"1:{ratio}")
+    assert scale.m_per_unit == pytest.approx(ratio * M_PER_PT_ON_PAPER)
+
+
+@pytest.mark.parametrize(
+    "label", ['LEVEL 2 1/4" = 1\'-0"', 'A-301 1/4" = 1\'-0"', 'FLOOR PLAN 1 1/4" = 1\'-0"']
+)
+def test_a_view_or_level_number_before_the_scale_is_not_inches(label: str) -> None:
+    sheet = SheetPdf()
+    sheet.text(label, 100, 380)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text) == ("scaled", '1/4" = 1\'-0"')
+    assert scale.m_per_unit == pytest.approx(48 * M_PER_PT_ON_PAPER)
+
+
+@pytest.mark.parametrize(("first", "second"), [("1:100", "1:50"), (IMPERIAL_EIGHTH, '3" = 1\'-0"')])
+def test_a_sheet_that_prints_different_scales_has_no_one_scale(first: str, second: str) -> None:
+    sheet = SheetPdf()
+    sheet.text(first, 100, 380)
+    sheet.text(second, 400, 380)
+    sheet.text(first, 100, 200)
+    scale, notes = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.m_per_unit) == ("no_scale", None)
+    assert notes == (
+        f"scale: the sheet prints 2 different scales ({first}, {second}), one per view; none of "
+        "them is the sheet's",
+    )
 
 
 def test_a_scale_bar_that_agrees_is_listed_as_evidence() -> None:
@@ -179,6 +268,42 @@ def test_a_scale_bar_alone_gives_the_scale() -> None:
     scale, _ = read_scale(read_page(sheet.pdf()))
     assert (scale.status, scale.text, scale.evidence) == ("scaled", None, ("scale_bar",))
     assert scale.m_per_unit == pytest.approx(5 / 90)
+
+
+@pytest.mark.parametrize(("label", "unit"), [("16'", ""), ("16", "FEET"), ("16 ft", "")])
+def test_a_bar_labelled_in_feet_is_read_in_feet(label: str, unit: str) -> None:
+    sheet = SheetPdf()
+    bar(sheet, 100, 30, label=label, unit=unit)  # 16 ft over 90 pt
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.evidence) == ("scaled", ("scale_bar",))
+    assert scale.m_per_unit == pytest.approx(16 * 0.3048 / 90)
+
+
+@pytest.mark.parametrize("unit", ["", "FEET"])  # no unit; metres and feet on one bar
+def test_a_bar_without_one_unit_is_not_read(unit: str) -> None:
+    sheet = SheetPdf()
+    bar(sheet, 100, 30, label="5 m" if unit else "5", unit=unit)
+    scale, _ = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.evidence) == ("no_scale", ())
+
+
+def test_a_view_callout_is_not_a_scale_bar() -> None:
+    """Lake_Kegonsa A-400: a section mark, a black and a white half with the view number "12"
+    over the sheet "A-400", was read as a bar 12 m long."""
+    sheet = SheetPdf()
+    sheet.path(rect(497, 366, 515, 371), width=0.5, fill=BLACK)
+    sheet.path(rect(515, 366, 533, 371), width=0.5, fill=WHITE)
+    sheet.text("12", 512, 348)
+    sheet.text("A-400", 506, 362)
+    sheet.text('1/4" = 1\'-0"', 300, 380)
+    scale, notes = read_scale(read_page(sheet.pdf()))
+    assert (scale.status, scale.text, scale.evidence) == (
+        "scaled",
+        '1/4" = 1\'-0"',
+        ("scale_text",),
+    )
+    assert scale.m_per_unit == pytest.approx(48 * M_PER_PT_ON_PAPER)
+    assert notes == ()
 
 
 def test_legend_squares_are_not_a_scale_bar() -> None:
@@ -274,7 +399,7 @@ def test_swiss_rooms_have_number_label_type_and_net_area() -> None:
     rooms = {room.attrs["number"]: room for room in found.rooms}
     assert list(rooms) == ["2.01", "2.02", "2.03", "2.04", "2.05", "3.01"]
     assert [room.type for room in rooms.values()] == [
-        "kitchen", "storage", "bathroom", "balcony", "shaft", "other",
+        "kitchen", "storage", "bathroom", "balcony", "shaft", "bedroom",
     ]  # fmt: skip
     assert [room.label for room in rooms.values()] == [
         "Küche", "Reduit", "Bad", "Balkon", "Lift", "Zimmer",
@@ -342,7 +467,9 @@ def test_without_a_scale_swiss_rooms_are_listed_with_unknown_areas() -> None:
         ("Balcone", 228, ("balcony", True)),
         (None, 243, ("shaft", False)),
         ("Treppenhaus", 255, ("shaft", False)),
-        ("Zimmer", 243, ("other", False)),  # a named room keeps its name's type
+        ("Zimmer", 243, ("bedroom", False)),  # a named room keeps its name's type
+        ("Pièce", 255, ("bedroom", False)),  # a lone "room" is a flat's bedroom, in each language
+        ("Stanza", 255, ("bedroom", False)),
         ("Séjour/repas", 255, ("living", False)),
         (None, 255, ("other", False)),
     ],
@@ -744,4 +871,22 @@ def test_the_setting_wires_it_and_a_plan_as_pdf_and_png_gives_two_valid_extracti
     assert on_png["pages"][0]["unit"] == "px"
     assert on_png["scale"]["m_per_unit"] == pytest.approx(
         on_pdf["scale"]["m_per_unit"] / 2, rel=1e-4
+    )
+
+
+SWISS_GOLD = Path(__file__).parents[2] / "prototypes" / "extraction-gold" / "swiss_gold.py"
+
+
+@pytest.mark.parametrize("table", ["ROOM_TYPES", "OUTDOOR_NAMES", "BALCONY_NAMES", "SHAFT_NAMES"])
+def test_the_swiss_gold_types_rooms_with_the_readers_words(table: str) -> None:
+    """The Part 1 gold of the swiss plans keeps a copy of the tables (it must not import what it
+    scores). A word in one and not in the other is a room typed two ways: scored wrong."""
+    (words,) = [
+        node.value
+        for node in ast.parse(SWISS_GOLD.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.Assign)
+        and [target.id for target in node.targets if isinstance(target, ast.Name)] == [table]
+    ]
+    assert ast.literal_eval(words) == getattr(swiss, table), (
+        "add the word to both tables, then rebuild the gold (prototypes/extraction-gold/README.md)"
     )

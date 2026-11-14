@@ -31,7 +31,8 @@ from app.core.answering.model import (
 )
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table, words
+from app.core.drawing.model import ELEMENT_CLASSES, CarbonCheck, Drawing, Room, Table, words
+from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
@@ -41,15 +42,21 @@ from app.core.review.check import (
     Check,
     CheckPolicy,
     Disputes,
+    Level,
     Scorer,
+    carbon_checked,
     certified,
     disagree,
     double_check,
+    found_nothing,
     held,
+    level_of,
     no_disputes,
     schedule_check,
     score_of,
+    summed_check,
 )
+from app.core.review.check import SCHEDULE as SCHEDULE_ROUTE
 from app.core.review.model import (
     MarkView,
     Refusal,
@@ -60,7 +67,7 @@ from app.core.review.model import (
     Suggestion,
 )
 from app.core.review.proof import NO_PROOF, Proof, schedule_proof, takeoff_proof
-from app.core.review.review import label, parse_key, row, storey_twins, with_twins
+from app.core.review.review import label, parse_key, pluralise, row, storey_twins, with_twins
 
 # Every counting rule's text by id, as the answer shows it.
 RULES: dict[str, str] = {
@@ -106,6 +113,9 @@ class Asked(Frozen):
     refusal: Refusal | None
     proof: Proof  # what the screen draws as the answer's proof
     check: Check | None = None  # CHECK_POLICY's double-check request; None: certified or off
+    # CHECK_POLICY's confidence level; None: a refusal, a value a person signed or settled, the
+    # policy off, or a policy file without levels
+    level: Level | None = None
 
 
 class _Once:
@@ -139,6 +149,7 @@ def ask(
     disputes: Disputes = no_disputes,
     no_reader: bool = False,
     scorers: Mapping[str, Scorer] = NO_SCORERS,
+    carbon_ladder: bool = False,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -152,8 +163,11 @@ def ask(
     answered one (`agrees`), else it asks. With `check` on, it alone sets `sure`, in place of
     `sure_at`'s: true exactly when it certifies the answer, None on every answer it does not rate
     (a refusal, a question with no takeoff row), so an answer is never shown sure and asked
-    about at once."""
-    quantities, unread = _flagged(known_quantities(drawing), drawing, flags, raster)
+    about at once. The answer's `level` comes from the same verdict (check.level_of): High
+    exactly when sure; none on a value a person signed or settled, which is theirs. With
+    `carbon_ladder` (CARBON_LEVELS=ladder) a Medium answer Carbon read the same is High and asks
+    nothing, yet stays not `sure`: Carbon never certifies an answer."""
+    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
     once = _Once(RoomByType(parser, drawing, quantities))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
@@ -169,6 +183,12 @@ def ask(
     found = quantities.get(query) if query is not None and answer.method == TAKEOFF else None
     shared = with_twins(state, storey_twins(quantities))
     shown = None if found is None else row(found, drawing, shared, RULES)
+    notes = [NOT_LOCATED] if found is not None and _unplaced(found, drawing) else []
+    if found is not None and parse_key(found.key)[1] == "door" and CLOSET.search(text):
+        notes.append(CLOSET_RULE)
+    if notes:
+        said = "; ".join(note for note in (answer.explanation, *notes) if note)
+        answer = answer.model_copy(update={"explanation": said})
     if shown is not None:
         marks = shown.marks
     elif answer.method == SCHEDULE:
@@ -199,6 +219,8 @@ def ask(
         code, words = _refusal(answer.method, parsed, query, drawing)
         if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
+        elif query is not None and query in unlocated:
+            code, words = "no-reader", _unlocated_text(unlocated[query], flags, drawing)
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
         can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
@@ -213,6 +235,7 @@ def ask(
                 can_answer = each
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
+    level = None
     sure: bool | None = None  # CHECK_POLICY's verdict
     if check is not None and shown is not None and isinstance(parsed, Query):
         reason = held(shown, drawing)
@@ -224,16 +247,38 @@ def ask(
         agrees = None
         if family in AGREEING_FAMILIES and confidence is not None and route == "raster":
             agrees = confidence.probability(drawing.file, family, answer.answer).agrees
+        blank = found_nothing(drawing)
         sure = reason is None and certified(
-            check, route=route, family=family, score=score, flags=flags, agrees=agrees
-        )
-        if not sure:
+            check, route=route, family=family, score=score, flags=flags, agrees=agrees,
+            blank=blank,
+        )  # fmt: skip
+        if shown.signed is None and shown.settled is None:
+            level = level_of(
+                check, sure=sure, route=route, family=family, score=score, flags=flags,
+                held=reason is not None, blank=blank,
+            )  # fmt: skip
+            if level is not None and drawing.carbon_check is not None:
+                carbon = carbon_answer(
+                    question, drawing, drawing.carbon_check, parser, clock, prior, prior_families
+                )
+                # a disagreement the gate found (`agrees`) is not settled by Carbon agreeing
+                ladder = carbon_ladder and agrees is not False
+                level = carbon_checked(
+                    level, drawing.carbon_check, carbon, answer.answer, ladder=ladder
+                )
+        if not sure and not (level is not None and level.level == "high"):
             if reason is None and agrees is False:
                 reason = disagree(shown)
             request = double_check(shown, marks, disputes(drawing, shown), reason)
+    elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
+        request, level = summed_check(check)
+        sure = False
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None
+        level = level_of(
+            check, sure=sure, route=SCHEDULE_ROUTE, family=None, score=None, flags=flags
+        )
     if check is not None:
         answer = answer.model_copy(update={"sure": sure})
     return Asked(
@@ -244,26 +289,79 @@ def ask(
         refusal=refusal,
         proof=proof,
         check=request,
+        level=level,
     )
+
+
+def carbon_answer(
+    question: Question,
+    drawing: Drawing,
+    check: CarbonCheck,
+    parser: QuestionParser,
+    clock: Clock,
+    prior: AnswerPrior,
+    prior_families: Set[tuple[str, str]],
+) -> int | float | str | None:
+    """Carbon's answer to the question (CARBON_LEVELS): its reading on the drawing's pages and
+    scale, answered as the drawing's own reading is (the same parser, prior and answer policy,
+    as integ's test answered both). None: it refuses (a class it did not count, a scope it has
+    no plan for), which changes nothing."""
+    seen = Drawing(
+        file=drawing.file,
+        pages=drawing.pages,
+        scale=drawing.scale,
+        plans=check.plans,
+        elements=check.elements,
+        rooms=check.rooms,
+        read=check.read,
+    )
+    quantities = known_quantities(seen)
+    once = _Once(RoomByType(parser, seen, quantities))
+    found = answer_question(question, quantities, once, clock, prior, (), prior_families)
+    return found.answer
+
+
+def _summed(parsed: object, answer: Answer) -> bool:
+    """A schedule answer outside the single-cell lookups the schedule route was measured on: a
+    room's area the room schedule gives for a takeoff question (answering's fallback), or a sum
+    over more than one row."""
+    if isinstance(parsed, Query):
+        return True
+    summing = isinstance(parsed, TableQuery) and parsed.op in ("sum", "count_sum")
+    return summing and len(answer.evidence) > 1
 
 
 def _flagged(
     quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
-) -> tuple[dict[str, Quantity], set[str]]:
+) -> tuple[dict[str, Quantity], set[str], dict[str, Quantity]]:
     """On a page ingest flagged (a phone photo, a scan), a group its reader found nothing of
     (no element at all, no room at all) is unknown, not 0: its keys are left out and the group
     is returned as `unread`, so any question on it is refused, its key in the takeoff or not
     (F4-4b). Every other quantity carries the flag as its estimate, so the answer says what it
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
-    page can have 0 saunas, but not 0 rooms (F4-4)."""
+    page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
+    the classes it could not count (left out of `read`), so on a drawing whose elements are
+    Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
+    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b.
+    On a flagged page a room count with no located mark ("0 bathrooms", "37 bedrooms" with
+    nothing marked) is a guess too: it is left out and returned in `unlocated` by key, so the
+    question is refused the same way (brief r8 BM); a class Carbon read keeps its 0. A 0 of a
+    room type has nothing to mark, so it is a read 0 when the reader told room types apart (two
+    or more types besides "other": a page can have 0 saunas, F4-4) and a guess when it put every
+    room under one type (the hotel photo: 37 "bedrooms", then 0 bathrooms; #285 review)."""
     empty: set[str] = set()
     if flags and not drawing.elements:
         empty.update(ELEMENT_CLASSES)
+        if CARBON_FLAG in flags and drawing.read is not None:
+            empty.difference_update(drawing.read)
     if (flags or raster) and not drawing.rooms:
         empty.add("room")
     if not flags and not empty:
-        return dict(quantities), set()
+        return dict(quantities), set(), {}
+    carbon: set[str] = set(drawing.read or ()) if CARBON_FLAG in flags else set()
     kept: dict[str, Quantity] = {}
+    unlocated: dict[str, Quantity] = {}
+    told = len(_types(drawing)) >= 2
     note = f"read from a page flagged at upload: {'; '.join(flags)}"
     for key, found in quantities.items():
         if _groups(key) <= empty:
@@ -271,9 +369,13 @@ def _flagged(
         if not flags:
             kept[key] = found
             continue
+        guess = found.value > 0 or not told
+        if _room_count(found) and not found.marks and guess and not _groups(key) <= carbon:
+            unlocated[key] = found
+            continue
         said = note if found.estimate is None else f"{found.estimate}; {note}"
         kept[key] = found.model_copy(update={"estimate": said})
-    return kept, empty
+    return kept, empty, unlocated
 
 
 def _groups(key: str) -> set[str]:
@@ -289,6 +391,45 @@ def _unread_text(query: str, flags: Sequence[str]) -> str:
     return (
         f"This drawing was flagged at upload ({'; '.join(flags)}), and its reader found no "
         f"{things} on it, so 0 would be a guess, not a count."
+    )
+
+
+NOT_LOCATED = "not located on the drawing"
+# "How many doors are there, including closet doors?": the door count's rule, said once (Stoa
+# counts closet doors as doors; brief r8 BM)
+CLOSET = re.compile(r"\bcloset", re.IGNORECASE)
+CLOSET_RULE = "closet doors are counted as doors"
+
+
+def _room_count(found: Quantity) -> bool:
+    """A count of rooms (of a type or all): element counts keep a read 0 (R3-qa4-1)."""
+    return found.unit == "count" and _groups(found.key) == {"room"}
+
+
+def _unplaced(found: Quantity, drawing: Drawing) -> bool:
+    """A count of something on a drawing with pages that marks none of it: its value can't be
+    checked on the drawing, so the answer says so next to it (brief r8 BM)."""
+    return bool(drawing.pages) and found.unit == "count" and found.value > 0 and not found.marks
+
+
+def _types(drawing: Drawing) -> set[str]:
+    """The room types the reader told apart ("other" is no type)."""
+    return {room.type for room in drawing.rooms if room.type != "other"}
+
+
+def _unlocated_text(found: Quantity, flags: Sequence[str], drawing: Drawing) -> str:
+    flagged = f"This drawing was flagged at upload ({'; '.join(flags)})"
+    if found.value == 0:
+        types = _types(drawing)
+        why = (
+            f"read every room as a {words(next(iter(types)))}"
+            if types
+            else "did not tell room types apart"
+        )
+        return f"{flagged}, and its reader {why}, so 0 would be a guess, not a count."
+    return (
+        f"{flagged}, and none of what its reader counted here is located on it, so "
+        f"{found.value:g} would be a guess, not a count."
     )
 
 
@@ -349,12 +490,7 @@ def plural(kind: str) -> str:
     """The English plural of a kind of element or room ("balcony" → "balconies")."""
     if kind in PLURALS:
         return PLURALS[kind]
-    kind = words(kind)
-    if kind.endswith("y") and kind[-2:-1] not in ("a", "e", "i", "o", "u"):
-        return f"{kind[:-1]}ies"
-    if kind.endswith(("s", "x", "z", "ch", "sh")):
-        return f"{kind}es"
-    return f"{kind}s"
+    return pluralise(words(kind))
 
 
 def _phrasings(key: str) -> Iterable[str]:

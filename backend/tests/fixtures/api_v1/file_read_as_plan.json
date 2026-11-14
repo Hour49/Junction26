@@ -29,6 +29,7 @@
     "class": "other_drawing",
     "p_plan": 0.03,
     "method": "fake classifier",
+    "register": null,
     "description": {
       "text": "A picture of the south elevation of a two-storey house.",
       "subject": "the south elevation of a two-storey house",
@@ -38,18 +39,20 @@
       ],
       "language": "en",
       "model": "fake describer",
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "what_it_is": "drawing",
+      "shows_building": false,
+      "visible_text": "Küche\nSüd",
+      "detail": "A longer account of the south elevation of a two-storey house, for later use."
     },
     "relevance": {
       "verdict": "related",
-      "why": "Related: Küche is on the project's plans.",
+      "why": "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
       "matched_on": [
-        "Küche"
+        "'kuche' (plan text)"
       ],
-      "plans": [
-        "6a47e9a1c33db404"
-      ],
-      "judge": "word judge"
+      "plans": [],
+      "judge": "rule on the words printed on it and whether it shows a building, no model"
     },
     "overruled": null,
     "read_as_plan": {

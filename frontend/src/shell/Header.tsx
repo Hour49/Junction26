@@ -1,8 +1,8 @@
-import { rulePacksOf } from '../api';
+import { ExportButton } from '../export/ExportButton';
 import { CountryPicker } from './CountryPicker';
-import { useInfo } from './info';
+import { useIssuesToAnswer } from './issueCount';
 import { ProjectPicker } from './ProjectPicker';
-import { packOf, routeHref, withPack, type Route } from './route';
+import { packOf, routePath, withPack, type Route } from './route';
 import { PRODUCT_NAME } from './strings';
 import logo from './vellum-logo.png';
 
@@ -12,7 +12,9 @@ interface ViewLink {
   current: boolean;
 }
 
-function viewLinks(route: Route, packs: readonly string[]): ViewLink[] {
+/** shared.md "Demo parity": Ingest · Chat · Documents on every project route; the screens without a tab (checks,
+ * engineer, surveyor) are reached from the links other screens draw. */
+function viewLinks(route: Route): ViewLink[] {
   if (!('projectId' in route)) return [];
   const pid = route.projectId;
   const pack = packOf(route);
@@ -21,25 +23,10 @@ function viewLinks(route: Route, packs: readonly string[]): ViewLink[] {
     href: withPack(`#/p/${pid}${path}`, pack),
     current,
   });
-  // shared.md "Header tabs": Checks only with a pack info lists (or on its own route); Surveyor only on drawing
-  // routes. No Engineer tab (Tudor 12:46): the engineer route is reached from the chat's and the drawings' links.
-  const links = [
-    tab('Ingest', '', route.name === 'project' || route.name === 'file'),
-    tab('Conflicts', '/conflicts', route.name === 'conflicts'),
-    ...((pack !== null && packs.includes(pack)) || route.name === 'checks'
-      ? [tab('Checks', '/checks', route.name === 'checks')]
-      : []),
-    tab('Issues', '/issues', route.name === 'issues'),
-    tab('Chat', '/chat', route.name === 'chat'),
-  ];
-  if (route.name !== 'workspace') return links;
   return [
-    ...links,
-    {
-      label: 'Surveyor',
-      href: routeHref({ ...route, role: 'surveyor' }),
-      current: route.role === 'surveyor',
-    },
+    tab('Ingest', '', route.name === 'project' || route.name === 'file'),
+    tab('Chat', '/chat', route.name === 'chat'),
+    tab('Documents', '/documents', route.name === 'documents'),
   ];
 }
 
@@ -47,10 +34,12 @@ function viewLinks(route: Route, packs: readonly string[]): ViewLink[] {
 export const isWide = (route: Route) => route.name === 'account' || route.name === 'workspace';
 
 export function Header({ route }: { route: Route }) {
-  const { info } = useInfo();
-  const links = viewLinks(
-    route,
-    rulePacksOf(info).map((p) => p.id),
+  const links = viewLinks(route);
+  // The badge asks again on every route change within the project (shared.md "Documents badge").
+  const toAnswer = useIssuesToAnswer(
+    'projectId' in route ? route.projectId : null,
+    routePath(route),
+    packOf(route),
   );
   const wide = isWide(route);
   return (
@@ -62,15 +51,38 @@ export function Header({ route }: { route: Route }) {
         </a>
         {links.length > 0 && (
           <nav className="view-links v-segmented" aria-label="Views">
-            {links.map((link) => (
-              <a key={link.label} href={link.href} aria-current={link.current ? 'page' : undefined}>
-                {link.label}
-              </a>
-            ))}
+            {links.map((link) => {
+              const badge = link.label === 'Documents' && toAnswer ? toAnswer : 0;
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  aria-current={link.current ? 'page' : undefined}
+                  aria-label={
+                    badge
+                      ? `Documents, ${String(badge)} issue${badge === 1 ? '' : 's'} to answer`
+                      : undefined
+                  }
+                >
+                  {link.label}
+                  {badge > 0 && (
+                    <span className="tab-badge" aria-hidden="true">
+                      {badge}
+                    </span>
+                  )}
+                </a>
+              );
+            })}
           </nav>
         )}
         <ProjectPicker
-          projectId={'projectId' in route ? route.projectId : null}
+          projectId={
+            'projectId' in route
+              ? route.projectId
+              : route.name === 'about'
+                ? route.query.get('project')
+                : null
+          }
           pack={packOf(route)}
         />
         {'projectId' in route && <CountryPicker pack={packOf(route)} />}
@@ -81,6 +93,9 @@ export function Header({ route }: { route: Route }) {
         >
           Workspaces
         </a>
+        {'projectId' in route && (
+          <ExportButton key={route.projectId} projectId={route.projectId} pack={packOf(route)} />
+        )}
       </div>
     </header>
   );

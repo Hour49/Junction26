@@ -6,6 +6,31 @@ import { formatSize } from '../ingest/ingest';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
+
+// The finished block is preqa-a's (src/ingest/IngestFinished.tsx), tested there; here only where it goes (AV-35).
+vi.mock('../ingest/IngestFinished', () => ({
+  CONFLICTS_ID: 'conflicts',
+  DoneLine: (p: { projectId: string; project: ProjectView; counts: unknown }) =>
+    p.project.state === 'done' ? (
+      <p data-testid="done-line">
+        {p.projectId} {JSON.stringify(p.counts)}
+      </p>
+    ) : null,
+  IngestFinished: (p: {
+    projectId: string;
+    project: ProjectView;
+    onCounts?: (c: { total: number; needsPerson: number }) => void;
+  }) =>
+    p.project.state === 'done' ? (
+      <button
+        type="button"
+        data-testid="finished"
+        onClick={() => p.onCounts?.({ total: 3, needsPerson: 1 })}
+      >
+        {p.projectId}
+      </button>
+    ) : null,
+}));
 import { readFileSync } from 'node:fs';
 
 const PID = project.id;
@@ -104,7 +129,7 @@ describe('AdvancedIngest', () => {
     expect(screen.getByText('Now')).toBeTruthy();
     await pick(/^Unpack/);
     expect(screen.queryByText('Now')).toBeNull();
-    expect(screen.getByText('Done')).toBeTruthy();
+    expect(screen.getByText('Done · replaying what this step did')).toBeTruthy(); // AV-41
     expect(
       screen.getByText(/every path is checked to stay inside the project folder/),
     ).toBeTruthy();
@@ -342,14 +367,22 @@ describe('AdvancedIngest', () => {
     );
   });
 
-  it('AV-19 Cross-check: conflicts first with a link to settle them; stats from the takeoffs', async () => {
+  it('AV-19/AV-38 Cross-check: conflicts first, "Show the conflict" scrolls to the list; stats', async () => {
     await show();
     await pick(/^Cross-check/);
     const pairs = screen.getByRole('list', { name: 'Measured twice' });
-    expect(pairs.textContent).toContain('They disagree. Sent to Settle the conflicts.');
-    expect(
-      within(pairs).getAllByRole('link', { name: 'Settle the conflicts' })[0]?.getAttribute('href'),
-    ).toBe(`#/p/${PID}/conflicts`);
+    expect(pairs.textContent).toContain('They disagree. It goes to the conflicts below.');
+    expect(within(pairs).queryAllByRole('link')).toHaveLength(0);
+    const target = document.createElement('section');
+    target.id = 'conflicts';
+    target.tabIndex = -1;
+    const scroll = vi.fn();
+    target.scrollIntoView = scroll;
+    document.body.append(target);
+    fireEvent.click(must(within(pairs).getAllByRole('button', { name: 'Show the conflict' })[0]));
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(target);
+    target.remove();
     expect(stat('Conflicts').textContent).toContain('5'); // one per drawing, 5 drawings
     expect(stat('Agree').textContent).toContain('0');
   });
@@ -447,15 +480,56 @@ describe('AdvancedIngest', () => {
     );
   });
 
-  it('AV-20 Index: questions ready per drawing, the suggestions, and Ask this drawing', async () => {
+  it('AV-35 done: DoneLine last inside the panel card, IngestFinished after it, counts passed back', async () => {
+    await show();
+    const card = must(document.querySelector('section.adv-panel'));
+    const line = screen.getByTestId('done-line');
+    expect(card.lastElementChild).toBe(line);
+    expect(line.previousElementSibling?.tagName).toBe('DL');
+    const block = screen.getByTestId('finished');
+    expect(card.nextElementSibling).toBe(block);
+    expect(block.textContent).toBe(PID);
+    expect(line.textContent).toBe(`${PID} null`);
+    fireEvent.click(block);
+    expect(screen.getByTestId('done-line').textContent).toBe(`${PID} {"total":3,"needsPerson":1}`);
+  });
+
+  it('AV-36 not done: no done line and no finished block', async () => {
+    for (const p of [variants.running, variants.failed, variants.queued]) {
+      await show(p);
+      expect(screen.queryByTestId('done-line')).toBeNull();
+      expect(screen.queryByTestId('finished')).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('AV-37 the Advanced view makes no review or issues request of its own', async () => {
+    const { api } = await show();
+    await pick(/^Cross-check/);
+    const urls = api.calls.map((c) => c.url);
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.filter((u) => u.includes('/review') || u.includes('/issues'))).toEqual([]);
+  });
+
+  it('AV-38 while reading, a conflict goes to the list when reading ends, with no button', async () => {
+    await show(variants.running);
+    await pick(/^Cross-check/);
+    const pairs = screen.queryByRole('list', { name: 'Measured twice' });
+    if (pairs) {
+      expect(pairs.textContent).not.toContain('below');
+      expect(within(pairs).queryAllByRole('button', { name: 'Show the conflict' })).toHaveLength(0);
+      expect(pairs.textContent).toContain(
+        'They disagree. It goes to the conflicts when reading ends.',
+      );
+    }
+  });
+
+  it('AV-20/AV-39 Index: questions ready per drawing and the suggestions, no Ask link', async () => {
     await show();
     expect(screen.getByText('Questions ready to ask')).toBeTruthy();
     expect(document.body.textContent).toContain('71 questions ready to ask');
     expect(document.body.textContent).toContain(must(drawing.suggestions[0]).label);
-    const d = must(project.drawings[0]);
-    expect(screen.getAllByRole('link', { name: 'Ask this drawing' })[0]?.getAttribute('href')).toBe(
-      `#/p/${PID}/d/${d.drawing_id}/engineer`,
-    );
+    expect(screen.queryByRole('link', { name: 'Ask this drawing' })).toBeNull();
     expect(document.body.textContent).not.toContain('answers ready');
   });
 
@@ -489,9 +563,28 @@ describe('AdvancedIngest', () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
   });
 
-  it('CSS: the Index links are 44 px tap targets and the set-aside note never wraps', () => {
+  it('AV-39/AV-40 no old screen names, engineer links, credits or refused lines in src/advanced', () => {
+    for (const f of ['AdvancedIngest.tsx', 'visuals.tsx', 'advanced.ts']) {
+      const src = readFileSync(`src/advanced/${f}`, 'utf8');
+      expect(src).not.toMatch(
+        /\/engineer|\/conflicts`|Settle the conflicts|Engineer|credit|licen[cs]e|refused/i,
+      );
+    }
+  });
+
+  it('AV-41 CSS: the demo look (kicker ok, done row padding)', () => {
     const css = readFileSync('src/advanced/advanced.css', 'utf8');
-    expect(css).toMatch(/\.adv-ready a \{[^}]*min-height: 44px/);
+    // demo .done-row: 0 32px 28px, phone 0 20px 22px (re-sweep item 4)
+    expect(css).toMatch(/\.adv-panel > \.ingest-done-line \{[^}]*padding: 0 32px 28px/);
+    expect(css).toMatch(
+      /@media \(max-width: 760px\)[^@]*\.adv-panel > \.ingest-done-line \{[^}]*padding: 0 20px 22px/,
+    );
+    expect(css).toMatch(/\.adv-now\.done \{[^}]*color: var\(--v-ok\)/);
+    expect(css).toMatch(/\.adv-verdict button \{[^}]*min-height: 44px/);
+  });
+
+  it('CSS: the set-aside note never wraps', () => {
+    const css = readFileSync('src/advanced/advanced.css', 'utf8');
     expect(css).toMatch(/\.adv-aside \{[^}]*white-space: nowrap/);
   });
 });

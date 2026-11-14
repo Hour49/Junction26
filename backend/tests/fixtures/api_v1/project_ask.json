@@ -203,15 +203,16 @@
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
-      "drawing_id": "6d153ea15dca9ab4",
+      "drawing_id": "44cc9f0d991eafe3",
       "name": "plans/flat-b.pdf",
       "answer": {
         "question": "How many doors are there?",
-        "drawing_id": "6d153ea15dca9ab4",
+        "drawing_id": "44cc9f0d991eafe3",
         "file": "plans/flat-b.pdf",
         "pages": [
           {
@@ -219,7 +220,7 @@
             "width": 600.0,
             "height": 400.0,
             "unit": "pt",
-            "url": "/api/drawings/6d153ea15dca9ab4/pages/1.png",
+            "url": "/api/drawings/44cc9f0d991eafe3/pages/1.png",
             "normalised": null,
             "scale": {
               "status": "scaled",
@@ -408,7 +409,8 @@
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     },
     {
@@ -491,12 +493,16 @@
           "schedule": null,
           "check": null
         },
-        "check": null
+        "check": null,
+        "level": null
       }
     }
   ],
   "total": null,
   "total_unit": null,
   "total_sure": false,
-  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it."
+  "total_level": null,
+  "total_note": "3 drawings answered; they may show the same rooms, so the numbers are not added up; 2 drawings have no reader for it.",
+  "why_no_total": "3 drawings answered; they may show the same rooms, so the numbers are not added up.",
+  "refused_note": "2 drawings have no reader for it."
 }

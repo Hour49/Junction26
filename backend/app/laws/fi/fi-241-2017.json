@@ -1,0 +1,1249 @@
+{
+  "id": "fi-241-2017",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "241/2017",
+  "title": "Valtioneuvoston asetus rakennuksen esteettömyydestä",
+  "title_en": "Government Decree on the accessibility of buildings",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2017/241",
+  "language": "fi",
+  "in_force": "2018-01-01",
+  "checked": "2026-11-14",
+  "status_note": "In force, as amended by 683/2024. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced.",
+  "clauses": [
+    {
+      "id": "fi-241-2017-1-1",
+      "ref": "1 § 1 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Tätä asetusta sovelletaan rakentamislain (751/2023) 42 §:n mukaan luvanvaraiseen uuden hallinto-, palvelu-, toimisto-, liike-, varasto-, tuotanto- ja asuinrakennuksen rakentamiseen. Pientalon rakentamiseen sovelletaan kuitenkin ainoastaan 2–4 §:ää ja varasto- ja tuotantorakennuksen rakentamiseen ainoastaan 2–5, 8, 10 ja 11 §:ää.",
+      "text_en": "This Decree applies to the construction of a new administrative, service, office, commercial, storage, production and residential building that requires a permit under section 42 of the Building Act (751/2023). For the construction of a small house only sections 2 to 4 apply, and for the construction of a storage or production building only sections 2 to 5, 8, 10 and 11 apply.",
+      "summary_en": "The decree covers new permit-requiring administrative, service, office, commercial, storage, production and residential buildings, with fewer sections for small houses and storage or production buildings.",
+      "keywords": [
+        "accessibility",
+        "esteettömyys",
+        "soveltamisala",
+        "rakentamislaki",
+        "uudisrakennus",
+        "pientalo",
+        "varastorakennus",
+        "tuotantorakennus",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-1-2",
+      "ref": "1 § 2 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Tätä asetusta sovelletaan myös rakentamislain 42 §:n mukaan luvanvaraiseen hallinto-, palvelu-, toimisto-, liike-, varasto- ja tuotantorakennuksen sekä asuinkerrostalon yleisten tilojen korjaus- ja muutostyöhön, laajentamiseen, kerrosalaan laskettavan tilan lisäämiseen ja rakennuksen käyttötarkoituksen muutokseen hallinto-, palvelu-, toimisto-, liike- tai asuinkäyttöön siltä osin kuin esteettömyyden parantaminen on rakennuksen ominaisuudet sekä toimenpiteen laatu ja laajuus huomioon ottaen tarkoituksenmukaista. Varasto- ja tuotantorakennuksessa tehtäviin edellä tarkoitettuihin toimenpiteisiin sovelletaan kuitenkin ainoastaan 2–5, 8, 10 ja 11 §:ää.",
+      "text_en": "This Decree also applies to repair and alteration work, extension, addition of space counting towards floor area, and change of use to administrative, service, office, commercial or residential use, of an administrative, service, office, commercial, storage and production building and of the common spaces of an apartment block, requiring a permit under section 42 of the Building Act, insofar as improving accessibility is appropriate considering the building's characteristics and the nature and extent of the measure. However, only sections 2 to 5, 8, 10 and 11 apply to such measures in a storage or production building.",
+      "summary_en": "The decree also applies to permit-requiring repairs, extensions, floor area additions and use changes of these buildings where improving accessibility is appropriate; storage and production buildings get only sections 2 to 5, 8, 10 and 11.",
+      "keywords": [
+        "accessibility",
+        "esteettömyys",
+        "repair and alteration work",
+        "korjaus- ja muutostyö",
+        "extension",
+        "laajentaminen",
+        "change of use",
+        "käyttötarkoituksen muutos",
+        "floor area",
+        "kerrosala",
+        "storage and production building",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-1-3",
+      "ref": "1 § 3 mom.",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope",
+      "text": "Mitä tässä asetuksessa säädetään tiettyyn käyttöön tarkoitetusta rakennuksesta, koskee myös vastaavaan käyttöön tarkoitettua muussa rakennuksessa olevaa tilaa.",
+      "text_en": "What this Decree provides for a building intended for a certain use also applies to a space intended for a corresponding use located in another building.",
+      "summary_en": "Rules for a building with a given use also apply to a space with the same use inside another building.",
+      "keywords": [
+        "scope",
+        "soveltamisala",
+        "käyttötarkoitus",
+        "tila",
+        "other building",
+        "rakennus",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-2-1",
+      "ref": "2 § 1 mom.",
+      "heading": "Rakennukseen johtava kulkuväylä",
+      "heading_en": "Accessible route to the building",
+      "text": "Rakennukseen on oltava vähintään 1 200 millimetriä leveä, helposti havaittava, pinnaltaan tasainen, kova ja luistamaton kulkuväylä tontin tai rakennuspaikan rajalta sekä tilasta ja alueelta, joka palvelee rakennuksen käyttöä. Ulkotilassa sijaitsevan kulkuväylän kaltevuus saa olla enintään viisi prosenttia. Jos kulkuväylällä on porras, sen yhteydessä on oltava luiska tai kiinteästi asennettu pyörätuolin ja pyörillä varustetun kävelytelineen käyttäjälle soveltuva henkilöiden nostoon tarkoitettu laite. Tässä momentissa säädetty ei koske omakotitaloa, paritaloa eikä kaupunkipientaloa, jos esteettömän kulkuväylän toteuttaminen olisi rakennuspaikka ja korkeuserot huomioon ottaen mahdotonta.",
+      "text_en": "There must be an accessible route to the building at least 1,200 millimetres wide, easily perceptible, even in surface, firm and non-slip, from the boundary of the plot or building site and from the space and area serving the use of the building. The gradient of a route located outdoors must be at most five per cent. If the route has a stair, there must be a ramp next to it, or a permanently installed device for lifting persons suitable for a user of a wheelchair and wheeled walker. What is provided in this subsection does not apply to a detached house, a semi-detached house or an urban small house, if an accessible route would be impossible considering the building site and the height differences.",
+      "summary_en": "An accessible route at least 1,200 mm wide, firm, non-slip, with a gradient of at most 5% outdoors, must lead to the building; a stair on it needs a ramp or wheelchair-suitable lift, with exceptions for detached, semi-detached and urban small houses.",
+      "keywords": [
+        "accessible route",
+        "kulkuväylä",
+        "width 1200 mm",
+        "leveys",
+        "gradient 5 %",
+        "kaltevuus",
+        "ramp",
+        "luiska",
+        "stair",
+        "porras",
+        "esteetön",
+        "ramppi"
+      ],
+      "topics": [
+        "accessibility",
+        "outdoor"
+      ],
+      "limits": [
+        {
+          "what": "width of accessible route to building",
+          "comparison": ">=",
+          "value": 1200,
+          "unit": "mm"
+        },
+        {
+          "what": "gradient of outdoor accessible route",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-2-2",
+      "ref": "2 § 2 mom.",
+      "heading": "Rakennukseen johtava kulkuväylä",
+      "heading_en": "Accessible route to the building",
+      "text": "Edellä 1 momentissa tarkoitetun luiskan on oltava helposti havaittava, suora, pinnaltaan tasainen, kova ja luistamaton, leveydeltään vähintään 900 millimetriä ja sen reunassa on oltava vähintään 50 millimetriä korkea suojareuna, jos luiska ei rajaudu kiinteään rakenteeseen. Luiskan ala- ja yläpäässä on oltava vähintään 1 500 millimetriä pitkä vaakasuora tasanne. Luiskan kaltevuus saa olla enintään viisi prosenttia. Jos korkeusero on enintään 1 000 millimetriä, luiskan kaltevuus saa kuitenkin olla enintään kahdeksan prosenttia. Tällöin yhtäjaksoisen luiskan korkeusero saa olla enintään 500 millimetriä, jonka jälkeen kulkuväylällä on oltava vaakasuora vähintään 2 000 millimetriä pitkä välitasanne. Ulkotilassa luiska saa kuitenkin olla kaltevuudeltaan yli viisi prosenttia vain, jos se voidaan pitää sisätilassa olevaan luiskaan verrattavassa kunnossa. Kaiteesta, käsijohteesta ja muusta putoamisen ja harhaan astumisen estämisestä säädetään maankäyttö- ja rakennuslain 117 d §:n 2 momentin nojalla annetussa asetuksessa.",
+      "text_en": "The ramp referred to in subsection 1 above must be easily perceptible, straight, even in surface, firm and non-slip, at least 900 millimetres wide, and it must have a protective edge at least 50 millimetres high along its edge if the ramp is not bounded by a fixed structure. At the lower and upper ends of the ramp there must be a horizontal landing at least 1,500 millimetres long. The gradient of the ramp must be at most five per cent. If the height difference is at most 1,000 millimetres, however, the gradient of the ramp may be at most eight per cent. In that case, the height difference of one continuous section of ramp may be at most 500 millimetres, after which the route must have a horizontal intermediate landing at least 2,000 millimetres long. Outdoors, however, a ramp may have a gradient above five per cent only if it can be considered to be in a condition comparable to a ramp indoors. Railings, handrails and other protection against falling and stumbling are regulated by the decree issued under subsection 2 of section 117 d of the Land Use and Building Act.",
+      "summary_en": "A ramp must be at least 900 mm wide with a 50 mm edge guard and 1,500 mm landings at each end; its gradient is at most 5% (8% for rises up to 1,000 mm, where a 2,000 mm intermediate landing is needed after each 500 mm of rise).",
+      "keywords": [
+        "ramp",
+        "luiska",
+        "width 900 mm",
+        "gradient 5 %",
+        "landing",
+        "tasanne",
+        "edge guard",
+        "suojareuna",
+        "kaide",
+        "kaltevuus",
+        "ramppi",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "ramp width",
+          "comparison": ">=",
+          "value": 900,
+          "unit": "mm"
+        },
+        {
+          "what": "protective edge height on open side of ramp",
+          "comparison": ">=",
+          "value": 50,
+          "unit": "mm"
+        },
+        {
+          "what": "landing length at each end of ramp",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "ramp gradient",
+          "comparison": "<=",
+          "value": 5,
+          "unit": "%"
+        },
+        {
+          "what": "ramp gradient allowed where rise is at most 1000 mm",
+          "comparison": "<=",
+          "value": 8,
+          "unit": "%"
+        },
+        {
+          "what": "rise of one continuous ramp section",
+          "comparison": "<=",
+          "value": 500,
+          "unit": "mm"
+        },
+        {
+          "what": "intermediate landing length",
+          "comparison": ">=",
+          "value": 2000,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-2-3",
+      "ref": "2 § 3 mom.",
+      "heading": "Rakennukseen johtava kulkuväylä",
+      "heading_en": "Accessible route to the building",
+      "text": "Jos rakennusta varten on autopaikkoja, niistä riittävän määrän, kuitenkin vähintään yhden, on oltava tarkoitettu liikkumis- ja toimimisesteisen henkilön käyttöön. Tällaisen autopaikan on oltava vähintään 3 600 millimetriä leveä ja vähintään 5 000 millimetriä pitkä ja se on merkittävä liikkumisesteisen henkilön tunnuksella. Tässä momentissa säädetty ei koske omakotitaloa, paritaloa eikä kaupunkipientaloa.",
+      "text_en": "If parking spaces are provided for the building, a sufficient number of them, but at least one, must be intended for use by a person with a mobility or functional impairment. Such a parking space must be at least 3,600 millimetres wide and at least 5,000 millimetres long, and it must be marked with the symbol for a person with a mobility impairment. What is provided in this subsection does not apply to a detached house, a semi-detached house or an urban small house.",
+      "summary_en": "Where a building has parking, at least one space, at least 3,600 mm wide and 5,000 mm long, must be reserved and marked for a person with a mobility impairment, with exceptions for detached, semi-detached and urban small houses.",
+      "keywords": [
+        "accessible parking space",
+        "esteetön autopaikka",
+        "autopaikka",
+        "width 3600 mm",
+        "length 5000 mm",
+        "disability symbol",
+        "liikkumisesteen tunnus",
+        "parking space",
+        "pientalo",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "parking"
+      ],
+      "limits": [
+        {
+          "what": "width of accessible parking space",
+          "comparison": ">=",
+          "value": 3600,
+          "unit": "mm"
+        },
+        {
+          "what": "length of accessible parking space",
+          "comparison": ">=",
+          "value": 5000,
+          "unit": "mm"
+        },
+        {
+          "what": "number of accessible parking spaces",
+          "comparison": ">=",
+          "value": 1,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Rakennuksen sisäänkäynti",
+      "heading_en": "Building entrance",
+      "text": "Rakennuksen ulko-oven avautumispuolen etäisyys seinän sisänurkasta tai muusta kiinteästä esteestä on oven ulkopuolella oltava vähintään 400 millimetriä.",
+      "text_en": "On the outside of the door, the distance from the opening side of the building's external door to an interior corner of a wall or other fixed obstacle must be at least 400 millimetres.",
+      "summary_en": "The outside of a building's external door must have at least 400 mm clear distance from the opening side to a wall corner or other fixed obstacle.",
+      "keywords": [
+        "external door",
+        "ulko-ovi",
+        "entrance",
+        "sisäänkäynti",
+        "400 mm",
+        "clear distance",
+        "seinän sisänurkka",
+        "fixed obstacle",
+        "kiinteä este",
+        "esteetön"
+      ],
+      "topics": [
+        "doors-windows",
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "clear distance from door opening side to wall corner or fixed obstacle, outside the door",
+          "comparison": ">=",
+          "value": 400,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Rakennuksen sisäänkäynti",
+      "heading_en": "Building entrance",
+      "text": "Ulko-oven edessä olevan tasanteen on oltava vähintään 1 500 millimetriä leveä ja vähintään 1500 millimetriä pitkä.",
+      "text_en": "The landing in front of an external door must be at least 1,500 millimetres wide and at least 1,500 millimetres long.",
+      "summary_en": "The landing in front of an external door must be at least 1,500 mm wide and 1,500 mm long.",
+      "keywords": [
+        "landing",
+        "tasanne",
+        "external door",
+        "ulko-ovi",
+        "1500 mm",
+        "width",
+        "leveys",
+        "length",
+        "pituus",
+        "esteetön"
+      ],
+      "topics": [
+        "doors-windows",
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "width of landing in front of external door",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "length of landing in front of external door",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-4-1",
+      "ref": "4 § 1 mom.",
+      "heading": "Ovet",
+      "heading_en": "Doors",
+      "text": "Rakennuksen sisäisellä kulkuväylällä olevan oven ja aukon, porraskäytävästä asuntoon johtavan oven sekä 9 §:n 2 momentissa ja 10 §:ssä tarkoitetun tilan oven vapaan leveyden on oltava vähintään 850 millimetriä. Rakennuksen ulko-oven ja muun uloskäytävän oven mitoituksesta säädetään maankäyttö- ja rakennuslain 117 b §:n 3 momentin nojalla annetussa asetuksessa.",
+      "text_en": "The clear width of a door and opening on an internal circulation route of a building, of a door leading from a stairwell to a dwelling, and of a door to a space referred to in subsection 2 of section 9 and in section 10, must be at least 850 millimetres. The sizing of the external door and other emergency exit door of a building is provided by the decree issued under subsection 3 of section 117 b of the Land Use and Building Act.",
+      "summary_en": "Internal doors, openings and doors from stairwells into dwellings must have a clear width of at least 850 mm; external and emergency exit doors are sized by a separate decree.",
+      "keywords": [
+        "door width",
+        "oven leveys",
+        "clear width",
+        "850 mm",
+        "sisäovi",
+        "stairwell",
+        "porraskäytävä",
+        "asunnon ovi",
+        "esteetön",
+        "oviaukko",
+        "accessible door",
+        "door opening"
+      ],
+      "topics": [
+        "doors-windows"
+      ],
+      "limits": [
+        {
+          "what": "clear width of doors and openings on internal routes, stairwell-to-dwelling doors and doors per section 9(2) and 10",
+          "comparison": ">=",
+          "value": 850,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-4-2",
+      "ref": "4 § 2 mom.",
+      "heading": "Ovet",
+      "heading_en": "Doors",
+      "text": "Muun rakennuksen kuin asuinrakennuksen huonetiloihin sekä asuinrakennuksen asuinhuoneisiin, asumista palveleviin välttämättömiin tiloihin ja rakennuksen käyttöä palveleviin tiloihin johtavan oven ja kulkuaukon vapaan leveyden on oltava vähintään 800 millimetriä.",
+      "text_en": "The clear width of a door and opening leading to rooms of a building other than a residential building, to residential rooms of a residential building, to essential spaces serving residence, and to spaces serving the use of the building, must be at least 800 millimetres.",
+      "summary_en": "Doors and openings into rooms of non-residential buildings, residential rooms and essential residential or service spaces must be at least 800 mm clear.",
+      "keywords": [
+        "door width",
+        "oven leveys",
+        "800 mm",
+        "clear width",
+        "door opening",
+        "asuinhuone",
+        "huonetila",
+        "rakennus",
+        "esteetön",
+        "oviaukko",
+        "accessible door"
+      ],
+      "topics": [
+        "doors-windows",
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "clear door width into rooms",
+          "comparison": ">=",
+          "value": 800,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-4-3",
+      "ref": "4 § 3 mom.",
+      "heading": "Ovet",
+      "heading_en": "Doors",
+      "text": "Oven yhteydessä ei saa olla tasoeroa tai kynnystä, ellei se ole ääni-, kosteus- tai muiden vastaavien olosuhteiden vuoksi välttämätöntä. Tällöin kynnys tai tasoero saa olla enintään 20 millimetriä korkea, ja kynnys on muotoiltava siten, että sen voi helposti ylittää pyörätuolilla ja pyörillä varustetulla kävelytelineellä. Tasoero asuntokohtaisen ulkotilan oven yhteydessä oven ulkopuolella saa olla yli 20 millimetriä, jos tasoero on kohtuudella poistettavissa ulkotilan varustelulla. Edellä 2 ja 3 momentissa säädetty koskee pientalossa vain sisääntulokerrosta.",
+      "text_en": "There must be no level difference or threshold at a door unless it is necessary because of sound, moisture or similar conditions. In that case, the threshold or level difference may be at most 20 millimetres high, and the threshold must be shaped so that it can easily be crossed with a wheelchair and wheeled walker. A level difference at the door of a dwelling-specific outdoor space, outside the door, may exceed 20 millimetres if it can reasonably be removed by equipping the outdoor space. The provisions of subsections 2 and 3 above apply in a small house only to the entrance storey.",
+      "summary_en": "No threshold or level difference is allowed at a door unless needed for sound, moisture or similar reasons, and then it must be at most 20 mm high and easily crossable by a wheelchair.",
+      "keywords": [
+        "threshold",
+        "kynnys",
+        "level difference",
+        "tasoero",
+        "20 mm",
+        "door",
+        "ovi",
+        "pyörätuoli",
+        "kosteus",
+        "ääni",
+        "esteetön",
+        "kynnyksetön"
+      ],
+      "topics": [
+        "doors-windows",
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "threshold or level difference at a door, where allowed",
+          "comparison": "<=",
+          "value": 20,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-4-4",
+      "ref": "4 § 4 mom.",
+      "heading": "Ovet",
+      "heading_en": "Doors",
+      "text": "Rakennuksen ulko-oven ja asuinrakennuksen käyttöä palvelevan tilan oven on toimittava siten, että liikkumis- tai toimimisesteinen henkilö voi sen helposti avata.",
+      "text_en": "The external door of a building and the door of a space serving the use of a residential building must operate so that a person with a mobility or functional impairment can easily open it.",
+      "summary_en": "External doors and doors to residential support spaces must be easy for a person with a mobility or functional impairment to open.",
+      "keywords": [
+        "external door",
+        "ulko-ovi",
+        "door opening",
+        "oven avaaminen",
+        "accessibility",
+        "esteettömyys",
+        "ovi",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "doors-windows"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-5-1",
+      "ref": "5 § 1 mom.",
+      "heading": "Rakennuksen sisäinen kulkuväylä",
+      "heading_en": "Internal circulation route of the building",
+      "text": "Muun rakennuksen kuin asuinrakennuksen sisäisen kulkuväylän ja asuinrakennuksen yleisten tilojen sisäisen kulkuväylän on oltava helposti havaittava, pinnaltaan tasainen ja luistamaton.",
+      "text_en": "The internal circulation route of a building other than a residential building, and the internal circulation route of the common spaces of a residential building, must be easily perceptible, even in surface and non-slip.",
+      "summary_en": "Internal circulation routes in non-residential buildings and in the common spaces of residential buildings must be easy to perceive, with an even, non-slip surface.",
+      "keywords": [
+        "internal route",
+        "sisäinen kulkuväylä",
+        "common spaces",
+        "yleiset tilat",
+        "non-slip",
+        "luistamaton",
+        "even surface",
+        "pinta",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-5-2",
+      "ref": "5 § 2 mom.",
+      "heading": "Rakennuksen sisäinen kulkuväylä",
+      "heading_en": "Internal circulation route of the building",
+      "text": "Jos 1 momentissa tarkoitettu kulkuväylä on leveydeltään alle 1 500 millimetriä, kulkuväylällä on oltava vähintään 15 metrin välein kääntymistila, jonka halkaisija on vähintään 1 500 millimetriä.",
+      "text_en": "If the route referred to in subsection 1 above is less than 1,500 millimetres wide, the route must have a turning area with a diameter of at least 1,500 millimetres at least every 15 metres.",
+      "summary_en": "An internal route narrower than 1,500 mm must have a turning space at least 1,500 mm in diameter at least every 15 m.",
+      "keywords": [
+        "turning area",
+        "kääntymistila",
+        "1500 mm",
+        "15 m",
+        "internal route",
+        "sisäinen kulkuväylä",
+        "kulkuväylän leveys",
+        "leveys",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "route width below which turning areas are required",
+          "comparison": "<",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "diameter of turning area",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "spacing of turning areas along route",
+          "comparison": "<=",
+          "value": 15,
+          "unit": "m"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-6-1",
+      "ref": "6 § 1 mom.",
+      "heading": "Rakennuksen muut tilat",
+      "heading_en": "Other spaces in the building",
+      "text": "Muun rakennuksen kuin asuinrakennuksen tilojen ja asuinrakennuksen yleisten tilojen sekä niiden kiinteän kalustuksen ja varustuksen on sovelluttava liikkumis- ja toimimisesteiselle henkilölle.",
+      "text_en": "The spaces of a building other than a residential building, the common spaces of a residential building, and their fixed furnishings and fittings must be suitable for a person with a mobility or functional impairment.",
+      "summary_en": "Non-residential spaces and residential common spaces, with their fixed furnishings, must be suitable for people with mobility or functional impairments.",
+      "keywords": [
+        "accessibility",
+        "esteettömyys",
+        "common spaces",
+        "yleiset tilat",
+        "fixed furnishings",
+        "kiintokalusteet",
+        "fittings",
+        "varustus",
+        "liikkumisesteinen",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-6-2",
+      "ref": "6 § 2 mom.",
+      "heading": "Rakennuksen muut tilat",
+      "heading_en": "Other spaces in the building",
+      "text": "Asuinrakennuksessa, jossa on 7 §:n mukaan oltava portaiden lisäksi hissi, on asunnon eteisessä ja keittiössä oltava kääntymistila, jonka halkaisija on vähintään 1 300 millimetriä.",
+      "text_en": "In a residential building which, under section 7, must have a lift in addition to stairs, the hall and kitchen of a dwelling must have a turning space with a diameter of at least 1,300 millimetres.",
+      "summary_en": "In a residential building with a required lift, a dwelling's hall and kitchen need a turning space at least 1,300 mm in diameter.",
+      "keywords": [
+        "turning space",
+        "kääntymistila",
+        "hallway",
+        "eteinen",
+        "kitchen",
+        "keittiö",
+        "1300 mm",
+        "lift",
+        "hissi",
+        "dwelling",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "turning space diameter in dwelling hall and kitchen",
+          "comparison": ">=",
+          "value": 1300,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-6-3",
+      "ref": "6 § 3 mom.",
+      "heading": "Rakennuksen muut tilat",
+      "heading_en": "Other spaces in the building",
+      "text": "Asunnossa, joka on tarkoitettu palveluasumiseen tai liikkumis- tai toimimisesteisen henkilön tuettuun asumiseen, on rakennuksen kerrosluvusta riippumatta oltava eteisessä ja keittiössä kääntymistila, jonka halkaisija on vähintään 1 500 millimetriä. Tällaisen asunnon on mitoitukseltaan muutoinkin oltava sellainen, että apuvälineiden käyttö ja avustaminen on mahdollista.",
+      "text_en": "In a dwelling intended for service housing or for supported living of a person with a mobility or functional impairment, regardless of the number of storeys in the building, the hall and kitchen must have a turning space with a diameter of at least 1,500 millimetres. Such a dwelling must also in other respects be dimensioned so that the use of assistive devices and assistance are possible.",
+      "summary_en": "A service-housing or supported-living dwelling must have at least 1,500 mm turning space in its hall and kitchen, and be sized to allow assistive devices and assistance.",
+      "keywords": [
+        "turning space",
+        "kääntymistila",
+        "hallway",
+        "eteinen",
+        "kitchen",
+        "keittiö",
+        "1500 mm",
+        "palveluasuminen",
+        "tuettu asuminen",
+        "apuväline",
+        "assistance",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "rooms"
+      ],
+      "limits": [
+        {
+          "what": "turning space diameter in service-housing dwelling hall and kitchen",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "Yhteys tasojen välillä asuinrakennuksessa",
+      "heading_en": "Connection between levels in a residential building",
+      "text": "Asuinrakennuksessa on oltava portaiden lisäksi hissi, jos käynti rakennuksessa sijaitsevaan asuntoon on sisääntulon kerrostaso mukaan lukien kolmannessa tai sitä ylemmässä kerroksessa. Jos käynti rakennukseen on kerrostasojen välissä, sisääntulon kerrostasona pidetään näistä alempaa.",
+      "text_en": "A residential building must have a lift in addition to stairs if access to a dwelling in the building, counting the entrance storey, is on the third storey or higher. If access to the building is between storeys, the lower of these storeys is considered the entrance storey.",
+      "summary_en": "A residential building needs a lift as well as stairs when a dwelling is reached on the third storey or higher, counting the entrance storey.",
+      "keywords": [
+        "lift",
+        "hissi",
+        "stairs",
+        "portaat",
+        "storey",
+        "kerros",
+        "entrance storey",
+        "sisääntulokerros",
+        "residential building",
+        "asuinrakennus",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "stairs-railings"
+      ],
+      "limits": [
+        {
+          "what": "storey of dwelling access from which a lift is required",
+          "comparison": ">=",
+          "value": 3,
+          "unit": "storeys"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "Yhteys tasojen välillä asuinrakennuksessa",
+      "heading_en": "Connection between levels in a residential building",
+      "text": "Hissiyhteyden on ulotuttava sisäänkäyntitasoon ja jokaiseen tasoon, josta on käynti asuntoon tai rakennuksen käyttöä palvelevaan tilaan.",
+      "text_en": "The lift connection must extend to the entrance level and to each level from which there is access to a dwelling or to a space serving the use of the building.",
+      "summary_en": "The lift must serve the entrance level and every level with access to a dwelling or a building-use space.",
+      "keywords": [
+        "lift",
+        "hissi",
+        "entrance level",
+        "sisäänkäyntitaso",
+        "storey",
+        "kerros",
+        "dwelling",
+        "asunto",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-7-3",
+      "ref": "7 § 3 mom.",
+      "heading": "Yhteys tasojen välillä asuinrakennuksessa",
+      "heading_en": "Connection between levels in a residential building",
+      "text": "Edellä 1 momentissa tarkoitetun hissin korin on oltava vähintään 1 100 millimetriä leveä ovisivultaan ja vähintään 1 400 millimetriä syvä. Olemassa olevaan asuinrakennukseen jälkiasennettavan hissin korin mitoitus voi poiketa tässä momentissa säädetystä, jos se on välttämätöntä rakennuksen merkittävien ominaisuuksien säilyttämiseksi.",
+      "text_en": "The car of the lift referred to in subsection 1 above must be at least 1,100 millimetres wide on the door side and at least 1,400 millimetres deep. The dimensioning of the car of a lift retrofitted into an existing residential building may differ from what is provided in this subsection if it is necessary to preserve the significant features of the building.",
+      "summary_en": "A lift car must be at least 1,100 mm wide on the door side and 1,400 mm deep, though a retrofitted lift in an existing building may differ if needed to keep the building's significant features.",
+      "keywords": [
+        "lift car",
+        "hissikori",
+        "hissi",
+        "width 1100 mm",
+        "depth 1400 mm",
+        "door side",
+        "ovisivu",
+        "retrofit lift",
+        "jälkiasennus",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "lift car width on door side",
+          "comparison": ">=",
+          "value": 1100,
+          "unit": "mm"
+        },
+        {
+          "what": "lift car depth",
+          "comparison": ">=",
+          "value": 1400,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-8-1",
+      "ref": "8 §",
+      "heading": "Yhteys tasojen välillä muussa kuin asuinrakennuksessa",
+      "heading_en": "Connection between levels in a building other than a residential building",
+      "text": "Jos muussa rakennuksessa kuin asuinrakennuksessa oleva tasoero on pienempi kuin rakennuksen kerroskorkeus, tasojen välillä on oltava portaiden lisäksi yhteys joko 2 §:n 2 momentissa säädetyn mukaisella luiskalla taikka 7 §:n 3 momentissa säädetyn mukaisella hissillä tai muulla kiinteästi asennetulla pyörätuolin ja pyörillä varustetun kävelytelineen käyttäjälle soveltuvalla henkilöiden nostoon tarkoitetulla laitteella. Jos tasoero on yhtä suuri kuin kerroskorkeus tai sitä suurempi, yhteys tasojen välillä on järjestettävä 7 §:n 3 momentissa säädetyn mukaisella hissillä.",
+      "text_en": "If the level difference in a building other than a residential building is smaller than the storey height of the building, there must be, in addition to stairs, a connection between the levels either by a ramp as provided in subsection 2 of section 2, or by a lift as provided in subsection 3 of section 7, or by another permanently installed device for lifting persons suitable for a user of a wheelchair and wheeled walker. If the level difference is equal to or greater than the storey height, the connection between the levels must be provided by a lift as provided in subsection 3 of section 7.",
+      "summary_en": "In a non-residential building, where a level difference is less than a storey height, stairs must be supplemented by a ramp, lift or other wheelchair-suitable lifting device; a difference of a storey height or more needs a lift.",
+      "keywords": [
+        "level difference",
+        "tasoero",
+        "ramp",
+        "luiska",
+        "lift",
+        "hissi",
+        "stairs",
+        "portaat",
+        "lifting device",
+        "nostolaite",
+        "ramppi",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "stairs-railings"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-9-1",
+      "ref": "9 § 1 mom.",
+      "heading": "Wc- ja pesutila asuinrakennuksessa",
+      "heading_en": "WC and washroom in a residential building",
+      "text": "Asuinrakennuksessa, jossa on 7 §:n mukaan oltava portaiden lisäksi hissi, on kussakin asunnossa oltava vähintään yksi wc- ja pesutila, jossa on halkaisijaltaan vähintään 1 300 millimetriä vapaa tila. Kiinteät kalusteet on sijoitettava vapaaseen tilaan nähden siten, että liikkumisesteinen henkilö voi käyttää niitä. Tällaisen wc- ja pesutilan on oltava varustettavissa liikkumisesteiselle henkilölle sopivaksi.",
+      "text_en": "In a residential building which, under section 7, must have a lift in addition to stairs, each dwelling must have at least one WC and washroom with a clear free space at least 1,300 millimetres in diameter. Fixed furniture must be placed in relation to the free space so that a person with a mobility impairment can use it. Such a WC and washroom must be capable of being equipped to suit a person with a mobility impairment.",
+      "summary_en": "Where a lift is required, each dwelling needs at least one WC and washroom with a 1,300 mm clear diameter, with fixtures arranged for, and adaptable to, users with mobility impairments.",
+      "keywords": [
+        "WC and washroom",
+        "wc-tila",
+        "pesutila",
+        "clear space",
+        "vapaa tila",
+        "1300 mm",
+        "fixed furniture",
+        "kiintokalusteet",
+        "lift",
+        "hissi",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "clear free space diameter in dwelling WC and washroom",
+          "comparison": ">=",
+          "value": 1300,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-9-2",
+      "ref": "9 § 2 mom.",
+      "heading": "Wc- ja pesutila asuinrakennuksessa",
+      "heading_en": "WC and washroom in a residential building",
+      "text": "Asunnossa, joka on tarkoitettu palveluasumiseen tai liikkumis- tai toimimisesteisen henkilön tuettuun asumiseen, on oltava vähintään yksi wc- ja pesutila, jossa on halkaisijaltaan vähintään 1 500 millimetriä vapaa tila. Kiinteät kalusteet on sijoitettava vapaaseen tilaan nähden siten, että liikkumisesteinen henkilö voi käyttää niitä. Lisäksi wc-istuimen toisella puolella on oltava vapaata tilaa vähintään 800 millimetriä. Tällaisen wc- ja pesutilan on oltava varustettavissa liikkumisesteiselle henkilölle sopivaksi.",
+      "text_en": "In a dwelling intended for service housing or for supported living of a person with a mobility or functional impairment, there must be at least one WC and washroom with a clear free space at least 1,500 millimetres in diameter. Fixed furniture must be placed in relation to the free space so that a person with a mobility impairment can use it. In addition, there must be free space of at least 800 millimetres on one side of the WC seat. Such a WC and washroom must be capable of being equipped to suit a person with a mobility impairment.",
+      "summary_en": "A service-housing or supported-living dwelling needs a WC and washroom with 1,500 mm clear diameter and at least 800 mm free space beside the toilet seat.",
+      "keywords": [
+        "WC and washroom",
+        "wc-tila",
+        "pesutila",
+        "clear space",
+        "vapaa tila",
+        "1500 mm",
+        "800 mm",
+        "toilet seat",
+        "wc-istuin",
+        "palveluasuminen",
+        "tuettu asuminen",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "clear free space diameter in service-housing WC and washroom",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "free space beside toilet seat",
+          "comparison": ">=",
+          "value": 800,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-9-3",
+      "ref": "9 § 3 mom.",
+      "heading": "Wc- ja pesutila asuinrakennuksessa",
+      "heading_en": "WC and washroom in a residential building",
+      "text": "Edellä 1 momentissa säädetty ei koske rakennusta, jossa on ainoastaan opintotukilain (65/1994) mukaiseen opintotukeen oikeuttavaan koulutukseen osallistuville henkilöille tai ainoastaan 18–29-vuotiaille henkilöille tarkoitettuja asuntoja. Tällaisessa rakennuksessa vähintään viidessä prosentissa asunnoista, kuitenkin vähintään yhdessä asunnossa, on oltava yksi 2 momentissa säädetyn mukainen wc- ja pesutila. Lisäksi tällaisen rakennuksen yleisissä tiloissa on oltava 10 §:n mukainen wc-tila, johon on pääsy rakennuksen sisäiseltä kulkuväylältä.",
+      "text_en": "Subsection 1 above does not apply to a building in which there are only dwellings intended for persons participating in education entitling them to student financial aid under the Student Financial Aid Act (65/1994), or only dwellings intended for persons aged 18 to 29. In such a building, at least five per cent of the dwellings, but at least one dwelling, must have one WC and washroom meeting subsection 2. In addition, the common spaces of such a building must have a WC space as provided in section 10, to which there is access from the building's internal circulation route.",
+      "summary_en": "Buildings with only student or 18-29-year-old dwellings are exempt from subsection 1 but need a compliant WC and washroom in at least 5% of dwellings (minimum one) and an accessible WC in the common spaces.",
+      "keywords": [
+        "student housing",
+        "opiskelija-asunto",
+        "student financial aid",
+        "opintotuki",
+        "18-29 years",
+        "wc-tila",
+        "WC",
+        "washroom",
+        "pesutila",
+        "common spaces",
+        "yleiset tilat",
+        "5 %"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "share of dwellings with accessible WC and washroom in exempt buildings",
+          "comparison": ">=",
+          "value": 5,
+          "unit": "%"
+        },
+        {
+          "what": "number of dwellings with accessible WC and washroom in exempt buildings",
+          "comparison": ">=",
+          "value": 1,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-9-4",
+      "ref": "9 § 4 mom.",
+      "heading": "Wc- ja pesutila asuinrakennuksessa",
+      "heading_en": "WC and washroom in a residential building",
+      "text": "Asuinrakennuksessa asukkaiden yhteisen sauna-, pesu- ja pukuhuonetilan on sovelluttava liikkumis- ja toimimisesteisille henkilöille. Tilan yhteydessä olevan wc- ja pesutilan on oltava 2 momentissa säädetyn mukainen.",
+      "text_en": "In a residential building, the shared sauna, washing and changing room spaces of residents must be suitable for persons with a mobility or functional impairment. The WC and washroom in connection with these spaces must comply with subsection 2.",
+      "summary_en": "Shared sauna, washing and changing rooms in a residential building must suit people with mobility or functional impairments, and the WC and washroom beside them must meet subsection 2.",
+      "keywords": [
+        "sauna",
+        "pukuhuone",
+        "changing room",
+        "pesutila",
+        "washroom",
+        "wc-tila",
+        "shared spaces",
+        "yhteiset tilat",
+        "accessibility",
+        "esteettömyys",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-10-1",
+      "ref": "10 § 1 mom.",
+      "heading": "Wc-tila muussa kuin asuinrakennuksessa",
+      "heading_en": "WC space in a building other than a residential building",
+      "text": "Muussa rakennuksessa kuin asuinrakennuksessa on oltava sen käyttötarkoitus, toiminnalliset kokonaisuudet ja kulkuyhteyksien pituus huomioon ottaen tarpeellinen määrä tarkoituksenmukaisesti sijoitettuja wc-tiloja, jotka soveltuvat pyörätuolin ja pyörillä varustetun kävelytelineen käyttäjille. Edellä tarkoitettujen wc-tilojen on sijaittava siten, ettei käyttäjän ja avustajan sukupuoli vaikuta mahdollisuuteen käyttää niitä, ja ne on merkittävä liikkumisesteisen tunnuksella.",
+      "text_en": "A building other than a residential building must have a necessary number of appropriately located WC spaces, considering its purpose of use, its functional entities and the length of its circulation routes, which are suitable for users of wheelchairs and wheeled walkers. The WC spaces referred to above must be located so that the sex of the user and of the assistant does not affect the possibility to use them, and they must be marked with the symbol for a person with a mobility impairment.",
+      "summary_en": "Non-residential buildings must have enough appropriately placed WC spaces suitable for wheelchair users, located so that user and assistant gender does not matter, and marked with the mobility-impairment symbol.",
+      "keywords": [
+        "WC space",
+        "wc-tila",
+        "wheelchair user",
+        "pyörätuoli",
+        "accessibility symbol",
+        "liikkumisesteen tunnus",
+        "sukupuoli",
+        "circulation route",
+        "kulkuyhteys",
+        "accessible toilet",
+        "esteetön wc",
+        "inva-wc"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-10-2",
+      "ref": "10 § 2 mom.",
+      "heading": "Wc-tila muussa kuin asuinrakennuksessa",
+      "heading_en": "WC space in a building other than a residential building",
+      "text": "Edellä 1 momentissa tarkoitetussa wc-tilassa on oltava halkaisijaltaan vähintään 1 500 millimetriä vapaa tila. Kiinteät kalusteet on sijoitettava vapaaseen tilaan nähden siten, että liikkumisesteinen henkilö voi käyttää niitä. Lisäksi wc-istuimen kummallakin puolella on oltava vapaata tilaa vähintään 800 millimetriä. Vaihtoehtoisesti voidaan sijoittaa lähekkäin kaksi wc-tilaa, joissa toisessa on wc-istuimen vasemmalla ja toisessa oikealla puolella vapaata tilaa vähintään 800 millimetriä. Wc-istuin on sijoitettava 200–300 millimetrin etäisyydelle takaseinästä.",
+      "text_en": "The WC space referred to in subsection 1 above must have a clear free space at least 1,500 millimetres in diameter. Fixed furniture must be placed in relation to the free space so that a person with a mobility impairment can use it. In addition, there must be free space of at least 800 millimetres on each side of the toilet seat. Alternatively, two WC spaces may be placed close together, one with free space of at least 800 millimetres on the left of the toilet seat and the other on the right. The toilet seat must be placed at a distance of 200 to 300 millimetres from the rear wall.",
+      "summary_en": "A WC space must have a 1,500 mm clear diameter, 800 mm free space on each side of the toilet (or on opposite sides of two adjacent WCs), and the seat 200-300 mm from the rear wall.",
+      "keywords": [
+        "WC space",
+        "wc-tila",
+        "clear space",
+        "vapaa tila",
+        "1500 mm",
+        "800 mm",
+        "toilet seat",
+        "wc-istuin",
+        "rear wall",
+        "takaseinä",
+        "200-300 mm",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "clear free space diameter in WC space",
+          "comparison": ">=",
+          "value": 1500,
+          "unit": "mm"
+        },
+        {
+          "what": "free space beside toilet seat",
+          "comparison": ">=",
+          "value": 800,
+          "unit": "mm"
+        },
+        {
+          "what": "distance of toilet seat from rear wall, minimum",
+          "comparison": ">=",
+          "value": 200,
+          "unit": "mm"
+        },
+        {
+          "what": "distance of toilet seat from rear wall, maximum",
+          "comparison": "<=",
+          "value": 300,
+          "unit": "mm"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-10-3",
+      "ref": "10 § 3 mom.",
+      "heading": "Wc-tila muussa kuin asuinrakennuksessa",
+      "heading_en": "WC space in a building other than a residential building",
+      "text": "Wc-tila on varustettava liikkumisesteiselle henkilölle sopivaksi. Jos rakennuksessa on valvontajärjestelmä, wc-tilasta on oltava turvahälytysyhteys valvontaan.",
+      "text_en": "The WC space must be equipped to suit a person with a mobility impairment. If the building has a monitoring system, the WC space must have an emergency alarm connection to the monitoring.",
+      "summary_en": "A WC space must suit a person with a mobility impairment and, where the building is monitored, have an emergency alarm link.",
+      "keywords": [
+        "WC space",
+        "wc-tila",
+        "emergency alarm",
+        "turvahälytys",
+        "monitoring system",
+        "valvontajärjestelmä",
+        "mobility impairment",
+        "liikkumisesteinen",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-11-1",
+      "ref": "11 § 1 mom.",
+      "heading": "Muu hygieniatila muussa kuin asuinrakennuksessa",
+      "heading_en": "Other hygiene space in a building other than a residential building",
+      "text": "Muussa rakennuksessa kuin asuinrakennuksessa olevista pukuhuone-, pesu-, sauna- ja uima-allastiloista osan on sovelluttava liikkumis- ja toimimisesteiselle henkilölle. Liikkumis- ja toimimisesteisille henkilöille soveltuvat tilat on varustettava liikkumisesteisen tunnuksella. Jos rakennuksessa on valvontajärjestelmä, liikkumis- ja toimimisesteisille henkilöille soveltuvista tiloista on oltava turvahälytysyhteys valvontaan.",
+      "text_en": "Some of the changing room, washing, sauna and swimming pool spaces in a building other than a residential building must be suitable for a person with a mobility or functional impairment. Spaces suitable for persons with a mobility or functional impairment must be marked with the symbol for a person with a mobility impairment. If the building has a monitoring system, the spaces suitable for persons with a mobility or functional impairment must have an emergency alarm connection to the monitoring.",
+      "summary_en": "Some changing, washing, sauna and pool spaces in non-residential buildings must suit people with mobility or functional impairments, be marked with the symbol, and have emergency alarm links where monitored.",
+      "keywords": [
+        "changing room",
+        "pukuhuone",
+        "washing room",
+        "pesutila",
+        "sauna",
+        "swimming pool",
+        "uima-allas",
+        "emergency alarm",
+        "turvahälytys",
+        "liikkumisesteen tunnus",
+        "valvontajärjestelmä",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-11-2",
+      "ref": "11 § 2 mom.",
+      "heading": "Muu hygieniatila muussa kuin asuinrakennuksessa",
+      "heading_en": "Other hygiene space in a building other than a residential building",
+      "text": "Sen lisäksi mitä 1 momentissa säädetään uimahalli-, kylpylä-, palvelukeskus-, oppilaitos- ja muussa vastaavassa rakennuksessa vähintään yhtä puku- ja pesutilakokonaisuutta on voitava käyttää liikkumis- tai toimimisesteisen henkilön ja hänen avustajansa sukupuolesta riippumatta.",
+      "text_en": "In addition to what subsection 1 provides, in a swimming hall, spa, service centre, educational institution and other similar building, at least one changing and washing room set must be usable by a person with a mobility or functional impairment and their assistant, regardless of gender.",
+      "summary_en": "Swimming halls, spas, service centres and similar buildings must have at least one changing and washing set usable regardless of gender by a person with a mobility or functional impairment and their assistant.",
+      "keywords": [
+        "swimming hall",
+        "uimahalli",
+        "spa",
+        "kylpylä",
+        "service centre",
+        "palvelukeskus",
+        "changing room",
+        "pukuhuone",
+        "washing room",
+        "pesutila",
+        "sukupuoli",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "changing and washing room sets usable by persons with mobility or functional impairment",
+          "comparison": ">=",
+          "value": 1,
+          "unit": "count"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-11-3",
+      "ref": "11 § 3 mom.",
+      "heading": "Muu hygieniatila muussa kuin asuinrakennuksessa",
+      "heading_en": "Other hygiene space in a building other than a residential building",
+      "text": "Liikkumisesteisen henkilön pääsy uima-altaaseen 2 momentissa tarkoitetussa rakennuksessa on järjestettävä henkilöiden nostoon tarkoitetulla, itsenäisesti käytettävissä olevalla laitteella.",
+      "text_en": "In a building referred to in subsection 2 above, access to the swimming pool for a person with a mobility impairment must be arranged by a device for lifting persons that can be used independently.",
+      "summary_en": "In swimming halls and similar buildings, a person with a mobility impairment must be able to reach the pool by an independently operated lifting device.",
+      "keywords": [
+        "swimming pool",
+        "uima-allas",
+        "pool access",
+        "lifting device",
+        "nostolaite",
+        "independent use",
+        "liikkumisesteinen",
+        "uimahalli",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-12-1",
+      "ref": "12 § 1 mom.",
+      "heading": "Kokoontumistilat",
+      "heading_en": "Assembly spaces",
+      "text": "Jos katsomossa, auditoriossa, juhla-, kokous- tai ravintolasalissa, opetustilassa tai muussa vastaavassa kokoontumistilassa tai yleisön palvelutilassa on äänentoistojärjestelmä, siinä on oltava induktiosilmukka tai muu vastaava äänensiirtojärjestelmä.",
+      "text_en": "If a grandstand, auditorium, festival, meeting or restaurant hall, teaching space or other similar assembly space or public service space has a sound system, it must have an induction loop or other similar sound transmission system.",
+      "summary_en": "Assembly spaces with a public address system must also have an induction loop or equivalent sound transmission system.",
+      "keywords": [
+        "induction loop",
+        "induktiosilmukka",
+        "sound system",
+        "äänentoistojärjestelmä",
+        "auditorium",
+        "auditorio",
+        "assembly space",
+        "kokoontumistila",
+        "opetustila",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility",
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-12-2",
+      "ref": "12 § 2 mom.",
+      "heading": "Kokoontumistilat",
+      "heading_en": "Assembly spaces",
+      "text": "Jos 1 momentissa tarkoitetussa tilassa on kiinteät istuimet, esteettömien sisääntuloväylien on johdettava useammalle kuin yhdelle istuinriville, ja niille on sijoitettava riittävä määrä pyörätuolipaikkoja.",
+      "text_en": "If the space referred to in subsection 1 has fixed seats, barrier-free entrance routes must lead to more than one row of seats, and a sufficient number of wheelchair spaces must be placed on them.",
+      "summary_en": "Fixed-seat assembly spaces must have barrier-free entrances reaching more than one seat row and enough wheelchair spaces.",
+      "keywords": [
+        "fixed seats",
+        "kiinteät istuimet",
+        "wheelchair space",
+        "pyörätuolipaikka",
+        "barrier-free entrance",
+        "esteetön sisääntulo",
+        "seat row",
+        "istuinrivi",
+        "kokoontumistila",
+        "accessible",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-13-1",
+      "ref": "13 §",
+      "heading": "Majoitustilat",
+      "heading_en": "Accommodation spaces",
+      "text": "Hotellirakennuksessa ja muussa vastaavassa majoitusrakennuksessa on vähintään viisi prosenttia majoitustiloista, kuitenkin vähintään yhden majoitustilan, sovelluttava liikkumis- ja toimimisesteiselle henkilölle sekä hänen avustajalleen. Tällaisessa majoitustilassa on oltava 9 §:n 2 momentissa säädetyn mukainen wc- ja pesutila. Vähintään puolet näistä wc- ja pesutiloista, kuitenkin vähintään yksi, on varustettava liikkumisesteisille henkilöille sopiviksi ja muiden on oltava tarvittaessa varustettavissa tällaisiksi.",
+      "text_en": "In a hotel building and other similar accommodation building, at least five per cent of the accommodation spaces, but at least one accommodation space, must be suitable for a person with a mobility or functional impairment and their assistant. Such an accommodation space must have a WC and washroom in accordance with subsection 2 of section 9. At least half of these WC and washroom spaces, but at least one, must be equipped to suit persons with a mobility impairment, and the others must be equipped to be so if needed.",
+      "summary_en": "At least 5% of accommodation spaces (minimum one) in hotels must be accessible with a section 9(2) WC and washroom, and at least half of these WCs must be fitted for mobility impairments.",
+      "keywords": [
+        "hotel",
+        "hotelli",
+        "majoitustila",
+        "accessible room",
+        "WC and washroom",
+        "wc-tila",
+        "pesutila",
+        "5 %",
+        "liikkumisesteinen",
+        "esteetön"
+      ],
+      "topics": [
+        "accessibility"
+      ],
+      "limits": [
+        {
+          "what": "share of accommodation spaces suitable for persons with mobility or functional impairment",
+          "comparison": ">=",
+          "value": 5,
+          "unit": "%"
+        },
+        {
+          "what": "number of accessible accommodation spaces",
+          "comparison": ">=",
+          "value": 1,
+          "unit": "count"
+        },
+        {
+          "what": "share of accessible WC and washroom spaces fitted for mobility impairment",
+          "comparison": ">=",
+          "value": 50,
+          "unit": "%"
+        }
+      ],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-241-2017-14-1",
+      "ref": "14 § 1 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä tammikuuta 2018.",
+      "text_en": "This Decree enters into force on 1 January 2018.",
+      "summary_en": "The decree took effect on 1 January 2018.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "1 January 2018",
+        "esteetön"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-14-2",
+      "ref": "14 § 2 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tällä asetuksella kumotaan maankäyttö- ja rakennusasetuksen (895/1999) 53 §.",
+      "text_en": "This Decree repeals section 53 of the Land Use and Building Decree (895/1999).",
+      "summary_en": "The decree repealed section 53 of the Land Use and Building Decree (895/1999).",
+      "keywords": [
+        "repeal",
+        "kumoaminen",
+        "maankäyttö- ja rakennusasetus",
+        "895/1999",
+        "esteetön"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-241-2017-14-3",
+      "ref": "14 § 3 mom.",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämän asetuksen voimaan tullessa vireillä olevaan rakennuslupahakemukseen sovelletaan tämän asetuksen voimaan tullessa voimassa olleita säännöksiä.",
+      "text_en": "A building permit application pending when this Decree enters into force is subject to the provisions in force when this Decree entered into force.",
+      "summary_en": "A building permit application pending when the decree takes effect is decided under the rules in force at that time.",
+      "keywords": [
+        "transitional provision",
+        "siirtymäsäännös",
+        "rakennuslupahakemus",
+        "vireillä oleva",
+        "building permit application",
+        "esteetön"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

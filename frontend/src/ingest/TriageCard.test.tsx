@@ -11,7 +11,7 @@ import {
 import type { FileStatus } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
-import { flush, must, triageTrace, triaged, triagedVariants } from './testing';
+import { flush, must, sheet, triageTrace, triaged, triagedVariants } from './testing';
 
 const PID = triaged.id;
 const NAME_KEY = 'countersign.surveyorName';
@@ -40,7 +40,44 @@ const unrelated = () => card().getByRole('button', { name: 'It is not related' }
 const nameField = () => card().getByRole('textbox', { name: 'Your name' });
 
 describe('TriageCard (file-triage.md)', () => {
-  it('FT-6 shows class, chance, preview, description, relevance and judge', async () => {
+  describe('FT-25 a doubted sheet on a file read as a plan', () => {
+    const doubted = (kind: typeof sheet.kind): FileStatus => ({
+      ...south,
+      state: 'ready',
+      triage: {
+        ...must(south.triage),
+        class: 'floor_plan',
+        verdict: null,
+        relevance: null,
+        sheet: { ...sheet, decision: 'doubt', kind },
+      },
+    });
+    it('a small card: class words and what it looks like, the chance, no calls', async () => {
+      await show(doubted('elevation'));
+      expect(
+        card().getByRole('heading', { name: 'A floor plan · Looks like: an elevation' }),
+      ).toBeTruthy();
+      expect(card().queryAllByRole('button')).toEqual([]);
+      expect(screen.getByRole('region', { name: 'Is it a floor plan?' }).textContent).toContain(
+        'Chance of a floor plan',
+      );
+    });
+    it('a plan kind: no card, as today', async () => {
+      await show(doubted('multi_view_sheet'));
+      expect(screen.queryByRole('region', { name: 'Is it a floor plan?' })).toBeNull();
+    });
+  });
+
+  it('FT-24 the heading takes the sheet words when the sheet set the file aside', async () => {
+    await show({ ...south, triage: { ...must(south.triage), sheet } });
+    expect(
+      card().getByRole('heading', {
+        name: 'Not a floor plan: an elevation (South elevation, A-201)',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('FT-6 FT-22 shows class, chance, preview, description; no relevance, judge or describer', async () => {
     await show(south);
     const c = card();
     expect(
@@ -51,13 +88,17 @@ describe('TriageCard (file-triage.md)', () => {
       'Chance of a floor plan 3 % (fake classifier)',
       'A picture of the south elevation of a two-storey house.',
       'Subject: the south elevation of a two-storey house',
-      'Described by fake describer',
-      'Related to this project',
-      "Related: Küche is on the project's plans.",
-      'Matched on: Küche',
-      'Judged by word judge',
     ])
       expect(text).toContain(s);
+    for (const s of [
+      'Does it belong to this project?',
+      'Described by',
+      'Related to this project',
+      'Matched on',
+      'Judged by',
+      "Related: 'kuche'",
+    ])
+      expect(text).not.toContain(s);
     const img = c.getByRole('img', { name: 'elevations/south.png as uploaded' });
     const preview = `/api/projects/${PID}/files/f2/preview.png`;
     // FT-6: the 400 rendition at 1x, 1600 only for dense screens (the API has no width between)
@@ -72,17 +113,29 @@ describe('TriageCard (file-triage.md)', () => {
     expect(seen.textContent).toContain('Süd');
   });
 
+  it('FT-23 the call has the heading "Your call" and says what it does', async () => {
+    await show(south);
+    const c = card();
+    expect(c.getByRole('heading', { name: 'Your call' })).toBeTruthy();
+    expect(
+      c.getByText(
+        "Your call replaces the suggestion and settles this file's issue. It does not read the file as a plan.",
+      ),
+    ).toBeTruthy();
+  });
+
   it('FT-7 a failed preview says so', async () => {
     await show(south);
     fireEvent.error(card().getByRole('img', { name: 'elevations/south.png as uploaded' }));
     expect(card().getByText('Preview not available')).toBeTruthy();
   });
 
-  it('FT-8 a file not described: the note once, no call buttons', async () => {
+  it('FT-8 a file not described: the note once, the call still offered (#183)', async () => {
     await show(street);
     const text = must(screen.getByRole('region', { name: 'Is it a floor plan?' }).textContent);
     expect(text.split('not described: the model refused').length).toBe(2);
-    expect(card().queryByRole('button', { name: /related/ })).toBeNull(); // no call: 422 no-description
+    expect(card().getByRole('button', { name: 'It is related' })).toBeTruthy();
+    expect(card().getByRole('button', { name: 'It is not related' })).toBeTruthy();
   });
 
   it('FT-9 "It is related" sends the request fixture and shows the answer in place', async () => {

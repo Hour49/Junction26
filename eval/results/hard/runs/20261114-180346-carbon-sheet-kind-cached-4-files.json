@@ -1,0 +1,198 @@
+{
+ "recorded_at": "2026-11-14T18:03:46+02:00",
+ "commit": "4d17627",
+ "dirty": false,
+ "name": "Carbon sheet kind (cached, 4 files)",
+ "note": "sheet-kind-2 prompt (hash 707beba5467d), gemini-4-carbon, replies from hardphotos' cache, 0 USD; 4 of 30 files cached (the 4 inbox sheets), the other 26 not said",
+ "labels_sha256": [
+  "85afa954f0ea3e10b4a27097c7b12bfbca747e649cfe5355b34f6054e559da06",
+  "bdc64df1e42b48c77369fe67371565d11b32e86aeabd0d14dff75aa5414e7cb8"
+ ],
+ "report": {
+  "files": 30,
+  "predicted": 4,
+  "kind": {
+   "labelled": 30,
+   "said": 4,
+   "right": 4,
+   "rate": 1.0
+  },
+  "plan": {
+   "tp": 2,
+   "fp": 0,
+   "fn": 0,
+   "tn": 2,
+   "not_said": 26,
+   "recall": 1.0,
+   "precision": 1.0
+  },
+  "takeoff": {
+   "labelled": 30,
+   "said": 4,
+   "right": 3,
+   "rate": 0.75
+  },
+  "advanced": {
+   "labelled": 30,
+   "said": 4,
+   "right": 4,
+   "rate": 1.0
+  },
+  "families": {
+   "plan": {
+    "labelled": 16,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "door": {
+    "labelled": 16,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": null
+   },
+   "window": {
+    "labelled": 16,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 5,
+    "hit_rate": null
+   },
+   "toilet": {
+    "labelled": 16,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": null
+   },
+   "sink": {
+    "labelled": 16,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": null
+   },
+   "shower+bathtub": {
+    "labelled": 14,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 2,
+    "hit_rate": null
+   },
+   "sauna": {
+    "labelled": 14,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:bedroom": {
+    "labelled": 14,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:bathroom": {
+    "labelled": 13,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:kitchen": {
+    "labelled": 10,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": null
+   },
+   "room:wc": {
+    "labelled": 12,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": null
+   },
+   "room:balcony": {
+    "labelled": 14,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:classroom": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:group room": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:office": {
+    "labelled": 2,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:store": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "rooms_total": {
+    "labelled": 7,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   }
+  },
+  "pooled": {
+   "labelled": 183,
+   "asked": 0,
+   "hit": 0,
+   "refused": 0,
+   "cannot_tell": 16,
+   "hit_rate": null
+  },
+  "scale": {
+   "ratio_labelled": 14,
+   "ratio_read": 4,
+   "ratio_exact": 4,
+   "px_labelled": 2,
+   "px_median": null,
+   "px_within_10": 0,
+   "px_within_20": 0
+  },
+  "non_plan_counts": 0
+ }
+}

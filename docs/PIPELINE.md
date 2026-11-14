@@ -96,10 +96,22 @@ schedule or a detector.
 | room area | `printed_label` | `polygon_x_scale` | 2% | trust the printed label; a bigger gap means the scale or the polygon is wrong |
 | floor or apartment area | `printed_total` | `summed_rooms` | 2% | report the printed total; show the room list |
 | scale | `scale_text` | `scale_bar` or `dimension_lines` | 2% | measured value over text; text found next to a detail drawing is ignored (see below) |
+| scale (raster) | `detector` (door estimate) | `scale_bar` or `scale_text` | 10% | the printed scale; the estimate stays as the other value (`RASTER_PRINTED_SCALE`); over 2x apart only a bar wins, and flags the areas |
+| element or room count (raster) | the reader's (`detector`...) | `printed_total` | 0 | no rule: show both; a printed "48 DORMS" never replaces the count (`RASTER_PRINTED_SCALE`) |
 | room count | `plan_drawing` | `ifc_model` | 0 | keep spaces of the sheet's storey (foreign spaces are greyed) |
 | element count | `plan_drawing` | `ifc_model` | 0 | count what the sheet draws of its storey; an element of another storey seen through the cut is left out, listed with why (the sheet's count is its storey's, so the plain question carries the conflict too) |
 | element count | `plan_drawing` | `schedule` | 0 | no rule: show both |
 | element count | `detector` | `parser` | 0 | no rule yet; the parser wins on vector sheets, the detector is the only source on raster |
+
+Raster printed scale and facts (2026-11-14, r8 AY, `RASTER_PRINTED_SCALE=off|carbon`, default off;
+`app/core/pipeline/printed.py`): a scale bar gives metres per pixel (its labelled length over its pixel length); a
+printed ratio gives it only when the image states a resolution that can be trusted (PNG pHYs or JPEG density, 100-1200
+dpi, not 72 or 96). The printed scale replaces the door estimate and the room areas are measured again at it. When
+the two are more than 2x apart (`ESTIMATE_RANGE`), one is a misread: a measured bar still wins, and every area and
+length on the sheet becomes an estimate naming both scales (never certified, Low); a ratio does not win (the
+estimate stays, no rule decides). A printed count of an element class, a room type or all rooms is a second value
+of that count. `carbon` reads them with the Carbon client (page call shared with `CARBON_READER`, a bars call, one
+full-resolution call per bar), on the process's spend guard.
 
 How a conflict shows in the answer (answer_v1.1, [0002](decisions/0002-answer-format.md)): `answer` holds the
 resolved value, `conflicts` lists every measured value with its method, file, page and box (page and box are null
@@ -161,17 +173,29 @@ The rule values (fills 228 and 243, stroke colours, the 45 pt door length) were 
 hold on other drawings. The rules were fitted on the same questions they are checked on, except the swiss window
 rule, which has a fit half and a test half (98.8% on the test half).
 
-### Building-code rule packs (design only, cut from the build on 2026-11-13)
+### Building-code rule packs (built 2026-11-14, story #139)
 
-Roadmap decision 7 (Bogdan, 2026-11-13, "yes"): building-code checks are not built. This is what a pack
-would hold, so the idea isn't lost:
+A pre-check of a few rules, not a compliance certificate. Bogdan reversed the 2026-11-13 cut on 2026-11-14 at
+12:20 ("MUST DO"); the contract is decision [0009](decisions/0009-building-code-checks.md), the API
+`GET /api/drawings/{id}/checks?pack=` (docs/API.md "Building-code checks").
 
-- One pack per code (for example a Finnish building code): rules such as minimum room area, minimum window area
-  against floor area, door width, stair width, escape distance. Each rule is a quantity from the takeoff, a
-  comparison and a limit, with a clause reference.
-- A check reads the takeoff and writes pass, fail or "cannot tell" per rule, with the marks of the elements involved.
-  "Cannot tell" covers a missing scale or a quantity the drawing doesn't show.
-- It shows in the answer the same way a counting rule does: rule id, marks, `explanation`.
+- A pack is data, one per law: `backend/app/rules/<id>.json` (`fi`: Finland, decrees 631/2024 and 241/2017;
+  `ch-zh`: the Canton of Zürich's PBG). `app/adapters/rule_packs.py` loads them at start and refuses a pack with a
+  rule that quotes no clause (ref, https URL, sentence), an unknown op or room type, or a repeated id.
+- Each rule is an op over the drawing model (`app/core/checks/check.py`, pure): `room_area` (each room of the
+  types, its area), `room_windows` (the windows within 0.35 m of the room's outline, or a building model's count
+  for the space), `door_width` (each door that meets a room of the types and none of the excluded ones, the long
+  side of its symbol at the scale, or the model's width) and `takeoff` (one takeoff quantity).
+- Each result is pass, fail or cannot tell, with one plain sentence, the marks of the room or door and of what was
+  counted, and the takeoff row and mark id they are in. Cannot tell covers a missing scale, a class that was not
+  read, an item with no position, an estimate whose error reaches the limit, and every input not reliable enough
+  to fail on: a room's area from an outline read off a picture, a room with no window found on a picture, a door
+  box on a picture, a door measured at a scale estimated from the doors, a room lit through a door to a balcony
+  or the outside, and windows on a sheet drawn from a building model when the model gives no count.
+- A door's symbol bounds its clear opening from above: under the limit (less 0.03 m for the drawing) is a fail;
+  at least 0.10 m (our frame allowance, not the law's) plus 0.03 m over it is a pass; between is cannot tell.
 
-Why it isn't built: the dataset has no questions on building codes, so there is nothing to score a pack against and
-a check could not be shown to be right. The time goes to the counting rules, which the questions do test.
+Measured on the pipeline's dev drawings (run `pipeline-bd2471f-20261114-101635`, 171 drawings, `fi` pack,
+2026-11-14): 6 fails, all on drawn Swiss sheets (kitchen doors of 0.70-0.76 m), and all 6 fail on the gold
+drawing too; 0 fails on the 91 raster and 44 IFC drawings, where the inputs are held as cannot tell. The fails
+before those holds, and why each was or was not real, are in decision 0009.

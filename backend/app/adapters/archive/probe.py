@@ -26,13 +26,21 @@ The format comes from the first bytes (`sniff`, app/core/pipeline/identify.py). 
   - `paper`: bright, colourless pixels (grey >= 140, saturation < 20%), and `ink`: dark pixels
     (grey < 90). A photo of a plan is mostly paper with some ink; a photo of a site or a
     person is neither.
-  - camera EXIF (Make or Model): the image came from a camera.
+  - camera EXIF (Make or Model): the image came from a camera, unless EXIF FileSource (0xA300)
+    names a scanner (1 film, 2 print): a flatbed scanner writes Make and Model too (scan sweep
+    fp14, Canon MP550 series, FileSource 2, was "a phone photo"). Phones and cameras write 3
+    or nothing (Commons 014, a 2006 Kyocera phone, has none).
   Without camera EXIF the image is a drawing (`png_plan`/`jpeg_plan`): setting a file aside
   loses it, so that needs evidence. On the dataset's 4,787 CubiCasa scans a rule on the pixels
   alone called 19 a photo (coloured renderings, dark backgrounds), so the pixels only decide
   between the two kinds of camera image: `paper` >= 30% and `ink` between 0.3% and 35% is a
-  photo of a drawing (`photo_plan`), else a photo that is not of a drawing (`photo`). A phone
-  photo with its EXIF stripped passes as a drawing: it takes the same raster route, unflagged.
+  photo of a drawing (`photo_plan`), else a photo that is not of a drawing (`photo`). The
+  35% is counted inside the paper's box (the 2nd to 98th percentile of its pixels across and
+  down), so a dark table around a small card is not ink (hard set fp07, a hotel card on dark
+  grey: 51.6% ink in the frame, 6.2% on the paper, was "a photo, not of a drawing" and set
+  aside; of 1,512 synthetic phone photos of plans 431 more are photos of a drawing, none fewer).
+  The 0.3% stays on the whole frame. A phone photo with its EXIF stripped passes as a drawing:
+  it takes the same raster route, unflagged.
   An image under 64 px a side is too small to read. An image with no drawing in it is not a
   drawing (`unknown`, set aside), whatever its EXIF says (QA R2-qa5-1: these were "ready" plans
   whose counts read a measured 0):
@@ -65,6 +73,7 @@ import pypdfium2
 from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 from pypdfium2 import raw
 
+from app.adapters.eight_bit import eight_bit
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.ingest.model import ContentKind, LaterPage, Probed
 from app.core.pipeline.identify import sniff
@@ -74,8 +83,11 @@ THUMB = 256
 MIN_SIDE = 64
 PAPER_PHOTO = 0.30
 INK_PHOTO = (0.003, 0.35)
+PAPER_EDGE = 0.02  # the share of paper pixels left out on each side of the paper's box
 BALANCE_AT = 0.95  # the percentile of each channel taken as white
 CAMERA_TAGS = (0x010F, 0x0110)  # Make, Model
+EXIF_IFD, FILE_SOURCE = 0x8769, 0xA300
+SCANNER_SOURCES = (1, 2)  # FileSource: film scanner, reflection print scanner (3: digital camera)
 VECTOR_PATHS = 10  # path objects on page 1 that make a drawing, with text no more than 20x that
 SCAN_COVER = 0.5  # share of the page its images cover in a scan (tiles add up)
 SCAN_PATHS = 50  # a scan with more paths than this has a drawn layer on it
@@ -274,8 +286,10 @@ def _image(data: bytes, image_format: str) -> Probed:
             width, height = image.size
             exif = image.getexif()
             camera = " ".join(str(exif[tag]).strip() for tag in CAMERA_TAGS if exif.get(tag))
+            if _file_source(exif) in SCANNER_SOURCES:
+                camera = ""
             image.draft("RGB", (THUMB, THUMB))  # JPEG: decode at a fraction of the size
-            thumb = image.convert("RGB")
+            thumb = eight_bit(image).convert("RGB")
     except (UnidentifiedImageError, OSError) as error:
         return Probed(kind="unknown", did=f"an image that cannot be decoded: {error}")
     name = image_format.upper()
@@ -291,9 +305,12 @@ def _image(data: bytes, image_format: str) -> Probed:
     ink = sum(levels[:90]) / count
     bright = grey.point([255 if level >= 140 else 0 for level in range(256)])
     plain = saturation.point([255 if level < 51 else 0 for level in range(256)])
-    paper = ImageChops.multiply(bright, plain).histogram()[255] / count
+    paper_mask = ImageChops.multiply(bright, plain)
+    paper = paper_mask.histogram()[255] / count
+    on_paper = grey.crop(_box(paper_mask))
+    ink_on_paper = sum(on_paper.histogram()[:90]) / (on_paper.width * on_paper.height)
     seen = f"{width}x{height} px, {white:.0%} white, {paper:.0%} paper, {ink:.1%} ink" + (
-        f", camera EXIF ({camera})" if camera else ""
+        f" ({ink_on_paper:.1%} on the paper), camera EXIF ({camera})" if camera else ""
     )
     empty = _no_drawing(data, grey)
     if empty is not None:
@@ -301,9 +318,49 @@ def _image(data: bytes, image_format: str) -> Probed:
     if not camera:
         kind = "png_plan" if image_format == "png" else "jpeg_plan"
         return Probed(kind=kind, did=f"a drawing as a {name} ({seen})")
-    if paper >= PAPER_PHOTO and INK_PHOTO[0] <= ink <= INK_PHOTO[1]:
+    if paper >= PAPER_PHOTO and ink >= INK_PHOTO[0] and ink_on_paper <= INK_PHOTO[1]:
         return Probed(kind="photo_plan", did=f"a photo of a drawing ({seen})")
     return Probed(kind="photo", did=f"a photo, not of a drawing ({seen})")
+
+
+def _box(mask: Image.Image) -> tuple[int, int, int, int]:
+    """The box holding a 0/255 mask's pixels, PAPER_EDGE of them left out on each side (stray
+    bright pixels in the background do not stretch it); the whole image when the mask is empty."""
+    width, height = mask.size
+    across = mask.resize((width, 1), Image.Resampling.BOX).tobytes()
+    down = mask.resize((1, height), Image.Resampling.BOX).tobytes()
+    left, right = _span(list(across))
+    top, bottom = _span(list(down))
+    return left, top, right, bottom
+
+
+def _span(profile: list[int]) -> tuple[int, int]:
+    """The first and one past the last index of `profile` inside its PAPER_EDGE tails."""
+    total = sum(profile)
+    if total == 0:
+        return 0, len(profile)
+    edge, low, high = PAPER_EDGE * total, 0, len(profile)
+    seen = 0
+    for index, value in enumerate(profile):
+        seen += value
+        if seen >= edge:
+            low = index
+            break
+    seen = 0
+    for index in range(len(profile) - 1, -1, -1):
+        seen += profile[index]
+        if seen >= edge:
+            high = index + 1
+            break
+    return low, high
+
+
+def _file_source(exif: Image.Exif) -> int | None:
+    """EXIF FileSource: 1 film scanner, 2 print scanner, 3 digital camera; None when absent."""
+    source = exif.get_ifd(EXIF_IFD).get(FILE_SOURCE)
+    if isinstance(source, bytes):
+        return source[0] if source else None
+    return source if isinstance(source, int) else None
 
 
 def _no_drawing(data: bytes, thumb: Image.Image) -> str | None:
@@ -311,7 +368,7 @@ def _no_drawing(data: bytes, thumb: Image.Image) -> str | None:
     probe's white-balanced grey thumbnail."""
     with Image.open(io.BytesIO(data)) as image:
         image.draft("L", (SHARP_SIDE, SHARP_SIDE))
-        grey = image.convert("L")
+        grey = eight_bit(image).convert("L")
     grey.thumbnail((SHARP_SIDE, SHARP_SIDE))
     across, down = _steps(grey)
     levels = ImageChops.lighter(across, down).histogram()

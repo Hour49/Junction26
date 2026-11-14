@@ -7,6 +7,8 @@ from pydantic import Field
 from app.core.drawing.model import (
     Apartment,
     ArbiterReading,
+    Box,
+    CarbonCheck,
     ConflictQuantity,
     Element,
     Mark,
@@ -78,6 +80,15 @@ class Sheet(Frozen):
     pages: tuple[Page, ...]
 
 
+class Measurement(Frozen):
+    """Stage 8: one quantity as one method measured it. Two of the same quantity and subject,
+    from different methods, become a `Conflict` entry of the drawing model."""
+
+    quantity: ConflictQuantity
+    subject: Subject
+    value: MeasuredValue
+
+
 class Extracted(Frozen):
     """Stage 7: what an extractor read, placed on the sheet as page fractions. `method` is how it
     reads, as a conflict names it (`parser`, `detector`, `ifc_model`...)."""
@@ -95,16 +106,12 @@ class Extracted(Frozen):
     double_check: dict[str, ReaderView] | None = None
     # what the local count arbiter read, by count family, never counted; None: it did not run
     count_arbiter: dict[str, ArbiterReading] | None = None
+    # what Gemini Carbon read beside it (CARBON_LEVELS=demote), never counted; None: it did not run
+    carbon_check: CarbonCheck | None = None
+    # What the sheet prints about this reading (its scale, its printed counts), measured against
+    # it at stage 8 next to the second counter's values (app/core/pipeline/printed.py)
+    printed: tuple[Measurement, ...] = ()
     notes: tuple[str, ...] = ()
-
-
-class Measurement(Frozen):
-    """Stage 8: one quantity as one method measured it. Two of the same quantity and subject,
-    from different methods, become a `Conflict` entry of the drawing model."""
-
-    quantity: ConflictQuantity
-    subject: Subject
-    value: MeasuredValue
 
 
 class CountingRule(Frozen):
@@ -127,6 +134,14 @@ Measure = Literal["count", "area", "length", "volume", "text"]
 QuantityUnit = Literal["count", "m", "m2", "m3"]
 
 
+class ValueMark(Frozen):
+    """Where one item a conflicting value counted or measured is on the drawing, named."""
+
+    page: int = Field(ge=1)
+    box: Box
+    label: str
+
+
 class QuantityConflict(Frozen):
     """Stage 10: the drawing's conflict entry (stage 8) about one quantity of the takeoff, in
     that quantity's unit: every method's value, and the rule that picked one (None: no rule
@@ -137,6 +152,10 @@ class QuantityConflict(Frozen):
     note: str | None = None
     derived: str | None = None
     status: Literal["conflict", "agree"] = "conflict"  # the stage-8 entry's own status
+    # `value_marks[i]` is where the items of `values[i]` are on the drawing (the doors a plan
+    # counted, the rooms a model lists that the sheet draws), so a legend can outline them. A
+    # value with no position has an empty tuple; () as a whole: no value has one.
+    value_marks: tuple[tuple[ValueMark, ...], ...] = ()
 
 
 class Quantity(Frozen):

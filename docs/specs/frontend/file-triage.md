@@ -1,7 +1,7 @@
 # File triage: not-a-floor-plan files, their description, relevance and a person's call (spec, decision 0010)
 
 Status: accepted by frontend-orch and built, 2026-11-14, by fe-ingest: FT-1..16 and FT-18..20 (the read-as-plan
-button, after Bogdan's PR #166 merged on main e8a89a8; FT-17 "no button" is superseded by FT-18). FT-21 is fe-golden's.
+button, after Bogdan's PR #166 merged on main e8a89a8; FT-17 "no button" is superseded by FT-18). FT-21 is fe-golden's. Demo parity FT-22, FT-23 by preqa-a, GO 2026-11-14 16:27.
 API: docs/API.md "File triage (decision 0010)" and "POST …/relevance"; record `docs/decisions/0010-file-triage.md`;
 types `frontend/src/api/schema.d.ts` (`Triage`, `Description`, `Relevance`, `Overrule`, `RelevanceRequest`).
 
@@ -51,6 +51,11 @@ Asks of fe-shared (`src/api/`): export `Triage`, `Description`, `Relevance`, `Ov
 | `other_drawing` | another kind of drawing |
 | `not_drawing` | not a drawing |
 
+With `triage.sheet` (#251, `SHEET_KIND=carbon`, off by default) and `sheet.decision` `set_aside`, the class words
+give way to the sheet model's, as the backend's reason line: "Not a floor plan: <sheet.kind_words> (<title>,
+<sheet_number>)", missing parts left out (no parentheses with neither). A sheet with `doubt` or `read` did not set
+the file aside, so the class words stay (FT-24).
+
 `VERDICT_LABEL` (icon + word, never colour alone):
 
 | `triage.verdict` | Pill | Sentence |
@@ -90,8 +95,9 @@ percent ("chance of a floor plan 3 %"), `round(100 × p_plan)`.
      on: <a>, <b>" (when not empty) and "Judged by <judge>"; when `relevance` is null the `note` (if not already
      shown above);
    - the call (step 4) and, once its route exists, "Read it as a floor plan" (step 6).
-4. The call. Shown when `canCall(file)`: `triage` set, `class != floor_plan`, `description` not null (else the API
-   answers 422 `no-description`; the note already says why). With no call yet:
+4. The call. Shown when `canCall(file)`: `triage` set and `class != floor_plan`, described or not (#183 lifted the
+   422 `no-description`, so every `unrelated_file` issue can be settled; its error line stays for an older server).
+   With no call yet:
    - "Your name" text field (max 100 characters), filled from this browser's saved name, the surveyor's key
      `countersign.surveyorName` (one name across sign-off, double-check and this; a failing `localStorage` leaves it
      empty and the screen working);
@@ -118,8 +124,9 @@ percent ("chance of a floor plan 3 %"), `round(100 × p_plan)`.
 7. Issues list: an `unrelated_file` issue is a row like any other: kind "Not a floor plan" (icon ▭), severity group
    from the API (`needs_person` for unsure, else `note`), `why` as sent, place "not on a drawing", plan panel "This
    issue has no place on a drawing.", and one link to the trace `#/p/<pid>/f/<file_id>` (keeps `pack`): "Make a
-   call" while `open`, "See the call" when `settled`. After a call the issue keeps its `id` and `n` and reads
-   "settled" (Bogdan, #152 item 1).
+   call" while `open`, "See the call" when `settled`. After a call the issue keeps its `id` and reads "settled"
+   (Bogdan, #152 item 1). `n` is the position in the list as loaded, not an identifier; `Issue.id` is the reference
+   that survives re-reads and exports (Bogdan, #14 c6877137779).
 
 ## API calls
 
@@ -156,7 +163,7 @@ outside the collapsed text list, `ProjectSummary.not_plans` (screen 5 is fe-gold
 | Judged, no call | class line, verdict pill | description, relevance, call form | `project_triaged.json` `files[1]` (related) |
 | Unsure | "? Unsure" | as above with unsure | variant `triaged-unsure` |
 | Called | pill of `verdict` · "Ana's call" | `callLine`, "Undo the call" | `project_triaged.json` `files[2]` |
-| Not described | class line, "– Not judged" | note in place of description and relevance; no call form | `project_triaged.json` `files[3]` (refused); variant `triaged-offline` |
+| Not described | class line, the class rule's verdict ("✕ Not related" for a non-drawing) | note in place of the description; the class rule's relevance; call form | `project_triaged.json` `files[3]` (refused); variant `triaged-offline` |
 | Sending | | both buttons disabled, "Saving your call…" | a pending promise |
 | Call failed | | the error line of the table | `mockApi` 409/422/404/500 with `error.json` spread with the `code` |
 | Read as a plan (reserved) | "Read as a floor plan on Ana's call" | "Ana had it read as a floor plan, …" | variant `read-as-plan` |
@@ -191,22 +198,26 @@ Ingest rows and project
 - FT-2: `project_triaged.json`: `elevations/south.png` row reads "Not a floor plan: another kind of drawing · the
   south elevation of a two-storey house" and "✓ Related"; its `reason` text is not on the row. [component]
 - FT-3: `photos/site.jpg` row reads "Not a floor plan: not a drawing · a building site with a crane", "✓ Related"
-  and "Ana's call". `photos/street.jpg` reads "Not a floor plan: not a drawing" and "– Not judged". [component]
-- FT-4: `not_plans: 3` shows "3 not floor plans: kept, not read"; `not-plans-zero` shows "No image set aside as
+  and "Ana's call". `photos/street.jpg` (not described, judged by the class rule) reads "Not a floor plan: not a
+  drawing" and "✕ Not related". `photos/sheet.jpg` reads "Not a floor plan: another kind of drawing · a
+  photographed elevation of a church" and "? Unsure". [component]
+- FT-4: `not_plans: 4` shows "4 not floor plans: kept, not read"; `not-plans-zero` shows "No image set aside as
   not a floor plan"; `triaged-running` and `project.json` show no such line. [component]
 - FT-5: `rowLine`, `callLine`, `CLASS_LABEL`, `VERDICT_LABEL` map every `class` and `verdict` value (incl. null) to
-  words; `canCall` is false for `triage` null, `class` `floor_plan`, or `description` null. [unit]
+  words (a null verdict is "– Not judged"); `canCall` is false for `triage` null or `class` `floor_plan`, and true
+  for an undescribed non-plan (#183). [unit]
 
 Trace
 
 - FT-6: `trace-triaged` with `files[1]`: the card shows "Not a floor plan: another kind of drawing", "Chance of a
   floor plan 3 % (fake classifier)", the preview `<img>` with alt "elevations/south.png as uploaded", the description
   text, "Subject: the south elevation of a two-storey house", a closed "Text printed on it (2)" holding "Küche" and
-  "Süd", "Described by fake describer", the related sentence, "Related: Küche is on the project's plans.", "Matched
-  on: Küche", "Judged by word judge". [component]
+  "Süd", "Described by fake describer", the related sentence, "Related: 'kuche', printed on it, is in the project's
+  plan text; it shows no building.", "Matched on: 'kuche' (plan text)", "Judged by rule on the words printed on it
+  and whether it shows a building, no model". [component]
 - FT-7: A failed preview load shows "Preview not available". [component]
-- FT-8: `files[3]` (not described): the note "not described: the model refused" shows once, no description, no
-  call form, no buttons. [component]
+- FT-8: `files[3]` (not described): the note "not described: the model refused" shows once, no description, and
+  the call buttons are offered (#183). [component]
 - FT-9: With a saved name "Ana", "It is related" on `triaged-open`'s `files[2]` sends exactly
   `relevance_request.json` to `POST /api/projects/5e0c1a2b3d52/files/f3/relevance`; the answer (`files[2]` of
   `project_triaged.json`) replaces the card: "Related to this project: Ana's call, 2026-11-14 08:05 UTC. The judge
@@ -228,7 +239,9 @@ Issues
 
 - FT-15: `issue-unrelated` shows kind "Not a floor plan" with its icon, "not on a drawing", and one link "Make a
   call" → `#/p/<pid>/f/f3`; settled it reads "See the call", same href; `?pack=` is kept. [unit] [component]
-- FT-16: Its row keeps its `n` when its state changes between two loads (same `id`, same position). [unit]
+- FT-16: `n` is the row's position in the list as loaded, not an identifier; `Issue.id` is the stable reference
+  (Bogdan, #14 c6877137779). A call that only changes an issue's state leaves the list's order, and so `n`,
+  unchanged. [unit]
 
 Reserved: read as a floor plan (built when the `/triage` PR lands)
 
@@ -250,6 +263,41 @@ End to end (fe-golden, no-keys backend with `TRIAGE_CLASSIFIER=rules`)
   shows the note "not described: no description model is set up, so it is not judged" and no call form; the issues
   list has an `unrelated_file` row "Not a floor plan" linking to that trace; cost stays "$0.00". With triage off
   (the default) the golden path is unchanged. [e2e]
+
+## Demo parity (Tudor 2026-11-14 16:25, demo PR #214; GO 16:27)
+
+The demo's file page (`demo/vellum/triage.js` `card`, after #214) keeps the class heading, the preview, "What is on
+it" with the printed text and the full description, the call and "Read it as a floor plan"; it drops the "Does it
+belong to this project?" block and the note on who described it. The real card follows:
+
+- Removed from `TriageCard`: the heading "Does it belong to this project?", the verdict pill and sentence, the
+  relevance `why`, "Matched on: …", "Judged by <judge>", and "Described by <model>". The data stays in the API and in
+  the issue (`unrelated_file`), it is just not on this card. When `description` is null the `note` still shows once
+  in its place (FT-8).
+- The call gets the demo's heading "Your call" over the name field and the two buttons, and the line under them:
+  "Your call replaces the suggestion and settles this file's issue. It does not read the file as a plan."
+- The file rows (FT-2 to FT-4, FT-20's rows) move with the Files list to Documents (ingest.md v3, fe-ingest): same
+  words there, owned by fe-ingest.
+
+Criteria:
+
+- FT-22: With `trace-triaged` `files[1]` the card shows no "Does it belong to this project?", no verdict pill or
+  sentence, no "Matched on", no "Judged by", no "Described by"; it still shows the class heading, the chance line,
+  the preview, the description, "Subject: …" and "Text printed on it (2)". Supersedes FT-6's related sentence,
+  relevance, matched-on, judged-by and described-by parts. [component]
+- FT-23: With a call offered, the card shows the heading "Your call" and the line "Your call replaces the suggestion
+  and settles this file's issue. It does not read the file as a plan."; FT-9 to FT-13 unchanged. [component]
+- FT-24: A non-plan whose `triage.sheet.decision` is `set_aside` reads "Not a floor plan: <kind_words> (<title>,
+  <sheet_number>)" in the trace card heading and in its Documents file row (`rowLine`), e.g. "Not a floor plan: an
+  elevation (South elevation, A-201)"; only the title → "(South elevation)"; only the number → "(A-201)"; neither →
+  no parentheses; no subject after it. No sheet, or `doubt` / `read` → the class words as today. [unit + component]
+- FT-25: A sheet the model doubts (`triage.sheet.decision` `doubt`, the demo's warn-only mode) whose `kind` is not a
+  plan kind (backend `SHEET_PLAN_KINDS`: `architectural_floor_plan`, `multi_view_sheet`) adds "Looks like:
+  <kind_words>" right after the class words, on the trace card heading and the Documents file row. Such a file is
+  read, so its class is usually `floor_plan`: it then gets a small card (heading "A floor plan · Looks like: an
+  elevation", the chance line, no calls, no read button) and a row line "A floor plan · Looks like: an elevation";
+  a non-plan reads "Not a floor plan: another kind of drawing · Looks like: an elevation" (subject after it). A doubt
+  with a plan kind, `read`, no sheet: unchanged (no card for a plan); `set_aside`: FT-24 unchanged. [unit + component]
 
 ## Out of scope
 

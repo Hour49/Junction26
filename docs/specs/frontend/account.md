@@ -194,6 +194,11 @@ History
   as before; a group with no answer reads "not answered". [unit]
 - AC-35 (QA R4b-2) Four lines sharing `project_ask`, all answered, in a project of five drawings (the fifth, an
   unscaled IFC, has no line): "answered on 4 of 5 drawings", not "4 of 4". [unit]
+- AC-36 (follow-up, e2e "To review 1" after settle + sign-off; #142 c6877318531: the API answers 0 right after) A
+  sign-off that lands just after Workspaces opened is picked up: while the list or the selected workspace's review
+  still reports something to review, each is asked again every 500 ms, for at most 5 s after the screen opened, then
+  never again; with nothing to review each is asked once. The takeoffs are asked again only when the review's content
+  changes. A review answering 1 then 0 shows To review "1" then "0" and the list's "1 to review" pill goes. [component]
 - AC-23 A 500 for a takeoff shows "Sign-offs not loaded: internal error (internal)" and every other event.
   [component]
 - AC-24 Each event's glyph is `aria-hidden`; its title says the kind in words ("Uploaded", "Analysis done",

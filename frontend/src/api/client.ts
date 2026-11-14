@@ -20,9 +20,12 @@ import type {
   Started,
   Takeoff,
   DrawingChecks,
+  Issue,
+  IssueAnswerRequest,
   IssueList,
   ProjectChecks,
 } from './types';
+import type { ChatRequest, ChatTurn, Proposal } from '../agent/agent';
 
 export type PageWidth = 400 | 1600 | 3200;
 
@@ -125,6 +128,24 @@ export const askQuestion = (body: AskRequest, opts?: Opts) =>
 export const askProject = (projectId: string, question: string, opts?: Opts) =>
   postJson<ProjectAnswer>(`/api/projects/${seg(projectId)}/ask`, { question }, opts);
 
+/** One agent chat turn (decision 0013, AC-34): the first turn omits `chat_id`, later turns send the one returned. */
+export const chatTurn = (projectId: string, body: ChatRequest, opts?: Opts) =>
+  postJson<ChatTurn>(`/api/projects/${seg(projectId)}/chat`, body, opts);
+
+/** Accept or reject an edit proposal; resolves the proposal with its new `state` (409 when already decided). */
+export const decideProposal = (
+  projectId: string,
+  chatId: string,
+  proposalId: string,
+  action: 'accept' | 'reject',
+  opts?: Opts,
+) =>
+  postJson<Proposal>(
+    `/api/projects/${seg(projectId)}/chat/${seg(chatId)}/proposals/${seg(proposalId)}`,
+    { action },
+    opts,
+  );
+
 export const getTakeoff = (drawingId: string, opts: ZerosOpts = {}) =>
   call<Takeoff>(
     'GET',
@@ -182,6 +203,20 @@ export const addProjectFile = (projectId: string, file: File, opts?: Opts) =>
     'POST',
     withQuery(`/api/projects/${seg(projectId)}/files`, { name: file.name }),
     { ...opts, body: file, type: 'application/octet-stream' },
+  );
+
+/** A person's answer to an issue, or `{undo: true}` (#223); answers the issue as it now stands. Answering does
+ * not close it. A code check's issue needs its `pack` (404 without). */
+export const answerIssue = (
+  projectId: string,
+  issueId: string,
+  body: IssueAnswerRequest,
+  opts: Opts & { pack?: string } = {},
+) =>
+  postJson<Issue>(
+    withQuery(`/api/projects/${seg(projectId)}/issues/${seg(issueId)}/answer`, { pack: opts.pack }),
+    body,
+    opts,
   );
 
 export const pageUrl = (drawingId: string, page: number, width: PageWidth = 1600) =>

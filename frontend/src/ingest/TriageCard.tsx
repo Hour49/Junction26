@@ -12,10 +12,11 @@ import {
   callLine,
   canCall,
   canReadAsPlan,
+  classLine,
+  looksLike,
   planChance,
   readError,
   readLine,
-  verdictOf,
 } from './triage';
 
 const NAME_KEY = 'countersign.surveyorName'; // the surveyor's key: one typed name for every call
@@ -48,7 +49,16 @@ export function TriageCard(props: {
   const [failed, setFailed] = useState<string | null>(null);
   const [noPreview, setNoPreview] = useState(false);
   const t = file.triage;
-  if (!t || t.class === 'floor_plan') return null;
+  if (!t || (t.class === 'floor_plan' && !looksLike(t))) return null;
+  if (t.class === 'floor_plan')
+    return (
+      <section aria-label="Is it a floor plan?" className="v-card ingest-triage">
+        <h2 className="v-h3">{classLine(t)}</h2>
+        <p className="output">
+          Chance of a floor plan {planChance(t.p_plan)} ({t.method})
+        </p>
+      </section>
+    );
 
   const send = async (
     busy: string,
@@ -80,8 +90,7 @@ export function TriageCard(props: {
     if (!window.confirm(`Read ${file.path} as a floor plan? This can't be undone.`)) return;
     void send('Asking for the reading…', () => readAsPlan(projectId, file.id, by()), readError);
   };
-  const { description: d, relevance: r } = t;
-  const verdict = verdictOf(t);
+  const d = t.description;
   const said = callLine(t);
   const offerCall = !said && canCall(file);
   const offerRead = canReadAsPlan(file);
@@ -98,7 +107,7 @@ export function TriageCard(props: {
         </>
       ) : (
         <>
-          <h2 className="v-h3">Not a floor plan: {CLASS_LABEL[t.class]}</h2>
+          <h2 className="v-h3">{classLine(t)}</h2>
           <p className="output">
             Chance of a floor plan {planChance(t.p_plan)} ({t.method})
           </p>
@@ -135,26 +144,9 @@ export function TriageCard(props: {
               {d.language && <p>language: {d.language}</p>}
             </details>
           )}
-          <p className="output">Described by {d.model}</p>
         </>
       ) : (
         <p>{t.note}</p>
-      )}
-      <h3 className="ingest-triage-h">Does it belong to this project?</h3>
-      <p>
-        <span className={`v-pill${t.verdict === 'unsure' ? ' v-pill--warn' : ''}`}>
-          {verdict.pill}
-        </span>{' '}
-        {t.verdict && verdict.sentence}
-      </p>
-      {r ? (
-        <>
-          <p>{r.why}</p>
-          {r.matched_on.length > 0 && <p>Matched on: {r.matched_on.join(', ')}</p>}
-          <p className="output">Judged by {r.judge}</p>
-        </>
-      ) : (
-        d && t.note && <p>{t.note}</p>
       )}
       {said && (
         <div className="ingest-triage-call">
@@ -170,6 +162,7 @@ export function TriageCard(props: {
         </div>
       )}
       {t.read_as_plan && <p>{readLine(t.read_as_plan)}</p>}
+      {offerCall && <h3 className="ingest-triage-h">Your call</h3>}
       {(offerCall || offerRead) && (
         <div className="ingest-triage-call">
           <label>

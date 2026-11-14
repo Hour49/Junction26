@@ -1,23 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  addProjectFile,
   askProject,
-  errorText,
-  formatValue,
   getDrawing,
   getProject,
-  type FileStatus,
   type ProjectAnswer,
   type ProjectView,
   type Suggestion,
 } from '../api';
+import { AgentChat } from '../agent/AgentChat';
 import { ErrorView } from '../shell/ErrorView';
+import { useInfo } from '../shell/info';
 import { Loading } from '../shell/Loading';
-import { routeHref } from '../shell/route';
-import { AnswerCard, SURE_TIP, type Turn } from './AnswerCard';
+import { AnswerCard, type Turn } from './AnswerCard';
+import { ChatAnswer } from './ChatAnswer';
 import { AskBox } from './AskBox';
 import { Suggestions } from './DrawingHeader';
-import { askable, starters } from './projectAsk';
+import { usePhotoAdd } from './photoAdd';
+import { askable, followUps, starters } from './projectAsk';
 import './engineer.css';
 
 type ChatTurn =
@@ -25,133 +24,33 @@ type ChatTurn =
   | { id: number; question: string; status: 'error'; error: unknown }
   | { id: number; question: string; status: 'done'; ask: ProjectAnswer };
 
-/** The photo added from the chat (CH-18..20): the status line, and whether it is still being read. */
-interface Photo {
-  line: string;
-  reading: boolean;
-}
-
-const POLL_MS = 1000;
-const MAX_POLLS = 180; // 3 minutes, then the paperclip is freed (Tudor #203 c6877912716)
-
 type Load =
   | { state: 'loading' }
   | { state: 'error'; error: unknown }
   | { state: 'ready'; project: ProjectView };
 
-/** The total, then one line per answering drawing with a link to show it (chat.md). */
-function PartsCard(props: { ask: ProjectAnswer; projectId: string; pack: string | null }) {
-  const { ask, projectId, pack } = props;
-  // That drawing opens answering this question (EN-72), in the chat's rule pack (QA R4b-1).
-  const query = new URLSearchParams(pack ? { ask: ask.question, pack } : { ask: ask.question });
-  const answering = ask.parts.filter((p) => p.answer.refusal === null);
-  const label = answering[0]?.answer.quantity?.label;
-  return (
-    <div className="v-card en-chatcard">
-      {label && <p className="en-small">{label.charAt(0).toUpperCase() + label.slice(1)}</p>}
-      {ask.total !== null && (
-        <p className="en-value-row">
-          <span className="en-value" data-testid="answer-value">
-            {formatValue(ask.total, ask.total_unit)}
-          </span>
-          {ask.total_sure && (
-            <span className="en-sure v-pill v-pill--ok" title={SURE_TIP}>
-              Sure<span className="en-sr">. {SURE_TIP}</span>
-            </span>
-          )}
-        </p>
-      )}
-      {ask.total_note && <p className="en-small">{ask.total_note}</p>}
-      <ul className="en-parts">
-        {answering.map((p) => (
-          <li key={p.drawing_id}>
-            <span>
-              <span className="en-part-name en-mono">{p.name}</span>:{' '}
-              {typeof p.answer.answer === 'number'
-                ? formatValue(p.answer.answer, p.answer.unit)
-                : (p.answer.answer ?? '')}
-            </span>{' '}
-            <a
-              href={routeHref({
-                name: 'workspace',
-                projectId,
-                drawingId: p.drawing_id,
-                role: 'engineer',
-                query,
-              })}
-            >
-              Show it on {p.name}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+/** The project-wide chat at #/p/<pid>/chat (docs/specs/frontend/chat.md): the agent chat (decision 0013) when
+ * `GET /api/info` says it is available (CH-43), else the ask chat below. */
+export function ProjectChat(props: { projectId: string; query?: URLSearchParams }) {
+  // shortcut: until /api/info answers this is the ask chat; a cold deep link with ?ask= can then ask twice (once
+  // per chat). Wait for info here if that bites.
+  return useInfo().info?.chat?.available ? <AgentChat {...props} /> : <AskChat {...props} />;
 }
 
-/** The project-wide chat at #/p/<pid>/chat (docs/specs/frontend/chat.md): empty until asked, no drawing shown.
- * `query`: `ask` is asked on open (chat.md "Opening with a question"). */
-export function ProjectChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
+/** The ask chat: empty until asked, no drawing shown. `query`: `ask` is asked on open (chat.md "Opening with a
+ * question"). */
+function AskChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const nextId = useRef(1);
   const pending = useRef(false);
   const thread = useRef<HTMLElement>(null);
-  // Starter chips from the drawings' own suggestions; not blocking, failures leave fewer (or none).
-  const [chips, setChips] = useState<Suggestion[]>([]);
+  // The drawings' own suggestions, for the starter and follow-up chips; not blocking, failures leave fewer (or none).
+  const [lists, setLists] = useState<Suggestion[][]>([]);
   const openAsk = query?.get('ask')?.trim() ?? '';
-  const [photo, setPhoto] = useState<Photo | null>(null);
-  const stopPhoto = useRef<AbortController | null>(null);
-  useEffect(() => () => stopPhoto.current?.abort(), []);
-
-  // Adds the photo, then polls the project until that file is read; the new project makes it askable.
-  const attach = useCallback(
-    async (file: File) => {
-      const abort = new AbortController();
-      stopPhoto.current = abort;
-      const { signal } = abort;
-      const name = file.name;
-      setPhoto({ line: `Reading ${name}…`, reading: true });
-      let added: FileStatus;
-      try {
-        added = await addProjectFile(projectId, file, { signal });
-      } catch (error) {
-        if (!signal.aborted) {
-          setPhoto({ line: `Could not add ${name}: ${errorText(error).detail}`, reading: false });
-        }
-        return;
-      }
-      for (let poll = 0; poll < MAX_POLLS; poll++) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-        if (signal.aborted) return;
-        let project: ProjectView;
-        try {
-          project = await getProject(projectId, { signal });
-        } catch {
-          continue; // the file is added either way: a failed check is retried on the next tick
-        }
-        const read = project.files.find((f) => f.id === added.id);
-        if (read && (read.state === 'queued' || read.state === 'running')) continue;
-        setLoad({ state: 'ready', project });
-        const asked = read?.state === 'ready' || read?.state === 'flagged';
-        const why = (read?.reason ?? 'it is not in the project').replace(/\.$/, '');
-        setPhoto({
-          line: asked
-            ? `${name} is read: you can ask about it.`
-            : `${name} was not read as a plan: ${why}.`,
-          reading: false,
-        });
-        return;
-      }
-      if (!signal.aborted) {
-        setPhoto({
-          line: `${name} is still being read. Reload later to ask about it.`,
-          reading: false,
-        });
-      }
-    },
-    [projectId],
-  );
+  const photo = usePhotoAdd(projectId, (project) => {
+    setLoad({ state: 'ready', project });
+  });
 
   const send = useCallback(
     (id: number, question: string) => {
@@ -194,7 +93,7 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
           ),
         ).then((rs) => {
           if (abort.signal.aborted) return;
-          setChips(starters(rs.map((r) => (r.status === 'fulfilled' ? r.value.suggestions : []))));
+          setLists(rs.map((r) => (r.status === 'fulfilled' ? r.value.suggestions : [])));
         });
       },
       (error: unknown) => {
@@ -209,7 +108,11 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   const last = turns.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
   useEffect(() => {
-    if (lastKey) thread.current?.lastElementChild?.scrollIntoView({ block: 'start' });
+    if (!lastKey) return;
+    const turn = thread.current?.lastElementChild;
+    turn?.scrollIntoView({ block: 'start' });
+    // CH-47: on a phone the figure pushes the first row's value and reason under the ask bar; lift them clear
+    turn?.querySelector('.en-parts > li')?.scrollIntoView({ block: 'nearest' });
   }, [lastKey]);
 
   if (load.state === 'loading') return <Loading label="Loading the project…" />;
@@ -238,7 +141,12 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
       return (
         <article key={turn.id} className="en-turn" aria-label={turn.ask.question}>
           <p className="en-bubble">{turn.ask.question}</p>
-          <PartsCard ask={turn.ask} projectId={projectId} pack={query?.get('pack') ?? null} />
+          <ChatAnswer
+            ask={turn.ask}
+            project={project}
+            projectId={projectId}
+            pack={query?.get('pack') ?? null}
+          />
         </article>
       );
     }
@@ -277,21 +185,27 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
       busy={busy || n === 0}
       asked={turns.length}
       onAsk={ask}
-      onAttach={(file) => void attach(file)}
-      attaching={photo?.reading ?? false}
+      onAttach={photo.attach}
+      attaching={photo.attaching}
     />
   );
-  const photoLine = photo && (
-    <p className="en-small en-photo" role="status">
-      {photo.line}
-    </p>
-  );
+  const chips = starters(lists);
+  // CH-36: hidden while the newest turn is a refusal (its own chips are the choice then).
+  const newest = turns.at(-1);
+  const refusedLast =
+    newest?.status === 'done' && newest.ask.parts.every((p) => p.answer.refusal !== null);
+  const next = refusedLast
+    ? []
+    : followUps(
+        lists,
+        turns.map((t) => t.question),
+      );
   // Empty (Tudor 12:45): the heading, the bar in the upper middle and the starter chips under it.
   if (turns.length === 0) {
     return (
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
-        {photoLine}
+        {photo.line}
         {box}
         {n === 0 ? (
           <p className="en-empty">No drawing in this project can be asked yet.</p>
@@ -303,11 +217,14 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   }
   return (
     <div className="en-page en-chat">
-      <h1 className="en-chat-title">{project.name}</h1>
-      {photoLine}
+      <h1 className="en-sr">{project.name}</h1>
+      {photo.line}
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {turns.map(card)}
       </section>
+      {next.length > 0 && (
+        <Suggestions items={next} busy={busy} onAsk={ask} label="Follow-up questions" />
+      )}
       {box}
     </div>
   );

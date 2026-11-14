@@ -1,42 +1,38 @@
 // Building-code pre-check (#139) and located issues (#140) on the live sample project, at the project's viewport:
 // checks.md CK-16, issues.md IS-19/IS-20, shared.md SH-70, viewer.md VW-79, engineer.md EN-76.
-// The issues are the live API (#147). shortcut: the checks endpoints (#139) are not merged, so /api/info's
-// rule_packs and the checks answers come from the hand-made #142 fixtures (src/api/testing.ts) via page.route;
-// delete serveChecks when #139 lands. Until then ?pack=fi on the issues answers 404 unknown-pack.
+// Everything is the live no-keys backend: real rule packs (fi, ch-zh; #139), checks and issues (#147).
 import { expect, test, type Page } from '@playwright/test';
-import { drawingChecks, projectChecks, rulePackFi } from '../src/api/testing';
-import { noKeys, sampleDone, shot, watchErrors } from './support';
+import { drawingOf, noKeys, sampleDone, shot, watchErrors } from './support';
 
 const NOTE = 'A pre-check of a few rules, not a compliance certificate.';
-const FIXTURE_PROJECT = projectChecks.project_id;
 
-/** The fixtures, with the fixture's project id swapped for the live sample's (drawing ids are the sample's). */
-async function serveChecks(page: Page, pid: string) {
-  const swap = <T>(value: T): T =>
-    JSON.parse(JSON.stringify(value).replaceAll(FIXTURE_PROJECT, pid)) as T;
-  await page.route('**/api/info', async (route) => {
-    const response = await route.fetch();
-    const info = (await response.json()) as Record<string, unknown>;
-    await route.fulfill({ response, json: { ...info, rule_packs: [rulePackFi] } });
-  });
-  await page.route(/\/api\/projects\/[0-9a-f]+\/checks(\?.*)?$/, (route) =>
-    route.fulfill({ json: swap(projectChecks) }),
-  );
-  await page.route(/\/api\/drawings\/([0-9a-f]+)\/checks(\?.*)?$/, (route) => {
-    const did = /\/api\/drawings\/([0-9a-f]+)\/checks/.exec(route.request().url())?.[1];
-    const found = projectChecks.drawings.find((d) => d.drawing_id === did);
-    return route.fulfill({ json: found ?? { ...drawingChecks, drawing_id: did, rules: [] } });
-  });
+interface CheckResult {
+  status: string;
+  subject: { label: string | null };
+  marks?: unknown[] | null;
+}
+
+/** The sample's real check results for a pack, flattened over drawings and rules. */
+async function liveResults(page: Page, pid: string, pack: string): Promise<CheckResult[]> {
+  const response = await page.request.get(`/api/projects/${pid}/checks?pack=${pack}`);
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as {
+    note: string;
+    drawings: { rules: { results: CheckResult[] }[] }[];
+  };
+  expect(body.note).toBe(NOTE);
+  return body.drawings.flatMap((d) => d.rules.flatMap((r) => r.results));
 }
 
 interface Issue {
+  kind: string;
   drawing_id: string | null;
   page: number | null;
 }
 
 /** The sample's real issues, in the API's order. */
-async function liveIssues(page: Page, pid: string): Promise<Issue[]> {
-  const response = await page.request.get(`/api/projects/${pid}/issues`);
+async function liveIssues(page: Page, pid: string, query = ''): Promise<Issue[]> {
+  const response = await page.request.get(`/api/projects/${pid}/issues${query}`);
   expect(response.status()).toBe(200);
   return ((await response.json()) as { issues: Issue[] }).issues;
 }
@@ -53,13 +49,12 @@ async function noSideScroll(page: Page, where: string) {
 
 const banner = (page: Page) => page.getByRole('banner');
 
-test('CK-16 VW-79: the picker sets ?pack=, the Checks tab, the note verbatim, a fail on the drawing', async ({
+test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks, the note verbatim, the ch-zh fail outlined on the drawing', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const pid = await sampleDone(page);
-  await serveChecks(page, pid);
 
   await page.goto(`/#/p/${pid}`);
   await expect(banner(page).getByRole('link', { name: 'Checks', exact: true })).toHaveCount(0);
@@ -72,121 +67,155 @@ test('CK-16 VW-79: the picker sets ?pack=, the Checks tab, the note verbatim, a 
     .click();
   await expect(page).toHaveURL(new RegExp(`#/p/${pid}\\?(.*&)?pack=fi(&.*)?$`));
 
-  await banner(page).getByRole('link', { name: 'Checks', exact: true }).click();
+  // No Checks tab (SH-75): Documents links to the checks, keeping the pack (DOC-16).
+  await banner(page)
+    .getByRole('link', { name: /^Documents/ })
+    .click();
+  await page.getByRole('main').getByRole('link', { name: 'Building-code checks' }).click();
   await expect(page).toHaveURL(new RegExp(`#/p/${pid}/checks\\?(.*&)?pack=fi(&.*)?$`));
   const main = page.getByRole('main');
   await expect(main.getByRole('note')).toHaveText(NOTE);
-  // VW-79: "Show on the drawing" on the failed place draws it on its page, visible without scrolling.
-  await main
-    .getByRole('article', { name: 'door 2 · Door clear width' })
-    .getByRole('button', { name: 'Show on the drawing' })
-    .click();
-  const fail = page
+  // Codecheck/sample-rooms: the sample's bedroom "Zimmer 1.05" is typed. fi (>= 7 m²) passes it on both flats,
+  // so nothing fails and the two flats count as passing.
+  const fi = await liveResults(page, pid, 'fi');
+  expect(fi.filter((r) => r.status === 'fail')).toEqual([]);
+  expect(fi.some((r) => r.status === 'pass' && r.subject.label === 'Zimmer 1.05')).toBe(true);
+  await expect(main.getByText('2 drawings pass every checked place')).toBeVisible();
+  await expect(main.getByRole('article', { name: /^Zimmer 1\.05 · / })).toHaveCount(0);
+  await noSideScroll(page, 'checks');
+  await shot(page, testInfo, 'ck-checks', offline);
+
+  // ch-zh (>= 10 m²): flat-b's 8.06 m² bedroom is the sample's one failed rule.
+  const zh = await liveResults(page, pid, 'ch-zh');
+  expect(zh.filter((r) => r.status === 'fail').map((r) => r.subject.label)).toEqual([
+    'Zimmer 1.05',
+  ]);
+  await page.goto(`/#/p/${pid}/checks?pack=ch-zh`);
+  await expect(main.getByRole('heading', { level: 1, name: /Zürich/ })).toBeVisible();
+  await expect(main.getByRole('note')).toHaveText(NOTE);
+  const flatB = main.getByRole('list', { name: 'Places to look at in plans/flat-b.pdf' });
+  const fail = flatB.getByRole('article', {
+    name: /^Zimmer 1\.05 · A bedroom or living room is at least 10 m2/,
+  });
+  await expect(fail).toHaveCount(1);
+  await expect(fail).toContainText('Fails');
+  await expect(fail).toContainText('8.06');
+  await expect(main.getByText('1 drawing passes every checked place')).toBeVisible();
+  // VW-79: "Show on the drawing" outlines the failed room on its page, visible without scrolling.
+  await fail.getByRole('button', { name: 'Show on the drawing' }).click();
+  const mark = page
     .getByRole('complementary')
-    .getByRole('button', { name: /fails the rule/i })
+    .getByRole('button', { name: /fails the rule/ })
     .first();
-  await expect(fail).toBeVisible();
+  await expect(mark).toBeVisible();
   // At 390 the viewer sits under the list (CK-16): the page scrolls to it; the mark itself needs no scrolling
   // inside the viewer's scroll box (VW-79).
   await page.getByRole('complementary').scrollIntoViewIfNeeded();
-  await expect(fail).toBeInViewport();
-  await noSideScroll(page, 'checks');
-  await shot(page, testInfo, 'ck-checks', offline);
+  await expect(mark).toBeInViewport();
+  await noSideScroll(page, 'checks ch-zh');
+  await shot(page, testInfo, 'ck-checks-ch-zh', offline);
   expect(errors, 'no console or page errors').toEqual([]);
 });
 
-test('IS-19 IS-20 EN-76: the issues list, the first issue outlined, Open the drawing at its place', async ({
+test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail answered', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const pid = await sampleDone(page);
-  await serveChecks(page, pid);
+  const main = page.getByRole('main');
+  // The issue rows only (each source figure's legend is a list of its own).
+  const issueList = main
+    .getByRole('region', { name: 'Issues' })
+    .locator('ul > li, ol > li')
+    .filter({
+      has: page.getByRole('link', { name: 'Open the file' }),
+    });
+  // Documents lists every issue but the conflicts (those are on Ingest, under the progress card).
+  const shown = async (query: string) =>
+    (await liveIssues(page, pid, query)).filter((i) => i.kind !== 'conflict').length;
+  const { label } = await drawingOf(page, pid, 'plans/flat-b.pdf');
 
-  const issues = await liveIssues(page, pid);
-  expect(issues.length).toBeGreaterThan(0);
+  // ch-zh: flat-b's bedroom fails, the one issue that needs an answer.
+  await page.goto(`/#/p/${pid}/documents?pack=ch-zh`);
+  await expect(main.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+  await expect(issueList).toHaveCount(await shown('?pack=ch-zh'));
+  const fail = issueList.filter({ hasText: 'Fails a rule' });
+  await expect(fail).toHaveCount(1);
+  // The row and the source preview name the drawing by its plain name (follow-ups: `drawing_name`).
+  await expect(fail).toContainText(label);
+  await expect(fail).toContainText('Zimmer 1.05');
+  await expect(banner(page).getByRole('link', { name: /^Documents/ })).toHaveAccessibleName(
+    'Documents, 1 issue to answer',
+  );
+  const zip = await main.getByRole('link', { name: 'Export' }).getAttribute('href');
+  expect(zip).toMatch(new RegExp(`/api/projects/${pid}/issues\\.zip\\?pack=ch-zh$`));
+  const download = await page.request.get(zip ?? '');
+  expect(download.status()).toBe(200);
+  expect(download.headers()['content-type']).toMatch(/^application\/zip/);
+  // Its source: minimized, expanded in place, previewed (viewer.md SourceFigure / SourcePreview).
+  const figure = fail.getByRole('figure', { name: /^Source of issue \d+$/ });
+  await figure.getByRole('button', { name: 'Expand', exact: true }).click();
+  await expect(figure.getByRole('button', { name: 'Minimize', exact: true })).toBeVisible();
+  await figure.getByRole('button', { name: 'Show source' }).click();
+  const dialog = page.getByRole('dialog', { name: `Source: ${label}` });
+  await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await noSideScroll(page, 'documents?pack=ch-zh');
+  if (testInfo.project.name === 'phone') {
+    // IS-20 / brief rule 5: the issue's buttons are 44 px taps at 390.
+    const heights = await fail
+      .getByRole('button')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
+  }
+  await shot(page, testInfo, 'is-issues-ch-zh', offline);
+  // Answered by typing: the badge goes (SH-78), the answer stays and can be changed.
+  await fail.getByRole('textbox', { name: 'Your name' }).fill('Ana');
+  await fail.getByRole('textbox', { name: 'Your answer' }).fill('The wall moves; 10.2 m² in rev B');
+  await fail.getByRole('button', { name: 'Use my answer' }).click();
+  await expect(fail).toContainText('The wall moves; 10.2 m² in rev B');
+  await expect(banner(page).getByRole('link', { name: /^Documents/ })).toHaveAccessibleName(
+    'Documents',
+  );
 
-  // Until #139 lands the pack is unknown to the backend: the screen says so instead of a list.
-  await page.goto(`/#/p/${pid}/issues?pack=fi`);
-  await expect(page.getByRole('heading', { level: 1, name: 'Issues' })).toBeVisible();
-  await expect(page.getByText('These country rules are not available.')).toBeVisible();
-  await expect(page.locator('.is-row')).toHaveCount(0);
-  await noSideScroll(page, 'issues?pack=fi');
+  // fi passes those rooms: no failed rule, only notes.
+  await page.goto(`/#/p/${pid}/documents?pack=fi`);
+  await expect(issueList).toHaveCount(await shown('?pack=fi'));
+  await expect(issueList.filter({ hasText: 'Fails a rule' })).toHaveCount(0);
+  await expect(main.getByRole('region', { name: 'Issues' }).getByRole('textbox')).toHaveCount(0);
+  await noSideScroll(page, 'documents?pack=fi');
   // The header's project list loads on its own: wait, or the shot shows "Loading projects…".
   await expect(banner(page).getByRole('combobox', { name: 'Project' })).not.toContainText(
     'Loading',
   );
   await shot(page, testInfo, 'is-issues-fi', offline);
 
-  await page.getByRole('link', { name: 'Show the issues without country rules' }).click();
-  await expect(page).toHaveURL(new RegExp(`#/p/${pid}/issues$`));
-  const rows = page.locator('.is-row');
-  await expect(rows).toHaveCount(issues.length);
-  // IS-7/IS-19: the first located issue is selected and outlined on its page.
-  await expect(rows.first()).toHaveAttribute('aria-current', 'true');
-  const where = page.getByRole('region', { name: 'Where' });
-  const outlined = where.getByRole('button', { name: /^Mark 1: /, pressed: true });
-  await expect(outlined).toBeVisible();
-  await expect(outlined).toBeInViewport();
-  // The exports are plain links to the API; the zip downloads once the project is done.
-  const main = page.getByRole('main');
-  const zip = await main.getByRole('link', { name: 'Export' }).getAttribute('href');
-  const csv = await main.getByRole('link', { name: 'CSV only' }).getAttribute('href');
-  expect(zip).toMatch(new RegExp(`/api/projects/${pid}/issues\\.zip$`));
-  expect(csv).toMatch(new RegExp(`/api/projects/${pid}/issues\\.csv$`));
-  const download = await page.request.get(zip ?? '');
-  expect(download.status()).toBe(200);
-  expect(download.headers()['content-type']).toMatch(/^application\/zip/);
-  await noSideScroll(page, 'issues');
-  if (testInfo.project.name === 'phone') {
-    // IS-20: every row's tap target is at least 44 px tall.
-    const heights = await page
-      .locator('.is-pick')
-      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
-    expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
-  }
+  // No pack: the notes, the export without a pack, and a note's file page.
+  await page.goto(`/#/p/${pid}/documents`);
+  await expect(issueList).toHaveCount(await shown(''));
+  const plain = await main.getByRole('link', { name: 'Export' }).getAttribute('href');
+  expect(plain).toMatch(new RegExp(`/api/projects/${pid}/issues\\.zip$`));
+  await noSideScroll(page, 'documents');
   await shot(page, testInfo, 'is-issues', offline);
-
-  // EN-76: "Open the drawing" opens the engineer at the issue's page with the place outlined. The sample's first
-  // issue (Küche, a third of the page wide) needs no zoom: the viewer zooms only boxes under 48 px (viewer.md).
-  const first = issues[0];
-  await rows.first().getByRole('link', { name: 'Open the drawing' }).click();
-  await expect(page).toHaveURL(
-    new RegExp(`/d/${first?.drawing_id ?? ''}/engineer\\?(.*&)?page=${String(first?.page)}&box=`),
-  );
-  const focus = page.locator('.vw-focus').first();
-  await expect(focus).toBeVisible();
-  await noSideScroll(page, 'engineer focus');
-  // Viewport shot with the plan in view (fe-viewer): scroll the page by the toolbar, which is outside the plan's
-  // own scroll box, so the focus scroll stays.
-  await page.getByRole('button', { name: 'Zoom in' }).first().scrollIntoViewIfNeeded();
-  // The zoomed page is a larger image: wait until it has loaded, or the shot shows only the outline.
-  const plan = page.getByRole('img', { name: /^Page 1 of / }).first();
-  await expect
-    .poll(() =>
-      plan.evaluate(
-        (el) => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth,
-      ),
-    )
-    .toBeGreaterThan(0);
-  await expect(focus).toBeInViewport();
-  await shot(page, testInfo, 'is-open-drawing', offline);
-  // The one expected error: the browser logs the ?pack=fi 404 (unknown-pack until #139).
-  const unexpected = errors.filter((e) => !/status of 404/.test(e));
-  expect(errors.length - unexpected.length).toBeLessThanOrEqual(1);
-  expect(unexpected, 'no other console or page errors').toEqual([]);
+  await issueList.first().getByRole('link', { name: 'Open the file' }).click();
+  await expect(page).toHaveURL(new RegExp(`#/p/${pid}/f/f\\d+$`));
+  await expect(page.getByRole('link', { name: 'Back to Documents' })).toBeVisible();
+  expect(errors, 'no console or page errors').toEqual([]);
 });
 
-test('SH-70: no sideways scroll at 390, 768, 1024 and 1440; tabs at least 44 px below 1100', async ({
+test('SH-70 SH-83: no sideways scroll at 390, 768, 1024 and 1440; tabs at least 44 px below 1100', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'one sweep over the widths is enough');
   const pid = await sampleDone(page);
-  await serveChecks(page, pid);
   const did = (await liveIssues(page, pid)).find((i) => i.drawing_id)?.drawing_id ?? '';
   const routes = [
     `/#/p/${pid}/checks?pack=fi`,
-    `/#/p/${pid}/issues?pack=fi`,
+    `/#/p/${pid}/documents?pack=fi`,
+    `/#/p/${pid}/chat?pack=fi`,
+    `/#/about?project=${pid}`,
     `/#/p/${pid}/d/${did}/engineer?pack=fi`,
   ];
   for (const [width, height] of [
@@ -199,9 +228,8 @@ test('SH-70: no sideways scroll at 390, 768, 1024 and 1440; tabs at least 44 px 
     for (const route of routes) {
       await page.goto(route);
       await expect(page.getByRole('main')).toBeVisible();
-      await expect(banner(page).getByRole('link', { name: 'Checks', exact: true })).toBeVisible();
       await noSideScroll(page, `${route} at ${String(width)}`);
-      if (width < 1100) {
+      if (width < 1100 && !route.startsWith('/#/about')) {
         const tabs = await banner(page)
           .getByRole('navigation', { name: 'Views' })
           .getByRole('link')

@@ -1,0 +1,207 @@
+{
+ "recorded_at": "2026-11-14T18:26:44+02:00",
+ "commit": "8bf6c0a",
+ "dirty": false,
+ "name": "Carbon sheet kind (cached, 4 files) (final labels)",
+ "note": "re-score of 'Carbon sheet kind (cached, 4 files)' (sheet-kind-2, gemini-4-carbon, cached replies, 0 USD) on think-local's frozen labels (26 files + second batch of 18) plus the 4 inbox sheets, 48 files; 4 predicted",
+ "labels_sha256": [
+  "85afa954f0ea3e10b4a27097c7b12bfbca747e649cfe5355b34f6054e559da06",
+  "bc348a74b471f5fe518ce1c83a081350c0526e1d6fab3e9755aa0dba654fba61",
+  "bdc64df1e42b48c77369fe67371565d11b32e86aeabd0d14dff75aa5414e7cb8"
+ ],
+ "report": {
+  "files": 48,
+  "predicted": 4,
+  "kind": {
+   "labelled": 48,
+   "said": 4,
+   "right": 4,
+   "rate": 1.0
+  },
+  "plan": {
+   "tp": 2,
+   "fp": 0,
+   "fn": 0,
+   "tn": 2,
+   "not_said": 44,
+   "recall": 1.0,
+   "precision": 1.0
+  },
+  "takeoff": {
+   "labelled": 48,
+   "said": 4,
+   "right": 3,
+   "rate": 0.75
+  },
+  "advanced": {
+   "labelled": 48,
+   "said": 4,
+   "right": 4,
+   "rate": 1.0
+  },
+  "families": {
+   "plan": {
+    "labelled": 23,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "door": {
+    "labelled": 23,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 4,
+    "hit_rate": null
+   },
+   "window": {
+    "labelled": 23,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 6,
+    "hit_rate": null
+   },
+   "toilet": {
+    "labelled": 23,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": null
+   },
+   "sink": {
+    "labelled": 23,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": null
+   },
+   "shower+bathtub": {
+    "labelled": 21,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 2,
+    "hit_rate": null
+   },
+   "sauna": {
+    "labelled": 21,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:bedroom": {
+    "labelled": 21,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:bathroom": {
+    "labelled": 20,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:kitchen": {
+    "labelled": 17,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 1,
+    "hit_rate": null
+   },
+   "room:wc": {
+    "labelled": 19,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 3,
+    "hit_rate": null
+   },
+   "room:balcony": {
+    "labelled": 21,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:cell": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:classroom": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:group room": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:office": {
+    "labelled": 2,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "room:store": {
+    "labelled": 1,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   },
+   "rooms_total": {
+    "labelled": 11,
+    "asked": 0,
+    "hit": 0,
+    "refused": 0,
+    "cannot_tell": 0,
+    "hit_rate": null
+   }
+  },
+  "pooled": {
+   "labelled": 272,
+   "asked": 0,
+   "hit": 0,
+   "refused": 0,
+   "cannot_tell": 20,
+   "hit_rate": null
+  },
+  "scale": {
+   "ratio_labelled": 22,
+   "ratio_read": 4,
+   "ratio_exact": 4,
+   "px_labelled": 5,
+   "px_median": null,
+   "px_within_10": 0,
+   "px_within_20": 0
+  },
+  "non_plan_counts": 0
+ }
+}

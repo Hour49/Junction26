@@ -91,6 +91,16 @@ Priority: **M** must have for the demo, **S** should, **C** could.
 | R6 | Corrections are kept as labelled examples for evaluating and improving the extractors. | C |
 | R7 | Every finding in a project is one located issue (conflict, refused answer, reading flag, set-aside file, failed code check): kind, severity, drawing, floor where the source states it, page and box, one sentence of why, state. One list per project as JSON, CSV and a zip with the pages marked (story #140, decision 0008; MUST DO, Bogdan 2026-11-14). | M |
 
+### Building-code pre-check (story #139, Bogdan 2026-11-14 12:20: must do)
+
+| Id | Requirement | Pri |
+| --- | --- | --- |
+| C1 | Pick a country's rule pack (one at a time, or none); each drawing gets pass, fail or cannot tell per rule and per room or door, with the marks of the items involved. | M |
+| C2 | Every limit quotes a clause someone read: reference, link, the sentence as printed and in English. A rule without one does not load. | M |
+| C3 | No scale, a quantity not read, an estimate whose error reaches the limit or an input read off a picture never fails: it is cannot tell, with the reason. | M |
+| C4 | Screens and API say it is a pre-check of a few rules, not a compliance certificate, and what a fail means under that law. | M |
+| C5 | A failed check is a located issue in the project's issue list (#140). | S |
+
 ## 5. Non-functional requirements
 
 - **Accuracy is measured, not claimed.** Per source and per question type, on a held-out sample of Stoa's

@@ -92,6 +92,25 @@ of Part 2. Without that rule the slice would have added 2,276 questions, 1,738 o
 before and after it could not be compared (orchestrator's decision, 2026-11-13 23:29). The conflict questions among
 the extras cover the answering side.
 
+### The hard slice
+
+The Carbon-first work (sheet kind, a Carbon reader, big-sheet tiles, the printed scale) needs sheets our
+CubiCasa-trained readers were not made for: huge sheets, several plans on one sheet, colour or concept plans,
+photos and hand-drawn plans, and drawings that look like plans but are not (MEP, structural, site, elevations).
+The hard slice is those sheets, labelled by eye in `hard_set_v1` (`eval/stoa_eval/hard_scoring.py`): the sheet
+kind in the sheet-kind step's own words, whether a floor plan is on the sheet, the printed scale, and for each
+count family a range `[lo, hi]` or "cannot tell". It is not part of golden v2 and stays outside every headline.
+`stoa_eval hard` scores kind accuracy, floor-plan recall and precision, the share of counts inside their range (a
+refusal counts as a miss; "cannot tell" is left out), and the scale where one is printed. It reads a pipeline run of
+`stoa_eval hard-questions` (`app.cli answer`) and lines a classifier writes (`hard_pred_v1`). The images stay in the
+gitignored `data/inbox/`. Records hold aggregates only (`eval/results/hard/runs/`), and labels are committed only
+for files whose licence allows it.
+
+think-local froze the labels on 2026-11-14: 26 files, a second batch of 18, and 4 inbox sheets whose source isn't
+recorded, 48 in all. 44 of them are public in `eval/results/hard/gold/hard-set-20261114.json`; the 4 inbox
+sheets stay local. The rows scored on these labels are the records named "(final labels)". A row can combine
+several runs (`--run` with its `--questions`, repeated), for example when a later batch was run separately.
+
 ### Schedules
 
 The opening_design sheets are mostly schedules. Their gold (review-8) lists the door, window, finish and keynote
@@ -224,7 +243,7 @@ numbers.
 extraction, every real adapter of the commit turned on. Each point runs from a clean export of a merge commit, not
 the shared tree, by `eval/pipeline-run.sh <commit> [NAME=VALUE ...]` and scored by the same eval on the frozen
 set, so the numbers compare. Its records say `dirty: false` with that commit, the settings it ran with, and the
-scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02; 2e1c0b0 recorded 07:14; 5fa8464 recorded 08:20; bd2471f recorded 10:25):
+scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfilled 2026-11-14 00:40-00:41; bdfae08 recorded 01:44; 5331dab recorded 05:02; 2e1c0b0 recorded 07:14; 5fa8464 recorded 08:20; bd2471f recorded 10:25; 6150709 recorded 17:27; 240e620 recorded 19:57):
 
 | commit | code time | settings that change | P1 element F1 cubi | P1 element F1 ifc | P1 element F1 open | P1 element F1 swiss | P2 accuracy | P2 dev | P2 holdout | abstained |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -236,6 +255,8 @@ scorer as `eval_commit`. `python -m stoa_eval series` prints this table (backfil
 | 2e1c0b0 | 2026-11-14 06:58 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_timeout_s=30.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:c0dec542627d raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2701/2948 (91.6%) | 91.3% † | 92.9% | 1.0% |
 | 5fa8464 | 2026-11-14 08:15 | answer_policy=sha256:e3b0c44298fc answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_provider=gemini decisions_timeout_s=30.0 eu_vlm_api_key=sha256:e3b0c44298fc eu_vlm_base_url=sha256:8d629f3b12ac eu_vlm_model=sha256:466b8aaefcdc eu_vlm_timeout_s=300.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 kind_provider=gemini projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:4448f99e9eaa raster_photo_components=sha256:e3b0c44298fc raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f rooms_provider=gemini sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.1% | 100.0% | 0.0% | 100.0% | 2709/2948 (91.9%) | 91.8% † | 92.5% | 1.0% |
 | bd2471f | 2026-11-14 10:14 | answer_policy=sha256:98f4f54c1a84 answer_prior=dev credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_provider=gemini decisions_timeout_s=30.0 eu_vlm_api_key=sha256:e3b0c44298fc eu_vlm_base_url=sha256:8d629f3b12ac eu_vlm_model=sha256:466b8aaefcdc eu_vlm_timeout_s=300.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gate_policy=sha256:56ca7d9c795f gemini_api_key=sha256:6e9ba2d4743b gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 kind_provider=gemini projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:4448f99e9eaa raster_photo_components=sha256:e3b0c44298fc raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f rooms_provider=gemini sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.1% | 100.0% | 0.0% | 100.0% | 2717/2948 (92.2%) | 92.0% † | 92.9% | 4.5% |
+| 6150709 | 2026-11-14 17:19 | answer_policy=sha256:98f4f54c1a84 answer_prior=dev app_commit=None arbiter_model_dir=sha256:7a53d77f1cb9 check_policy=sha256:54bedb4a54d5 credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_provider=gemini decisions_timeout_s=30.0 double_check_readers=sha256:37dadcc2376f eu_vlm_api_key=sha256:e3b0c44298fc eu_vlm_base_url=sha256:8d629f3b12ac eu_vlm_model=sha256:466b8aaefcdc eu_vlm_timeout_s=300.0 extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gate_policy=sha256:56ca7d9c795f gemini_api_key=sha256:6e9ba2d4743b gemini_budget_usd=None gemini_budget_usd_per_hour=None gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 kind_provider=gemini local_gates=sha256:252c9ad87829 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:dfa194af91d8 raster_photo_components=sha256:e3b0c44298fc raster_scale=priors rectifier=r3 region_model_dir=sha256:4b197e641e7f room_policy=furniture rooms_provider=gemini rule_packs_dir=sha256:99cb266c8d3d sample_archive=sha256:06aa07bd7490 second_counter=ifc tables=pdf triage_classifier=off triage_describer=off triage_describer_cache_dir=sha256:c8d350be00c1 triage_judge=off verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 86.1% | 100.0% | 0.0% | 100.0% | 2746/2948 (93.1%) | 92.8% † | 94.8% | 3.8% |
+| 240e620 | 2026-11-14 19:34 | answer_policy=sha256:98f4f54c1a84 answer_prior=dev app_commit=None arbiter_model_dir=sha256:7a53d77f1cb9 carbon_cache_dir=sha256:6abedd30bf57 carbon_levels=off carbon_reader=large carbon_timeout_s=120.0 check_policy=sha256:54bedb4a54d5 credit_dataset=sha256:8943873073fb credit_photos=sha256:707a4bc6bf72 decisions_cache_dir=sha256:97d173a8f3a7 decisions_confidence=True decisions_kind=True decisions_provider=gemini decisions_timeout_s=30.0 double_check_readers=sha256:37dadcc2376f eu_vlm_api_key=sha256:e3b0c44298fc eu_vlm_base_url=sha256:8d629f3b12ac eu_vlm_model=sha256:466b8aaefcdc eu_vlm_timeout_s=300.0 evidence_embedder_manifest=sha256:e32ef7a1979f evidence_scope=set_aside extractor_bim=ifc extractor_raster=composite extractor_vector=pdf gate_policy=sha256:56ca7d9c795f gemini_api_key=sha256:6e9ba2d4743b gemini_budget_usd=None gemini_budget_usd_per_hour=None gemini_cache_dir=sha256:1aadd8ef582d gemini_model=gemini-3.5-flash gemini_timeout_s=60.0 kind_provider=gemini laws_dir=sha256:1c7084feadfb local_gates=sha256:252c9ad87829 projects_dir=sha256:c7690527b5a5 question_parser=templates raster_components=sha256:dfa194af91d8 raster_photo_components=sha256:e3b0c44298fc raster_printed_scale=carbon raster_scale=priors raster_tiles=off rectifier=r3 region_model_dir=sha256:4b197e641e7f resolver=off resolver_cache_dir=sha256:a82c300352d7 resolver_model=gemini-4-carbon resolver_timeout_s=30.0 room_policy=furniture rooms_provider=gemini rule_packs_dir=sha256:42d68d13a7df sample_archive=sha256:06aa07bd7490 second_counter=ifc sheet_kind=off sheet_kind_cache_dir=sha256:3c1fc4ca6c86 sheet_kind_cut=0.9 sheet_kind_set_aside=True tables=pdf triage_classifier=off triage_describer=off triage_describer_cache_dir=sha256:c8d350be00c1 triage_judge=off verda_inference_api_key=sha256:e3b0c44298fc verda_reader_max_in_flight=4 verda_reader_url=sha256:e3b0c44298fc | 85.4% | 100.0% | 0.0% | 100.0% | 2749/2948 (93.2%) | 92.8% † | 95.0% | 3.8% |
 
 Code time is the commit time (Europe/Helsinki); `*` marks a run recorded with uncommitted changes, timed when recorded. Abstained: share of golden answers marked `abstain` (n/a: no answer_v1.1 fields).
 
@@ -312,6 +333,64 @@ accuracy goes from 65.2% to 100.0% and count exact from 93.7% to 100.0% (room:ba
 bedroom, hall, living and other 80.0%; wc 93.3%). Nothing else moved. The series columns above (element F1, Part 2)
 don't depend on room type and are unchanged. The earlier records' room type accuracy and IFC count numbers were
 scored against the old words.
+
+Swiss gold with the reader's room words (golden, 2026-11-14 about 15:00; no series point recorded). #184 types a lone
+"Zimmer" (and "Pièce", "Stanza") as a bedroom on swiss plans, in the reader and in the swiss Part 1 gold. Golden v2
+was rebuilt the same way, with `select-plans --keep`: files.jsonl, questions.jsonl, extras.jsonl and text_claims.jsonl
+are byte-identical, and 58 swiss gold files changed (33 PDF, 25 PNG; 44 dev, 14 holdout), in room `type` only: 527
+rooms go from `other` to `bedroom` (401 dev, 126 holdout). Main's reader at 4cfb1ce (one run at default settings)
+against the old gold: swiss room type accuracy 74.4%, room:bedroom and room:other count exact 16.7%, overall count
+exact 56.9%. Against the new gold: 100.0%, 100.0% and 60.6%, the same as before #184. Element F1 and Part 2
+(1596/2948 at these settings) are the same against both.
+
+6150709 (golden, 2026-11-14 17:27) is the shipped demo config on main after #240, from `tools/qa-env.sh config` at
+that commit: config C1-T1 (the local count arbiter T1 picks the door, window, sink, toilet, shower and bathtub
+counts; the other elements and the plans come from the eight-view detector behind the Decisions S1536 swap; rooms
+from Gemini), the l1 and m1 double-check readers, the levels check policy with its local gates, and ROOM_POLICY at
+its default (`furniture`). The run had no key and took every reply from the caches, so nothing was spent; all 79
+CubiCasa pages have rooms, the count arbiter's reading and both readers. The CLI that runs golden does not apply
+CHECK_POLICY or LOCAL_GATES (only the API does), so this point measures answer values, not the double-check or the
+levels. A second run of the same export with bd2471f's config C (not recorded) splits the change. Against bd2471f,
+by cause:
+
+- Headline 2717 to 2746/2948 (dev 92.0% † to 92.8% †, holdout 92.9% to 94.8%).
+- Code, with config C on both sides: +19, all on opening_design schedule questions. 19 questions that were refused
+  (18 as unsupported, 1 as not in the drawing) are now answered from the schedules, 18 of them right: door counts 17
+  to 27/27 (9 of the 10 were refused before, 1 was answered wrong), window counts 0 to 6/6, the room sum and maximum
+  0 to 1/1 each, door reads 5 to 6/8. #122 and #123 are the only merges since bd2471f that touch the schedule code.
+  Abstained goes from 4.5% to 3.8% for the same reason. The CubiCasa extraction is byte for byte the same.
+- Config C to C1-T1, with the code of 6150709 on both sides: +10, on CubiCasa element counts only: shower+bathtub
+  116 to 120/142, toilet 140 to 144/154, window 70 to 72/154; door (80/104) and sink (126/150) change some answers
+  but not the totals. Dev +16, holdout -6. Part 1 CubiCasa element F1 85.1% to 86.1%. No answer outside CubiCasa
+  changed.
+- The IFC and swiss extraction files differ from bd2471f's in room types (the 408 IFC rooms of #167, the 527 swiss
+  rooms of #184) and in new window fields on the IFC model objects. No Part 2 answer changed because of them.
+
+240e620 (golden, 2026-11-14 19:57) is the shipped demo config on main after #280, from `tools/qa-env.sh config` at
+that commit: 6150709's config plus the two Carbon settings of #277. `CARBON_READER=large` lets Gemini Carbon count
+the things drawn on images over 4,000 px, while the shipped reader keeps the rooms, the scale and the double-check
+(#269). `RASTER_PRINTED_SCALE=carbon` puts a printed scale in place of the estimate and sets printed counts against
+the read ones (#256). The run had no key, so nothing was spent and every Carbon reply came from the cache. The two
+golden CubiCasa images over 4,000 px (12949 and 9243, 4960 x 3507) have cached Carbon reads. The printed-scale call
+had a cached reply on 14 of the 79 CubiCasa pages and failed on the other 65 (HTTP 400 without a key); with a key
+those would be read too, at about 0.015 USD a sheet. Against 6150709, by cause:
+
+- Headline 2746 to 2749/2948 (dev 92.8% † on both, holdout 94.8% to 95.0%). Five golden answers changed value.
+  Routes are the same, and so is every IFC, swiss and opening_design extraction file.
+- `CARBON_READER=large` (config): window counts on the two big images, dev only. 12949 goes from 17 to 12 (gold
+  11, still wrong; the question, its Finnish twin and the paraphrase extra 1000001). 9243 goes from 13 to 14 (gold
+  14, now right; the question and its Finnish twin). The other counts on those pages don't change. Part 1 CubiCasa
+  element F1 goes from 86.1% to 85.4%, all on these two pages: door 90.7% to 88.3% (true positives 699 to 681),
+  window 84.6% to 85.5%, sauna stove and shower one true positive fewer each. The door counts are the same, but
+  Carbon's door boxes are about five times the size of the gold ones (mean 0.0029 against 0.00058 of the page) and
+  overlap them with an IoU of 0.09 to 0.35, where the detector's reached 0.41 to 0.98, so they no longer match.
+- `RASTER_PRINTED_SCALE=carbon` (config): no scale changed on the 14 pages it read. Two of them (282 and 6645)
+  print room counts ("3H+K+S", "5H+K+S"), which are now stage-8 `room_count` conflicts for `room:kitchen`,
+  `room:sauna` and all rooms. No answer changed. Eval refused those conflicts until this record's eval commit
+  (decision 0004, amendment of 2026-11-14 19:57: a room type can be a conflict's class).
+- Code: #273 answers a schedule read that names no row when every row agrees, so 89460 (a window size on A700,
+  holdout) goes from refused to right. 89428 (the area of the two locker rooms) is still refused as unsupported.
+  #280 (scanned PDFs) and the other merges since 6150709 change no golden answer.
 
 ## Experiments (CubiCasa raster, 2026-11-14)
 
@@ -407,18 +486,169 @@ families flags at least 96% of val's wrong answers. The file holds one threshold
 used: `g1main` (DECISIONS_CONFIDENCE) and local-dec's local gates (LOCAL_GATES). Routes are certified on golden v2's
 holdout (vector and BIM yes, schedules no).
 
-The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json`, fit on config
-C1-T1's val answers: door, plan, sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on
-`g1main`. Cross-fit on val: 55.1% of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the
-unflagged answers exact. The local gates read the count arbiter's L1 probabilities and P and the double-check
-readers, so the config needs `arbiter-t1` in RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing
-without them those families always ask.
+Levels (Bogdan, 2026-11-14: cut 0.20). `--medium 0.20` adds a second threshold per family, `medium`, read from the
+same all-val calibration at P(wrong) 0.20: a certified answer is High, an answer at or above `medium` is Medium,
+any other is Low. A calibration group whose cross-fit Medium has fewer than 30 answers or is under 80% exact gets
+no Medium (`--medium-min-units`, `--medium-min-exact`; window on C1-T1, 7 answers). The top-level `levels` block
+keeps the cross-fit counts per level. Each route gets a `level`: High when certified, else Medium when its golden
+v2 dev answers reach 30 at 80% exact (schedules: 35/37), else Low. On C1-T1 val, cross-fit: High 44.9% of the
+answers at 98.9% exact, Medium 34.6% at 91.6%, Low 20.4% at 58.6%. An always-flagged bedroom answer (a bedroom
+with no printed label) is Low whatever its score, in eval and in the backend (orchestrator, 2026-11-14), so the
+Medium figure is what was measured. A known small difference: eval does not model #174's plan agreement, so 3 val
+plans the backend asks about count as High here.
+
+The levels file is `eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json` (sha256
+`bfce5524cd32f3a6aac94307265892ed99251bc1efbee692ba9855e8d11b369a`), made by `check-policy --medium 0.20` on the
+pinned policy's inputs. Every field of the pinned file (sha256
+`a9334da1b908866d57fb4066791011bf5344a0f11471a05dba2f0815dd239def`) has the same value in it, except `generated`;
+it only adds `medium` per family, the `levels` block, and each route's `level` and `dev`. The pinned file stays
+the policy the test certificate below was computed with.
+
+The policy that ships (orchestrator, 2026-11-14) is `check-C1-T1-recall96-rt-full-small.json` (committed as
+`eval/results/check/check-C1-T1-recall96-rt-full-small.json`, sha256
+`a9334da1b908866d57fb4066791011bf5344a0f11471a05dba2f0815dd239def`), fit on config C1-T1's val answers: door, plan,
+sauna and shower+bathtub on `lgate2-rt`, toilet on `lgate-rt-nol1`, the rest on `g1main`. Cross-fit on val: 55.1%
+of the answers flagged, 96.0% of the wrong ones among them, 98.95% of the unflagged answers exact. The local gates
+read the count arbiter's L1 probabilities and P and the double-check readers, so the config needs `arbiter-t1` in
+RASTER_COMPONENTS and DOUBLE_CHECK_READERS `l1,m1`; on a drawing without them those families always ask.
 
 Known limitation: the policy is fit on ROOM_POLICY=gold-labels (rooms typed by their printed label, as the
 reference answers are), and the demo runs ROOM_POLICY=furniture (a room with a bed is a bedroom). Room families
 are therefore certified outside the conditions they were fit on. The main case is covered by a rule: a bedroom
-count that includes a bedroom with no printed label always asks. The test certificate (integ's single test read)
-is still to come; until then the val numbers are estimates chosen on val.
+count that includes a bedroom with no printed label always asks. The test certificate is below.
+
+#### The test certificate (config C1-T1)
+
+The committed policy is the val fit, byte for byte; the test read changes nothing in it. The certificate is the
+backend's own `ask()` with that policy on the drawings the test read stored, so it runs the same code as the API,
+then each verdict is joined with the truth. integ read the 376 CubiCasa test pages once (2026-11-14 15:37-16:48,
+commit 671d67f), with the shipping config (C1-T1 with the arbiter-t1 count arbiter run live, DOUBLE_CHECK_READERS
+`l1,m1`, LOCAL_GATES, DECISIONS_CONFIDENCE, #174's plan agreement) and ROOM_POLICY=gold-labels, as on val. The
+read covers the raster route only; the vector and BIM routes are certified on golden v2's holdout (above). The
+two scripts are in `eval/certificate/`, byte for byte as they ran. From a backend checkout of the read's commit:
+
+```bash
+PYTHONPATH=. uv run --locked python ../eval/certificate/certify.py --drawings <run>/extraction/cubicasa5k --questions <run>/questions.jsonl --answers <run>/answers.jsonl --policy <check policy> --local-gates <lgate2-rt.json,lgate-rt-noL1.json> --flags <run>/flags --g1main <run>/g1main.json --out certified.jsonl --api-answers answers-api.jsonl
+cd ../eval && PYTHONPATH=. uv run --locked python certificate/certify_join.py <test questions with truth> answers-api.jsonl certified.jsonl
+```
+
+An answer is flagged when the policy does not certify it, so it asks for a double-check. The numbers count
+questions, as the join does. On val each page and family has one English and one Finnish question with the same
+answer, so every count there is twice the number of answers; the 95% bound (one-sided Clopper-Pearson) is computed
+on answers, not questions (on test too, every page and family has two questions with one answer and one verdict).
+
+**On the test pages, the double-check flagged 97.0% of the wrong answers (one-sided 95% bound 95.3%) and asked on
+62.1% of all answers; 99.0% of the answers it did not flag are exact.**
+
+| read | rated | wrong | flagged | wrong flagged (recall) | 95% bound on recall | unflagged exact |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| val, shipped thresholds (as the backend runs) | 6764 | 800 | 3962 (58.6%) | 782/800 (97.8%) | 96.1% | 2784/2802 (99.36%) |
+| val, cross-fit (each half under the other half's fit) | 6764 | 800 | 3730 (55.1%) | 768/800 (96.0%) | 94.0% | 3002/3034 (98.95%) |
+| **test, once** | 6718 | 872 | 4174 (62.1%) | 846/872 (97.0%) | 95.3% | 2518/2544 (98.98%) |
+| test, first run of the certificate (kitchen scored on the prior, see below) | 6718 | 858 | 3908 (58.2%) | 808/858 (94.2%) | 92.0% | 2760/2810 (98.22%) |
+
+The val rows are chosen on val, not a guarantee: the shipped row is in-sample, and the cross-fit row is the honest
+val estimate. The 96% target is one point above Bogdan's 95% (D476, D490), a margin for choosing the cut on val.
+
+Per family (questions; val with the shipped thresholds):
+
+| family | val flagged | val recall | val unflagged exact | test flagged | test recall | test unflagged exact |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| door | 100.0% | 152/152 | - | 100.0% | 142/142 | - |
+| plan | 7.4% | 6/8 | 694/696 | 9.3% | 8/8 | 682/682 |
+| room:balcony | 96.0% | 20/20 | 10/10 | 94.3% | 18/18 | 12/12 |
+| room:bathroom | 48.9% | 24/24 | 186/186 | 52.4% | 40/40 | 178/178 |
+| room:bedroom | 67.5% | 40/42 | 156/158 | 69.4% | 48/54 | 136/142 |
+| room:kitchen | 44.9% | 38/42 | 288/292 | 51.6% | 38/40 | 248/250 |
+| room:wc | 62.9% | 20/20 | 132/132 | 57.4% | 6/14 | 148/156 |
+| sauna | 4.1% | 4/6 | 518/520 | 5.3% | 4/8 | 500/504 |
+| shower+bathtub | 80.4% | 60/62 | 132/134 | 100.0% | 94/94 | - |
+| sink | 90.0% | 68/68 | 74/74 | 90.8% | 86/86 | 68/68 |
+| toilet | 20.0% | 14/20 | 594/600 | 26.6% | 30/36 | 546/552 |
+| window | 100.0% | 336/336 | - | 100.0% | 332/332 | - |
+
+Three notes on what this read does and does not cover:
+
+- Kitchen (the certificate's first run, corrected). The test read answered through the CLI, where ANSWER_POLICY
+  sends CubiCasa kitchen counts to the dev prior, because a page's path there is `data/cubicasa5k/...`. The API
+  never does: an uploaded file keeps its bare name, so `source_of()` (`backend/app/core/answering/model.py:75`)
+  finds no dataset, and the kitchen count comes from the drawing, scored by G1main (checked live on a val page
+  at 671d67f: method takeoff, sure). The first run of the certificate took each answer's score from the run's
+  line, and on kitchen that was the prior's hit rate (0.9579): all 516 kitchen answers were certified, 26 of
+  them wrong, and the prior's value was judged. The corrected run (the test row) scores G1main's P of the
+  drawing's count, as the API does, and judges the answer the API gives; only the 516 kitchen lines change (266
+  of them now ask), and on every line answered from the drawing in both runs the two scores are equal (6,202 of
+  6,202). The corrected run is the product's. The API's kitchen answers are 476/516 exact on test (92.2%; the
+  prior's were 490/516), so the API's test accuracy is 5,846/6,718 (87.0%), not the CLI read's 5,860 (87.2%).
+
+- Sauna. The count arbiter stores, in `count_arbiter["sauna"]`, T1's P for its own sauna-stove pick. C1-T1 does
+  not answer sauna with that pick: the rule counts sauna rooms first (one per sauna room, else C1's stoves from
+  the Decisions swap). lgate2-rt's sauna score therefore reads the arbiter's P next to an answered count that can
+  differ from the arbiter's pick. The gate model and the policy were fit on exactly these values: on val C1-T1's
+  sauna answer equals the arbiter arm's on 271 of 271 pages, and the arbiter's pick differs from the answer on 5 of
+  them. Those 5 score 0.83 to 0.94, below the sauna threshold 0.971, so they ask (1 of the 5 is wrong): on val
+  every sauna answer the arbiter did not back asked. On val 260 of 271 sauna answers are certified, 1 of them
+  wrong.
+- Photos. The test read answers through the CLI (`python -m app.cli answer`), which has no phone-photo
+  rectifier and no reading flags: both run only in the API's ingest. The test pages are CubiCasa plan images
+  (PNG scans of drawings), not phone photos, so neither the rectifier nor a photo flag would apply to them. In
+  the API a flagged page (a phone photo or a scanned PDF) never certifies, and this certificate says nothing
+  about photos.
+
+#### Confidence levels on test (config C1-T1)
+
+The levels are scored on the same read as the certificate. Each answer of the corrected run gets the level the
+backend gives it (`ask()` with `check-C1-T1-recall96-rt-full-small-medium20.json`, PR #233), and is then joined
+with the truth. This is the single read of the 376 test pages, not a second one. The rule and its thresholds
+were written down with their sha256 on 2026-11-14 at 16:48:46, before any test number of the levels was computed,
+and nothing was refit afterwards. The Medium thresholds in the committed file equal the pre-registered ones
+(largest difference 2e-16). The counts are answers, one per page and family (3,359; each has an English and a
+Finnish question with one verdict), with Wilson 95% intervals.
+
+| level | test: share (answers) | test: exact | test: wrong | val cross-fit: share, exact |
+| --- | ---: | ---: | ---: | ---: |
+| High | 37.9% (1,272) | 99.0% [98.3, 99.4] | 13 | 44.9%, 98.9% |
+| Medium | 41.1% (1,381) | 92.8% [91.3, 94.0] | 100 | 34.6%, 91.6% |
+| Low | 21.0% (706) | 54.2% [50.6, 57.9] | 323 | 20.4%, 58.6% |
+
+These levels are without Carbon. With `CARBON_LEVELS=ladder` (decision 0011, amendment 2026-11-14), a Medium
+answer Gemini Carbon counts the same is High too (basis `carbon`), and High is no longer only the certified
+answers: on 256 val pages it went from 99.0% to 97.7% exact (not measured on test). The 99% figures here hold for
+basis `certified`.
+
+Per family on test (share of the family's answers, their number, exact rate with its interval):
+
+| family | answers | High | Medium | Low |
+| --- | ---: | --- | --- | --- |
+| door | 277 | 0 | 57.4% (159), 88.1% [82.1, 92.2] | 42.6% (118), 55.9% [46.9, 64.6] |
+| plan | 376 | 90.7% (341), 100.0% [98.9, 100.0] | 8.0% (30), 93.3% [78.7, 98.2] | 1.3% (5), 60.0% [23.1, 88.2] |
+| room:balcony | 106 | 5.7% (6), 100.0% [61.0, 100.0] | 87.7% (93), 93.5% [86.6, 97.0] | 6.6% (7), 57.1% [25.0, 84.2] |
+| room:bathroom | 187 | 47.6% (89), 100.0% [95.9, 100.0] | 42.8% (80), 93.8% [86.2, 97.3] | 9.6% (18), 16.7% [5.8, 39.2] |
+| room:bedroom | 232 | 30.6% (71), 95.8% [88.3, 98.6] | 50.0% (116), 92.2% [85.9, 95.9] | 19.4% (45), 66.7% [52.1, 78.6] |
+| room:kitchen | 258 | 48.4% (125), 99.2% [95.6, 99.9] | 42.6% (110), 99.1% [95.0, 99.8] | 8.9% (23), 21.7% [9.7, 41.9] |
+| room:wc | 183 | 42.6% (78), 94.9% [87.5, 98.0] | 53.6% (98), 98.0% [92.9, 99.4] | 3.8% (7), 85.7% [48.7, 97.4] |
+| sauna | 266 | 94.7% (252), 99.2% [97.2, 99.8] | 3.8% (10), 90.0% [59.6, 98.2] | 1.5% (4), 75.0% [30.1, 95.4] |
+| shower+bathtub | 351 | 0 | 83.2% (292), 94.5% [91.3, 96.6] | 16.8% (59), 47.5% [35.3, 60.0] |
+| sink | 371 | 9.2% (34), 100.0% [89.8, 100.0] | 83.6% (310), 90.0% [86.2, 92.9] | 7.3% (27), 55.6% [37.3, 72.4] |
+| toilet | 376 | 73.4% (276), 98.9% [96.9, 99.6] | 22.1% (83), 90.4% [82.1, 95.0] | 4.5% (17), 58.8% [36.0, 78.4] |
+| window | 376 | 0 | 0 | 100.0% (376), 55.9% [50.8, 60.8] |
+| **pooled** | 3,359 | 37.9% (1,272), 99.0% [98.3, 99.4] | 41.1% (1,381), 92.8% [91.3, 94.0] | 21.0% (706), 54.2% [50.6, 57.9] |
+
+What the table shows:
+
+- Medium and Low keep their val meaning on test: 92.8% against 91.6%, and 54.2% against 58.6%. Every family with
+  30 or more Medium answers is between 88% and 99% exact.
+- Fewer answers are High than on val: 37.9%, against 44.9% cross-fit and 41.4% with the shipped thresholds. No
+  shower+bathtub answer is certified on test (19.6% of them on val with the shipped thresholds): its gate score
+  tops out at 0.983 on this read, under the threshold 0.988.
+- High is weakest on wc (74 of 78 exact) and bedroom (68 of 71). Low is mostly wrong on bathroom (3 of 18 exact)
+  and kitchen (5 of 23). Every window answer is Low, and 55.9% of them are exact.
+- No test answer was held for a check (the read uses ROOM_POLICY=gold-labels), and no page was flagged.
+- The pre-registered rule gave window a Medium threshold; the committed file gives it none. That moves 2 window
+  answers from Medium to Low and changes nothing else.
+- The levels were first scored at 16:51 on the certificate's first run (kitchen from the prior, see the kitchen
+  note above): High 41.8% at 98.2%, Medium 37.9% at 92.2%, Low 20.3% at 55.2%. The table above is the corrected
+  run; only the kitchen lines differ.
 
 ## What the answer should show
 

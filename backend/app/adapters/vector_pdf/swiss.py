@@ -74,7 +74,12 @@ SHAFT_NAMES = {"Lift", "Ascenseur", "Ascensore", "Treppenhaus", "Cage d'escalier
 ROOM_TYPES: dict[RoomType, set[str]] = {
     "kitchen": {"Küche", "Cuisine", "Cucina", "Küche/Essen"},
     "bathroom": {"Bad", "Bain", "Bagno"},
-    "bedroom": {"Schlafzimmer", "Chambre à coucher", "Camera da letto"},
+    # A lone "Zimmer" (Pièce, Stanza) is a flat's bedroom: on the dev gold it shares a plan with
+    # a Schlafzimmer on 18 plans of 1086, sits beside a Wohnen on 534 of 830, and is the same size
+    # (median 14.8 m2, Schlafzimmer 14.3; Wohnen 20.6) (codecheck, 2026-11-14)
+    "bedroom": {
+        "Schlafzimmer", "Chambre à coucher", "Camera da letto", "Zimmer", "Pièce", "Stanza",
+    },
     "living": {
         "Wohnen", "Wohnen/Essen", "Séjour", "Séjour/repas", "Soggiorno", "Soggiorno/pranzo",
         "Essen", "Repas", "Pranzo",

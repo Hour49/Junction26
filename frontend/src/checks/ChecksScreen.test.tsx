@@ -7,7 +7,19 @@ import { flush, must } from '../ingest/testing';
 import { InfoProvider } from '../shell/info';
 import { mockApi, never, reply } from '../test/mockApi';
 import { ChecksScreen } from './ChecksScreen';
-import { checks, D1, D2, NOTE, pack, result } from './testing';
+import bogdanChecks from '@fixtures/project_checks.json';
+import bogdanInfo from '@fixtures/info.json';
+import {
+  checks,
+  D1,
+  D2,
+  drawingChecks,
+  FAIL_MEANS,
+  NOTE,
+  pack,
+  result,
+  ruleCheck,
+} from './testing';
 import type { ProjectChecks } from './types';
 
 const PID = project.id;
@@ -71,7 +83,7 @@ describe('ChecksScreen', () => {
         .map((c) => c.textContent),
     ).toEqual(['1', '1', '0']);
     expect(within(table).getByRole('row', { name: /Rule R4/ }).textContent).toContain(
-      'Nothing in these drawings it applies to',
+      'Does not apply to these drawings',
     );
   });
 
@@ -111,6 +123,76 @@ describe('ChecksScreen', () => {
     expect(screen.queryAllByRole('article')).toHaveLength(0);
     expect(screen.getByText('2 drawings pass every checked place')).toBeTruthy();
     expect(screen.getByText('Every checked place passes these rules.')).toBeTruthy();
+    expect(screen.queryByText(FAIL_MEANS)).toBeNull(); // nothing failed: no fail_means
+  });
+
+  it("CK-2 the pack's fail_means is shown with the note when a rule failed", async () => {
+    await show();
+    expect(screen.getByText(FAIL_MEANS)).toBeTruthy();
+  });
+
+  it('not_applicable: a drawing no rule applies to is its own line, never folded into "passes"', async () => {
+    const none: ProjectChecks = {
+      ...checks,
+      drawings: [
+        drawingChecks(D1, [ruleCheck('R4', 4, [])]),
+        drawingChecks(D2, [ruleCheck('R1', 1, [result('e', 'R1', 'pass')])]),
+      ],
+    };
+    await show('fi', { [CHECKS]: none });
+    expect(screen.getByText('1 drawing passes every checked place')).toBeTruthy();
+    expect(screen.getByText('1 drawing has nothing these rules apply to')).toBeTruthy();
+    expect(screen.getByRole('row', { name: /Rule R4/ }).textContent).toContain(
+      'Does not apply to these drawings',
+    );
+    expect(
+      screen.getByText('0 rules failed, 0 cannot tell, 1 passed, over 2 drawings'),
+    ).toBeTruthy();
+  });
+
+  it('a rule that cannot tell on a drawing without any result gets a "Cannot tell" card with its why and clause', async () => {
+    const blind: ProjectChecks = {
+      ...checks,
+      drawings: [
+        drawingChecks(D1, [
+          {
+            ...ruleCheck('R1', 1, []),
+            status: 'cannot_tell',
+            why: 'No doors were read on this drawing.',
+          },
+        ]),
+      ],
+    };
+    await show('fi', { [CHECKS]: blind });
+    const card = must(cards()[0]);
+    expect(card.textContent).toContain('? Cannot tell');
+    expect(card.textContent).toContain('No doors were read on this drawing.');
+    expect(card.textContent).toContain('Decree 1/2000 § 1');
+    expect(card.textContent).toContain('Not located on the drawing');
+    expect(card.textContent).not.toContain('measured');
+    expect(screen.queryByText(/nothing these rules apply to/)).toBeNull();
+    expect(screen.getByRole('row', { name: /Rule R1/ }).textContent).not.toContain(
+      'Does not apply',
+    );
+    expect(screen.getByRole('row', { name: /Rule R1/ }).textContent).toContain(
+      'Cannot tell on 1 drawing: nothing could be read',
+    );
+    expect(
+      screen.getByText('0 rules failed, 1 cannot tell, 0 passed, over 1 drawing'),
+    ).toBeTruthy();
+  });
+
+  it("Bogdan's fixtures (project_checks.json, info.json rule_packs) render: heading, fail card, file from the payload", async () => {
+    const fi = must(bogdanInfo.rule_packs.find((p) => p.id === 'fi'));
+    await show('fi', { 'GET /api/info': bogdanInfo, [CHECKS]: bogdanChecks });
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Pre-check: ${fi.name}`);
+    expect(screen.getByRole('note').textContent).toBe(fi.note);
+    if (fi.fail_means) expect(screen.getByText(fi.fail_means)).toBeTruthy();
+    const d = must(bogdanChecks.drawings[0]);
+    expect(screen.getByRole('heading', { name: d.file })).toBeTruthy(); // not in this project's files: the payload's
+    const card = must(cards()[0]);
+    expect(card.textContent).toContain('✕ Fails');
+    expect(card.textContent).toContain('6.03 m² measured');
   });
 
   it('CK-5 one all-pass drawing reads "1 drawing passes every checked place"', async () => {
@@ -293,5 +375,12 @@ describe('ChecksScreen', () => {
     const css = readFileSync('src/checks/checks.css', 'utf8');
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
     expect(css).toMatch(/prefers-reduced-motion: reduce/);
+  });
+
+  it('CSS: table headers never break mid-word; the caption is inset from the clipped rounded corner', () => {
+    const css = readFileSync('src/checks/checks.css', 'utf8');
+    expect(css).toMatch(/\.ck-table th,\s*\.ck-table td \{[^}]*overflow-wrap: normal/);
+    expect(css).toMatch(/\.ck-table thead th \{[^}]*white-space: nowrap/);
+    expect(css).toMatch(/\.ck-table caption \{[^}]*padding: 12px 16px/);
   });
 });

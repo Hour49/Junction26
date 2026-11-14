@@ -5,6 +5,7 @@ import hashlib
 import json
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, ClassVar
 
 import numpy as np
@@ -14,6 +15,7 @@ from test_schedule_check import itself, joined
 from test_window_check import ELEVATION, PLAN, SCHEDULE
 
 from app import composition
+from app.adapters import raster_remote
 from app.adapters.archive.store import DiskProjectStore
 from app.adapters.decisions.g1main import FAMILIES
 from app.adapters.extraction_v1 import ExtractionV1Reader, ExtractionV1Writer
@@ -281,7 +283,7 @@ class FakeGemini:
     built: ClassVar[list[str]] = []
     REPLY = '[{"type": "bedroom", "label": "MH", "box_2d": [100, 200, 300, 400]}]'
 
-    def __init__(self, api_key: str, model: str, timeout_s: float) -> None:
+    def __init__(self, api_key: str, model: str, timeout_s: float, budget: object = None) -> None:
         FakeGemini.built.append(api_key)
         self.name = model
 
@@ -371,7 +373,7 @@ class FakeDecisions:
     built: ClassVar[list[str]] = []
     calls = 0
 
-    def __init__(self, key: str, timeout_s: float) -> None:
+    def __init__(self, key: str, timeout_s: float, budget: object = None) -> None:
         FakeDecisions.built.append(key)
 
     @property
@@ -654,6 +656,9 @@ def test_with_the_setting_off_the_kind_is_never_asked_and_photos_read_as_before(
 ) -> None:
     dataset = photo_setup(tmp_path, monkeypatch, make_png)
     monkeypatch.setenv("RASTER_PHOTO_COMPONENTS", "")
+    # RemoteReader writes its wall time into a note; a fixed clock keeps the byte comparison to
+    # what the setting changes (two real reads differ by 10 ms under load)
+    monkeypatch.setattr(raster_remote, "time", SimpleNamespace(perf_counter=lambda: 0.0))
     asked: list[str] = []
 
     def photo(path: str) -> str:

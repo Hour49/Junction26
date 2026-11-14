@@ -246,7 +246,8 @@
   background: var(--v-warn-soft);
 }
 .sv-status[data-status='estimate'],
-.sv-status[data-status='edited'] {
+.sv-status[data-status='edited'],
+.sv-status[data-status='picked'] {
   color: var(--v-text-2);
   background: var(--v-fill);
 }

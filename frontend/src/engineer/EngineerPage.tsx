@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   askQuestion,
+  drawingLabel,
   getDrawing,
   getProject,
   type AnswerView,
@@ -136,9 +137,14 @@ export function EngineerPage(props: {
 
   const busy = turns.some((t) => t.status === 'pending');
   const place = project && placeOf(project, drawing, projectId);
+  // GET /api/drawings/{id} has no state; the project's list does (EN-84).
+  const self = project?.drawings.find((d) => d.drawing_id === drawing.id);
+  const flagged = self?.state === 'flagged';
+  // EN-87: the chat's name for this drawing; the file name until the project loads
+  const name = drawingLabel(self ?? { file: drawing.file });
   return (
     <div className="en-page">
-      <h1 className="en-sr">{drawing.file}</h1>
+      <h1 className="en-sr">{name}</h1>
       {turns.length === 0 && (
         <>
           {drawing.pages.length > 0 ? (
@@ -147,7 +153,7 @@ export function EngineerPage(props: {
                 <Plan
                   place={place}
                   viewer={{
-                    file: drawing.file,
+                    file: name,
                     pages: drawing.pages,
                     marks: [],
                     // the asked question replaces this card at once, so its place is not shown (EN-78)
@@ -172,9 +178,10 @@ export function EngineerPage(props: {
             key={turn.id}
             turn={turn}
             projectId={projectId}
-            file={drawing.file}
+            file={name}
             credit={drawing.credit}
             place={place}
+            flagged={flagged}
             busy={busy}
             onAsk={ask}
             onRetry={retry}
@@ -187,7 +194,7 @@ export function EngineerPage(props: {
         <SuggestionRow drawing={drawing} busy={busy} onAsk={ask} />
       )}
       {turns.length === 0 && <p className="en-empty">Ask a question about this drawing.</p>}
-      <AskBox file={drawing.file} busy={busy} asked={turns.length} onAsk={ask} />
+      <AskBox file={name} busy={busy} asked={turns.length} onAsk={ask} />
     </div>
   );
 }

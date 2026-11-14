@@ -1,0 +1,735 @@
+{
+  "id": "fi-216-2015",
+  "pack": "fi",
+  "jurisdiction": "FI",
+  "number": "216/2015",
+  "title": "Ympäristöministeriön asetus rakentamista koskevista suunnitelmista ja selvityksistä",
+  "title_en": "Ministry of the Environment Decree on plans and reports concerning construction",
+  "url": "https://www.finlex.fi/fi/lainsaadanto/2015/216",
+  "language": "fi",
+  "in_force": "2015-06-01",
+  "checked": "2026-11-14",
+  "status_note": "In force. Kept in force by the entry-into-force provision of the Building Act 752/2023 until replaced. Plan models and authority inspections under the Building Act are also governed by decree 1340/2025 (not included).",
+  "clauses": [
+    {
+      "id": "fi-216-2015-1-1",
+      "ref": "1 §",
+      "heading": "Soveltamisala",
+      "heading_en": "Scope of application",
+      "text": "Tätä asetusta sovelletaan luvanvaraiseen rakennustyöhön. Asetusta sovelletaan sekä uuden rakennuksen rakentamiseen että rakennuksen korjaus- ja muutostyöhön.",
+      "text_en": "This decree applies to building work that requires a building permit. The decree applies both to the construction of a new building and to repair and alteration work on a building.",
+      "summary_en": "This decree applies to permit-requiring building work, both new construction and repair or alteration of existing buildings.",
+      "keywords": [
+        "scope of application",
+        "building permit",
+        "rakennuslupa",
+        "soveltamisala",
+        "korjaustyö",
+        "muutostyö",
+        "uudisrakentaminen"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-2-1",
+      "ref": "2 § 1 mom.",
+      "heading": "Pääpiirustusten sisältö ja esitystapa",
+      "heading_en": "Content and presentation of main drawings",
+      "text": "Rakennuslupahakemuksen liitteenä oleviin pääpiirustuksiin on sisällyttävä riittävät tiedot sen arvioimiseksi, täyttävätkö ne rakentamista koskevat säännökset ja määräykset sekä hyvän rakennustavan vaatimukset. Lisäksi pääpiirustuksiin on sisällyttävä tiedot seikoista, joilla voi olla vaikutusta rakennuksen tai rakennuspaikan turvallisuuteen tai terveydellisiin oloihin taikka naapurien asemaan sekä tiedot rakentamisen soveltuvuudesta rakennuspaikalle ja ympäristöönsä.",
+      "text_en": "The main drawings attached to a building permit application must contain sufficient information to assess whether they meet the provisions and regulations on construction and the requirements of good building practice. In addition, the main drawings must contain information on matters that may affect the safety or health conditions of the building or the building site, or the position of neighbours, as well as information on the suitability of the construction for the building site and its surroundings.",
+      "summary_en": "Main drawings attached to a permit application must show enough to check compliance with construction rules, good building practice, safety, health, neighbour impacts and site suitability.",
+      "keywords": [
+        "main drawings",
+        "pääpiirustus",
+        "rakennuslupahakemus",
+        "permit application",
+        "site suitability",
+        "rakennuspaikka",
+        "turvallisuus",
+        "naapuri"
+      ],
+      "topics": [
+        "permits-procedure",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-2-2",
+      "ref": "2 § 2 mom.",
+      "heading": "Pääpiirustusten sisältö ja esitystapa",
+      "heading_en": "Content and presentation of main drawings",
+      "text": "Kuhunkin piirustukseen on sisällyttävä nimiö, joka sisältää suunnitelman yksilöintitiedot ja tiedot suunnittelijasta. Piirustuksiin on sisällyttävä materiaalimerkinnät ja käytetyt merkinnät on tarvittaessa selitettävä.",
+      "text_en": "Each drawing must include a title block containing the identification details of the plan and information about the designer. The drawings must include material markings, and the markings used must be explained where necessary.",
+      "summary_en": "Each drawing needs a title block with the plan identification and designer details, plus material markings and a legend for the symbols used.",
+      "keywords": [
+        "title block",
+        "nimiö",
+        "pääpiirustus",
+        "materiaalimerkintä",
+        "merkintä",
+        "selite",
+        "suunnittelija",
+        "piirustus"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-2-3",
+      "ref": "2 § 3 mom.",
+      "heading": "Pääpiirustusten sisältö ja esitystapa",
+      "heading_en": "Content and presentation of main drawings",
+      "text": "Pääpiirustusten on oltava yhtenäisenä asiakirjana. Piirustusten mittakaavan on oltava asian käsittelyn kannalta tarkoituksenmukainen ja piirustusten on oltava ilmoitetun mittakaavan mukaisia.",
+      "text_en": "The main drawings must be a coherent document. The scale of the drawings must be appropriate for handling the case, and the drawings must conform to the scale stated on them.",
+      "summary_en": "The main drawings must form one coherent document, at a scale suited to the case, and must be drawn to the scale they state.",
+      "keywords": [
+        "scale",
+        "mittakaava",
+        "pääpiirustus",
+        "piirustus",
+        "asiakirja",
+        "kokonaisuus"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-3-1",
+      "ref": "3 § 1 mom.",
+      "heading": "Asemapiirroksen sisältö",
+      "heading_en": "Content of the site plan",
+      "text": "Asemapiirrokseen on sisällyttävä tiedot siitä, että suunniteltu rakentaminen on kaavan tai muun maankäyttösuunnitelman ja rakennusjärjestyksen mukaista ja täyttää rakennuspaikalle ja sen käytölle asetetut vaatimukset. Asemapiirrokseen on sisällyttävä rakennuspaikan, rakennuksen ja piha-alueen tiedot ennen ja jälkeen suunnitellun rakentamisen. Lisäksi asemapiirrokseen on sisällyttävä rakennuspaikan ja rakennuksen mahdolliseen suojeluun tai rauhoittamiseen liittyvät tiedot.",
+      "text_en": "The site plan must include information that the planned construction is in accordance with the detailed plan or other land-use plan and the building code, and meets the requirements set for the building site and its use. The site plan must include information on the building site, the building and the yard area before and after the planned construction. In addition, the site plan must include information on any protection or preservation relating to the building site or the building.",
+      "summary_en": "The site plan must show that the planned work complies with the land-use plan and building code, and show the site, building and yard before and after the work, plus any protection status.",
+      "keywords": [
+        "site plan",
+        "asemapiirros",
+        "detailed plan",
+        "kaava",
+        "rakennusjärjestys",
+        "suojelu",
+        "rauhoitus",
+        "piha-alue",
+        "rakennuspaikka"
+      ],
+      "topics": [
+        "permits-procedure",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-3-2",
+      "ref": "3 § 2 mom.",
+      "heading": "Asemapiirroksen sisältö",
+      "heading_en": "Content of the site plan",
+      "text": "Muutettaessa rakennusta, rakennelmia tai pihajärjestelyjä on asemapiirrokseen sisällyttävä tiedot toimenpiteiden vaikutuksesta rakennuspaikan olosuhteisiin ja käyttöön.",
+      "text_en": "When a building, structure or yard arrangement is altered, the site plan must include information on the effect of the measures on the conditions and use of the building site.",
+      "summary_en": "When altering a building, structure or yard, the site plan must show the effect of the work on the site's conditions and use.",
+      "keywords": [
+        "site plan",
+        "asemapiirros",
+        "muutostyö",
+        "rakennelma",
+        "pihajärjestely",
+        "rakennuspaikka",
+        "käyttö"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-4-1",
+      "ref": "4 §",
+      "heading": "Rakennuspaikan tiedot asemapiirroksessa",
+      "heading_en": "Building site information on the site plan",
+      "text": "Asemapiirrokseen on tarvittaessa sisällyttävä seuraavat tiedot rakennuspaikasta:\n1) rakennuspaikan rajat mittoineen;\n2) lähiympäristön kiinteistöjen sekä kaava-alueella korttelin, katualueiden ja muiden alueiden rajat;\n3) kiinteistön ja sitä rajoittavien alueiden tunnukset sekä kaava-alueella katujen ja teiden nimet;\n4) kaava-alueella korttelia, tonttia ja olemassa olevia rakennuksia tai rakennelmia koskevat kaavamerkinnät määräyksineen;\n5) rakennuspaikan kulmapisteiden ja rajojen suunnitellut ja olemassa olevat korkeusasemat ja korkeussuhteet korkeusluvuin ja korkeuskäyrin sekä lähiympäristön kiinteistöjen korkeussuhteet riittävän laajasti rakennuspaikan ulkopuolella;\n6) rakennuspaikalle rakennettavat, siellä olevat ja sieltä purettavat rakennukset ja rakennelmat sekä riittävän laajasti lähiympäristön rakennukset;\n7) rakennuspaikan eritelty kerrosalalaskelma ja autopaikkalaskelma, jollei niitä tehdä erillisinä selvityksinä.",
+      "text_en": "Where necessary, the site plan must include the following information on the building site:\n1) the boundaries of the building site with dimensions;\n2) the boundaries of neighbouring properties and, in a detailed-plan area, of the block, street areas and other areas;\n3) the identifiers of the property and of the restricted areas, and, in a detailed-plan area, the names of streets and roads;\n4) in a detailed-plan area, the plan markings concerning the block, the plot and existing buildings or structures, with their regulations;\n5) the planned and existing elevations of the corner points and boundaries of the building site, and the height conditions, shown by height figures and contour lines, and the height conditions of neighbouring properties sufficiently widely outside the building site;\n6) the buildings and structures to be built, existing on the site and to be demolished from it, and the buildings in the surrounding area to a sufficient extent;\n7) the detailed gross floor area calculation and parking space calculation of the building site, unless these are made as separate reports.",
+      "summary_en": "Where needed, the site plan shows the site boundaries with dimensions, neighbouring plan markings, planned and existing levels, existing and demolished buildings, and the gross floor area and parking calculations.",
+      "keywords": [
+        "site plan",
+        "asemapiirros",
+        "rakennuspaikan rajat",
+        "korkeusasema",
+        "korkeuskäyrä",
+        "kerrosala",
+        "kerrosalalaskelma",
+        "autopaikkalaskelma",
+        "kaavamerkintä",
+        "kortteli",
+        "tontti"
+      ],
+      "topics": [
+        "permits-procedure",
+        "distances-heights"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-5-1",
+      "ref": "5 §",
+      "heading": "Rakennuksen tiedot asemapiirroksessa",
+      "heading_en": "Building information on the site plan",
+      "text": "Asemapiirrokseen on tarvittaessa sisällyttävä seuraavat tiedot rakennuspaikalla olemassa olevista ja sille suunnitelluista rakennuksista:\n1) rakennuksen etäisyys rajoista, päämitat ulkoseinien ulkopinnoista mitattuna ja kerrosluku;\n2) korjaus- tai muutostyötä koskevassa piirroksessa olemassa olevan rakennuksen muutettava osa;\n3) rakennuspaikan rajoittuessa rantaan rakennuksen etäisyys rantaviivasta;\n4) suunnitellun rakennuksen nurkkapisteiden suunnitellut ja olemassa olevan rakennuksen viralliset ja mitatut korkeusasemat;\n5) alimman viemäröidyn tason korkeusasema sekä yleisen viemärin padotuskorkeus ja vesimittarin sijainti;\n6) vesijohdot ja viemärit kaivoineen, viemärien johtaminen kiinteistön rajalta yleiseen viemäriin;\n7) muut rakennusta palvelevat liittymät;\n8) vesihuoltolaitoksen verkoston ulkopuolisella alueella talousvesikaivon ja jätevesien käsittelylaitteiden, kaivojen ja imeytyskenttien sijainti sekä puhdistettujen jätevesien purkupaikka;\n9) sadevesi- ja perusvesikaivot sekä hulevesien ja perustusten kuivatusvesien käsittely;\n10) rakennuksen sijoittamiseen vaikuttavat kaapelikanavat ja voimajohdot.",
+      "text_en": "Where necessary, the site plan must include the following information on existing and planned buildings on the building site:\n1) the distance of the building from the boundaries, its main dimensions measured from the outer surfaces of the external walls, and the number of storeys;\n2) in a drawing concerning repair or alteration work, the part of the existing building to be altered;\n3) where the building site borders a shore, the distance of the building from the shoreline;\n4) the planned corner-point elevations of the new building, and the official and measured elevations of an existing building;\n5) the elevation of the lowest drained level, the damming height of the public sewer and the location of the water meter;\n6) water pipes and sewers with their manholes, and the connection of the sewer from the property boundary to the public sewer;\n7) other connections serving the building;\n8) outside the water utility network area, the location of the drinking water well, the wastewater treatment equipment, wells and infiltration fields, and the discharge point of treated wastewater;\n9) rainwater and foundation drainage wells, and the handling of storm water and foundation drainage water;\n10) cable ducts and power lines that affect the placement of the building.",
+      "summary_en": "Where needed, the site plan shows each building's distance from the boundaries and shoreline, its main dimensions and storeys, corner and drain levels, service connections, wells and drainage.",
+      "keywords": [
+        "site plan",
+        "asemapiirros",
+        "etäisyys rajasta",
+        "rantaviiva",
+        "kerrosluku",
+        "korkeusasema",
+        "viemäri",
+        "vesijohto",
+        "sadevesikaivo",
+        "kaapelikanava",
+        "voimajohto",
+        "kaivo"
+      ],
+      "topics": [
+        "distances-heights",
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-6-1",
+      "ref": "6 §",
+      "heading": "Piha-alueen tiedot asemapiirroksessa",
+      "heading_en": "Yard information on the site plan",
+      "text": "Asemapiirrokseen on tarvittaessa sisällyttävä seuraavat tiedot rakennuspaikan piha-alueesta:\n1) piha-alueen eri kohtien suunnitellut ja olemassa olevat korkeusasemat ja korkeussuhteet;\n2) pääsy piha-alueelle, kiinteistön jalankulku ja ajoneuvoliikennejärjestelyt, pelastustiet, luiskat, portaat, tukimuurit ja aidat;\n3) säilytettävät ja muutettavat leikkipaikat, oleskelualueet, autopaikat sekä muut pihajärjestelyt ja -rakenteet;\n4) väestönsuojan uloskäynnit, maanalaiset öljysäiliöt, maalämpöputket ja -kaivot;\n5) kiinteistön käyttöön ja huoltoon kuuluvat tilat, rakennelmat ja paikat piha-alueella;\n6) säilytettävät istutukset ja puusto, poistettavat puut sekä istutettavat alueet;\n7) ranta-alueella rantaviivan käsittely ja laiturit.",
+      "text_en": "Where necessary, the site plan must include the following information on the yard area of the building site:\n1) the planned and existing elevations and height conditions of the different points of the yard area;\n2) access to the yard area, pedestrian routes on the property and vehicle traffic arrangements, rescue routes, slopes, stairs, retaining walls and fences;\n3) play areas, recreation areas, parking spaces and other yard arrangements and structures to be retained or altered;\n4) exits from the public shelter, underground oil tanks, ground-source heat pipes and wells;\n5) spaces, structures and places on the yard area that belong to the use and maintenance of the property;\n6) plantings and trees to be retained, trees to be removed, and areas to be planted;\n7) on the shore area, the treatment of the shoreline and the piers.",
+      "summary_en": "Where needed, the site plan shows yard levels, access and rescue routes, slopes, retaining walls, fences, play and parking areas, shelter exits, tanks, trees and shore treatment.",
+      "keywords": [
+        "yard",
+        "piha-alue",
+        "pelastustie",
+        "rescue route",
+        "luiska",
+        "portaat",
+        "tukimuuri",
+        "aita",
+        "leikkipaikka",
+        "autopaikka",
+        "puusto",
+        "poistumistie"
+      ],
+      "topics": [
+        "outdoor",
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-7-1",
+      "ref": "7 § 1 mom.",
+      "heading": "Pohja- ja leikkauspiirustusten sisältö ja esitystapa",
+      "heading_en": "Content and presentation of plan and section drawings",
+      "text": "Pohjapiirustuksiin on sisällyttävä piirustukset rakennuksen jokaisesta kerroksesta tai tasosta sekä tarvittaessa vesikatosta. Pohjapiirustuksiin on sisällyttävä myös tieto palo-osastoista ja poistumisalueista. Pystysuuntaiset rakenteet ja rakennusosat on esitettävä poikkileikkauksina ja taustalla näkyvät asiat projektioina. Pohjapiirustuksiin on merkittävä kutakin leikkauspiirustusta vastaava kohta ja katselusuunta.",
+      "text_en": "Floor plans must include drawings of each storey or level of the building and, where necessary, of the roof. Floor plans must also include information on fire compartments and escape areas. Vertical structures and building parts must be shown as cross-sections, and things visible in the background as projections. Each floor plan must mark the place and viewing direction corresponding to each section drawing.",
+      "summary_en": "Floor plans must show every storey and, where needed, the roof, with fire compartments, escape areas, section cut positions and viewing directions, and vertical structures drawn in section.",
+      "keywords": [
+        "floor plan",
+        "pohjapiirustus",
+        "palo-osasto",
+        "poistumisalue",
+        "leikkaus",
+        "kerros",
+        "vesikatto",
+        "katselusuunta",
+        "fire compartment",
+        "poistumistie"
+      ],
+      "topics": [
+        "fire",
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-7-2",
+      "ref": "7 § 2 mom.",
+      "heading": "Pohja- ja leikkauspiirustusten sisältö ja esitystapa",
+      "heading_en": "Content and presentation of plan and section drawings",
+      "text": "Leikkauspiirustuksiin on sisällyttävä pituus- ja poikkisuuntaiset piirustukset rakennuksen erityyppisistä osista. Pysty- ja vaakasuuntaiset rakenteet ja rakennusosat on kuvattava leikattuina. Leikkaustasot on valittava siten, että piirustuksesta käy ilmi lupaharkinnan kannalta tarkoituksenmukaiset tiedot. Leikkauspiirustuksiin on sisällyttävä tieto palo-osastoista ja poistumisalueista. Leikkauspiirustuksen on rakennuspaikan maanpinnan osalta ulotuttava riittävästi rakennuspaikan ulkopuolelle.",
+      "text_en": "Section drawings must include longitudinal and transverse drawings of the different types of parts of the building. Vertical and horizontal structures and building parts must be shown as cut. The cutting planes must be chosen so that the drawing shows the information relevant to the assessment of the permit. Section drawings must include information on fire compartments and escape areas. For the ground surface of the building site, the section drawing must extend sufficiently beyond the building site.",
+      "summary_en": "Section drawings must cover the different building parts in longitudinal and transverse sections, show fire compartments and escape areas, and extend sufficiently beyond the site at ground level.",
+      "keywords": [
+        "section drawing",
+        "leikkauspiirustus",
+        "poikkileikkaus",
+        "pituusleikkaus",
+        "palo-osasto",
+        "poistumisalue",
+        "maanpinta",
+        "leikkaustaso",
+        "poistumistie"
+      ],
+      "topics": [
+        "fire",
+        "escape-routes"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-7-3",
+      "ref": "7 § 3 mom.",
+      "heading": "Pohja- ja leikkauspiirustusten sisältö ja esitystapa",
+      "heading_en": "Content and presentation of plan and section drawings",
+      "text": "Rakennuksen korjaus- tai muutostyössä on pohja- ja leikkauspiirustusten on ulotuttava riittävän laajalle alueelle ja niihin on lisäksi sisällyttävä toisistaan erottuvin merkinnöin tieto purettavista, säilyvistä ja uusista rakenteista.",
+      "text_en": "In repair or alteration work, the floor plan and section drawings must extend over a sufficiently wide area, and must additionally include information, shown with clearly distinguishable markings, on the structures to be demolished, the structures that remain, and the new structures.",
+      "summary_en": "In repair or alteration work, plans and sections must cover a wide enough area and mark demolished, retained and new structures with clearly distinct markings.",
+      "keywords": [
+        "korjaustyö",
+        "muutostyö",
+        "purettava rakenne",
+        "säilyvä rakenne",
+        "uusi rakenne",
+        "pohjapiirustus",
+        "leikkauspiirustus",
+        "merkintä",
+        "demolition"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-8-1",
+      "ref": "8 § 1 mom.",
+      "heading": "Julkisivupiirustusten sisältö",
+      "heading_en": "Content of elevation drawings",
+      "text": "Julkisivupiirustuksiin on sisällyttävä piirustus rakennuksen kaikista sivuista vesikaton näkyvine osineen kohtisuorana projektiona. Rakennetussa ympäristössä julkisivupiirustukseen on sisällyttävä tieto suhteista ja liittymisestä viereisiin rakennuksiin riittävän laajasti.",
+      "text_en": "Elevation drawings must include a drawing of all sides of the building, with the visible parts of the roof, as an orthogonal projection. In a built-up environment, the elevation drawing must include information on the relationships to, and connection with, the adjacent buildings to a sufficient extent.",
+      "summary_en": "Elevation drawings must show every side of the building, including visible roof parts, as orthogonal projections, and relate it to adjacent buildings in built-up areas.",
+      "keywords": [
+        "elevation",
+        "julkisivupiirustus",
+        "julkisivu",
+        "vesikatto",
+        "naapurirakennus",
+        "orthogonal projection",
+        "rakennettu ympäristö"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-8-2",
+      "ref": "8 § 2 mom.",
+      "heading": "Julkisivupiirustusten sisältö",
+      "heading_en": "Content of elevation drawings",
+      "text": "Julkisivupiirustukseen on sisällyttävä:\n1) maanpinnan ja julkisivun leikkauskohdan, julkisivun ja vesikaton leikkauskohdan, räystään sekä vesikaton harjan tai muun ylimmän osan korkeusasemat korkeuslukuina tai korkeusmittoina maanpinnasta;\n2) vesikattopinnat kattovarusteineen ja katolle sijoittuvine laitteineen sekä kattokaltevuudet;\n3) ulkoseinän näkyvät rakennusosat ja pinnat kiinteine laitteineen;\n4) pintojen, rakennusosien ja laitteiden materiaalit, pintakäsittelyt ja värit;\n5) muut rakennuksen ulkopuolella näkyvät rakennuksen toimintaan, ulkoasuun tai tyyliin vaikuttavat seikat;\n6) ilmansuunta, johon julkisivu näkyy.",
+      "text_en": "The elevation drawing must include:\n1) the elevations of the ground surface and of the section line of the façade, the section line of the façade and roof, the eaves, and the ridge or other highest part of the roof, given as elevation figures or height dimensions from the ground surface;\n2) the roof surfaces with their roof fittings and the equipment placed on the roof, and the roof gradients;\n3) the visible building parts and surfaces of the external wall with fixed equipment;\n4) the materials, surface treatments and colours of the surfaces, building parts and equipment;\n5) other matters visible from outside that affect the use, appearance or style of the building;\n6) the compass direction in which the façade is seen.",
+      "summary_en": "Elevation drawings must give the ground, eave, ridge and façade levels, roof surfaces, gradients and fittings, wall equipment, materials, colours and the compass direction.",
+      "keywords": [
+        "julkisivu",
+        "korkeusasema",
+        "räystäs",
+        "harja",
+        "vesikatto",
+        "kattokaltevuus",
+        "materiaali",
+        "väri",
+        "ilmansuunta",
+        "pintakäsittely",
+        "eaves",
+        "ridge"
+      ],
+      "topics": [
+        "distances-heights",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-8-3",
+      "ref": "8 § 3 mom.",
+      "heading": "Julkisivupiirustusten sisältö",
+      "heading_en": "Content of elevation drawings",
+      "text": "Rakennuksen korjaus- tai muutostyössä piirustukseen on lisäksi sisällyttävä koko julkisivu muutoksineen, jos korjaus- tai muutostyö vaikuttaa rakennuksen julkisivuun.",
+      "text_en": "In repair or alteration work, the drawing must additionally include the whole façade with its changes, if the repair or alteration work affects the building's façade.",
+      "summary_en": "If repair or alteration work affects the façade, the elevation drawing must show the whole façade with the changes.",
+      "keywords": [
+        "korjaustyö",
+        "muutostyö",
+        "julkisivu",
+        "koko julkisivu",
+        "muutos",
+        "façade"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": true
+    },
+    {
+      "id": "fi-216-2015-9-1",
+      "ref": "9 §",
+      "heading": "Perustamis- ja pohjaolosuhdeselvityksen sisältö",
+      "heading_en": "Content of the foundation and ground conditions report",
+      "text": "Perustamis- ja pohjaolosuhdeselvitykseen on tarvittaessa sisällyttävä seuraavat tiedot:\n1) maaperän laatu;\n2) rakennuksen ja rakennuspaikan korkeusasemat rakennuspaikalla todettuina;\n3) pohjaveden pinta ja sen muutoksesta aiheutuvat haitat;\n4) rakennuspaikasta tai vesistön läheisyydestä aiheutuva tulvariski;\n5) radonhaitan torjuntatapa;\n6) rakennuspaikan saastuneet maamassat ja niiden käsittely tai sijoitus;\n7) rakennuksen perustamistapa.",
+      "text_en": "Where necessary, the foundation and ground conditions report must include the following information:\n1) the quality of the soil;\n2) the elevations of the building and of the building site as established on the site;\n3) the groundwater level and the harm caused by changes in it;\n4) the flood risk arising from the building site or from its proximity to a body of water;\n5) the method of counteracting radon harm;\n6) contaminated soil on the building site and its treatment or disposal;\n7) the foundation method of the building.",
+      "summary_en": "Where needed, the foundation and ground conditions report covers soil quality, site levels, groundwater, flood risk, radon control, contaminated soil and the foundation method.",
+      "keywords": [
+        "foundation",
+        "perustaminen",
+        "perustamistapa",
+        "pohjaolosuhteet",
+        "maaperä",
+        "pohjavesi",
+        "tulvariski",
+        "radon",
+        "saastunut maa",
+        "korkeusasema"
+      ],
+      "topics": [
+        "moisture",
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-10-1",
+      "ref": "10 §",
+      "heading": "Rakennuksen kunnosta laadittujen selvitysten sisältö",
+      "heading_en": "Content of building condition surveys",
+      "text": "Korjaus- tai muutostyön lähtötietona käytettäviin rakennuksen kunnosta laadittuihin selvityksiin on rakennushankkeen laatu ja laajuus huomioon ottaen riittävässä laajuudessa sisällyttävä tiedot seuraavista seikoista ja niihin mahdollisesti liittyvistä vaurioista:\n1) rakenteiden kantavuus ja rakennuksen vakaus;\n2) rakennusosien kosteustasapaino ja muu rakennusfysikaalinen toimivuus;\n3) rakennuksen sisäilmaston terveellisyys;\n4) muut rakennuksen turvallisuuteen ja terveellisyyteen liittyvät seikat;\n5) käytetyt selvitysmenetelmät ja selvityksen laatijan tiedot;\n6) selostus rakennuksen ominaispiirteistä ja rakennushistoriallisesti merkittävistä seikoista;\n7) tiedot aiemmin tehdyistä korjaus- ja muutostöistä.",
+      "text_en": "Condition surveys of the building, used as baseline data for repair or alteration work, must include, having regard to the nature and scope of the construction project and to a sufficient extent, information on the following matters and on any damage related to them:\n1) load-bearing capacity of the structures and stability of the building;\n2) moisture balance of the building parts and other building-physical performance;\n3) healthiness of the indoor air climate of the building;\n4) other matters relating to the safety and healthiness of the building;\n5) the survey methods used and the details of the person who prepared the survey;\n6) a description of the building's characteristic features and of matters significant in building history;\n7) information on repair and alteration work carried out earlier.",
+      "summary_en": "Building condition surveys for repair work must cover load-bearing capacity and stability, moisture balance, indoor air healthiness, other safety matters, methods, building history and earlier works.",
+      "keywords": [
+        "condition survey",
+        "kuntoselvitys",
+        "kantavuus",
+        "vakaus",
+        "kosteus",
+        "kosteustasapaino",
+        "sisäilma",
+        "rakennushistoria",
+        "korjaustyö",
+        "rakennusfysiikka"
+      ],
+      "topics": [
+        "structure",
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-11-1",
+      "ref": "11 § 1 mom.",
+      "heading": "Rakennepiirustusten ja rakennelaskelmien sisältö",
+      "heading_en": "Content of structural drawings and calculations",
+      "text": "Rakennepiirustuksiin ja rakennelaskelmiin on rakennushankkeen laatu ja laajuus huomioon ottaen riittävässä laajuudessa sisällyttävä tieto suunnittelussa käytetyistä kuormituksista, kantavien rakenteiden lujuudesta ja vakaudesta sekä rakenteiden mitoista.",
+      "text_en": "Structural drawings and structural calculations must include, having regard to the nature and scope of the construction project and to a sufficient extent, information on the loads used in the design, the strength and stability of the load-bearing structures, and the dimensions of the structures.",
+      "summary_en": "Structural drawings and calculations must state the design loads, the strength and stability of load-bearing structures and the structural dimensions, to a level suited to the project.",
+      "keywords": [
+        "structural drawing",
+        "rakennepiirustus",
+        "rakennelaskelma",
+        "kuormitus",
+        "kantava rakenne",
+        "lujuus",
+        "vakaus",
+        "mitat",
+        "load"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-11-2",
+      "ref": "11 § 2 mom.",
+      "heading": "Rakennepiirustusten ja rakennelaskelmien sisältö",
+      "heading_en": "Content of structural drawings and calculations",
+      "text": "Rakennepiirustuksiin on rakennushankkeen laatu ja laajuus huomioon ottaen riittävässä laajuudessa sisällyttävä tieto rakenteiden lämmön, kosteuden, veden ja vedenpaineen, äänen sekä tärinän eristyksen ratkaisuista.",
+      "text_en": "Structural drawings must include, having regard to the nature and scope of the construction project and to a sufficient extent, information on the solutions for insulating the structures against heat, moisture, water and water pressure, sound, and vibration.",
+      "summary_en": "Structural drawings must show the solutions for insulating structures against heat, moisture, water and water pressure, sound and vibration.",
+      "keywords": [
+        "insulation",
+        "eristys",
+        "lämmöneristys",
+        "lämpö",
+        "kosteus",
+        "vesi",
+        "vedenpaine",
+        "ääni",
+        "tärinä",
+        "rakennesuunnitelma"
+      ],
+      "topics": [
+        "energy",
+        "moisture",
+        "sound"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-11-3",
+      "ref": "11 § 3 mom.",
+      "heading": "Rakennepiirustusten ja rakennelaskelmien sisältö",
+      "heading_en": "Content of structural drawings and calculations",
+      "text": "Korjaus- tai muutostyössä rakennepiirustuksiin on lisäksi sisällytettävä tieto käyttöön jäävistä rakenteista ja niiden toiminnasta sekä mahdollisista purettavista rakenteista.",
+      "text_en": "In repair or alteration work, the structural drawings must additionally include information on the structures that remain in use and their function, and on any structures to be demolished.",
+      "summary_en": "In repair or alteration work, structural drawings must also show the structures staying in use and their function, and the structures to be demolished.",
+      "keywords": [
+        "korjaustyö",
+        "muutostyö",
+        "käyttöön jäävä rakenne",
+        "purettava rakenne",
+        "rakennepiirustus",
+        "demolition"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-12-1",
+      "ref": "12 § 1 mom.",
+      "heading": "Pohjarakennesuunnitelman sisältö",
+      "heading_en": "Content of the foundation structure plan",
+      "text": "Pohjarakennesuunnitelmaan on rakennushankkeen laatu ja laajuus huomioon ottaen riittävässä laajuudessa sisällytettävä tieto pohjarakenteiden lujuudesta, vakaudesta ja mitoista.",
+      "text_en": "The foundation structure plan must include, having regard to the nature and scope of the construction project and to a sufficient extent, information on the strength, stability and dimensions of the foundation structures.",
+      "summary_en": "The foundation structure plan must give the strength, stability and dimensions of the foundation structures, to a level suited to the project.",
+      "keywords": [
+        "foundation",
+        "pohjarakenne",
+        "pohjarakennesuunnitelma",
+        "perustus",
+        "lujuus",
+        "vakaus",
+        "mitat"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-12-2",
+      "ref": "12 § 2 mom.",
+      "heading": "Pohjarakennesuunnitelman sisältö",
+      "heading_en": "Content of the foundation structure plan",
+      "text": "Lisäksi pohjarakennesuunnitelmaan on sisällyttävä tieto pohjarakennustyön ja valmiiden rakenteiden vaikutuksesta rakennuspaikan ympäristöön sekä tieto siitä, miten vaara- ja haittavaikutukset estetään.",
+      "text_en": "The foundation structure plan must also include information on the effect of the foundation work and of the finished structures on the environment of the building site, and on how hazards and adverse effects are prevented.",
+      "summary_en": "The foundation plan must also show how the foundation work and finished structures affect the surroundings and how hazards and adverse effects are prevented.",
+      "keywords": [
+        "foundation",
+        "pohjarakenne",
+        "ympäristövaikutus",
+        "vaara",
+        "haitta",
+        "rakennuspaikan ympäristö"
+      ],
+      "topics": [
+        "structure",
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-12-3",
+      "ref": "12 § 3 mom.",
+      "heading": "Pohjarakennesuunnitelman sisältö",
+      "heading_en": "Content of the foundation structure plan",
+      "text": "Pohjarakennesuunnitelman yksityiskohtaisuuden on vastattava kohteen pohjaolosuhteiden, rakenteiden ja käytettävien työmenetelmien vaatimuksia.",
+      "text_en": "The level of detail of the foundation structure plan must correspond to the requirements of the site's ground conditions, the structures and the working methods to be used.",
+      "summary_en": "The foundation structure plan's level of detail must match the ground conditions, the structures and the working methods.",
+      "keywords": [
+        "pohjarakennesuunnitelma",
+        "detaljitaso",
+        "pohjaolosuhteet",
+        "työmenetelmä",
+        "perustus",
+        "foundation"
+      ],
+      "topics": [
+        "structure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-13-1",
+      "ref": "13 §",
+      "heading": "Lämmityslaite-, kiinteistön vesi- ja viemärilaitteisto- sekä ilmanvaihtosuunnitelman sisältö",
+      "heading_en": "Content of the heating equipment, building water and drainage installation and ventilation plans",
+      "text": "Lämmityslaite-, kiinteistön vesi- ja viemärilaitteisto- sekä ilmanvaihtosuunnitelmiin on sisällyttävä tieto sisäolosuhteiden tavoitetasoista ja niiden ylläpitämiseen käytettävistä toiminnoista, johdotuksista, kanavista, putkistoista ja laitteista sekä mitoituksista.",
+      "text_en": "The heating equipment, property water and drainage installation and ventilation plans must include information on the target levels of indoor conditions and the functions used to maintain them, the wiring, ducts, pipework and equipment, and their dimensioning.",
+      "summary_en": "The heating, water and drainage, and ventilation plans must state the target indoor conditions, the functions and equipment that maintain them, and their sizing.",
+      "keywords": [
+        "heating plan",
+        "lämmitys",
+        "LVI",
+        "ilmanvaihto",
+        "ilmanvaihtosuunnitelma",
+        "sisäolosuhteet",
+        "kanava",
+        "putkisto",
+        "viemäri",
+        "vesijohto",
+        "mitoitus"
+      ],
+      "topics": [
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-14-1",
+      "ref": "14 §",
+      "heading": "Purku- ja suojaussuunnitelman sisältö",
+      "heading_en": "Content of the demolition and protection plan",
+      "text": "Rakennuksen korjaus- tai muutostyössä purku- ja suojaussuunnitelmaan on tarvittaessa sisällyttävä tiedot:\n1) purettavista rakenteista ja rakennusosista;\n2) purkutoimenpiteistä ja niiden aiheuttamien haittojen estämisestä;\n3) toimenpiteistä, joilla rakenteet, rakennusosat ja pinnat suojataan purkamisen ja rakentamisen aikana;\n4) toimenpiteistä, joilla korjaustyöalue erotetaan rakennuksen käytössä olevasta osasta sekä alipaineistuksesta tai toimenpiteistä, joilla korvausilma järjestetään käytössä oleviin tiloihin.",
+      "text_en": "In repair or alteration work, the demolition and protection plan must include, where necessary, information on:\n1) the structures and building parts to be demolished;\n2) the demolition measures and the prevention of the harm they cause;\n3) the measures by which structures, building parts and surfaces are protected during demolition and construction;\n4) the measures by which the repair work area is separated from the part of the building in use, and the underpressurisation, or the measures by which replacement air is provided to the spaces in use.",
+      "summary_en": "In repair work, the demolition and protection plan must show what is demolished, how harm is prevented, how structures are protected, and how the work area is separated from occupied space by underpressure or replacement air.",
+      "keywords": [
+        "demolition",
+        "purku",
+        "suojaus",
+        "korjaustyö",
+        "työmaa",
+        "alipaine",
+        "korvausilma",
+        "erotus",
+        "käytössä oleva tila"
+      ],
+      "topics": [
+        "general",
+        "ventilation"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-15-1",
+      "ref": "15 §",
+      "heading": "Kosteudenhallintasuunnitelman sisältö",
+      "heading_en": "Content of the site moisture management plan",
+      "text": "Työmaan kosteudenhallintasuunnitelmaan on sisällyttävä tieto toimenpiteistä, joilla rakennusaineet ja -tuotteet sekä rakennusosat suojataan sään aiheuttamilta tai työmaan olosuhteista johtuvilta haittavaikutuksilta sekä toimenpiteistä, joilla rakennusaineiden ja -tuotteiden sekä rakennusosien kosteudensuojaus toteutetaan ja rakenteiden kuivuminen varmistetaan.",
+      "text_en": "The site moisture management plan must include information on the measures by which building materials and products and building parts are protected from harmful effects caused by weather or conditions on the site, and on the measures by which moisture protection of building materials, products and building parts is carried out and the drying of structures is ensured.",
+      "summary_en": "The site moisture plan must show how materials and building parts are protected from weather and site conditions, and how moisture protection and drying of structures are ensured.",
+      "keywords": [
+        "moisture management",
+        "kosteudenhallinta",
+        "kosteudensuojaus",
+        "työmaa",
+        "sää",
+        "kuivuminen",
+        "rakennusmateriaali",
+        "rakennusosa"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-16-1",
+      "ref": "16 §",
+      "heading": "Kosteusvaurion korjaussuunnitelman sisältö",
+      "heading_en": "Content of the moisture damage repair plan",
+      "text": "Rakennuksen korjaus- tai muutostyössä kosteusvaurion korjaussuunnitelmaan on sisällyttävä tieto:\n1) toimenpiteistä, joilla kosteusvaurion aiheuttama haitta tai sen vaikutus sisäilmaan ja käyttäjiin poistetaan;\n2) korjatun rakenteen tai järjestelmän toimimisesta sen suunnitellun käyttöiän aikana.",
+      "text_en": "In repair or alteration work, the moisture damage repair plan must include information on:\n1) the measures by which the harm caused by the moisture damage, or its effect on indoor air and users, is removed;\n2) the function of the repaired structure or system during its planned service life.",
+      "summary_en": "A moisture damage repair plan must set out the measures that remove the harm and its effect on indoor air and users, and show that the repaired structure will work over its planned service life.",
+      "keywords": [
+        "moisture damage",
+        "kosteusvaurio",
+        "korjaussuunnitelma",
+        "sisäilma",
+        "käyttöikä",
+        "rakenne"
+      ],
+      "topics": [
+        "moisture"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-17-1",
+      "ref": "17 §",
+      "heading": "Rakennuttajavalvontaa koskevan valvontasuunnitelman sisältö",
+      "heading_en": "Content of the supervision plan for owner's supervision",
+      "text": "Rakennuttajavalvontaa koskevaan valvontasuunnitelmaan on sisällyttävä tiedot:\n1) rakennushankkeeseen ryhtyvästä, vastaavasta työnjohtajasta ja eritysalojen työnjohtajista ja näiden aikaisemmasta kokemuksesta vastaavanlaisesti toteutetuista hankkeista sekä rakennustyön keskeisten työvaiheiden tekijöistä siltä osin kuin nämä ovat hakijan tiedossa;\n2) tarkastusohjelmasta sekä tarkastusten tekijöistä ja muista rakennuttajavalvontaan liittyvistä asiantuntijoista.",
+      "text_en": "The supervision plan concerning owner's supervision must include information on:\n1) the responsible site manager for the construction project and the specialist site managers, their previous experience of similar projects, and the main workers for the construction work stages, in so far as these are known to the applicant;\n2) the inspection programme and the persons carrying out inspections and the other experts involved in owner's supervision.",
+      "summary_en": "The owner's supervision plan must name the responsible and specialist site managers with their similar-project experience, the main workers, and the inspection programme and inspectors.",
+      "keywords": [
+        "owner's supervision",
+        "rakennuttajavalvonta",
+        "valvontasuunnitelma",
+        "vastaava työnjohtaja",
+        "erityisala",
+        "työnjohtaja",
+        "tarkastusohjelma"
+      ],
+      "topics": [
+        "permits-procedure"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    },
+    {
+      "id": "fi-216-2015-18-1",
+      "ref": "18 §",
+      "heading": "Voimaantulo",
+      "heading_en": "Entry into force",
+      "text": "Tämä asetus tulee voimaan 1 päivänä kesäkuuta 2015.",
+      "text_en": "This decree enters into force on 1 June 2015.",
+      "summary_en": "The decree took effect on 1 June 2015.",
+      "keywords": [
+        "entry into force",
+        "voimaantulo",
+        "asetus",
+        "kesäkuu 2015"
+      ],
+      "topics": [
+        "general"
+      ],
+      "limits": [],
+      "drawing_checkable": false
+    }
+  ]
+}

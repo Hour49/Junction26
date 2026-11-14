@@ -16,7 +16,7 @@ import {
 } from '../api';
 import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
-import { patch, requestLine, stateOf, toViewer } from './check';
+import { pageFlagged, patch, requestLine, stateOf, toViewer } from './check';
 import { checkOf, type Disputed } from './types';
 import './doublecheck.css';
 
@@ -219,7 +219,8 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
           {fixing ? 'Fixing' : 'Please double-check'}
         </span>
         <p className="dc-ask">{requestLine(a, check)}</p>
-        <p className="dc-reason">{check.reason}</p>
+        {/* on a flagged page the generic rule ("counts once") says nothing; the card's level text says why */}
+        {!pageFlagged(a) && <p className="dc-reason">{check.reason}</p>}
       </div>
 
       <div className="dc-body">

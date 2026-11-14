@@ -468,6 +468,47 @@ Thread and pages
   (the viewer pads 20 px, so the name ends at the plan's middle and the place row starts 12 px right of it); at
   ≤900 px the place row is in flow above the viewer. [unit on the CSS text; browser: a long file name with "Also
   as" at 1440x900 and 390x844, the two boxes do not intersect]
+- EN-81 (demo parity look, orch 17:15; CSS only, AskBox markup and its "asked" counter unchanged for #208) The ask
+  bar takes the demo's `.askbar` look: the pill is translucent (`background: color-mix(in srgb, var(--v-surface)
+  86%, transparent)`, `backdrop-filter: blur(20px) saturate(180%)`, padding `6px 6px 6px 20px`, the demo's two-layer
+  shadow from `--v-text`); the send button stays filled accent when disabled (no opacity drop, default cursor). The
+  band behind it (`.en-ask`) stays solid `--v-bg`, so EN-71 holds (nothing on the page shows through; the pill's
+  translucency only shows the band). The arrows on plans and chat references (`.en-nav`) are 92% surface with the
+  demo's `0 2px 10px` shadow at 18% `--v-text`. Amends EN-71's "the pill uses no transparent or backdrop-filter".
+  [unit on the CSS text; browser 1440 and 390]
+- EN-82 (Bogdan #14 c6879176847, #233; replaces EN-53's Sure badge and EN-67's derived grade) Confidence comes from
+  the backend: `gradeOf(a)` = `a.level?.level` (High / Medium / Low; null without `level`, no score rule). The block
+  is labelled "Confidence" (not "Grade"): the level pill (tooltip `level.text`), the 3-step bar, and `level.text`
+  as its small line. No `level`: no block. No "Sure" badge and no `SURE_TIP` anywhere (the old gate certificate).
+  [component, `answer_certified.json` (high), `answer_double_check.json` (medium), derived low, `answer.json` (none)]
+- EN-83 A signed-off value (`quantity.status: "signed"`) shows "Signed off" in the Confidence block, with no level,
+  bar or level text, even when `level` is set. The double-check panel follows `check` (Medium and Low come with one
+  from the backend) and is never mounted for a High answer. [component, `answer_signed.json` + a derived level]
+- EN-84 (Bogdan #14 c6880945211, carbon-reader fail-5) On a flagged drawing (`drawings[].state: "flagged"` in
+  GET /api/projects/{id}; the drawing view has no state) the answer opens with a "This drawing was flagged" block
+  (`.en-flag`, `--v-warn` tones), above the sentence, the plan and the mark cards at every width: the flag reason
+  (`check.reason`, when there is a check) and the Confidence block (level pill, bar, `level.text`, or "Signed
+  off"). That Confidence block moves there, so the side column shows none. Not flagged: no `.en-flag`, the block
+  stays in the side column. [component, derived low + check; browser 1440 and 390 with a flagged fixture]
+- EN-85 (orch 18:55) A page-flagged answer (`level.basis: "page"`, double-check's `pageFlagged`) drops the
+  counting rule from the answer sentence ("There are 2 doors." only): the whole page is in doubt, so the generic
+  "Every element, room and plan the drawing lists counts once." says nothing. Other answers keep it. [component]
+- EN-86 (judge path) At 390x844 the value, the double-check pill and its reason are above the fold: the value row,
+  the estimate line (EN-88) and DoubleCheck sit in `.en-head`, a grid area of their own: right column top on
+  desktop (look unchanged), first in the card on phones (before the plan); the rest of the side column follows the
+  plan. [component on the DOM order; browser 390x844: double-check reason bottom y < 844]
+- EN-87 (judge path) One name per drawing: the page's title, ask box placeholder ("Ask about <name>"), pending line
+  "Also as" links and the viewer's title line use `drawingLabel(d)` of the project's drawing entry (the chat's
+  name), the file name until the project loads. References keep the file path (files are files, #224). [component]
+- EN-88 (judge path) `quantity.estimate` set on a number answer: "about <rounded value> <unit>, <estimate>" under
+  the value (`.en-estimate`, `estimateLine(a)` in format.ts; whole numbers, the estimate sentence as the API
+  writes it). None otherwise. Amended (judge path re-run, Bogdan c6881747518): a count (`unit` "count") is
+  whole, never "about N": the line is only the estimate as a caveat, first letter capitalised ("Counted by Gemini
+  Carbon, an AI reader: check its marks on the plan"); a measure that rounds to 0 shows its value as is
+  ("0.30 m², <estimate>"). [unit + component]
+- EN-89 (judge path re-run, as CH-46) The caveat once: when the reason on screen (the flagged section's, EN-84, or
+  the double-check panel's, i.e. not High and not signed) already contains `quantity.estimate`, the estimate line
+  (EN-88) is left out. A High answer shows no panel, so its estimate line stays. [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
