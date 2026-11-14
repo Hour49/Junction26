@@ -13,12 +13,19 @@
   const QUANTITIES = { area: { noun: ['m²', 'm²'], rule: 'As the answer key measures it: net floor area, inside the walls.' } };
   for (const q of QS) if (!QUANTITIES[q.quantity]) QUANTITIES[q.quantity] = { noun: [q.quantity, `${q.quantity}s`], rule: 'As the answer key counts them.' };
 
-  const FILES = D.files.map((f) => ({ ...f, drawing: ID }));
+  // The archive folder (file triage, a preview): real scans, each looked at by eye. A floor plan is a drawing with no
+  // answer key; any other kind is set aside, its register row and description handed to triage.js as TRIAGE.
+  const ARCH = D.archive_files || [];
+  const planId = (i) => `a${i + 1}`;
+  const FILES = D.files.map((f) => ({ ...f, drawing: ID })).concat(ARCH.map((f, i) => ({ ...f, drawing: f.plan ? planId(i) : null })));
   const image = FILES.find((f) => f.image).image;
-  const DRAWINGS = [{ id: ID, name: D.archive, lane: 'CAD', meta: FILES.map((f) => f.kind).join(' · '), image, check: [] }];
+  const DRAWINGS = [{ id: ID, name: D.archive, lane: 'CAD', meta: D.files.map((f) => f.kind).join(' · '), image, check: [] }]
+    .concat(ARCH.map((f, i) => (f.plan ? { id: planId(i), name: f.path.split('/').pop(), lane: 'Vision', meta: `${f.kind} · no answer key`, image: f.image, credit: f.credit, check: [] } : null)).filter(Boolean));
+  const TRIAGE = Object.fromEntries(ARCH.filter((f) => f.triage).map((f) => [f.path, { ...f.triage, image: f.image, credit: f.credit, example: true }]));
   const drawing = (id) => {
-    if (id !== ID) throw new Error(`no drawing ${id}`);
-    return DRAWINGS[0];
+    const d = DRAWINGS.find((x) => x.id === id);
+    if (!d) throw new Error(`no drawing ${id}`);
+    return d;
   };
 
   // shortcut: word match against the answer key, no parser; exact text first, else the one key question holding every
@@ -36,6 +43,7 @@
 
   function answer(drawingId, question) {
     const d = drawing(drawingId), m = match(question);
+    if (d.id !== ID) return { drawing: d.id, question, quantity: null, near: [], refusal: 'The answer key has no questions about this drawing, so there is no number to give.' };
     if (!m.q) {
       return { drawing: d.id, question, quantity: null, near: m.near.map((q) => q.question),
         refusal: m.near.length ? `The answer key has ${m.near.length} questions like this${m.near.length > 4 ? '; here are 4 of them' : ''}. Pick one.` : 'The answer key for this floor has no question like this, so there is no number to give.' };
@@ -51,11 +59,12 @@
   const SUGGEST = ['many doors', 'area of apartment', 'many windows', 'total net floor area', 'many toilets'].map((k) => QS.find((q) => q.question.includes(k)))
     .filter(Boolean).map((q) => q.question);
 
-  // one drawing, so an answer is the total (#14 rule); no answer keeps the API shape with the candidates as chips
+  // one drawing has an answer key, so an answer is its value as the total (#14 rule); the archive's plans refuse
   function askProject(question) {
     const a = answer(ID, question), part = { drawing_id: ID, name: D.archive, answer: a };
-    if (a.refusal) return { question, parts: [part], total: null, total_unit: null, total_sure: false, total_note: 'No drawing can answer this.', canAnswer: (a.near.length ? a.near : SUGGEST).slice(0, 4) };
-    return { question, parts: [part], total: a.value, total_unit: a.quantity === 'area' ? 'm2' : 'count', total_sure: false,
+    const rest = DRAWINGS.slice(1).map((d) => ({ drawing_id: d.id, name: d.name, answer: answer(d.id, question) }));
+    if (a.refusal) return { question, parts: [part, ...rest], total: null, total_unit: null, total_sure: false, total_note: 'No drawing can answer this.', canAnswer: (a.near.length ? a.near : SUGGEST).slice(0, 4) };
+    return { question, parts: [part, ...rest], total: a.value, total_unit: a.quantity === 'area' ? 'm2' : 'count', total_sure: false,
       total_note: `From the answer key of ${D.archive}.`, canAnswer: null };
   }
 
@@ -70,7 +79,7 @@
     return { drawing: DRAWINGS[0], rooms, doors: keyCount('door'), windows: keyCount('window') };
   }
 
-  root.VData = { ...S, ARCHIVE: D.archive, CREDIT: D.credit, FILES, DRAWINGS, CONFLICTS: [], QUANTITIES, SUGGEST, drawing,
+  root.VData = { ...S, ARCHIVE: D.archive, CREDIT: D.credit, FILES, DRAWINGS, TRIAGE, CONFLICTS: [], QUANTITIES, SUGGEST, drawing,
     answer, parseQuestion, noun, formatValue, ruleOf, askProject, extractFacts, crossChecks: () => [],
     valueOf: (marks, quantity) => { throw new Error(`no marks in Stoa mode (${quantity})`); } };
 })(window);
