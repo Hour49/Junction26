@@ -378,6 +378,15 @@ def test_info_names_the_readers_and_the_limits(client: TestClient) -> None:
     }
 
 
+def test_info_names_the_commit_the_backend_was_started_from(settings: Settings) -> None:
+    """APP_COMMIT (tools/qa-env.sh sets it to the exported commit) so a smoke test can tell which
+    build it talks to; null when the env doesn't say."""
+    assert info(settings).commit is None
+    started = settings.model_copy(update={"app_commit": "4bc4405e1a2b"})
+    assert info(started).commit == "4bc4405e1a2b"
+    assert TestClient(create_app(started)).get("/api/info").json()["commit"] == "4bc4405e1a2b"
+
+
 LOCAL = "elements=region:C,plans=region:C"  # ONNX models on this machine only
 
 

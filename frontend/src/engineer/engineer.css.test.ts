@@ -34,9 +34,8 @@ function rulesFor(selector: string): string {
 
 it('EN-71 the ask box is a solid band: nothing on the page shows through it (golden 06/07)', () => {
   expect(rulesFor('.en-ask')).toMatch(/background:\s*var\(--v-bg\)/);
-  for (const sel of ['.en-ask', '.en-askpill']) {
-    expect(rulesFor(sel)).not.toMatch(/transparent|backdrop-filter/);
-  }
+  // EN-81 amends: only the band must be solid; the pill on top of it may be translucent
+  expect(rulesFor('.en-ask')).not.toMatch(/transparent|backdrop-filter/);
 });
 
 it('EN-71 a turn scrolled into view stops below the sticky site header', () => {
@@ -56,4 +55,46 @@ it('EN-79 the ask bar focus ring follows the pill, not a square box around the i
 it('EN-80 the place row and the file name share the row without covering each other (QA R5-c-2)', () => {
   expect(rulesFor('.en-plan:has(> .en-place) .vw-name')).toMatch(/max-width:\s*50%/);
   expect(rulesFor('.en-place')).toMatch(/max-width:\s*calc\(50% - 32px\)/);
+});
+
+it('CH-37 the chat answer card: figure and side in two columns (1.4 : 1), one column at 900 px or less', () => {
+  expect(rulesFor('.en-chatcard')).toMatch(
+    /grid-template-columns:\s*minmax\(0,\s*1\.4fr\)\s*minmax\(0,\s*1fr\)/,
+  );
+  // the phone rule must come after the base rule, or the base wins (same specificity)
+  const base = css.search(/\.en-chatcard\s*\{[^}]*1\.4fr/);
+  const phone = css.slice(base);
+  expect(phone).toMatch(
+    /@media \(max-width: 900px\)[^@]*\.en-chatcard\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+  );
+});
+
+it('CH-38 the chat column is the demo 820 px (868 px with the 24 px gutters)', () => {
+  expect(rulesFor('.en-chat')).toMatch(/max-width:\s*868px/);
+});
+
+it('EN-81 the ask bar takes the demo look: translucent pill on the solid band, a filled send button', () => {
+  const pill = rulesFor('.en-askpill');
+  expect(pill).toMatch(/background:\s*color-mix\(in srgb, var\(--v-surface\) 86%, transparent\)/);
+  expect(pill).toMatch(/backdrop-filter:\s*blur\(20px\) saturate\(180%\)/);
+  expect(pill).toMatch(/padding:\s*6px 6px 6px 20px/);
+  expect(rulesFor('.en-send:disabled')).not.toMatch(/opacity:\s*0/);
+  expect(rulesFor('.en-ask')).toMatch(/background:\s*var\(--v-bg\)/);
+});
+
+it('EN-81 the arrows on plans and references: 92% surface, the demo shadow', () => {
+  const nav = rulesFor('.en-nav');
+  expect(nav).toMatch(/background:\s*color-mix\(in srgb, var\(--v-surface\) 92%, transparent\)/);
+  expect(nav).toMatch(
+    /box-shadow:\s*0 2px 10px color-mix\(in srgb, var\(--v-text\) 18%, transparent\)/,
+  );
+});
+
+it('CH-39 the Show it on link: accent, 600, no underline until hover or focus; the why line smaller', () => {
+  const show = rulesFor('.en-show');
+  expect(show).toMatch(/color:\s*var\(--v-accent\)/);
+  expect(show).toMatch(/font-weight:\s*600/);
+  expect(show).toMatch(/text-decoration:\s*none/);
+  expect(rulesFor('.en-show:hover')).toMatch(/text-decoration:\s*underline/);
+  expect(rulesFor('.en-lead--why')).toMatch(/font-size:\s*14px/);
 });

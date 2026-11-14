@@ -67,15 +67,24 @@ def test_the_backend_starts_with_the_printed_config() -> None:
     assert 'env "${DEMO_ENV[@]}" uv run --locked uvicorn' in script
 
 
-def test_the_demo_config_ships_config_c() -> None:
-    """integ Task 3 (2026-11-14): the Decisions S1536 swap over the C-yolo26l detector for elements
-    and plans, rooms from regionrooms, beat the earlier demo (region C-yolo26s-1536) on val by
-    +1.1 pp [+0.1, +2.0] with no family lower; the orchestrator shipped it (07:31)."""
+def test_the_demo_config_ships_config_c1_t1() -> None:
+    """integ-11/12 (2026-11-14): C1 (the Decisions S1536 swap over eight views of C-yolo26l, rooms
+    from regionrooms) with the local count arbiter T1's counts for door, window, sink, toilet,
+    shower and bathtub: on val +0.2 pp [-0.1, +0.6] against C1 as shipped, within noise, so the
+    local reader ships (D474); the double-check readers and golden's check policy with it."""
     found = run("config")
     assert found.returncode == 0, found.stderr
-    swap = "decisions-s1536:detector:C-yolo26l"
-    shipped = f"RASTER_COMPONENTS=elements={swap},plans={swap},rooms=regionrooms"
-    assert shipped in found.stdout.split()
+    swap = "decisions-s1536:detector-v8:C-yolo26l"
+    t1 = "arbiter-t1:C-yolo26l:C-yolo26l-onnx-val"
+    six = ",".join(f"{c}={t1}" for c in ("door", "window", "sink", "toilet", "shower", "bathtub"))
+    shipped = f"RASTER_COMPONENTS=elements={swap},plans={swap},{six},rooms=regionrooms"
+    config = found.stdout.split()
+    assert shipped in config
+    assert "DOUBLE_CHECK_READERS=l1=detector:C-yolo26l,m1=detector:C-yolo26m" in config
+    check = "CHECK_POLICY=../eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json"
+    assert check in config  # #215's certified policy + confidence levels (#233), same thresholds
+    assert (SCRIPT.parents[1] / "backend" / check.split("=")[1]).is_file()
+    assert any(line.startswith("LOCAL_GATES=") for line in config)
 
 
 def test_the_demo_config_marks_answers_sure_by_goldens_frozen_gate() -> None:
@@ -105,3 +114,9 @@ def test_the_demo_config_answers_kitchens_from_goldens_frozen_policy() -> None:
     assert (frozen["schema"], frozen["part"]) == ("answer_policy_v1", "val")
     to_prior = [family for family, pick in frozen["families"].items() if pick["source"] == "prior"]
     assert to_prior == ["room:kitchen"]
+
+
+def test_the_backend_is_told_which_commit_it_runs() -> None:
+    """GET /api/info `commit` (APP_COMMIT): tools/smoke.py prints which build it talks to."""
+    script = SCRIPT.read_text()
+    assert 'APP_COMMIT="$SHA" GEMINI_API_KEY="$KEY"' in script

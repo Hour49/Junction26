@@ -66,3 +66,12 @@ export function methodName(id: string | null | undefined): string {
 export function rulePacksOf(info: Info | null): RulePack[] {
   return info?.rule_packs ?? [];
 }
+
+/** A drawing's name on screen (shared.md "Plain drawing names"): the file name without its folders. A plain title
+ * needs the backend (API ask A3); dataset ids are not prettified here. */
+export const drawingName = (file: string): string => file.slice(file.lastIndexOf('/') + 1);
+
+/** The one place that decides a drawing's on-screen name (shared.md "Plain drawing names"): the backend's plain
+ * `name` (#224: "Drawn plan 1", "Building model 1"), else the file name. Takes any shape with a `file`. */
+export const drawingLabel = (d: { name?: string | null; file: string }): string =>
+  d.name || drawingName(d.file);

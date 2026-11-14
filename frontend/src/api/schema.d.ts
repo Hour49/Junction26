@@ -607,6 +607,7 @@ export interface components {
             file: string;
             /** Latency S */
             latency_s: number;
+            level: components["schemas"]["Level"] | null;
             line: components["schemas"]["Answer"];
             /** Marks */
             marks: components["schemas"]["MarkView"][];
@@ -1114,6 +1115,8 @@ export interface components {
         };
         /** Info */
         Info: {
+            /** Commit */
+            commit?: string | null;
             /** Gemini */
             gemini?: ("ok" | "budget_exhausted") | null;
             limits: components["schemas"]["Limits"];
@@ -1210,6 +1213,25 @@ export interface components {
             takeoff: string | null;
             /** Trace */
             trace: string | null;
+        };
+        /**
+         * Level
+         * @description How far to trust an answer: one of three levels, what it rests on, and one plain sentence
+         *     with the measured counts behind it.
+         */
+        Level: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "certified" | "route" | "score" | "page" | "held" | "unrated";
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "medium" | "low";
+            /** Text */
+            text: string;
         };
         /** Limits */
         Limits: {
@@ -1404,6 +1426,8 @@ export interface components {
             refused_note: string | null;
             /** Total */
             total: number | null;
+            /** Total Level */
+            total_level: ("high" | "medium" | "low") | null;
             /** Total Note */
             total_note: string;
             /** Total Sure */

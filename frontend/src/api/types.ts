@@ -63,6 +63,9 @@ export type ProjectChecks = Schemas['ProjectChecks'];
 export type CheckStatus = RuleCheck['status'];
 
 export type Issue = Schemas['Issue'];
+export type IssueAnswer = Schemas['IssueAnswer'];
+/** #223: `{text, by}` answers an issue, `{undo: true}` takes the answer back. */
+export type IssueAnswerRequest = { text: string; by: string } | { undo: true };
 export type IssueList = Schemas['ProjectIssues'];
 export type IssueKind = Issue['kind'];
 export type IssueSeverity = Issue['severity'];

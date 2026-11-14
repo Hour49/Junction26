@@ -44,17 +44,42 @@ describe('parseRoute', () => {
     expect(back.query.get('q')).toBe(key);
   });
 
-  it('SH-53 account and conflicts routes, and ?view on a project, round-trip', () => {
+  it('SH-53 account route, and ?view on a project, round-trip', () => {
     for (const hash of ['#/workspaces', '#/workspaces/'])
       expect(parseRoute(hash).name).toBe('account');
-    expect(parseRoute(`#/p/${P}/conflicts`)).toMatchObject({ name: 'conflicts', projectId: P });
-    for (const hash of ['#/workspaces/x', '#/p/XYZ/conflicts', `#/p/${P}/conflicts/x`])
-      expect(parseRoute(hash).name).toBe('not-found');
+    expect(parseRoute('#/workspaces/x').name).toBe('not-found');
     const project = parseRoute(`#/p/${P}?view=advanced`);
     expect(project.name).toBe('project');
     expect(project.query.get('view')).toBe('advanced');
-    for (const hash of ['#/workspaces', `#/p/${P}/conflicts`, `#/p/${P}?view=advanced`])
+    for (const hash of ['#/workspaces', `#/p/${P}?view=advanced`])
       expect(routeHref(parseRoute(hash))).toBe(hash);
+  });
+
+  it('SH-77 the old conflicts and issues routes land on the project route with their query', () => {
+    const conflicts = parseRoute(`#/p/${P}/conflicts?q=a&pack=fi&d=${D}`);
+    expect(conflicts).toMatchObject({ name: 'project', projectId: P });
+    expect(conflicts.query.get('q')).toBe('a');
+    expect(conflicts.query.get('d')).toBe(D);
+    expect(packOf(conflicts)).toBe('fi');
+    for (const hash of [`#/p/${P}/issues?pack=fi`, `#/p/${P}/issues/`, `#/p/${P}/conflicts/`])
+      expect(parseRoute(hash)).toMatchObject({ name: 'project', projectId: P });
+    expect(routeHref(parseRoute(`#/p/${P}/issues?pack=fi`))).toBe(`#/p/${P}?pack=fi`);
+    for (const hash of ['#/p/XYZ/conflicts', `#/p/${P}/conflicts/x`, `#/p/${P}/issues/x`])
+      expect(parseRoute(hash).name).toBe('not-found');
+  });
+
+  it('SH-80 the about route, with or without ?project', () => {
+    for (const hash of ['#/about', '#/about/']) expect(parseRoute(hash).name).toBe('about');
+    expect(parseRoute('#/about/x').name).toBe('not-found');
+    expect(routeHref(parseRoute(`#/about?project=${P}`))).toBe(`#/about?project=${P}`);
+  });
+
+  it('SH-76 the documents route', () => {
+    for (const hash of [`#/p/${P}/documents`, `#/p/${P}/documents/`])
+      expect(parseRoute(hash)).toMatchObject({ name: 'documents', projectId: P });
+    for (const hash of ['#/p/XYZ/documents', `#/p/${P}/documents/x`])
+      expect(parseRoute(hash).name).toBe('not-found');
+    expect(routeHref(parseRoute(`#/p/${P}/documents?pack=fi`))).toBe(`#/p/${P}/documents?pack=fi`);
   });
 
   it('SH-64 the chat route', () => {
@@ -65,8 +90,8 @@ describe('parseRoute', () => {
     expect(routeHref(parseRoute(`#/p/${P}/chat`))).toBe(`#/p/${P}/chat`);
   });
 
-  it('SH-66 checks and issues routes, packOf and withPack', () => {
-    for (const name of ['checks', 'issues'] as const) {
+  it('SH-66 the checks route, packOf and withPack', () => {
+    for (const name of ['checks'] as const) {
       for (const hash of [`#/p/${P}/${name}`, `#/p/${P}/${name}/`])
         expect(parseRoute(hash)).toMatchObject({ name, projectId: P });
       for (const hash of [`#/p/XYZ/${name}`, `#/p/${P}/${name}/x`])
