@@ -248,10 +248,10 @@ def test_a_paid_call_is_charged_to_the_cost_and_a_cached_reply_is_not(
     monkeypatch.setattr(urllib.request, "urlopen", answer_once)
     reader = GeminiRoomReader(GeminiClient(KEY, "gemini-3.5-flash", timeout_s=5), tmp_path)
     image = Image.open(io.BytesIO(png()))
-    before = cost.spent()
+    before = cost.mark()
     reader.read(image)
-    assert cost.spent() - before == pytest.approx((1000 * 1.50 + 500 * 9.00) / 1e6)
-    before = cost.spent()
+    assert cost.since(before) == pytest.approx((1000 * 1.50 + 500 * 9.00) / 1e6)
+    before = cost.mark()
     reader.read(image)  # cached: no call, no new spend
     assert len(calls) == 1
-    assert cost.spent() == before
+    assert cost.since(before) == 0

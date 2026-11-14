@@ -1,0 +1,51 @@
+{
+  "recorded_at": "2026-11-14T20:51:47+02:00",
+  "name": "gemini-main",
+  "commit": "11a089e",
+  "note": "baseline: main, CHAT_MODEL=gemini (gemini-4-hydrogen), full set, one live run through the record proxy; USD at placeholder price 1.50/9.00 per M",
+  "run_file": "gemini-11a089e-rec.jsonl",
+  "turns_sha256": "e626f5357569fb5531939fa36af23d1aab96c23f0960b4cdc409ab5c91751bcb",
+  "models": [
+    "gemini-4-hydrogen"
+  ],
+  "score": {
+    "turns": 64,
+    "right": [
+      14,
+      18
+    ],
+    "answered 1st": [
+      16,
+      22
+    ],
+    "answered follow-up": [
+      28,
+      42
+    ],
+    "on topic": [
+      62,
+      64
+    ],
+    "grounded": [
+      64,
+      64
+    ],
+    "refusal offers": [
+      6,
+      20
+    ],
+    "steps shown": [
+      52,
+      64
+    ],
+    "view shown": [
+      0,
+      64
+    ],
+    "http errors": 0,
+    "latency p50 s": 4.72,
+    "latency max s": 17.91,
+    "USD/turn": 0.0195,
+    "USD total": 1.2451
+  }
+}

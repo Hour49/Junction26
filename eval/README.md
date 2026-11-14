@@ -38,6 +38,7 @@ uv run python -m stoa_eval leaderboard          # every arm under data/stoa/exp 
 uv run python -m stoa_eval annotated-region     # the region each train/val image's gold annotates
 uv run python -m stoa_eval hard-questions <labels.json> --root .. --out q.jsonl   # hard slice questions
 uv run python -m stoa_eval hard <labels.json> --run <answer out> --questions q.jsonl [--run ... --questions ...] [--pred P.jsonl]
+uv run python -m chat.run --base <backend> --out <run.jsonl>   # the project chat, judge-like (chat/README.md)
 ./check.sh                                      # lint, format, types, tests, audit, as in CI
 ```
 
