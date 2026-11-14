@@ -38,6 +38,7 @@ from app.core.ingest.model import (
     SecondCount,
 )
 from app.core.pipeline.model import QuantityConflict
+from app.core.review import conflict_card
 from app.core.review.model import ReviewState, Settled, SignOff
 from app.core.review.ports import ReviewStore
 from app.core.review.review import disputes, reset
@@ -126,6 +127,9 @@ class ConflictEntry(View):
     needs_person: bool
     signed: SignOff | None  # the sign-off, when a person signed the value off
     value: int | float  # the value in use: edits applied, the settled value if one was chosen
+    title: str  # the conflict as a question, in plain words ("Door count: 13 or 11?")
+    why: str  # what each method read and how it is decided (a rule, or a person has to choose)
+    suggestions: list[str]  # short answers a person can tap, one per value read ("13 doors")
 
 
 class ProjectReview(View):
@@ -453,6 +457,9 @@ def review_of(
                 needs_person=row.needs_person,
                 signed=row.signed,
                 value=row.value,
+                title=conflict_card.title(row),
+                why=conflict_card.why(row),
+                suggestions=conflict_card.suggestions(row),
             )
             for row in disputes(found.quantities)
             if row.conflict is not None  # always: narrows the type

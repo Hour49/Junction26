@@ -961,6 +961,17 @@
               }
             ]
           },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
           "value": {
             "anyOf": [
               {
@@ -971,6 +982,10 @@
               }
             ],
             "title": "Value"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
           }
         },
         "required": [
@@ -982,7 +997,10 @@
           "settled",
           "needs_person",
           "signed",
-          "value"
+          "value",
+          "title",
+          "why",
+          "suggestions"
         ],
         "title": "ConflictEntry",
         "type": "object"
@@ -1533,6 +1551,19 @@
               }
             ],
             "title": "Mark"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           },
           "page": {
             "anyOf": [
@@ -4512,6 +4543,17 @@
           "at": {
             "title": "At",
             "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           },
           "value": {
             "anyOf": [

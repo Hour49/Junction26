@@ -3,7 +3,7 @@ the API shows (docs/API.md, "Takeoff and review")."""
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.core.drawing.model import Box, Polygon, RoomType
 from app.core.model import Frozen
@@ -15,6 +15,7 @@ MarkState = Literal["counted", "rejected", "added", "excluded"]
 # Ranked as the review screen sorts rows: what needs a look comes first.
 RowStatus = Literal["signed", "conflict", "estimate", "edited", "agree", "single"]
 Action = Literal["reject", "restore", "add", "settle", "unsettle", "reset"]
+NOTE_MAX = 280  # a settle's note: a typed answer, not a document
 RefusalCode = Literal[
     "unsupported-question", "not-in-drawing", "not-read", "no-reader", "no-scale", "no-drawing"
 ]
@@ -39,6 +40,7 @@ class Settled(Frozen):
 
     value: int | float
     at: str  # ISO 8601, UTC
+    note: str | None = None  # the person's answer in words, when they typed one
 
 
 class ReviewState(Frozen):
@@ -61,6 +63,16 @@ class Edit(Frozen):
     page: int | None = Field(default=None, ge=1)  # add
     box: Box | None = None  # add
     value: float | None = None  # settle
+    # settle: the person's answer in words; without `value` the value in use is kept with it
+    note: str | None = Field(default=None, min_length=1, max_length=NOTE_MAX)
+
+    @model_validator(mode="after")
+    def _note_with_settle(self) -> "Edit":
+        if self.note is not None and self.action != "settle":
+            raise ValueError(f"a note goes with settle, not {self.action}")
+        if self.note is not None and not self.note.strip():
+            raise ValueError("a settle's note has no words")
+        return self
 
 
 class MarkView(Frozen):
