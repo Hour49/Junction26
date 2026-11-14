@@ -18,7 +18,7 @@ from app.api.drawings import DrawingView
 from app.api.info import Info
 from app.api.issues import ProjectIssues
 from app.api.project_ask import ProjectAnswer
-from app.api.projects import ProjectList, ProjectReview, Started
+from app.api.projects import ProjectList, ProjectReview, RelevanceRequest, Started
 from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
 from app.api.views import ErrorBody, ProjectTrace, ProjectView
@@ -58,6 +58,8 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "error": ErrorBody,
     "project_ask": ProjectAnswer,
     "project_issues": ProjectIssues,
+    "relevance_request": RelevanceRequest,
+    "project_triaged": ProjectView,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)
 

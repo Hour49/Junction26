@@ -5,7 +5,7 @@ from the code fails its test (tests/api/test_api_fixtures.py)."""
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.composition import second_counter_of
 from app.core.drawing.model import Drawing, ScaleStatus
@@ -19,6 +19,7 @@ from app.core.ingest.model import (
     Normalised,
     ProjectStatus,
 )
+from app.core.ingest.triage import is_not_plan
 from app.core.pipeline.model import Route
 
 # The kinds a drawing is read from: a sheet (stage 7 places the drawing model on its page) or a
@@ -164,6 +165,18 @@ class ProjectView(ProjectStatus):
     # The drawings the upload holds, one per group of renderings that has a sheet or a model.
     # None until it is known (queued, or files not grouped yet); then final: it never drops.
     expected_drawings: int | None
+    # Files triage called not a floor plan (decision 0010); None until done; left out of the
+    # JSON when triage is off
+    not_plans: int | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
+def not_plans_of(status: ProjectStatus) -> int | None:
+    """Triaged files whose class is not floor_plan, overruled or not (an overrule changes the
+    verdict, not the class); never a file set aside for its format. Final once done; None
+    before, and None when the project was ingested with triage off."""
+    if status.state != "done" or "triage" not in status.readers:
+        return None
+    return sum(is_not_plan(file) for file in status.files)
 
 
 def skipped_of(status: ProjectStatus) -> tuple[Skipped, ...]:

@@ -10,7 +10,14 @@ from fastapi import Depends, Request
 from app.composition import Answering
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
-from app.core.ingest.model import DrawingInfo, FileTrace, ProjectStatus, SheetFile
+from app.core.ingest.model import (
+    DrawingInfo,
+    FileStatus,
+    FileTrace,
+    Overrule,
+    ProjectStatus,
+    SheetFile,
+)
 from app.core.review.ports import ReviewStore
 from app.settings import Settings
 
@@ -39,6 +46,8 @@ class Ingest(Protocol):
     def sheet(self, drawing_id: str) -> SheetFile: ...
 
     def upload_bytes(self, project_id: str, file_id: str) -> bytes: ...
+
+    def overrule(self, project_id: str, file_id: str, overrule: Overrule | None) -> FileStatus: ...
 
     def close(self) -> None: ...
 

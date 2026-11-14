@@ -653,6 +653,57 @@
         "title": "ConflictValue",
         "type": "object"
       },
+      "Description": {
+        "additionalProperties": false,
+        "description": "Step 2, for a file that is not a floor plan: what the picture shows, in words.",
+        "properties": {
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "text_seen": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Text Seen",
+            "type": "array"
+          }
+        },
+        "required": [
+          "text",
+          "subject",
+          "model"
+        ],
+        "title": "Description",
+        "type": "object"
+      },
       "DrawingEntry": {
         "additionalProperties": false,
         "description": "One drawing of a project: one per group of renderings of the same plan.",
@@ -1167,6 +1218,16 @@
             },
             "title": "Takeoff",
             "type": "object"
+          },
+          "triage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Triage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2070,6 +2131,35 @@
         "title": "Normalised",
         "type": "object"
       },
+      "Overrule": {
+        "additionalProperties": false,
+        "description": "A person's call on a file's relevance; the judge's own verdict stays as it was.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "related",
+              "unrelated"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "by",
+          "at"
+        ],
+        "title": "Overrule",
+        "type": "object"
+      },
       "PageView": {
         "additionalProperties": false,
         "properties": {
@@ -2396,6 +2486,17 @@
             "title": "Name",
             "type": "string"
           },
+          "not_plans": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Plans"
+          },
           "state": {
             "enum": [
               "queued",
@@ -2545,6 +2646,17 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "not_plans": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Plans"
           },
           "readers": {
             "additionalProperties": {
@@ -2844,6 +2956,93 @@
           "can_answer"
         ],
         "title": "Refusal",
+        "type": "object"
+      },
+      "Relevance": {
+        "additionalProperties": false,
+        "description": "Step 3, once the project's plans are read: does the described file belong to it.",
+        "properties": {
+          "judge": {
+            "title": "Judge",
+            "type": "string"
+          },
+          "matched_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Matched On",
+            "type": "array"
+          },
+          "plans": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Plans",
+            "type": "array"
+          },
+          "verdict": {
+            "enum": [
+              "related",
+              "unrelated",
+              "unsure"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict",
+          "why",
+          "judge"
+        ],
+        "title": "Relevance",
+        "type": "object"
+      },
+      "RelevanceRequest": {
+        "additionalProperties": false,
+        "description": "A person's call on a triaged file's relevance (decision 0010). `by` as a sign-off's;\n`undo` takes the call back and, like unsettle, needs nothing else.",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "undo": {
+            "default": false,
+            "title": "Undo",
+            "type": "boolean"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "enum": [
+                  "related",
+                  "unrelated"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "title": "RelevanceRequest",
         "type": "object"
       },
       "Rendering": {
@@ -3700,6 +3899,95 @@
           "disputes"
         ],
         "title": "Takeoff",
+        "type": "object"
+      },
+      "Triage": {
+        "additionalProperties": false,
+        "description": "FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one\nwith `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`.",
+        "properties": {
+          "class": {
+            "enum": [
+              "floor_plan",
+              "other_drawing",
+              "not_drawing"
+            ],
+            "title": "Class",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Description"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "overruled": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Overrule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "p_plan": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "P Plan",
+            "type": "number"
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Relevance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "enum": [
+                  "related",
+                  "unrelated",
+                  "unsure"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "class",
+          "p_plan",
+          "method"
+        ],
+        "title": "Triage",
         "type": "object"
       },
       "ValidationError": {
@@ -4573,6 +4861,65 @@
           }
         },
         "summary": "Preview"
+      }
+    },
+    "/api/projects/{project_id}/files/{file_id}/relevance": {
+      "post": {
+        "description": "A person says whether a file triage set aside belongs to the project, or takes that back\n(`undo`; with no call made, nothing changes). The file stays set aside either way: a call\nis no reading. 409 until the project is done; 422 `no-description` for a file triage did\nnot describe.",
+        "operationId": "relevance_api_projects__project_id__files__file_id__relevance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "title": "File Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelevanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relevance"
       }
     },
     "/api/projects/{project_id}/files/{file_id}/trace": {
