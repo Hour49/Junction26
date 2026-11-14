@@ -98,6 +98,11 @@ def responses() -> dict[str, Any]:
     found["ask_request"] = ask
     found["answer"] = client.post("/api/ask", json=ask).json()
     refused = {"drawing_id": flat_a["drawing_id"], "question": "What colour is the roof?"}
+    for body in (ask, refused):  # asked in the project: its question list
+        assert (
+            client.post("/api/ask", json={**body, "project_id": started["id"]}).status_code == 200
+        )
+    found["project_questions"] = client.get(f"{started['url']}/questions").json()
     found["answer_refused"] = client.post("/api/ask", json=refused).json()
     area = "What is the net floor area of all indoor rooms in m²?"
     found["answer_area"] = client.post(
@@ -118,8 +123,10 @@ def responses() -> dict[str, Any]:
         {"quantity": "door", "action": "settle", "value": 3},
         {"quantity": "door", "action": "reset"},
         {"action": "reset"},
+        {"quantity": "door", "action": "unsettle"},  # last: the frontend reads the others by index
     ]
     found["signoff_request"] = {"quantity": "door", "by": "Ana"}
+    found["signoff_settle_request"] = {"quantity": ROOM, "by": "Ana", "settle": True}
     found["error"] = client.get("/api/drawings/0123456789abcdef").json()
     others = reviewed(client, flat_b["drawing_id"], found)
     found["answer_schedule"] = schedule_answer(client)

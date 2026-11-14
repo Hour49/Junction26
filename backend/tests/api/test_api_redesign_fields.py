@@ -4,10 +4,13 @@ import io
 import zipfile
 from typing import Any
 
+import pytest
 from conftest import upload
 from fastapi.testclient import TestClient
+from test_review_core import BOX_A, disputed, quantity
 from test_vector_pdf import swiss_sheet
 
+from app.api import takeoff
 from app.api.views import expected_drawings_of, page_views
 from app.core.drawing.model import Drawing, Page, Plan, Scale
 from app.core.ingest.model import FileStatus, ProjectStatus
@@ -163,3 +166,103 @@ def test_a_row_names_what_it_counts_and_a_mark_its_room_type(client: TestClient)
     assert {mark["room_type"] for mark in marks if mark["label"] == "Küche"} == {"kitchen"}
     assert all(mark["room_type"] is None for row in rows if row["key"] == "door"
                for mark in row["marks"])  # fmt: skip
+
+
+def test_unsettle_drops_the_settled_value_and_keeps_the_mark_edits(client: TestClient) -> None:
+    _, project = sample(client)
+    flat_b = next(file for file in project["files"] if file["path"] == "plans/flat-b.pdf")
+    review = f"/api/drawings/{flat_b['drawing_id']}/review"
+    at = {"project": project["id"]}
+
+    def row(found: dict[str, Any], key: str) -> dict[str, Any]:
+        return next(quantity for quantity in found["quantities"] if quantity["key"] == key)
+
+    client.post(review, params=at, json={"quantity": "door", "action": "reject", "mark": "m1"})
+    client.post(review, params=at, json={"quantity": ROOM, "action": "settle", "value": 30})
+    reply = client.post(review, params=at, json={"quantity": ROOM, "action": "unsettle"})
+    assert reply.status_code == 200
+    assert row(reply.json(), ROOM)["settled"] is None
+    assert row(reply.json(), ROOM)["status"] == "conflict"
+    assert row(reply.json(), "door")["status"] == "edited"  # the reject stays
+    again = client.post(review, params=at, json={"quantity": ROOM, "action": "unsettle"})
+    assert again.status_code == 200  # nothing settled is no error
+
+
+def test_unsettle_of_a_signed_quantity_is_refused(client: TestClient) -> None:
+    _, project = sample(client)
+    flat_b = next(file for file in project["files"] if file["path"] == "plans/flat-b.pdf")
+    drawing = f"/api/drawings/{flat_b['drawing_id']}"
+    at = {"project": project["id"]}
+    client.post(f"{drawing}/signoff", params=at, json={"quantity": "door", "by": "Ana"})
+    edit = {"quantity": "door", "action": "unsettle"}
+    assert client.post(f"{drawing}/review", params=at, json=edit).status_code == 409
+
+
+def test_the_project_list_counts_what_is_left_to_review(client: TestClient) -> None:
+    url, project = sample(client)
+    (summary,) = client.get("/api/projects").json()["projects"]
+    review = client.get(f"{url}/review").json()
+    assert summary["to_review"] == sum(drawing["to_review"] for drawing in review["drawings"])
+    assert summary["conflicts_open"] == len(review["conflicts"]) >= 1
+    flat_b = next(file for file in project["files"] if file["path"] == "plans/flat-b.pdf")
+    settle = {"quantity": ROOM, "action": "settle", "value": 30}
+    client.post(
+        f"/api/drawings/{flat_b['drawing_id']}/review", params={"project": project["id"]},
+        json=settle,
+    )  # fmt: skip
+    (after,) = client.get("/api/projects").json()["projects"]
+    assert after["conflicts_open"] == summary["conflicts_open"] - 1
+
+
+def test_a_project_still_running_has_no_counts() -> None:
+    from app.api.projects import summary_of
+
+    status = ProjectStatus.model_validate(
+        {"id": "p", "name": "p", "state": "running", "created_at": "t"}
+    )
+    found = summary_of(status, None, None)  # type: ignore[arg-type]  # never read while running
+    assert (found.to_review, found.conflicts_open) == (None, None)
+
+
+def test_the_questions_asked_in_a_project_are_listed_newest_first(client: TestClient) -> None:
+    url, project = sample(client)
+    flat_a = next(file for file in project["files"] if file["path"] == "plans/flat-a.pdf")
+    drawing = flat_a["drawing_id"]
+    assert client.get(f"{url}/questions").json()["questions"] == []
+    for question in ("How many doors are there?", "What colour is the roof?"):
+        body = {"drawing_id": drawing, "question": question, "project_id": project["id"]}
+        assert client.post("/api/ask", json=body).status_code == 200
+    # an ask outside any project is not kept
+    client.post("/api/ask", json={"drawing_id": drawing, "question": "How many windows?"})
+    found = client.get(f"{url}/questions").json()
+    assert found["project_id"] == project["id"]
+    first, second = found["questions"]
+    assert (second["question"], second["answer"], second["unit"]) == (
+        "How many doors are there?", 2, "count",
+    )  # fmt: skip
+    assert (first["question"], first["answer"], first["unit"], first["refused"]) == (
+        "What colour is the roof?", None, None, True,
+    )  # fmt: skip
+    assert first["drawing_id"] == drawing and first["at"].endswith("Z")
+    assert client.get("/api/projects/0123456789ab/questions").status_code == 404
+
+
+def test_signoff_with_settle_signs_a_conflict_in_one_call(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, plan_pdf: bytes
+) -> None:
+    found = {"window": quantity("window", 2, "count", BOX_A, conflict=disputed(False))}
+    monkeypatch.setattr(takeoff, "known_quantities", lambda drawing: found)
+    project = client.get(f"/api/projects/{upload(client, plan_pdf)}").json()
+    drawing = f"/api/drawings/{project['drawings'][0]['drawing_id']}"
+    at = {"project": project["id"]}
+    plain = {"quantity": "window", "by": "Ana"}
+    assert client.post(f"{drawing}/signoff", params=at, json=plain).status_code == 409  # needs you
+    reply = client.post(f"{drawing}/signoff", params=at, json={**plain, "settle": True})
+    assert reply.status_code == 200, reply.text
+    row = next(row for row in reply.json()["quantities"] if row["key"] == "window")
+    assert row["status"] == "signed"
+    assert row["settled"]["value"] == row["signed"]["value"] == row["value"] == 2
+    again = client.post(f"{drawing}/signoff", params=at, json={**plain, "settle": True})
+    assert again.status_code == 409  # signed off already, as for any edit
+    undo = {**plain, "settle": True, "undo": True}
+    assert client.post(f"{drawing}/signoff", params=at, json=undo).status_code == 422

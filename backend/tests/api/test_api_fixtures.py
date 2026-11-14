@@ -17,6 +17,7 @@ from app.api.ask import AnswerView, AskRequest
 from app.api.drawings import DrawingView
 from app.api.info import Info
 from app.api.projects import ProjectList, ProjectReview, Started
+from app.api.questions import ProjectQuestions
 from app.api.takeoff import SignOffRequest, Takeoff
 from app.api.views import ErrorBody, ProjectTrace, ProjectView
 from app.core.ingest.model import FileTrace
@@ -31,6 +32,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "project_list": ProjectList,
     "trace": FileTrace,
     "project_trace": ProjectTrace,
+    "project_questions": ProjectQuestions,
     "project_review": ProjectReview,
     "drawing": DrawingView,
     "ask_request": AskRequest,
@@ -50,6 +52,7 @@ MODELS: dict[str, type[BaseModel] | TypeAdapter[Any]] = {
     "takeoff": Takeoff,
     "review_requests": TypeAdapter(list[Edit]),
     "signoff_request": SignOffRequest,
+    "signoff_settle_request": SignOffRequest,
     "error": ErrorBody,
 }
 QUOTE = re.compile(r"<!-- fixture: (\w+)\.json -->\n```json\n(.*?)```\n", re.DOTALL)

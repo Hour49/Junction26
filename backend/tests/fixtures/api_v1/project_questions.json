@@ -1,0 +1,21 @@
+{
+  "project_id": "5e0c1a2b3d4f",
+  "questions": [
+    {
+      "question": "What colour is the roof?",
+      "answer": null,
+      "unit": null,
+      "drawing_id": "adeefbbcc17559fc",
+      "at": "2026-11-14T08:05:00Z",
+      "refused": true
+    },
+    {
+      "question": "How many doors are there?",
+      "answer": 2,
+      "unit": "count",
+      "drawing_id": "adeefbbcc17559fc",
+      "at": "2026-11-14T08:05:00Z",
+      "refused": false
+    }
+  ]
+}

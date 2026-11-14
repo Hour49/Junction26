@@ -31,5 +31,9 @@
   },
   {
     "action": "reset"
+  },
+  {
+    "quantity": "door",
+    "action": "unsettle"
   }
 ]
