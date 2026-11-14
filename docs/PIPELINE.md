@@ -97,7 +97,7 @@ schedule or a detector.
 | floor or apartment area | `printed_total` | `summed_rooms` | 2% | report the printed total; show the room list |
 | scale | `scale_text` | `scale_bar` or `dimension_lines` | 2% | measured value over text; text found next to a detail drawing is ignored (see below) |
 | room count | `plan_drawing` | `ifc_model` | 0 | keep spaces of the sheet's storey (foreign spaces are greyed) |
-| element count | `plan_drawing` | `ifc_model` | 0 | count what the sheet draws |
+| element count | `plan_drawing` | `ifc_model` | 0 | count what the sheet draws of its storey; an element of another storey seen through the cut is left out, listed with why (the sheet's count is its storey's, so the plain question carries the conflict too) |
 | element count | `plan_drawing` | `schedule` | 0 | no rule: show both |
 | element count | `detector` | `parser` | 0 | no rule yet; the parser wins on vector sheets, the detector is the only source on raster |
 

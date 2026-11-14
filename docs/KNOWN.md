@@ -11,6 +11,9 @@ per entry; an entry goes when its fix is merged.
 - K4 · minor · backend · On a one-storey sheet, settling, keeping or signing a plain row (IFC sheet P1 "window
   count") leaves its storey twin ("window count (storey p1)") disputed; the review lists only the plain row, but a
   question about the storey still shows the dispute (Sat 06:15)
+- K5 · minor · backend · An estimated raster area (RASTER_SCALE=priors) can be far off while printing a narrow band
+  when the detector finds the wrong doors: golden colorful-10706 living room +74% at ±24% (13 doors),
+  high_quality-17 +100% at ±40% (1 door). The band is a 68% one, honest on val overall (Sat 06:45)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).
@@ -18,5 +21,4 @@ per entry; an entry goes when its fix is merged.
 - "Try the sample project" always starts from scratch (`fresh=true`): it resets the last sample's review edits and
   sign-offs.
 - The answer's model score is never shown as a probability or percent; with no keys there is none.
-- "Credit: none recorded for this file" on the synthetic sample: it has no licence credit (it is ours).
 - The sign-off name is what the surveyor types; there is no login (decision 0001).

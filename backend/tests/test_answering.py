@@ -286,7 +286,7 @@ def test_an_answer_resting_on_an_estimated_scale_is_labelled_an_estimate() -> No
     )
     assert (answer.answer, answer.unit, answer.method) == (4.0, "m2", TAKEOFF)
     assert (answer.estimate, answer.abstain) == (True, None)
-    assert answer.explanation == "rests on an estimated scale (door widths)"
+    assert answer.explanation == "measured on an estimated scale (door widths)"
     assert ask("How many saunas?", estimated).estimate is None  # a count: no scale in it
 
 
@@ -551,7 +551,7 @@ def test_without_a_probability_the_answer_is_unchanged_and_the_reason_is_logged(
         rooms=(Room(id="r1", type="sauna", page=1, box=BOX_1, area_m2=4.0),),
     )
     area = rated("How big?", estimated, down, AreaParser())
-    assert area.explanation == "rests on an estimated scale (door widths)"  # the takeoff's own
+    assert area.explanation == "measured on an estimated scale (door widths)"  # the takeoff's own
 
 
 def test_refusals_and_prior_answers_are_not_rated() -> None:

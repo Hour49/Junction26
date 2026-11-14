@@ -1068,7 +1068,7 @@ project that does not hold the drawing is 404.
     "second_counter": "ifc",
     "question_parser": "templates"
   },
-  "credit": "Synthetic drawing made by code (backend/scripts/make_sample_archive.py); no partner data",
+  "credit": "Synthetic drawing made for this demo by the Hour49 team; no partner data",
   "pages": [
     {
       "page": 1,
@@ -3426,6 +3426,8 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, text: the sample archive's drawing `credit` reads "Synthetic drawing made for this demo by the
+  Hour49 team; no partner data" (it named a repo path, `backend/scripts/make_sample_archive.py`).
 - 2026-11-14, additive: a method a path does not take is `405 method-not-allowed` (it was `405 error`, a
   code this page did not list); the errors table lists it and `500 internal`. A project's drawing entry now lists
   every file with the same content as `other_renderings` (two identical files were one drawing shown under one

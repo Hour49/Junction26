@@ -158,7 +158,13 @@ def test_storey_filters_use_each_item_s_own_storey_else_its_plan_s() -> None:
     )
     assert value(found, Query(subject="door", storey="EG")) == 1
     assert value(found, Query(subject="door", storey="og")) == 1
-    assert value(found, Query(subject="door")) == 2
+    # The sheet counts what it draws of its own storey, as stage 8 does (R2-qa-1-1); the OG door
+    # is left out of it, with the reason, and counted on OG.
+    door = found[Query(subject="door").key()]
+    assert (door.value, [why for _, why in door.excluded]) == (
+        1,
+        ["on storey OG in the building model, seen through the cut"],
+    )
     length = found[Query(measure="length", subject="wall", storey="EG").key()]
     assert (length.value, length.unit, length.rule) == (6.5, "m", ELEMENT_QUANTITY.id)
     assert value(found, Query(measure="volume", subject="wall", storey="EG")) == 2.0
@@ -200,7 +206,9 @@ def test_areas_and_lengths_on_an_estimated_or_not_to_scale_sheet_say_what_they_r
     estimated = Scale(status="estimated", m_per_unit=0.02, source="door widths", uncertainty=0.15)
     found = known_quantities(drawing(scale=estimated, **items))
     area = found[Query(measure="area", subject="room", label="OH").key()]
-    assert area.estimate == "an estimated scale (door widths), uncertainty 0.15"
+    assert area.estimate == (
+        "measured on an estimated scale (door widths), which may be off by about ±15%"
+    )
     assert found[Query(measure="length", subject="wall").key()].estimate == area.estimate
     assert found[Query(measure="volume", subject="wall").key()].estimate is None
     assert found[Query(subject="room").key()].estimate is None  # a count needs no scale
@@ -256,7 +264,7 @@ def test_a_room_area_sum_is_an_estimate_when_one_of_its_rooms_is_estimated() -> 
     total = found[Query(measure="area", subject="room").key()]
     assert (
         total.estimate
-        == "1 of 2 room areas estimated (geometry_x_estimate, uncertainty up to 0.35)"
+        == "1 of 2 room areas is measured on an estimated scale; the area may be off by about ±35%"
     )
     assert found[Query(measure="area", subject="room", name="K").key()].estimate is None
     # a printed (exact) area does not rest on the sheet's estimated scale; an unset one does
@@ -265,12 +273,12 @@ def test_a_room_area_sum_is_an_estimate_when_one_of_its_rooms_is_estimated() -> 
     assert on_guess[Query(measure="area", subject="room", name="K").key()].estimate is None
     # an outline at an estimated scale also says how that scale was estimated
     assert on_guess[Query(measure="area", subject="room").key()].estimate == (
-        "1 of 2 room areas estimated (geometry_x_estimate, uncertainty up to 0.35), "
-        "at an estimated scale (door widths)"
+        "1 of 2 room areas is measured on an estimated scale (door widths); "
+        "the area may be off by about ±35%"
     )
     unset = known_quantities(drawing(scale=guessed, rooms=(room(3, "hall", 5.0, label="ET"),)))
     assert unset[Query(measure="area", subject="room").key()].estimate == (
-        "an estimated scale (door widths)"
+        "measured on an estimated scale (door widths)"
     )
 
 
@@ -414,7 +422,7 @@ def test_a_rectangular_room_s_longer_side_at_the_sheet_s_scale() -> None:
     found = known_quantities(sheet)
     side = found[Query(measure="length", subject="room", name="OH").key()]
     assert (side.value, side.unit) == (4.0, "m")
-    assert side.estimate == "an estimated scale (door widths)"
+    assert side.estimate == "measured on an estimated scale (door widths)"
     assert value(found, Query(measure="length", subject="room:balcony")) == 4.0
     assert (
         value(found, Query(measure="length", subject="room", name="MH")) is None
@@ -610,3 +618,55 @@ def test_the_items_a_rule_leaves_out_are_listed_with_the_reason() -> None:
     dwelling = found[Query(measure="area", subject="apartment").key()]
     assert dwelling.value == 20.0
     assert [why for _, why in dwelling.excluded] == ["outdoor room", "shaft"]
+
+
+def test_a_sheet_s_count_leaves_out_what_another_storey_shows_through_the_cut() -> None:
+    """R2-qa-1-1: the P2 sheet of an IFC draws 70 walls of P2 and 1 of P1 (a wall seen through
+    the cut). Stage 8 counts the sheet's 70 against the model's 72 for P2 (here 2 against 4); the
+    sheet's count is the same 70, so "How many walls are there?" carries that disagreement like
+    the storey's row instead of answering 71 by one method. The P1 wall is listed as left out,
+    with why."""
+    below = (0.5, 0.5, 0.6, 0.6)
+    walls = (
+        element(1, "wall", storey="P2"),
+        element(2, "wall", storey="P2"),
+        Element.model_validate(
+            {
+                "id": "e3",
+                "class": "wall",
+                "page": 1,
+                "box": below,
+                "plan": "p1",
+                "attrs": {"storey": "P1"},
+            }
+        ),
+    )
+    entry = Conflict.model_validate(
+        {
+            "id": "c1",
+            "quantity": "element_count",
+            "subject": Subject(kind="class", ref="wall"),
+            "status": "conflict",
+            "tolerance": 0,
+            "values": (
+                MeasuredValue(value=2, method="plan_drawing"),
+                MeasuredValue(value=4, method="ifc_model"),
+            ),
+            "resolution": Resolution(rule="count what the sheet draws", value=2),
+        }
+    )
+    found = known_quantities(
+        drawing(
+            plans=(Plan(id="p1", page=1, box=BOX, storey="P2"),),
+            elements=walls,
+            conflicts=(entry,),
+        )
+    )
+    sheet = found[Query(subject="wall").key()]
+    storey = found[Query(subject="wall", storey="P2").key()]
+    assert (sheet.value, storey.value) == (2, 2)
+    assert sheet.conflict is not None and sheet.conflict == storey.conflict
+    assert sheet.excluded == (
+        (Mark(page=1, box=below), "on storey P1 in the building model, seen through the cut"),
+    )
+    assert value(found, Query(subject="wall", storey="P1")) == 1
