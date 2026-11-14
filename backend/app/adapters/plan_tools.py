@@ -34,14 +34,16 @@ from app.adapters.pipeline_tools import (
     _tool,  # pyright: ignore[reportPrivateUsage]
     _why,  # pyright: ignore[reportPrivateUsage]
 )
+from app.api.views import DrawingEntry
 from app.core.checks.model import RulePack
-from app.core.drawing.model import Room
+from app.core.drawing.model import Drawing, Page, Room
 from app.core.errors import DomainError
+from app.core.ingest.model import FINISHED
 from app.core.laws.search import LawIndex
 from app.core.plan_edit.edit import EditRefusedError, place_room, remove_wall
 from app.core.plan_edit.law_check import check_proposal, related_query
 from app.core.plan_edit.model import Proposal, Selection
-from app.core.plan_edit.walls import Opening, PlanPage, PlanRoom, walls_of
+from app.core.plan_edit.walls import Opening, PlanPage, PlanRoom, Ring, walls_of
 from app.core.services.model import ServicesFollow
 
 log = logging.getLogger(__name__)
@@ -139,6 +141,54 @@ def plan_page(store: PipelineStore, drawing_id: str, page: int) -> PlanPage:
             "this project has no such drawing: it may have been uploaded again"
         ) from None
     drawing = store.ingest.drawing(entry.drawing_id)
+    shown, m, rooms, mass = _editable(store, entry, drawing, page)
+    return PlanPage(
+        drawing_id=entry.drawing_id,
+        page=page,
+        width_m=shown.width * m,
+        height_m=shown.height * m,
+        rooms=tuple(PlanRoom(r.id, _label(r), r.type, r.polygon or (), r.outdoor) for r in rooms),
+        mass=tuple(mass),
+        openings=tuple(
+            Opening(e.id, e.class_, e.box)
+            for e in drawing.elements
+            if e.page == page and e.class_ in ("door", "window")
+        ),
+    )
+
+
+# Whether a PDF page draws its walls as fills, as not_drawable found it, by (drawing id, route,
+# page, metres per unit): a drawing id names its sheet's content, so only a re-read drawing
+# (another scale) changes it. A yes or no, not the fills (review-407b: up to 189 KB each)
+Kept = dict[tuple[str, str | None, int, float], bool]
+KEPT = 4096  # pages kept per app before the memo starts again
+
+
+def not_drawable(store: PipelineStore, entry: DrawingEntry, kept: Kept | None = None) -> str | None:
+    """Why a person cannot draw an edit on the drawing's first page, in plan_page's own words
+    (the same checks, `_editable`); None when they can. GET /api/projects/{id} lists it on every
+    poll, so `kept` holds each page's wall fills (review-407: a PDF page read per drawing per
+    poll, under the pdfium lock ingest needs)."""
+    if entry.state not in FINISHED:
+        return "this drawing is still being read"
+    try:
+        drawing = store.ingest.drawing(entry.drawing_id)
+    except DomainError:
+        return "this drawing was not read"
+    try:
+        _editable(store, entry, drawing, drawing.pages[0].page if drawing.pages else 1, kept)
+    except CannotEditError as error:
+        return str(error)
+    return None
+
+
+def _editable(
+    store: PipelineStore, entry: DrawingEntry, drawing: Drawing, page: int, kept: Kept | None = None
+) -> tuple[Page, float, list[Room], list[tuple[Ring, tuple[Ring, ...]]]]:
+    """The page, metres per unit, outlined rooms and wall mass of a page an edit can be drawn
+    on; CannotEditError with the reason a person reads when it cannot (plan_page, not_drawable).
+    `kept`: not_drawable's memo of whether a page has wall fills; with it the fills' mass is
+    not returned (not_drawable needs only the yes or no)."""
     if not drawing.pages:  # a bare building model: no sheet to draw an edit on
         raise CannotEditError("cannot_edit", "this building model has no drawn plan to edit")
     shown = next((p for p in drawing.pages if p.page == page), None)
@@ -153,28 +203,39 @@ def plan_page(store: PipelineStore, drawing_id: str, page: int) -> PlanPage:
     rooms = [r for r in drawing.rooms if r.page == page and r.polygon]
     if not rooms:
         raise CannotEditError("cannot_edit", "the rooms on this page have no outlines")
-    fills = _fills(store, drawing, entry, page) or []
+    fills = (_fills(store, drawing, entry, page) or []) if kept is None else []
     mass = [(f.polygon, f.holes) for f in fills]
-    if not mass and entry.route == "bim":  # a building model's sheet: its walls are sure
+    walled = bool(mass) if kept is None else _kept(store, drawing, entry, page, kept)
+    if not walled and entry.route == "bim":  # a building model's sheet: its walls are sure
         walls = drawing.elements
         mass = [
             (e.polygon, ()) for e in walls if e.page == page and e.class_ == "wall" and e.polygon
         ]
-    if not mass:
+        walled = bool(mass)
+    if not walled:
         raise CannotEditError("cannot_edit", "no walls are drawn as geometry on this page")
-    return PlanPage(
-        drawing_id=entry.drawing_id,
-        page=page,
-        width_m=shown.width * m,
-        height_m=shown.height * m,
-        rooms=tuple(PlanRoom(r.id, _label(r), r.type, r.polygon or (), r.outdoor) for r in rooms),
-        mass=tuple(mass),
-        openings=tuple(
-            Opening(e.id, e.class_, e.box)
-            for e in drawing.elements
-            if e.page == page and e.class_ in ("door", "window")
-        ),
-    )
+    return shown, m, rooms, mass
+
+
+def _kept(
+    store: PipelineStore, drawing: Drawing, entry: DrawingEntry, page: int, kept: Kept
+) -> bool:
+    """Whether _fills finds walls, through the memo; a sheet whose walls cannot be read is not
+    drawable (the project list must not fail on one drawing), and is tried again next time."""
+    key = (entry.drawing_id, entry.route, page, drawing.scale.m_per_unit or 0.0)
+    walled = kept.get(key)  # read once: another request may empty the memo (review-407b)
+    if walled is None:
+        try:
+            walled = bool(_fills(store, drawing, entry, page))
+        except Exception:  # any reader error: the list still answers
+            log.warning("wall fills of %s page %d", entry.drawing_id, page, exc_info=True)
+            raise CannotEditError(
+                "cannot_edit", "the walls of this drawing could not be read"
+            ) from None
+        if len(kept) >= KEPT:
+            kept.clear()
+        kept[key] = walled
+    return walled
 
 
 def _label(room: Room) -> str:
