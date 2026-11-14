@@ -23,6 +23,7 @@ import type {
   IssueList,
   ProjectChecks,
 } from './types';
+import type { ChatRequest, ChatTurn, Proposal } from '../agent/agent';
 
 export type PageWidth = 400 | 1600 | 3200;
 
@@ -124,6 +125,24 @@ export const askQuestion = (body: AskRequest, opts?: Opts) =>
 /** One question on every drawing of the project (#135): the parts, and a total only where one means something. */
 export const askProject = (projectId: string, question: string, opts?: Opts) =>
   postJson<ProjectAnswer>(`/api/projects/${seg(projectId)}/ask`, { question }, opts);
+
+/** One agent chat turn (decision 0013, AC-34): the first turn omits `chat_id`, later turns send the one returned. */
+export const chatTurn = (projectId: string, body: ChatRequest, opts?: Opts) =>
+  postJson<ChatTurn>(`/api/projects/${seg(projectId)}/chat`, body, opts);
+
+/** Accept or reject an edit proposal; resolves the proposal with its new `state` (409 when already decided). */
+export const decideProposal = (
+  projectId: string,
+  chatId: string,
+  proposalId: string,
+  action: 'accept' | 'reject',
+  opts?: Opts,
+) =>
+  postJson<Proposal>(
+    `/api/projects/${seg(projectId)}/chat/${seg(chatId)}/proposals/${seg(proposalId)}`,
+    { action },
+    opts,
+  );
 
 export const getTakeoff = (drawingId: string, opts: ZerosOpts = {}) =>
   call<Takeoff>(
