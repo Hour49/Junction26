@@ -4,6 +4,7 @@ Team Hour49's project repo for Junction 2026. Project not picked yet. MIT licens
 
 - Agents: read [CLAUDE.md](CLAUDE.md) first (setup check, board, git rules).
 - Project code: engineering standard [docs/ENGINEERING.md](docs/ENGINEERING.md), QA plan [docs/QA.md](docs/QA.md).
+- Experiments: what we tried on the CubiCasa raster track and what it gave, [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
 - Orchestrator board: issues labelled `board` in this repo, used through `tools/board`.
 
 ## Key values
