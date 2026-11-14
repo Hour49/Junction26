@@ -59,6 +59,7 @@ from app.adapters.hello import (
     HelloSourceFinder,
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.ifc_model.facts_source import IfcFactSource
 from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
@@ -81,6 +82,7 @@ from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
 from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
+from app.adapters.raster_scale.carbon_doors import CarbonDoorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
@@ -107,6 +109,7 @@ from app.adapters.vector_pdf.unruled import Unruled
 from app.core.agent.model import Caps
 from app.core.agent.ports import ChatModel
 from app.core.answering.answer import answer_questions
+from app.core.answering.facts import FactSource, FirstSheet
 from app.core.answering.model import Question
 from app.core.answering.ports import (
     AnswerConfidence,
@@ -204,6 +207,7 @@ class Pipeline:
     # How ingest read a file's page, by path (judge.reading_flags: a scan, a photo, Carbon): no
     # answer on a flagged page is sure, on this path as in the product's ask. None: none is
     flags: Callable[[str], tuple[str, ...]] | None = None
+    facts: FactSource | None = None  # IFC_FACTS: an IFC model's fact sheet; None: off
     # The drawn PDFs `ingest` read as an image (VECTOR_FALLBACK), by path; `flags` reads it, so a
     # PDF the vector route read keeps its answers' level here as in the product (review-348 S1)
     read_as_image: set[str] = field(default_factory=set[str])
@@ -254,6 +258,7 @@ class Pipeline:
             confidence=self.confidence,
             sure_at=self.sure_at,
             flags=self.flags,
+            facts=self.facts,
         )
 
 
@@ -320,7 +325,17 @@ def build_pipeline(
         unruled=unruled,
         flags=partial(_page_flags, kind_of=kind_of, carbon_read=carbon_read, images=images),
         read_as_image=images,
+        facts=_facts(settings, files),
     )
+
+
+def _facts(settings: Settings, files: DrawingFiles) -> FactSource | None:
+    """The fact sources in order, first sheet wins; a new one (a picture read) is one more entry."""
+    sources: list[FactSource] = []
+    if settings.ifc_facts:
+        cache = Path(settings.ifc_facts_cache) if settings.ifc_facts_cache else None
+        sources.append(IfcFactSource(files, cache))
+    return FirstSheet(sources) if sources else None
 
 
 def _unruled(settings: Settings) -> Callable[[bytes], bool] | None:
@@ -767,6 +782,8 @@ def build_ingest(
     }
     if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
         names["raster_scale"] = settings.raster_scale
+    if settings.scale_carbon_doors != "off":  # the same
+        names["scale_carbon_doors"] = settings.scale_carbon_doors
     if settings.raster_printed_scale != "off":  # the same
         names["raster_printed_scale"] = settings.raster_printed_scale
     if settings.raster_photo_components:  # the same
@@ -843,6 +860,12 @@ def _raster(
     took: set[str] | None = None,
 ) -> Extractor:
     photo = settings.raster_photo_components
+    if settings.scale_carbon_doors == "on" and (
+        settings.raster_scale != "priors" or settings.carbon_reader != "large"
+    ):  # it changes PriorScale's no-door refusal, using CarbonThings' doors
+        raise InvalidInputError(
+            "SCALE_CARBON_DOORS=on needs RASTER_SCALE=priors and CARBON_READER=large"
+        )
     match settings.extractor_raster:
         case "hello":
             if photo:
@@ -876,6 +899,8 @@ def _raster(
             read = shipped
             if use_carbon is not None and settings.carbon_reader == "large":  # things drawn
                 read = CarbonThings(shipped, _carbon(settings, files), use_carbon, FEW_THINGS, took)
+                if settings.scale_carbon_doors == "on":  # outside CarbonThings: Carbon's doors
+                    read = CarbonDoorScale(read)
             elif use_carbon is not None:
                 read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
             if settings.carbon_levels != "off":  # Carbon reading on its own, as integ's test

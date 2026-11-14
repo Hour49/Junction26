@@ -137,6 +137,58 @@ def test_the_decision_rule(found: dict[str, Any], decision: str) -> None:
     assert decide(found, CUT) == decision
 
 
+# hard set fp05's cached reply: a posted fire exit plan with KITCHEN and COOLER written on it
+FIRE_EXIT_PLAN = form("mep_plan", False, True, 0.65, title="THE LODGE FIRE EXIT PLAN")
+PHOTO_PROBED = Probed(kind="photo_plan", did="a photo of a drawing")
+
+
+def warn_only(tmp_path: Path, found: dict[str, Any], probed: Probed) -> Triage:
+    """The triage record in the live mode (SHEET_KIND_SET_ASIDE=false) for one model reply."""
+    reader = SheetKindReader(FakeModel(reply(found)), tmp_path / "cache")
+    answer = SheetKindClassifier(None, reader, CUT, set_aside=False).classify(png(), probed)
+    assert isinstance(answer, Classified)
+    return triage_of(answer)
+
+
+def test_a_camera_photo_the_model_can_count_on_is_not_warned_under_the_cut(tmp_path: Path) -> None:
+    triage = warn_only(tmp_path, FIRE_EXIT_PLAN, PHOTO_PROBED)
+    assert triage.sheet is not None
+    assert (triage.class_, triage.sheet.decision) == ("floor_plan", "read")
+    assert sheet_doubt(triage) is None and sheet_flag(triage) is None
+    assert triage.sheet.kind == "mep_plan"  # what the model named it stays on the record
+
+
+def test_the_same_reply_on_a_scan_is_still_warned(tmp_path: Path) -> None:
+    triage = warn_only(tmp_path, FIRE_EXIT_PLAN, PNG_PROBED)
+    assert triage.sheet is not None and triage.sheet.decision == "doubt"
+    assert sheet_flag(triage) == (
+        "the sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+        "electrical plan"
+    )
+
+
+@pytest.mark.parametrize(
+    "found",
+    [
+        form("not_a_drawing", False, False, 0.95),  # a photo of a room, sure
+        form("mep_plan", False, True, 0.9),  # at the cut, takeoff or not
+        form("site_plan_or_map", False, False, 0.65),  # under the cut, nothing to count
+    ],
+)
+def test_a_camera_photo_of_a_non_plan_is_still_warned(
+    tmp_path: Path, found: dict[str, Any]
+) -> None:
+    triage = warn_only(tmp_path, found, PHOTO_PROBED)
+    assert triage.sheet is not None and triage.sheet.decision == "doubt"
+    assert sheet_flag(triage) is not None
+
+
+def test_a_camera_photo_is_still_set_aside_at_the_cut(tmp_path: Path) -> None:
+    found = classifier(tmp_path, FakeModel(reply(PIPING))).classify(png(), PHOTO_PROBED)
+    assert isinstance(found, Classified) and found.sheet is not None
+    assert (found.class_, found.sheet.decision) == ("other_drawing", "set_aside")
+
+
 def test_advanced_is_the_models_flag_unless_the_upload_is_larger_than_the_model_sees() -> None:
     hard = form("architectural_floor_plan", True, True, 0.9, advanced=True, advanced_why="school")
     assert advanced(hard, 3000) == (True, "school")

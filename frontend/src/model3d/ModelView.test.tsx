@@ -1,12 +1,14 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { trace } from '../api/fixtures';
 import type { FileTrace, Model3d } from '../api';
 import { FileTraceScreen } from '../ingest/FileTraceScreen';
 import { flush } from '../ingest/testing';
+import { ModelView } from './ModelView';
 import { mockApi, never, reply } from '../test/mockApi';
 
 const scene = vi.hoisted(() => ({
+  shown: { counts: {}, missing: 0, box: null },
   rotate: vi.fn(),
   zoom: vi.fn(),
   reset: vi.fn(),
@@ -41,7 +43,7 @@ async function press(name = 'Show in 3D') {
 
 beforeEach(() => {
   mount.mockReset().mockResolvedValue(scene);
-  for (const f of Object.values(scene)) f.mockReset();
+  for (const f of [scene.rotate, scene.zoom, scene.reset, scene.dispose]) f.mockReset();
 });
 afterEach(() => {
   cleanup();
@@ -193,5 +195,33 @@ describe('3D view on the file page', () => {
     cleanup();
     expect(init?.signal?.aborted).toBe(true);
     expect(glbCalls(api)).toBe(1);
+  });
+});
+
+describe('the legend (part 3)', () => {
+  const PROPS = { projectId: PID, fileId: FID, name: 'model.ifc' };
+  async function legend(shown: unknown, highlight = [{ global_id: 'A', role: 'moved' as const }]) {
+    mount.mockResolvedValueOnce({ ...scene, shown });
+    mockApi({ [GLB]: 'glTF' });
+    render(<ModelView {...PROPS} highlight={highlight} />);
+    await flush();
+  }
+
+  it('M3-15 one item per role found, in role order, in words; the missing ones counted', async () => {
+    await legend({ counts: { affected: 1, removed: 1, moved: 1 }, missing: 1, box: null });
+    const items = within(screen.getByRole('list', { name: 'Highlighted elements' })).getAllByRole(
+      'listitem',
+    );
+    expect(items.map((i) => i.textContent)).toEqual(['Moved: 1', 'Removed: 1', 'Affected: 1']);
+    expect(screen.getByText('1 of 4 elements are not in the 3D view.')).toBeTruthy();
+  });
+
+  it('M3-15 none found: says so; no highlight: no legend', async () => {
+    await legend({ counts: {}, missing: 2, box: null });
+    expect(screen.getByText('None of these elements are in the 3D view.')).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Highlighted elements' })).toBeNull();
+    cleanup();
+    await legend({ counts: {}, missing: 0, box: null }, []);
+    expect(document.querySelector('.m3-legend')).toBeNull();
   });
 });

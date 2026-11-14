@@ -319,7 +319,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Project Ask */
+        /**
+         * Project Ask
+         * @description `models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D); the chat
+         *     tool calls this without, so a kept chat never keeps a stale state.
+         */
         post: operations["project_ask_api_projects__project_id__ask_post"];
         delete?: never;
         options?: never;
@@ -456,6 +460,30 @@ export interface paths {
         get: operations["get_evidence_api_projects__project_id__evidence__evidence_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add File
+         * @description A photo added to a finished project from the chat (board #203). The body is the image's
+         *     bytes, png or jpeg; `name` its file name. It is read in the background, alone, while the
+         *     project stays done. Returns the new file, queued; poll the project. 404 unknown project,
+         *     409 until the project is done or while a file of it is read, 413 over the upload limit, 415
+         *     not a png or jpeg.
+         */
+        post: operations["add_file_api_projects__project_id__files_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1358,6 +1386,50 @@ export interface components {
              */
             what_it_is: "photograph" | "artwork" | "text_page" | "object" | "music" | "map" | "drawing" | "other";
         };
+        /** DisciplineFollow */
+        DisciplineFollow: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["ServiceAction"][];
+            /**
+             * Discipline
+             * @enum {string}
+             */
+            discipline: "architecture" | "structural" | "plumbing" | "heating" | "ventilation" | "electrical" | "fire" | "site" | "other";
+            /**
+             * Elements
+             * @default 0
+             */
+            elements: number;
+            /** Line */
+            line: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["ServiceMark"][];
+            /** Reason */
+            reason?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "checked" | "no_model" | "not_aligned";
+            /**
+             * @default {
+             *       "cut_off": 0,
+             *       "follows": 0,
+             *       "needs_decision": 0,
+             *       "new_run_m": 0,
+             *       "stays": 0
+             *     }
+             */
+            summary: components["schemas"]["Summary"];
+        };
         /**
          * Disputed
          * @description One place to double-check, as the answer gives it.
@@ -1745,6 +1817,20 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /**
+         * Highlight
+         * @description One element the 3D view highlights, by its IFC GlobalId, and what happens to it: an
+         *     answer's counted elements are `affected`; an edit proposal's are moved, removed or added.
+         */
+        Highlight: {
+            /** Global Id */
+            global_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "moved" | "removed" | "added" | "affected";
         };
         /** HitWhy */
         HitWhy: {
@@ -2182,6 +2268,13 @@ export interface components {
             answer: components["schemas"]["AnswerView"];
             /** Drawing Id */
             drawing_id: string;
+            /** File Id */
+            file_id?: string | null;
+            /** Highlight */
+            highlight?: components["schemas"]["Highlight"][];
+            model_3d?: components["schemas"]["Model3d"] | null;
+            /** Model File Id */
+            model_file_id?: string | null;
             /** Name */
             name: string;
         };
@@ -2381,6 +2474,7 @@ export interface components {
              * @default []
              */
             rooms: components["schemas"]["RoomChange"][];
+            services?: components["schemas"]["ServicesFollow"] | null;
             /**
              * State
              * @default proposed
@@ -2881,6 +2975,92 @@ export interface components {
             ref?: string | null;
         };
         /**
+         * ServiceAction
+         * @description One consequence of the edit in one discipline. `label` is the whole of it in plain words,
+         *     numbers included; the rest is for drawing it.
+         */
+        ServiceAction: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "reseat" | "in_wall" | "cut_off" | "through" | "riser" | "fire_damper" | "tally" | "opening" | "under" | "missing";
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Moved To */
+            moved_to?: [
+                number,
+                number
+            ] | null;
+            /**
+             * Paths
+             * @default []
+             */
+            paths: [
+                number,
+                number
+            ][][];
+            /**
+             * Refs
+             * @default []
+             */
+            refs: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "follows" | "stays" | "needs_decision" | "cut_off";
+            /** System */
+            system?: string | null;
+        };
+        /**
+         * ServiceMark
+         * @description One service element near the edit, for the overlay: a run as its line, anything else as
+         *     its point. Page fractions.
+         */
+        ServiceMark: {
+            /** At */
+            at?: [
+                number,
+                number
+            ] | null;
+            /** Global Id */
+            global_id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /**
+             * Line
+             * @default []
+             */
+            line: [
+                number,
+                number
+            ][];
+            /** Ref */
+            ref: string;
+        };
+        /** ServicesFollow */
+        ServicesFollow: {
+            /**
+             * Credits
+             * @default []
+             */
+            credits: string[];
+            /** Disciplines */
+            disciplines: components["schemas"]["DisciplineFollow"][];
+            /** Storey */
+            storey: string | null;
+            /**
+             * Unknowns
+             * @default []
+             */
+            unknowns: string[];
+        };
+        /**
          * Settled
          * @description The value a surveyor chose to keep for a quantity (the `settle` action).
          */
@@ -3051,6 +3231,34 @@ export interface components {
             quantity: string;
             /** Question */
             question: string;
+        };
+        /** Summary */
+        Summary: {
+            /**
+             * Cut Off
+             * @default 0
+             */
+            cut_off: number;
+            /**
+             * Follows
+             * @default 0
+             */
+            follows: number;
+            /**
+             * Needs Decision
+             * @default 0
+             */
+            needs_decision: number;
+            /**
+             * New Run M
+             * @default 0
+             */
+            new_run_m: number;
+            /**
+             * Stays
+             * @default 0
+             */
+            stays: number;
         };
         /** Takeoff */
         Takeoff: {
@@ -4119,6 +4327,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_file_api_projects__project_id__files_post: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
                 };
             };
             /** @description Validation Error */

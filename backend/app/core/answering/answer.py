@@ -1,10 +1,12 @@
 """The answering use cases: one question (the API) and a batch of them (the CLI)."""
 
+import functools
 import logging
 import re
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
+from app.core.answering.facts import FactSource, answer_from_facts
 from app.core.answering.model import (
     NO_SUBJECT,
     SEVERAL_PRINTED,
@@ -28,6 +30,7 @@ from app.core.answering.ports import (
 )
 from app.core.answering.tables import TableAnswer, answer_table, why_none
 from app.core.drawing.model import Drawing, Room, Table
+from app.core.ifc_facts import FactSheet
 from app.core.pipeline.model import Quantity
 from app.core.pipeline.second_count import METHODS
 from app.core.pipeline.takeoff import known_quantities, normalised, room_names
@@ -61,6 +64,7 @@ def answer_question(
     confidence: AnswerConfidence | None = None,
     sure_at: Mapping[str, float] | None = None,
     flags: Sequence[str] = (),
+    facts: Callable[[], FactSheet | None] | None = None,
 ) -> Answer:
     """`quantities` is the takeoff of the question's drawing (`known_quantities`), or None when
     the file has no drawing model; `tables` the schedules it prints. `prior_families` holds the
@@ -76,7 +80,9 @@ def answer_question(
     `AGREEING_FAMILIES` also false when the signal's own value is another (`agrees`). `flags`:
     how ingest read the page (judge.reading_flags: a phone photo, a scan); on a flagged page
     `sure` is None, since the gate was certified on CubiCasa scans, not on photos
-    (orchestrator, 2026-11-14 O1)."""
+    (orchestrator, 2026-11-14 O1). `facts`: gets the fact sheet of the question's file
+    (IFC_FACTS), called only when the takeoff, the schedules and the prior give nothing
+    (answering/facts.py), so a sheet no question needs is never built."""
     start = clock()
     parsed = parser.parse(question.text)
     read = _read(parsed)
@@ -132,6 +138,8 @@ def answer_question(
         source, family = source_of(question.file), parsed.family()
         if (estimate := prior.prior(source, family)) is not None:
             why = f"not read from the drawing; dev prior for {source} {family} ({why})"
+    if estimate is None and facts is not None and (said := _from_facts(question, facts)):
+        return read(said.model_copy(update={"latency_s": clock() - start}))
     return read(
         Answer(
             id=question.id,
@@ -261,7 +269,7 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
 
 
 HINT = re.compile(r"\([^()]*\)")  # a parenthesised hint, as question_templates' PARENTHESES
-BARE_NUMBER = re.compile(r"U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
+BARE_NUMBER = re.compile(r"-?U?\d+\.\d+", re.IGNORECASE)  # as question_templates' ROOM_NUMBER
 SHORT_LABEL = re.compile(r"[^\W\d_a-zäöå]{2}")  # MH, OH, KT: two capitals
 CODED_LABEL = re.compile(r"[^\W\d_]+\d+")  # MH1, KH2: letters, then digits
 
@@ -416,6 +424,16 @@ def rooms_of_type(parsed: Query, drawing: Drawing) -> list[Room]:
     return [room for room in drawing.rooms if room.type == kind]
 
 
+def _from_facts(question: Question, facts: Callable[[], FactSheet | None]) -> Answer | None:
+    """The fact sheet's answer, or None; a fact the rules can't read refuses this question only."""
+    try:
+        sheet = facts()
+        return None if sheet is None else answer_from_facts(question, sheet, 0.0)
+    except Exception:  # a source's malformed fact must not stop the run
+        logger.exception("question %d: no fact answer", question.id)
+        return None
+
+
 def answer_questions(
     questions: Iterable[Question],
     *,
@@ -428,10 +446,13 @@ def answer_questions(
     confidence: AnswerConfidence | None = None,
     sure_at: Mapping[str, float] | None = None,
     flags: Callable[[str], Sequence[str]] | None = None,
+    facts: FactSource | None = None,
 ) -> dict[str, int]:
     """Answers every question, file by file so each drawing model is loaded once, and writes the
     answers to the sink. Returns how many answers each method gave. `flags`: how ingest read a
-    file's page, by its path (answer_question's `flags`); None: no page is flagged."""
+    file's page, by its path (answer_question's `flags`); None: no page is flagged. `facts`
+    (IFC_FACTS) gives each file's fact sheet, the last fallback, built on the file's first question
+    that needs it."""
     by_file: dict[str, list[Question]] = {}
     for question in questions:
         by_file.setdefault(question.file, []).append(question)
@@ -441,6 +462,7 @@ def answer_questions(
         quantities = None if drawing is None else known_quantities(drawing)
         tables = () if drawing is None else drawing.tables or ()
         read_as = () if flags is None else flags(file)
+        sheet = None if facts is None else functools.cache(functools.partial(facts.facts, file))
         reads = (
             parser
             if drawing is None or quantities is None
@@ -458,6 +480,7 @@ def answer_questions(
                 confidence,
                 sure_at,
                 read_as,
+                facts=sheet,
             )
             sink.write(answer)
             methods[answer.method] += 1
