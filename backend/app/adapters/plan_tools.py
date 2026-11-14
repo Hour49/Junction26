@@ -191,6 +191,15 @@ class _PageArgs(_Args):
     page: int = Field(ge=1, le=10_000, description="the page number, 1 for a single sheet")
 
 
+class _WallsArgs(_PageArgs):
+    room_a: str = Field(
+        default="", max_length=32, description="optional: only the walls of this room (its id)"
+    )
+    room_b: str = Field(
+        default="", max_length=32, description="optional, with room_a: only the walls between both"
+    )
+
+
 class _RemoveArgs(_PageArgs):
     wall_id: str = Field(
         default="", pattern=r"^(W\d{1,4})?$", description="the wall's id from list_walls (W1...)"
@@ -213,8 +222,10 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
         "list_walls",
         "The inside walls of one page of a drawing (ids W1...): the two rooms each separates, "
         "length, thickness, the doors in it, whether it is load-bearing (usually unknown), "
-        "and the rooms of the page with their ids and areas. Use before proposing an edit.",
-        _PageArgs,
+        "and the rooms of the page with their ids and areas. Use before proposing an edit. "
+        "room_a (and room_b): only the walls of that room (between the two), e.g. when the full "
+        "list was cut (walls_more).",
+        _WallsArgs,
     ),
     (
         "propose_remove_wall",
@@ -264,6 +275,10 @@ def run_plan_tool(store: PlanStore, name: str, arguments: str | dict[str, Any]) 
 def _list_walls(store: PlanStore, args: Any) -> dict[str, Any]:
     page = plan_page(store.pipeline, args.drawing_id, args.page)
     labels = {room.id: room.label for room in page.rooms}
+    wanted = {rid for rid in (args.room_a, args.room_b) if rid}
+    if missing := sorted(wanted - set(labels)):
+        known = ", ".join(labels)
+        raise ToolError(f"no room {', '.join(missing)} on this page; its rooms are {known}")
     return {
         "status": "ok",
         "drawing_id": page.drawing_id,
@@ -281,6 +296,7 @@ def _list_walls(store: PlanStore, args: Any) -> dict[str, Any]:
                 "load_bearing_source": None,
             }
             for wall in walls_of(page)
+            if wanted <= set(wall.rooms)
         ],
         "rooms": [
             {
