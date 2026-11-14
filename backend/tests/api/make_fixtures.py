@@ -73,6 +73,7 @@ PROJECT_ID = "5e0c1a2b3d4f"
 CREATED_AT = "2026-11-14T08:00:00+00:00"
 EDITED_AT = "2026-11-14T08:05:00Z"
 DURATIONS = {"ms": 12.5, "latency_s": 0.002}
+PHOTO_SIZE = 2000  # file_added.json: the added photo's size, the same on every platform
 FIXTURES = BACKEND / "tests" / "fixtures" / "api_v1"
 DOC = BACKEND.parent / "docs" / "API.md"
 MARKER = "<!-- fixture: "
@@ -325,6 +326,14 @@ def triaged(root: Path, settings: Settings, found: dict[str, Any]) -> str:
     found["triage_started"] = started.json()
     read = client.get(f"/api/projects/{project_id}").json()["files"]
     found["file_read_as_plan"] = next(file for file in read if file["id"] == south)
+    # then a photo of a plan is added from the chat (POST …/files, board #203): queued
+    url = f"/api/projects/{project_id}/files"
+    photo = plan_png()
+    started = client.post(url, params={"name": "phone.png"}, content=photo)
+    assert started.status_code == 202, started.text
+    assert started.json()["size"] == len(photo), started.text
+    # zlib encodes the generated png to different bytes per platform: its size is a stand-in
+    found["file_added"] = {**started.json(), "size": PHOTO_SIZE}
     return project_id
 
 

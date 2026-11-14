@@ -204,6 +204,14 @@ export const readAsPlan = (projectId: string, fileId: string, by: string, opts?:
     opts,
   );
 
+/** A photo added to a done project from the chat (#203, chat.md CH-18): 202 with the new file, queued. */
+export const addProjectFile = (projectId: string, file: File, opts?: Opts) =>
+  call<FileStatus>(
+    'POST',
+    withQuery(`/api/projects/${seg(projectId)}/files`, { name: file.name }),
+    { ...opts, body: file, type: 'application/octet-stream' },
+  );
+
 /** A person's answer to an issue, or `{undo: true}` (#223); answers the issue as it now stands. Answering does
  * not close it. A code check's issue needs its `pack` (404 without). */
 export const answerIssue = (
