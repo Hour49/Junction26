@@ -325,8 +325,12 @@ class TemplateParser:
             and NOT_NET.search(lower) is None
             and (FLOOR_TOTAL.search(lower) is not None or ALL_ROOMS.search(lower) is not None)
         )
+        number = ROOM_NUMBER.search(bare)
         if not hits and not floor_total:
-            return Unsupported(reason="no element, room or apartment named")
+            if number is None or measure not in ("area", "length"):
+                return Unsupported(reason="no element, room or apartment named")
+            # a room number names a room whatever word goes with it ("Bagno 1.01")
+            hits = [(number.start(), "room")]
         if hits and not _counted_thing_named(body, hits):
             return Unsupported(reason="the thing counted is not an element, room or apartment")
         subjects = list(dict.fromkeys(subject for _, subject in hits)) or ["room"]
@@ -336,7 +340,7 @@ class TemplateParser:
         label = next((q.text for q in quoted if q.role == "label"), None)
         name = next((q.text for q in quoted if q.role == "name"), None)
         storey = next((q.text for q in quoted if q.role == "storey"), None)
-        if name is None and (number := ROOM_NUMBER.search(bare)):
+        if name is None and number is not None:
             name = number.group(1)
         apartment = APARTMENT.search(bare)
         common = {"storey": storey, "model": model}
@@ -376,6 +380,9 @@ class TemplateParser:
             return _room_side(subjects, subject, name or (code.group(1) if code else None), common)
         if measure == "area" and subject.startswith("room") and code and not (name or label):
             return Query(measure="area", subject="room", name=code.group(1), **common)
+        if measure == "area" and subject.startswith("room:") and name is not None:
+            # a type word and the room's number or name ("bathroom 1.01"): that room
+            return Query(measure="area", subject="room", name=name, **common)
         if measure == "area" and subject.startswith("room:") and not (name or label):
             # a room by its type ("the kitchen"): the one room of that type (review/ask.py)
             return Query(measure="area", subject=subject, **common)

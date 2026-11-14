@@ -339,6 +339,29 @@ def test_how_big_asks_for_an_area() -> None:
     assert PARSE("How large is the kitchen?") == Query(measure="area", subject="room:kitchen")
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How big is bathroom 1.01?",  # a type word and the number
+        "What is the area of WC 1.01?",
+        "How big is Bagno 1.01?",  # a printed label the parser has no word for, and the number
+        "Quanto è grande il Bagno 1.01 in m2?",
+        "What is the net floor area of Stanza 1.01?",
+    ],
+)
+def test_a_room_number_with_any_word_names_that_room(text: str) -> None:
+    """Tudor's chat QA (#14, floor9178): the type word dropped the number, and a label the parser
+    has no word for left no room named."""
+    assert PARSE(text) == Query(measure="area", subject="room", name="1.01")
+
+
+def test_a_room_number_alone_does_not_make_a_count_or_a_sheet_total() -> None:
+    assert PARSE("How long is Bagno 1.01?") == Query(measure="length", subject="room", name="1.01")
+    assert PARSE("How many are in 1.01?") == Unsupported(
+        reason="no element, room or apartment named"
+    )
+
+
 def test_a_storage_room_is_a_room_type() -> None:
     assert PARSE("What is the area of the storage room?") == Query(
         measure="area", subject="room:storage"

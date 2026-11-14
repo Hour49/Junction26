@@ -260,6 +260,32 @@ def test_the_area_of_a_room_asked_by_its_printed_label_is_that_room_s_area() -> 
         assert found.query == by_number.query  # the same row: its conflict and review go along
 
 
+def test_a_room_asked_by_a_type_word_or_its_printed_label_and_its_number_is_that_room() -> None:
+    """Tudor's chat QA (#14), floor9178: two rooms printed "Bagno" (1.01, 1.09). "How big is
+    bathroom 1.01?" said the takeoff has no area for bathrooms, and "How big is Bagno 1.01?" that
+    the question names no room; "room 1.01" worked. The number picks the room whatever word goes
+    with it; "Bagno" alone names two rooms and stays refused."""
+    first = Room(
+        id="r1", type="bathroom", label="Bagno", page=1, box=BOX_A, area_m2=7.557,
+        attrs={"number": "1.01"},
+    )  # fmt: skip
+    second = Room(
+        id="r2", type="bathroom", label="Bagno", page=1, box=BOX_B, area_m2=5.175,
+        attrs={"number": "1.09"},
+    )  # fmt: skip
+    drawing = scaled(first, second)
+    for number, area in (("1.01", 7.557), ("1.09", 5.175)):
+        by_number = asked(f"How big is room {number}?", drawing)
+        for text in (f"How big is bathroom {number}?", f"How big is Bagno {number}?",
+                     f"What is the area of the bagno {number} in m2?"):  # fmt: skip
+            found = asked(text, drawing)
+            assert found.refusal is None, (text, found.refusal)
+            assert (found.answer.answer, found.answer.unit) == (area, "m2")
+            assert found.query == by_number.query
+    alone = asked("How big is Bagno?", drawing)
+    assert alone.answer.answer is None and alone.refusal is not None
+
+
 def test_an_area_of_a_type_several_rooms_have_names_them_instead_of_guessing() -> None:
     rooms = [
         Room(id=f"r{at}", type="bedroom", label=f"MH {at}", page=1, box=box, area_m2=area)
