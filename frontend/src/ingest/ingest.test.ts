@@ -132,11 +132,25 @@ describe('ingest.ts', () => {
         body: m[2] ?? '',
       }),
     );
-    for (const selector of ['.ingest-earlier a', '.ingest-back', '.ingest-takeoff summary'])
+    // IN-81: the chat row's "Open the workspace" too
+    for (const selector of [
+      '.ingest-earlier a',
+      '.ingest-back',
+      '.ingest-takeoff summary',
+      '.ingest-chat-link',
+    ])
       expect(
         rules.some((r) => r.selectors.includes(selector) && r.body.includes('min-height: 44px')),
         selector,
       ).toBe(true);
+  });
+
+  it('IN-83 the file page: mono 28 px path, hairline facts', () => {
+    const css = readFileSync('src/ingest/ingest.css', 'utf8');
+    expect(css).toMatch(
+      /\.ingest-file \.v-title \{[^}]*font-family: var\(--v-mono[^}]*font-size: 28px/,
+    );
+    expect(css).toMatch(/\.ingest-facts \{[^}]*gap: 1px/);
   });
 
   it('IN-66 ingest.css has no colour literal: every colour is a var(--v-…)', () => {

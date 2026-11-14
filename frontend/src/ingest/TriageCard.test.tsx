@@ -40,7 +40,7 @@ const unrelated = () => card().getByRole('button', { name: 'It is not related' }
 const nameField = () => card().getByRole('textbox', { name: 'Your name' });
 
 describe('TriageCard (file-triage.md)', () => {
-  it('FT-6 shows class, chance, preview, description, relevance and judge', async () => {
+  it('FT-6 FT-22 shows class, chance, preview, description; no relevance, judge or describer', async () => {
     await show(south);
     const c = card();
     expect(
@@ -51,13 +51,17 @@ describe('TriageCard (file-triage.md)', () => {
       'Chance of a floor plan 3 % (fake classifier)',
       'A picture of the south elevation of a two-storey house.',
       'Subject: the south elevation of a two-storey house',
-      'Described by fake describer',
-      'Related to this project',
-      "Related: 'kuche', printed on it, is in the project's plan text; it shows no building.",
-      "Matched on: 'kuche' (plan text)",
-      'Judged by rule on the words printed on it and whether it shows a building, no model',
     ])
       expect(text).toContain(s);
+    for (const s of [
+      'Does it belong to this project?',
+      'Described by',
+      'Related to this project',
+      'Matched on',
+      'Judged by',
+      "Related: 'kuche'",
+    ])
+      expect(text).not.toContain(s);
     const img = c.getByRole('img', { name: 'elevations/south.png as uploaded' });
     const preview = `/api/projects/${PID}/files/f2/preview.png`;
     // FT-6: the 400 rendition at 1x, 1600 only for dense screens (the API has no width between)
@@ -70,6 +74,17 @@ describe('TriageCard (file-triage.md)', () => {
     expect(seen.open).toBe(false);
     expect(seen.textContent).toContain('Küche');
     expect(seen.textContent).toContain('Süd');
+  });
+
+  it('FT-23 the call has the heading "Your call" and says what it does', async () => {
+    await show(south);
+    const c = card();
+    expect(c.getByRole('heading', { name: 'Your call' })).toBeTruthy();
+    expect(
+      c.getByText(
+        "Your call replaces the suggestion and settles this file's issue. It does not read the file as a plan.",
+      ),
+    ).toBeTruthy();
   });
 
   it('FT-7 a failed preview says so', async () => {

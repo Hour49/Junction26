@@ -4,13 +4,18 @@ import { error, fileReadAsPlan, project, projectRunning, triageStarted } from '.
 import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
-import { formatMs, kindLabel, routeLabel } from './ingest';
+import { ConflictsList } from '../surveyor/ConflictsScreen';
+import { formatMs } from './ingest';
 import { ProjectScreen } from './ProjectScreen';
-import { flush, must, triaged, triagedVariants, variants } from './testing';
+import { flush, must, triaged, variants } from './testing';
 
 vi.mock('../advanced/AdvancedIngest', () => ({
   AdvancedIngest: vi.fn(() => <p>the advanced view</p>),
 }));
+vi.mock('../surveyor/ConflictsScreen', () => ({
+  ConflictsList: vi.fn(() => <section id="conflicts">the conflicts list</section>),
+}));
+vi.mock('../shell/issueCount', () => ({ useIssuesToAnswer: vi.fn(() => null) }));
 
 const ID = project.id;
 const GET = `GET /api/projects/${ID}`;
@@ -52,14 +57,6 @@ async function hashTo(hash: string) {
   });
 }
 
-function rowOf(path: string) {
-  return must(
-    within(screen.getByRole('region', { name: 'Files' }))
-      .getByText(path)
-      .closest('a'),
-  );
-}
-
 describe('ProjectScreen', () => {
   it('IN-15 requests the project and shows "Loading project…" until the first answer', async () => {
     const api = mockApi({ [GET]: never() });
@@ -83,62 +80,6 @@ describe('ProjectScreen', () => {
       new RegExp(`^${String(project.drawings.length)}( / \\d+)?$`),
     );
     expect(stat('Cost')).toBe('$0.00');
-  });
-
-  it('IN-18 each file is a row in order with path, kind, state, reason, size, time, linking to its trace', async () => {
-    mockApi({ [GET]: project });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    const rows = within(screen.getByRole('region', { name: 'Files' })).getAllByRole('link');
-    expect(rows.map((r) => r.querySelector('.path')?.textContent)).toEqual(
-      project.files.map((f) => f.path),
-    );
-    project.files.forEach((f, i) => {
-      const row = must(rows[i]);
-      expect(row.getAttribute('href')).toBe(`#/p/${ID}/f/${f.id}`);
-      expect(row.textContent).toContain(kindLabel(f.kind));
-      expect(row.textContent).toContain(f.state === 'ready' ? 'ready' : 'flagged');
-      expect(row.textContent).toContain(f.reason);
-      expect(row.textContent).toMatch(/\d+(\.\d)? (B|KB|MB)/);
-      expect(row.textContent).toMatch(/ms|s\b/);
-    });
-  });
-
-  it('IN-19 set aside and text only rows show their word and reason', async () => {
-    mockApi({ [GET]: variants.setAside });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    const row = rowOf(must(project.files[0]).path);
-    expect(row.textContent).toContain('set aside');
-    expect(row.textContent).toContain('not a drawing');
-    cleanup();
-    mockApi({ [GET]: variants.textOnly });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    const text = rowOf(must(project.files[0]).path);
-    expect(text.textContent).toContain('text only');
-    expect(text.textContent).toContain('text and no drawing');
-  });
-
-  it('IN-21 each drawing is a card with file, kind, route, state, other renderings and an Open link', async () => {
-    mockApi({ [GET]: project });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    const region = screen.getByRole('region', { name: 'Drawings' });
-    const cards = region.querySelectorAll('li');
-    expect(cards).toHaveLength(project.drawings.length);
-    project.drawings.forEach((d, i) => {
-      const card = must(cards[i]);
-      expect(card.textContent).toContain(d.file);
-      expect(card.textContent).toContain(kindLabel(d.kind));
-      expect(card.textContent).toContain(routeLabel(d.route)); // IN-73
-      expect(card.textContent).not.toContain(`${must(d.route)} route`);
-      expect(card.textContent).toContain(d.state === 'ready' ? 'ready' : 'flagged');
-      expect(within(card).getByRole('link', { name: 'Open' }).getAttribute('href')).toBe(
-        `#/p/${ID}/d/${d.drawing_id}/engineer`,
-      );
-    });
-    expect(must(cards[0]).textContent).toContain('also: plans/flat-a.png');
   });
 
   it('IN-24 running or queued: the next request goes 500 ms after the answer, none before', async () => {
@@ -169,20 +110,6 @@ describe('ProjectScreen', () => {
     await advance(5000);
     await flush();
     expect(gets(api)).toBe(2);
-  });
-
-  it('IN-26 a drawing that appears between two polls gets its card; rows keep their order', async () => {
-    fakeClock();
-    mockApi({ [GET]: sequence(variants.running, project) });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    const region = () => screen.getByRole('region', { name: 'Drawings' });
-    expect(region().querySelectorAll('li')).toHaveLength(variants.running.drawings.length);
-    await advance(500);
-    await flush();
-    expect(region().querySelectorAll('li')).toHaveLength(project.drawings.length);
-    const paths = [...document.querySelectorAll('.ingest-files .path')].map((p) => p.textContent);
-    expect(paths).toEqual(project.files.map((f) => f.path));
   });
 
   it('IN-27 unmounting stops polling', async () => {
@@ -221,41 +148,6 @@ describe('ProjectScreen', () => {
     expect(screen.getByRole('heading', { name: project.name })).toBeTruthy();
   });
 
-  it('IN-44 strings from files render as text', async () => {
-    const evil = '<img src=x onerror=alert(1)>';
-    mockApi({
-      [GET]: {
-        ...project,
-        files: project.files.map((f, i) => (i === 0 ? { ...f, reason: evil } : f)),
-      },
-    });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    expect(screen.getByText(evil)).toBeTruthy();
-    expect(document.querySelector('img')).toBeNull();
-  });
-
-  it('IN-45 every state badge and the working marker carry their word', async () => {
-    mockApi({ [GET]: variants.running });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    expect(rowOf(must(project.files[2]).path).textContent).toContain('running');
-    expect(rowOf(must(project.files[0]).path).textContent).toContain('ready');
-    expect(iconOf(must(stepRows()[4]))).toBe('working');
-    for (const badge of document.querySelectorAll('.badge')) {
-      expect(badge.textContent).toMatch(/queued|running|ready|flagged|text only|set aside/);
-    }
-  });
-
-  it('IN-20 reused shows "reused"; kind null shows "not identified"', async () => {
-    mockApi({ [GET]: variants.reusedNoKind });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    const row = rowOf(must(project.files[0]).path);
-    expect(row.textContent).toContain('reused');
-    expect(row.textContent).toContain('not identified');
-  });
-
   it('IN-72 a done project with no drawings: "Nothing could be read", reasons, no ring, no conflicts link', async () => {
     const nothing: ProjectView = {
       ...variants.noDrawings,
@@ -280,14 +172,13 @@ describe('ProjectScreen', () => {
     expect(screen.queryByText('All 8 steps done')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Drawings' })).toBeNull();
-    expect(screen.getByRole('region', { name: 'Files' })).toBeTruthy();
-  });
-
-  it('IN-22 no files say so', async () => {
-    mockApi({ [GET]: variants.noFiles });
-    render(<ProjectScreen projectId={ID} />);
-    await flush();
-    expect(screen.getByText('This upload has no files.')).toBeTruthy();
+    // IN-78: the files are listed on Documents now; no conflicts list, no chat row
+    expect(screen.queryByRole('region', { name: 'Files' })).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'Every file is listed in Documents.' }).getAttribute('href'),
+    ).toBe(`#/p/${ID}/documents`);
+    expect(screen.queryByText('the conflicts list')).toBeNull();
+    expect(screen.queryByText('Start a new chat')).toBeNull();
   });
 
   it('IN-23 a failed project shows "Ingest failed" and its error, and is not polled', async () => {
@@ -335,7 +226,6 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText('Waiting to start')).toBeTruthy();
-    expect(screen.getAllByText('Waiting for the files…')).toHaveLength(2);
     expect(screen.queryByText('This upload has no files.')).toBeNull();
     expect(screen.queryByText(/^No drawings/)).toBeNull();
     expect(stat('Files through')).toBe('—');
@@ -346,10 +236,8 @@ describe('ProjectScreen', () => {
     mockApi({ [GET]: { ...variants.running, drawings: [] } });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(
-      within(screen.getByRole('region', { name: 'Drawings' })).getByText('Waiting for the files…'),
-    ).toBeTruthy();
     expect(screen.queryByText(/^No drawings/)).toBeNull();
+    expect(screen.queryByText('Nothing could be read from this upload')).toBeNull();
   });
 
   it('IN-54 the toggle is a group "View": Simple and Advanced links, the current one aria-current', async () => {
@@ -511,123 +399,80 @@ describe('ProjectScreen', () => {
     expect(screen.queryByText(/Step \d of 8/)).toBeNull();
   });
 
-  it('IN-63 "Settle the conflicts" links to the conflicts screen when done, not while live', async () => {
-    mockApi({ [GET]: project });
+  it('IN-44 strings from files render as text (the "Nothing read" card)', async () => {
+    const evil = '<img src=x onerror=alert(1)>';
+    mockApi({
+      [GET]: {
+        ...variants.noDrawings,
+        files: project.files.map((f, i) => (i === 0 ? { ...f, reason: evil } : f)),
+      },
+    });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(screen.getByRole('link', { name: 'Settle the conflicts' }).getAttribute('href')).toBe(
-      `#/p/${ID}/conflicts`,
-    );
-    for (const body of [variants.running, variants.queued]) {
-      cleanup();
+    expect(screen.getByText(evil)).toBeTruthy();
+    expect(document.querySelector('img')).toBeNull();
+  });
+
+  it('IN-45 the working marker carries its word', async () => {
+    mockApi({ [GET]: variants.running });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(iconOf(must(stepRows()[4]))).toBe('working');
+  });
+
+  it('IN-74 while running, queued or failed: no Drawings, Files, conflicts list or chat row', async () => {
+    for (const body of [variants.running, variants.queued, variants.failed]) {
       mockApi({ [GET]: body });
       render(<ProjectScreen projectId={ID} />);
       await flush();
-      expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Drawings' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Files' })).toBeNull();
+      expect(screen.queryByText('the conflicts list')).toBeNull();
+      expect(screen.queryByText('Start a new chat')).toBeNull();
+      cleanup();
     }
   });
 
-  it('IN-64 file rows are links with /f/f in their href and the path and state word in their text', async () => {
+  it('IN-75 done: the card with the done line, then the conflicts list, then the chat row; nothing else', async () => {
+    window.location.hash = `#/p/${ID}?d=abc&q=door`;
     mockApi({ [GET]: project });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    const rows = [...document.querySelectorAll('a[href*="/f/f"]')];
-    expect(rows).toHaveLength(project.files.length);
-    project.files.forEach((f, i) => {
-      expect(rows[i]?.textContent).toContain(f.path);
-      expect(rows[i]?.textContent).toContain(f.state === 'ready' ? 'ready' : 'flagged');
+    const card = screen.getByRole('region', { name: 'Progress' });
+    expect(card.textContent).toContain('5 drawings ready.');
+    const list = screen.getByText('the conflicts list');
+    const chat = screen.getByRole('button', { name: 'Start a new chat' });
+    expect(card.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(list.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const props = must(vi.mocked(ConflictsList).mock.lastCall)[0];
+    expect(props.projectId).toBe(ID);
+    expect(props.query?.get('q')).toBe('door'); // an issue link focuses its card
+    expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Drawings' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Files' })).toBeNull();
+    // the list's counts reach the done line
+    act(() => {
+      must(props.onCounts)({ total: 2, needsPerson: 0 });
     });
+    expect(card.textContent).toContain('5 drawings ready. Conflicts are below.');
+    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
   });
 
-  describe('file triage (file-triage.md)', () => {
-    const show = async (body: ProjectView) => {
-      mockApi({ [`GET /api/projects/${body.id}`]: body });
-      window.location.hash = `#/p/${body.id}`;
-      render(<ProjectScreen projectId={body.id} />);
-      await flush();
+  it('FT-20 a done project polls again while a file is being read', async () => {
+    fakeClock();
+    const reading = {
+      ...triaged,
+      files: triaged.files.map((f) => (f.id === 'f2' ? triageStarted : f)),
     };
-    const row = (path: string) =>
-      must(
-        within(screen.getByRole('region', { name: 'Files' }))
-          .getByText(path)
-          .closest('li'),
-      ).textContent;
-    const filesHead = () => must(screen.getByRole('region', { name: 'Files' }).textContent);
-
-    it('FT-1 with triage off the rows and the Files heading are as before', async () => {
-      await show(project);
-      expect(filesHead()).not.toContain('floor plan');
-      expect(filesHead()).not.toContain('Not judged');
-    });
-
-    it('FT-2 a related elevation: class line and pill, not its reason', async () => {
-      await show(triaged);
-      const r = row('elevations/south.png');
-      expect(r).toContain(
-        'Not a floor plan: another kind of drawing · the south elevation of a two-storey house',
-      );
-      expect(r).toContain('✓ Related');
-      expect(r).not.toContain('P(plan)');
-    });
-
-    it('FT-3 a call shows whose; the class rule and the unsure verdict show as pills', async () => {
-      await show(triaged);
-      const site = row('photos/site.jpg');
-      expect(site).toContain('Not a floor plan: not a drawing · a building site with a crane');
-      expect(site).toContain('✓ Related');
-      expect(site).toContain('Ana’s call');
-      const street = row('photos/street.jpg');
-      expect(street).toContain('Not a floor plan: not a drawing');
-      expect(street).toContain('✕ Not related');
-      const sheet = row('photos/sheet.jpg');
-      expect(sheet).toContain(
-        'Not a floor plan: another kind of drawing · a photographed elevation of a church',
-      );
-      expect(sheet).toContain('? Unsure');
-      expect(row('plans/flat-a.pdf')).not.toContain('floor plan');
-    });
-
-    it.each([
-      [triaged, '4 not floor plans: kept, not read'],
-      [triagedVariants.notPlansZero, 'No image set aside as not a floor plan'],
-    ])('FT-4 not_plans: %#', async (body, line) => {
-      await show(body);
-      expect(filesHead()).toContain(line);
-    });
-
-    it('FT-19 a file read as a plan: its reason and whose call, no triage line', async () => {
-      await show({
-        ...triaged,
-        files: triaged.files.map((f) => (f.id === 'f2' ? fileReadAsPlan : f)),
-      });
-      const r = row('elevations/south.png');
-      expect(r).toContain('Read as a floor plan on Ana’s call');
-      expect(r).toContain(fileReadAsPlan.reason);
-      expect(r).not.toContain('Not a floor plan');
-    });
-
-    it('FT-20 a done project polls again while a file is being read', async () => {
-      fakeClock();
-      const reading = {
-        ...triaged,
-        files: triaged.files.map((f) => (f.id === 'f2' ? triageStarted : f)),
-      };
-      const read = {
-        ...triaged,
-        files: triaged.files.map((f) => (f.id === 'f2' ? fileReadAsPlan : f)),
-      };
-      const api = mockApi({ [`GET /api/projects/${triaged.id}`]: sequence(reading, read) });
-      render(<ProjectScreen projectId={triaged.id} />);
-      await flush();
-      await advance(600);
-      await advance(600);
-      expect(gets(api)).toBe(2);
-    });
-
-    it('FT-4 no not_plans line while running or with triage off', async () => {
-      await show({ ...triagedVariants.running, state: 'done' });
-      expect(filesHead()).not.toContain('kept, not read');
-      expect(filesHead()).not.toContain('No image set aside');
-    });
+    const read = {
+      ...triaged,
+      files: triaged.files.map((f) => (f.id === 'f2' ? fileReadAsPlan : f)),
+    };
+    const api = mockApi({ [`GET /api/projects/${triaged.id}`]: sequence(reading, read) });
+    render(<ProjectScreen projectId={triaged.id} />);
+    await flush();
+    await advance(600);
+    await advance(600);
+    expect(gets(api)).toBe(2);
   });
 });

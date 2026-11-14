@@ -1,6 +1,6 @@
 # Ingest: home, project status, file trace (spec, frontend v2: Vellum)
 
-Status: v2 (Vellum redesign, built), 2026-11-14, by fe-ingest; API fields of PR #120 read directly.  Story: #33.  API: docs/API.md (v1, main eb3552c).
+Status: v2 (Vellum redesign, built), 2026-11-14, by fe-ingest; v3 demo parity (section "Demo parity", IN-74..IN-82) by preqa-a, GO from frontend-orch 2026-11-14 16:27 (P1 "Back to Documents" yes, P2 keep Cost); API fields of PR #120 read directly.  Story: #33.  API: docs/API.md (v1, main eb3552c).
 Design: Tudor's "Vellum redesign" canvas, screen 1 "Drop files or a zip" (`Main.dc.html`) and screen 2 "Reading the
 drawings" (`Ingest.dc.html`), local copies in `.agents/design/vellum/project/` (look only; their mock data is never
 used). v1 behaviour that QA verified stays unless a criterion below says it changed.
@@ -432,6 +432,139 @@ Across the screens
 - IN-50 (R1-1-1): Counts are singular for 1 and plural otherwise: "1 file · 1 drawing", "0 files · 2 drawings",
   "What it ends as: 1 quantity". [unit `plural` + component] (v2: the list strings moved to account.md; the
   progress line is now the stats row.)
+
+## Demo parity (v3, Tudor 2026-11-14 16:25; GO 16:27)
+
+Source: brief `fe-demo-parity.md`, the demo `demo/vellum/app.js` (`ingestScreen`, `doneRow`, `chatCta`), `files.js`
+(`traceScreen`), `style.css` (`.done-row`, `.chat-cta`, `.list-h`), PRs #206 (conflicts under the finished
+reading, Documents tab, lists moved there), #211 (same in Advanced, fe-scaffold), #212 (issues to Documents, counted
+on the tab), #214 (file page, file-triage.md), #204 (no credits on screens). Only UI and behaviour are ported: every
+count and every conflict comes from the API, never from the demo's data.
+
+### What changes on screen 2 (Simple)
+
+- **While the project runs** the screen is the title row and the progress card only. The Drawings and Files lists
+  leave this screen: they are on Documents (`#/p/<id>/documents`, fe-ingest, issues.md/documents.md), each file
+  still linking to its page `#/p/<id>/f/<fid>`.
+- **When it is done** (and has drawings), in this order:
+  1. the progress card, unchanged above its step list, with the **done line** as its last row (demo `.done-row`):
+     "<plural(drawings, 'drawing')> ready." + " Conflicts are below." when the conflicts list has any +
+     " <n> issue(s) in Documents need(s) you." with "<n> issue(s) in Documents" a link to `#/p/<id>/documents`,
+     only when n > 0. n is the same number as the Documents tab's badge (`useIssuesToAnswer`, fe-shared: issues still
+     to answer, notes not counted), from the same hook, so the line and the badge never disagree. While n is unknown
+     (loading or failed) the issues sentence is left out, never "0".
+  2. fe-surveyor's conflicts list (`ConflictsList`, src/surveyor; AI-settled first, then the ones that need a
+     person; its own heading "N conflicts found" / "No conflicts found", progress and cards). This screen only
+     places it, with the route's query; it draws no conflict itself. No checks row on this screen.
+  3. the chat row (demo `.chat-cta`): while any conflict still needs a person (or the list has not loaded yet), a
+     disabled button "Start a new chat" with `aria-describedby` on "Settle the conflicts that need you first.";
+     once none does, a link "Start a new chat" (accent pill) to `#/p/<id>/chat` and a link "Open the workspace" to
+     the first drawing's workspace `#/p/<id>/d/<drawings[0].drawing_id>/engineer`.
+  No "Settle the conflicts" button (the conflicts are on this screen), no issues list (they are on Documents).
+- **Done with no drawings** stays IN-72's "Nothing read" card (no conflicts list, no chat row), now with the line
+  "Every file is listed in Documents." linking to `#/p/<id>/documents` (the Files list moved there).
+- **Failed** is unchanged (IN-23, IN-62).
+
+### Shared pieces (exported from `src/ingest/`, used by Simple here and by fe-scaffold's Advanced view)
+
+| Export | File | What |
+| --- | --- | --- |
+| `IngestFinished({ projectId, project, query, onCounts }): JSX.Element \| null` | `IngestFinished.tsx` (new) | everything under a finished card: fe-surveyor's `ConflictsList({ projectId, query, onCounts })` (its own `<section id="conflicts">`, heading, progress, cards, loading and error; `query` is the route's, so an issue link `#/p/<pid>?d=&q=` focuses its card), then the chat row. It keeps the list's last counts for the chat row and passes each one up through `onCounts`. Renders nothing unless `project.state === 'done'` and `project.drawings.length > 0`. |
+| `DoneLine({ projectId, project, counts }): JSX.Element \| null` | `IngestFinished.tsx` | the done line ("5 drawings ready. Conflicts are below. 2 issues in Documents need you."); `counts: ConflictCounts \| null` from `onCounts` (null before the list has loaded: no "Conflicts are below."); the issues number from `useIssuesToAnswer(projectId)` inside it. Null unless `done` with drawings. |
+| `ConflictCounts` | `IngestFinished.tsx` | `{ total: number; needsPerson: number }`, as fe-surveyor's `ConflictsList` reports them. |
+| `CONFLICTS_ID` | `IngestFinished.tsx` | `'conflicts'`, the id of `ConflictsList`'s own section (fe-surveyor), for `document.getElementById(CONFLICTS_ID)?.scrollIntoView()` (never a `#` link: the router owns the hash). |
+
+A screen uses them as: `const [counts, setCounts] = useState<ConflictCounts | null>(null)`; `<DoneLine counts={counts}
+…/>` where its card ends; `<IngestFinished onCounts={setCounts} …/>` under the card. Simple puts `DoneLine` as the
+progress card's last row (`ProgressCard` gets a `footer` slot); Advanced places both where fe-scaffold's spec says.
+
+- IN-82: `DoneLine` and `IngestFinished` render nothing for `running`, `queued`, `failed` or `done` with no
+  drawings; `IngestFinished` renders `ConflictsList` with `projectId` and the route's `query`, and calls `onCounts`
+  with each count the list reports; `CONFLICTS_ID` is `'conflicts'`. [component, `ConflictsList` mocked]
+
+### What changes on the file page (`#/p/<id>/f/<fid>`)
+
+- No credit line under the after image: `BeforeAfter` drops `<Credit>` and its `getDrawing` call (screens carry no
+  credits, #204; licence credits are on fe-shared's About page). The trace sends no `GET /api/drawings/<id>` for it
+  any more.
+- "Back to the project" becomes "Back to Documents" (`#/p/<id>/documents`): the file rows are there now, and the
+  project screen no longer lists files. (Open point P1.)
+- The triage card loses its "Does it belong to this project?" block and the "Described by <model>" note:
+  file-triage.md FT-22, FT-23.
+
+### Look (from `demo/vellum/style.css`, with the app's `--v-*` tokens)
+
+- Done line: inside the card, flex, wrap, `gap: 12px`, `padding: 0 32px 28px` (`0 20px 22px` under 760 px), 15 px
+  `--v-text-2`, the link `--v-accent`.
+- Chat row: flex, wrap, `gap: 8px 16px`, `padding-top: 8px`; the button full width under 760 px; the reason line
+  13 px `--v-muted`; "Open the workspace" a 13 px link with a 44 px tap target at 390.
+- The sections stack with the demo's `.w820` column gap (24 px). No new colour; if the demo's orange (Documents
+  badge) is needed here it is fe-shared's token.
+
+### Acceptance criteria (v3)
+
+- IN-74: With `running`, `queued` or `failed` the Simple screen has no Drawings and no Files region and no
+  conflicts list or chat row. [component]
+- IN-75: With `project.json` (`done`, 5 drawings) the screen shows, in DOM order: the Progress region, the done line
+  inside it, the conflicts list (the mocked `ConflictsList`, rendered with `projectId`), then the chat row; no
+  "Settle the conflicts" link, no Drawings or Files region, no issues list. [component, `ConflictsList` mocked]
+- IN-76: The done line reads "5 drawings ready." plus " Conflicts are below." when the list reports at least one
+  conflict, and " 2 issues in Documents need you." with a link "2 issues in Documents" to `#/p/<id>/documents` when
+  the count is 2; with 1: "1 issue in Documents needs you."; with 0 or unknown: no issues sentence. [component, the
+  count helper mocked: 0, 1, 2, pending]
+- IN-77: While the list reports a conflict that needs a person (or has not reported yet), "Start a new chat" is a
+  disabled `button` described by "Settle the conflicts that need you first." and there is no "Open the workspace";
+  when it reports none, "Start a new chat" is a link to `#/p/<id>/chat` and "Open the workspace" a link to
+  `#/p/<id>/d/<drawings[0].drawing_id>/engineer`; settling the last one (the list reports 0) enables it without a
+  reload. [component]
+- IN-78: `done` with `drawings: []` shows IN-72's card with a link "Every file is listed in Documents." to
+  `#/p/<id>/documents`, and no conflicts list and no chat row. [component]
+- IN-79: The file page's back link reads "Back to Documents" and goes to `#/p/<id>/documents` (also on its 404
+  view, IN-43). [component]
+- IN-80: With `trace-image` the before/after shows no "Credit" text and no `GET /api/drawings/<id>` is sent.
+  [component]
+- IN-81: At 390x844 and 1440x900 the finished Simple screen (sample, no-keys backend) has no horizontal scroll, the
+  chat button and links are at least 44 px tall at 390, and keyboard focus reaches the conflicts list, then "Start a
+  new chat", then "Open the workspace". [browser; e2e is fe-golden's]
+
+- IN-83 (look, preqa-b's parity sweep): the file page reads like the demo's (`files.js` `traceScreen`, `.trace-h`,
+  `.stats.facts`): the `h1` path in the mono font at 28 px (22 px at 390); the back link 13 px; the facts card a
+  hairline grid edge to edge (2 columns, 1 at 390; `dt` 12 px/500 muted, `dd` 15 px/600); the stage list folded into
+  a closed `<details>` "How it was read: <n> stages" in its card (the demo shows none; folded, nothing is lost); the
+  Route fact as `routeLabel` ("drawn PDF route", never the bare id "vector").
+  [component: the summary and `open` false, the Route fact; unit: the CSS rules]
+
+Superseded by v3: IN-18, IN-19, IN-20, IN-21, IN-22, IN-26, IN-73 (the rows and cards move to Documents: the same
+criteria apply there, fe-ingest); IN-49's list half (no lists while running; its "—" for Files through stays);
+IN-63 (no "Settle the conflicts"); IN-64; IN-48 (no credit; IN-80); IN-65's "Back to the project" (IN-79); IN-72's
+"the Files list stays" (IN-78); FT-2 to FT-4 and FT-20's file rows move with the list (file-triage.md). IN-46's "clicking
+`plans/flat-a.pdf`" goes through Documents (fe-golden).
+
+### Needs from other owners
+
+- fe-surveyor: `ConflictsList({ projectId, onCounts })` where `onCounts({ total, needsPerson })` is called with
+  the list's counts whenever they change (after load and after each settle), and not before the first load; or
+  any equivalent that gives the screen "how many still need a person" without a second request.
+- fe-shared: `useIssuesToAnswer(projectId): number | null` from `src/shell/issueCount.ts` (shared.md "Documents
+  badge": null while loading or failed), the badge's own count, used as is for the done line; routes
+  `#/p/<id>/documents` and `#/p/<id>/chat` (shared.md "Tabs").
+- fe-ingest (documents.md) imports from here: `StateBadge`, `kindLabel`, `routeLabel` and the triage helpers stay
+  exported from `src/ingest/` when the lists leave `ProjectScreen.tsx`.
+
+### API asks (none blocks this; all have a client-side way today)
+
+- A1: `ProjectView.conflicts_open` and `ProjectView.issues_open` (they exist on `ProjectSummary` in the list only):
+  the project screen could then enable "Start a new chat" and write the done line from the one poll it already
+  makes, without `GET /review` and `GET /issues`. Until then: the conflicts list's counts and fe-shared's issue
+  count, both client-side.
+- A2: the issues-to-answer rule as a field (`issues_open` counts every open issue, notes too): e.g.
+  `ProjectSummary.issues_need_person` (`state == open` and `severity != note`), so the badge and the done line
+  read one number from the server. Until then fe-shared filters `GET /issues`.
+
+### Decisions (GO, frontend-orch 16:27)
+
+- P1: "Back to Documents" (IN-79), not the demo's "Back to the project" (that screen no longer lists files).
+- P2: the card keeps Cost (no demo PR changed it to Set aside).
 
 ## Out of scope
 
