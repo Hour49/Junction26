@@ -157,7 +157,7 @@ describe('drawing header and ask box', () => {
     expect(await screen.findByRole('heading', { name: 'plans/flat-a.pdf' })).toBeTruthy();
     expect(
       screen.getByText(
-        'vector route, read from plans/flat-a.pdf by PDF vector reader; second count where a question has one: PDF vector reader; questions: question templates',
+        'drawn PDF route, read from plans/flat-a.pdf by PDF vector reader; second count where a question has one: PDF vector reader; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -168,7 +168,7 @@ describe('drawing header and ask box', () => {
     });
     expect(
       await screen.findByText(
-        'vector route, read from plans/flat-a.pdf by PDF vector reader; no second count; questions: question templates',
+        'drawn PDF route, read from plans/flat-a.pdf by PDF vector reader; no second count; questions: question templates',
       ),
     ).toBeTruthy();
   });
@@ -574,7 +574,7 @@ describe('extended answers', () => {
     const t = await shownTurn(answer);
     expect(
       within(t).getByText(
-        'PDF vector reader read plans/flat-a.pdf (vector route), no second count',
+        'PDF vector reader read plans/flat-a.pdf (drawn PDF route), no second count',
       ),
     ).toBeTruthy();
     cleanup();
@@ -584,7 +584,7 @@ describe('extended answers', () => {
     });
     expect(
       within(counted).getByText(
-        'PDF vector reader read plans/flat-a.pdf (vector route), second count by IFC model',
+        'PDF vector reader read plans/flat-a.pdf (drawn PDF route), second count by IFC model',
       ),
     ).toBeTruthy();
   });
@@ -850,7 +850,7 @@ describe('Vellum (screen 4)', () => {
   it('EN-55 page meta: kind and route on the viewer, Also as links, the position', async () => {
     const t = await shownTurn(answer);
     const fig = within(t).getByRole('figure', { name: 'Drawing' });
-    expect(fig.textContent).toContain('PDF vector · vector route');
+    expect(fig.textContent).toContain('PDF vector · drawn PDF route');
     const also = within(t).getByRole('link', { name: 'plans/flat-a.png' });
     expect(also.getAttribute('href')).toBe(`#/p/${PROJECT}/d/c9b719f715357201/engineer`);
     expect(within(t).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
@@ -937,7 +937,7 @@ describe('Vellum (screen 4)', () => {
     const t = await shownTurn(answer);
     const [one, two, three] = chips(t);
     expect(one?.textContent).toBe(
-      '1Original fileplans/flat-a.pdfPDF vector reader read plans/flat-a.pdf (vector route), no second count',
+      '1Original fileplans/flat-a.pdfPDF vector reader read plans/flat-a.pdf (drawn PDF route), no second count',
     );
     expect(two?.textContent).toBe('2Proof drawn by the serverplans/flat-a.pdfPage 1 · marks 1–2');
     expect(three?.textContent).toBe('3Second countno second count');
@@ -1046,7 +1046,7 @@ describe('Vellum (screen 4)', () => {
     const page = { ...(answer.pages[0] as AnswerView['pages'][number]), storey: 'Ground floor' };
     const t = await shownTurn({ ...answer, pages: [page] });
     const text = within(t).getByRole('figure', { name: 'Drawing' }).textContent;
-    expect(text).toContain('PDF vector · vector route');
+    expect(text).toContain('PDF vector · drawn PDF route');
     expect(text.split('Ground floor')).toHaveLength(2);
     expect(text.split('1:100')).toHaveLength(2);
   });

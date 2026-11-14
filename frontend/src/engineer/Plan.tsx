@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react';
 import type { DrawingView, ProjectView } from '../api';
+import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { kindName } from './format';
@@ -43,7 +44,7 @@ export function placeOf(
     (f) => f.drawing_id === drawing.id && f.path === drawing.reader.source,
   );
   return {
-    meta: `${kindName(self.kind)} · ${self.route ? `${self.route} route` : 'not routed'}`,
+    meta: `${kindName(self.kind)} · ${self.route ? routeLabel(self.route) : 'not routed'}`,
     pos: n > 1 ? `${String(i + 1)} / ${String(n)}` : null,
     prev: near(i - 1),
     next: near(i + 1),

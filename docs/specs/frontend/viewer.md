@@ -56,7 +56,7 @@ interface PageViewerProps {
   onHover?: (markId: string | null) => void;
   onPick?: (page: number, box: Box) => void; // set only while the surveyor is adding a mark
   // Vellum (all optional, so today's callers compile unchanged):
-  meta?: string;                      // appended to the page meta line, composed by the screen (e.g. "PDF vector · vector route")
+  meta?: string;                      // appended to the page meta line, composed by the screen (e.g. "PDF vector · drawn PDF route")
   // Double-check (section "Double-check"; all optional):
   disputed?: { markId?: string; box?: number[]; page?: number; why: string;
                prefix?: string; tag?: string }[];  // places the readers disagree on; prefix/tag: "Checks and issues"
@@ -542,8 +542,8 @@ Zoom, adding, layout
 Vellum (screen 4)
 
 - **VW-48** (changed by D61) The viewer's figure `.vw` has no `aria-label` (the engineer's figure is "Drawing").
-  Its header shows `file` in `.vw-name`. With `meta="PDF vector · vector route"`, `.vw-pagemeta` reads "Page 1 ·
-  PDF vector · vector route" at its end; with no `meta` or `meta=""` it ends with "Page 1". [component,
+  Its header shows `file` in `.vw-name`. With `meta="PDF vector · drawn PDF route"`, `.vw-pagemeta` reads "Page 1 ·
+  PDF vector · drawn PDF route" at its end; with no `meta` or `meta=""` it ends with "Page 1". [component,
   `drawing.json`]
 - **VW-49** (withdrawn by D61: drawing navigation is the engineer's, EN-55/EN-56.)
 - **VW-50** With `legend` from `answer.json`, `.vw-classes` reads "DOOR · 2" (no "LAYER", no "BLOCKS", no
