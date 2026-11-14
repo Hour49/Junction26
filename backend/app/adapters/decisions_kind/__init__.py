@@ -93,8 +93,8 @@ class KindSignal:
         """One readable trace line."""
         top = self.kind
         flag = ", photo of a plan" if self.photo else ""
-        return (f"sheet kind {top} ({self.probs.get(top, 0.0):.2f}), P(plan) {self.p_plan:.2f}"
-                f"{flag}; {self.note}")  # fmt: skip
+        seen = f"sheet kind {top} ({self.probs.get(top, 0.0):.2f})"
+        return f"{seen}, P(plan drawn) {self.p_plan:.2f}{flag}; {self.note}"
 
 
 @dataclass(frozen=True)
