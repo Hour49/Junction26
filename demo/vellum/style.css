@@ -404,3 +404,21 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .c-own-row { display: flex; gap: 8px; }
 .c-own-row input { flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 10px 14px; border: 1px solid var(--v-line, #d2d2d7); border-radius: 12px; background: #fff; }
 @media (max-width: 520px) { .c-own-row { flex-direction: column; } }
+/* source previews: the real image cropped to the place in question, outlined in orange and numbered */
+.src { position: relative; width: 100%; max-width: 640px; overflow: hidden; border-radius: 10px; background: #fff; }
+.src img { position: absolute; max-width: none; height: auto; }
+.hl { position: absolute; box-sizing: border-box; border: 2.5px solid var(--v-warn-mark); border-radius: 6px; background: rgba(217,134,11,0.12); }
+.hl b, .hl-legend b { width: 20px; height: 20px; border-radius: 50%; background: var(--v-warn-mark); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.hl b { position: absolute; top: -11px; left: -11px; box-shadow: 0 0 0 2px #fff; }
+.hl-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1 1 240px; }
+.hl-legend li { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--v-text-2); }
+.c-plan figcaption { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.seg a, .seg span { position: relative; }
+.seg .badge { position: absolute; top: -8px; right: -8px; min-width: 20px; min-height: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #e8740c; color: #fff;
+  font-size: 12px; font-weight: 700; justify-content: center; box-shadow: 0 0 0 2px #fff; }
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-card { background: var(--v-surface); border-radius: 20px; padding: 20px; width: min(1100px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.modal-card .src { max-width: none; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.iss-card { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.iss-card .iss-why { margin: 0; }

@@ -7,7 +7,7 @@
   const TICK_MS = 1400;
 
   // S.p is the one workspace of this demo session (null before an upload).
-  const S = { p: null, signer: '' };
+  const S = { p: null, signer: '', src: null };  // src: the open source preview {k: 'c' | 'i', id, i}
   const app = document.getElementById('app');
 
   const many = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -21,7 +21,7 @@
     if (V.resetReadAsPlan) V.resetReadAsPlan();
     // calls / rap: a person's relevance calls and "read it as a floor plan" per triaged file (triage.js)
     S.p = { started: analysed ? now - TOTAL * 1000 : now, doneLogged: false, conflicts, history: [], turns: [], chat: [], chatRef: {}, di: 0, checks: {},
-      calls: {}, rap: {}, rapDone: {}, issueFilter: { kind: null, state: null } };
+      calls: {}, rap: {}, rapDone: {}, issueFilter: { kind: null, state: null }, issues: {} };
     log(S.p.started, 'up', 'Uploaded the archive', `${V.ARCHIVE} · ${V.FILES.length} files`);
     logDone();
   }
@@ -71,8 +71,11 @@
     const views = [['ingest', 'Ingest', '#/ingest'], ['chat', 'Chat', '#/chat'], ['documents', 'Documents', '#/documents']];
     const cur = r.name === 'advanced' || r.name === 'file' ? 'ingest' : r.name;
     const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
-      ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => (k === cur
-        ? `<span aria-current="page">${label}</span>` : `<a class="press" href="${href}">${label}</a>`)).join('')}</nav>` : '';
+      ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => {
+        const n = k === 'documents' ? needsYou() : 0, inner = n ? `${label}<span class="badge" aria-hidden="true">${n}</span>` : label;
+        const aria = n ? ` aria-label="${label}, ${many(n, 'issue')} to answer"` : '';
+        return k === cur ? `<span aria-current="page"${aria}>${inner}</span>` : `<a class="press" href="${href}"${aria}>${inner}</a>`;
+      }).join('')}</nav>` : '';
     return `<header class="top"><div class="top-in" style="${r.name === 'workspaces' ? 'max-width:1280px' : ''}">
       <a class="brand" href="#/" aria-label="Vellum, start page"><img src="vellum-logo.png" alt="" width="44" height="44"><strong>Vellum</strong></a>
       ${nav}
@@ -88,8 +91,9 @@
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, documents: documentsScreen,
       chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen}[r.name](r);
-    app.innerHTML = header(r) + screen;
+    app.innerHTML = header(r) + screen + srcModal();
     fill();
+    if (S.src) app.querySelector('.modal-card .btn-close').focus();
   }
   function fill() {
     for (const name of Object.keys(slots)) {
@@ -141,7 +145,8 @@
     if (!pr.done) return '';
     const open = V.CONFLICTS.filter((c) => S.p.conflicts[c.id].mode === 'open').length;
     const found = V.CONFLICTS.length ? `${many(V.CONFLICTS.length, 'conflict')} found${open ? `, ${open} needs you` : ''}.` : 'No conflicts found.';
-    return `<div class="done-row"><span>${many(V.DRAWINGS.length, 'drawing')} ready.${V.CONFLICTS.length ? ' Conflicts and issues are below.' : ''}</span></div>`;
+    const iss = needsYou();
+    return `<div class="done-row"><span>${many(V.DRAWINGS.length, 'drawing')} ready.${V.CONFLICTS.length ? ' Conflicts are below.' : ''}${iss ? ` <a href="#/documents">${many(iss, 'issue')} in Documents</a> need${iss === 1 ? 's' : ''} you.` : ''}</span></div>`;
   }
 
   function ingestScreen() {
@@ -172,7 +177,7 @@
     return `<main class="w820">${titleRow('simple')}
       <section class="card" aria-label="Progress"><div class="prog-top" data-slot="top"></div>
         <dl class="stats" data-slot="stats"></dl><ol class="steps" data-slot="steps"></ol><div data-slot="done"></div></section>
-      ${progress().done ? conflictsBlock() + issuesBlock() + chatCta() : ''}</main>`;
+      ${progress().done ? conflictsBlock() + chatCta() : ''}</main>`;
   }
 
   // ---------- 9-12 reading, advanced ----------
@@ -218,7 +223,7 @@
         <div class="panel-txt"><span data-slot="now"></span><h2>${HEAD[r.panel]}</h2>
           <p class="say" aria-live="polite" data-slot="say"></p><ol class="log" aria-label="Log" data-slot="log"></ol></div>
       </div><dl class="stats" data-slot="stats"></dl><div data-slot="done"></div></section>
-      ${progress().done ? conflictsBlock() + issuesBlock() + chatCta() : ''}</main>`;
+      ${progress().done ? conflictsBlock() + chatCta() : ''}</main>`;
   }
 
   function unpackPanel() {
@@ -333,7 +338,8 @@
       const st = p.conflicts[c.id], unsolved = c.ai === null, choosing = st.mode === 'modify' || st.mode === 'open';
       const labels = V.variantLabels(c);
       let plan = '';
-      if (unsolved) {
+      if (c.src) plan = srcFigure('c', c.id, c.src);
+      else if (unsolved) {
         const d = V.drawing(c.drawing), a = V.answer(d.id, `How many ${c.quantity}s?`, pk);
         plan = `<figure class="c-plan"><div>${P.answerPlan(d, a, { flagged: new Map([[c.element, 'in question']]) })}</div><figcaption>${esc(c.where || "Amber: the balcony glazing in question")}, on <span class="mono">${esc(d.name)}</span>.</figcaption></figure>`;
       }
@@ -368,21 +374,49 @@
       ${cards}</section>`;
   }
 
-  // under the conflicts: what might need a look (stoa.js ISSUES) plus every conflict still open
-  function issuesBlock() {
-    const pk = picks(), files = (path) => V.FILES.findIndex((f) => f.path === path);
-    const open = V.CONFLICTS.filter((c) => pk[c.id] === null).map((c) => ({ severity: 'needs_person', why: `${c.title} The rules could not decide: settle it above.`, file: c.files.split(' ↔ ')[0] }));
-    const all = open.concat(V.ISSUES || []);
-    const head = { fails_rule: 'Fails a rule', needs_person: 'Needs a person', note: 'Note' };
-    const rows = ['fails_rule', 'needs_person', 'note'].flatMap((sev) => all.filter((x) => x.severity === sev)).map((x, n) => {
-      const i = files(x.file);
-      return `<li class="card iss-row"><span class="iss-n" aria-hidden="true">${n + 1}</span><div class="iss-body">
-        <div class="iss-top"><span class="pill ${x.severity === 'note' ? 'grey' : 'warn'}">${head[x.severity]}</span></div>
-        <p class="iss-why">${esc(x.why)}</p><p class="small mono">${esc(x.file)}</p></div>
-        ${i >= 0 ? `<a class="btn btn-soft press iss-go" href="#/file/${i}">Open the file</a>` : ''}</li>`;
+  // ---------- sources: the real image cropped to the place in question, outlined and numbered ----------
+  function sourceFig(src, i) {
+    const f = V.FILES.find((x) => x.path === src.files[i]), [vx, vy, vw, vh] = src.view;
+    const pct = (n) => `${n.toFixed(2)}%`;
+    const pos = ([x, y, w, h]) => `left:${pct((x - vx) / vw * 100)};top:${pct((y - vy) / vh * 100)};width:${pct(w / vw * 100)};height:${pct(h / vh * 100)}`;
+    return `<div class="src" style="aspect-ratio:${(vw * src.ratio / vh).toFixed(3)}"><img src="${esc(f.image)}" alt="${esc(f.path)}" loading="lazy" style="left:${pct(-vx / vw * 100)};top:${pct(-vy / vh * 100)};width:${pct(10000 / vw)}">${src.marks.map((m, n) => `<span class="hl" style="${pos(m.box)}"><b>${n + 1}</b></span>`).join('')}</div>`;
+  }
+  const legend = (src) => `<ol class="hl-legend">${src.marks.map((m, n) => `<li><b>${n + 1}</b><span>${esc(m.label)}</span></li>`).join('')}</ol>`;
+  const srcFigure = (k, id, src) => `<figure class="c-plan"><div>${sourceFig(src, 0)}</div><figcaption>${legend(src)}
+    <button class="btn btn-soft press" data-act="src-open" data-k="${k}" data-id="${id}">Show source</button></figcaption></figure>`;
+
+  function srcModal() {
+    if (!S.src) return '';
+    const src = (S.src.k === 'c' ? V.CONFLICTS : V.ISSUES).find((x) => x.id === S.src.id).src, n = src.files.length, i = ((S.src.i % n) + n) % n;
+    const arrow = (d, path, label) => `<button class="round press ref-arrow ${d < 0 ? 'l' : 'r'}" data-act="src-move" data-d="${d}" aria-label="${label}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg></button>`;
+    return `<div class="modal" data-act="src-close"><div class="modal-card" role="dialog" aria-modal="true" aria-label="Source: ${esc(src.files[i])}" data-act="noop">
+      <div class="modal-head"><span class="mono" style="font-size:14px;font-weight:600;overflow-wrap:anywhere">${esc(src.files[i])}${n > 1 ? ` <span class="small">· ${i + 1} of ${n}</span>` : ''}</span>
+        <button class="btn btn-soft press btn-close" data-act="src-close">Close</button></div>
+      <div class="ref-view">${sourceFig(src, i)}${n > 1 ? arrow(-1, 'M15 6l-6 6 6 6', 'Previous source') + arrow(1, 'M9 6l6 6-6 6', 'Next source') : ''}</div>${legend(src)}</div></div>`;
+  }
+
+  // the issues a person answers (stoa.js ISSUES); notes are shown but never counted
+  const issueState = (x) => S.p.issues[x.id] || {};
+  const needsYou = () => (S.p && progress().done ? (V.ISSUES || []).filter((x) => x.severity !== 'note' && !issueState(x).answer).length : 0);
+  function issuesSection() {
+    const list = V.ISSUES || [];
+    if (!progress().done || !list.length) return '';
+    const head = { fails_rule: 'Fails a rule', needs_person: 'Needs a person' };
+    const rows = ['fails_rule', 'needs_person', 'note'].flatMap((sev) => list.filter((x) => x.severity === sev)).map((x, n) => {
+      const st = issueState(x), note = x.severity === 'note', fi = V.FILES.findIndex((f) => f.path === x.file);
+      const pill = note ? ['Note', 'grey'] : st.answer ? ['Answered', 'ok'] : [head[x.severity], 'warn'];
+      const answer = note ? '' : st.answer && !st.editing
+        ? `<div class="c-foot"><span>You answered: “${esc(st.answer)}”.</span><button class="btn btn-soft press" data-act="issue-edit" data-id="${x.id}">Change</button></div>`
+        : `<form class="c-own" data-issue="${x.id}"><label class="small" for="own-${x.id}">Your answer</label>
+          ${(x.suggest || []).length ? `<div class="chips-row">${x.suggest.map((v) => `<button type="button" class="qchip press" data-act="own-fill" data-c="${x.id}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}</div>` : ''}
+          <div class="c-own-row"><input id="own-${x.id}" name="v" maxlength="140" autocomplete="off" placeholder="${esc(x.placeholder || 'Your answer')}" value="${esc(st.answer || '')}"><button class="btn btn-primary press" type="submit">Use my answer</button>${st.answer ? `<button type="button" class="btn btn-plain press" data-act="issue-cancel" data-id="${x.id}">Cancel</button>` : ''}</div></form>`;
+      return `<li class="card iss-card"><div class="iss-top"><span class="iss-n" aria-hidden="true">${n + 1}</span><span class="pill ${pill[1]}">${pill[0]}</span>
+          <span class="small mono" style="overflow-wrap:anywhere">${esc(x.file)}</span>${fi >= 0 ? `<a class="small" style="margin-left:auto" href="#/file/${fi}">Open the file</a>` : ''}</div>
+        <p class="iss-why">${esc(x.why)}</p>${x.src ? srcFigure('i', x.id, x.src) : ''}${answer}</li>`;
     }).join('');
-    return `<section class="flow" aria-label="Issues"><h2 class="list-h">${all.length ? `${all.length} issues` : 'No issues'}</h2>
-      ${rows ? `<ol class="iss">${rows}</ol>` : '<p class="muted">Nothing needs a look.</p>'}</section>`;
+    const open = needsYou();
+    return `<section class="flow" aria-label="Issues"><div><h2 class="list-h">Issues</h2><p class="muted" style="margin:0">${open ? `${many(open, 'issue')} need${open === 1 ? 's' : ''} your answer.` : 'Every issue is answered.'} Notes are for your information.</p></div>
+      <ol class="iss">${rows}</ol></section>`;
   }
 
   function chatCta() {
@@ -397,7 +431,7 @@
     slots.files = window.VFiles.lists;
     return `<main class="w820"><div class="title-row"><div><span class="kicker ok">${esc(V.ARCHIVE)}</span><h1>Documents</h1>
       <p class="muted" style="margin:0">${many(V.FILES.length, 'file')} ingested, ${many(V.DRAWINGS.length, 'drawing')} read from them</p></div></div>
-      <div class="lists" data-slot="files"></div></main>`;
+      ${issuesSection()}<div class="lists" data-slot="files"></div></main>`;
   }
 
   // ---------- 5 workspaces ----------
@@ -435,6 +469,12 @@
     pick: (el) => { const c = V.CONFLICTS.find((x) => x.id === el.dataset.c), i = Number(el.dataset.i);
       S.p.conflicts[c.id] = { mode: 'own', pick: i };
       log(Date.now(), 'cf', `Conflict settled: ${c.title}`, `Your choice · ${V.variantLabels(c)[i]}${c.ai !== null && c.ai !== i ? ', over the AI decision' : ''}`); },
+    'src-open': (el) => { S.src = { k: el.dataset.k, id: el.dataset.id, i: 0 }; },
+    'src-move': (el) => { S.src.i += Number(el.dataset.d); },
+    'src-close': () => { S.src = null; },
+    noop: () => false,
+    'issue-edit': (el) => { S.p.issues[el.dataset.id] = { ...S.p.issues[el.dataset.id], editing: true }; },
+    'issue-cancel': (el) => { S.p.issues[el.dataset.id] = { ...S.p.issues[el.dataset.id], editing: false }; },
     'own-fill': (el) => { const inp = document.getElementById(`own-${el.dataset.c}`); inp.value = el.dataset.v; inp.focus(); return false; },
     // Modify keeps what was in use, so Cancel can put it back (a person's choice keeps Modify, never "Change")
     modify: (el) => { const id = el.dataset.c; S.p.conflicts[id] = { mode: 'modify', pick: null, back: S.p.conflicts[id] }; },
@@ -444,6 +484,16 @@
       log(Date.now(), 'cf', `AI decision restored: ${c.title}`, `AI decision approved · ${V.variantLabels(c)[c.ai]}`); },
   };
   document.addEventListener('submit', (ev) => {
+    const iid = ev.target.dataset && ev.target.dataset.issue;
+    if (iid) {
+      ev.preventDefault();
+      const text = ev.target.v.value.trim().slice(0, 140), x = V.ISSUES.find((y) => y.id === iid);
+      if (!text) return;
+      S.p.issues[iid] = { answer: text };
+      log(Date.now(), 'sign', `Issue answered: ${x.file.split('/').pop()}`, text);
+      render();
+      return;
+    }
     const id = ev.target.dataset && ev.target.dataset.own;
     if (!id) return;
     ev.preventDefault();
@@ -470,7 +520,14 @@
   app.addEventListener('dragover', (ev) => { const z = ev.target.closest('[data-drop]'); if (z) { ev.preventDefault(); z.classList.add('over'); } });
   app.addEventListener('dragleave', (ev) => { const z = ev.target.closest('[data-drop]'); if (z) z.classList.remove('over'); });
   app.addEventListener('drop', (ev) => { if (ev.target.closest('[data-drop]')) { ev.preventDefault(); start(); } });
-  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', () => { S.src = null; render(); window.scrollTo(0, 0); });
+  document.addEventListener('keydown', (ev) => {
+    if (!S.src) return;
+    if (ev.key === 'Escape') S.src = null;
+    else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') S.src.i += ev.key === 'ArrowLeft' ? -1 : 1;
+    else return;
+    render();
+  });
   setInterval(() => {
     if (!S.p) return;
     const was = S.p.doneLogged; logDone();
