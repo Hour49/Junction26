@@ -13,7 +13,9 @@ from app.api.deps import (
     SettingsDep,
     as_uploaded,
     drawing_id_of,
+    now,
 )
+from app.api.questions import AskedQuestion, record
 from app.api.views import PageView, Reader, View, page_views, reader_of
 from app.composition import Answering, readers
 from app.core import cost
@@ -156,6 +158,19 @@ def ask_route(
     line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
     shown = asked.row
     value = shown_value(asked)
+    if owner is not None:  # asked in a project: kept for its question list
+        record(
+            settings.projects_dir,
+            owner,
+            AskedQuestion(
+                question=body.question,
+                answer=value,
+                unit=None if asked.refusal is not None else line.unit,
+                drawing_id=drawing_id,
+                at=now(),
+                refused=asked.refusal is not None,
+            ),
+        )
     return AnswerView(
         question=body.question,
         drawing_id=drawing_id,

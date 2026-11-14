@@ -404,6 +404,8 @@ def apply(
             if edit.value is None:
                 raise InvalidInputError("settle needs the value to keep")
             settled[key] = Settled(value=_typed(quantity, edit.value), at=at)
+        case "unsettle":
+            settled.pop(key, None)  # only the settled value: mark edits stay
     return ReviewState(
         rejected={name: marks for name, marks in rejected.items() if marks},
         added={name: marks for name, marks in added.items() if marks},
@@ -422,6 +424,16 @@ def sign(state: ReviewState, quantity: Quantity, drawing: Drawing, by: str, at: 
     value = current_value(quantity, mark_views(quantity, drawing, state), state)
     signed = {**state.signed, quantity.key: SignOff(by=by, at=at, value=value)}
     return state.model_copy(update={"signed": signed})
+
+
+def settle_and_sign(
+    state: ReviewState, quantity: Quantity, drawing: Drawing, by: str, at: str
+) -> ReviewState:
+    """Keeps the quantity's current value as its settled value, then signs it off: one step for
+    "looks right". A signed-off quantity is refused as for any edit."""
+    value = current_value(quantity, mark_views(quantity, drawing, state), state)
+    edit = Edit(quantity=quantity.key, action="settle", value=value)
+    return sign(apply(state, edit, quantity, drawing, at), quantity, drawing, by, at)
 
 
 def unsign(state: ReviewState, key: str) -> ReviewState:

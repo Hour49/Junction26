@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from app.adapters.page_render import render_upload
 from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep
 from app.api.drawings import IMMUTABLE, checked_width
+from app.api.questions import ProjectQuestions, listed
 from app.api.takeoff import takeoff_rows
 from app.api.views import (
     DrawingEntry,
@@ -59,6 +60,8 @@ class ProjectSummary(View):
     created_at: str
     files: int
     drawings: int
+    to_review: int | None  # quantities left to review over all drawings; None until `done`
+    conflicts_open: int | None  # conflicts nobody settled or signed off; None until `done`
 
 
 class ProjectList(View):
@@ -128,20 +131,30 @@ class _Sample(BaseModel):
 
 
 @router.get("")
-def project_list(ingest: IngestDep) -> ProjectList:
+def project_list(ingest: IngestDep, reviews: ReviewsDep) -> ProjectList:
     """Every project, newest first."""
     return ProjectList(
-        projects=[
-            ProjectSummary(
-                id=status.id,
-                name=status.name,
-                state=status.state,
-                created_at=status.created_at,
-                files=len(status.files),
-                drawings=len(drawings_of(status)),
-            )
-            for status in ingest.projects()
-        ]
+        projects=[summary_of(status, ingest, reviews) for status in ingest.projects()]
+    )
+
+
+def summary_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> ProjectSummary:
+    to_review = conflicts_open = None
+    if status.state == "done":
+        found = review_of(status, ingest, reviews)
+        to_review = sum(drawing.to_review for drawing in found.drawings)
+        conflicts_open = sum(
+            entry.settled is None and entry.signed is None for entry in found.conflicts
+        )
+    return ProjectSummary(
+        id=status.id,
+        name=status.name,
+        state=status.state,
+        created_at=status.created_at,
+        files=len(status.files),
+        drawings=len(drawings_of(status)),
+        to_review=to_review,
+        conflicts_open=conflicts_open,
     )
 
 
@@ -262,9 +275,25 @@ def preview(
 @router.get("/{project_id}/review")
 def project_review(project_id: ProjectId, ingest: IngestDep, reviews: ReviewsDep) -> ProjectReview:
     """Per drawing what is left to review and what is signed, and every conflict of the project."""
+    return review_of(ingest.status(project_id), ingest, reviews)
+
+
+@router.get("/{project_id}/questions")
+def project_questions(
+    project_id: ProjectId, ingest: IngestDep, settings: SettingsDep
+) -> ProjectQuestions:
+    """The questions asked in the project (`project_id` in POST /api/ask), newest first."""
+    ingest.status(project_id)  # 404 for a project that doesn't exist
+    return ProjectQuestions(
+        project_id=project_id, questions=listed(settings.projects_dir, project_id)
+    )
+
+
+def review_of(status: ProjectStatus, ingest: Ingest, reviews: ReviewStore) -> ProjectReview:
+    project_id = status.id
     drawings: list[DrawingReview] = []
     conflicts: list[ConflictEntry] = []
-    for entry in drawings_of(ingest.status(project_id)):
+    for entry in drawings_of(status):
         found = takeoff_rows(entry.drawing_id, ingest, reviews, zeros=False, project=project_id)
         drawings.append(
             DrawingReview(

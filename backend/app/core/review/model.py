@@ -14,7 +14,7 @@ from app.core.pipeline.model import Measure, QuantityConflict, QuantityUnit
 MarkState = Literal["counted", "rejected", "added", "excluded"]
 # Ranked as the review screen sorts rows: what needs a look comes first.
 RowStatus = Literal["signed", "conflict", "estimate", "edited", "agree", "single"]
-Action = Literal["reject", "restore", "add", "settle", "reset"]
+Action = Literal["reject", "restore", "add", "settle", "unsettle", "reset"]
 RefusalCode = Literal[
     "unsupported-question", "not-in-drawing", "not-read", "no-reader", "no-scale", "no-drawing"
 ]
