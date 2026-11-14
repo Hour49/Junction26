@@ -1,8 +1,17 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { PageView } from '../api/types';
 import { pickWidth } from './marks';
 import './viewer.css';
+
+// "Show source" and the preview's Close: the accent on its soft tint.
+const soft = {
+  variant: 'secondary',
+  size: 'pill',
+  className: 'bg-accent px-[18px] text-sm text-primary hover:bg-border hover:text-foreground',
+} as const;
 
 type Box = [number, number, number, number]; // page fractions [x0, y0, x1, y1]
 
@@ -247,21 +256,18 @@ export function SourcePreview({ sources, start = 0, onClose }: SourcePreviewProp
             {source.name}
             {n > 1 && <span className="vw-modal-pos">{` · ${String(i + 1)} of ${String(n)}`}</span>}
           </span>
-          <button
-            type="button"
-            className="v-btn v-btn--secondary v-press vw-btn-soft vw-modal-close"
-            onClick={onClose}
-          >
+          <Button {...soft} className={cn(soft.className, 'vw-modal-close')} onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
         <div className="vw-modal-view">
           <SourceImage key={i} source={source} first={first} crop={[0, 0, 1, 1]} />
           {n > 1 && (
             <>
-              <button
-                type="button"
-                className="v-btn v-btn--secondary v-btn--round vw-arrow vw-arrow--l"
+              <Button
+                variant="outline"
+                size="pill-icon"
+                className="vw-arrow vw-arrow--l border-0 bg-card"
                 aria-label="Previous source"
                 onClick={() => {
                   setAt(i - 1);
@@ -270,10 +276,11 @@ export function SourcePreview({ sources, start = 0, onClose }: SourcePreviewProp
                 <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M15 6l-6 6 6 6" />
                 </svg>
-              </button>
-              <button
-                type="button"
-                className="v-btn v-btn--secondary v-btn--round vw-arrow vw-arrow--r"
+              </Button>
+              <Button
+                variant="outline"
+                size="pill-icon"
+                className="vw-arrow vw-arrow--r border-0 bg-card"
                 aria-label="Next source"
                 onClick={() => {
                   setAt(i + 1);
@@ -282,7 +289,7 @@ export function SourcePreview({ sources, start = 0, onClose }: SourcePreviewProp
                 <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M9 6l6 6-6 6" />
                 </svg>
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -327,25 +334,25 @@ export function SourceFigure({ sources, label, defaultOpen = false }: SourceFigu
       )}
       <div className="vw-src-btns">
         {pictured && (
-          <button
-            type="button"
-            className="v-btn v-btn--secondary v-press vw-btn-plain"
+          <Button
+            variant="secondary"
+            size="pill"
+            className="bg-[var(--v-grey)] px-[18px] text-sm font-medium hover:bg-border"
             aria-expanded={open}
             onClick={toggle}
           >
             {open ? 'Minimize' : 'Expand'}
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           ref={show}
-          type="button"
-          className="v-btn v-btn--secondary v-press vw-btn-soft"
+          {...soft}
           onClick={() => {
             setPreview(true);
           }}
         >
           Show source
-        </button>
+        </Button>
       </div>
       {preview && (
         <SourcePreview

@@ -51,21 +51,6 @@
 .vw-zoom {
   margin-left: auto;
 }
-.vw-bar button {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 22px;
-  background: var(--v-surface);
-  box-shadow: var(--v-shadow);
-  color: var(--v-text);
-  font: inherit;
-  font-weight: 600;
-}
-.vw-bar button:disabled {
-  color: var(--v-muted);
-}
 .vw-scroll {
   max-height: 70vh;
   overflow: auto;
@@ -447,13 +432,6 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.v-btn.vw-btn-plain {
-  color: var(--v-text);
-  background: var(--v-grey);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 10px 18px;
-}
 .v-btn.vw-btn-soft {
   color: var(--v-accent);
   background: var(--v-accent-soft);
@@ -461,7 +439,6 @@
   font-weight: 600;
   padding: 10px 18px;
 }
-.v-btn.vw-btn-plain:hover,
 .v-btn.vw-btn-soft:hover {
   color: var(--v-text);
   background: var(--v-line);
