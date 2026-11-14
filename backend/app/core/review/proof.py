@@ -20,6 +20,7 @@ from pydantic import ConfigDict, Field
 from app.core.drawing.model import ELEMENT_CLASSES, Box, Drawing, ModelObject, Table
 from app.core.model import Frozen
 from app.core.pipeline.rules import MODEL_COUNT, MODEL_QUANTITY, MODEL_SPACES
+from app.core.pipeline.second_count import METHODS
 from app.core.pipeline.takeoff import SPACE, normalised
 from app.core.review.model import MarkView, Row
 
@@ -89,16 +90,6 @@ class Proof(Frozen):
 
 NO_PROOF = Proof(kind="none", legend=(), arithmetic=None, objects=None, storeys=None, schedule=None)
 UNLOCATED = "counted without a mark (second reader)"
-# What each method that measures a value is, in words, for the check line
-METHODS = {
-    "plan_drawing": "the sheet",
-    "parser": "the sheet",
-    "detector": "the detector",
-    "ifc_model": "the IFC model",
-    "schedule": "the schedule",
-    "printed_label": "the printed room areas",
-    "polygon_x_scale": "the room outlines at the sheet's scale",
-}
 
 
 def number(value: float) -> str:
@@ -191,23 +182,33 @@ def _sum(found: Row) -> str | None:
     if not parts or any(mark.value is None for mark in parts):
         return None
     total = sum(mark.value or 0.0 for mark in parts)
-    text = " + ".join(number(mark.value or 0.0) for mark in parts)
     unit = _unit(found.unit)
-    text += f" = {number(total)} {unit}"
+    # one part: "30 = 30 m²" says nothing the value and its mark don't (R3 qa-2)
+    clauses = (
+        []
+        if len(parts) == 1
+        else [
+            " + ".join(number(mark.value or 0.0) for mark in parts) + f" = {number(total)} {unit}"
+        ]
+    )
     if found.settled is not None:  # the person's value; what was measured is the original
         if abs(total - found.value) > 0.01:
-            text += f"; settled by a person: {number(found.value)} {unit}"
+            settled = f"settled by a person: {number(found.value)} {unit}"
         else:
-            text += "; settled by a person"
-        text += f", was {number(found.original_value)} {unit}"
+            settled = "settled by a person"
+        clauses.append(f"{settled}, was {number(found.original_value)} {unit}")
     elif abs(total - found.value) > 0.01:
-        text += f"; kept: {number(found.value)} {unit}"
+        clauses.append(f"kept: {number(found.value)} {unit}")
     out = [mark for mark in found.marks if mark.state == "excluded"]
     if out:
-        text += "; left out: " + ", ".join(
-            f"{mark.label or mark.id} {number(mark.value or 0.0)} ({mark.reason})" for mark in out
+        clauses.append(
+            "left out: "
+            + ", ".join(
+                f"{mark.label or mark.id} {number(mark.value or 0.0)} ({mark.reason})"
+                for mark in out
+            )
         )
-    return text
+    return "; ".join(clauses) or None
 
 
 def _model(found: Row, drawing: Drawing, keys: tuple[ClassKey, ...]) -> Proof:

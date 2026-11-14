@@ -41,7 +41,13 @@ def sha(data: bytes) -> str:
 def test_licence_table_gives_each_file_its_line_with_the_licence_named_once() -> None:
     by_file, every = parse_licence(TABLE)
     assert by_file == {"a.pdf": "Ana; Own work (CC BY-SA 4.0)", "sub/b.jpg": "Archive of B (PDM)"}
-    assert every == "CC-BY-4.0. Credit: Plans dataset, CC BY 4.0."
+    # the frontend writes "Credit: " before it: the line's own "<licence>. Credit: " goes (R3-qa2-1)
+    assert every == "Plans dataset, CC BY 4.0."
+
+
+def test_a_source_line_that_does_not_name_its_licence_gets_it_once() -> None:
+    _, every = parse_licence("All files: PDM. Credit: Archive of plans\n")
+    assert every == "Archive of plans (PDM)"
 
 
 def test_a_file_is_credited_by_its_content_its_row_its_twin_or_the_source_line(
@@ -57,7 +63,7 @@ def test_a_file_is_credited_by_its_content_its_row_its_twin_or_the_source_line(
 
     assert credits.of(len(a), sha(a)) == "Ana; Own work (CC BY-SA 4.0)"
     assert credits.of(len(b_svg), sha(b_svg)) == "Archive of B (PDM)"
-    assert credits.of(len(other), sha(other)) == "CC-BY-4.0. Credit: Plans dataset, CC BY 4.0."
+    assert credits.of(len(other), sha(other)) == "Plans dataset, CC BY 4.0."
     assert credits.of(len(own), sha(own)) is None
 
 

@@ -2268,7 +2268,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
   ],
   "refusal": null,
   "method": "takeoff",
-  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
   "reader": {
     "route": "vector",
     "source": "plans/flat-b.pdf",
@@ -2299,7 +2299,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "latency_s": 0.002,
     "confidence": null,
     "abstain": null,
-    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
     "conflicts": [
       {
@@ -2342,7 +2342,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
         "note": null
       }
     ],
-    "arithmetic": "30 = 30 m²",
+    "arithmetic": null,
     "objects": null,
     "storeys": null,
     "schedule": null,
@@ -2521,7 +2521,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
   ],
   "refusal": null,
   "method": "takeoff",
-  "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+  "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
   "reader": {
     "route": "vector",
     "source": "plans/flat-b.pdf",
@@ -2552,7 +2552,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "latency_s": 0.002,
     "confidence": null,
     "abstain": null,
-    "explanation": "two methods disagree (polygon_x_scale 22.401, printed_label 30); kept 30: the printed label over the outline at the sheet's scale",
+    "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
     "conflicts": [
       {
@@ -2595,7 +2595,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
         "note": null
       }
     ],
-    "arithmetic": "30 = 30 m²",
+    "arithmetic": null,
     "objects": null,
     "storeys": null,
     "schedule": null,

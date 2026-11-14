@@ -26,6 +26,7 @@ from app.core.answering.ports import (
 from app.core.answering.tables import answer_table
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
+from app.core.pipeline.second_count import METHODS
 from app.core.pipeline.takeoff import known_quantities, normalised, room_names
 
 logger = logging.getLogger(__name__)
@@ -172,7 +173,10 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
             )
             for value in disputed.values
         )
-        shown = ", ".join(f"{value.method} {value.value:g}" for value in disputed.values)
+        shown = ", ".join(  # in words, not method ids (R3 qa-2)
+            f"{METHODS.get(value.method, value.method)} {value.value:g}"
+            for value in disputed.values
+        )
         if (rule := disputed.resolution) is not None:
             resolution = f"kept {rule.value:g}: {rule.rule}"
             notes.append(f"two methods disagree ({shown}); {resolution}")
