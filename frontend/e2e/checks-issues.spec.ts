@@ -113,7 +113,9 @@ test('IS-19 IS-20 EN-76: the issues list, the first issue outlined, Open the dra
   await expect(page.locator('.is-row')).toHaveCount(0);
   await noSideScroll(page, 'issues?pack=fi');
   // The header's project list loads on its own: wait, or the shot shows "Loading projects…".
-  await expect(banner(page).getByRole('combobox', { name: 'Project' })).not.toContainText('Loading');
+  await expect(banner(page).getByRole('combobox', { name: 'Project' })).not.toContainText(
+    'Loading',
+  );
   await shot(page, testInfo, 'is-issues-fi', offline);
 
   await page.getByRole('link', { name: 'Show the issues without country rules' }).click();
