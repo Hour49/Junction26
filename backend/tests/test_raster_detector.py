@@ -13,6 +13,7 @@ from PIL import Image
 
 from app import composition
 from app.adapters.raster_detector import OnnxDetector, load_config, post
+from app.adapters.raster_detector.views import Det, fuse_views
 from app.composition import build_pipeline
 from app.core.drawing.model import Page
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
@@ -273,4 +274,69 @@ def test_the_source_names_the_arm_and_its_tune_run(
         build_pipeline(Settings(), tmp_path)
     monkeypatch.setenv("RASTER_COMPONENTS", "elements=detector:C:../../x,plans=one-plan")
     with pytest.raises(InvalidInputError, match="not a path inside"):
+        build_pipeline(Settings(), tmp_path)
+
+
+def test_n_views_read_the_canvas_n_times_and_fuse_them_before_the_thresholds() -> None:
+    # The window sits where all eight symmetries of the canvas put it back to the same box: the
+    # views agree, one object at 0.8. The fake answers the door at the same view pixels every
+    # time, so each view puts it back somewhere else: eight objects at 0.9 / 8, all dropped.
+    session = FakeSession(
+        ["images", "orig_target_sizes"],
+        {
+            "labels": np.array([[0, 2]]),
+            "boxes": np.array([[[0, 25, 10, 35], [40, 40, 60, 60]]], dtype=np.float32),
+            "scores": np.array([[0.9, 0.8]], dtype=np.float32),
+        },
+    )
+    calls = []
+    run = session.run
+    session.run = lambda names, feed: calls.append(1) or run(names, feed)  # type: ignore[method-assign]
+    detector = OnnxDetector(Files(png(100, 100)), config(), session, "B", views=8)
+    found = detector.extract(*sheet(100, 100))
+    assert len(calls) == 8
+    assert [(e.class_, e.box, e.attrs["score"], e.attrs["views"]) for e in found.elements] == [
+        ("window", (0.4, 0.4, 0.6, 0.6), 0.8, "11111111")
+    ]
+    assert "8 views" in found.notes[0]
+    one = OnnxDetector(Files(png(100, 100)), config(), session, "B").extract(*sheet(100, 100))
+    assert all("views" not in e.attrs for e in one.elements)  # one view: attrs as before
+    with pytest.raises(InvalidInputError, match="views"):
+        OnnxDetector(Files(png(100, 100)), config(), session, "B", views=9)
+
+
+def test_a_fused_detection_names_the_views_that_saw_it() -> None:
+    found = [Det("door", 0.8, (10, 10, 20, 20), 0), Det("door", 0.6, (11, 11, 21, 21), 3)]
+    assert [d.seen for d in fuse_views(found, views=4)] == [(0, 3)]
+
+
+def test_n_views_take_their_own_thresholds_never_the_one_view_ones(tmp_path: Path) -> None:
+    write(tmp_path, "model.json", {**MODEL_JSON, "format": "dfine", "mean": None, "std": None})
+    write(tmp_path, "detector.json", BASE)
+    with pytest.raises(NotFoundError, match=r"detector-v8\.json is missing"):
+        load_config(tmp_path, views=8)
+    write(tmp_path, "detector-v8.json", {**BASE, "thresholds": dict.fromkeys(CLASSES, 0.2)})
+    assert load_config(tmp_path, views=8).thresholds == dict.fromkeys(CLASSES, 0.2)
+    assert load_config(tmp_path).thresholds == BASE["thresholds"]
+
+
+def test_the_source_detector_v8_reads_eight_views(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = []
+
+    def from_folder(files: object, folder: Path, thresholds: Path | None = None, views: int = 1):
+        seen.append((folder.name, thresholds, views))
+        raise NotFoundError("stop here")
+
+    monkeypatch.setattr(composition.OnnxDetector, "from_folder", from_folder)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("EXTRACTOR_RASTER", "composite")
+    for source, views in (("detector-v8:C", 8), ("detector-v4:C", 4), ("detector:C", 1)):
+        monkeypatch.setenv("RASTER_COMPONENTS", f"elements={source},plans=one-plan")
+        with pytest.raises(DomainError, match="stop here"):
+            build_pipeline(Settings(), tmp_path)
+        assert seen.pop() == ("C", None, views)
+    monkeypatch.setenv("RASTER_COMPONENTS", "elements=detector-v3:C,plans=one-plan")
+    with pytest.raises(InvalidInputError, match="unknown source"):
         build_pipeline(Settings(), tmp_path)

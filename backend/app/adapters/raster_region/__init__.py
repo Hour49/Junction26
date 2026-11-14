@@ -29,15 +29,22 @@ from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.raster_detector import Session, onnx_session, post
+from app.adapters.raster_detector.views import (
+    MIN_SCORE,
+    VIEWS,
+    Det,
+    as_found,
+    fuse_views,
+    read_views,
+)
 from app.adapters.raster_region import steps
-from app.adapters.raster_region.steps import Det, Frame, Window
+from app.adapters.raster_region.steps import Frame, Window
 from app.core.drawing.model import Element, Plan, Scale
 from app.core.errors import InvalidInputError, NotFoundError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles
 
 ARMS = Path(__file__).with_name("arms.json")
-MIN_SCORE = 0.02  # rows under this score were never saved by the prototype (predict.py)
 MARGIN = 0.04  # a window's crop: the plan box grown by this share of its long side
 OWN = 0.02  # the box whose detections a window keeps: the plan box grown by this share
 MIN_SHARE = 0.02  # a region mask covering no more of the page keeps every box
@@ -59,7 +66,7 @@ class ArmKnobs(BaseModel):
 
     model_config = ConfigDict(extra="ignore", frozen=True)
 
-    views: int = Field(ge=1, le=len(steps.VIEWS))
+    views: int = Field(ge=1, le=len(VIEWS))
     windows: bool
     plan_score: float = Field(ge=0, le=1)  # a view-0 plan box this sure gets a window
     tuned: dict[str, Any]
@@ -117,8 +124,8 @@ class RegionDetector:
     ) -> None:
         if config.format != "dfine":
             raise InvalidInputError("region:<arm> runs a YOLO/D-FINE export (format dfine) only")
-        if not 1 <= views <= len(steps.VIEWS):
-            raise InvalidInputError(f"views must be 1 to {len(steps.VIEWS)}, not {views}")
+        if not 1 <= views <= len(VIEWS):
+            raise InvalidInputError(f"views must be 1 to {len(VIEWS)}, not {views}")
         self._files = files
         self._config = config
         self._detector = detector
@@ -166,7 +173,7 @@ class RegionDetector:
             found = steps.keep_in_region(
                 found, frame, mask, mask_frame, config.plan_class, MIN_SHARE
             )
-        fused = steps.fuse_views(found, self._views)
+        fused = fuse_views(found, self._views)
         kept = post.kept([post.Detection(d.name, d.score, d.box) for d in fused], config)
         elements = []
         for det in kept:
@@ -202,14 +209,7 @@ class RegionDetector:
 
     def _read(self, canvas: Image.Image) -> list[Det]:
         """Every detection of the canvas's views, in the canvas as is, view by view."""
-        config = self._config
-        found = []
-        for index, view in enumerate(steps.VIEWS[: self._views]):
-            turned = steps.view_of(canvas, view)
-            for det in self._detect(turned):
-                back = steps.box_back(det.box, view, config.side)
-                found.append(Det(det.name, det.score, back, index if self._views > 1 else 0))
-        return found
+        return read_views(canvas, self._views, self._config.side, self._detect)
 
     def _detect(self, canvas: Image.Image) -> list[Det]:
         config, session = self._config, self._detector
@@ -219,7 +219,7 @@ class RegionDetector:
             names, {"images": post.pixels(canvas, config), "orig_target_sizes": sizes}
         )
         return [
-            steps.as_found(d.name, d.score, d.box, config.side)
+            as_found(d.name, d.score, d.box, config.side)
             for d in post.decode_dfine(labels, boxes, scores, config)
             if d.score >= MIN_SCORE
         ]

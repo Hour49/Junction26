@@ -12,6 +12,13 @@ with `counts.py write`'s defaults. Weights are never committed.
 The page is put on a white square canvas (Lanczos, long side = `side`), the model runs once,
 and post.py turns the detections into elements and plans as page fractions, the same way
 prototypes/detector/counts.py writes the arm's files. It reads no rooms and no scale.
+
+`detector-v<N>:<arm>` (N = 2, 4 or 8) reads the canvas in its first N views (rotations and
+mirrors, views.py) and fuses them into one detection per object before the thresholds, as core's
+`predict.py --views N` and `counts.py` did on val. Fused scores are lower than one view's, so its
+knobs are `detector-v<N>.json` in the folder (thresholds tuned on N-view predictions), never the
+one-view files. Each element's attrs say which views saw it: `views`, one character per view
+("1" saw it), so a view's own count of a class is the number of its elements with a "1" there.
 """
 
 import json
@@ -25,7 +32,15 @@ from PIL import Image
 from pydantic import BaseModel
 
 from app.adapters.raster_detector import post
-from app.core.drawing.model import Element, Plan, Scale
+from app.adapters.raster_detector.views import (
+    MIN_SCORE,
+    VIEWS,
+    Det,
+    as_found,
+    fuse_views,
+    read_views,
+)
+from app.core.drawing.model import Attr, Element, Plan, Scale
 from app.core.errors import InvalidInputError, NotFoundError
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles
@@ -43,10 +58,17 @@ class Session(Protocol):
     def get_outputs(self) -> Sequence[Any]: ...
 
 
-def load_config(folder: Path, thresholds: Path | None = None) -> post.DetectorConfig:
+def load_config(
+    folder: Path, thresholds: Path | None = None, views: int = 1
+) -> post.DetectorConfig:
     """The arm's config from core's export (module docstring says where each part comes from)."""
     facts = _valid(folder / "model.json", post.ModelFacts, _json(folder / "model.json"))
-    knobs = folder / "detector.json"
+    if views > 1:
+        knobs = folder / f"detector-v{views}.json"
+        if not knobs.is_file():
+            raise NotFoundError(f"{knobs} is missing: {views} views need their own thresholds")
+    else:
+        knobs = folder / "detector.json"
     if knobs.is_file():
         config = _valid(knobs, post.DetectorConfig, _json(knobs))
         if (wrong := facts.disagrees(config)) is not None:
@@ -94,30 +116,52 @@ def onnx_session(model: Path) -> Session:
 
 class OnnxDetector:
     def __init__(
-        self, files: DrawingFiles, config: post.DetectorConfig, session: Session, name: str
+        self,
+        files: DrawingFiles,
+        config: post.DetectorConfig,
+        session: Session,
+        name: str,
+        views: int = 1,
     ) -> None:
+        if not 1 <= views <= len(VIEWS):
+            raise InvalidInputError(f"views must be 1 to {len(VIEWS)}, not {views}")
         self._files = files
         self._config = config
         self._session = session
         self._name = name
+        self._views = views
 
     @classmethod
     def from_folder(
-        cls, files: DrawingFiles, folder: Path, thresholds: Path | None = None
+        cls, files: DrawingFiles, folder: Path, thresholds: Path | None = None, views: int = 1
     ) -> "OnnxDetector":
-        config = load_config(folder, thresholds)
-        return cls(files, config, onnx_session(folder / "model.onnx"), folder.name)
+        config = load_config(folder, thresholds, views)
+        return cls(files, config, onnx_session(folder / "model.onnx"), folder.name, views)
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         config = self._config
         with Image.open(BytesIO(self._files.read(source.path))) as image:
             canvas, frame = post.letterbox(post.open_rgb(image), config.side)
-        found = post.kept(self._detections(post.pixels(canvas, config)), config)
+        seen: dict[int, tuple[int, ...]] = {}  # a kept detection (by id) -> its views
+        if self._views == 1:
+            found = post.kept(self._detections(post.pixels(canvas, config)), config)
+        else:
+            fused = fuse_views(
+                read_views(canvas, self._views, config.side, self._found), self._views
+            )
+            candidates = [post.Detection(d.name, d.score, d.box) for d in fused]
+            seen = {id(c): d.seen for c, d in zip(candidates, fused, strict=True)}
+            found = post.kept(candidates, config)
         elements = []
         for det in found:
             name = config.element_class.get(det.name)
             if name is None:
                 continue
+            attrs: dict[str, Attr] = {"score": round(det.score, 4), "detector_class": det.name}
+            if seen:
+                attrs["views"] = "".join(
+                    "1" if v in seen[id(det)] else "0" for v in range(self._views)
+                )
             elements.append(
                 Element.model_validate(
                     {
@@ -125,7 +169,7 @@ class OnnxDetector:
                         "class": name,
                         "page": 1,
                         "box": tuple(round(v, 5) for v in frame.to_page(det.box)),
-                        "attrs": {"score": round(det.score, 4), "detector_class": det.name},
+                        "attrs": attrs,
                     }
                 )
             )
@@ -140,10 +184,20 @@ class OnnxDetector:
             elements=tuple(elements),
             read=config.read,
             notes=(
-                f"detector {self._name} ({config.format}, {config.side} px, onnxruntime CPU): "
+                f"detector {self._name} ({config.format}, {config.side} px, onnxruntime CPU"
+                f"{f', {self._views} views' if self._views > 1 else ''}): "
                 f"{len(elements)} elements, {len(plans)} plans by {config.plans}",
             ),
         )
+
+    def _found(self, canvas: Image.Image) -> list[Det]:
+        """One view's detections as core's predict.py saved them (rounded, MIN_SCORE up)."""
+        side = self._config.side
+        return [
+            as_found(d.name, d.score, d.box, side)
+            for d in self._detections(post.pixels(canvas, self._config))
+            if d.score >= MIN_SCORE
+        ]
 
     def _detections(self, x: np.ndarray) -> list[post.Detection]:
         config, session = self._config, self._session
