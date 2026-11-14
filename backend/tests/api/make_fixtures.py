@@ -139,6 +139,8 @@ def responses() -> dict[str, Any]:
     variable = {  # the synthetic PDFs' bytes vary with the hash seed (tests/pdf_sheets.py)
         found["answer_schedule"]["drawing_id"]: "5c4ed01e00000001",
         found["checks"]["drawing_id"]: "5c4ed01e00000002",
+        # an issue's id hashes its drawing's: the first failed check's, the one the fixture keeps
+        found["project_issues_checks"]["issues"][0]["id"]: "code_check_failed-5c4ed01e0002",
         found["project_running"]["files"][0]["sha256"]: hashlib.sha256(b"plan.pdf").hexdigest(),
     }
     return stable(trimmed(found), [started["id"], *others], variable)
