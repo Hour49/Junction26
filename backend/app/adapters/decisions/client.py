@@ -16,6 +16,7 @@ from typing import Any, Protocol
 
 from app.core import cost
 from app.core.errors import InvalidInputError
+from app.core.spend import SpendGuard
 
 URL = "https://generativelanguage.googleapis.com/v1beta/decisions"
 MODEL = "gemini-decision-1"
@@ -65,6 +66,7 @@ class DecisionsClient:
         timeout_s: float,
         transport: Transport = urllib_transport,
         sleep: Callable[[float], None] = time.sleep,
+        budget: SpendGuard | None = None,
     ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: the Decisions reader needs a key")
@@ -72,6 +74,7 @@ class DecisionsClient:
         self._timeout = timeout_s
         self._transport = transport
         self._sleep = sleep
+        self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
 
     @property
     def model(self) -> str:
@@ -81,6 +84,8 @@ class DecisionsClient:
         return f"DecisionsClient({MODEL})"
 
     def decide(self, body: Json) -> Json:
+        if self._budget is not None and (refused := self._budget.exhausted()):
+            raise DecisionsError(refused)
         raw = json.dumps(body).encode()
         delay = 1.0
         for attempt in range(1, TRIES + 1):
@@ -97,6 +102,8 @@ class DecisionsClient:
                 tokens = int(reply.get("usage", {}).get("total_input_tokens", 0))
                 usd = tokens * USD_PER_M_INPUT / 1e6
                 cost.charge(usd)  # recorded in the trace of the stage that called (R1b-4-2)
+                if self._budget is not None:
+                    self._budget.charge(usd, "decisions")
                 log.info(
                     "decisions: %s, %.2f s, %d input tokens, $%.6f, try %d",
                     MODEL, time.monotonic() - start, tokens, usd, attempt,

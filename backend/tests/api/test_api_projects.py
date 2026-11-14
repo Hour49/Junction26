@@ -378,6 +378,9 @@ def test_info_names_the_readers_and_the_limits(client: TestClient) -> None:
     }
 
 
+LOCAL = "elements=region:C,plans=region:C"  # ONNX models on this machine only
+
+
 @pytest.mark.parametrize(
     ("keyed", "no_keys"),
     [
@@ -387,6 +390,27 @@ def test_info_names_the_readers_and_the_limits(client: TestClient) -> None:
         (
             {"raster_components": "elements=dir:arm,plans=dir:arm", "decisions_confidence": True},
             False,
+        ),
+        ({"triage_classifier": "rules", "triage_describer": "gemini"}, False),
+        ({"triage_describer": "gemini"}, True),  # triage off: the describer is never built
+        (
+            {"raster_components": LOCAL, "raster_photo_components": "rooms=gemini,plans=one-plan"},
+            False,
+        ),
+        ({"raster_components": LOCAL, "double_check_readers": "v1=verda"}, False),
+        # our EU model server instead of Gemini is still a keyed model server
+        ({"raster_components": f"{LOCAL},rooms=gemini", "rooms_provider": "eu"}, False),
+        ({"decisions_kind": True, "kind_provider": "eu"}, False),
+        # the SigLIP classifier is a local model, but it turns triage on, so the describer runs
+        ({"triage_classifier": "siglip"}, True),
+        ({"triage_classifier": "siglip", "triage_describer": "gemini"}, False),
+        (
+            {
+                "raster_components": LOCAL,
+                "raster_photo_components": "plans=photo:P",
+                "double_check_readers": "l1=detector:C",
+            },
+            True,
         ),
     ],
 )

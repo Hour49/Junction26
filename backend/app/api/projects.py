@@ -24,6 +24,7 @@ from app.api.deps import (
     now,
 )
 from app.api.drawings import IMMUTABLE, checked_width, file_credit
+from app.api.issue_answers import answers
 from app.api.issues import open_count
 from app.api.questions import ProjectQuestions, listed, log_size
 from app.api.takeoff import Takeoff, takeoff_rows
@@ -47,6 +48,7 @@ from app.core.ingest.model import (
     SecondCount,
 )
 from app.core.pipeline.model import QuantityConflict
+from app.core.review import conflict_card
 from app.core.review.model import ReviewState, Settled, SignOff
 from app.core.review.ports import ReviewStore
 from app.core.review.review import disputes, reset
@@ -81,6 +83,8 @@ class ProjectSummary(View):
     conflicts_open: int | None  # conflicts a person still has to settle; None until `done`
     # Issues in state open (GET …/issues without a pack, decision 0008); None until `done`
     issues_open: int | None = None
+    # Of those, the ones that wait for a person's answer: not a note, not answered
+    issues_to_answer: int | None = None
     # Files triage called not a floor plan (decision 0010); None until `done`; left out of the
     # JSON when triage is off
     not_plans: int | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -135,6 +139,9 @@ class ConflictEntry(View):
     needs_person: bool
     signed: SignOff | None  # the sign-off, when a person signed the value off
     value: int | float  # the value in use: edits applied, the settled value if one was chosen
+    title: str  # the conflict as a question, in plain words ("Door count: 13 or 11?")
+    why: str  # what each method read and how it is decided (a rule, or a person has to choose)
+    suggestions: list[str]  # short answers a person can tap, one per value read ("13 doors")
 
 
 class ProjectReview(View):
@@ -176,6 +183,13 @@ class Admission:
 class Counts(NamedTuple):
     review: ProjectReview
     issues_open: int
+    issues_to_answer: int
+
+
+class OpenCounts(NamedTuple):
+    conflicts_open: int | None
+    issues_open: int | None
+    issues_to_answer: int | None
 
 
 class KeptReviews:
@@ -184,8 +198,9 @@ class KeptReviews:
     until what it is made of changes: the project's status, the size of its question log
     (refused answers are issues; the log is only appended to), or for one of its drawings the
     upload that wrote it last (a drawing is shared by content, so another project's ingest may
-    write it again) or its review edits. All are read on every call, so every review write
-    (settle, sign-off, add, reject, restore, reset) and every ask is seen, whoever wrote it."""
+    write it again) or its review edits, or its issue answers. All are read on every call, so
+    every review write (settle, sign-off, add, reject, restore, reset), every ask and every
+    answer is seen, whoever wrote it."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -201,7 +216,8 @@ class KeptReviews:
             for entry in drawings_of(status)
         )
         asked = log_size(settings.projects_dir, status.id)
-        key = (status, drawings, asked)  # read before the counts: they are never newer
+        said = answers(settings.projects_dir, status.id)
+        key = (status, drawings, asked, said)  # read before the counts: they are never newer
         with self._lock:
             kept = self._kept.get(status.id)
         if kept is not None and kept[0] == key:
@@ -209,7 +225,7 @@ class KeptReviews:
         takeoffs = takeoffs_of(status, ingest, reviews)  # once, for the review and the issues
         found = Counts(
             review_of(status, ingest, reviews, takeoffs),
-            open_count(status, ingest, reviews, settings, takeoffs),
+            *open_count(status, ingest, reviews, settings, takeoffs),
         )
         with self._lock:
             self._kept[status.id] = (key, found)
@@ -237,13 +253,19 @@ def project_list(
     )
 
 
+def open_counts(found: Counts | None) -> OpenCounts:
+    """`found`: the project's counts, for a `done` project; else every count is None."""
+    if found is None:
+        return OpenCounts(None, None, None)
+    conflicts_open = sum(entry.needs_person for entry in found.review.conflicts)
+    return OpenCounts(conflicts_open, found.issues_open, found.issues_to_answer)
+
+
 def summary_of(status: ProjectStatus, found: Counts | None) -> ProjectSummary:
     """`found`: the project's counts, for a `done` project."""
-    to_review = conflicts_open = issues_open = None
+    to_review = None
     if found is not None:
         to_review = sum(drawing.to_review for drawing in found.review.drawings)
-        conflicts_open = sum(entry.needs_person for entry in found.review.conflicts)
-        issues_open = found.issues_open
     return ProjectSummary(
         id=status.id,
         name=status.name,
@@ -252,8 +274,7 @@ def summary_of(status: ProjectStatus, found: Counts | None) -> ProjectSummary:
         files=len(status.files),
         drawings=len(drawings_of(status)),
         to_review=to_review,
-        conflicts_open=conflicts_open,
-        issues_open=issues_open,
+        **open_counts(found)._asdict(),
         not_plans=not_plans_of(status),
     )
 
@@ -314,15 +335,24 @@ def sample(
 
 
 @router.get("/{project_id}")
-def project(project_id: ProjectId, ingest: IngestDep, credits: CreditsDep) -> ProjectView:
+def project(
+    request: Request,
+    project_id: ProjectId,
+    ingest: IngestDep,
+    reviews: ReviewsDep,
+    settings: SettingsDep,
+    credits: CreditsDep,
+) -> ProjectView:
     status = ingest.status(project_id)
     files = {file.path: file for file in status.files}
+    kept: KeptReviews = request.app.state.kept_reviews
     return ProjectView(
         **status.model_dump(),
         drawings=drawings_of(status, lambda path: file_credit(path, files, credits)),
         skipped=skipped_of(status),
         expected_drawings=expected_drawings_of(status),
         not_plans=not_plans_of(status),
+        **open_counts(kept.counts(status, ingest, reviews, settings))._asdict(),
     )
 
 
@@ -463,6 +493,9 @@ def review_of(
                 needs_person=row.needs_person,
                 signed=row.signed,
                 value=row.value,
+                title=conflict_card.title(row),
+                why=conflict_card.why(row),
+                suggestions=conflict_card.suggestions(row),
             )
             for row in disputes(found.quantities)
             if row.conflict is not None  # always: narrows the type
