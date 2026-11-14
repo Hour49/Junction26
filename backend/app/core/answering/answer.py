@@ -5,9 +5,13 @@ import re
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
+from app.core.answering.floors import FLOOR, FLOOR_AT, floor_number, floor_of
 from app.core.answering.model import (
     NO_SUBJECT,
+    NO_SUCH_FLOOR,
+    SEVERAL_FLOORS,
     SEVERAL_PRINTED,
+    UNQUOTED_PLACE,
     Answer,
     ConflictValue,
     Evidence,
@@ -30,7 +34,7 @@ from app.core.answering.tables import TableAnswer, answer_table, why_none
 from app.core.drawing.model import Drawing, Room, Table
 from app.core.pipeline.model import Quantity
 from app.core.pipeline.second_count import METHODS
-from app.core.pipeline.takeoff import known_quantities, normalised, room_names
+from app.core.pipeline.takeoff import known_quantities, normalised, room_names, storeys
 
 logger = logging.getLogger(__name__)
 
@@ -289,7 +293,7 @@ class RoomByType:
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
         parsed = self._parser.parse(text)
         if isinstance(parsed, Unsupported):
-            return self._printed(text) or parsed
+            return self._floor(text, parsed) or self._printed(text) or parsed
         if isinstance(parsed, Query) and (unnamed := self._not_a_room(text, parsed)):
             return unnamed
         if isinstance(parsed, Query) and _sheet_count(parsed) and (inside := self._printed(text)):
@@ -328,6 +332,33 @@ class RoomByType:
             )  # fmt: skip
             if query.key() in self._quantities:
                 return query
+        return None
+
+    def _floor(self, text: str, parsed: Unsupported) -> Query | Unsupported | None:
+        """A floor named in words ("on the first floor", "1st floor"), which the parser refuses
+        as a place, read as the drawing's one storey of that floor number (FIRST FLOOR, "Level
+        1"). None when the question names no floor, or names none the rest of it can be asked
+        of; NO_SUCH_FLOOR when no storey of the drawing is that floor, SEVERAL_FLOORS when more
+        than one could be (ask says which floors there are, or what is on each unnamed plan).
+        "How many doors are on the first floor?" was refused on a sheet titled FIRST FLOOR PLAN;
+        "... on the 1st floor?" counted the whole sheet (fable-rooms r10 items 10, 11)."""
+        if parsed.reason != UNQUOTED_PLACE:
+            return None
+        asked = {floor_number(match) for match in FLOOR.finditer(text)}
+        if len(asked) != 1:
+            return None
+        number = asked.pop()
+        named = [storey for storey in storeys(self._drawing) if floor_of(storey) == number]
+        if len(named) > 1:
+            return Unsupported(reason=SEVERAL_FLOORS)
+        if not named:
+            rest = self._parser.parse(FLOOR_AT.sub(" ", text))
+            return Unsupported(reason=NO_SUCH_FLOOR) if isinstance(rest, Query) else None
+        (storey,) = named
+        quote = "'{}'" if "'" not in storey else "„{}“"
+        again = self._parser.parse(FLOOR.sub(lambda _: quote.format(storey), text))
+        if isinstance(again, Query) and again.storey == storey:
+            return again
         return None
 
     def _printed(self, text: str) -> Query | Unsupported | None:

@@ -751,7 +751,8 @@ def build_ingest(
             if settings.carbon_reader == "large"
             else settings.carbon_reader
         )
-        names["carbon_reader"] = f"{rule}:{READER_SHA[:12]}"
+        # +storey: a plan's floor from its caption or the sheet's title (contract.py)
+        names["carbon_reader"] = f"{rule}+storey:{READER_SHA[:12]}"
     if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
         # (ladder acts only when answering), so they share one name and a switch reads nothing again
         names["carbon_levels"] = f"demote:{READER_SHA[:12]}"

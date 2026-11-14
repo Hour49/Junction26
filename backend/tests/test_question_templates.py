@@ -183,6 +183,9 @@ def test_danish_romanian_and_italian_questions_parse() -> None:
         "How many interior doors are there?",
         "How many steps does the stair in house A have?",
         "How many toilets are on the ground floor?",
+        "How many doors are on the 1st floor?",  # counted the whole sheet (fable-rooms r10 10)
+        "How many windows are there on floor 2?",
+        "How many rooms are on level 3?",
         "How many windows are there on the north facade?",
         "How many rooms have access to outdoor space?",
         "What door types are present, and how many of each type?",
@@ -446,3 +449,11 @@ def test_plans_are_counted() -> None:
     """R2-2 note: "How many plans are there?" was refused though the takeoff counts plans."""
     assert PARSE("How many plans are there?") == Query(subject="plan")
     assert PARSE("How many floor plans does the sheet show?") == Query(subject="plan")
+
+
+def test_a_room_number_after_level_is_not_a_floor() -> None:
+    """Only a whole number after floor, storey or level names a floor: "level 1.5" keeps the
+    parse it had (a room numbered 1.5; RoomByType._not_a_room reads it)."""
+    assert PARSE("What is the area of level 1.5?") == Query(
+        measure="area", subject="room", name="1.5"
+    )

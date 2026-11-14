@@ -21,9 +21,12 @@ from app.core.answering.answer import (
     printed_rooms,
     rooms_of_type,
 )
+from app.core.answering.floors import FLOOR, FLOOR_AT, floor_of
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
+    NO_SUCH_FLOOR,
+    SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
@@ -35,12 +38,27 @@ from app.core.answering.model import (
 )
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, CarbonCheck, Drawing, Room, Table, words
+from app.core.drawing.model import (
+    ELEMENT_CLASSES,
+    CarbonCheck,
+    Drawing,
+    Plan,
+    Room,
+    Table,
+    words,
+)
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
-from app.core.pipeline.takeoff import known_quantities, normalised, quantity_key, room_names
+from app.core.pipeline.takeoff import (
+    known_quantities,
+    normalised,
+    plan_counts,
+    quantity_key,
+    room_names,
+    storeys,
+)
 from app.core.review.check import (
     NO_SCORERS,
     Check,
@@ -259,6 +277,11 @@ def ask(
                 else _room_counts(rooms, again.subject, quantities, parser)
             )
             can_answer = each or can_answer
+        if isinstance(parsed, Unsupported) and parsed.reason in (NO_SUCH_FLOOR, SEVERAL_FLOORS):
+            # "How many toilets are on the second floor?" on a sheet that doesn't name it: which
+            # floors it does name, or what each of its unnamed plans holds (fable-rooms r10 10)
+            code = "not-in-drawing"
+            words = _floor_text(parsed.reason, text, drawing, quantities, parser)
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     level = None
@@ -489,6 +512,60 @@ def suggestions(
                 found.append(Suggestion(quantity=key, label=label(key), question=text))
                 break
     return tuple(found)
+
+
+def _floor_text(
+    reason: str,
+    text: str,
+    drawing: Drawing,
+    quantities: Mapping[str, Quantity],
+    parser: QuestionParser,
+) -> str:
+    """Why a floor named in words can't be answered on this drawing (RoomByType._floor), in
+    words: the storeys that could be meant, the ones it has, or, on a sheet of several plans none
+    of which names its floor, how many of the counted thing each plan holds."""
+    found = FLOOR.search(text)
+    asked = "floor" if found is None else found.group().casefold()
+    named = storeys(drawing)
+    if reason == SEVERAL_FLOORS:
+        same = [storey for storey in named if floor_of(storey) == floor_of(asked)]
+        return (
+            f"Several storeys of this drawing could be the {asked}: {', '.join(same)}. Ask with "
+            f"the storey's name in quotes, as in \"How many doors are on '{same[0]}'?\""
+        )
+    if named:
+        return f"This drawing's storeys are {', '.join(named)}; none of them is the {asked}."
+    if len(drawing.plans) < 2:
+        return (
+            f"This drawing doesn't say which floor it shows, so I can't tell if it is the {asked}."
+        )
+    words = (
+        f"This drawing has {len(drawing.plans)} plans and none is labelled with its floor, so I "
+        f"can't tell which one is the {asked}."
+    )
+    rest = parser.parse(FLOOR_AT.sub(" ", text))
+    if not isinstance(rest, Query) or rest.measure != "count" or rest.key() not in quantities:
+        return words
+    each = plan_counts(drawing, rest.key())
+    if not each:
+        return words
+    pages = len(drawing.pages) > 1
+    lines = [f"plan {at} ({_where(plan, pages)}) {n}" for at, (plan, n) in enumerate(each, 1)]
+    total = int(quantities[rest.key()].value)
+    if (outside := total - sum(n for _, n in each)) > 0:
+        lines.append(f"{outside} outside every plan")
+    kind = parse_key(rest.key())[1].removeprefix("room:")
+    return f"{words} {plural(kind).capitalize()} on each: {', '.join(lines)}; {total} in all."
+
+
+def _where(plan: Plan, pages: bool) -> str:
+    """Where a plan is drawn, in words: top left, bottom, middle (and its page)."""
+    x0, y0, x1, y1 = plan.box
+    x, y = (x0 + x1) / 2, (y0 + y1) / 2
+    across = "left" if x < 0.4 else "right" if x > 0.6 else ""
+    down = "top" if y < 0.4 else "bottom" if y > 0.6 else ""
+    place = " ".join(word for word in (down, across) if word) or "middle"
+    return f"{place} of page {plan.page}" if pages else place
 
 
 def _room_lines(rooms: Sequence[Room], quantities: Mapping[str, Quantity]) -> list[str]:

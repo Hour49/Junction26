@@ -37,11 +37,13 @@ from dataclasses import dataclass
 
 from app.adapters.question_tables import is_table_question, parse_table
 from app.adapters.question_typos import corrected
+from app.core.answering.floors import FLOOR
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
+    UNQUOTED_PLACE,
     Query,
     TableQuery,
     Unsupported,
@@ -244,6 +246,9 @@ BREAKDOWN = re.compile(
 PLACE = re.compile(
     r"\b(?:ground|first|second|third|fourth|fifth|sixth|top|upper|lower|north|south|east|west)\b"
     r"|\bhouse [a-z]\b|\bfa[cç]ade\b|\bwing\b|\bplan \d+[a-z]?\b"
+    # "1st floor", "floor 2" are floors too, not the whole sheet (fable-rooms r10 item 10)
+    rf"|{FLOOR.pattern}",
+    re.IGNORECASE,
 )
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
@@ -317,7 +322,7 @@ class TemplateParser:
         if BREAKDOWN.search(lower):
             return Unsupported(reason="a breakdown or list is not one quantity")
         if PLACE.search(lower):
-            return Unsupported(reason="a place named without quotes (ground floor, north facade)")
+            return Unsupported(reason=UNQUOTED_PLACE)
         if CONDITION.search(lower):
             return Unsupported(reason="a condition on the items (rooms that have...)")
         measure: Measure | None = next((m for m, cue in MEASURES if cue.search(lower)), None)

@@ -16,6 +16,8 @@ import hashlib
 import json
 import math
 
+from app.core.answering.floors import floor_name  # Backend addition (fable-rooms r10 item 11)
+
 VERSION = "carbon-reader-1"  # change it with a prompt, a schema, the encoding or a rule below
 MODEL = "gemini-4-carbon"
 THINKING = "low"
@@ -430,7 +432,14 @@ def assemble(
     for entry in page["plans"]:
         box = box_of(entry.get("box_2d"))
         if box is not None:
-            plans.append({"id": f"p{len(plans) + 1}", "page": 1, "box": list(box), "storey": None})
+            # Backend addition (fable-rooms r10 item 11): the floor its caption prints
+            storey = floor_name(entry.get("name"))
+            plans.append(
+                {"id": f"p{len(plans) + 1}", "page": 1, "box": list(box), "storey": storey}
+            )
+    # Backend addition: a sheet of one plan is the floor its title prints ("FIRST FLOOR PLAN")
+    if len(plans) == 1 and plans[0]["storey"] is None:
+        plans[0]["storey"] = floor_name((page.get("title_block") or {}).get("title"))
     rooms = []
     for entry in page["rooms"]:
         kind = entry.get("type")

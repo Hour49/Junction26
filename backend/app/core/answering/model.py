@@ -140,6 +140,13 @@ IN_ONE_ROOM = "a count within one room is not taken off"
 SEVERAL_ROOMS = "a question about one room that names more than one"
 # A printed room name several rooms carry ("How big is Bagno?"): review/ask.py lists them
 SEVERAL_PRINTED = "a room name several rooms carry"
+# A floor, facade or wing named in words, not as a quoted storey name: answer.RoomByType reads a
+# floor against the drawing's storeys
+UNQUOTED_PLACE = "a place named without quotes (ground floor, north facade)"
+# A floor the drawing names no storey for, or names several for: review/ask.py says which floors
+# it has, or how much is on each of its unnamed plans
+NO_SUCH_FLOOR = "a floor the drawing does not name"
+SEVERAL_FLOORS = "a floor several of the drawing's storeys could be"
 # A supported kind of question whose room or element was not recognised (review/ask.py words it)
 NO_SUBJECT = "no element, room or apartment named"
 
