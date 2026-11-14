@@ -43,10 +43,14 @@ METHODS = {
     "schedule": "the schedule",
     "printed_label": "the printed room areas",
     "polygon_x_scale": "the room outlines at the sheet's scale",
+    "printed_total": "the total printed on the sheet",
 }
 
 COUNTS: frozenset[ConflictQuantity] = frozenset({"room_count", "element_count", "storey_count"})
 TOLERANCE = 0.02  # relative, for everything that is not a count (the dataset's 2% rule)
+# relative, for a printed scale against the one estimated from the doors (`detector`), which is
+# about 16% off with few doors: within it the two agree (app/core/pipeline/printed.py)
+ESTIMATE_TOLERANCE = 0.10
 AGREE = "both methods agree"
 
 
@@ -64,6 +68,12 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
     ),
     ("scale", frozenset({"scale_text", "scale_bar"})): Rule(
         "scale_bar", "the measured scale bar over the scale text"
+    ),
+    ("scale", frozenset({"scale_bar", "detector"})): Rule(
+        "scale_bar", "the printed scale bar over the scale estimated from the doors"
+    ),
+    ("scale", frozenset({"scale_text", "detector"})): Rule(
+        "scale_text", "the printed scale over the scale estimated from the doors"
     ),
     ("element_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
         "plan_drawing", "count what the sheet draws"
@@ -165,6 +175,8 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
         if len(values) < 2:
             continue
         tolerance = 0.0 if quantity in COUNTS else TOLERANCE
+        if quantity == "scale" and any(value.method == "detector" for value in values):
+            tolerance = ESTIMATE_TOLERANCE
         numbers = [value.value for value in values]
         apart = differ(min(numbers), max(numbers), tolerance)
         entries.append(

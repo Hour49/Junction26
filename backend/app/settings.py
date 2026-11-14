@@ -41,6 +41,9 @@ TablesName = Literal["off", "pdf"]
 ProviderName = Literal["gemini", "eu"]
 # off, or priors: a raster sheet without a scale gets an estimated one (app/adapters/raster_scale/)
 RasterScaleName = Literal["off", "priors"]
+# off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
+# its estimated scale and check its counts (app/adapters/printed_scale/)
+RasterPrintedScaleName = Literal["off", "carbon"]
 # furniture: a room keeps the type its reader gave. gold-labels: the printed label overrules it
 # on four points, as the dataset's answers do (app/core/pipeline/room_policy.py)
 RoomPolicyName = Literal["furniture", "gold-labels"]
@@ -74,6 +77,10 @@ class Settings(BaseSettings):
     # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
+    # carbon: the printed scale (a bar, or a ratio at a resolution the file states) replaces the
+    # estimate, kept as a conflict value, and printed counts are checked against the read ones.
+    # Off by default; carbon needs the Carbon reader's client (not in this build yet)
+    raster_printed_scale: RasterPrintedScaleName = "off"
     # How the raster route types the rooms its rooms source read, whichever source that is.
     # gold-labels is for a source that reads printed labels: it turns every unlabelled bedroom
     # into `other`

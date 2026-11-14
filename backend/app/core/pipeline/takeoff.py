@@ -422,6 +422,8 @@ def _conflict_keys(
             return [quantity_key("count", ref, storey=scope) for scope in scopes]
         case "room_count", "sheet":
             return [quantity_key("count", "room", storey=scope) for scope in scopes]
+        case "room_count", "class" if ref is not None and ref.startswith("room:"):
+            return [quantity_key("count", ref, storey=scope) for scope in scopes]
         case "room_area", "room":
             keys: list[str] = []
             for room in (room for room in drawing.rooms if room.id == ref):

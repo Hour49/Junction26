@@ -205,7 +205,7 @@ def build_pipeline(
             # schedule checks noted) as on the vector route.
             "raster": _tables(
                 settings.tables,
-                _scaled(settings, _raster(settings, files, decisions, kind_of)),
+                _printed(settings, _scaled(settings, _raster(settings, files, decisions, kind_of))),
                 files,
             ),
         },
@@ -419,6 +419,8 @@ def build_ingest(
     }
     if settings.raster_scale != "off":  # named only when on: the default keeps its cache keys
         names["raster_scale"] = settings.raster_scale
+    if settings.raster_printed_scale != "off":  # the same
+        names["raster_printed_scale"] = settings.raster_printed_scale
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -540,6 +542,18 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
                     "RASTER_COMPONENTS, or set RASTER_SCALE=off"
                 )
             return PriorScale(inner)
+
+
+def _printed(settings: Settings, inner: Extractor) -> Extractor:
+    """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/)."""
+    match settings.raster_printed_scale:
+        case "off":
+            return inner
+        case "carbon":
+            raise InvalidInputError(
+                "RASTER_PRINTED_SCALE=carbon needs the Carbon reader's client, which is not in "
+                "this build yet: set RASTER_PRINTED_SCALE=off"
+            )
 
 
 def _raster_component(
