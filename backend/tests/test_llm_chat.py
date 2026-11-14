@@ -181,7 +181,19 @@ def test_the_thinking_setting_reaches_the_model() -> None:
     from app.composition import chat_model
     from app.settings import Settings
 
-    settings = Settings(chat_model="gemini", gemini_api_key=SecretStr(KEY), agent_thinking="none")
+    settings = Settings(_env_file=None, chat_model="gemini", gemini_api_key=SecretStr(KEY),
+                        agent_thinking="none")  # fmt: skip
     made, why = chat_model(settings)
     assert why is None and isinstance(made, OpenAiChatModel) and made.thinking == "none"
-    assert Settings().agent_thinking == "low"  # unchanged until chat-eval says otherwise
+    # unchanged until chat-eval says otherwise
+    assert Settings(_env_file=None).agent_thinking == "low"
+
+
+def test_minimal_thinking_is_refused_at_startup() -> None:
+    """The chat model answers reasoning_effort "minimal" with a 400 (review 335 c)."""
+    from pydantic import ValidationError
+
+    from app.settings import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, agent_thinking="minimal")  # pyright: ignore[reportArgumentType]
