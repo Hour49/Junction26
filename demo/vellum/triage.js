@@ -7,31 +7,10 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
   const RULE = 'related when a printed word of 4 or more letters matches the project\'s name, its other file or folder names, or the text on its plans; unsure when it shows a building but nothing matches; else unrelated';
-  const METHOD = 'local classifier; a preview with illustrative values';
-
-  // Synthetic: four images of the sample upload, in the shapes of 0010 §8 (#152 c6877087844). register: the
-  // sheet-register row; description: the describer's form. Relevance is not stored: relevanceOf applies the rule.
-  // Stoa mode hands its own (VData.TRIAGE: real scans, each with image, credit and example: a hand-picked example).
-  const SAMPLE = {
-    'elevations/south-elevation.png': { picture: 'elevation',
-      register: { kind: 'elevation', has_floor_plan: false, photo_of_sheet: false, scale_shown: 'ratio_text', quality: 'good', method: METHOD },
-      description: { text: 'The south face of a four-storey block, drawn straight on, with a title block.', what_it_is: 'drawing', shows_building: true,
-        visible_text: 'Harbour Block\nSouth elevation 1:100',
-        detail: 'A line drawing of a building face seen straight on. Four rows of six windows, an entrance in the middle of the ground row, a flat roof with a parapet. The title block in the lower right names the building and the view and gives a scale. No rooms are drawn, so there is nothing to count.' } },
-    'photos/site.jpg': { picture: 'photo',
-      register: { kind: 'photograph', has_floor_plan: false, photo_of_sheet: false, scale_shown: 'none', quality: 'fair', method: METHOD },
-      description: { text: 'A phone photo of an empty paved yard with a parked bicycle and a fence.', what_it_is: 'photograph', shows_building: false,
-        visible_text: '', detail: 'Taken outdoors in daylight. A paved yard fills the lower half, a wooden fence runs across the middle and a bicycle leans on it. No building, no drawing and no printed text.' } },
-    'misc/poster.jpg': { picture: 'poster',
-      register: { kind: 'not_architecture', has_floor_plan: false, photo_of_sheet: false, scale_shown: 'none', quality: 'good', method: METHOD },
-      description: { text: 'A poster for a concert: a large title, a time and a drawing of a violin.', what_it_is: 'artwork', shows_building: false,
-        visible_text: 'Autumn Concert\n7 pm', detail: 'A printed poster on a dark background. The title is set large across the top, a time below it, and a violin drawn in light lines fills the middle.' } },
-    'scans/annex-sketch.jpg': { picture: 'sketch',
-      register: { kind: 'site_plan_or_map', has_floor_plan: false, photo_of_sheet: false, scale_shown: 'none', quality: 'poor', method: METHOD },
-      description: { text: 'A faint pencil sketch of a few rooms; it could be a sketch plan or a site layout.', what_it_is: 'drawing', shows_building: true,
-        visible_text: 'Annex', detail: 'Pencil on paper, scanned light. Three rectangles drawn freehand share walls; any room names are too faint to read. Short gaps in the walls may be doors. The word Annex is written above.' } },
-  };
-  const TRIAGE = root.VData && root.VData.TRIAGE ? root.VData.TRIAGE : SAMPLE;
+  
+  // Per real file (stoa.js hands VData.TRIAGE): register row, description (each a hand-picked example: what a person
+  // saw on the real image), image and credit. Relevance is not stored: relevanceOf applies the rule.
+  const TRIAGE = (root.VData && root.VData.TRIAGE) || {};
 
   const CLASS_LABEL = { floor_plan: 'a floor plan', other_drawing: 'another kind of drawing', not_drawing: 'not a drawing' };
   const VERDICT = {
@@ -133,29 +112,8 @@
       why: `Not a floor plan (${CLASS_LABEL[classOf(path)]}: ${kindWords(of(path).register.kind)}). ${cap(rel.why)}.${said}${read}` };
   }
 
-  // ---------- pictures (synthetic, drawn here; no real file) ----------
-  function picture(path, label) {
-    const t = of(path), a = `role="img" aria-label="${esc(label)}"`, box = 'viewBox="0 0 400 280" class="plan tri-pic"';
-    if (t.image) return `<img class="plan tri-pic" src="${esc(t.image)}" alt="${esc(label)}">`;
-    if (t.picture === 'elevation') {
-      let w = '';
-      for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) if (!(r === 3 && (c === 2 || c === 3))) w += `<rect x="${92 + c * 36}" y="${52 + r * 40}" width="20" height="24" fill="none" stroke="#1d1d1f" stroke-width="1.5"/>`;
-      return `<svg ${box} ${a}><rect width="400" height="280" fill="#fff"/><rect x="80" y="36" width="230" height="182" fill="none" stroke="#1d1d1f" stroke-width="2.5"/><rect x="76" y="30" width="238" height="8" fill="none" stroke="#1d1d1f" stroke-width="1.5"/>${w}<rect x="180" y="178" width="30" height="40" fill="none" stroke="#1d1d1f" stroke-width="1.5"/><line x1="40" y1="218" x2="360" y2="218" stroke="#1d1d1f" stroke-width="3"/><g font-family="Inter, system-ui, sans-serif" fill="#48484a"><rect x="268" y="232" width="120" height="40" fill="none" stroke="#1d1d1f"/><text x="276" y="248" font-size="11" font-weight="600">Harbour Block</text><text x="276" y="264" font-size="10">South elevation · 1:100</text></g></svg>`;
-    }
-    if (t.picture === 'photo') {
-      let fence = '';
-      for (let x = 10; x < 400; x += 26) fence += `<rect x="${x}" y="96" width="18" height="74" fill="#a07c55"/>`;
-      return `<svg ${box} ${a}><rect width="400" height="280" fill="#c9dbe6"/><rect y="150" width="400" height="130" fill="#9a9a93"/>${fence}<rect y="110" width="400" height="8" fill="#8a6a46"/><g fill="none" stroke="#2c3140" stroke-width="4"><circle cx="170" cy="200" r="28"/><circle cx="250" cy="200" r="28"/><path d="M170 200l30-40h36l14 40M200 160l-6-14h-12M236 160l6-12h12M210 200l-10-40"/></g></svg>`;
-    }
-    if (t.picture === 'poster') {
-      return `<svg ${box} ${a}><rect width="400" height="280" fill="#2b2140"/><g font-family="Georgia, serif" fill="#f3e9d2" text-anchor="middle"><text x="200" y="58" font-size="34" font-weight="700">Autumn Concert</text><text x="200" y="88" font-size="18">7 pm</text></g><g fill="none" stroke="#f3e9d2" stroke-width="2.5"><ellipse cx="200" cy="200" rx="36" ry="44"/><ellipse cx="200" cy="142" rx="26" ry="28"/><line x1="200" y1="110" x2="200" y2="252"/><line x1="200" y1="110" x2="214" y2="98"/></g></svg>`;
-    }
-    // the sketch: the annex layout in the scan look (plan.js), since it really is a plan
-    const P = root.VPlan, V = root.VData, d = V.READ_AS_PLAN && V.READ_AS_PLAN[path];
-    if (!d || !P) return `<svg ${box} ${a}><rect width="400" height="280" fill="#f3eedd"/></svg>`;
-    return P.plain(d, 'scan', label).replace('class="plan ', 'class="plan tri-pic ').replace(/<text\b[^>]*>[^<]*<\/text>/g, '')
-      .replace('</svg>', '<text x="140" y="-2.5" font-family="Georgia, serif" font-style="italic" font-size="7.5" fill="#5b5446" text-anchor="middle">Annex</text></svg>');
-  }
+  // ---------- pictures: the real image ----------
+  const picture = (path, label) => `<img class="plan tri-pic" src="${esc(of(path).image)}" alt="${esc(label)}">`;
 
   // ---------- the trace's triage card ----------
   // ctx as above; signer: the typed name; time(ms) → "HH:MM".
