@@ -27,7 +27,45 @@ export interface Disputed {
   page?: number; // absent: the page being shown
   box?: number[];
   why: string;
+  prefix?: string; // default "Please double-check"; an issue's severity in words
+  tag?: string; // default "?"; an issue's row number
 }
+
+/** A check outcome for one mark (viewer.md "Checks and issues"). */
+// needs_person / note: an issue's severity (issues screen), next to a check's outcomes.
+export type Tone = 'fail' | 'cannot_tell' | 'pass' | 'counted' | 'needs_person' | 'note';
+const TONE_ORDER: Tone[] = ['fail', 'needs_person', 'cannot_tell', 'note', 'pass', 'counted'];
+const TONE_COLOUR: Record<Tone, string> = {
+  fail: 'var(--v-danger)',
+  cannot_tell: 'var(--v-warn)',
+  pass: 'var(--v-ok)',
+  counted: 'var(--v-muted)',
+  needs_person: 'var(--v-warn)',
+  note: 'var(--v-muted)',
+};
+const TONE_DASH: Record<Tone, string | undefined> = {
+  fail: undefined,
+  cannot_tell: '6 3',
+  pass: undefined,
+  counted: '2 3',
+  needs_person: '6 3',
+  note: undefined,
+};
+const TONE_WORDS: Record<Tone, string> = {
+  fail: 'fails the rule',
+  cannot_tell: 'cannot tell',
+  pass: 'passes',
+  counted: 'counted for the rule',
+  needs_person: 'needs a person',
+  note: 'note',
+};
+const PLURAL: Partial<Record<Tone, string>> = {
+  fail: 'fail the rule',
+  pass: 'pass',
+  note: 'notes',
+};
+const toneCount = (t: Tone, k: number) => `${String(k)} ${(k !== 1 && PLURAL[t]) || TONE_WORDS[t]}`;
+type Focus = { page: number; box?: number[] | null; polygon?: [number, number][] | null };
 
 export interface PageViewerProps {
   file: string;
@@ -47,6 +85,9 @@ export interface PageViewerProps {
   disputed?: Disputed[] | null; // places to double-check (viewer.md "Double-check")
   fixMode?: boolean; // with onAddMark: a click, tap or drag on the page proposes a mark
   onAddMark?: (box: Box, page: number) => void;
+  tones?: Record<string, Tone> | null; // mark id → check outcome; replaces that mark's state look
+  disputedLegend?: string; // legend count words for `disputed`; default "to double-check"
+  focus?: Focus | null; // jump-to-place: open the page, zoom and scroll to the box
 }
 
 interface Drag {
@@ -61,13 +102,19 @@ interface Drag {
 const SLOP = 8; // px a pointer may move and still be a click or tap
 const round5 = (v: number) => Number(v.toFixed(5));
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
-const ask = (why: string) => `Please double-check: ${why}`;
+const ask = (why: string, prefix = 'Please double-check') => `${prefix}: ${why}`;
 
 type Zoom = 1 | 2 | 4;
 
 const NARROW = 600; // px of frame width under which badges show their number only
 const STATE_ORDER: MarkView['state'][] = ['counted', 'added', 'rejected', 'excluded'];
 const inPage = (v: number) => v >= 0 && v <= 1;
+/** A box in page fractions: four numbers in 0..1, x0 <= x1, y0 <= y1. */
+const isBox = (b: number[] | null | undefined): b is Box =>
+  b?.length === 4 &&
+  b.every(inPage) &&
+  Number(b[0]) <= Number(b[2]) &&
+  Number(b[1]) <= Number(b[3]);
 
 const countText = (k: number) => `${String(k)} mark${k === 1 ? '' : 's'}`;
 /** The inline custom property viewer.css reads every mark colour from. */
@@ -94,8 +141,19 @@ function spotStyle(
       };
 }
 
+/** Scroll so the box's centre is in the middle of the scroll box, at zoom `z` (viewer.md "Focus"). */
+function scrollToBox(el: HTMLDivElement, z: number, b: Box, pg: { width: number; height: number }) {
+  if (!('scrollTo' in el)) return;
+  const fw = el.clientWidth * z; // the frame is the scroll box wide at 100 %
+  const fh = (fw * pg.height) / pg.width;
+  el.scrollTo({
+    left: Math.max(0, ((b[0] + b[2]) / 2) * fw - el.clientWidth / 2),
+    top: Math.max(0, ((b[1] + b[3]) / 2) * fh - el.clientHeight / 2),
+  });
+}
+
 /** The why of a disputed place, next to its badge; below it when the badge is near the top. */
-function whyTip(why: string, where: CSSProperties) {
+function whyTip(text: string, where: CSSProperties) {
   const below = parseFloat(String(where.top)) < 20;
   return (
     <span
@@ -104,7 +162,7 @@ function whyTip(why: string, where: CSSProperties) {
       className={below ? 'vw-why vw-why--below' : 'vw-why'}
       style={{ left: where.left, top: where.top }}
     >
-      {ask(why)}
+      {text}
     </span>
   );
 }
@@ -136,6 +194,9 @@ export function PageViewer({
   disputed,
   fixMode = false,
   onAddMark,
+  tones,
+  disputedLegend = 'to double-check',
+  focus,
 }: PageViewerProps) {
   const uid = useId().replace(/[^\w-]/g, '');
   const hatch = `vw-hatch-${uid}`;
@@ -147,11 +208,16 @@ export function PageViewer({
   const [zoom, setZoom] = useState<Zoom>(1);
   const scroll = useRef<HTMLDivElement>(null);
   const [frameWidth, setFrameWidth] = useState(0); // the frame at zoom 1; 0 until measured
+  // The focused place stays centred through resizes (rotation, URL bar) until the user moves the plan.
+  const kept = useRef<{ box: Box; page: PageView; moved: boolean } | null>(null);
+  const zoomNow = useRef<number>(1);
   useLayoutEffect(() => {
     const el = scroll.current;
     if (!el) return;
     const measure = () => {
       setFrameWidth(el.clientWidth);
+      const k = kept.current;
+      if (k && !k.moved) scrollToBox(el, zoomNow.current, k.box, k.page);
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
@@ -167,6 +233,43 @@ export function PageViewer({
     const target = pageOf(selected);
     if (target !== undefined) setCurrent(target);
   }
+  // A new focus (by value) opens its page; it wins over a selection made in the same render.
+  const focusKey = focus
+    ? JSON.stringify([focus.page, focus.box ?? null, focus.polygon ?? null])
+    : '';
+  const [lastFocus, setLastFocus] = useState('');
+  if (focusKey !== lastFocus) {
+    setLastFocus(focusKey);
+    if (focus && pages.some((p) => p.page === focus.page)) setCurrent(focus.page);
+  }
+  // waits for its zoom to render
+  const pendingScroll = useRef<{ box: Box; zoom: Zoom; page: PageView | null } | null>(null);
+  // Zoom so a small box is readable, then scroll its centre to the middle (viewer.md "Focus").
+  useLayoutEffect(() => {
+    const el = scroll.current;
+    const b = focus?.box;
+    kept.current = null;
+    if (!el || !focus || !pages.some((p) => p.page === focus.page) || !isBox(b)) return;
+    const px = (b[2] - b[0]) * el.clientWidth; // the box's width at 100 %: the frame is the scroll box wide
+    const z: Zoom = px >= 48 ? zoom : px * 2 < 24 ? 4 : 2;
+    const pg = pages.find((p) => p.page === focus.page);
+    pendingScroll.current = { box: b, zoom: z, page: pg ?? null };
+    if (z !== zoom) setZoom(z);
+    else if (pg) {
+      pendingScroll.current = null;
+      scrollToBox(el, z, b, pg);
+      kept.current = { box: b, page: pg, moved: false };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per new focus value
+  }, [focusKey]);
+  useLayoutEffect(() => {
+    zoomNow.current = zoom;
+    const p = pendingScroll.current;
+    if (!scroll.current || p?.zoom !== zoom || !p.page) return;
+    pendingScroll.current = null;
+    scrollToBox(scroll.current, zoom, p.box, p.page);
+    kept.current = { box: p.box, page: p.page, moved: false };
+  }, [zoom]);
   const page =
     pages.find((p) => p.page === current) ?? pages.find((p) => p.page === startPage(pages, marks));
   if (!page)
@@ -185,7 +288,18 @@ export function PageViewer({
     tag: String.fromCharCode(65 + i),
   }));
   const tags = readings.filter((r) => r.page === page.page && r.box && r.box.every(inPage));
-  const colourOf = (m: MarkView) =>
+  const toneOf = (m: MarkView): Tone | undefined => tones?.[m.id];
+  const said = (m: MarkView) => {
+    const t = toneOf(m);
+    return t ? TONE_WORDS[t] : words(m);
+  };
+  // Counted marks of a check are context: a shape, no badge (viewer.md OP 17).
+  const badged = onPage.filter((m) => toneOf(m) !== 'counted');
+  const colourOf = (m: MarkView) => {
+    const t = toneOf(m);
+    return t ? TONE_COLOUR[t] : stateColour(m);
+  };
+  const stateColour = (m: MarkView) =>
     open(m)
       ? MUTED
       : // one entry (a room count's "room"): every mark takes it, as evidence_render.py does
@@ -198,23 +312,18 @@ export function PageViewer({
       ? formatValue(m.value, unit)
       : null;
   // Double-check: where each disputed place is, and what cannot be shown.
-  const validBox = (b: number[] | undefined): b is Box =>
-    b?.length === 4 &&
-    b.every(inPage) &&
-    Number(b[0]) <= Number(b[2]) &&
-    Number(b[1]) <= Number(b[3]);
-  const doubtOf = new Map<string, string>(); // mark id → why
-  const boxItems: { box: Box; page: number; why: string }[] = [];
+  const doubtOf = new Map<string, Disputed>(); // mark id → its disputed item
+  const boxItems: (Disputed & { box: Box; page: number })[] = [];
   let lost = 0;
   for (const d of disputed ?? []) {
     if (d.markId) {
       const m = marks.find((k) => k.id === d.markId);
-      if (m && placed(m)) doubtOf.set(m.id, d.why);
+      if (m && placed(m)) doubtOf.set(m.id, d);
       else lost++;
     } else {
       const p = d.page ?? page.page;
-      if (validBox(d.box) && pages.some((q) => q.page === p))
-        boxItems.push({ box: d.box, page: p, why: d.why });
+      if (isBox(d.box) && pages.some((q) => q.page === p))
+        boxItems.push({ ...d, box: d.box, page: p });
       else lost++;
     }
   }
@@ -229,6 +338,8 @@ export function PageViewer({
     ...onPage.filter((m) => doubtOf.has(m.id)).map((m) => m.box),
     ...boxesHere.map((b) => b.box),
   ];
+  const focusHere = focus?.page === page.page ? focus : null;
+  const focusMissing = focus && !pages.some((p) => p.page === focus.page) ? focus.page : null;
   // Badges are placed so no two overlap once the frame's width is known (R2-qa-1-3).
   const W = frameWidth * zoom;
   const H = (W * page.height) / page.width;
@@ -237,7 +348,7 @@ export function PageViewer({
     W > 0
       ? placeLabels(
           [
-            ...onPage.map((m) => {
+            ...badged.map((m) => {
               const value = valueOf(m);
               return {
                 box: m.box,
@@ -245,14 +356,21 @@ export function PageViewer({
                 short: badgeText(m),
               };
             }),
-            ...boxesHere.map((b) => ({ box: b.box, full: '?', short: '?' })),
+            ...boxesHere.map((b) => ({ box: b.box, full: b.tag ?? '?', short: b.tag ?? '?' })),
           ],
           W,
           H,
         )
       : null;
   const noRoom = spots?.filter((p) => p === null).length ?? 0;
-  const states = STATE_ORDER.filter((s) => onPage.some((m) => m.state === s));
+  // Legend mode: with `tones`, one item per check outcome instead of the state items (VW-73).
+  const toned = tones ? onPage.filter((m) => toneOf(m) !== undefined) : [];
+  const toneItems = TONE_ORDER.map(
+    (t) => [t, toned.filter((m) => toneOf(m) === t).length] as const,
+  ).filter(([, k]) => k > 0);
+  const states = STATE_ORDER.filter((s) =>
+    onPage.some((m) => m.state === s && toneOf(m) === undefined),
+  );
   const unlocatedLines = Object.entries(unlocated ?? {}).filter(([, k]) => k > 0);
   const chosen = onPage.find((m) => m.id === selected) ?? onPage.find((m) => m.id === highlighted);
   const note = normalisedNote(page.normalised);
@@ -277,10 +395,14 @@ export function PageViewer({
     unplaced > 0 ||
     unlocatedLines.length > 0 ||
     doubtPages.length > 0 ||
-    lost > 0;
+    lost > 0 ||
+    focusMissing !== null;
   const chosenValue = chosen ? valueOf(chosen) : null;
 
   const chosenDoubt = chosen ? doubtOf.get(chosen.id) : undefined;
+  const drawOrder = [...onPage].sort(
+    (a, b) => Number(toneOf(b) === 'counted') - Number(toneOf(a) === 'counted'),
+  );
 
   // Fix mode: a click, tap or drag on the page proposes a mark (viewer.md "Fix mode").
   const fixing = fixMode && onAddMark !== undefined;
@@ -297,11 +419,18 @@ export function PageViewer({
     round5(Math.max(d.y, to[1])),
   ];
   const draft = drag?.to ? draftBox(drag, drag.to) : null;
+  // Any pointer, wheel or key input on the viewer ends the kept focus (VW-80).
+  const moved = () => {
+    if (kept.current) kept.current.moved = true;
+  };
 
   return (
     <figure
       className="vw"
+      onPointerDownCapture={moved}
+      onWheelCapture={moved}
       onKeyDown={(e) => {
+        moved();
         if (e.key !== 'Escape') return;
         setTip(null);
         if (drag) setDrag(null);
@@ -333,7 +462,7 @@ export function PageViewer({
             </button>
             <span>
               Page {index + 1} of {pages.length} · {countText(onPage.length)}
-              {doubtPages.length > 0 && ` · ${String(doubtPages.length)} to double-check`}
+              {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
             </span>
             <button
               type="button"
@@ -444,7 +573,7 @@ export function PageViewer({
           alt={`Page ${String(page.page)} of ${file}`}
           page={page.page}
         >
-          {(onPage.length > 0 || tags.length > 0 || outlines.length > 0 || draft) && (
+          {(onPage.length > 0 || tags.length > 0 || outlines.length > 0 || draft || focusHere) && (
             <svg
               className="vw-overlay"
               viewBox="0 0 1 1"
@@ -464,15 +593,16 @@ export function PageViewer({
                   />
                 </pattern>
               </defs>
-              {onPage.map((m) => {
+              {drawOrder.map((m) => {
                 const colour = colourOf(m);
+                const tone = toneOf(m);
                 const { line } = markLook(m.state);
                 const hot = m.id === highlighted || m.id === selected;
                 const common = {
-                  className: 'vw-shape',
+                  className: tone ? `vw-shape vw-shape--${tone}` : 'vw-shape',
                   style: tint(colour),
-                  strokeWidth: hot ? 4 : 2,
-                  strokeDasharray: DASH[line],
+                  strokeWidth: hot ? 4 : tone === 'counted' ? 1 : 2,
+                  strokeDasharray: tone ? TONE_DASH[tone] : DASH[line],
                   vectorEffect: 'non-scaling-stroke',
                   onClick: onPick || fixing ? undefined : () => onSelect?.(m.id),
                 } as const;
@@ -501,8 +631,18 @@ export function PageViewer({
                     <polygon
                       key={m.id}
                       points={m.polygon.map(([x, y]) => `${String(x)},${String(y)}`).join(' ')}
-                      fill={hatched}
-                      fillOpacity={m.state === 'rejected' ? 0 : line === 'hatched' ? 1 : 0.25}
+                      fill={tone === 'pass' || tone === 'counted' ? 'none' : hatched}
+                      fillOpacity={
+                        tone === 'fail'
+                          ? 0.2
+                          : tone === 'cannot_tell'
+                            ? 0.4
+                            : m.state === 'rejected'
+                              ? 0
+                              : line === 'hatched'
+                                ? 1
+                                : 0.25
+                      }
                       {...common}
                     />
                   ) : (
@@ -519,7 +659,7 @@ export function PageViewer({
                   cross,
                 ];
               })}
-              {onPage.map((m, i) => {
+              {badged.map((m, i) => {
                 const spot = spots?.[i];
                 if (!spot?.leader) return null;
                 const [x0, y0, x1, y1] = m.box;
@@ -572,6 +712,37 @@ export function PageViewer({
                   />
                 );
               })}
+              {focusHere &&
+                (focusHere.polygon ? (
+                  <polygon
+                    className="vw-focus"
+                    points={focusHere.polygon
+                      .map(([x, y]) => `${String(x)},${String(y)}`)
+                      .join(' ')}
+                    fill="none"
+                    strokeWidth={3}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ) : (
+                  isBox(focusHere.box) &&
+                  (() => {
+                    const [x0, y0, x1, y1] = focusHere.box;
+                    const dx = W > 0 ? 6 / W : 0.01; // 6 px outside the box
+                    const dy = H > 0 ? 6 / H : 0.01;
+                    return (
+                      <rect
+                        className="vw-focus"
+                        x={x0 - dx}
+                        y={y0 - dy}
+                        width={x1 - x0 + 2 * dx}
+                        height={y1 - y0 + 2 * dy}
+                        fill="none"
+                        strokeWidth={3}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    );
+                  })()
+                ))}
               {draft && (
                 <rect
                   className="vw-draft"
@@ -601,12 +772,13 @@ export function PageViewer({
               {r.tag}
             </span>
           ))}
-          {onPage.map((m, i) => {
+          {badged.map((m, i) => {
             const [x0, y0, x1, y1] = m.box;
             const spot = spots?.[i];
             if (spot === null) return null; // no free spot: counted in the legend
             const value = valueOf(m);
-            const name = `${m.label ?? 'item'}, ${words(m)}`;
+            const tone = toneOf(m);
+            const name = `${m.label ?? 'item'}, ${said(m)}`;
             const isSelected = m.id === selected;
             const doubt = doubtOf.get(m.id);
             const whyId = `${uid}-why-${m.id}`;
@@ -619,7 +791,7 @@ export function PageViewer({
               <button
                 key={m.id}
                 type="button"
-                className={`vw-badge vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}${m.id === highlighted ? ' vw-hot' : ''}${doubt === undefined ? '' : ' vw-badge--disputed'}`}
+                className={`vw-badge ${tone ? `vw-badge--${tone}` : `vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}`}${m.id === highlighted ? ' vw-hot' : ''}${doubt === undefined ? '' : ' vw-badge--disputed'}`}
                 aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
                 aria-describedby={doubt === undefined ? undefined : whyId}
                 aria-pressed={isSelected}
@@ -641,20 +813,20 @@ export function PageViewer({
                 {spot ? spot.text : value === null ? badgeText(m) : `${badgeText(m)} · ${value}`}
                 {doubt !== undefined && (
                   <span className="vw-q-tag" aria-hidden="true">
-                    ?
+                    {doubt.tag ?? '?'}
                   </span>
                 )}
               </button>,
               doubt !== undefined && (
                 <span key={`${m.id}-why`} id={whyId} className="vw-sr">
-                  {ask(doubt)}
+                  {ask(doubt.why, doubt.prefix)}
                 </span>
               ),
-              tip === m.id && doubt !== undefined && whyTip(doubt, where),
+              tip === m.id && doubt !== undefined && whyTip(ask(doubt.why, doubt.prefix), where),
             ];
           })}
           {boxesHere.map((b, i) => {
-            const spot = spots?.[onPage.length + i];
+            const spot = spots?.[badged.length + i];
             if (spot === null) return null;
             const key = `box-${String(i)}`;
             const where = spotStyle(spot, b.box, W, H);
@@ -663,7 +835,7 @@ export function PageViewer({
                 key={key}
                 type="button"
                 className="vw-q"
-                aria-label={ask(b.why)}
+                aria-label={ask(b.why, b.prefix)}
                 style={where}
                 onClick={() => {
                   setTip(tip === key ? null : key);
@@ -681,9 +853,9 @@ export function PageViewer({
                   setTip(null);
                 }}
               >
-                ?
+                {b.tag ?? '?'}
               </button>,
-              tip === key && whyTip(b.why, where),
+              tip === key && whyTip(ask(b.why, b.prefix), where),
             ];
           })}
         </PageFrame>
@@ -700,8 +872,8 @@ export function PageViewer({
         <p className="vw-selection">
           {badgeText(chosen)} · {chosen.label ?? 'item'} ·{' '}
           {chosenValue === null ? '' : `${chosenValue} · `}
-          {words(chosen)}
-          {chosenDoubt !== undefined && ` · ${ask(chosenDoubt)}`}
+          {said(chosen)}
+          {chosenDoubt !== undefined && ` · ${ask(chosenDoubt.why, chosenDoubt.prefix)}`}
         </p>
       )}
       {hasLegend && (
@@ -713,7 +885,14 @@ export function PageViewer({
                 {s === 'excluded' && oneReason ? `${oneReason}, ${STATE_WORDS[s]}` : STATE_WORDS[s]}
               </li>
             ))}
+            {toneItems.map(([t, k]) => (
+              <li key={`t-${t}`}>
+                <i className={`vw-swatch vw-swatch--${t}`} aria-hidden="true" />
+                {toneCount(t, k)}
+              </li>
+            ))}
             {onPage.length > 0 &&
+              !tones &&
               legend?.map((e) => (
                 <li key={e.label}>
                   <i className="vw-swatch" style={tint(safeColour(e.colour))} aria-hidden="true" />
@@ -734,15 +913,24 @@ export function PageViewer({
             {doubtsHere > 0 && (
               <li>
                 <i className="vw-swatch vw-swatch--doubt" aria-hidden="true" />
-                {doubtsHere} to double-check
+                {doubtsHere} {disputedLegend}
               </li>
             )}
             {elsewhere.map((p) => (
               <li key={`d-${String(p)}`}>
-                {doubtPages.filter((q) => q === p).length} to double-check on page {p}
+                {doubtPages.filter((q) => q === p).length} {disputedLegend} on page {p}
               </li>
             ))}
-            {lost > 0 && <li>{lost} place(s) to double-check could not be shown</li>}
+            {lost > 0 && (
+              <li>
+                {disputedLegend === 'to double-check'
+                  ? `${String(lost)} place(s) to double-check could not be shown`
+                  : `${String(lost)} ${disputedLegend} could not be shown on the drawing`}
+              </li>
+            )}
+            {focusMissing !== null && (
+              <li>That place is on page {focusMissing}, which this drawing does not have</li>
+            )}
             {unplaced > 0 && <li>{unplaced} mark(s) could not be placed</li>}
             {noRoom > 0 && <li>{noRoom} label(s) had no room on the page</li>}
           </ul>

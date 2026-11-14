@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   askProject,
   formatValue,
@@ -74,8 +74,9 @@ function PartsCard({ ask, projectId }: { ask: ProjectAnswer; projectId: string }
   );
 }
 
-/** The project-wide chat at #/p/<pid>/chat (docs/specs/frontend/chat.md): empty until asked, no drawing shown. */
-export function ProjectChat({ projectId }: { projectId: string }) {
+/** The project-wide chat at #/p/<pid>/chat (docs/specs/frontend/chat.md): empty until asked, no drawing shown.
+ * `query`: `ask` is asked on open (chat.md "Opening with a question"). */
+export function ProjectChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const nextId = useRef(1);
@@ -83,12 +84,43 @@ export function ProjectChat({ projectId }: { projectId: string }) {
   const thread = useRef<HTMLElement>(null);
   // Starter chips from the drawings' own suggestions; not blocking, failures leave fewer (or none).
   const [chips, setChips] = useState<Suggestion[]>([]);
+  const openAsk = query?.get('ask')?.trim() ?? '';
+
+  const send = useCallback(
+    (id: number, question: string) => {
+      pending.current = true;
+      const settle = (t: ChatTurn) => {
+        pending.current = false;
+        setTurns((ts) => ts.map((x) => (x.id === id ? t : x)));
+      };
+      askProject(projectId, question).then(
+        (ask) => {
+          settle({ id, question, status: 'done', ask });
+        },
+        (error: unknown) => {
+          settle({ id, question, status: 'error', error });
+        },
+      );
+    },
+    [projectId],
+  );
+  const ask = useCallback(
+    (question: string) => {
+      if (pending.current) return;
+      const id = nextId.current++;
+      setTurns((ts) => [...ts, { id, question, status: 'pending' }]);
+      send(id, question);
+    },
+    [send],
+  );
 
   useEffect(() => {
     const abort = new AbortController();
     getProject(projectId, { signal: abort.signal }).then(
       (project) => {
+        if (abort.signal.aborted) return; // StrictMode's first run: only the live load asks
         setLoad({ state: 'ready', project });
+        if (openAsk && askable(project.drawings).length > 0) ask(openAsk);
         void Promise.allSettled(
           askable(project.drawings).map((d) =>
             getDrawing(d.drawing_id, { project: projectId, signal: abort.signal }),
@@ -105,7 +137,7 @@ export function ProjectChat({ projectId }: { projectId: string }) {
     return () => {
       abort.abort();
     };
-  }, [projectId]);
+  }, [projectId, openAsk, ask]);
 
   const last = turns.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
@@ -125,27 +157,6 @@ export function ProjectChat({ projectId }: { projectId: string }) {
   const { project } = load;
   const n = askable(project.drawings).length;
 
-  function send(id: number, question: string) {
-    pending.current = true;
-    const settle = (t: ChatTurn) => {
-      pending.current = false;
-      setTurns((ts) => ts.map((x) => (x.id === id ? t : x)));
-    };
-    askProject(projectId, question).then(
-      (ask) => {
-        settle({ id, question, status: 'done', ask });
-      },
-      (error: unknown) => {
-        settle({ id, question, status: 'error', error });
-      },
-    );
-  }
-  function ask(question: string) {
-    if (pending.current) return;
-    const id = nextId.current++;
-    setTurns((ts) => [...ts, { id, question, status: 'pending' }]);
-    send(id, question);
-  }
   function retry(turn: Turn) {
     if (pending.current) return;
     setTurns((ts) =>
@@ -188,6 +199,7 @@ export function ProjectChat({ projectId }: { projectId: string }) {
         onAsk={ask}
         onRetry={retry}
         refusalFrom="these drawings"
+        onChanged={() => undefined} // only refusal, pending and error turns come here: no DoubleCheck
       />
     );
   };

@@ -117,11 +117,14 @@ number in list order) and one PNG per drawing page with located issues, each box
 
 `PageViewer` takes `MarkView`s. The plan's marks are the located issues of the shown drawing (`drawing_id` equal,
 `box` set), one each: `{id: issue.id, n, page, box, polygon: issue.polygon ?? null, label: KIND_LABEL word, state: "counted",
-value: null, reason: why, ref: null, room_type: null}` (field set of `MarkView` in `schema.d.ts`; the issue's data
+value: null, reason: null, ref: null, room_type: null}` (`reason` stays null: the viewer words a mark's reason as
+"the rule left it out", which an issue is not; the why is on the row; field set of `MarkView` in `schema.d.ts`; the issue's data
 only, nothing invented). `selected` = the selected issue's id, `focus` = `{page, box}` of the selected issue
 (viewer.md `focus?: {page, box?} | null`: opens the page, zooms and scrolls to the box, outlines it; page only when
-`box` is null), `unit` null (badges show `n`). Clicking a mark selects its row (`onSelect`) and scrolls the
-row into view.
+`box` is null), `unit` null (badges show `n`), `tones` = `issueTones(rows, drawingId)`: each mark's severity as a
+viewer tone (`fails_rule` → `fail`, `needs_person`, `note`), so the badge reads "Mark 1: Fails a code rule, fails the
+rule" in the severity's colour and the legend counts severities, not "counted" (viewer.md tones; fe-viewer, fe-golden
+finding). Clicking a mark selects its row (`onSelect`) and scrolls the row into view.
 
 ## States
 
@@ -180,7 +183,7 @@ Status is never colour alone: kind, severity and state each carry a word (and an
   id and `focus` = its `{page, box}`; selecting another row of another drawing loads that drawing once (one `GET
   /api/drawings/<id>` per drawing per visit). [component, `PageViewer` mocked]
 - IS-8: `issueMarks` returns only issues of the given drawing that have a `box`, each with the fields of "The marks
-  for the plan" (the issue's `polygon` when set, else null) and nothing else invented (value null, ref null). [unit]
+  for the plan" (the issue's `polygon` when set, else null) and nothing else invented (value, reason and ref null). [unit] `issueTones` maps those marks to `{i-check: "fail", i-conflict: "needs_person"}`.
 - IS-9: A row with `drawing_id` null selected: the plan panel reads "This issue has no place on a drawing." and no
   drawing is requested. A row with `page` null shows the drawing with no `focus`. [component]
 - IS-10: Clicking a mark in the plan (`onSelect(id)`) selects that issue's row and scrolls it into view. [component]

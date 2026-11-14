@@ -1,6 +1,6 @@
 import { CountryPicker } from './CountryPicker';
 import { ProjectPicker } from './ProjectPicker';
-import { routeHref, type Route } from './route';
+import { packOf, routeHref, withPack, type Route } from './route';
 import { PRODUCT_NAME } from './strings';
 import logo from './vellum-logo.png';
 
@@ -11,28 +11,24 @@ interface ViewLink {
 }
 
 function viewLinks(route: Route): ViewLink[] {
-  if (
-    route.name !== 'project' &&
-    route.name !== 'file' &&
-    route.name !== 'conflicts' &&
-    route.name !== 'chat' &&
-    route.name !== 'workspace'
-  )
-    return [];
+  if (!('projectId' in route)) return [];
+  const pid = route.projectId;
+  const pack = packOf(route);
+  const tab = (label: string, path: string, current: boolean) => ({
+    label,
+    href: withPack(`#/p/${pid}${path}`, pack),
+    current,
+  });
+  // shared.md "Header tabs": Checks only with a pack (or on its own route); Surveyor only on drawing routes. No
+  // Engineer tab (Tudor 12:46): the engineer route is reached from the chat's and the drawings' links.
   const links = [
-    {
-      label: 'Ingest',
-      href: `#/p/${route.projectId}`,
-      current: route.name === 'project' || route.name === 'file',
-    },
-    {
-      label: 'Conflicts',
-      href: `#/p/${route.projectId}/conflicts`,
-      current: route.name === 'conflicts',
-    },
-    // The chat is project-level: on every project route. No Engineer tab (Tudor 12:46): the engineer route is
-    // reached from the chat's and the drawings' links.
-    { label: 'Chat', href: `#/p/${route.projectId}/chat`, current: route.name === 'chat' },
+    tab('Ingest', '', route.name === 'project' || route.name === 'file'),
+    tab('Conflicts', '/conflicts', route.name === 'conflicts'),
+    ...(pack !== null || route.name === 'checks'
+      ? [tab('Checks', '/checks', route.name === 'checks')]
+      : []),
+    tab('Issues', '/issues', route.name === 'issues'),
+    tab('Chat', '/chat', route.name === 'chat'),
   ];
   if (route.name !== 'workspace') return links;
   return [
@@ -67,8 +63,11 @@ export function Header({ route }: { route: Route }) {
             ))}
           </nav>
         )}
-        <ProjectPicker projectId={'projectId' in route ? route.projectId : null} />
-        <CountryPicker />
+        <ProjectPicker
+          projectId={'projectId' in route ? route.projectId : null}
+          pack={packOf(route)}
+        />
+        {'projectId' in route && <CountryPicker pack={packOf(route)} />}
         <a
           className="header-pill workspaces-link v-press"
           href="#/workspaces"

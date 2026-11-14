@@ -67,7 +67,7 @@ interface PageViewerProps {
   disputedLegend?: string;            // the legend's count words for `disputed`; default "to double-check"
   focus?: { page: number; box?: number[] | null; polygon?: [number, number][] | null } | null; // jump-to-place
 }
-type Tone = 'fail' | 'cannot_tell' | 'pass' | 'counted';
+type Tone = 'fail' | 'cannot_tell' | 'pass' | 'counted' | 'needs_person' | 'note';
 ```
 ```
 
@@ -327,6 +327,10 @@ fe-ingest) jumps to an issue's place. The viewer gets three props and two option
 fetches nothing new: the screens get `pages` and `credit` from `GET /api/drawings/{id}` (the checks response has
 no pages, review-142 ask 7). Depends on the double-check build (`disputed`, VW-60…69) being merged into this branch.
 
+**Built** (2026-11-14, worktree checks): VW-71…VW-78 have tests in `PageViewer.test.tsx`; `Tone` is exported from
+`PageViewer.tsx`. Smooth scrolling is CSS `scroll-behavior` on `.vw-scroll` (off under reduced motion). With a custom
+`disputedLegend`, the not-shown line reads "<k> <disputedLegend> could not be shown on the drawing".
+
 **Check marks as viewer marks (the checks screen maps them).** `CheckResult.marks[]` `{page, box, polygon, ref,
 label, role, mark_id}` becomes a `MarkView`: `id` = `mark_id` (the takeoff `MarkView.id`, Bogdan c6876010899) when
 set, else `<result id>:<index>` (check-only geometry, `mark_id` null); `n` = a running number over the drawing's `role: subject` marks (counted marks `n: null`);
@@ -344,6 +348,13 @@ polygon are page fractions in the `pages[]` frame, as `MarkView` (asks 2-4 accep
 | `cannot_tell` | dashed (6 3) 2 px `--v-warn`, fill `--v-warn-soft` 40 % | open: `--v-warn-soft` fill, `--v-warn` border and text | "cannot tell" |
 | `pass` | solid 2 px `--v-ok`, no fill | open: `--v-surface` fill, `--v-ok` border and text | "passes" |
 | `counted` | dotted (2 3) 1 px `--v-muted`, no fill | none (context only, not focusable) | "counted for the rule" |
+| `needs_person` (issue severity) | dashed (6 3) 2 px `--v-warn` | open: `--v-warn-soft` fill, `--v-warn` text | "needs a person" |
+| `note` (issue severity) | solid 2 px `--v-muted` | open: `--v-surface` fill, `--v-muted` text | "note" |
+
+The issues screen gives each located issue mark the tone of its severity (`fails_rule` → `fail`, `needs_person`,
+`note`), so a mark reads "Mark 1: Fails a code rule, fails the rule" in its colour and the legend counts severities
+("1 fails the rule", "1 needs a person", "2 notes"), never "counted" (fe-golden, fe-ingest browser check).
+Legend order: fail, needs a person, cannot tell, note, pass, counted.
 
 - The colour goes through `--vw-c` as every mark colour (`var(--v-danger)`…); `legend` colours do not apply to a
   toned mark. "cannot tell" is never drawn like pass or fail: its own line style, colour and words.
@@ -382,6 +393,9 @@ double-check") and `tag` (default "?"):
   switching work as before; the viewer does not move again until `focus` changes.
 - `prefers-reduced-motion: reduce`: the scroll jumps (no smooth scrolling); otherwise `behavior: "smooth"`.
 - Phone 390: the same; the 200/400 % zoom makes the box readable and native scrolling pans from there.
+- **Kept in view:** after a focus scroll, a resize of the scroll box (rotation, URL bar, layout change) scrolls the
+  focused box back to the middle, until the user touches the viewer (any pointer, wheel or key input) or `focus`
+  changes (VW-80).
 
 
 Fixtures are the files in `backend/tests/fixtures/api_v1/`, imported read-only. A "derived" mark is a fixture
@@ -638,6 +652,12 @@ Checks and issues (#139/#140, board #142). Fixtures: hand-made check marks in `s
 - **VW-78** `viewer.css` tone and focus rules use only `var(--v-danger)`, `--v-danger-soft`, `--v-warn`,
   `--v-warn-soft`, `--v-ok`, `--v-muted`, `--v-accent` (VW-53 still passes); a reduced-motion block exists for the
   focus scroll's CSS `scroll-behavior`. [unit]
+- **VW-80** With the scroll box 326 px wide and `focus={page: 1, box: [0.62, 0.05, 0.75, 0.10]}`: zoom "200%",
+  `scrollTo` left ≈ 446.6 − 163; a ResizeObserver callback scrolls again; after a `pointerdown` on the scroll box
+  it does not. [component]
+- **VW-81** Tones `needs_person` and `note`: badge names "Mark 1: Conflict, needs a person" (`vw-badge--needs_person`,
+  `var(--v-warn)`) and "Mark 2: Set aside, note" (`vw-badge--note`, `var(--v-muted)`); with a `fail` mark the legend
+  reads "1 fails the rule", "1 needs a person", "1 note" and no "counted". [component]
 - **VW-79** At 390x844 and 1440x900 on the checks screen and on an issue jump: the failed room is visible in the
   scroll box without the user scrolling, no sideways page scroll, and the badge names read as above. Screenshots
   taken and looked at. [e2e, fe-golden]

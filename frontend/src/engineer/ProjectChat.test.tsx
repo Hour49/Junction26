@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
@@ -48,6 +49,8 @@ function open(
   reply: ProjectAnswer | number = noneAnswers,
   proj: unknown = project,
   drawings: Record<string, unknown> = drawingRoutes(),
+  query?: string,
+  strict = false,
 ) {
   const api = mockApi({
     [ROUTE]: proj,
@@ -59,7 +62,13 @@ function open(
       return { ...reply, question };
     },
   });
-  render(<ProjectChat projectId={PID} />);
+  const chat = (
+    <ProjectChat
+      projectId={PID}
+      query={query === undefined ? undefined : new URLSearchParams(query)}
+    />
+  );
+  render(strict ? <StrictMode>{chat}</StrictMode> : chat);
   return api;
 }
 
@@ -249,4 +258,38 @@ it('CH-8 no askable drawing: the sentence, Ask disabled', async () => {
   open(noneAnswers, none);
   expect(await screen.findByText('No drawing in this project can be asked yet.')).toBeTruthy();
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Ask' }).disabled).toBe(true);
+});
+
+it('CH-14 ?ask= asks the project once on open (also in StrictMode): the thread, no start page', async () => {
+  const q = 'How many doors are there?';
+  const api = open(
+    projectAsk,
+    project,
+    drawingRoutes(),
+    new URLSearchParams({ ask: q }).toString(),
+    true,
+  );
+  await waitFor(() => {
+    expect(screen.getByRole('article', { name: q }).querySelector('.en-chatcard')).toBeTruthy();
+  });
+  expect(posts(api).map((c) => c.body)).toEqual([{ question: q }]);
+  expect(screen.queryByRole('group', { name: 'Suggested questions' })).toBeNull();
+  expect(document.querySelector('.en-chat--empty')).toBeNull();
+});
+
+it('CH-15 nothing asked for an empty ?ask=, a project 404, or no askable drawing', async () => {
+  const api = open(noneAnswers, project, drawingRoutes(), 'ask=%20');
+  await screen.findByRole('group', { name: 'Suggested questions' });
+  expect(document.querySelector('.en-chat--empty')).toBeTruthy();
+  cleanup();
+  const failed = open(noneAnswers, { status: 404, body: error }, drawingRoutes(), 'ask=doors');
+  await screen.findByRole('link', { name: 'Back to the project' });
+  cleanup();
+  const none: ProjectView = {
+    ...project,
+    drawings: project.drawings.map((d) => ({ ...d, state: 'set_aside' as const })),
+  };
+  const empty = open(noneAnswers, none, drawingRoutes(), 'ask=doors');
+  await screen.findByText('No drawing in this project can be asked yet.');
+  expect([...posts(api), ...posts(failed), ...posts(empty)]).toEqual([]);
 });

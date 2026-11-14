@@ -334,3 +334,64 @@
     display: inline;
   }
 }
+/* Checks and issues (viewer.md "Checks and issues"): a check outcome replaces a mark's state look. */
+.vw-badge--fail {
+  background: var(--v-danger);
+  color: var(--v-surface);
+}
+.vw-badge--cannot_tell {
+  background: var(--v-warn-soft);
+  color: var(--v-warn);
+  border-style: dashed;
+}
+.vw-badge--pass {
+  background: var(--v-surface);
+  color: var(--v-ok);
+}
+.vw-shape--cannot_tell:not([fill]) {
+  fill: var(--v-warn-soft);
+}
+.vw-swatch--fail {
+  background: var(--v-danger);
+}
+.vw-swatch--cannot_tell {
+  background: var(--v-warn-soft);
+  border: 2px dashed var(--v-warn);
+}
+.vw-swatch--pass {
+  background: var(--v-surface);
+  border: 2px solid var(--v-ok);
+}
+.vw-swatch--counted {
+  background: var(--v-surface);
+  border: 1px dotted var(--v-muted);
+}
+.vw-overlay .vw-focus {
+  stroke: var(--v-accent);
+  pointer-events: none;
+}
+.vw-scroll {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vw-scroll {
+    scroll-behavior: auto;
+  }
+}
+/* Issue severities on the issues screen (viewer.md "Checks and issues", tones needs_person / note). */
+.vw-badge--needs_person {
+  background: var(--v-warn-soft);
+  color: var(--v-warn);
+}
+.vw-badge--note {
+  background: var(--v-surface);
+  color: var(--v-muted);
+}
+.vw-swatch--needs_person {
+  background: var(--v-warn-soft);
+  border: 2px dashed var(--v-warn);
+}
+.vw-swatch--note {
+  background: var(--v-surface);
+  border: 2px solid var(--v-muted);
+}

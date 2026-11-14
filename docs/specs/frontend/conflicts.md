@@ -227,7 +227,7 @@ issues screen (fe-ingest) uses for the two kinds that land on my screens; it ret
 | `Issue.kind` | Route | On arrival |
 | --- | --- | --- |
 | `conflict` | `#/p/<pid>/conflicts?d=<drawing_id>&q=<quantity>[&pack=]` | that card scrolls into view (`block: "center"`), gets `aria-current="true"` and a 2px `--v-accent` outline, its evidence opens, focus goes to its title (`tabIndex=-1`); a `d`/`q` naming no card: nothing happens, no error |
-| `refused_answer` | `#/p/<pid>/chat?ask=<question>[&pack=]` (the issue's `question`, verbatim, URL-encoded) | fe-engineer's ProjectChat puts the question in its ask box, not sent (an ask can cost a model call; the person presses Ask): ask for chat.md |
+| `refused_answer` | `drawing_id` set: `#/p/<pid>/d/<did>/engineer?ask=<question>[&pack=]` (EN-72); null: `#/p/<pid>/chat?ask=<question>[&pack=]` (CH-14); the question verbatim, URL-encoded | the engineer / chat asks it on open (frontend-orch review decision) |
 
 A `conflict` issue with `drawing_id` null or no `quantity` (should not happen) falls back to `#/p/<pid>/conflicts`.
 The issue's `state` and the card agree because both come from the same review store (`settled` / `signed_off` =

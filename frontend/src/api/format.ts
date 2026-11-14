@@ -1,3 +1,5 @@
+import type { Info, RulePack } from './types';
+
 const UNITS: Record<string, string> = { m: 'm', m2: 'm²', m3: 'm³', ft: 'ft', ft2: 'ft²' };
 
 /** A value as every screen shows it: a count as an integer, anything else with 2 decimals and its unit. */
@@ -58,4 +60,9 @@ const METHODS: Record<string, string> = {
 export function methodName(id: string | null | undefined): string {
   if (id === null || id === undefined) return 'no method';
   return METHODS[id] ?? id;
+}
+
+/** The rule packs `/api/info` lists (#139); read through a cast until the generated schema has the field. */
+export function rulePacksOf(info: Info | null): RulePack[] {
+  return (info as { rule_packs?: RulePack[] } | null)?.rule_packs ?? [];
 }

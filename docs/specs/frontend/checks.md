@@ -73,7 +73,8 @@ the old request. No polling: the screen asks once the project is finished (see S
   - "Show on the drawing" (button): selects the result; the viewer opens its drawing at the first mark's page.
 - **Viewer** (beside the list at ≥ 1024 px, under it below): `PageViewer` with the selected drawing's `pages` and
   `credit` (`getDrawing`), `marks` + `tones` = `viewerMarks(result)` as viewer.md "Check marks as viewer marks" says
-  (id = `mark_id`, the takeoff `MarkView.id`, else `<result.id>:<index>` for a check-only mark; subject marks numbered
+  (id = `CheckResult.mark_id`, the takeoff `MarkView.id` of the result's first subject mark, else
+  `<result.id>:<index>`; subject marks numbered
   `n` with tone = the result's status, counted marks tone `counted`), `unit` = the result's unit, and
   `focus = {page, box}` of the first subject mark (VW-76/77). A result with no marks says "Not located on the
   drawing" instead of the button.
