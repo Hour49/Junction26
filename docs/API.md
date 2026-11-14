@@ -265,7 +265,8 @@ An edit of a signed-off quantity (409):
   "chat": {
     "model": "rules",
     "available": true,
-    "reason": null
+    "reason": null,
+    "stream": true
   }
 }
 ```
