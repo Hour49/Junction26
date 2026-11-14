@@ -545,6 +545,14 @@ progress card's last row (`ProgressCard` gets a `footer` slot); Advanced places 
   answers 409 `not-allowed` until `done`): `DoneLine` asks for the issue count only once the project is done with
   drawings. The header badge's own request is fe-shared's. [component]
 
+- IN-88 (judge's path, Bogdan #14, orch 19:18): on the finished Simple screen the chat row ("Start a new chat",
+  "Open the workspace", or the locked button with "Settle the conflicts that need you first.") sits in the progress
+  card right under "Ready", above the 8 steps, and appears once (not again after the conflicts list); visible
+  without scrolling at 1440x900 and 390x844 (was y 1087 and 1299). Its lock still follows the conflicts list's
+  counts (IN-77). Advanced keeps `IngestFinished`'s row after the list (fe-scaffold's screen). Replaces IN-75's
+  "then the chat row" order and IN-81's focus order (now: "Start a new chat", "Open the workspace", then the
+  steps and the conflicts list). [component; browser]
+
 Superseded by v3: IN-18, IN-19, IN-20, IN-21, IN-22, IN-26, IN-73 (the rows and cards move to Documents: the same
 criteria apply there, fe-ingest); IN-49's list half (no lists while running; its "—" for Files through stays);
 IN-63 (no "Settle the conflicts"); IN-64; IN-48 (no credit; IN-80); IN-65's "Back to the project" (IN-79); IN-72's

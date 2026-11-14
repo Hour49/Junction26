@@ -449,7 +449,7 @@ describe('ProjectScreen', () => {
     }
   });
 
-  it('IN-75 done: the card with the done line, then the conflicts list, then the chat row; nothing else', async () => {
+  it('IN-75/IN-88 done: the card with the chat row under Ready and the done line, then the conflicts list; nothing else', async () => {
     window.location.hash = `#/p/${ID}?d=abc&q=door`;
     mockApi({ [GET]: project });
     render(<ProjectScreen projectId={ID} />);
@@ -459,7 +459,15 @@ describe('ProjectScreen', () => {
     const list = screen.getByText('the conflicts list');
     const chat = screen.getByRole('button', { name: 'Start a new chat' });
     expect(card.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(list.compareDocumentPosition(chat) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // IN-88: the chat row is in the card under "Ready", above the steps, once
+    expect(card.contains(chat)).toBe(true);
+    const steps = screen.getByRole('list', { name: 'Steps' });
+    expect(chat.compareDocumentPosition(steps) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      within(card).getByRole('heading', { name: 'Ready' }).compareDocumentPosition(chat) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getAllByText('Start a new chat')).toHaveLength(1);
     const props = must(vi.mocked(ConflictsList).mock.lastCall)[0];
     expect(props.projectId).toBe(ID);
     expect(props.query?.get('q')).toBe('door'); // an issue link focuses its card
@@ -471,7 +479,8 @@ describe('ProjectScreen', () => {
       must(props.onCounts)({ total: 2, needsPerson: 0 });
     });
     expect(card.textContent).toContain('5 drawings ready. Conflicts are below.');
-    expect(screen.getByRole('link', { name: 'Start a new chat' })).toBeTruthy();
+    expect(card.contains(screen.getByRole('link', { name: 'Start a new chat' }))).toBe(true);
+    expect(card.contains(screen.getByRole('link', { name: 'Open the workspace' }))).toBe(true);
   });
 
   it('FT-20 a done project polls again while a file is being read', async () => {
