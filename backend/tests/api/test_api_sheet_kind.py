@@ -116,6 +116,12 @@ def test_an_mep_plan_is_set_aside_by_name_and_comes_back_when_a_person_reads_it(
         found["readers"]["triage"] == "classifier=off, sheet_kind=carbon, describer=off, judge=off"
     )
     assert network == []  # replayed from the cache
+    issues = client.get(f"/api/projects/{found['id']}/issues").json()["issues"]
+    (issue,) = [issue for issue in issues if issue["file"] == "piping.png"]
+    assert issue["why"].startswith(
+        "Not a floor plan (a piping, plumbing, ventilation or electrical plan (PIPING PLAN, "
+        "M-101A))."
+    )
     assert read_as_plan(client, found, "piping.png").status_code == 202
     found = client.get(f"/api/projects/{found['id']}").json()
     assert files_of(found)["piping.png"]["drawing_id"] is not None

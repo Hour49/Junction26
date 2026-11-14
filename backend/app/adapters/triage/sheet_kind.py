@@ -28,10 +28,10 @@ not parse is a miss; only a reply that parses is cached.
 import base64
 import hashlib
 import http.client
-import io
 import json
 import logging
 import re
+import struct
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -66,6 +66,9 @@ MAX_TOKENS = 2048
 MAX_SIDE = 3072  # long side of the JPEG sent, pixels (Lanczos, never enlarged)
 # px of the uploaded image; above it the sheet is advanced whatever the model says
 ADVANCED_LONG_SIDE = 4000
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# JPEG start-of-frame markers (baseline, progressive, ...; not DHT C4, JPG C8, DAC CC)
+SOF_MARKERS = frozenset(range(0xC0, 0xD0)) - {0xC4, 0xC8, 0xCC}
 USD_PER_M_INPUT, USD_PER_M_OUTPUT = 4.0, 20.0  # Carbon after 2026-11-30 (unconfirmed)
 CHARGED_AS = "gemini sheet kind"
 UNAVAILABLE = "the sheet-kind model could not answer"
@@ -186,15 +189,37 @@ def advanced(form: dict[str, Any], long_side_px: int | None) -> tuple[bool, str 
 
 
 def long_side(data: bytes) -> int | None:
-    """The uploaded image's long side in pixels (from its header); None for a PDF or a file that
-    does not open as an image."""
-    if data.startswith(b"%PDF-"):
-        return None
-    try:
-        with Image.open(io.BytesIO(data)) as image:
-            return max(image.size)
-    except (OSError, ValueError, Image.DecompressionBombError):
-        return None
+    """The uploaded image's long side in pixels, read from its PNG or JPEG header alone (no pixel
+    is decoded and PIL's decompression-bomb limit does not apply, so the largest sheets keep the
+    size rule); None for a PDF, another format or a header that does not parse."""
+    if data.startswith(PNG_SIGNATURE) and data[12:16] == b"IHDR" and len(data) >= 24:
+        return max(struct.unpack(">II", data[16:24]))
+    if data.startswith(b"\xff\xd8"):
+        return _jpeg_long_side(data)
+    return None
+
+
+def _jpeg_long_side(data: bytes) -> int | None:
+    """The size in a JPEG's start-of-frame segment, walking the segments from the start."""
+    at = 2
+    while at + 4 <= len(data):
+        if data[at] != 0xFF:
+            return None
+        marker = data[at + 1]
+        if marker == 0xFF:  # fill byte
+            at += 1
+            continue
+        if marker in (0x01, *range(0xD0, 0xD8)):  # segments with no length
+            at += 2
+            continue
+        length = int.from_bytes(data[at + 2 : at + 4], "big")
+        if marker in SOF_MARKERS and at + 9 <= len(data):
+            height, width = struct.unpack(">HH", data[at + 5 : at + 9])
+            return max(height, width)
+        if marker == 0xDA or length < 2:  # image data starts: no frame header before it
+            return None
+        at += 2 + length
+    return None
 
 
 def price(answer: dict[str, Any]) -> float:

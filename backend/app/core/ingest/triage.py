@@ -231,11 +231,18 @@ def set_aside_reason(triage: Triage) -> str:
     """The file's reason, in plain words shown as they are; P(plan) and the method are in the
     triage itself and in the identify stage's line. A sheet the sheet-kind step set aside is named
     by its kind, with its printed title and sheet number when there are any."""
+    return f"not a floor plan: {not_plan_words(triage)}"
+
+
+def not_plan_words(triage: Triage) -> str:
+    """What triage called a file that is not a floor plan, in plain words: the sheet-kind
+    step's kind with the printed title and sheet number when that step set it aside, else the
+    class's words."""
     sheet = triage.sheet
     if sheet is None or sheet.decision != "set_aside":
-        return f"not a floor plan: {CLASS_WORDS[triage.class_]}"
+        return CLASS_WORDS[triage.class_]
     printed = ", ".join(said for said in (sheet.title, sheet.sheet_number) if said)
-    return f"not a floor plan: {sheet.kind_words}" + (f" ({printed})" if printed else "")
+    return sheet.kind_words + (f" ({printed})" if printed else "")
 
 
 def sheet_doubt(triage: Triage | None) -> str | None:
