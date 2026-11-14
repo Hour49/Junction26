@@ -544,8 +544,79 @@ def test_carbon_reader_advanced_builds_with_the_sheet_kind_step_and_uses_its_fla
     assert flagged.carbon_read is not None
     assert flagged.carbon_read("big.png") and not flagged.carbon_read("small.png")
     switch = flagged.extractors["raster"]._inner  # pyright: ignore[reportAttributeAccessIssue]
-    assert isinstance(switch, CarbonSwitch) and switch._use_carbon is flagged.carbon_read  # pyright: ignore[reportPrivateUsage]
+    assert isinstance(switch, CarbonSwitch)
+    use = switch._use_carbon  # pyright: ignore[reportPrivateUsage]
+    assert use("big.png") and not use("small.png")
     unrecorded = build_pipeline(settings, tmp_path)  # the CLI: no sheet record, so none is
     assert unrecorded.carbon_read is not None and not unrecorded.carbon_read("big.png")
     names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
     assert names["carbon_reader"] == f"advanced:{c.READER_SHA[:12]}"
+
+
+# --- a Carbon count is never certified, whichever path puts Carbon on a part (fail-1, #254) ----
+
+CHECK = (
+    Path(__file__).parents[3]
+    / "eval/results/check/check-C1-T1-recall96-rt-full-small-medium20.json"
+)
+
+
+def api_doors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, **env: str) -> dict[str, Any]:
+    """fail-1's repro (.agents/qa/r9/review-254-repro.py): the demo's check policy, Carbon on a
+    fake model, one plan uploaded through the API, the door question asked."""
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    monkeypatch.chdir(tmp_path)
+    tile = tile_form(("door", [100, 100, 200, 130]), ("door", [300, 300, 340, 340]))
+    model = FakeCarbon(page_form(), [tile, tile])
+    monkeypatch.setattr("app.composition.CarbonClient", lambda *args, **kwargs: model)
+    values = {"EXTRACTOR_RASTER": "composite", "GEMINI_API_KEY": KEY, "CHECK_POLICY": str(CHECK),
+              "PROJECTS_DIR": str(tmp_path / "p"), **env}  # fmt: skip
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    settings = Settings()
+    app = TestClient(
+        create_app(settings, build_ingest(settings, settings.projects_dir, background=False))
+    )
+    project = app.post("/api/projects", params={"name": "plan.png"},
+                       content=png_bytes(raster_plan())).json()  # fmt: skip
+    status = app.get(f"/api/projects/{project['id']}").json()
+    drawing_id = status["drawings"][0]["drawing_id"]
+    asked = app.post("/api/ask", json={"drawing_id": drawing_id, "project_id": project["id"],
+                                       "question": "How many doors are there?"}).json()  # fmt: skip
+    model_json = app.get(f"/api/drawings/{drawing_id}/model").json()
+    return {"file": status["files"][0], "ask": asked, "model": model_json}
+
+
+@pytest.mark.parametrize(
+    "env",
+    [
+        {"CARBON_READER": "all", "RASTER_COMPONENTS": "plans=one-plan"},
+        {"RASTER_COMPONENTS": "elements=carbon,plans=carbon,rooms=carbon"},
+        {"RASTER_COMPONENTS": f"plans=one-plan,door={c.SOURCE}"},  # one class is enough
+    ],
+    ids=["carbon-reader-all", "every-part", "one-part-pinned"],
+)
+def test_a_carbon_count_is_flagged_and_never_certified_on_any_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env: dict[str, str]
+) -> None:
+    got = api_doors(monkeypatch, tmp_path, **env)
+    doors = [e for e in got["model"]["elements"] if e["class"] == "door"]
+    assert doors and all(e["attrs"]["reader"] == c.SOURCE for e in doors)
+    assert got["file"]["state"] == "flagged" and CARBON_FLAG in got["file"]["reason"]
+    assert got["ask"]["answer"] == 2
+    assert got["ask"]["check"] is not None and got["ask"]["level"]["level"] == "low"
+
+
+def test_carbon_as_a_second_reader_flags_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    got = api_doors(monkeypatch, tmp_path, RASTER_COMPONENTS="plans=one-plan,elements=carbon",
+                    DOUBLE_CHECK_READERS="c1=carbon")  # fmt: skip
+    assert CARBON_FLAG in got["file"]["reason"]  # elements=carbon is a part: flagged
+    got = api_doors(monkeypatch, tmp_path / "second", RASTER_COMPONENTS="plans=one-plan",
+                    DOUBLE_CHECK_READERS="c1=carbon")  # fmt: skip
+    assert CARBON_FLAG not in got["file"]["reason"]  # a double-check reader counts nothing

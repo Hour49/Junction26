@@ -58,7 +58,7 @@ from app.adapters.pdf_tables import PdfTables
 from app.adapters.pdf_tables.schedule_check import ScheduleTagCounter
 from app.adapters.question_templates import TemplateParser
 from app.adapters.raster import RoomPolicy, assemble, parse_components, parse_readers
-from app.adapters.raster.photo import PhotoSwitch
+from app.adapters.raster.photo import PHOTO, PhotoSwitch
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster_detector import OnnxDetector
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
@@ -243,8 +243,42 @@ def build_pipeline(
         if settings.decisions_confidence
         else None,
         sure_at=_gate(settings),
-        carbon_read=use_carbon,
+        carbon_read=_carbon_counted(settings, use_carbon, kind_of),
     )
+
+
+def _carbon_counted(
+    settings: Settings,
+    use_carbon: Callable[[str], bool] | None,
+    kind_of: Callable[[str], str | None],
+) -> Callable[[str], bool] | None:
+    """Whether Carbon read a counted part of a file's raster drawing, by path: CARBON_READER sent
+    it there, or the composite that reads it takes a part (elements, a class, rooms, plans or
+    scale) from the `carbon` source. Ingest flags those drawings, so no answer on them is
+    certified (a Carbon answer is never sure, brief r8 AS). A double-check reader counts nothing
+    and is not a part. None: no file is."""
+    if settings.extractor_raster != "composite":
+        return use_carbon
+    main = _carbon_part(settings.raster_components)
+    photo = settings.raster_photo_components
+    on_photos = _carbon_part(photo) if photo else main
+    if use_carbon is None and not main and not on_photos:
+        return None
+
+    def counted(path: str) -> bool:
+        if use_carbon is not None and use_carbon(path):
+            return True
+        if main == on_photos:
+            return main
+        return on_photos if kind_of(path) == PHOTO else main
+
+    return counted
+
+
+def _carbon_part(spec: str) -> bool:
+    """Whether a RASTER_COMPONENTS-style spec takes a part from the `carbon` source."""
+    sources = (part.partition("=")[2].strip() for part in spec.split(","))
+    return any(source.partition(":")[0] == "carbon" for source in sources)
 
 
 def _carbon_read(
