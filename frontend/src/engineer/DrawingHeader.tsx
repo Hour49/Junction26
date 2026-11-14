@@ -5,7 +5,7 @@ import { routeLabel } from '../ingest/ingest';
 export function howRead({ reader }: DrawingView): string {
   const by =
     reader.extractor === 'hello'
-      ? ', not read (no reader for this route yet)'
+      ? ', not read (this setup has no reader for this kind of sheet)'
       : ` by ${readerName(reader.extractor)}`;
   const second =
     reader.second_counter === 'none'
@@ -61,7 +61,10 @@ export function SuggestionRow(props: {
     <div className="en-suggest">
       <p className="en-small">No ready questions for this drawing.</p>
       {drawing.reader.extractor === 'hello' && (
-        <p className="en-small">Its route has no reader yet, so questions will be refused.</p>
+        <p className="en-small">
+          This setup has no reader for this kind of sheet, so nothing on it was counted or measured.
+          You can still ask about the project&apos;s other drawings.
+        </p>
       )}
     </div>
   );

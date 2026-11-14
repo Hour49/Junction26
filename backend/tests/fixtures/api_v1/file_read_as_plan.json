@@ -5,7 +5,7 @@
   "sha256": "b6d80d60df6169ac47933fd4d7d89287026da6efa6616a34798c711a565d4de4",
   "kind": "png_plan",
   "state": "flagged",
-  "reason": "no reader for the image route yet: nothing was read (0 elements, 0 rooms, no scale on the sheet)",
+  "reason": "not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet)",
   "group": "elevations/south",
   "route": "raster",
   "source": "elevations/south.png",
