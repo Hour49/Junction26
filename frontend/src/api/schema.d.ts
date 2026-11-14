@@ -672,6 +672,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** After */
+        After: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Value */
+            value: number | null;
+            /** Why */
+            why: string | null;
+        };
+        /**
+         * AiFinding
+         * @description A law note the server kept (LC-9b): its verdict recomputed, its clause filled in.
+         */
+        AiFinding: {
+            /**
+             * Basis
+             * @default ai_reading
+             * @constant
+             */
+            basis: "ai_reading";
+            /** Clause Id */
+            clause_id: string;
+            /**
+             * Comparison
+             * @enum {string}
+             */
+            comparison: ">=" | ">" | "<=" | "<" | "=";
+            /** Law */
+            law: string;
+            /** Limit */
+            limit: number;
+            /** Quote */
+            quote: string;
+            /** Quote En */
+            quote_en: string | null;
+            /** Ref */
+            ref: string;
+            /** Subject */
+            subject: string;
+            /** Unit */
+            unit: string;
+            /** Url */
+            url: string;
+            /** Value */
+            value?: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "would_not_meet" | "meets" | "check";
+        };
         /** Answer */
         Answer: {
             /** Abstain */
@@ -811,6 +865,16 @@ export interface components {
             refused: boolean;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
+        };
+        /** Before */
+        Before: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "cannot_tell" | "not_applicable";
+            /** Value */
+            value: number | null;
         };
         /** ChatEvidence */
         ChatEvidence: {
@@ -1480,6 +1544,40 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageTrace"][];
         };
+        /**
+         * Finding
+         * @description One rule on one room or door whose result the proposal changes, or that still fails on a
+         *     room or door it touches (LC-3). `ev`: the chat's evidence id, set by the agent loop.
+         */
+        Finding: {
+            after: components["schemas"]["After"];
+            before: components["schemas"]["Before"];
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "newly_fails" | "now_passes" | "newly_cannot_tell" | "still_fails" | "still_passes";
+            clause: components["schemas"]["Clause"];
+            /** Comparison Text */
+            comparison_text: string;
+            /** Ev */
+            ev?: string | null;
+            /** Limit */
+            limit: number;
+            /** Rule Id */
+            rule_id: string;
+            /** Subject */
+            subject: string;
+            /** Subject Ref */
+            subject_ref: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "m2" | "m" | "count";
+        };
         /** Flag */
         Flag: {
             /** Code */
@@ -1625,6 +1723,40 @@ export interface components {
                 number,
                 number
             ][];
+        };
+        /** LawCheck */
+        LawCheck: {
+            /**
+             * Ai Findings
+             * @default []
+             */
+            ai_findings: components["schemas"]["AiFinding"][];
+            /** Fail Means */
+            fail_means: string | null;
+            /** Findings */
+            findings: components["schemas"]["Finding"][];
+            /** Note */
+            note: string;
+            /** Pack */
+            pack: string;
+            /** Pack Name */
+            pack_name: string;
+            /**
+             * Related
+             * @default []
+             */
+            related: components["schemas"]["ClauseView"][];
+            /** Subject Values */
+            subject_values?: {
+                [key: string]: number[];
+            };
+            /**
+             * Subjects
+             * @default []
+             */
+            subjects: string[];
+            /** Unchanged */
+            unchanged: number;
         };
         /** LawPack */
         LawPack: {
@@ -2060,6 +2192,7 @@ export interface components {
              * @default []
              */
             flags: components["schemas"]["Flag"][];
+            law?: components["schemas"]["LawCheck"] | null;
             /** Page */
             page: number;
             /** Proposal Id */

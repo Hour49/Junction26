@@ -6,59 +6,16 @@ type Schemas = components['schemas'];
 export type Box = [number, number, number, number];
 export type Point = [number, number];
 
-// shortcut: the law check (docs/specs/plan-edit-law-check.md §2.3, LC-3/LC-6/LC-7) is typed here until ag-loop
-// regenerates schema.d.ts with `edit.law`; then drop these and the `Omit`/`&` below.
-export type LawStatus = 'pass' | 'fail' | 'cannot_tell';
-export type LawChange = 'newly_fails' | 'now_passes' | 'newly_cannot_tell' | 'still_fails';
-export type Clause = Schemas['ClauseView'];
-
-/** One rule-pack result whose status the change moves, or that fails after and touches the proposal (LC-3). */
-export interface Finding {
-  ev?: string | null;
-  rule_id: string;
-  title: string;
-  change: LawChange;
-  subject: string;
-  before: { status: LawStatus; value: number | null };
-  after: { status: LawStatus; value: number | null; why: string | null };
-  comparison_text: string;
-  limit: number | null;
-  unit: string | null;
-  clause: { ref: string; url: string | null; quote: string | null; quote_en: string | null };
-}
-
-/** A law_note the server validated against the clause's own limits (LC-9b). */
-export interface AiFinding {
-  clause_id: string;
-  subject: string;
-  value: number;
-  comparison: string;
-  limit: number;
-  unit: string;
-  verdict: 'would_not_meet' | 'meets' | 'check';
-  ref: string;
-  law: string;
-  url: string | null;
-  quote: string | null;
-  quote_en: string | null;
-  basis: string;
-}
-
-export interface LawCheck {
-  pack: string;
-  pack_name: string;
-  fail_means: string;
-  findings: Finding[];
-  unchanged: number;
-  ai_findings: AiFinding[];
-  related: Clause[];
-  note: string;
-}
-
+// The law check of a proposal (docs/specs/plan-edit-law-check.md §2.3, LC-3): rule-pack findings before vs after,
+// the AI's server-checked notes, the related clauses.
+export type LawCheck = Schemas['LawCheck'];
+export type Finding = Schemas['Finding'];
+export type AiFinding = Schemas['AiFinding'];
+export type LawChange = Finding['change'];
 /** `law`: null when no country was picked (LC-14). */
-export type Proposal = Schemas['Proposal'] & { law?: LawCheck | null };
+export type Proposal = Schemas['Proposal'];
 /** `answers`: the exact POST /ask results the turn rests on ([] otherwise); the chat shows them as the ask chat does. */
-export type ChatTurn = Omit<Schemas['ChatTurn'], 'edit'> & { edit?: Proposal | null };
+export type ChatTurn = Schemas['ChatTurn'];
 /** `pack`: the route's `?pack=` (LC-11). */
 export type ChatRequest = Schemas['ChatRequest'];
 export type Evidence = Schemas['ChatEvidence'];

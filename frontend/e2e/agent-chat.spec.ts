@@ -95,20 +95,29 @@ test('AC-32 AC-35: removing the wall between two rooms gives an edit card that c
 });
 
 // The walled sheet (backend/tests/swiss_walls.py) in page fractions of its 600 × 400 pt page: Stanza 1.02 spans
-// x 0.314..0.498, y 0.25..0.463 (3.89 × 3 m, 11.66 m²). This box takes about 4.7 m² of it, leaving ~7 m² < 10 m².
-const STORAGE_BOX = { x0: 0.41, y0: 0.27, x1: 0.49, y1: 0.45 };
+// x 0.314..0.498, y 0.25..0.463 (3.89 × 3 m, 11.66 m²). This box (about 1.1 × 2.5 m) leaves it about 9 m²: under
+// Zürich's 10 m², over Finland's 7 m² (spec plan-edit-law-check §1 steps 2 and 4).
+const STORAGE_BOX = { x0: 0.44, y0: 0.27, x1: 0.49, y1: 0.45 };
 
-test('LC-11 LC-12: a storage room boxed into Stanza 1.02 under Zürich rules shows "Would not meet"', async ({
-  page,
-}, testInfo) => {
-  const errors = watchErrors(page);
-  const offline = await noKeys(page);
-  const id = await uploaded(page, 'walled-flat.pdf', walledFlat(testInfo.config.rootDir));
-  await page.goto(`/#/p/${id}/chat?pack=ch-zh`);
+/** Walled sheet, `?pack=` as given, a box over most of Stanza 1.02, "Put a storage room here": the edit card. */
+async function storageEdit(page: Page, e2eDir: string, pack: string | null) {
+  const id = await uploaded(page, 'walled-flat.pdf', walledFlat(e2eDir));
+  await page.goto(`/#/p/${id}/chat${pack ? `?pack=${pack}` : ''}`);
   await page.getByRole('button', { name: 'Point at the plan' }).click();
   const frame = page.getByRole('region', { name: 'Point at the plan' }).locator('.vw-frame');
-  await expect(frame.locator('img')).toBeVisible();
-  const r = await frame.boundingBox();
+  const img = frame.locator('img');
+  await expect
+    .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
+  // page.mouse is in viewport coordinates: the frame must be on screen, and still, before the drag.
+  await frame.scrollIntoViewIfNeeded();
+  let r = await frame.boundingBox();
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(100);
+    const now = await frame.boundingBox();
+    if (now && r && JSON.stringify(now) === JSON.stringify(r)) break;
+    r = now;
+  }
   if (!r) throw new Error('no page frame');
   // A mouse drag on every project (a moving touch pans the viewer).
   await page.mouse.move(r.x + STORAGE_BOX.x0 * r.width, r.y + STORAGE_BOX.y0 * r.height);
@@ -117,16 +126,63 @@ test('LC-11 LC-12: a storage room boxed into Stanza 1.02 under Zürich rules sho
     steps: 5,
   });
   await page.mouse.up();
-  await expect(page.getByText(/^Area on .+, page 1$/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Remove Area on .+, page 1$/ })).toBeVisible();
   const turn = await ask(page, 'Put a storage room here');
   const card = turn.locator('.ag-card--edit');
   await expect(card).toBeVisible({ timeout: 30_000 });
+  return card;
+}
+
+test('LC-11 LC-12: a storage room boxed into Stanza 1.02 under Zürich rules shows "Would not meet"', async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const offline = await noKeys(page);
+  const card = await storageEdit(page, testInfo.config.rootDir, 'ch-zh');
   const law = card.getByRole('region', { name: /^Building rules · / });
   await expect(law).toContainText('Canton of Zürich');
-  const fail = law.getByRole('listitem').filter({ hasText: 'Would not meet' }).first();
+  const fail = law
+    .getByRole('listitem')
+    .filter({ has: page.locator('.ag-law-status', { hasText: 'Would not meet' }) })
+    .first();
   await expect(fail).toContainText('Stanza 1.02');
   await expect(fail.getByRole('link').first()).toHaveAttribute('target', '_blank');
   await expect(law).toContainText('not a permit check');
-  await shot(page, testInfo, 'agent-law', offline);
+  await fail.getByRole('button', { name: 'Stanza 1.02' }).click();
+  await expect(card.locator('.ag-hot')).toHaveCount(1);
+  await shot(page, testInfo, 'agent-law-ch-zh', offline);
+  expect(errors).toEqual([]);
+});
+
+test('LC-11 LC-12: the same box under Finnish rules does not break the room-area rule', async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const offline = await noKeys(page);
+  const card = await storageEdit(page, testInfo.config.rootDir, 'fi');
+  const law = card.getByRole('region', { name: /^Building rules · / });
+  await expect(law).toContainText('Finland');
+  // The status label, not the row: a row's explanation may say "would not meet today's rule" in words.
+  await expect(law.locator('.ag-law-status', { hasText: 'Would not meet' })).toHaveCount(0);
+  const area = law.getByRole('listitem').filter({ hasText: 'at least 7 m²' });
+  await expect(area).toContainText('✓ Meets');
+  await expect(area).toContainText('Stanza 1.02');
+  await expect(law).toContainText('not a permit check');
+  await shot(page, testInfo, 'agent-law-fi', offline);
+  expect(errors).toEqual([]);
+});
+
+test('LC-14: with no country the edit card asks to pick one and says nothing about law', async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const offline = await noKeys(page);
+  const card = await storageEdit(page, testInfo.config.rootDir, null);
+  const law = card.getByRole('region', { name: 'Building rules' });
+  await expect(law).toContainText('Pick a country to check this change against its building rules');
+  await expect(law.getByRole('listitem')).toHaveCount(0);
+  await law.getByRole('button', { name: 'Pick a country' }).click();
+  await expect(page.getByRole('group', { name: 'Building rules the agent follows' })).toBeVisible();
+  await shot(page, testInfo, 'agent-law-nopack', offline);
   expect(errors).toEqual([]);
 });

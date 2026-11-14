@@ -99,12 +99,14 @@ function Overlay({ p, hatch }: { p: Proposal; hatch: string }) {
 }
 
 /** The plan with the proposal drawn on it (AC-32): Before hides the overlay. */
-/** Where a law finding's subject is (LC-15): its ev mark, else the proposal's room that names it. */
+/** Where a law finding's subject is (LC-15): its ev mark, else the proposal's room by id (`subject_ref`) or by
+ * the name in its label. */
 export function placeOf(
   p: Proposal,
   evidence: Evidence[],
   subject: string,
   ev?: string | null,
+  ref?: string | null,
 ): Point[] | null {
   const mark = ev ? evidence.find((e) => e.id === ev) : undefined;
   if (mark) {
@@ -117,7 +119,9 @@ export function placeOf(
     ];
   }
   const room =
-    p.rooms.find((r) => r.label === subject) ?? p.rooms.find((r) => r.label.includes(subject));
+    p.rooms.find((r) => ref && r.id === ref) ??
+    p.rooms.find((r) => r.label === subject) ??
+    p.rooms.find((r) => r.label.includes(subject));
   return room ? room.polygon : null;
 }
 
@@ -290,8 +294,8 @@ export function EditCard(props: {
         </ul>
         <LawSection
           law={p.law}
-          onPick={(subject, ev) => {
-            setHot(placeOf(p, props.evidence ?? [], subject, ev));
+          onPick={(subject, ev, ref) => {
+            setHot(placeOf(p, props.evidence ?? [], subject, ev, ref));
           }}
         />
         {p.unknowns.length > 0 && (

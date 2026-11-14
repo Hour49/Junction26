@@ -5,7 +5,8 @@ import { drawing, info, project } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import type { ChatTurn } from './agent';
-import { DID, lawRoomTurn, noPackRoomTurn } from './fixtures';
+import { placeOf } from './EditCard';
+import { DID, lawRoomTurn, noPackRoomTurn, roomTurn } from './fixtures';
 import { TurnCard } from './TurnCard';
 
 const PID = project.id;
@@ -47,6 +48,7 @@ it('LC-12 heading with the country, rows newly_fails first, each status as icon 
     "✕ Still doesn't meet An entrance door is at least 0.8 m wide",
     "! Can't tell A habitable room is at least 2.4 m high",
     '✓ Meets now A habitable room has a window (canton of Zürich)',
+    '✓ Meets A kitchen is at least 4 m2',
   ]);
 });
 
@@ -67,7 +69,7 @@ it('LC-12 a row: subject before → after against the limit, the clause link in 
     'Storage: not known → not known · at least 2.4 m',
   );
   expect(within(unclear).getByText('rooms of a kind we could not tell')).toBeTruthy();
-  expect(unclear.querySelector('details')).toBeNull(); // no quote, no disclosure
+  expect(unclear.querySelector('details')?.open).toBe(false); // the quote, closed: not a new fail
   expect(screen.getByText('6 other checks unchanged')).toBeTruthy();
   const section = screen.getByRole('region', { name: 'Building rules · Canton of Zürich' });
   expect(section.lastElementChild?.textContent).toMatch(/^A pre-check of 2 rules/);
@@ -91,8 +93,8 @@ it('LC-13 the AI block with its label, then at most 3 other rules not already sh
   );
   expect(other.map((a) => a.textContent)).toEqual([
     '§ 302 Abs. 2 · Planning and Building Act',
-    '§ 306 Abs. 1 · Planning and Building Act',
-    '§ 307 Abs. 1 · Planning and Building Act',
+    '§ 307 Abs. 1 · Planning and Building Act', // § 306 is the kitchen row's clause: shown already
+    '§ 308 Abs. 1 · Planning and Building Act',
   ]);
 });
 
@@ -149,4 +151,18 @@ it('LC-15 a subject highlights its ev mark, else the proposal room that names it
   expect(document.querySelector('.ag-hot')?.getAttribute('points')).toBe(
     '0.6,0.4 0.7,0.4 0.7,0.48 0.6,0.48',
   );
+});
+
+it('LC-15 placeOf: the ev mark first, then the room by subject_ref, then by name', () => {
+  const p = roomTurn.edit as NonNullable<ChatTurn['edit']>;
+  const stanza = p.rooms.find((r) => r.id === 'R2')?.polygon;
+  expect(placeOf(p, [], 'anything', null, 'R2')).toEqual(stanza);
+  expect(placeOf(p, [], 'Stanza 1.02')).toEqual(stanza);
+  expect(placeOf(p, [], 'nowhere')).toBeNull();
+  expect(placeOf(p, lawRoomTurn.evidence, 'x', 'ev_2', 'R2')).toEqual([
+    [0.55, 0.3],
+    [0.7, 0.3],
+    [0.7, 0.4],
+    [0.55, 0.4],
+  ]);
 });

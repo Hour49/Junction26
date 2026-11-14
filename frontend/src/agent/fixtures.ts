@@ -266,7 +266,7 @@ export const model = {
   ],
 };
 
-const clause = (ref: string, quote: string | null = null, quote_en: string | null = null) => ({
+const clause = (ref: string, quote = `The text of ${ref}.`, quote_en: string | null = null) => ({
   ref,
   url: `https://example.org/${encodeURIComponent(ref)}`,
   quote,
@@ -304,11 +304,12 @@ export const lawZh: LawCheck = {
       title: 'A habitable room has a window (canton of Zürich)',
       change: 'now_passes',
       subject: 'Bagno 1.01',
+      subject_ref: 'R1',
       before: { status: 'fail', value: 0 },
       after: { status: 'pass', value: 1, why: null },
       comparison_text: 'at least',
       limit: 1,
-      unit: 'window',
+      unit: 'count',
       clause: clause('PBG § 302 Abs. 1'),
     },
     {
@@ -317,6 +318,7 @@ export const lawZh: LawCheck = {
       title: 'A bedroom or living room is at least 10 m2 (canton of Zürich)',
       change: 'newly_fails',
       subject: 'Stanza 1.02',
+      subject_ref: 'R2',
       before: { status: 'pass', value: 16.48 },
       after: { status: 'fail', value: 8.9, why: null },
       comparison_text: 'at least',
@@ -334,6 +336,7 @@ export const lawZh: LawCheck = {
       title: 'A habitable room is at least 2.4 m high',
       change: 'newly_cannot_tell',
       subject: 'Storage',
+      subject_ref: 'N1',
       before: { status: 'pass', value: null },
       after: { status: 'cannot_tell', value: null, why: 'rooms of a kind we could not tell' },
       comparison_text: 'at least',
@@ -347,6 +350,7 @@ export const lawZh: LawCheck = {
       title: 'An entrance door is at least 0.8 m wide',
       change: 'still_fails',
       subject: 'door D1',
+      subject_ref: null,
       before: { status: 'fail', value: 0.7 },
       after: { status: 'fail', value: 0.7, why: null },
       comparison_text: 'at least',
@@ -354,8 +358,23 @@ export const lawZh: LawCheck = {
       unit: 'm',
       clause: clause('BBV I § 34'),
     },
+    {
+      ev: null,
+      rule_id: 'ch-zh-kitchen-area',
+      title: 'A kitchen is at least 4 m2',
+      change: 'still_passes',
+      subject: 'Cucina 1.03',
+      subject_ref: 'R3',
+      before: { status: 'pass', value: 6.2 },
+      after: { status: 'pass', value: 6.2, why: null },
+      comparison_text: 'at least',
+      limit: 4,
+      unit: 'm2',
+      clause: clause('PBG § 306 Abs. 1'),
+    },
   ],
   unchanged: 6,
+  subjects: ['Stanza 1.02', 'Storage', 'Bagno 1.01', 'door D1'],
   ai_findings: [
     {
       clause_id: 'ch-zh-ls-700-1-305-1',

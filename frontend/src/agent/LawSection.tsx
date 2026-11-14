@@ -11,8 +11,15 @@ const CHANGE: Record<LawChange, { word: string; tone: Tone }> = {
   still_fails: { word: "Still doesn't meet", tone: 'fail' },
   newly_cannot_tell: { word: "Can't tell", tone: 'unclear' },
   now_passes: { word: 'Meets now', tone: 'pass' },
+  still_passes: { word: 'Meets', tone: 'pass' }, // a rule the change touches that it still meets
 };
-const ORDER: LawChange[] = ['newly_fails', 'still_fails', 'newly_cannot_tell', 'now_passes'];
+const ORDER: LawChange[] = [
+  'newly_fails',
+  'still_fails',
+  'newly_cannot_tell',
+  'now_passes',
+  'still_passes',
+];
 
 const VERDICT: Record<AiFinding['verdict'], { word: string; tone: Tone }> = {
   would_not_meet: { word: 'Would not meet', tone: 'fail' },
@@ -28,7 +35,7 @@ const COMPARE: Record<string, string> = {
   '=': 'exactly',
 };
 
-const unitOf = (u: string | null) => (u === 'm2' ? 'm²' : (u ?? ''));
+const unitOf = (u: string | null) => (u === 'm2' ? 'm²' : u === 'count' ? '' : (u ?? ''));
 const num = (v: number | null) => (v === null ? 'not known' : String(Math.round(v * 100) / 100));
 const withUnit = (v: number | null, u: string | null) =>
   v === null ? num(v) : `${num(v)} ${unitOf(u)}`.trim();
@@ -52,7 +59,7 @@ function Ref({ text, url }: { text: string; url: string | null }) {
   );
 }
 
-function Quote(props: { quote: string | null; quoteEn: string | null; open: boolean }) {
+function Quote(props: { quote: string | null; quoteEn?: string | null; open: boolean }) {
   if (!props.quote && !props.quoteEn) return null;
   return (
     <details className="ag-law-quote" open={props.open}>
@@ -69,15 +76,21 @@ function Quote(props: { quote: string | null; quoteEn: string | null; open: bool
 }
 
 /** The subject: a button that shows its room on the card's plan (LC-15). */
-type OnPick = (subject: string, ev?: string | null) => void;
+type OnPick = (subject: string, ev?: string | null, ref?: string | null) => void;
 
-function Subject({ name, ev, onPick }: { name: string; ev?: string | null; onPick?: OnPick }) {
+function Subject(props: {
+  name: string;
+  ev?: string | null;
+  subjectRef?: string | null;
+  onPick?: OnPick;
+}) {
+  const { name, ev, subjectRef, onPick } = props;
   return onPick ? (
     <button
       type="button"
       className="ag-law-subject"
       onClick={() => {
-        onPick(name, ev);
+        onPick(name, ev, subjectRef);
       }}
     >
       {name}
@@ -95,8 +108,8 @@ function FindingRow({ f, onPick }: { f: Finding; onPick?: OnPick }) {
         <Status word={c.word} tone={c.tone} /> <span className="ag-law-title">{f.title}</span>
       </p>
       <p className="ag-law-values">
-        <Subject name={f.subject} ev={f.ev} onPick={onPick} />: {withUnit(f.before.value, f.unit)} →{' '}
-        {withUnit(f.after.value, f.unit)}
+        <Subject name={f.subject} ev={f.ev} subjectRef={f.subject_ref} onPick={onPick} />:{' '}
+        {withUnit(f.before.value, f.unit)} → {withUnit(f.after.value, f.unit)}
         <span className="ag-law-limit">
           {' '}
           · {f.comparison_text} {withUnit(f.limit, f.unit)}
@@ -122,7 +135,7 @@ function AiRow({ a, onPick }: { a: AiFinding; onPick?: OnPick }) {
         </span>
       </p>
       <p className="ag-law-values">
-        <Subject name={a.subject} onPick={onPick} />: {withUnit(a.value, a.unit)}
+        <Subject name={a.subject} onPick={onPick} />: {withUnit(a.value ?? null, a.unit)}
         <span className="ag-law-limit">
           {' '}
           · {COMPARE[a.comparison] ?? a.comparison} {withUnit(a.limit, a.unit)}

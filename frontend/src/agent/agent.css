@@ -109,10 +109,11 @@
   stroke-width: 2px;
   stroke-dasharray: 5 3;
 }
+/* New walls as a thick red line, not a fill: propose_room's new partition is one ring around the new room. */
 .ag-added {
-  fill: var(--v-danger);
+  fill: none;
   stroke: var(--v-danger);
-  stroke-width: 2px;
+  stroke-width: 4px;
 }
 .ag-room {
   stroke: var(--v-accent);
@@ -359,4 +360,11 @@
   fill-opacity: 0.12;
   stroke: var(--v-accent);
   stroke-width: 4px;
+}
+
+/* Chrome starts a native image drag when a mouse presses on the page <img> and moves: that cancels the viewer's
+   pointer drag (no pointerup). In the pointer the frame, not the image, takes the drag. */
+.ag-pointer .vw-frame img {
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
