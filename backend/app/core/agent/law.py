@@ -13,13 +13,18 @@ SENTENCE = re.compile(r"(?<=[.!?])\s+")
 CARD = "The proposed change is shown below."  # what is left when every sentence had to go
 
 
+# A law verdict in the text: it stands only on a law check finding or a kept law note (QA lawai-1)
+CLAIM = re.compile(r"\b(?:would|does|do|did|will) not meet\b|\b(?:doesn't|don't|won't) meet\b",
+                   re.IGNORECASE)  # fmt: skip
+
+
 def banned(text: str) -> list[str]:
     return sorted({word.lower() for word in BANNED.findall(text)})
 
 
-def without_banned(text: str) -> str:
-    """`text` without its sentences that use a banned word."""
-    kept = [sentence for sentence in SENTENCE.split(text) if not BANNED.search(sentence)]
+def without_banned(text: str, pattern: re.Pattern[str] = BANNED) -> str:
+    """`text` without its sentences that match `pattern` (a banned word by default)."""
+    kept = [sentence for sentence in SENTENCE.split(text) if not pattern.search(sentence)]
     return " ".join(kept).strip() or CARD
 
 

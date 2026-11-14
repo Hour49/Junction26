@@ -16,7 +16,15 @@ from app.core.agent.evidence import mint
 from app.core.agent.model import Caps, Chat, ChatEvidence, ChatTurn, Json, Level, Step, TurnKind
 from app.core.agent.ports import ChatModel, ChatModelError, Toolbox
 from app.core.agent.prompt import SYSTEM
-from app.core.agent.validate import FINAL_ANSWER_TOOL, FinalAnswer, failed, numbers, problems
+from app.core.agent.validate import (
+    FINAL_ANSWER_TOOL,
+    TEXT_CHARS,
+    FinalAnswer,
+    failed,
+    numbers,
+    problems,
+    shortened,
+)
 from app.core.laws.model import ClauseView
 from app.core.plan_edit.law_check import AiFinding, LawCheck, LawNote, validate_law_note
 from app.core.plan_edit.model import Proposal, Selection
@@ -36,7 +44,8 @@ STOPS = {
     "steps": "I ran out of steps before I could answer.",
     "turn_usd": "This question reached the assistant's spending limit for one answer.",
     "seconds": "I ran out of time before I could answer.",
-    "budget": "The assistant's budget for this hour is used up.",
+    "budget": "The assistant's spending budget is used up.",
+    "budget_hour": "The assistant's budget for this hour is used up.",
     "repeat": "I kept repeating the same step without getting further, so I stopped.",
     "silent": "The assistant did not give an answer.",
 }
@@ -52,11 +61,16 @@ LABELS = {
     "get_plan_geometry": "Read the rooms and walls of {drawing}, page {page}",
     "list_walls": "Listed the walls of {drawing}, page {page}",
     "propose_remove_wall": "Proposed removing wall {wall_id}",
-    "propose_room": "Proposed a room {name} in {selection_id}",
+    "propose_room": "Proposed a room {name} in the drawn area",
     "search_law": "Searched the law for: {query}",
     "get_clause": "Read clause {clause_id}",
     "search_evidence": "Searched the evidence for: {query}",
     "get_evidence": "Read evidence {evidence_id}",
+}
+# A proposal the plan tool refused is no proposal (QA edits-6)
+FAILED_LABELS = {
+    "propose_remove_wall": "Could not remove wall {wall_id}",
+    "propose_room": "Could not place a room {name} in the drawn area",
 }
 
 
@@ -74,10 +88,14 @@ def run_turn(
     guard: SpendGuard,
     clock: Callable[[], float] = time.monotonic,
     names: Mapping[str, str] | None = None,
+    context: str = "",
 ) -> ChatTurn:
     """Runs one turn and records it in `chat` (messages, turns, proposals, results).
-    `names`: drawing id → the drawing's plain name ("Drawn plan 1"), for evidence and steps."""
-    return _Run(chat, model, toolbox, caps, guard, clock, names or {}).turn(message, selection)
+    `names`: drawing id → the drawing's plain name ("Drawn plan 1"), for evidence and steps.
+    `context`: this turn's lines after the system prompt (the chosen country, its laws)."""
+    run = _Run(chat, model, toolbox, caps, guard, clock, names or {})
+    run.system = f"{SYSTEM}\n{context}" if context else SYSTEM
+    return run.turn(message, selection)
 
 
 class _Run:
@@ -93,6 +111,7 @@ class _Run:
     ) -> None:
         self.chat, self.model, self.toolbox, self.caps = chat, model, toolbox, caps
         self.guard, self.clock, self.names = guard, clock, names
+        self.system = SYSTEM
         self.tools = [*toolbox.tools, FINAL_ANSWER_TOOL]
         self.started = clock()
         self.ledger: dict[str, Json] = {}
@@ -153,8 +172,8 @@ class _Run:
         raise _EndedError(STOPS["steps"])
 
     def _check_caps(self) -> None:
-        if self.guard.exhausted():
-            raise _EndedError(STOPS["budget"])
+        if why := self.guard.exhausted():  # the total and the hourly limit read differently
+            raise _EndedError(STOPS["budget_hour" if "hourly" in why else "budget"])
         if self.cost >= self.caps.turn_usd:
             raise _EndedError(STOPS["turn_usd"])
         if self.clock() - self.started >= self.caps.seconds:
@@ -191,6 +210,9 @@ class _Run:
     def _final(self, call: Json, arguments: str) -> FinalAnswer | None:
         """The answer when it passes the validator; else the model is told why once, and the
         second failure ends the turn."""
+        long = _too_long(arguments)
+        if long:  # cut by the server, so the retry's reason and a second failure are true
+            arguments = json.dumps({**json.loads(arguments), "text": shortened(long)})
         try:
             answer = FinalAnswer.model_validate_json(arguments)
             wrong = problems(
@@ -203,6 +225,8 @@ class _Run:
         except ValidationError as error:
             answer, wrong = None, [f"bad final_answer arguments: {error.errors()[0]['msg']}"]
         soft, fixed = self._law(answer) if answer is not None else ([], None)
+        if long:
+            soft.insert(0, f"text too long ({len(long)} characters): shorten it to {TEXT_CHARS}")
         if not wrong and not soft:
             self._reply(call, json.dumps({"ok": True}))
             return answer
@@ -240,6 +264,14 @@ class _Run:
                 f"name the clause(s) the change would not meet by ref: {'; '.join(unnamed)}"
             )
         self.kept[answer.proposal_id or ""] = tuple(kept)
+        findings: list[Json] = (checked or {}).get("findings") or []
+        fails = [f for f in findings if "fails" in str(f.get("change"))]
+        if law.CLAIM.search(text) and not (fails or breaking):
+            soft.append(
+                "say 'would not meet' only for a law check finding or a kept law_note; "
+                "nothing this turn backs it"
+            )
+            text = law.without_banned(text, law.CLAIM)
         if uncited or unnamed:
             name = str((checked or {}).get("pack_name") or "the chosen country's rules")
             text = law.appended(text, len(failing) + len(breaking), name)
@@ -310,10 +342,10 @@ class _Run:
         self.sources.append(text)
         self.failures.append(failed(found))
         self.chat.results.append({"tool": name, "arguments": arguments, "result": found})
-        error = isinstance(found, dict) and "error" in found
-        status = "error" if error else "ok"
-        self.steps.append(Step(n=len(self.steps) + 1, tool=name, label=self._label(name, arguments),
-                               status=status, ms=ms))  # fmt: skip
+        bad = self.failures[-1]  # an error, or refused / cannot_edit / unknown (QA edits-6)
+        label = self._label(name, arguments, FAILED_LABELS if bad else LABELS)
+        self.steps.append(Step(n=len(self.steps) + 1, tool=name, label=label,
+                               status="error" if bad else "ok", ms=ms))  # fmt: skip
         self._reply(call, text if isinstance(found, str) else _for_model(found))
 
     def _law_results(self, name: str, out: str) -> None:
@@ -341,7 +373,7 @@ class _Run:
         """The system prompt and the last turns' messages; tool messages of earlier turns cut."""
         chat = self.chat
         first, current = chat.starts[-SEEN_TURNS:][0], chat.starts[-1]
-        shown: list[Json] = [{"role": "system", "content": SYSTEM}]
+        shown: list[Json] = [{"role": "system", "content": self.system}]
         for at in range(first, len(chat.messages)):
             message = chat.messages[at]
             content = message.get("content")
@@ -350,12 +382,12 @@ class _Run:
             shown.append(message)
         return shown
 
-    def _label(self, name: str, arguments: str) -> str:
+    def _label(self, name: str, arguments: str, labels: Mapping[str, str] = LABELS) -> str:
         try:
             args = json.loads(arguments)
             drawing = args.get("drawing_id", "")
             args["drawing"] = self.names.get(drawing) or f"drawing {drawing[:6]}"
-            return LABELS[name].format_map(args)
+            return (labels.get(name) or LABELS[name]).format_map(args)
         except (KeyError, ValueError, AttributeError, TypeError):
             return name
 
@@ -368,6 +400,9 @@ class _Run:
         for drawing_id, file in self._files():  # a drawing by its plain name, not its file
             text = text.replace(file, self.names.get(drawing_id) or file)
         kind: TurnKind = answer.kind
+        answers = self._answers(set(cited), kind)
+        if kind == "answer" and any(_conflicted(given) for given in answers):
+            kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
         return ChatTurn(
             chat_id=self.chat.chat_id,
             turn=len(self.chat.turns) + 1,
@@ -380,7 +415,7 @@ class _Run:
             model=self.model.name,
             cost_usd=round(self.cost, 6),
             latency_s=round(self.clock() - self.started, 3),
-            answers=self._answers(set(cited), kind),
+            answers=answers,
         )
 
     def _edit(self, proposal_id: str | None) -> Proposal | None:
@@ -442,6 +477,24 @@ def _refused(asked: Json) -> bool:
     parts: list[Json] = asked.get("parts") or []
     answers: list[Json] = [part.get("answer") or {} for part in parts]
     return any(answer.get("refusal") for answer in answers)
+
+
+def _conflicted(asked: Json) -> bool:
+    """Whether a drawing's quantity in an ask_drawings result is a conflict."""
+    parts: list[Json] = asked.get("parts") or []
+    answers: list[Json] = [part.get("answer") or {} for part in parts]
+    quantities: list[Json] = [answer.get("quantity") or {} for answer in answers]
+    return any(quantity.get("status") == "conflict" for quantity in quantities)
+
+
+def _too_long(arguments: str) -> str | None:
+    """final_answer's text when it is over TEXT_CHARS, else None."""
+    try:
+        given: Any = json.loads(arguments)
+    except json.JSONDecodeError:
+        return None
+    text: Any = given.get("text") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return text if isinstance(text, str) and len(text) > TEXT_CHARS else None
 
 
 def _for_model(found: Any) -> str:

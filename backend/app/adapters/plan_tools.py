@@ -56,6 +56,10 @@ class PlanStore:
     proposals: list[Proposal] = field(default_factory=list[Proposal])
     pack: RulePack | None = None  # the rule pack proposals are checked against (LC-6); None: none
     laws: LawIndex | None = None  # where the law clauses related to a change are found (LC-9)
+    made_before: int = field(init=False, default=0)  # proposals of earlier turns
+
+    def __post_init__(self) -> None:
+        self.made_before = len(self.proposals)
 
     @classmethod
     def of_app(
@@ -68,8 +72,7 @@ class PlanStore:
         try:
             name = _entry(_done(self.pipeline, self.pipeline.project_id), selection.drawing_id).name
         except (DomainError, ToolError):
-            missing = f"drawing {selection.drawing_id}, which this project does not have"
-            return f"{selection.id}: {selection.kind} on {missing}"
+            return f"{selection.id}: {selection.kind} on a drawing this project does not have"
         where = f"{name} page {selection.page}"
         try:
             page = plan_page(self.pipeline, selection.drawing_id, selection.page)
@@ -87,6 +90,8 @@ class PlanStore:
             unsized = "its size is not known: the plan has no scale or rooms"
             return f"{selection.id}: region on {where} ({unsized})"
         region = page.box_shape(selection.box)
+        if region.area <= 0:  # a sideways drag (robust-1)
+            return f"{selection.id}: a line on {where}, not an area"
         x0, y0, x1, y1 = region.bounds
         shares = sorted(
             (
@@ -122,13 +127,20 @@ class CannotEditError(Exception):
 
 def plan_page(store: PipelineStore, drawing_id: str, page: int) -> PlanPage:
     """One page of a drawing of the project as geometry in metres, or CannotEditError."""
-    entry = _entry(_done(store, store.project_id), drawing_id)
+    try:
+        entry = _entry(_done(store, store.project_id), drawing_id)
+    except ToolError as error:  # edits-7: no raw ids in what the person reads
+        if "has no drawing" not in str(error):
+            raise
+        raise ToolError(
+            "this project has no such drawing: it may have been uploaded again"
+        ) from None
     drawing = store.ingest.drawing(entry.drawing_id)
     if not drawing.pages:  # a bare building model: no sheet to draw an edit on
         raise CannotEditError("cannot_edit", "this building model has no drawn plan to edit")
     shown = next((p for p in drawing.pages if p.page == page), None)
     if shown is None:
-        raise ToolError(f"drawing {drawing_id} has no page {page}")
+        raise ToolError(f"{entry.name} has no page {page}")
     if entry.route == "raster":
         scan = "photo" if entry.kind == "photo_plan" else "scan"
         raise CannotEditError("cannot_edit", f"this plan is a {scan}: its walls are not geometry")
@@ -282,7 +294,19 @@ def _list_walls(store: PlanStore, args: Any) -> dict[str, Any]:
     }
 
 
+ONE_AT_A_TIME = (
+    "one change at a time: accept or reject this one first, or ask again for the other area"
+)
+
+
+def _one_per_turn(store: PlanStore) -> None:
+    """edits-1: the turn's card shows one proposal, so a second one is refused."""
+    if len(store.proposals) > store.made_before:
+        raise EditRefusedError(ONE_AT_A_TIME)
+
+
 def _remove_wall(store: PlanStore, args: Any) -> dict[str, Any]:
+    _one_per_turn(store)
     if not args.wall_id and not (args.room_a and args.room_b):
         raise ToolError("name the wall (wall_id) or the rooms on its two sides (room_a and room_b)")
     page = plan_page(store.pipeline, args.drawing_id, args.page)
@@ -291,6 +315,7 @@ def _remove_wall(store: PlanStore, args: Any) -> dict[str, Any]:
 
 
 def _place_room(store: PlanStore, args: Any) -> dict[str, Any]:
+    _one_per_turn(store)
     selection = store.selections.get(args.selection_id)
     if selection is None:
         known = ", ".join(store.selections) or "none this turn"

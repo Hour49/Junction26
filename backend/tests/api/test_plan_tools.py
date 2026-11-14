@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from swiss_walls import walled_flat
 
-from app.adapters.plan_tools import PLAN_TOOLS, PlanStore, run_plan_tool
+from app.adapters.plan_tools import ONE_AT_A_TIME, PLAN_TOOLS, PlanStore, run_plan_tool
 from app.composition import build_ingest
 from app.core.plan_edit.model import Selection
 from app.main import create_app
@@ -85,9 +85,15 @@ def test_ac17_ac21_removing_the_wall_is_a_proposal_the_store_keeps(client: TestC
     assert {flag["code"] for flag in proposal["flags"]} == {"structural", "wet_room"}
     assert [p.proposal_id for p in store.proposals] == ["p1"]
     wall = next(w["id"] for w in walls["walls"] if len(w["doors"]) == 1)
-    again = call(store, "propose_remove_wall", drawing_id=drawing_id, page=1, wall_id=wall)
+    by_id = {"drawing_id": drawing_id, "page": 1, "wall_id": wall}
+    # edits-1: one proposal per turn; the next turn's store numbers on from the chat's
+    assert call(store, "propose_remove_wall", **by_id) == {
+        "status": "refused", "reason": ONE_AT_A_TIME
+    }  # fmt: skip
+    next_turn = PlanStore(store.pipeline, {}, list(store.proposals))
+    again = call(next_turn, "propose_remove_wall", **by_id)
     assert again["proposal"]["rooms"] == proposal["rooms"]  # by its id, the same edit
-    assert [p.proposal_id for p in store.proposals] == ["p1", "p2"]
+    assert [p.proposal_id for p in next_turn.proposals] == ["p1", "p2"]
 
 
 def test_ac17_the_façade_pair_is_refused(client: TestClient) -> None:
@@ -278,3 +284,62 @@ def test_ac12_a_room_click_without_ref_is_the_room_under_its_centre(client: Test
     store.selections[outside.id] = outside
     found = call(store, "propose_room", selection_id="sel_2", name="Box")
     assert "sel_2 is a click in no room" in found["reason"]
+
+
+def region(store: PlanStore, drawing_id: str, box: tuple[float, ...], page: int = 1) -> None:
+    store.selections["sel_1"] = Selection.model_validate(
+        {"id": "sel_1", "kind": "region", "drawing_id": drawing_id, "page": page, "box": box}
+    )
+
+
+def test_edits_1_a_second_proposal_in_one_turn_is_refused(client: TestClient) -> None:
+    store, drawing_id = upload(client, walled_flat())
+    stanza = rooms_by_box(call(store, "list_walls", drawing_id=drawing_id, page=1))["Stanza 1.02"]
+    x0, y0, x1, y1 = stanza
+    region(store, drawing_id, (x0 + (x1 - x0) / 2, y0, x1, y0 + (y1 - y0) / 2))
+    assert call(store, "propose_room", selection_id="sel_1", name="Box")["status"] == "ok"
+    second = call(store, "propose_room", selection_id="sel_1", name="Box")
+    assert second == {"status": "refused", "reason": ONE_AT_A_TIME}
+    assert len(store.proposals) == 1
+
+
+def rooms_by_box(found: dict[str, Any]) -> dict[str, tuple[float, ...]]:
+    return {room["label"]: tuple(room["box"]) for room in found["rooms"]}
+
+
+def test_robust_1_a_sideways_drag_is_a_line_not_an_area(client: TestClient) -> None:
+    store, drawing_id = upload(client, walled_flat())
+    x0, y0, x1, y1 = rooms_by_box(call(store, "list_walls", drawing_id=drawing_id, page=1))[
+        "Stanza 1.02"
+    ]  # fmt: skip
+    region(store, drawing_id, (x0, (y0 + y1) / 2, x1, (y0 + y1) / 2))
+    assert store.describe(store.selections["sel_1"]).endswith("page 1, not an area")
+    found = call(store, "propose_room", selection_id="sel_1", name="Box")
+    assert found["status"] == "refused" and "a line, not an area" in found["reason"]
+
+
+def test_edits_4_a_small_area_is_too_small_not_outside(client: TestClient) -> None:
+    store, drawing_id = upload(client, walled_flat())
+    x0, y0, x1, y1 = rooms_by_box(call(store, "list_walls", drawing_id=drawing_id, page=1))[
+        "Stanza 1.02"
+    ]  # fmt: skip
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    region(store, drawing_id, (cx, cy, cx + 0.01, cy + 0.01))  # about 0.2 x 0.1 m
+    found = call(store, "propose_room", selection_id="sel_1", name="Box")
+    assert found == {
+        "status": "refused",
+        "reason": "the area is too small for a room (under 0.5 m²): draw a larger area",
+    }
+
+
+def test_edits_7_refusals_name_no_raw_ids(client: TestClient) -> None:
+    store, drawing_id = upload(client, walled_flat())
+    region(store, drawing_id, (0.3, 0.3, 0.4, 0.4), page=2)
+    on_page_2 = call(store, "propose_room", selection_id="sel_1", name="Box")
+    assert on_page_2 == {"error": "Drawn plan 1 has no page 2"}
+    region(store, "f" * 16, (0.3, 0.3, 0.4, 0.4))
+    elsewhere = call(store, "propose_room", selection_id="sel_1", name="Box")
+    assert elsewhere == {
+        "error": "this project has no such drawing: it may have been uploaded again"
+    }
+    assert "f" * 16 not in store.describe(store.selections["sel_1"])

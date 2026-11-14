@@ -20,6 +20,7 @@ beforeAll(() => {
 });
 afterEach(() => {
   cleanup();
+  sessionStorage.clear(); // the kept thread (answers-5)
 });
 
 function open(chat: unknown, query?: string) {
@@ -142,6 +143,7 @@ it("LC-11 every turn sends the route's ?pack=; none without one", async () => {
   });
   expect(posts(api).map((b) => b.pack)).toEqual(['ch-zh', 'ch-zh']);
   cleanup();
+  sessionStorage.clear(); // a new chat, not the kept one
   const bare = open(answerTurn);
   await send('Put a storage room here');
   await screen.findByText(/is 7.56 m²/);

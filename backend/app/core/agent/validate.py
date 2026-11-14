@@ -14,6 +14,8 @@ NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 # Ids and citations hold digits that are not claims: ev_3, [2], sel_1, W4, R3, p1
 _IDS = re.compile(r"\[\d+\]|\b[A-Za-z]+_?\d+\b")
 FAILED = frozenset({"error", "refused", "cannot_edit", "unknown"})
+TEXT_CHARS = 1200  # final_answer's text
+SHORTENED = " (shortened)"
 
 
 class LawNoteArgs(Frozen):
@@ -30,7 +32,7 @@ class LawNoteArgs(Frozen):
 
 class FinalAnswer(Frozen):
     kind: TurnKind
-    text: str = Field(min_length=1, max_length=1200)
+    text: str = Field(min_length=1, max_length=TEXT_CHARS)
     evidence_ids: tuple[str, ...] = Field(default=(), max_length=12)
     options: tuple[Option, ...] | None = Field(default=None, max_length=4)
     proposal_id: str | None = Field(default=None, max_length=16)
@@ -111,3 +113,11 @@ def backed(number: str, known: set[Decimal]) -> bool:
     want = Decimal(number.replace(",", "."))
     step = Decimal(1).scaleb(int(want.as_tuple().exponent))
     return want in known or any(found.quantize(step, ROUND_HALF_UP) == want for found in known)
+
+
+def shortened(text: str) -> str:
+    """`text` cut to TEXT_CHARS at its last full sentence (else word) that fits, marked as cut."""
+    room = text[: TEXT_CHARS - len(SHORTENED)]
+    end = max(room.rfind(". "), room.rfind("! "), room.rfind("? "))
+    cut = room[: end + 1] if end > 0 else room.rsplit(" ", 1)[0]
+    return cut.rstrip() + SHORTENED

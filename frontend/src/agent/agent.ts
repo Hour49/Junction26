@@ -40,6 +40,49 @@ export function splitCites(text: string, ns: number[]): (string | number)[] {
   return out;
 }
 
+export type Block = { kind: 'p' | 'ul' | 'ol'; lines: string[]; start?: number };
+export type Inline =
+  { kind: 'text' | 'b'; text: string } | { kind: 'a'; text: string; href: string };
+
+/** The model's text as paragraphs and "- " / "1. " lists (answers-1); headings and quote marks dropped. */
+export function blocksOf(text: string): Block[] {
+  const out: Block[] = [];
+  let blank = true; // a blank line ends the block
+  for (const raw of text.split('\n')) {
+    const line = raw.replace(/^\s*(#{1,6}\s+|>\s?)+/, '').trimEnd();
+    const ul = /^\s*[-*•]\s+(.*)$/.exec(line)?.[1];
+    const [, n, ol] = /^\s*(\d+)[.)]\s+(.*)$/.exec(line) ?? [];
+    const [kind, body]: [Block['kind'], string] =
+      ul !== undefined ? ['ul', ul] : ol !== undefined ? ['ol', ol] : ['p', line.trim()];
+    const last = out.at(-1);
+    if (!body) blank = true;
+    else if (last?.kind !== kind || (blank && kind === 'p')) {
+      out.push({ kind, lines: [body], ...(n ? { start: Number(n) } : {}) });
+      blank = false;
+    } else last.lines.push(body);
+  }
+  return out;
+}
+
+/** A line's **bold** runs and [text](url) links (http(s) only, else the text); backticks and stray ** dropped. */
+export function inlineOf(line: string): Inline[] {
+  const out: Inline[] = [];
+  const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  const plain = (s: string) => s.replace(/`|\*\*/g, '');
+  let at = 0;
+  for (const m of line.matchAll(re)) {
+    if (m.index > at) out.push({ kind: 'text', text: plain(line.slice(at, m.index)) });
+    const [, bold, label, href] = m;
+    if (bold !== undefined) out.push({ kind: 'b', text: plain(bold) });
+    else if (href && /^https?:\/\//.test(href))
+      out.push({ kind: 'a', text: plain(label ?? href), href });
+    else out.push({ kind: 'text', text: plain(label ?? '') });
+    at = m.index + m[0].length;
+  }
+  if (at < line.length) out.push({ kind: 'text', text: plain(line.slice(at)) });
+  return out.filter((x) => x.text);
+}
+
 const two = (v: number) => v.toFixed(2);
 
 /** "+0.52 m²" / "−1.20 m²" / "±0.00 m²". */
@@ -109,6 +152,16 @@ export interface ModelRoom {
   page: number;
   polygon?: Point[] | null;
   box: number[];
+  attrs?: Record<string, unknown>;
+}
+
+/** The room as the plan writes it, name and number ("Bagno 1.01"), as the server's plan tools name it. */
+export function roomName(r: ModelRoom): string {
+  const name = r.label ?? r.type;
+  const n = r.attrs?.number;
+  return (typeof n === 'string' || typeof n === 'number') && !name.includes(String(n))
+    ? `${name} ${String(n)}`
+    : name;
 }
 
 /** The rooms of an extraction_v1 document; none when it has no `rooms` list. */

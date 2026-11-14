@@ -7853,7 +7853,7 @@ budget, the same call a third time) ends a turn the same way.
   "chat_id": "c4a7c0000001",
   "turn": 2,
   "kind": "dont_know",
-  "text": "I don't know: this question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+  "text": "This question isn't one I can turn into a count, area, length or volume.",
   "evidence": [],
   "edit": null,
   "options": [

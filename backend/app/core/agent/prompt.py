@@ -41,5 +41,21 @@ it with get_clause and add a law_note (its own limit as written, a value a tool 
 each would_not_meet note's ref in the text.
 - Never write "legal", "illegal", "compliant" or "permitted": a pre-check of a few rules is not \
 a verdict on the law. Say "would not meet" or "meets".
+- Write plain text only: no Markdown (no **, #, bullet or numbered lists, backticks, quotes \
+with >, [text](url) links). Write a clause's url as it is.
+- When ask_drawings marks a quantity as a conflict, the answer is kind conflict: say the \
+sources disagree, in one sentence, and cite both.
 - End every turn with exactly one final_answer call.
 """
+
+# The turn's country (LC-6, LC-14; QA answers-3, lawai-1): one of these goes after SYSTEM on
+# every turn, then the chosen pack's law contents when the app has them
+# Keep "(pack <id>)": the rules planner (chat_rules.py) reads the country from it
+COUNTRY = (
+    "Country chosen by the person: {name} (pack {pack}). Search and cite the law of pack {pack} "
+    "only, unless the person names another country."
+)
+NO_COUNTRY = (
+    "No country is chosen. You may search the law, but name no clause as met or not met by the "
+    "plan: ask the person to pick a country in the header first."
+)

@@ -82,5 +82,6 @@ def _gemini(settings: Settings) -> Literal["ok", "budget_exhausted"] | None:
 
 
 def _chat(settings: Settings) -> ChatInfo:
-    reason = chat_model(settings)[1] or spend_guard(settings).exhausted()
+    paid = settings.chat_model != "rules"  # the rules planner is free: no budget stops it
+    reason = chat_model(settings)[1] or (spend_guard(settings).exhausted() if paid else None)
     return ChatInfo(model=settings.chat_model, available=reason is None, reason=reason)

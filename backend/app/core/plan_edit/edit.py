@@ -94,13 +94,21 @@ def place_room(
     """A new room in a drawn rectangle (page fractions): its sides snap to wall faces within
     0.15 m, it is clipped to the rooms, the rooms it covers shrink, and 0.10 m partitions close
     it where no wall is."""
+    if region[2] <= region[0] or region[3] <= region[1]:  # a click or a sideways drag (robust-1)
+        raise EditRefusedError(
+            "the area drawn is a line, not an area: drag a rectangle over the room"
+        )
     shapes = page.room_shapes()
     inside = shapely.unary_union(list(shapes.values()))
     faces = shapely.unary_union([s.boundary for s in shapes.values()] + [page.wall_mass().boundary])
     drawn = _snapped(page.box_shape(region), faces)
     pieces = parts(drawn.intersection(inside).buffer(CLOSE_M).buffer(-CLOSE_M))
-    if not pieces or pieces[0].area < CROSSES_M2:
+    if not pieces:
         raise EditRefusedError("the area is outside the rooms")
+    if pieces[0].area < CROSSES_M2:  # edits-4
+        raise EditRefusedError(
+            f"the area is too small for a room (under {CROSSES_M2} m²): draw a larger area"
+        )
     if len(pieces) > 1 and pieces[1].area >= CROSSES_M2:
         raise EditRefusedError("the area crosses a wall into another room: draw it inside one room")
     region_m = pieces[0]

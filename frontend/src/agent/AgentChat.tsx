@@ -29,13 +29,28 @@ type Load =
   | { state: 'ready'; project: ProjectView };
 
 type Pointed = { sel: Selection; chip: string };
+type Done = Extract<Row, { status: 'done' }>;
+type Kept = { chatId?: string; rows: Done[] };
+
+// answers-5: "Show it" leaves the chat route; the thread comes back from here (this tab only).
+const keyOf = (projectId: string) => `agent-chat:${projectId}`;
+function kept(projectId: string): Kept {
+  try {
+    const raw = sessionStorage.getItem(keyOf(projectId));
+    if (raw) return JSON.parse(raw) as Kept;
+  } catch {
+    // no storage (private mode) or a bad value: start empty
+  }
+  return { rows: [] };
+}
 
 /** The agent chat thread (AC-30): one turn pending at a time, `chat_id` kept from the first turn, selections from
  * "Point at the plan" go with the next message and are cleared after it (AC-33). As the project chat: `?ask=` is
  * sent on open, starter chips when empty, follow-up chips after a turn (chat.md). */
 export function AgentChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
-  const [rows, setRows] = useState<Row[]>([]);
+  const [start] = useState(() => kept(projectId));
+  const [rows, setRows] = useState<Row[]>(start.rows);
   // The drawings' own suggestions, for the starter and follow-up chips; failures leave fewer (or none).
   const [lists, setLists] = useState<Suggestion[][]>([]);
   const openAsk = query?.get('ask')?.trim() ?? '';
@@ -47,8 +62,8 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   }, [pack]);
   const [pointed, setPointed] = useState<Pointed[]>([]);
   const [pointing, setPointing] = useState(false);
-  const chatId = useRef<string | undefined>(undefined);
-  const nextId = useRef(1);
+  const chatId = useRef<string | undefined>(start.chatId);
+  const nextId = useRef(Math.max(0, ...start.rows.map((r) => r.id)) + 1);
   const nextSel = useRef(1);
   const pending = useRef(false);
   const thread = useRef<HTMLElement>(null);
@@ -96,7 +111,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       (project) => {
         if (abort.signal.aborted) return; // StrictMode's first run: only the live load asks
         setLoad({ state: 'ready', project });
-        if (openAsk && askable(project.drawings).length > 0) {
+        // Back from "Show it" keeps ?ask=: a kept thread that asked it already is not asked again.
+        const asked = start.rows.some((r) => r.message === openAsk);
+        if (openAsk && !asked && askable(project.drawings).length > 0) {
           const row: Sent = { id: nextId.current++, message: openAsk, chips: [] };
           setRows([{ ...row, status: 'pending' }]);
           send(row, []);
@@ -117,7 +134,21 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return () => {
       abort.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- start is the mount's kept thread
   }, [projectId, openAsk, send]);
+
+  useEffect(() => {
+    const done = rows.filter((r): r is Done => r.status === 'done');
+    if (done.length === 0) return;
+    try {
+      sessionStorage.setItem(
+        keyOf(projectId),
+        JSON.stringify({ chatId: chatId.current, rows: done } satisfies Kept),
+      );
+    } catch {
+      // full or blocked storage: the thread just isn't kept
+    }
+  }, [rows, projectId]);
 
   const last = rows.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
@@ -187,6 +218,14 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           pack={pack}
           busy={busy}
           onAsk={ask}
+          onDecided={(edit) => {
+            // Kept with the thread, so a restored card shows the decision, not Accept again.
+            setRows((rs) =>
+              rs.map((x) =>
+                x.id === r.id && x.status === 'done' ? { ...x, turn: { ...x.turn, edit } } : x,
+              ),
+            );
+          }}
         />
       )}
     </article>

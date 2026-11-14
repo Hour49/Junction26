@@ -62,7 +62,7 @@ def test_ac11_ac22_an_answer_turn_with_sources_and_steps(client: TestClient) -> 
 def test_ac11_dont_know_turns(client: TestClient) -> None:
     project = sample(client)
     unknown = ask(client, project, "What is the fire rating?")
-    assert unknown["kind"] == "dont_know" and unknown["text"].startswith("I don't know: this")
+    assert unknown["kind"] == "dont_know" and unknown["text"].startswith("This question")
     assert unknown["options"] and unknown["options"][0]["message"].endswith("?")
     assert len(unknown["answers"]) == 1 and unknown["answers"][0]["parts"]
     load = ask(client, project, "Is that wall load-bearing?")
@@ -264,3 +264,56 @@ def test_lc7_floor9178_a_storage_room_over_most_of_stanza_1_02(
     area = [f for f in turn["edit"]["law"]["findings"] if f["subject"] == "Stanza 1.02"
             and f["rule_id"].endswith("room-area")]  # fmt: skip
     assert [f["change"] for f in area] == [change]
+
+
+def test_robust_6_ac22_a_blank_message_is_422(client: TestClient) -> None:
+    chat = f"/api/projects/{sample(client)}/chat"
+    assert client.post(chat, json={"message": "   \n"}).status_code == 422
+
+
+def test_robust_3_ac24_the_rules_chat_runs_when_the_gemini_budget_is_used_up(
+    settings: Settings,
+) -> None:
+    spent = settings.model_copy(update={"gemini_budget_usd": 0.0})
+    client = TestClient(
+        create_app(spent, build_ingest(spent, spent.projects_dir, background=False))
+    )
+    turn = ask(client, sample(client), "How many doors are there?")
+    assert turn["kind"] == "answer" and "budget" not in turn["text"]
+    assert client.get("/api/info").json()["chat"] == {
+        "model": "rules", "available": True, "reason": None}  # fmt: skip
+
+
+class Seen:
+    """A ChatModel that keeps what it is sent and ends every turn."""
+
+    name = "seen"
+
+    def __init__(self) -> None:
+        self.sent: list[list[dict[str, Any]]] = []
+
+    def complete(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> Any:
+        from app.core.agent.ports import Reply
+
+        self.sent.append(messages)
+        args = {"kind": "dont_know", "text": "Seen."}
+        call = {"id": "c1", "type": "function",
+                "function": {"name": "final_answer", "arguments": json.dumps(args)}}  # fmt: skip
+        return Reply({"role": "assistant", "content": None, "tool_calls": [call]}, 0.0)
+
+
+def test_answers_3_robust_4_lc6_lc14_the_model_is_told_the_country_on_every_turn(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.api.chat as chat_api
+    from app.core.agent.prompt import NO_COUNTRY
+
+    seen = Seen()
+    monkeypatch.setattr(chat_api, "chat_model", lambda settings: (seen, None))
+    project = sample(client)
+    ask(client, project, "How big must a bedroom be?", pack="fi")
+    ask(client, project, "How big must a bedroom be?")
+    fi, none = (sent[0]["content"] for sent in seen.sent)
+    assert "Country chosen by the person: Finland" in fi and "(pack fi)" in fi
+    assert "search_law(pack='fi'" in fi  # the pack's law contents (AC-9)
+    assert none.endswith(NO_COUNTRY)

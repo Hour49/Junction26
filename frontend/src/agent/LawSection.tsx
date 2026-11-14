@@ -35,10 +35,16 @@ const COMPARE: Record<string, string> = {
   '=': 'exactly',
 };
 
+/** What a count rule counts, by the pack rule's `op` (lawcheck-3); singular, plural. */
+const COUNTED: Record<string, [string, string]> = { room_windows: ['window', 'windows'] };
+
 const unitOf = (u: string | null) => (u === 'm2' ? 'm²' : u === 'count' ? '' : (u ?? ''));
 const num = (v: number | null) => (v === null ? 'not known' : String(Math.round(v * 100) / 100));
-const withUnit = (v: number | null, u: string | null) =>
-  v === null ? num(v) : `${num(v)} ${unitOf(u)}`.trim();
+const withUnit = (v: number | null, u: string | null, counted?: [string, string]) => {
+  if (v === null) return num(v);
+  const word = u === 'count' && counted ? counted[v === 1 ? 0 : 1] : unitOf(u);
+  return `${num(v)} ${word}`.trim();
+};
 
 function Status({ word, tone }: { word: string; tone: Tone }) {
   return (
@@ -100,8 +106,11 @@ function Subject(props: {
   );
 }
 
-function FindingRow({ f, onPick }: { f: Finding; onPick?: OnPick }) {
-  const c = CHANGE[f.change];
+function FindingRow(props: { f: Finding; counted?: [string, string]; onPick?: OnPick }) {
+  const { f, counted, onPick } = props;
+  // lawcheck-2: a room the change makes had nothing to check before: "new room", and a met rule "Meets".
+  const isNew = f.before.status === 'not_applicable' && f.before.value === null;
+  const c = CHANGE[isNew && f.change === 'now_passes' ? 'still_passes' : f.change];
   return (
     <li className="ag-law-row">
       <p className="ag-law-head">
@@ -109,10 +118,12 @@ function FindingRow({ f, onPick }: { f: Finding; onPick?: OnPick }) {
       </p>
       <p className="ag-law-values">
         <Subject name={f.subject} ev={f.ev} subjectRef={f.subject_ref} onPick={onPick} />:{' '}
-        {withUnit(f.before.value, f.unit)} → {withUnit(f.after.value, f.unit)}
+        {isNew
+          ? `new room: ${withUnit(f.after.value, f.unit, counted)}`
+          : `${withUnit(f.before.value, f.unit, counted)} → ${withUnit(f.after.value, f.unit, counted)}`}
         <span className="ag-law-limit">
           {' '}
-          · {f.comparison_text} {withUnit(f.limit, f.unit)}
+          · {f.comparison_text} {withUnit(f.limit, f.unit, counted)}
         </span>
       </p>
       {f.after.why && <p className="en-small">{f.after.why}</p>}
@@ -170,7 +181,9 @@ export function LawSection(props: { law: LawCheck | null | undefined; onPick?: O
       </section>
     );
   }
-  const country = packs.find((p) => p.id === law.pack)?.country_name ?? law.pack_name;
+  const pack = packs.find((p) => p.id === law.pack);
+  const country = pack?.country_name ?? law.pack_name;
+  const rules = pack?.rules ?? [];
   const findings = [...law.findings].sort(
     (a, b) => ORDER.indexOf(a.change) - ORDER.indexOf(b.change),
   );
@@ -186,7 +199,12 @@ export function LawSection(props: { law: LawCheck | null | undefined; onPick?: O
       {findings.length > 0 ? (
         <ul className="ag-law-rows" aria-label="Rule checks">
           {findings.map((f) => (
-            <FindingRow key={`${f.rule_id}:${f.subject}`} f={f} onPick={onPick} />
+            <FindingRow
+              key={`${f.rule_id}:${f.subject}`}
+              f={f}
+              counted={COUNTED[rules.find((r) => r.id === f.rule_id)?.op ?? '']}
+              onPick={onPick}
+            />
           ))}
         </ul>
       ) : (

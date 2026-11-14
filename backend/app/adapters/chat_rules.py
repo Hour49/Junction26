@@ -17,6 +17,16 @@ EDIT = re.compile(
     r"\b(remove|break|knock(ed)? down|demolish|take out|merge|enlarge|larger|bigger|extend)\b"
 )
 STRUCTURE = re.compile(r"load[- ]?bearing|structural|carr(y|ies) (the )?load")
+# A question about the building law (answers-6): what a rule asks, not what the drawing shows
+LAW = re.compile(
+    r"\b(laws?|legal|regulations?|rules?|codes?|permits?|allowed|minimum|maximum|must|"
+    r"required|requirements?|clauses?)\b|§|say about"
+)
+PACK = re.compile(r"\(pack ([a-z]{2}(?:-[a-z]{2})?)\)")  # the chosen country, as the loop states it
+NO_PACK = (
+    "No country is chosen, so I can't look up its building rules. Pick a country above the chat "
+    "and ask again."
+)
 ROOM = re.compile(r"\broom\b")
 # A word for a room, as Room.type names it
 ROOM_WORDS = {
@@ -27,9 +37,11 @@ ROOM_WORDS = {
 }  # fmt: skip
 ROOM_WORD = re.compile(r"\b(" + "|".join(ROOM_WORDS) + r")s?\b")
 LOAD = (
-    "I don't know: these drawings do not say which walls carry load. A structural drawing, a "
-    "building model that marks load-bearing walls, or a structural engineer would settle it."
+    "These drawings do not say which walls carry load. A structural drawing, a building model "
+    "that marks load-bearing walls, or a structural engineer would settle it."
 )
+OTHER_AREAS = " I used the first area you drew, not the second: ask again for that one."
+TRY_THESE = re.compile(r"\s*Try one of these instead\.?")  # the card labels its own options
 ONE_ROOM = "area:room|name="  # a suggestion about one room, by its printed name
 TRIED = 3  # drawings tried for an editable plan before giving up
 
@@ -38,6 +50,7 @@ TRIED = 3  # drawings tried for an editable plan before giving up
 class _Turn:
     message: str
     selections: list[str]
+    pack: str | None = None
     done: list[tuple[str, Json, Any]] = field(default_factory=list[tuple[str, Json, Any]])
 
     def result(self, name: str, **args: Any) -> Any:
@@ -65,6 +78,11 @@ def _turn_of(messages: list[Json]) -> _Turn:
     )
     first, *rest = str(messages[start]["content"]).split("\n")
     turn = _Turn(first, [line for line in rest if line.startswith("sel_")])
+    for message in messages[: start + 1]:  # the system prompt or the turn's context line
+        if message.get("role") in ("system", "user") and (
+            found_pack := PACK.search(str(message.get("content") or ""))
+        ):
+            turn.pack = found_pack[1]
     calls: dict[str, tuple[str, Json]] = {}
     for message in messages[start + 1 :]:
         for call in message.get("tool_calls") or []:
@@ -93,18 +111,39 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     words = turn.message.lower()
     if STRUCTURE.search(words):
         return _final("dont_know", LOAD)
-    region = next((line.split(":")[0] for line in turn.selections if "region" in line), None)
-    if region and ROOM.search(words) and "propose_room" in offered:
+    regions = [line.split(":")[0] for line in turn.selections if "region" in line]
+    if regions and ROOM.search(words) and "propose_room" in offered:
         found = turn.result("propose_room")
         if found is None:
-            return "propose_room", {"selection_id": region, "name": _room_name(words)}
-        return _edit(found, [])
+            return "propose_room", {"selection_id": regions[0], "name": _room_name(words)}
+        return _edit(found, [], OTHER_AREAS if len(regions) > 1 else "")  # edits-5
     if EDIT.search(words) and "list_walls" in offered:
         return _remove_wall(turn, words)
+    if LAW.search(words):
+        return _law(turn, offered)
     found = turn.result("ask_drawings")
     if found is None:
         return "ask_drawings", {"question": turn.message[:500]}
     return _answer(found)
+
+
+def _law(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
+    """A law question: search the chosen country's clauses; the closest ones, cited by ref."""
+    if turn.pack is None:
+        return _final("dont_know", NO_PACK)
+    if "search_law" not in offered:
+        return _final(
+            "dont_know", "I can't look up the building rules here: no law files are loaded."
+        )
+    found = turn.result("search_law")
+    if found is None:
+        return "search_law", {"pack": turn.pack, "query": turn.message[:500]}
+    hits: list[Json] = [h for h in found.get("hits") or [] if isinstance(h, dict)]
+    if not hits:
+        why = found.get("error") or "no clause of the chosen country's rules matches the question"
+        return _final("dont_know", f"I found no rule for that: {why}.")
+    lines = [f"{h['ref']} of {h['title_en']}: {h['summary_en']}" for h in hits[:2]]
+    return _final("answer", "The closest rules I found: " + " Also ".join(lines))
 
 
 def _room_name(words: str) -> str:
@@ -146,8 +185,16 @@ def _pick_wall(turn: _Turn, words: str, args: Json, found: Json) -> tuple[str, J
     named = {m.upper() for m in re.findall(r"\bw\d+\b", words)}
     chosen = [w for w in walls if w["id"] in named]
     if not chosen:
-        groups = [set(re.findall(r"room (\S+)", " ".join(turn.selections)))]
-        groups += [group for _, group in sorted(_named(words, rooms), key=lambda f: f[0])]
+        # each clicked room is its own group (edits-2); a word naming a room already clicked
+        # ("this bathroom") narrows that group instead of adding one (edits-3)
+        clicked = [{m} for line in turn.selections for m in re.findall(r"room (\S+)", line)]
+        groups: list[set[str]] = []
+        for group in clicked + [g for _, g in sorted(_named(words, rooms), key=lambda f: f[0])]:
+            same = next((at for at, kept in enumerate(groups) if kept & group), None)
+            if same is None:
+                groups.append(group)
+            else:
+                groups[same] &= group
         groups = [group for group in groups if group]
         chosen = [w for w in walls if _between({r["id"] for r in w.get("rooms", [])}, groups)]
     if len(chosen) == 1:
@@ -199,7 +246,7 @@ def _sides(wall: Json, joint: str) -> str:
     return joint.join(str(r.get("label") or r.get("id")) for r in wall.get("rooms", []))
 
 
-def _edit(found: Json, evidence: list[str]) -> tuple[str, Json]:
+def _edit(found: Json, evidence: list[str], more: str = "") -> tuple[str, Json]:
     if found.get("status") != "ok":
         why = found.get("reason") or found.get("error") or "the plan tool refused it"
         return _final("dont_know", f"I can't make that edit: {why}.")
@@ -212,7 +259,7 @@ def _edit(found: Json, evidence: list[str]) -> tuple[str, Json]:
     text = "Proposed: " + "; ".join(changes) + "."
     if removed:
         text += " Removed: " + "; ".join(removed) + "."
-    text += "".join(f" {unknown}" for unknown in proposal.get("unknowns", []))
+    text += "".join(f" {unknown}" for unknown in proposal.get("unknowns", [])) + more
     law: Json = found.get("law") or {}
     for finding in law.get("findings") or []:  # LC-8: name each rule the change newly breaks
         if finding.get("change") == "newly_fails" and finding.get("ev"):
@@ -221,9 +268,8 @@ def _edit(found: Json, evidence: list[str]) -> tuple[str, Json]:
 
 
 def dont_know(why: str) -> str:
-    """'I don't know: ' and the reason, its first letter lower-cased unless it is an acronym."""
-    keep = len(why) > 1 and why[1].isupper()
-    return f"I don't know: {why if keep else why[:1].lower() + why[1:]}"
+    """The reason alone: the card heads it "I don't know" and labels the options (answers-7)."""
+    return TRY_THESE.sub("", why).strip()
 
 
 def _option(suggestion: Json) -> Json:
@@ -236,12 +282,13 @@ def _option(suggestion: Json) -> Json:
 def _answer(found: Json) -> tuple[str, Json]:
     if "error" in found:
         return _final("dont_know", f"I could not ask the drawings: {found['error']}")
-    parts: list[Json] = found.get("parts") or []
-    answering = [p for p in parts if p["answer"].get("answer") is not None]
+    # a long result is cut for the model: its lists end in a "... N more" string (answers-4)
+    parts: list[Json] = [p for p in found.get("parts") or [] if isinstance(p, dict)]
+    answering = [p for p in parts if (p.get("answer") or {}).get("answer") is not None]
     if not answering:
         refusal: Json = (parts[0]["answer"].get("refusal") if parts else None) or {}
         why = refusal.get("text") or found.get("why_no_total") or "no drawing answers it"
-        suggested: list[Json] = refusal.get("can_answer") or []
+        suggested: list[Json] = [s for s in refusal.get("can_answer") or [] if isinstance(s, dict)]
         options = [_option(suggestion) for suggestion in suggested[:4]]
         rooms = [s["quantity"] for s in suggested if s["quantity"].startswith(ONE_ROOM)]
         if (
@@ -249,7 +296,7 @@ def _answer(found: Json) -> tuple[str, Json]:
             and len(options) >= 2
             and len(rooms) == len(suggested)
         ):  # several rooms of the type asked about: which one
-            return _final("needs_input", why, options=options)
+            return _final("needs_input", dont_know(why), options=options)
         # A refusal's suggestions follow up the question only when it could not be parsed at all;
         # otherwise they are the drawing's generic questions, not answers to this one
         related = refusal.get("code") == "unsupported-question"
@@ -258,7 +305,7 @@ def _answer(found: Json) -> tuple[str, Json]:
     # The turn carries the ask_drawings result, shown in full under the text: one sentence that
     # cites each answering drawing's first mark
     evidence = [marks[0]["ev"] for p in answering[:12] if (marks := [
-        m for m in p["answer"].get("marks", []) if "ev" in m])]  # fmt: skip
+        m for m in p["answer"].get("marks", []) if isinstance(m, dict) and "ev" in m])]  # fmt: skip
     cites = "".join(f"[{ev}]" for ev in evidence)
     them = "drawings answer" if len(answering) > 1 else "drawing answers"
     return _final("answer", f"The {them} this below{' ' + cites if cites else ''}.", evidence)

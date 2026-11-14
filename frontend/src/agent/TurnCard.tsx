@@ -2,6 +2,8 @@ import type { ProjectView } from '../api';
 import { ChatAnswer } from '../engineer/ChatAnswer';
 import { routeHref } from '../shell/route';
 import {
+  blocksOf,
+  inlineOf,
   LEVEL_WORD,
   splitCites,
   stepsSummary,
@@ -44,25 +46,61 @@ function Confidence({ level }: { level: Level }) {
   );
 }
 
+/** The turn's text (answers-1): paragraphs, lists, bold and http(s) links from the model's Markdown, as React
+ * text (no HTML is ever parsed), with `[n]` source links. */
 function Text({ turn, projectId }: { turn: ChatTurn; projectId: string }) {
   const byN = new Map(turn.evidence.map((e) => [e.n, e]));
+  const cites = (s: string) =>
+    splitCites(s, [...byN.keys()]).map((part, i) => {
+      if (typeof part === 'string') return part;
+      const e = byN.get(part) as Evidence;
+      return (
+        <a
+          key={i}
+          className="ag-cite"
+          href={showHref(projectId, e)}
+          aria-label={`Source ${String(part)}: ${where(e)}`}
+        >
+          [{part}]
+        </a>
+      );
+    });
+  const line = (s: string) =>
+    inlineOf(s).map((x, i) =>
+      x.kind === 'a' ? (
+        <a key={i} href={x.href} target="_blank" rel="noopener noreferrer">
+          {x.text}
+        </a>
+      ) : x.kind === 'b' ? (
+        <b key={i}>{cites(x.text)}</b>
+      ) : (
+        <span key={i}>{cites(x.text)}</span>
+      ),
+    );
   return (
-    <p className="ag-text">
-      {splitCites(turn.text, [...byN.keys()]).map((part, i) => {
-        if (typeof part === 'string') return part;
-        const e = byN.get(part) as Evidence;
+    <div className="ag-text">
+      {blocksOf(turn.text).map((b, i) => {
+        if (b.kind === 'p')
+          return (
+            <p key={i}>
+              {b.lines.map((l, j) => (
+                <span key={j}>
+                  {j > 0 && <br />}
+                  {line(l)}
+                </span>
+              ))}
+            </p>
+          );
+        const List = b.kind;
         return (
-          <a
-            key={i}
-            className="ag-cite"
-            href={showHref(projectId, e)}
-            aria-label={`Source ${String(part)}: ${where(e)}`}
-          >
-            [{part}]
-          </a>
+          <List key={i} start={b.start}>
+            {b.lines.map((l, j) => (
+              <li key={j}>{line(l)}</li>
+            ))}
+          </List>
         );
       })}
-    </p>
+    </div>
   );
 }
 

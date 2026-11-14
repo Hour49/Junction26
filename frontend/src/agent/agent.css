@@ -10,6 +10,15 @@
 }
 .ag-text {
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.ag-text ul,
+.ag-text ol {
+  margin: 0;
+  padding-left: 1.4em;
 }
 .ag-cite {
   font-size: 0.8em;
@@ -367,4 +376,9 @@
 .ag-pointer .vw-frame img {
   pointer-events: none;
   -webkit-user-drag: none;
+}
+/* edits-9: the viewer's fix-mode hint ("where a mark is missing") is the wrong task here; the pointer's heading
+   says what to do. */
+.ag-pointer .vw-hint {
+  display: none;
 }

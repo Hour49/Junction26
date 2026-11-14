@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from app.adapters.chat_rules import LOAD, RulesChatModel
+from app.adapters.chat_rules import LOAD, NO_PACK, OTHER_AREAS, RulesChatModel
 from app.core.agent.loop import NUDGE, UNBACKED
 
 DRAWING = "0123456789abcdef"
@@ -61,7 +61,10 @@ def test_ac11_all_refused_is_dont_know_with_the_reason() -> None:
     asked = {"parts": [{"drawing_id": DRAWING, "name": "a.pdf",
                         "answer": {"answer": None, "refusal": {"text": "No scale."}}}]}  # fmt: skip
     _, args = plan("How big?", ("ask_drawings", {}, asked))
-    assert (args["kind"], args["text"]) == ("dont_know", "I don't know: no scale.")
+    assert (args["kind"], args["text"]) == (
+        "dont_know",
+        "No scale.",
+    )  # answers-7: no "I don't know:"
     assert "options" not in args
 
 
@@ -108,7 +111,11 @@ def test_ac11_a_refusal_carries_its_suggestions_as_options() -> None:
     asked = {"parts": [{"drawing_id": DRAWING, "name": "a.pdf",
                         "answer": {"answer": None, "refusal": refusal}}]}  # fmt: skip
     _, args = plan("How many parking spaces are there?", ("ask_drawings", {}, asked))
-    assert args["kind"] == "dont_know" and args["text"].startswith("I don't know: this question")
+    # answers-7: the card heads it "I don't know" and labels the options itself
+    assert (args["kind"], args["text"]) == (
+        "dont_know",
+        "This question isn't one I can turn into a count.",
+    )
     assert args["options"] == [{"label": "door count", "message": "How many doors are there?"}] * 4
 
 
@@ -183,3 +190,91 @@ def test_the_nudge_is_not_the_users_message() -> None:
     messages = [*history("How many doors?"), {"role": "user", "content": NUDGE}]
     reply = RulesChatModel().complete(messages, TOOLS)
     assert reply.message["tool_calls"][0]["function"]["name"] == "ask_drawings"
+
+
+def test_answers_4_a_cut_answer_list_is_read_not_indexed() -> None:
+    part = {"drawing_id": DRAWING, "name": "a.pdf",
+            "answer": {"answer": 7.5, "marks": [{"ev": "ev_1"}, "... 2 more"]}}  # fmt: skip
+    asked = {"parts": [part, "... 3 more"]}  # loop._cut's shape of a long result
+    name, args = plan("What is the net floor area of room 1.01?", ("ask_drawings", {}, asked))
+    assert (name, args["kind"], args["evidence_ids"]) == ("final_answer", "answer", ["ev_1"])
+    cut = {"text": "No.", "can_answer": ["... 1 more"]}
+    refused = {"parts": [{"drawing_id": DRAWING, "name": "a.pdf",
+                          "answer": {"answer": None, "refusal": cut}}, "... 1 more"]}  # fmt: skip
+    assert plan("How tall?", ("ask_drawings", {}, refused))[1]["kind"] == "dont_know"
+
+
+def clicked(message: str, *refs: str) -> str:
+    lines = [f"sel_{n}: room {ref} Room {ref} (9.00 m²) on Drawn plan 1 page 1"
+             for n, ref in enumerate(refs, start=1)]  # fmt: skip
+    return "\n".join([message, *lines])
+
+
+WALLS3 = {**WALLS, "walls": [*WALLS["walls"], {"id": "W3", "ev": "ev_3", "rooms": [
+    {"id": "r2", "label": "Stanza 1.02"}, {"id": "r4", "label": "Corridoio 1.04"}]}]}  # fmt: skip
+
+
+def test_edits_2_two_clicked_rooms_pick_the_one_wall_between_them() -> None:
+    drawings = ("list_drawings", {}, [{"drawing_id": DRAWING}])
+    walls = ("list_walls", {"drawing_id": DRAWING, "page": 1}, WALLS3)
+    name, args = plan(clicked("Remove the wall between these rooms", "r1", "r2"), drawings, walls)
+    assert (name, args["wall_id"]) == ("propose_remove_wall", "W1")
+
+
+def test_edits_3_a_clicked_bathroom_bigger_offers_its_inside_walls() -> None:
+    drawings = ("list_drawings", {}, [{"drawing_id": DRAWING}])
+    walls = ("list_walls", {"drawing_id": DRAWING, "page": 1}, WALLS3)
+    name, args = plan(clicked("Make this bathroom bigger", "r1"), drawings, walls)
+    assert (name, args["kind"]) == ("final_answer", "needs_input")
+    assert [o["label"][:7] for o in args["options"]] == ["Wall W1", "Wall W2"]  # not W3
+
+
+def test_edits_5_a_second_drawn_area_is_said_unused() -> None:
+    message = "\n".join(["Put a storage room here", "sel_1: region on a.pdf page 1, about 2 x 1 m",
+                         "sel_2: region on a.pdf page 1, about 1 x 1 m"])  # fmt: skip
+    assert plan(message)[1]["selection_id"] == "sel_1"
+    proposal = {"status": "ok", "proposal": {"proposal_id": "p1", "rooms": [
+        {"label": "Storage", "area_before_m2": 0.0, "area_after_m2": 2.0}]}}  # fmt: skip
+    _, args = plan(message, ("propose_room", {"selection_id": "sel_1"}, proposal))
+    assert args["kind"] == "edit" and args["text"].endswith(OTHER_AREAS)
+
+
+LAW_TOOLS = [*TOOLS, {"type": "function", "function": {"name": "search_law"}}]
+
+
+def law_plan(message: str, system: str, *done: tuple[str, dict[str, Any], Any]) -> Any:
+    messages = history(message, *done)
+    messages[0]["content"] = system
+    [call] = RulesChatModel().complete(messages, LAW_TOOLS).message["tool_calls"]
+    return call["function"]["name"], json.loads(call["function"]["arguments"])
+
+
+def test_answers_6_a_law_question_searches_the_chosen_countrys_rules() -> None:
+    system = "... Country chosen: Finland (pack fi)."
+    question = "How big must a bedroom be?"
+    assert law_plan(question, system) == ("search_law", {"pack": "fi", "query": question})
+    hit = {"id": "c1", "ref": "§ 4", "title_en": "Decree on dwellings", "summary_en": "A room is "
+           "at least 7 m².", "url": "https://example.org"}  # fmt: skip
+    name, args = law_plan(question, system, ("search_law", {}, {"hits": [hit]}))
+    assert (name, args["kind"]) == ("final_answer", "answer")
+    assert (
+        args["text"]
+        == "The closest rules I found: § 4 of Decree on dwellings: A room is at least 7 m²."
+    )
+    _, none = law_plan(question, system, ("search_law", {}, {"hits": []}))
+    assert none["kind"] == "dont_know" and none["text"].startswith("I found no rule for that")
+
+
+def test_answers_6_without_a_country_a_law_question_asks_for_one() -> None:
+    _, args = law_plan("What is the minimum size of a bedroom?", "...")
+    assert (args["kind"], args["text"]) == ("dont_know", NO_PACK)
+
+
+def test_answers_7_8_a_refusal_with_no_options_does_not_point_at_any() -> None:
+    text = "This question isn't one I can turn into a count. Try one of these instead."
+    refusal = {"code": "unsupported-question", "can_answer": [], "text": text}
+    asked = {"parts": [{"drawing_id": DRAWING, "name": "s.png",
+                        "answer": {"answer": None, "refusal": refusal}}]}  # fmt: skip
+    _, args = plan("What is the ceiling height?", ("ask_drawings", {}, asked))
+    assert args == {"kind": "dont_know", "evidence_ids": [],
+                    "text": "This question isn't one I can turn into a count."}  # fmt: skip

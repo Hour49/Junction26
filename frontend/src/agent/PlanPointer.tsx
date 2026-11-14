@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorText, getDrawing, getModel, type DrawingView } from '../api';
 import { PageViewer } from '../viewer/PageViewer';
-import { roomAt, roomsOf, type Box, type ModelRoom, type Selection } from './agent';
+import { roomAt, roomName, roomsOf, type Box, type ModelRoom, type Selection } from './agent';
 
 export interface PlanChoice {
   drawing_id: string;
@@ -30,7 +30,7 @@ export function selectionOf(
     return { sel: { kind: 'room', drawing_id: d.drawing_id, page, box }, chip: `Room on ${where}` };
   return {
     sel: { kind: 'room', drawing_id: d.drawing_id, page, ref: room.id, box },
-    chip: `Room ${room.label ?? room.type}`,
+    chip: `Room ${roomName(room)}`, // edits-9: with its number
   };
 }
 

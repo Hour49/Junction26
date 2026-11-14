@@ -129,7 +129,11 @@ function EditPlan({ p, projectId, hot }: { p: Proposal; projectId: string; hot: 
   const fig = useRef<HTMLElement>(null);
   // LC-15: a picked subject may be far below the plan (phone): bring the plan into view.
   useEffect(() => {
-    if (hot) fig.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const reduce =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches; // robust-8
+    if (hot)
+      fig.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   }, [hot]);
   const [load, setLoad] = useState<PageLoad>({ state: 'loading' });
   const [after, setAfter] = useState(true);
@@ -267,12 +271,15 @@ export function EditCard(props: {
   const [hot, setHot] = useState<Point[] | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  // robust-7: the pressed button goes away with the decision; focus moves to the status that replaces it.
+  const decided = useRef(false);
   const decide = (action: 'accept' | 'reject') => {
     setSending(true);
     setError(null);
     decideProposal(projectId, chatId, p.proposal_id, action).then(
       (next) => {
         setSending(false);
+        decided.current = true;
         setP(next);
         onDecided?.(next);
       },
@@ -346,6 +353,13 @@ export function EditCard(props: {
           <p
             className={`v-pill ag-decided${p.state === 'accepted' ? ' v-pill--ok' : ''}`}
             role="status"
+            tabIndex={-1}
+            ref={(el) => {
+              if (el && decided.current) {
+                decided.current = false;
+                el.focus();
+              }
+            }}
           >
             {p.state === 'accepted' ? 'Accepted' : 'Rejected'}
           </p>

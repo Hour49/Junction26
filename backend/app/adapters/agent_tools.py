@@ -88,8 +88,22 @@ def project_toolbox(
         except ImportError:
             pass
         else:
-            sets.append((TOOLS, partial(run_tool, laws)))  # pyright: ignore
+            run_law: Runner = partial(run_tool, laws)  # pyright: ignore
+            sets.append(
+                (TOOLS, run_law if pack is None else partial(_pack_default, run_law, pack.id))
+            )  # pyright: ignore
     return AgentToolbox(sets, describe, made)
+
+
+def _pack_default(run: Runner, pack: str, name: str, arguments: str) -> str:
+    """A law tool call with the turn's pack when the model gives none (QA answers-3)."""
+    try:
+        given: Any = json.loads(arguments)
+    except json.JSONDecodeError:
+        return run(name, arguments)
+    if name == "search_law" and isinstance(given, dict) and not given.get("pack"):  # pyright: ignore[reportUnknownMemberType]
+        arguments = json.dumps({**given, "pack": pack})  # pyright: ignore[reportUnknownArgumentType]
+    return run(name, arguments)
 
 
 def _plain(selection: Selection) -> str:
