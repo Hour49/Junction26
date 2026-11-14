@@ -4,9 +4,6 @@ What we already know, so QA does not re-report it and fixers do not re-investiga
 per entry; an entry goes when its fix is merged.
 
 ## Known issues
-- K1 · minor · backend · After a surveyor settles an area (flat-b room 1.01 at 22.40 m²), its mark still carries
-  the printed-label value (badge "1 · 30.00 m²", mark list "Küche 30.00 m²") and `proof.arithmetic` reads
-  "30 = 30 m2; kept: 22.4 m2" (Sat 05:05)
 - K2 · minor · frontend · The viewer's conflict tags A and B overlap when both methods' boxes start at the same
   corner (flat-b room 1.01) (Sat 05:05)
 - K3 · minor · frontend · On a phone the surveyor's drawings and conflicts list is not collapsed; the drawing starts

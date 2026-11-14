@@ -135,7 +135,22 @@ def mark_views(quantity: Quantity, drawing: Drawing, state: ReviewState) -> tupl
                 reason=None,
             )
         )
-    return tuple(views)
+    return _settled(quantity, tuple(views), state)
+
+
+def _settled(
+    quantity: Quantity, views: tuple[MarkView, ...], state: ReviewState
+) -> tuple[MarkView, ...]:
+    """A settled sum of one part (one room's area): that part is the settled value, so its mark
+    says what the answer says. The parts of a larger sum keep what was measured."""
+    settled = state.settled.get(quantity.key)
+    counted = [view for view in views if view.state in ("counted", "added")]
+    if settled is None or quantity.unit == "count" or len(counted) != 1:
+        return views
+    return tuple(
+        view.model_copy(update={"value": float(settled.value)}) if view is counted[0] else view
+        for view in views
+    )
 
 
 def unlocated_boxes(drawing: Drawing) -> dict[tuple[int, Box], str]:
