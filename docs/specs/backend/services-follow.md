@@ -195,3 +195,65 @@ through the real ingest and plan tools in one process, 2026-11-14:
 - Of the 43 inside walls the plan tools list, 32 can be proposed today. Of those, 4 carry a fire damper (the
   shaft walls), 2 have an air terminal in the wall to re-seat, and 14 have runs passing through.
 - A new room in the open workspace: its partition crosses one heating flow and one return pipe (DN15).
+
+## Pictures (services drawn on a picture, not modelled)
+
+Owner: Tudor's side (`app/core/services/picture_follow.py`, the `pictures` call in `adapters/service_tools.py`);
+review eu-big. Request: Bogdan, #281 c6884888469.
+
+When the plan was not drawn from a building model and the project has a services picture of that floor (another
+sheet, or services marks on the plan's own sheet), the edit is followed on the picture's marks: the spots of its
+fact sheet (`app/core/picture_facts.py`, one spot per symbol or run piece, page fractions). A picture shows where
+things are drawn, not how they connect or at what height, so nothing is re-seated, traced or cut off.
+
+`ServiceFollower.pictures` gives a drawing's services fact sheet by drawing id (none by default). On a plan whose
+route is not `bim`, each lane a picture gives (checked or not aligned) replaces that lane's "not checked"; a lane no
+picture gives stays as the model path left it. The marks' `global_id` is empty: a picture has no model ids.
+
+| On the page | Removed wall | Added partition |
+| --- | --- | --- |
+| a symbol within 0.15 m of the strip | `reseat`, `needs_decision`: it has to move; where to and how to reconnect are not shown on a picture | `under`, `needs_decision`: on the new wall's line |
+| a run with more than max(2 × the wall's thickness, 0.5 m) inside the strip | `in_wall`, `needs_decision`: it goes with the wall | `under`, `needs_decision`: it runs along the new wall |
+| any other run touching the strip | `through`, `stays`: now open to the merged room | `opening`, `follows`: each crossing needs an opening |
+| anything else | not listed; shown as a mark within 3 m of the edit | the same |
+
+Every run's action ends "what it feeds and whether it can be rerouted are not shown on a picture".
+
+**Laying a picture over the plan.** The plan's own page lies on itself. Another sheet lies over it only when the
+floors do not differ (when both sheets name one), both have a scale, and at least 3 room names printed once on each
+appear on both; the sheets are then laid over by the names' places in metres, and refused when the worst name
+misses by more than 0.5 m. Otherwise the lane is `not_aligned` with the reason ("only 2 room names appear on both
+sheets (3 are needed)", "the services picture has no scale", "the services picture is of another floor (…)").
+A lane with no picture is `no_model`: "this project has no <lane> picture of this floor".
+
+**Unknowns** (when any lane was checked): a services picture shows where things are drawn, not how they connect
+(what a run feeds and whether it can be rerouted); a picture shows no heights (what is on a wall's line may run in
+the floor or under the ceiling); the symbols and runs are read by vision, so one the readers missed is not there.
+
+**Shortcuts** (each marked in the code):
+- A shift only: two sheets of one floor are taken to share their orientation; a rotation is not fitted.
+- A run piece's spot is a box, so the piece is taken along the box's long side; a diagonal piece is approximate.
+- Floors are compared only when both sheets name one. A vector plan has no title read, so a services picture of
+  another floor whose room names repeat could be laid over it.
+
+Acceptance criteria (tests in `tests/test_services_picture_follow.py` and `tests/test_service_tools_pictures.py`):
+
+- **SFP-1** Two radiators on a removed wall, a pipe crossing it, one radiator and one pipe elsewhere: one `reseat`
+  (`needs_decision`, both radiators, "2 radiators", the legend label), one `through` (`stays`, the label and its
+  size, the "not shown on a picture" words); nothing else; the three other lanes `no_model`; the unknowns given
+  (`test_two_radiators_on_the_removed_wall_a_pipe_crossing_it_and_the_rest_clear`).
+- **SFP-2** 3 m of pipe inside a removed wall: `in_wall`, `needs_decision`, "3.0 m"
+  (`test_a_run_along_inside_the_removed_wall_goes_with_it`).
+- **SFP-3** An added partition: the pipe crossing it `opening` (`follows`), the radiators on its line `under`
+  (`needs_decision`) (`test_an_added_partition_needs_an_opening_where_a_pipe_crosses_it`).
+- **SFP-4** Nothing on the walls: the lane is checked with no action and says so
+  (`test_nothing_on_the_walls_says_so`).
+- **SFP-5** Another sheet of the floor, 1 m off on a 12 m page, with 3 shared room names and both scales: laid over,
+  the marks back on the plan's page
+  (`test_another_sheet_of_the_floor_is_laid_over_by_three_room_names_and_the_scales`).
+- **SFP-6** Two shared names, no scale, or another floor: `not_aligned` with that reason
+  (`test_another_sheet_is_not_laid_over_without_three_room_names_a_scale_or_the_same_floor`).
+- **SFP-7** A picture project's wall removal through `ServiceFollower.run` gets the picture's heating lane, and the
+  model's text names it (`test_a_wall_removed_on_a_picture_plan_gets_the_picture_lane_of_its_services_marks`).
+- **SFP-8** Without a services picture the follow-up is as before
+  (`test_without_a_services_picture_the_follow_up_is_as_before`).
