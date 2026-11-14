@@ -1210,19 +1210,19 @@ describe('judge path', () => {
     expect(t.textContent).not.toMatch(/4\.88|5\.00/);
   });
 
-  it('EN-90 a partial room total says which rooms it sums and which are missing; nothing without it', async () => {
+  it('EN-90 a partial room total has a tag beside its value with the counts', async () => {
     const t = await shownTurn({
       ...answer,
       partial: true,
       rooms_counted: 7,
       rooms_missing: ['Sauna', 'WC 2'],
     });
-    expect(t.querySelector('.en-head .en-partial')?.textContent).toBe(
-      'May be partial: sums 7 rooms the reader found; missing from it: Sauna, WC 2.',
-    );
+    const tag = t.querySelector('.en-head .en-value-row .en-partial');
+    expect(tag?.textContent).toBe('May be partial');
+    expect(tag?.getAttribute('aria-label')).toBe('May be partial: sums 7 rooms; 2 not in it');
   });
 
-  it('EN-90 no partial line when partial is absent', async () => {
+  it('EN-90 no partial tag when partial is absent', async () => {
     const t = await shownTurn(answer);
     expect(t.querySelector('.en-partial')).toBeNull();
   });

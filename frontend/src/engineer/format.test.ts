@@ -4,7 +4,7 @@ import {
   formatCost,
   formatLatency,
   formatScore,
-  partialLine,
+  partialTip,
   statusWord,
 } from './format';
 import { answer, answerArea } from '../api/fixtures';
@@ -58,18 +58,17 @@ it('EN-88 estimateLine: about the rounded measure and the API sentence; a count 
   expect(estimateLine(answer)).toBeNull();
 });
 
-it('CH-49 partialLine: the rooms summed and up to five missing names; null unless partial', () => {
-  expect(partialLine({ partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] })).toBe(
-    'May be partial: sums 7 rooms the reader found; missing from it: Sauna, WC 2.',
+it('CH-49 partialTip: the rooms summed and how many are not in it, no names; null unless partial', () => {
+  expect(partialTip({ partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] })).toBe(
+    'May be partial: sums 7 rooms; 2 not in it',
   );
-  const seven = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-  expect(partialLine({ partial: true, rooms_counted: 1, rooms_missing: seven })).toBe(
-    'May be partial: sums 1 room the reader found; missing from it: A, B, C, D, E and 2 more.',
+  expect(partialTip({ partial: true, rooms_counted: 1, rooms_missing: ['A'] })).toBe(
+    'May be partial: sums 1 room; 1 not in it',
   );
-  expect(partialLine({ partial: true, rooms_counted: 3, rooms_missing: [] })).toBe(
-    'May be partial: sums 3 rooms the reader found.',
+  expect(partialTip({ partial: true, rooms_counted: 3, rooms_missing: [] })).toBe(
+    'May be partial: sums 3 rooms',
   );
-  expect(partialLine({ partial: false, rooms_counted: 3, rooms_missing: ['Sauna'] })).toBeNull();
-  expect(partialLine({})).toBeNull();
-  expect(partialLine(answer)).toBeNull();
+  expect(partialTip({ partial: false, rooms_counted: 3, rooms_missing: ['Sauna'] })).toBeNull();
+  expect(partialTip({})).toBeNull();
+  expect(partialTip(answer)).toBeNull();
 });

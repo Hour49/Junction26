@@ -2,17 +2,9 @@ import { useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { routeHref } from '../shell/route';
-import { GRADE_TONE, StatusPill } from './AnswerCard';
+import { GRADE_TONE, PartialTag, StatusPill } from './AnswerCard';
 import { ResolverLines } from './Resolver';
-import {
-  estimateLine,
-  gradeOf,
-  kindName,
-  levelWord,
-  partialLine,
-  shownValue,
-  type Grade,
-} from './format';
+import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
 import { orderParts } from './projectAsk';
 import { ModelDialog } from '../model3d/ModelDialog';
@@ -152,6 +144,8 @@ export function ChatAnswer(props: {
                 <span>
                   <span className="en-part-name">{labelOf(p)}</span>: <strong>{value(p)}</strong>
                 </span>
+                {/* CH-49: a room total that may leave rooms out; the explanation names them */}
+                <PartialTag a={p.answer} />
                 {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
                 {p.answer.quantity?.status === 'signed' ? (
                   <span className="v-pill v-pill--ok">Signed off</span>
@@ -173,8 +167,6 @@ export function ChatAnswer(props: {
                   Show it on {labelOf(p)}
                 </a>
                 {estimate(p) && <p className="en-estimate">{estimate(p)}</p>}
-                {/* CH-49: a room total that may leave rooms out says which it sums and which it lacks */}
-                {partialLine(p.answer) && <p className="en-partial">{partialLine(p.answer)}</p>}
                 {/* CH-43: why, under the value, as a refusal gives its reason */}
                 {why(p) && <p className="en-why">{why(p)}</p>}
                 <ResolverLines a={p.answer} />

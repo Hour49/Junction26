@@ -509,8 +509,8 @@ Thread and pages
 - EN-89 (judge path re-run, as CH-46) The caveat once: when the reason on screen (the flagged section's, EN-84, or
   the double-check panel's, i.e. not High and not signed) already contains `quantity.estimate`, the estimate line
   (EN-88) is left out. A High answer shows no panel, so its estimate line stays. [component]
-- EN-90 (#350) An answer with `partial` true shows CH-49's line ("May be partial: sums 7 rooms the reader found;
-  missing from it: …") under the value, after the estimate line; nothing without it. [component]
+- EN-90 (#350) An answer with `partial` true shows CH-49's "May be partial" tag beside the value (name and title
+  "May be partial: sums 7 rooms; 2 not in it"); nothing without it. [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

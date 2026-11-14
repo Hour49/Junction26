@@ -265,10 +265,11 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   `formatValue`. Before: the row printed a rounded 5 as "5.00 m²" beside a "4.88 m²" lead. [component, the API's
   shape with `quantity.estimate` set; `test_api_project_ask.py` for the total]
 - CH-49 (#350, partial room totals) A part whose `answer.partial` is true (a room total that may leave rooms out)
-  shows one plain line under its value, in the row with the estimate and the reason: "May be partial: sums 7 rooms
-  the reader found; missing from it: Sauna, WC 2." (`partialLine`; at most 5 names, then "and N more"; without
-  `rooms_missing` names only the first clause). Nothing when `partial` is absent or false. The engineer's answer
-  card says the same (EN-90). [unit `partialLine`; component; browser 1440/390 with the fixture's fields]
+  shows a small "May be partial" tag (warn pill) beside its value, named and titled with the counts: "May be partial:
+  sums 7 rooms; 2 not in it" (`partialTip`; without `rooms_missing` only the first clause). No room list: the
+  backend's explanation and double-check reason (the row's "why" line) already name the missing rooms, so they show
+  once. Nothing when `partial` is absent or false. The engineer's answer card shows the same tag (EN-90). [unit
+  `partialTip`; component; browser 1440/390 with the fixture's fields and the backend's sentence]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 

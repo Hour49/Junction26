@@ -25,7 +25,7 @@ import {
   formatLatency,
   formatScore,
   gradeOf,
-  partialLine,
+  partialTip,
   shownValue,
   statusTip,
   statusWord,
@@ -318,6 +318,16 @@ function References(props: {
   );
 }
 
+/** CH-49/EN-90: a short tag beside a room total that may leave rooms out; the counts are in its name and title. */
+export function PartialTag(props: { a: AnswerView }) {
+  const tip = partialTip(props.a);
+  return tip ? (
+    <span className="v-pill v-pill--warn en-partial" role="note" title={tip} aria-label={tip}>
+      May be partial
+    </span>
+  ) : null;
+}
+
 function Answer(props: {
   a: AnswerView;
   /** The drawing's name (EN-87), for the viewer's title line. */
@@ -426,9 +436,9 @@ function Answer(props: {
               {value}
             </span>
             {noun && <span className="en-noun">{noun}</span>}
+            <PartialTag a={a} />
           </div>
           {estimate && <p className="en-estimate">{estimate}</p>}
-          {partialLine(a) && <p className="en-partial">{partialLine(a)}</p>}
           {/* Decides itself whether to ask (null when certified); never for a High answer (EN-83). */}
           {a.level?.level !== 'high' && (
             <DoubleCheck

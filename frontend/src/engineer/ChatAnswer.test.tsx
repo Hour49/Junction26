@@ -381,16 +381,24 @@ it('CH-48 a printed-table answer (no quantity) still shows its own answer', () =
   expect(row.textContent).toContain(`${LA}: 12`);
 });
 
-it('CH-49 a partial room total: one line under that row value, none on the other rows', () => {
+it('CH-49 a partial room total: one tag beside that row value with the counts, none on the other rows', () => {
   const partial = {
     ...flatA,
     answer: { ...flatA.answer, partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] },
   };
   show({ ...projectAsk, parts: [partial, ...projectAsk.parts.slice(1)] });
-  const lines = rows().map((row) => row.querySelector('.en-partial')?.textContent ?? null);
-  expect(lines.filter(Boolean)).toEqual([
-    'May be partial: sums 7 rooms the reader found; missing from it: Sauna, WC 2.',
+  const tags = rows().flatMap((row) => [...row.querySelectorAll('.en-partial')]);
+  expect(
+    tags.map((t) => [t.textContent, t.getAttribute('aria-label'), t.getAttribute('title')]),
+  ).toEqual([
+    [
+      'May be partial',
+      'May be partial: sums 7 rooms; 2 not in it',
+      'May be partial: sums 7 rooms; 2 not in it',
+    ],
   ]);
+  expect(rows()[0]?.contains(tags[0] ?? null)).toBe(true);
+  expect(rows()[0]?.textContent).not.toContain('Sauna'); // the names are the explanation's to give
 });
 
 it('CH-49 nothing when no part is partial', () => {
