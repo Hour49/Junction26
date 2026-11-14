@@ -2723,7 +2723,11 @@ rests on:
 
 ## Takeoff and review (surveyor)
 
-### `GET /api/drawings/{drawing_id}/takeoff?zeros=<bool>`
+### `GET /api/drawings/{drawing_id}/takeoff?zeros=<bool>&project=<project_id>`
+
+`project` (optional, also on `review`, `signoff` and `takeoff.csv`): `file`, the CSV's `drawing` column and its
+file name are then the names that project uploaded, as for `GET /api/drawings/{id}?project=`. A project that
+does not hold the drawing is 404.
 
 <!-- fixture: takeoff.json -->
 ```json
@@ -3428,6 +3432,8 @@ formula in a spreadsheet.
   name the drawing as that project uploaded it (R1-3-6, R1-4-4: a drawing reused from the cache showed the earlier
   upload's name).
 - 2026-11-14, text: `proof.arithmetic` and `proof.check` write areas and volumes as m² and m³ (were m2, m3).
+- 2026-11-14, additive: `project` (optional) on `GET …/takeoff`, `POST …/review`, `POST …/signoff` and
+  `GET …/takeoff.csv` names the drawing as that project uploaded it (R1-4-4, R1-3-6 in the surveyor).
 - 2026-11-14, breaking: `POST /api/ask` `confidence` was a number and is now an object `{signal, score,
   calibrated}` (or null), and `proof.confidence` is removed. The number was Gemini's raw choice score, not a
   probability that the answer is right, so it is kept only under a name that says so. `line.confidence`

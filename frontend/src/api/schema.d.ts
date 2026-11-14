@@ -1368,6 +1368,8 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
+                /** @description the project it is shown in: names the file as that project uploaded it */
+                project?: string | null;
             };
             header?: never;
             path: {
@@ -1406,6 +1408,8 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
+                /** @description the project it is shown in: names the file as that project uploaded it */
+                project?: string | null;
             };
             header?: never;
             path: {
@@ -1444,6 +1448,8 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
+                /** @description the project it is shown in: names the file as that project uploaded it */
+                project?: string | null;
             };
             header?: never;
             path: {
@@ -1478,6 +1484,8 @@ export interface operations {
             query?: {
                 /** @description also list the rows whose value is 0 and nothing happened to */
                 zeros?: boolean;
+                /** @description the project it is shown in: names the file as that project uploaded it */
+                project?: string | null;
             };
             header?: never;
             path: {

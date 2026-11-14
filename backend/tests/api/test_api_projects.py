@@ -97,6 +97,30 @@ def test_the_same_drawing_twice_in_a_project_is_named_as_listed(client: TestClie
     assert shown["file"] == entry["file"] == "scans/ground-floor.pdf"
 
 
+def test_takeoff_and_csv_name_the_drawing_as_each_project_uploaded_it(client: TestClient) -> None:
+    """R1-4-4/R1-3-6 in the surveyor: the same bytes in two projects under two names; each
+    project's takeoff, edits, sign-offs and CSV name its own file."""
+    plan = swiss_sheet().pdf()
+    first = upload(client, plan, "colorful-10706.pdf")
+    later = upload(client, plan, "my-flat.pdf")
+    (entry,) = client.get(f"/api/projects/{later}").json()["drawings"]
+    url = f"/api/drawings/{entry['drawing_id']}"
+    for project, name in ((first, "colorful-10706.pdf"), (later, "my-flat.pdf")):
+        at = {"project": project}
+        assert client.get(f"{url}/takeoff", params=at).json()["file"] == name
+        edited = client.post(f"{url}/review", params=at, json={"action": "reset"})
+        assert edited.json()["file"] == name
+        door = {"quantity": "door", "by": "Ana"}
+        signed = client.post(f"{url}/signoff", params=at, json={**door, "undo": True})
+        assert signed.json()["file"] == name
+        sheet = client.get(f"{url}/takeoff.csv", params=at)
+        assert sheet.text.splitlines()[1].startswith(f"{name},")
+        stem = name.removesuffix(".pdf")
+        assert sheet.headers["content-disposition"] == f'attachment; filename="{stem}-takeoff.csv"'
+    other = upload(client, b"site notes", "notes.txt")
+    assert client.get(f"{url}/takeoff", params={"project": other}).status_code == 404
+
+
 def test_a_drawing_asked_in_a_project_without_it_is_404(
     client: TestClient, plan_pdf: bytes
 ) -> None:
