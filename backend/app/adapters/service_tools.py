@@ -298,4 +298,10 @@ def follower(app: Any, pipeline: PipelineStore) -> ServiceFollower:
     if files is None:
         files = app.state.service_files = ServiceFiles()
     credits = getattr(app.state, "credits", None)
-    return ServiceFollower(pipeline, files, credits.of if credits is not None else lambda *_: None)
+    made = ServiceFollower(pipeline, files, credits.of if credits is not None else lambda *_: None)
+    if pipeline.settings.discipline_pictures != "off":  # the picture lane's kept sheets
+        from app.adapters.discipline_pictures.lane import PictureSheets
+
+        kept = PictureSheets(None, pipeline.settings.discipline_pictures_cache_dir)
+        made.pictures = kept.of_drawings(lambda: _done(pipeline, pipeline.project_id).files)
+    return made
