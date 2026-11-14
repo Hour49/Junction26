@@ -507,9 +507,7 @@ def assemble(
     scale: dict = {"status": "no_scale"}
     if page["printed_scale"]:
         scale["text"] = str(page["printed_scale"])
-        notes.append(
-            f"carbon: printed scale {scale['text']}: read, not used (an image has no paper size)"
-        )
+        notes.append(f"carbon: printed scale {scale['text']}: read, not used by Carbon")
     tables = []
     for entry in page["tables"]:
         box = box_of(entry.get("box_2d"))
