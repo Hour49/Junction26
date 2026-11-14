@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     tables: TablesName = "pdf"
     # part=source pairs for EXTRACTOR_RASTER=composite (app/adapters/raster/__init__.py)
     raster_components: str = ""
-    # priors: the raster route estimates a missing scale from its detected doors (else the page
-    # size) and gives each room its outline area at it, both `estimated`
+    # priors: the raster route estimates a missing scale from its detected doors (none detected:
+    # no estimate) and gives each room its outline area at it, both `estimated`
     # (app/adapters/raster_scale/)
     raster_scale: RasterScaleName = "off"
     # The Gemini room reader of the raster route (app/adapters/raster_ocr/gemini.py), built only

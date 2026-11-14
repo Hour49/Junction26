@@ -20,10 +20,9 @@ from app.core.errors import InvalidInputError
 from app.core.pipeline.raster_scale import (
     BOX_RATIO,
     DOOR_M,
-    DOOR_SPREAD,
-    PAGE_DOOR,
-    PAGE_DOOR_M,
-    PAGE_SPREAD,
+    FEW_DOORS,
+    SPREAD_FEW,
+    SPREAD_MANY,
     door_sides,
     estimate_scale,
     rooms_with_areas,
@@ -48,19 +47,21 @@ def test_the_door_prior_counts_sure_located_doors_by_their_long_side() -> None:
 
 
 def test_doors_give_an_estimated_scale_with_its_source_and_uncertainty() -> None:
-    scale = estimate_scale([80.0, 100.0, 90.0], PAGE)
-    assert scale.status == "estimated"
+    scale = estimate_scale([80.0, 100.0, 90.0])
+    assert scale is not None and scale.status == "estimated"
     assert scale.m_per_unit == pytest.approx(DOOR_M / 90.0)
-    assert scale.uncertainty == DOOR_SPREAD
     assert scale.source is not None and "3 detected doors" in scale.source
 
 
-def test_without_doors_the_page_prior_gives_a_wider_estimate() -> None:
-    scale = estimate_scale([], PAGE)
-    assert scale.status == "estimated"
-    assert scale.m_per_unit == pytest.approx(PAGE_DOOR_M / (PAGE_DOOR * 1000))
-    assert scale.uncertainty == PAGE_SPREAD
-    assert scale.source is not None and "page-size prior" in scale.source
+def test_fewer_doors_print_a_wider_uncertainty() -> None:
+    few, many = estimate_scale([90.0] * (FEW_DOORS - 1)), estimate_scale([90.0] * FEW_DOORS)
+    assert few is not None and many is not None
+    assert (few.uncertainty, many.uncertainty) == (SPREAD_FEW, SPREAD_MANY)
+    assert SPREAD_FEW > SPREAD_MANY
+
+
+def test_without_a_detected_door_there_is_no_estimate() -> None:
+    assert estimate_scale([]) is None
 
 
 def test_a_rooms_box_area_is_corrected_to_its_outline_and_marked_estimated() -> None:
@@ -93,6 +94,11 @@ def test_the_wrapper_estimates_only_a_missing_scale_and_only_when_doors_were_rea
     assert no_doors.scale.status == "no_scale"
     assert no_doors.rooms[0].area_m2 is None
     assert no_doors.notes[-1] == "scale estimate: not made, the doors were not read"
+
+    doorless = PriorScale(Fake(rooms=[living])).extract(FILE, SHEET)  # doors read, none found
+    assert doorless.scale.status == "no_scale"
+    assert doorless.rooms[0].area_m2 is None
+    assert doorless.notes[-1] == "scale estimate: not made, no door was detected"
 
     measured = Fake(elements=[door])
     measured.found = measured.found.model_copy(

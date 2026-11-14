@@ -1,19 +1,22 @@
 """An estimated scale for a raster plan that prints none, and the room areas it gives.
 
-Ported from the areas track (prototypes/areas/scale_arms.py arm A-det, with D6's page prior when no
-door is found; .agents/exp/areas.md). Nothing printed is read here: the value rests on priors, so
-the status is always `estimated`, with the method in `source` and the 68% relative uncertainty.
+Ported from the areas track (prototypes/areas/scale_arms.py arm A-det; .agents/exp/areas.md).
+Nothing printed is read here: the value rests on the detected doors, so the status is always
+`estimated`, with the method in `source` and the 68% relative uncertainty.
 
 - Door prior: a door leaf is DOOR_M metres; the scale is DOOR_M over the median long side (px) of
-  the detected door boxes. DOOR_M and DOOR_SPREAD are fitted on val (376 CubiCasa dev sheets,
-  region:C-yolo26s-1536's ONNX doors at score >= 0.5): median 5.6% off the gold scale.
-- Page prior, when no door is found: a door is PAGE_DOOR of the page's long side (train gold);
-  val without doors: median 22% off.
+  the detected door boxes. DOOR_M is fitted on val (376 CubiCasa dev sheets, region:C-yolo26s-1536's
+  ONNX doors at score >= 0.5): median 5.6% off the gold scale.
+- The printed uncertainty depends on how many doors the median rests on: SPREAD_FEW below
+  FEW_DOORS, else SPREAD_MANY, each the 68% quantile of the scale error, fitted on one half of val
+  and checked on the other, both ways, then averaged (prototypes/areas/calibrate.py). One
+  uncertainty for every sheet covered sheets with 1-4 doors only 41% of the time (held out).
+- No door detected: no estimate. The page-size prior (a door is about 5% of the page's long side)
+  is 37-72% off on 68% of such val sheets; an area off by that much is not an answer.
 - A room's area is its outline's pixel area times the scale squared. A box (the raster room
   readers give boxes) is BOX_RATIO larger than the room's outline on val (Gemini G4-regpred boxes
   matched to gold rooms), so a box's area is divided by it; OUTLINE_SPREAD is that ratio's 68%
-  log spread, combined with the scale's (twice, for an area) into `area_uncertainty`. On val
-  (3331 matched rooms) the areas are 17% off on median and 63% fall inside the stated uncertainty.
+  log spread, combined with the scale's (twice, for an area) into `area_uncertainty`.
 """
 
 import math
@@ -23,11 +26,10 @@ from collections.abc import Sequence
 from app.core.drawing.model import Element, Page, Room, Scale
 
 DOOR_M = 0.794  # m, val (C-yolo26s-1536 ONNX doors, score >= 0.5)
-DOOR_SPREAD = 0.0945  # 68% |log error| of the door prior's scale, val
 MIN_DOOR_SCORE = 0.5  # the doors the prior was fitted on
-PAGE_DOOR = 0.0498  # median gold door long side / page long side, train
-PAGE_DOOR_M = 0.792  # m, gold swing doors, train
-PAGE_SPREAD = 0.347  # 68% |log error| of the page prior, train
+FEW_DOORS = 5  # fewer detected doors than this print SPREAD_FEW
+SPREAD_FEW = 0.158  # 68% relative scale error with 1-4 doors, val two-way
+SPREAD_MANY = 0.0795  # with 5 or more doors
 BOX_RATIO = 1.104  # a room's box area over its outline area, val median
 OUTLINE_SPREAD = 0.157  # 68% |log| of that ratio around its median, val
 
@@ -51,21 +53,15 @@ def door_sides(elements: Sequence[Element], pages: Sequence[Page]) -> list[float
     return [side for side in sides if side > 0]
 
 
-def estimate_scale(sides: Sequence[float], page: Page) -> Scale:
-    """The scale from the door prior over `sides`, else (no door) from the page prior."""
-    if sides:
-        m_per_unit = DOOR_M / statistics.median(sides)
-        return Scale(
-            status="estimated",
-            m_per_unit=m_per_unit,
-            source=f"door-leaf prior: a door is {DOOR_M} m, median of {len(sides)} detected doors",
-            uncertainty=DOOR_SPREAD,
-        )
+def estimate_scale(sides: Sequence[float]) -> Scale | None:
+    """The scale from the door prior over `sides`; None without a door."""
+    if not sides:
+        return None
     return Scale(
         status="estimated",
-        m_per_unit=PAGE_DOOR_M / (PAGE_DOOR * max(page.width, page.height)),
-        source="page-size prior: no door detected; a door is about 5% of the page's long side",
-        uncertainty=PAGE_SPREAD,
+        m_per_unit=DOOR_M / statistics.median(sides),
+        source=f"door-leaf prior: a door is {DOOR_M} m, median of {len(sides)} detected doors",
+        uncertainty=SPREAD_FEW if len(sides) < FEW_DOORS else SPREAD_MANY,
     )
 
 
