@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCard';
@@ -11,11 +11,11 @@ import { canShow3d } from '../model3d/model3d';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+type Part = ProjectAnswer['parts'][number];
+type RefusalCode = NonNullable<Part['answer']['refusal']>['code'];
+
 /** K7: what a refused drawing lacks, by refusal code (the backend's LACKS, singular). */
-const LACKS: Record<
-  NonNullable<ProjectAnswer['parts'][number]['answer']['refusal']>['code'],
-  string
-> = {
+const LACKS: Record<RefusalCode, string> = {
   'no-reader': 'gives no reliable number for it',
   'no-scale': 'has no scale',
   'not-in-drawing': "doesn't show it",
@@ -23,6 +23,57 @@ const LACKS: Record<
   'unsupported-question': "can't answer this question",
   'no-drawing': 'has no drawing model',
 };
+/** More refused drawings than this are grouped by reason ("Has no scale: A, B, C."). */
+const GROUP_ABOVE = 3;
+
+/** K7: the drawings that refused, named with what each lacks, in the API's order; none, nothing. Used under a
+ * project answer (ChatAnswer) and under the project chat's refusal when every drawing refuses (ProjectChat). */
+export function RefusedLine(props: { parts: Part[]; project: ProjectView }) {
+  const refused = props.parts.flatMap((p) =>
+    p.answer.refusal ? [{ p, code: p.answer.refusal.code }] : [],
+  );
+  if (refused.length === 0) return null;
+  const name = (p: Part) => (
+    <span className="en-part-name">
+      {drawingLabel(
+        props.project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name },
+      )}
+    </span>
+  );
+  if (refused.length <= GROUP_ABOVE)
+    return (
+      <p className="en-refused" data-testid="refused-drawings">
+        Not used:{' '}
+        {refused.map(({ p, code }, n) => (
+          <span key={p.drawing_id}>
+            {n > 0 && '; '}
+            {name(p)} {LACKS[code]}
+          </span>
+        ))}
+        .
+      </p>
+    );
+  const groups = new Map<RefusalCode, Part[]>();
+  for (const { p, code } of refused) groups.set(code, [...(groups.get(code) ?? []), p]);
+  return (
+    <p className="en-refused" data-testid="refused-drawings">
+      Not used.
+      {[...groups].map(([code, ps]) => (
+        <span key={code}>
+          {' '}
+          {LACKS[code].charAt(0).toUpperCase() + LACKS[code].slice(1)}:{' '}
+          {ps.map((p, n) => (
+            <Fragment key={p.drawing_id}>
+              {n > 0 && ', '}
+              {name(p)}
+            </Fragment>
+          ))}
+          .
+        </span>
+      ))}
+    </p>
+  );
+}
 
 /** "<Level> confidence" (CH-42), the backend's sentence as its tooltip (the shared Tip) when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
@@ -41,8 +92,6 @@ export function ChatAnswer(props: {
 }) {
   const { ask, project, projectId } = props;
   const parts = orderParts(ask.parts, project.files);
-  // K7: the drawings that refused, named with what each lacks (orderParts keeps only the answering ones)
-  const refused = ask.parts.filter((p) => p.answer.refusal !== null);
   // The reference shown: the first with a page; a building model (no page) shows "No preview" when chosen.
   const [at, setAt] = useState(() =>
     Math.max(
@@ -214,19 +263,8 @@ export function ChatAnswer(props: {
           </ul>
         </div>
       </div>
-      {refused.length > 0 && (
-        <p className="en-refused" data-testid="refused-drawings">
-          Not used:{' '}
-          {refused.map((p, n) => (
-            <span key={p.drawing_id}>
-              {n > 0 && '; '}
-              <span className="en-part-name">{labelOf(p)}</span>{' '}
-              {p.answer.refusal ? LACKS[p.answer.refusal.code] : ''}
-            </span>
-          ))}
-          .
-        </p>
-      )}
+      {/* K7: orderParts keeps only the answering drawings; the refused ones are named here */}
+      <RefusedLine parts={ask.parts} project={project} />
       {model?.model_file_id && (
         <ModelDialog
           projectId={projectId}
