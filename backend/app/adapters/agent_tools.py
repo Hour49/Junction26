@@ -85,7 +85,9 @@ def project_toolbox(
         if pipeline.settings.services_follow == "on":  # decision 0016
             from app.adapters.service_tools import follower
 
-            plans.services = follower(app, pipeline).run
+            services = follower(app, pipeline)
+            services.warm()  # the models are read while the turn's first steps run
+            plans.services = services.run
         sets.append((PLAN_TOOLS, partial(run_plan_tool, plans)))
         describe = plans.describe
         made = lambda: plans.proposals  # noqa: E731

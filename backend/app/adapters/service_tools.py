@@ -17,10 +17,11 @@ import logging
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import PurePosixPath
 from typing import Any
 
-from app.adapters.ifc_services import ServiceFile, ServiceFiles
+from app.adapters.ifc_services import FILES_KEPT, ServiceFile, ServiceFiles
 from app.adapters.pipeline_tools import (
     PipelineStore,
     _done,  # pyright: ignore[reportPrivateUsage]
@@ -77,11 +78,21 @@ class ServiceFollower:
             followed = _unchecked(dict.fromkeys(LANES, why))
         return followed, for_model(followed)
 
+    def warm(self) -> None:
+        """Starts reading the project's models off the request, so the first proposal does not
+        wait for them. Never raises; a project that is not read yet is left alone."""
+        try:
+            status = _done(self.pipeline, self.pipeline.project_id)
+            models, _ = _models(status, None)
+            self.files.warm([(m.sha256 or "", partial(self._bytes, m.id)) for m in models])
+        except Exception:  # the follow-up reads them itself and says what it could not
+            log.debug("service models not read ahead", exc_info=True)
+
     def _follow(self, proposal: Proposal) -> ServicesFollow:
         store = self.pipeline
         status = _done(store, store.project_id)
         entry = _entry(status, proposal.drawing_id)
-        models = [f for f in status.files if f.kind == "ifc" and f.sha256]
+        models, left_out = _models(status, entry.source)
         if not models:
             return _unchecked({})
         names = {e.file: e.name for e in drawings_of(status)}
@@ -127,12 +138,21 @@ class ServiceFollower:
             lanes.append(Lane(discipline, "checked", name, elements=tuple(elements)))
         if isinstance(placed, str):
             return not_followed(lanes)
-        return follow(page, proposal, lanes, placed.heights, placed.storey, credits)
+        followed = follow(page, proposal, lanes, placed.heights, placed.storey, credits)
+        if not left_out:
+            return followed
+        more = (
+            f"{left_out} more model file{'s' if left_out > 1 else ''} of this project "
+            f"{'were' if left_out > 1 else 'was'} not read: at most {FILES_KEPT} are followed."
+        )
+        return followed.model_copy(update={"unknowns": (*followed.unknowns, more)})
 
     def _read(self, model: FileStatus) -> ServiceFile:
         assert model.sha256 is not None
-        ingest, project = self.pipeline.ingest, self.pipeline.project_id
-        return self.files.file(model.sha256, lambda: ingest.upload_bytes(project, model.id))
+        return self.files.file(model.sha256, partial(self._bytes, model.id))
+
+    def _bytes(self, file_id: str) -> bytes:
+        return self.pipeline.ingest.upload_bytes(self.pipeline.project_id, file_id)
 
     def _placed(self, page: PlanPage, proposal: Proposal, source: ServiceFile) -> _Placed | str:
         """The sheet over its model: the frame, the storey the sheet shows and its heights."""
@@ -156,6 +176,15 @@ class ServiceFollower:
             return "the model does not say how high this sheet's storey is"
         above = min((h for _, h in source.storeys if h > floor + 1.0), default=floor + TOP_STOREY_M)
         return _Placed(frame, storey, (floor, above))
+
+
+def _models(status: Any, source: str | None) -> tuple[list[FileStatus], int]:
+    """The project's model files that are read, and how many are left out: the sheet's own
+    model first, then the others as the project lists them, as many as are kept read
+    (`FILES_KEPT`: one more would push the first out again on every proposal)."""
+    models = [f for f in status.files if f.kind == "ifc" and f.sha256]
+    models.sort(key=lambda f: f.path != source)
+    return models[:FILES_KEPT], max(len(models) - FILES_KEPT, 0)
 
 
 def _has_storey(file: ServiceFile, floor: float) -> bool:
@@ -191,7 +220,7 @@ def for_model(followed: ServicesFollow) -> dict[str, Any]:
                 "discipline": d.discipline,
                 "status": d.status,
                 "model": d.source,
-                "line": d.line,
+                "line": d.line + _cut_note(len(d.actions)),
                 "summary": d.summary.model_dump(),
                 "actions": [
                     {"status": a.status, "what": a.label} for a in d.actions[:ACTIONS_SHOWN]
@@ -202,6 +231,13 @@ def for_model(followed: ServicesFollow) -> dict[str, Any]:
         ],
         "unknowns": list(followed.unknowns),
     }
+
+
+def _cut_note(actions: int) -> str:
+    """Said in words, so a cut list is not read as the whole of it."""
+    if actions <= ACTIONS_SHOWN:
+        return ""
+    return f" Only the first {ACTIONS_SHOWN} of its {actions} findings are listed here."
 
 
 def follower(app: Any, pipeline: PipelineStore) -> ServiceFollower:

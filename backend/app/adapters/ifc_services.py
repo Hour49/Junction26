@@ -15,9 +15,10 @@ heating model's pipes are heating, though a pipe alone could be plumbing. Only a
 carries two service disciplines is split element by element.
 """
 
+import logging
 import tempfile
 import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -36,6 +37,8 @@ from app.core.discipline import discipline_from_census
 from app.core.errors import InvalidInputError
 from app.core.ifc_facts import Discipline
 from app.core.services.model import LANES, Point2, Point3, ServiceElement
+
+log = logging.getLogger(__name__)
 
 MAX_BYTES = 150_000_000  # a larger model is not followed: it would take over a GB to read
 MIXED_SHARE = 0.2  # a second service discipline with this share: the model is split by element
@@ -152,6 +155,10 @@ def _space_centres(file: Any) -> dict[str, Point2]:
     return found
 
 
+def _in_background(job: Callable[[], None]) -> None:
+    threading.Thread(target=job, name="services-read-ahead", daemon=True).start()
+
+
 class ServiceFiles:
     """Read models by content hash, the last few kept."""
 
@@ -159,6 +166,8 @@ class ServiceFiles:
         self._read = read
         self._kept: dict[str, ServiceFile] = {}
         self._lock = threading.Lock()
+        self._asked: set[str] = set()  # read ahead once: by content hash
+        self._warm_lock = threading.Lock()
 
     def file(self, sha256: str, data: Callable[[], bytes]) -> ServiceFile:
         with self._lock:  # one model is read at a time: two at once would double the memory
@@ -167,3 +176,26 @@ class ServiceFiles:
                     del self._kept[next(iter(self._kept))]
                 self._kept[sha256] = self._read(data())
             return self._kept[sha256]
+
+    def warm(
+        self,
+        models: Sequence[tuple[str, Callable[[], bytes]]],
+        start: Callable[[Callable[[], None]], None] = _in_background,
+    ) -> None:
+        """Reads the models that were never asked for, off the request (`start` runs the job),
+        so the first proposal of a project does not wait for them. A model that cannot be read
+        is left for the follow-up to report."""
+        with self._warm_lock:
+            new = [(sha256, data) for sha256, data in models if sha256 not in self._asked]
+            self._asked.update(sha256 for sha256, _ in new)
+        if not new:
+            return
+
+        def job() -> None:
+            for sha256, data in new:
+                try:
+                    self.file(sha256, data)
+                except Exception:  # the follow-up reads it again and says why
+                    log.warning("service model %s not read ahead", sha256[:12], exc_info=True)
+
+        start(job)

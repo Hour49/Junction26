@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from swiss_walls import walled_flat
 
 from app.adapters.chat_rules import RulesChatModel
+from app.adapters.service_tools import ServiceFollower
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
@@ -48,6 +49,19 @@ def test_sf15_on_every_lane_is_listed_and_a_project_without_models_says_so(
     assert services["unknowns"] == [] and services["storey"] is None
     assert turn["text"] == plain["text"]  # nothing was checked, so nothing is said of services
     assert turn["edit"]["rooms"] == plain["edit"]["rooms"]  # the edit itself is the same
+
+
+def test_sf18_on_each_chat_turn_asks_for_the_models_to_be_read_ahead(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asked: list[str] = []
+    monkeypatch.setattr(ServiceFollower, "warm", lambda self: asked.append("warm"))
+    following = settings.model_copy(
+        update={"services_follow": "on", "projects_dir": settings.projects_dir / "ahead"}
+    )
+    ingest = build_ingest(following, following.projects_dir, background=False)
+    edit_turn(TestClient(create_app(following, ingest)))
+    assert asked == ["warm"]
 
 
 def test_sf15_the_rules_planner_says_the_services_text_of_a_proposal() -> None:

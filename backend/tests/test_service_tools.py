@@ -4,6 +4,7 @@ every reason not to follow is said per lane. The project is scripted; the plan p
 synthetic one of test_services_follow."""
 
 from dataclasses import replace
+from functools import partial
 from types import SimpleNamespace
 from typing import Any
 
@@ -188,4 +189,76 @@ def test_sf16_a_failure_leaves_the_edit_and_says_the_lanes_were_not_checked(
     assert {d.status for d in services.disciplines} == {"no_model"}
     assert services.disciplines[0].line == (
         "Plumbing: not checked, the service models could not be read (RuntimeError)."
+    )
+
+
+# --- review notes from the 0013 side: a cut list is said in words, the models are read ahead ------
+
+
+def test_sf17_the_model_is_told_in_words_when_a_lane_lists_only_its_first_findings() -> None:
+    services, _ = followed(heating=HEATING)
+    heating = services.disciplines[2]
+    many = heating.model_copy(update={"actions": heating.actions * 14})
+    lane = for_model(services.model_copy(update={"disciplines": (many,)}))["disciplines"][0]
+    listed, total = len(lane["actions"]), len(many.actions)
+    assert listed == service_tools.ACTIONS_SHOWN and lane["more_actions"] == total - listed
+    assert lane["line"] == (
+        f"{heating.line} Only the first {listed} of its {total} findings are listed here."
+    )
+    whole = for_model(services)["disciplines"][2]
+    assert whole["line"] == heating.line  # nothing cut, nothing said
+
+
+def counting(**files: ServiceFile) -> tuple[ServiceFollower, list[str]]:
+    pipeline, _ = project(**files)
+    read: list[str] = []
+    models = {"arch": ARCH, **files}
+
+    def reader(data: bytes) -> ServiceFile:
+        read.append(data.decode())
+        return _read(models, data)
+
+    return ServiceFollower(pipeline, ServiceFiles(reader)), read
+
+
+def test_sf18_the_projects_models_are_read_ahead_once_and_the_proposal_reads_none_again() -> None:
+    follower, read = counting(heating=HEATING)
+    jobs: list[Any] = []
+    follower.files.warm = partial(follower.files.warm, start=jobs.append)  # pyright: ignore[reportAttributeAccessIssue]
+    follower.warm()
+    assert read == [] and len(jobs) == 1  # nothing is read on the request itself
+    jobs[0]()
+    assert read == ["arch", "heating"]
+    follower.warm()  # the next turn of the same project
+    assert len(jobs) == 1
+    services, _ = follower.run(removal().model_copy(update={"drawing_id": DRAWING}))
+    assert services.disciplines[2].status == "checked" and read == ["arch", "heating"]
+
+
+def test_sf18_a_model_that_cannot_be_read_ahead_is_left_for_the_follow_up_to_report() -> None:
+    follower, read = counting(heating=HEATING, broken=HEATING)
+    follower.files.warm = partial(follower.files.warm, start=lambda job: job())  # pyright: ignore[reportAttributeAccessIssue]
+    follower.warm()  # "broken" raises in the reader: the others are still read
+    assert read == ["arch", "heating", "broken"]
+    services, _ = follower.run(removal().model_copy(update={"drawing_id": DRAWING}))
+    assert services.disciplines[2].status == "checked"
+
+
+def test_sf18_at_most_the_kept_number_of_models_is_read_the_sheets_own_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    listed = [
+        FileStatus(id=name, path=f"{name}.ifc", size=1, sha256=name, kind="ifc", state="set_aside")
+        for name in ("heating", "plumbing", "arch")
+    ]
+    monkeypatch.setattr(service_tools, "FILES_KEPT", 2)
+    models, left_out = service_tools._models(SimpleNamespace(files=listed), "arch.ifc")  # pyright: ignore[reportPrivateUsage]
+    assert [m.path for m in models] == ["arch.ifc", "heating.ifc"] and left_out == 1
+    # one model too many for the project: the heating model is not read, and the result says so
+    monkeypatch.setattr(service_tools, "FILES_KEPT", 2)
+    follower, read = counting(heating=HEATING, more=HEATING)
+    services, _ = follower.run(removal().model_copy(update={"drawing_id": DRAWING}))
+    assert read == ["arch", "heating"]
+    assert services.unknowns[-1] == (
+        "1 more model file of this project was not read: at most 2 are followed."
     )

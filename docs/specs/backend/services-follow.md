@@ -130,6 +130,8 @@ type DisciplineFollow = {
 The plan tool's result gains `services` for the model: `{storey, text, disciplines: [{discipline, status, model,
 line, summary, actions: [{status, what}], more_actions}], unknowns}`. No refs or places. `text` is the checked
 lanes' lines and the unchecked lanes' reasons as one paragraph; the rules planner appends it to its answer.
+A lane lists its first 12 actions; when it has more, its `line` ends "Only the first 12 of its N findings are
+listed here." (SF-17), so a cut list is not read as the whole of it. The proposal keeps them all.
 
 ## What 0013 keeps
 
@@ -147,12 +149,20 @@ Ids in, tuples and frozensets out; no geometry and no file. Per system on purpos
 so "still connected" needs the system named. `app/adapters/ifc_services.py` builds the elements;
 `ServiceFiles` keeps the last 8 read models by content hash.
 
+Reading (SF-18): a model is read once per app process, about a second and 150-200 MB each. So that the first
+proposal of a project does not wait for that, every chat turn with the setting on asks `ServiceFiles.warm` to
+read the project's models in a background thread; a model already asked for is not asked again, and one is read
+at a time. At most 8 model files of a project are followed, the sheet's own model first: a ninth would push the
+first out again on every proposal. The rest are named in `unknowns` ("2 more model files of this project were
+not read: at most 8 are followed.").
+
 ## Tests
 
 - `tests/test_services_follow.py` (SF-1..SF-13): each rule on a hand-built page and ten elements, the frame fit
   and its refusals, the graph.
 - `tests/test_ifc_services.py` (SF-14): the reader on IFC files built in the test.
-- `tests/test_service_tools.py` (SF-16): the project wiring on a scripted project.
+- `tests/test_service_tools.py` (SF-16..SF-18): the project wiring on a scripted project, the cut note, the
+  read-ahead and the cap.
 - `tests/api/test_api_services_follow.py` (SF-15): off by default; on, a project without models; the rules
   planner's text.
 
