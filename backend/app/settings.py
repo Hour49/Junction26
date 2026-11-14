@@ -167,3 +167,6 @@ class Settings(BaseSettings):
     triage_describer: TriageDescriberName = "off"
     triage_describer_cache_dir: Path = Path("../data/cache/triage-describer")
     triage_judge: TriageJudgeName = "off"
+    # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
+    # folder's manifest. No file there (or ""): the index searches with BM25 alone
+    evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

@@ -18,10 +18,10 @@
           "status": "fail",
           "why": "Of 3 checked: 1 fail, 2 pass.",
           "clause": {
-            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 1008/2017, 4 § 2 mom.",
-            "url": "https://www.finlex.fi/fi/lainsaadanto/2017/1008",
-            "quote": "Asuin-, majoitus- ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
-            "quote_en": "The room area of a residential, accommodation or work space must, however, always be at least 7 square metres."
+            "ref": "Ympäristöministeriön asetus asuin-, majoitus- ja työtiloista 631/2024, 4 § 2 mom.",
+            "url": "https://www.finlex.fi/fi/lainsaadanto/2024/631",
+            "quote": "Asuin- ja majoitushuoneen ja työtilan huonealan on kuitenkin aina oltava vähintään 7 neliömetriä.",
+            "quote_en": "The room area of a residential or accommodation room and of a work space must, however, always be at least 7 square metres."
           },
           "results": [
             {

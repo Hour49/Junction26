@@ -115,7 +115,7 @@ def test_a_reply_becomes_the_description_form(tmp_path: Path) -> None:
     assert found.visible_text == "VILLA ESIMERKKI\nETELÄJULKISIVU 1:50"
     assert found.text_seen == ("VILLA ESIMERKKI", "ETELÄJULKISIVU", "1:50")
     assert found.subject == "south elevation of a two-storey timber house"
-    assert found.model == "fake-flash-minimal, describe-5"
+    assert found.model == "fake-flash-minimal, describe-6"
     assert found.cost_usd == pytest.approx(USD)
 
 
@@ -145,7 +145,7 @@ def test_the_cache_name_holds_the_sha256_the_prompt_version_and_the_model(tmp_pa
 
     describe(FakeModel(answer(form())), tmp_path)
     [stored] = tmp_path.iterdir()
-    assert stored.name.startswith(hashlib.sha256(png()).hexdigest() + "-describe-5-")
+    assert stored.name.startswith(hashlib.sha256(png()).hexdigest() + "-describe-6-")
     assert stored.name.endswith("-fake-flash-minimal.json")
 
 
@@ -432,7 +432,16 @@ def test_triage_describer_gemini_builds_the_gemini_describer(tmp_path: Path) -> 
     assert off is not None and off.describer is None
 
 
-def test_the_prompt_is_describe_5_as_measured() -> None:
-    # The measured numbers hold only for this prompt and schema: a change needs a new version
-    assert gemini_describer.PROMPT_VERSION == "describe-5"
-    assert gemini_describer.PROMPT_SHA.startswith("2000e9f20435")  # describe5.py, 2026-11-14
+def test_the_prompt_leaves_out_a_homes_house_number_and_postal_code() -> None:
+    """Decision 0010: a private home's address is left out. describe-5 told visible_text to keep
+    street names with no exception, and all eight house sheets with an address kept
+    '<number> <street> - <town>, <state> <zip>' (prototypes/triage-describe/privacy.py)."""
+    prompt = gemini_describer.PROMPT
+    assert "without its house number and postal code" in prompt
+    assert "a public building, a business or a firm" in prompt  # their addresses stay
+
+
+def test_the_prompt_is_describe_6_as_checked() -> None:
+    # The checked numbers hold only for this prompt and schema: a change needs a new version
+    assert gemini_describer.PROMPT_VERSION == "describe-6"
+    assert gemini_describer.PROMPT_SHA.startswith("5bb581add3cb")  # confirm6.py, 2026-11-14
