@@ -836,6 +836,7 @@ def build_ingest(
         triage=triage or _triage(settings),
         evidence=evidence or build_evidence(settings, root),
         evidence_steps=_evidence_steps(settings),
+        groups_in_flight=settings.ingest_groups_in_flight,
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service

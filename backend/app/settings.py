@@ -242,6 +242,10 @@ class Settings(BaseSettings):
     # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
+    # Drawing groups read at once at ingest (app/core/ingest/groups.py): a cold upload mostly
+    # waits on Carbon and Gemini, so reading groups side by side is what makes it fast. Groups
+    # that share a source (a building's sheets and its model) are read one after another.
+    ingest_groups_in_flight: int = Field(default=4, ge=1)
     # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
     # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
     rule_packs_dir: Path = Path(__file__).parent / "rules"
