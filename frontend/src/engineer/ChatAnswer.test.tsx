@@ -8,6 +8,7 @@ import { project, projectAsk } from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
 import { ChatAnswer } from './ChatAnswer';
+import { answer, answerArea } from '../api/fixtures';
 import { answerHigh, answerMedium } from './testing';
 import { kindName } from './format';
 
@@ -239,4 +240,43 @@ it('CH-42 one pill per row: Signed off, else the level with its text, else the s
   cleanup();
   show({ ...projectAsk, total: 4, total_unit: 'count', total_level: null });
   expect((document.querySelector('.en-lead') as HTMLElement).querySelector('.v-pill')).toBeNull();
+});
+
+it('CH-43 each row prints why under its value: check.reason, else level.text, else nothing', () => {
+  show({
+    ...projectAsk,
+    parts: [
+      { ...flatA, answer: answerMedium },
+      { ...flatB, answer: { ...answerHigh, check: null } },
+    ],
+  });
+  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  expect(a.querySelector('.en-why')?.textContent).toBe(answerMedium.check?.reason);
+  expect(b.querySelector('.en-why')?.textContent).toBe(answerHigh.level?.text);
+  cleanup();
+  show({ ...projectAsk, parts: [{ ...flatA, answer: { ...answer, check: null, level: null } }] });
+  expect(rows()[0]?.querySelector('.en-why')).toBeNull();
+});
+
+it('CH-44 an estimated value adds "about <n> <unit>, <estimate>" under the row', () => {
+  const est = {
+    ...answerArea,
+    answer: 179.6,
+    quantity: {
+      ...(answerArea.quantity as NonNullable<typeof answerArea.quantity>),
+      estimate: 'the scale estimated from the doors',
+    },
+  };
+  show({
+    ...projectAsk,
+    parts: [
+      { ...flatA, answer: est },
+      { ...flatB, answer: answerArea },
+    ],
+  });
+  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  expect(a.querySelector('.en-estimate')?.textContent).toBe(
+    'about 180 m², the scale estimated from the doors',
+  );
+  expect(b.querySelector('.en-estimate')).toBeNull();
 });
