@@ -1325,6 +1325,7 @@ shape as `GET …/takeoff` gives it, so one component shows both:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1575,6 +1576,7 @@ from a stand-in, not Gemini; `marks` trimmed to two):
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": 0.87,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1846,6 +1848,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -1966,6 +1969,7 @@ A fact of the building model behind a drawing (an IFC model asked about on its o
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -2069,6 +2073,7 @@ A question the drawing cannot answer:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": true,
     "explanation": "no count, area, length or volume asked for",
     "estimate": null,
@@ -2298,6 +2303,7 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
@@ -2551,6 +2557,7 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": "two methods disagree (the room outlines at the sheet's scale 22.401, the printed room areas 30); kept 30: the printed label over the outline at the sheet's scale",
     "estimate": null,
@@ -2678,6 +2685,7 @@ rests on:
     "cost_usd": 0.0,
     "latency_s": 0.002,
     "confidence": null,
+    "sure": null,
     "abstain": null,
     "explanation": null,
     "estimate": null,
@@ -3442,6 +3450,10 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive: `line.sure` (answer_v1.1): true when the answer's `g1main` score is at or above
+  its family's threshold in golden's gate file (`GATE_POLICY`, chosen on val and certified once on test),
+  false below it, null when there is no score (a vector or IFC page), the family is not gated or the gate is
+  off. `POST /api/ask` sets it too.
 - 2026-11-14, text: a dataset drawing's `credit` is the attribution once, with its licence named once and no
   "<licence>. Credit:" of its own (the screen writes "Credit: "; R3-qa2-1). `proof.arithmetic` is null for a sum of
   one part (was "30 = 30 m²"; a settled one keeps "settled by a person, was …"). `explanation` names the two

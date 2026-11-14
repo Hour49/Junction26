@@ -25,6 +25,8 @@ def test_a_setting_may_name_a_path_and_the_export_sees_the_repos_data(tmp_path: 
     (repo / "data" / "models").mkdir(parents=True)
     shutil.copy(SCRIPT, repo / "eval" / "pipeline-run.sh")
     (repo / "backend" / "app.py").write_text("")
+    (repo / "eval" / "results" / "gate").mkdir(parents=True)
+    (repo / "eval" / "results" / "gate" / "gate.json").write_text("{}")
     git(repo, "init", "-q")
     git(repo, "add", "eval", "backend")
     git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "c")
@@ -44,6 +46,8 @@ def test_a_setting_may_name_a_path_and_the_export_sees_the_repos_data(tmp_path: 
     link = work / "export" / "data"
     assert link.is_symlink() and link.resolve() == (repo / "data").resolve()
     assert (work / "export" / "backend" / "app.py").is_file()
+    # GATE_POLICY=../eval/results/gate/... (tools/qa-env.sh) resolves in the export too
+    assert (work / "export" / "eval" / "results" / "gate" / "gate.json").is_file()
 
     refused = subprocess.run(
         ["bash", str(repo / "eval" / "pipeline-run.sh"), "HEAD", "no-equals-sign"],

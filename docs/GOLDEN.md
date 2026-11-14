@@ -324,8 +324,8 @@ on val, the loosest whose 95% Clopper-Pearson bound on the plans meets the targe
 together meet it, because the certificate counts a plan wrong when any of its sure answers is. Every val number is
 printed as "chosen on val, not a guarantee".
 
-`stoa_eval gate-policy --gate data/stoa/exp/ab/gate-<arm>-val.json` writes `data/stoa/exp/gate.json`
-(gate_policy_v1), the file the backend reads to mark answers sure:
+`stoa_eval gate-policy --gate data/stoa/exp/ab/gate-<arm>-val.json [--certificate data/stoa/exp/ab/gate-<arm>-test.json]`
+writes `data/stoa/exp/gate.json` (gate_policy_v1), the file the backend reads to mark answers sure:
 
 ```json
 {"schema": "gate_policy_v1", "generated": "2026-11-14T05:02:02+02:00", "part": "val",
@@ -339,15 +339,36 @@ printed as "chosen on val, not a guarantee".
 
 An answer is sure when its family is listed and its `signal` is at or above `threshold`. Only families whose gate
 opens and marks at least one val answer sure are listed. `split_sha256` is required (the loader refuses a file
-without it). `certified` stays false until the one test run; `arm` (with `family_arms`) is what the thresholds
-were set on, so a product that answers a family with another arm uses an untested threshold there.
+without it). `certified` is false until the one test run of the same gate meets the target; that run is then
+kept in `test` (its file and certificate). `arm` (with `family_arms`) is what the thresholds were set on, so a
+product that answers a family with another arm uses an untested threshold there.
 
-The current file (2026-11-14, golden-16) is set on what the QA build runs: region:C-yolo26s-1536 with the S1536
-swap for elements and plans (val arm `decide/S1536`), Gemini rooms (`ocr/G4`), signal g1main. On val only plans
-open: elements and rooms stay shut, because Gemini is at least 0.95 sure of a few wrong counts (a toilet count,
+The current file (2026-11-14 08:25, golden-19) is config C's, the shipped demo config (#102,
+`tools/qa-env.sh config`, which passes a frozen, committed copy:
+`GATE_POLICY=../eval/results/gate/gate-C-L-swap.json`, so a refit changes the demo only with a commit). Arm
+`ab/runtime-C-L-swap`: integ's runs of the whole config through the backend runtime, val
+(`integ/val/C-L-swap`) and its single test run (`integ/test/C-L-swap`) linked into one folder so both name the
+same arm; signal g1main from the backend's own Decisions caches (`integ/decisions-cache-val`, `-test`).
+
+- Val (chosen on val, not a guarantee): plans open at 0.0144 (188 of 188 plans, 185 exact); elements (door,
+  shower+bathtub, sink, toilet, window) at 0.771, after the union rule tightened them from 0.759 (119 sure plans,
+  1 wrong); rooms stay shut. All groups together: 188 sure plans, 4 wrong, bound 95.2%.
+- **Test (once, 08:25, no tuning after): of the plans marked sure, at least 96.2% have every sure answer exact**
+  (374 of 376 plans sure, 366 exact; one-sided 95% bound). Per family on test: plan 372/374 exact, toilet
+  222/224, sink 40/40, shower+bathtub 77/82, door and window 0 sure. `certified: true`.
+
+Before config C, the file (golden-17) was set by `stoa_eval gate-refit` on the then demo config
+(`tools/qa-env.sh config`): region:C-yolo26s-1536's val output with the backend's S1536 swap (frozen thresholds)
+for elements and plans, regionrooms rooms (`ocr/G4-regpred`), signal g1main. The golden-16 file (decide's
+cross-fit `decide/S1536`, `ocr/G4` rooms) gave the same gate. On val only plans open: elements and rooms stay shut, because Gemini is at least 0.95 sure of a few wrong counts (a toilet count,
 G4 kitchen, bedroom and balcony counts), and with the plan as the unit the 95% bound needs about 60 plans per
 error. The earlier file, set on detector C-yolo26s-v8 alone, also opened elements (0.7625) and sauna (0.664);
 those thresholds were never valid for the arms the product answers with.
+
+When the runtime config changes (a new detector), `uv run python -m stoa_eval gate-refit --detector <its val
+output>` refits gate.json in one command (eval/README.md). Then, once, the test certificate: `gate --part test
+--certify` with the same arm, swap, rooms and `--g1main` replies for the test images, and `gate-policy
+--certificate` to put it in gate.json. A refit for another config starts uncertified again.
 
 ## What the answer should show
 

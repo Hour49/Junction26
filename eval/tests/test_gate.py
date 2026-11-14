@@ -511,6 +511,57 @@ def test_gate_policy_round_trips_and_refuses_a_missing_split_sha(
     assert "no split_sha256" in capsys.readouterr().err
 
 
+def test_gate_policy_is_certified_only_by_the_same_gates_test_run(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(backend, "run", fake_backend)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    scored_arm(dataset, exp / "core" / "a")
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
+    assert run("gate", *common, "--delta", "1", "--pool") == 0
+    assert run("gate", *common, "--delta", "1", "--part", "test", "--certify") == 0
+    val_path, test_path = exp / "ab/gate-core-a-val.json", exp / "ab/gate-core-a-test.json"
+    out = exp / "gate.json"
+    assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 0
+    made = load_gate_policy(out)
+    test = json.loads(test_path.read_text())
+    assert made.test is not None and made.test.certificate.model_dump() == test["certificate"]
+    bound = test["certificate"]["lower_bound"]
+    assert made.certified is (bound is not None and bound >= test["target"])
+    for low in (0.0, None):  # certified follows the test bound, not the run having happened
+        test["certificate"]["lower_bound"] = low
+        test_path.write_text(json.dumps(test), "utf-8")
+        assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 0
+        assert load_gate_policy(out).certified is (low is not None and low >= test["target"])
+    test["certificate"]["lower_bound"] = 1.0
+    test_path.write_text(json.dumps(test), "utf-8")
+    assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 0
+    assert load_gate_policy(out).certified is True
+    for family in test["families"].values():  # another threshold: another gate's test run
+        family["threshold"] = 123.0
+    test_path.write_text(json.dumps(test), "utf-8")
+    assert run("gate-policy", "--gate", val_path, "--certificate", test_path, "--out", out) == 1
+    assert "not the test run of the gate" in capsys.readouterr().err
+    assert run("gate-policy", "--gate", val_path, "--out", out) == 0
+    assert load_gate_policy(out).certified is False and load_gate_policy(out).test is None
+
+
+def test_a_record_names_a_file_under_a_linked_data_folder_by_its_repo_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A worktree links data/ to the main clone's: resolving the link made gate.json's `source` a
+    home path, and the frozen demo gate is committed."""
+    repo, elsewhere = tmp_path / "repo", tmp_path / "main-clone-data"
+    (elsewhere / "stoa").mkdir(parents=True)
+    (repo / "eval").mkdir(parents=True)
+    (repo / "data").symlink_to(elsewhere)
+    monkeypatch.setattr(cli, "REPO", repo)
+    monkeypatch.chdir(repo / "eval")  # where stoa_eval runs, with paths like ../data/...
+    assert cli._repo_path(Path("../data/stoa/gate.json")) == "data/stoa/gate.json"
+    assert cli._repo_path(elsewhere / "stoa" / "x.json") == (elsewhere / "stoa/x.json").as_posix()
+
+
 def test_g1main_is_gemini_s_probability_for_the_answered_count() -> None:
     file, other = "data/cubicasa5k/p-1.png", "data/cubicasa5k/p-2.png"
     dists = {file: {"door": {3: 0.8, 2: 0.2}}}
@@ -626,6 +677,7 @@ def test_gate_answers_a_family_from_another_arm_and_reads_g1main(
         (("--family-arm", "w*=ocr/b", "--family-arm", "window=core/a"), "window is routed twice"),
         (("--family-arm", "window=ocr/b", "--signal-file", "<arm>"), "can't judge a combination"),
         (("--g1main", "<g1>", "--signal-file", "<g1main>"), "both named g1main"),
+        (("--swap", "S1536"), "--swap needs --g1main"),
     ],
 )
 def test_gate_refuses_a_bad_combination(
@@ -652,3 +704,50 @@ def test_gate_refuses_a_bad_combination(
     assert run("gate", *common, *args) == 1
     assert reason in capsys.readouterr().err
     assert not list((exp / "ab").glob("gate-*.json")) if (exp / "ab").exists() else True
+
+
+def test_gate_refit_is_one_command_from_a_runtime_config_to_gate_json(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The detector's val output, the runtime's swap (the fake makes every window 3) and no rooms
+    arm: the gate sees the swapped answers, g1main judges them, gate.json says how it was set."""
+    monkeypatch.setattr(backend, "run", fake_backend)
+    exp = dataset / "exp"
+    assert exp_split(dataset, exp) == 0
+    scored_arm(dataset, exp / "core" / "a")
+    replies = g1main_replies(dataset / "g1", exp, 3)
+    seen: list[tuple[dict[int, Any], set[str]]] = []
+    units = cli._units
+
+    def spy(*args: Any, **kwargs: Any) -> list[Unit]:
+        given: list[Any] = list(args)
+        own = given[8] if len(given) > 8 else kwargs.get("own", frozenset())
+        seen.append(({k: v.answer for k, v in given[2].items()}, set(own)))
+        return units(*args, **kwargs)
+
+    monkeypatch.setattr(cli, "_units", spy)
+    out = dataset / "gate.json"
+    refit = ("gate-refit", "--detector", exp / "core/a", "--rooms", "none", "--g1main", replies,
+             "--exp-dir", exp, "--gold", dataset / "gold", "--out", out)  # fmt: skip
+    assert run(*refit) == 0
+    printed = capsys.readouterr().out
+    assert "Answers after the Decisions swap S1536" in printed
+    assert "gate.json was no file" in printed and "now core-a+swap-S1536:" in printed
+    val_qs = [json.loads(line) for line in (exp / "val_questions.jsonl").read_text().splitlines()]
+    windows = {q["id"] for q in val_qs if q["question"] == WINDOWS}
+    answers, own = seen[-1]
+    assert {answers[i] for i in windows} == {3}  # the swap's answers, not the detector's 0
+    assert own == {"door", "window"}  # the detector's built-in signals don't judge swapped answers
+    val = json.loads((exp / "ab/gate-core-a+swap-S1536-val.json").read_text())
+    assert val["swap"] == "S1536" and val["signal"] == G1MAIN and val["groups"]
+    made = json.loads(out.read_text())
+    assert made["arm"] == "core-a+swap-S1536" and made["swap"] == "S1536"
+    assert made["family_arms"] == {} and made["certified"] is False
+    assert run(*refit) == 0
+    assert "gate.json was core-a+swap-S1536:" in capsys.readouterr().out
+    certify = ("--part", "test", "--certify", "--g1main", replies, "--signal", G1MAIN)
+    common = ("--exp-dir", exp, "--gold", dataset / "gold", "--arm", exp / "core/a")
+    assert run("gate", *common, *certify) == 1  # no swap: another arm's val gate
+    assert "gate-core-a-val.json" in capsys.readouterr().err
+    assert run("gate", *common, *certify, "--swap", "S1536") == 0
+    assert json.loads((exp / "ab/gate-core-a+swap-S1536-test.json").read_text())["swap"] == "S1536"

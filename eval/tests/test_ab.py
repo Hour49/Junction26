@@ -82,11 +82,24 @@ def test_style_of() -> None:
 def fake_backend(*args: str) -> None:
     """The backend's commands, for doors and windows only: answers are the derived counts of the
     file's extraction, refused (null) without one; the prior says 1 door, 2 windows; g1main
-    gives the distributions in <replies>/dists.json."""
+    gives the distributions in <replies>/dists.json; swap makes every window answer 3."""
     command, opts = args[0], dict(zip(args[1::2], args[2::2], strict=True))
+    if command in ("g1main", "swap"):  # the drawings, for the backend's own cache
+        assert Path(opts["--dataset"]).name == "junction-dataset"
+        assert Path(opts["--questions"]).name.endswith("_questions.jsonl")
     if command == "g1main":
         dists = (Path(opts["--replies"]) / "dists.json").read_text("utf-8")
         Path(opts["--out"]).write_text(dists, "utf-8")
+        return
+    if command == "swap":  # stands in for the S1536 rule: every window count Gemini doubts is 3
+        asked = [json.loads(line) for line in Path(opts["--questions"]).read_text().splitlines()]
+        windows = {row["id"] for row in asked if row["question"] == WINDOWS}
+        with Path(opts["--out"]).open("w") as out:
+            for line in Path(opts["--answers"]).read_text().splitlines():
+                row = json.loads(line)
+                if row["id"] in windows and row["answer"] is not None:
+                    row["answer"] = 3
+                out.write(json.dumps(row) + "\n")
         return
     if command == "prior":
         assert Path(opts["--train"]).name == "train_questions.jsonl"

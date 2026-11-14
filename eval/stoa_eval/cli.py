@@ -7,6 +7,7 @@ import fnmatch
 import hashlib
 import json
 import multiprocessing
+import os
 import re
 import shutil
 import subprocess
@@ -63,6 +64,7 @@ from .gate import (
     ON_VAL,
     SIGNALS,
     TARGET,
+    GatePolicy,
     GateResult,
     SignalFile,
     SignalReport,
@@ -81,6 +83,7 @@ from .gate import (
     gate_policy,
     group_result,
     halves,
+    load_gate_policy,
     load_signal_file,
     nothing_found_rates,
     pooled_gates,
@@ -828,13 +831,16 @@ def _signal_files(
     return made
 
 
-def run_gate(args: argparse.Namespace) -> None:
+def run_gate(args: argparse.Namespace) -> Path:
     if args.pool and args.part == "test":
         raise ValueError("--pool: val only; test reuses the val gate's groups")
+    if args.swap is not None and args.g1main is None:
+        raise ValueError("--swap needs --g1main: the swap reads Gemini's cached replies")
     specs = _family_arm_specs(args.family_arm)
     name = "+".join(
         [
             _arm_name(args.arm, args.exp_dir),
+            *([f"swap-{args.swap}"] if args.swap else []),
             *sorted({_arm_name(folder, args.exp_dir) for _, folder in specs}),
         ]
     )
@@ -856,6 +862,14 @@ def run_gate(args: argparse.Namespace) -> None:
         routed = _routed(specs, asked)
         gold_dir = args.gold / EXP_SOURCE
         _, answers, preds = _answer_arm(args.arm, questions_path, golds, gold_dir, None, work / "a")
+        if args.swap is not None:
+            swapped = work / "swapped.jsonl"
+            backend.run(
+                "swap", "--answers", str(work / "a" / "answers.jsonl"), "--questions",
+                str(questions_path), "--replies", str(args.g1main), "--dataset", str(DATASET),
+                "--arm", args.swap, "--out", str(swapped),
+            )  # fmt: skip
+            answers = {answer.id: answer for _, answer in read_jsonl(swapped, Answer)}
         for n, folder in enumerate(sorted(set(routed.values()))):
             out = work / f"f{n}"
             _, theirs, _ = _answer_arm(folder, questions_path, golds, gold_dir, None, out)
@@ -871,10 +885,15 @@ def run_gate(args: argparse.Namespace) -> None:
             )
         dists = None
         if args.g1main is not None:
-            backend.run("g1main", "--replies", str(args.g1main), "--out", str(work / "g1.json"))
+            backend.run(
+                "g1main", "--replies", str(args.g1main), "--questions", str(questions_path),
+                "--dataset", str(DATASET), "--out", str(work / "g1.json"),
+            )  # fmt: skip
             dists = _g1main_dists(work / "g1.json")
     preds = preds or {}
     family_arms = {family: _arm_folder(folder, args.exp_dir) for family, folder in routed.items()}
+    # built-in signals read --arm's extraction: none where another arm or the swap gave the answer
+    own = set(asked) if args.swap is not None else set(routed)
     extra = _signal_files(args.signal_file, args.arm, asked, args.exp_dir)
     if routed and any(signal.arm is not None for signal in extra):
         raise ValueError(
@@ -902,7 +921,7 @@ def run_gate(args: argparse.Namespace) -> None:
         empty = nothing_found_rates(
             (
                 u
-                for u in _units(questions, families, answers, second, preds, steps, own=set(routed))
+                for u in _units(questions, families, answers, second, preds, steps, own=own)
                 if u.file in calibration_set
             ),
             preds,
@@ -926,9 +945,7 @@ def run_gate(args: argparse.Namespace) -> None:
             raise ValueError(f"the val gate used the signal {signal!r}: give its --signal-file")
     units = [
         u
-        for u in _units(
-            questions, families, answers, second, preds, steps, extra, empty, set(routed)
-        )
+        for u in _units(questions, families, answers, second, preds, steps, extra, empty, own)
         if u.file in chosen
     ]
     compared = compare_signals(units, names)
@@ -957,6 +974,7 @@ def run_gate(args: argparse.Namespace) -> None:
         arm=name,
         second=second_name,
         family_arms=family_arms,
+        swap=args.swap,
         part=args.part,
         images=len({u.file for u in units}),
         seed=args.seed,
@@ -980,15 +998,50 @@ def run_gate(args: argparse.Namespace) -> None:
     out.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
     print(f"\nwrote {out}")
     _certify_record(args, "gate", [name], result.certificate.sentence, out)
+    return out
+
+
+def run_gate_refit(args: argparse.Namespace) -> None:
+    """The product's gate refit on a runtime config's val output, in one go: the val gate (pooled,
+    g1main, the swap and the rooms arm as the runtime has them), then gate.json from it."""
+    none = {"", "none"}
+    before = load_gate_policy(args.out) if args.out.exists() else None
+    out = run_gate(
+        argparse.Namespace(
+            arm=str(args.detector), second=None, part="val", signal=G1MAIN, signal_file=[],
+            certify=False, recertify_reason=None, thresholds=None, pool=True,
+            target=args.target, delta=args.delta, exp_dir=args.exp_dir, gold=args.gold,
+            seed=args.seed, g1main=args.g1main,
+            swap=None if args.swap in none else args.swap,
+            family_arm=[] if str(args.rooms) in none else [f"room:*={args.rooms}"],
+        )
+    )  # fmt: skip
+    run_gate_policy(argparse.Namespace(gate=out, out=args.out, certificate=None))
+    after = load_gate_policy(args.out)
+
+    def listed(policy: GatePolicy | None) -> str:
+        if policy is None:
+            return "no file"
+        gates = [f"{f} >= {g.threshold:.4g}" for f, g in sorted(policy.families.items())]
+        return f"{policy.arm}: {', '.join(gates) or 'nothing sure'}"
+
+    print(f"gate.json was {listed(before)}\n          now {listed(after)} ({ON_VAL})")
 
 
 def run_gate_policy(args: argparse.Namespace) -> None:
     result = GateResult.model_validate_json(args.gate.read_text("utf-8"))
     generated = datetime.now(HELSINKI).isoformat(timespec="seconds")
-    made = gate_policy(result, _repo_path(args.gate), generated)
+    test = None
+    if args.certificate is not None:
+        tested = GateResult.model_validate_json(args.certificate.read_text("utf-8"))
+        test = (tested, _repo_path(args.certificate))
+    made = gate_policy(result, _repo_path(args.gate), generated, test)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(made.model_dump_json(by_alias=True, indent=2) + "\n", "utf-8")
-    print(f"wrote {args.out}: {len(made.families)} families ({', '.join(made.families) or 'none'})")
+    names = ", ".join(made.families) or "none"
+    tested = "" if made.test is None else f"; {made.test.certificate.sentence}"
+    print(f"wrote {args.out}: {len(made.families)} families ({names}), certified {made.certified}"
+          f"{tested}")  # fmt: skip
 
 
 def _code_digest() -> str:
@@ -1009,7 +1062,11 @@ def _modified(folder: Path) -> str:
 
 
 def _repo_path(path: Path) -> str:
-    """Repo-relative when the path is inside the repo, else absolute."""
+    """Repo-relative when the path is inside the repo (also through a linked data/, as in a
+    worktree), else absolute: a record that may be committed never holds a home path."""
+    given = Path(os.path.normpath(path.absolute()))
+    if given.is_relative_to(REPO):
+        return given.relative_to(REPO).as_posix()
     resolved = path.resolve()
     return (resolved.relative_to(REPO) if resolved.is_relative_to(REPO) else resolved).as_posix()
 
@@ -1948,8 +2005,14 @@ def parser() -> argparse.ArgumentParser:
     gate.add_argument(
         "--g1main",
         type=Path,
-        help=f"decide's cached G1main replies (data/stoa/exp/decide/G1main-high/raw): adds the "
-        f"signal {G1MAIN}, Gemini's probability for each answer (DECISIONS_CONFIDENCE)",
+        help=f"G1main replies: decide's cache (data/stoa/exp/decide/G1main-high/raw) or the "
+        f"backend's DECISIONS_CACHE_DIR; adds the signal {G1MAIN}, Gemini's probability for each "
+        "answer (DECISIONS_CONFIDENCE)",
+    )
+    gate.add_argument(
+        "--swap",
+        help="the Decisions count swap the runtime applies to --arm (SWAP_ARMS, e.g. S1536), from "
+        "the --g1main replies with the backend's rule",
     )
     gate.add_argument("--certify", action="store_true", help="needed for test: once, shipped arm")
     gate.add_argument("--recertify-reason", help="why an arm already certified runs again")
@@ -1969,10 +2032,40 @@ def parser() -> argparse.ArgumentParser:
     gate.add_argument("--seed", type=int, default=GATE_SEED)
     gate.set_defaults(run=run_gate)
 
+    refit = commands.add_parser(
+        "gate-refit", help="gate.json refit on a runtime config's val output, in one command"
+    )
+    refit.add_argument(
+        "--detector",
+        type=Path,
+        default=EXP_DIR / "region" / "L1536-R1",
+        help="the runtime detector's val output (extraction_v1), elements and plans",
+    )
+    refit.add_argument("--swap", default="S1536", help="the runtime's Decisions swap arm, or none")
+    refit.add_argument(
+        "--rooms",
+        default=str(EXP_DIR / "ocr" / "G4-regpred"),
+        help="the runtime rooms reader's val output (regionrooms = ocr/G4-regpred), or none",
+    )
+    refit.add_argument("--g1main", type=Path, default=EXP_DIR / "decide" / "G1main-high" / "raw")
+    refit.add_argument("--out", type=Path, default=EXP_DIR / "gate.json")
+    refit.add_argument("--target", type=float, default=TARGET)
+    refit.add_argument("--delta", type=float, default=DELTA)
+    refit.add_argument("--exp-dir", type=Path, default=EXP_DIR)
+    refit.add_argument("--gold", type=Path, default=EXTRACTION_GOLD)
+    refit.add_argument("--seed", type=int, default=GATE_SEED)
+    refit.set_defaults(run=run_gate_refit)
+
     policy = commands.add_parser(
         "gate-policy", help="the product's gate file (gate_policy_v1) from a val gate JSON"
     )
     policy.add_argument("--gate", type=Path, required=True, help="data/stoa/exp/ab/gate-*-val.json")
+    policy.add_argument(
+        "--certificate",
+        type=Path,
+        help="the same gate's single test run (data/stoa/exp/ab/gate-*-test.json): certified "
+        "when its bound meets the target",
+    )
     policy.add_argument("--out", type=Path, default=EXP_DIR / "gate.json")
     policy.set_defaults(run=run_gate_policy)
 

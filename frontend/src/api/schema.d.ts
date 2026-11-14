@@ -343,6 +343,8 @@ export interface components {
             method: string;
             /** Resolution */
             resolution?: string | null;
+            /** Sure */
+            sure?: boolean | null;
             /** Unit */
             unit: ("count" | "m" | "m2" | "m3" | "ft" | "ft2") | null;
         };

@@ -112,6 +112,7 @@ def ask(
     state: ReviewState,
     prior_families: Set[tuple[str, str]] = frozenset(),
     confidence: AnswerConfidence | None = None,
+    sure_at: Mapping[str, float] | None = None,
     flags: Sequence[str] = (),
     raster: bool = False,
 ) -> Asked:
@@ -124,7 +125,7 @@ def ask(
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
-        question, quantities, once, clock, prior, tables, prior_families, confidence
+        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at
     )
     parsed = once.parse(text)
     query: str | None = None

@@ -32,6 +32,7 @@ from app.adapters.decisions.g1main import G1MainReader
 from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtractor
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
+from app.adapters.gate_policy import load_gate
 from app.adapters.hello import (
     HelloExtractor,
     HelloParser,
@@ -124,6 +125,8 @@ class Pipeline:
     scanned: Callable[[bytes], bool] | None = None
     # Gemini Decisions' probability for each drawing answer (DECISIONS_CONFIDENCE); None: off
     confidence: AnswerConfidence | None = None
+    # GATE_POLICY: family -> the confidence at or above which an answer is sure; None: ungated
+    sure_at: Mapping[str, float] | None = None
 
     def ingest(self, paths: Iterable[str], sink: DrawingSink) -> IngestReport:
         return ingest(
@@ -150,6 +153,7 @@ class Pipeline:
             prior=self.prior,
             prior_families=self.prior_families,
             confidence=self.confidence,
+            sure_at=self.sure_at,
         )
 
 
@@ -197,6 +201,7 @@ def build_pipeline(
         confidence=DecisionsConfidence(files, decisions())
         if settings.decisions_confidence
         else None,
+        sure_at=_gate(settings),
     )
 
 
@@ -264,6 +269,7 @@ class Answering:
     # DECISIONS_CONFIDENCE: the answer confidence over the files a drawing was read from; None: off
     confidence: Callable[[DrawingFiles], AnswerConfidence] | None = None
     signal: str | None = None  # what that confidence's score is, by name (`g1main`)
+    sure_at: Mapping[str, float] | None = None  # GATE_POLICY on that signal; None: ungated
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -280,6 +286,7 @@ def build_answering(settings: Settings) -> Answering:
         prior_families=_policy(settings.answer_policy),
         confidence=confidence,
         signal=signal,
+        sure_at=_gate(settings),
     )
 
 
@@ -535,6 +542,14 @@ def _parser(name: QuestionParserName) -> QuestionParser:
             return HelloParser()
         case "templates":
             return TemplateParser()
+
+
+def _gate(settings: Settings) -> dict[str, float] | None:
+    """GATE_POLICY's thresholds on the answer confidence's signal; None without a gate file or
+    without the confidence (a threshold on a signal nothing computes would mark nothing)."""
+    if not settings.gate_policy or not settings.decisions_confidence:
+        return None
+    return load_gate(Path(settings.gate_policy), DECISIONS_SIGNAL)
 
 
 def _policy(path: str) -> frozenset[tuple[str, str]]:
