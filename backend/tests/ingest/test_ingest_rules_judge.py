@@ -35,7 +35,9 @@ def test_with_no_description_not_a_drawing_is_unrelated_and_another_drawing_unsu
     assert not isinstance(unrelated, Unavailable) and not isinstance(related, Unavailable)
     assert (unrelated.verdict, related.verdict) == ("unrelated", "unsure")
     for found in (unrelated, related):
-        assert found.judge == JUDGE == "rule on the kind of picture, no model (no description to read)"
+        assert (
+            found.judge == JUDGE == "rule on the kind of picture, no model (no description to read)"
+        )
         assert "without reading what" in found.why
         assert (found.matched_on, found.plans) == ((), ())
     assert unrelated.why.startswith("A picture that is not a drawing;")

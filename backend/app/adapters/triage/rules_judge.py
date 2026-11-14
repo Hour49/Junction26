@@ -8,7 +8,6 @@ for a person to say (#152, Tudor's fleet's review of section 8); that `why` says
 the picture. The `judge` field names which rule ran.
 """
 
-from app.core.ingest.triage import relevance_by_rule
 from app.core.ingest.model import (
     Description,
     ProjectContext,
@@ -16,6 +15,7 @@ from app.core.ingest.model import (
     TriageClass,
     Unavailable,
 )
+from app.core.ingest.triage import relevance_by_rule
 
 JUDGE = "rule on the kind of picture, no model (no description to read)"
 NOT_DRAWING_WHY = (
