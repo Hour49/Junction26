@@ -12,11 +12,11 @@ import json
 import re
 import shutil
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SOURCE = "swiss_dwellings"  # CC BY 4.0, floors with PDF + DXF + PNG and count and area questions
+FLOOR = "site980_bldg2055_floor9178"  # Tudor 13:38: the example in both views
 ENGLISH = ("How many ", "What is ")
 
 
@@ -24,17 +24,13 @@ def size_text(n):
     return f"{n / 1e6:.1f} MB" if n >= 1e6 else f"{round(n / 1e3)} kB"
 
 
-def pick_floor(questions):
-    """The floor of SOURCE with the most English questions; ties go to the first name, so the pick is stable."""
-    per = defaultdict(list)
-    for q in questions:
-        parts = q["path"].split("/")
-        if len(parts) == 3 and parts[1] == SOURCE and q["question"].startswith(ENGLISH):
-            per[Path(parts[2]).stem].append(q)
-    if not per:
-        sys.exit(f"no English {SOURCE} questions in the dataset")
-    stem = min(per, key=lambda s: (-len(per[s]), s))
-    return stem, per[stem]
+def floor_questions(questions, floor):
+    """The English questions about one floor of SOURCE (any of its files)."""
+    mine = [q for q in questions if q["path"].split("/")[1:2] == [SOURCE]
+            and Path(q["path"]).stem == floor and q["question"].startswith(ENGLISH)]
+    if not mine:
+        sys.exit(f"no English questions for {SOURCE}/{floor} in the dataset")
+    return mine
 
 
 def credit(source_dir):
@@ -47,9 +43,9 @@ def credit(source_dir):
 KINDS = {".pdf": ("Vector PDF", "CAD"), ".dxf": ("DXF", "CAD"), ".png": ("PNG rendering", "Vision")}
 
 
-def build(dataset, out):
+def build(dataset, out, stem):
     questions = [json.loads(line) for line in (dataset / "questions.jsonl").open(encoding="utf-8") if line.strip()]
-    stem, mine = pick_floor(questions)
+    mine = floor_questions(questions, stem)
     source_dir = dataset / "data" / SOURCE
     asked = {Path(q["path"]).name for q in mine}
     out.mkdir(exist_ok=True)
@@ -90,11 +86,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dataset", type=Path, default=HERE.parents[1] / "data/stoa/full/junction-dataset",
                     help="the unzipped Stoa junction-dataset folder (default: the repo's data/stoa/full/...)")
+    ap.add_argument("--floor", default=FLOOR, help=f"the {SOURCE} floor to show (default {FLOOR})")
     ap.add_argument("--out", type=Path, default=HERE / "stoa", help=argparse.SUPPRESS)
     a = ap.parse_args()
     if not (a.dataset / "questions.jsonl").is_file():
         sys.exit(f"no questions.jsonl in {a.dataset}; pass --dataset (python3 tools/fetch_stoa_data.py full)")
-    stem, n = build(a.dataset.expanduser(), a.out)
+    if not re.fullmatch(r"site\d+_bldg\d+_floor\d+", a.floor):  # it becomes a file name: no paths
+        sys.exit(f"--floor must look like {FLOOR}")
+    stem, n = build(a.dataset.expanduser(), a.out, a.floor)
     print(f"{stem}: {n} questions -> {a.out}/ (local only, never commit it). Open stoa/index.html.")
 
 
