@@ -818,7 +818,8 @@ runtime gates. **TODO:** the golden table with the runtime gates, and the series
 
 **The test read config.** C1-T1 run live on the 376 test pages with the shipping settings (arbiter at runtime, the two
 extra readers, the runtime policy, the dev prior, `ROOM_POLICY=gold-labels`). On val the runtime C1-T1 differs from the
-precomputed splice on 6 of 6,764 answers, all explained, and scores 88.5% (+0.2 [-0.15, +0.57] against shipped C1).
+precomputed splice on 6 of 6,764 answers, all explained. Both score 88.5%: +0.2 [-0.1, +0.6] against shipped C1 (the
+runtime run gives +0.2 [-0.15, +0.57]) and +1.6 [+0.9, +2.3] against shipped C (table in 14.2).
 **TODO(test read):** exact, flagged share, error recall and unflagged exact, per family and pooled, from one read.
 
 ### 14.9 Drawing styles: what the detectors miss, and a training arm that was not shippable
@@ -878,7 +879,7 @@ bedroom, kitchen and wc count asked for a check, including the right ones. Do no
 
 ### 14.10 Triage of uploaded files: classifier, describer, answer key (`triage-*.md`, `describe-50-blind.md`)
 
-For the archive files that are not floor plans or hide a small plan, three questions were worked in parallel.
+We worked three questions in parallel for archive files that are not floor plans or that hide a small plan.
 
 **Is there a floor plan?** Heads on image embeddings (siglip2, dinov2, so400m; one A100 for about 25 min, about 0.35
 EUR) with a plan threshold set on a slice of the training rows, never on a test set. The shipped gate is a local head OR
@@ -912,13 +913,12 @@ street addresses from two sheets, and a no-personal-data rule and a contact-reda
 
 - The double-check costs more than the offline table said: at the runtime signals 55% of answers ask, not 45%, for the
   same 96% of errors caught. No cheap signal we tried lowers it.
-- Windows and doors are where the product is weakest and where the checks concentrate, and the reasons are specific:
-  gold conventions (35 to 40% of window errors), thin and glazed drawings the detectors half-see, and door styles with no
+- Windows and doors are where the product is weakest and where the checks concentrate. The causes: gold conventions (35 to 40% of window errors), thin and glazed drawings the detectors half-see, and door styles with no
   arc. A training arm that fixed door styles broke the window count by learning a link between the two; the lesson is to
   vary the styles independently.
 - Hand-drawn sheets are outside what the product reads today: doors are mostly invisible and the gate asks on nearly
   every count, which is the right behaviour, but plan counts can be sure and wrong.
-- The triage track is about 0.8 EUR of GPU and 2.9 USD of Gemini for a classifier, a describer and a check of the key.
+- The triage track cost about 0.8 EUR of GPU and 2.9 USD of Gemini.
 
 ### 14.12 Gaps in this section
 
