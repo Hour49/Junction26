@@ -361,4 +361,19 @@ describe('DoubleCheck', () => {
     });
     expect(api.calls.filter((c) => c.url.startsWith(`/api/drawings/${did}?`))).toHaveLength(2);
   });
+
+  it('DC-19 the two-column layout needs a wide panel: in the card side column the list fits and nothing stretches', () => {
+    const css = readFileSync('src/doublecheck/doublecheck.css', 'utf8'); // vitest runs in frontend/
+    const rule = (sel: string, from = css) =>
+      new RegExp(`(^|\\n)${sel.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`).exec(from)?.[2] ?? '';
+    expect(rule('.dc')).toMatch(/container-type:\s*inline-size/);
+    // base (the ~330px side column at 1440, phones): one column, the list full width, the own viewer hidden
+    expect(rule('.dc-body')).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(rule('.dc-plan')).toMatch(/display:\s*none/);
+    const wide = /@container \(min-width: (\d+)px\) \{([\s\S]*?)\n\}/.exec(css);
+    expect(Number(wide?.[1])).toBeGreaterThanOrEqual(320 + 16 + 300); // list + gap + a usable viewer
+    expect(wide?.[2]).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\) 320px/);
+    expect(wide?.[2]).toMatch(/\.dc-plan\s*\{[^}]*display:\s*block/);
+    expect(css.replace(wide?.[0] ?? '', '')).not.toMatch(/320px/);
+  });
 });
