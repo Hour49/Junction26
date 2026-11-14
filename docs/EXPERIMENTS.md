@@ -496,6 +496,23 @@ The pipeline series (`python -m stoa_eval series`, each point a clean export of 
 the whole-product level: 74.7% before any raster reader, 91.6% at 5331dab (2026-11-14 05:02), with CubiCasa Part 1
 element F1 85.4%. The rooms in that point were precomputed Gemini replies; at runtime they come from `regionrooms`.
 
+**Double-check marks (`disputed_marks`, 2026-11-14, a core function, not wired yet).** An answer the gate does not mark
+sure keeps its value and asks for a second look, and this function says where: it sets the counted marks against what
+other readers saw at the same place and lists the places where at least k of them disagree (a counted mark they do not
+see, or a place they see that was not counted). As a gate signal the same box-level agreement adds nothing to the
+count-level gate: with seven readers, cross-fit on val, no family gains 5 points of coverage at 97, 98 or 99% exact, so
+it is used only to point. Val, config C1's 1,637 door and fixture answers, 170 of them wrong, judged against the gold
+boxes; "not sure" is the 392 answers the count-level gate leaves out at its operating point. Six other readers at k = 2
+(the rule fixed before the results) put a highlight on an error of 85 of the 170 wrong answers with 1.16 highlights per
+not-sure answer, but all six cost an estimated 15 to 25 s of CPU per page (not timed). The set to ship was chosen for
+its cost, not for its val row: the detector's first view (free, it is part of the eight-view run), a second detector in
+one view (not timed) and the segmentation network's icons (2.9 to 5.7 s per page), at k = 1, at most 5 places per
+answer. Through the backend function that set lists an error of 93 of the 170 wrong answers (95 without the cap) and
+107 of the 260 error marks; 19% of the places it lists are errors; a not-sure answer gets 1.39 places on average and
+99 of the 392 get none. The wrong answers it does not reach are errors every reader makes alike (a doorway without a
+leaf), which no disagreement shows. Listing the strongest disputes first is worth nothing measurable on val: the first
+five in reading order reach 94 of 170. Log: `think-local.md`.
+
 ---
 
 ## What shipped (the demo config)
