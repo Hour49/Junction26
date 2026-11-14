@@ -270,7 +270,8 @@ code `no-reader`. `limits` lets the screen refuse a file before uploading it.
 and answer confidence, sheet-kind signal, describer) answers as when Gemini fails: nothing new is read, the
 answer stays unknown or unchanged, and the file's trace or the answer's note says "Gemini budget used up".
 Replies cached earlier still serve. With the hourly limit it clears as the last hour's spend ages out; with the
-total limit only a restart clears it. The screen can say so instead of showing empty readings.
+total limit only a restart clears it. A limit of 0 refuses every Gemini call from the first one. The screen can
+say so instead of showing empty readings.
 
 `rule_packs` are the building-code packs the country picker offers (decision 0009, "Building-code checks"
 below), one per law: `country` is the ISO 3166-1 alpha-2 code for the flag, `country_name` what the picker
