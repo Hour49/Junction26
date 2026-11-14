@@ -8,13 +8,14 @@ from pathlib import Path
 EVAL = Path(__file__).resolve().parents[1]
 BACKEND = EVAL.parent / "backend"
 SCRIPT = EVAL / "ab_backend.py"
+SERVICES_SCRIPT = EVAL / "services_backend.py"  # services-gen: an IFC model's services graph
 
 
-def run(*args: str) -> None:
-    """`ab_backend.py <args>` from backend/; fails with ValueError when it fails."""
+def run(*args: str, script: Path = SCRIPT) -> None:
+    """`<script> <args>` (ab_backend.py by default) from backend/; ValueError when it fails."""
     env = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
     env["PYTHONPATH"] = str(BACKEND)
-    command = ["uv", "run", "--locked", "--project", str(BACKEND), "python", str(SCRIPT), *args]
+    command = ["uv", "run", "--locked", "--project", str(BACKEND), "python", str(script), *args]
     try:
         subprocess.run(command, cwd=BACKEND, env=env, check=True)
     except (OSError, subprocess.CalledProcessError) as error:
