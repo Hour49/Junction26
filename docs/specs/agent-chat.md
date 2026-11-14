@@ -191,8 +191,10 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   (`region`) between the title and the ask bar, per askable drawing (at most 3, then "and N more drawings") its
   plain name, kind and route in words, what its file's takeoff counted ("8 rooms (38.32 m² indoors) · 6 doors ·
   4 windows", zero counts left out) and the file's `reason` as a sentence (the server's words, flags included).
-  From `GET /api/projects/{id}` alone, no model call; gone once the thread has a turn. [component
-  `WhatIRead.test.tsx`, `AgentChat.test.tsx`; browser 1440 and 390]
+  From `GET /api/projects/{id}` alone, no model call; gone once the thread has a turn. Up to 600 px wide the block
+  goes under the ask bar and the starter chips, so the ask box is fully in the first screen (390x844, keycheck 334).
+  [component `WhatIRead.test.tsx`, `AgentChat.test.tsx`; browser 1440 and 390: e2e AC-39 asserts the ask box's
+  bottom is within the viewport]
 
 ## 4. Tests
 

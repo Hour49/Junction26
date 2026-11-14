@@ -529,3 +529,9 @@
   color: var(--v-text-2);
   font-size: 14px;
 }
+/* On a phone the block would push the ask box below the fold (keycheck 334): it goes under the bar and the chips. */
+@media (max-width: 600px) {
+  .en-chat--empty > .ag-read {
+    order: 1;
+  }
+}
