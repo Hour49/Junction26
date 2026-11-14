@@ -479,9 +479,14 @@ def apply(
             added[key] = (*mine, Added(id=f"a{number}", page=edit.page, box=edit.box))
             settled.pop(key, None)
         case "settle":
-            if edit.value is None:
-                raise InvalidInputError("settle needs the value to keep")
-            settled[key] = Settled(value=_typed(quantity, edit.value), at=at)
+            note = None if edit.note is None else edit.note.strip()
+            if edit.value is None and note is None:
+                raise InvalidInputError("settle needs the value to keep, or a note")
+            if edit.value is None:  # words only: the value in use is kept, with them
+                value = current_value(quantity, mark_views(quantity, drawing, state), state)
+            else:
+                value = _typed(quantity, edit.value)
+            settled[key] = Settled(value=value, at=at, note=note)
         case "unsettle":
             settled.pop(key, None)  # only the settled value: mark edits stay
     return ReviewState(

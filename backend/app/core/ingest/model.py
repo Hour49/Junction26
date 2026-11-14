@@ -101,6 +101,9 @@ class Probed(Frozen):
     kind: ContentKind
     did: str
     pages: tuple[LaterPage, ...] = ()  # a multi-page PDF's later drawn pages, in page order
+    # The sheet-kind signal's P(a plan, drawn or photographed) when the probe got a reply for this
+    # file; None: not asked, or no reply. Triage's classifier reads it, so it never asks again.
+    p_plan_sheet: float | None = Field(default=None, ge=0, le=1)
 
 
 # File triage (decision 0010): is an uploaded image a floor plan, and if not, what is it and does
