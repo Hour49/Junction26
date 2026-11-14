@@ -16,8 +16,9 @@ import pytest
 from PIL import Image, ImageDraw
 
 from app.adapters.raster_detector import post
+from app.adapters.raster_detector.views import VIEWS, Det, box_back, fuse_views, view_of
 from app.adapters.raster_region import RegionDetector, RegionFacts, load_arm, predict_mask, steps
-from app.adapters.raster_region.steps import Det, Frame, Window
+from app.adapters.raster_region.steps import Frame, Window
 from app.core.drawing.model import Page
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Sheet
@@ -269,14 +270,14 @@ def test_only_a_yolo_export_and_up_to_eight_views() -> None:
 # ------------------------------------------------------------------------------ the steps
 
 
-@pytest.mark.parametrize("view", steps.VIEWS)
+@pytest.mark.parametrize("view", VIEWS)
 def test_a_box_found_on_a_view_goes_back_to_the_canvas(view: tuple[int, int, int]) -> None:
     canvas = Image.new("RGB", (50, 50), "white")
     ImageDraw.Draw(canvas).rectangle((5, 10, 14, 29), fill="black")  # x 5..15, y 10..30
-    turned = np.asarray(steps.view_of(canvas, view).convert("L")) < 128
+    turned = np.asarray(view_of(canvas, view).convert("L")) < 128
     (box,) = blobs(turned)
     x0, y0, x1, y1 = (float(v) for v in box)
-    assert steps.box_back((x0, y0, x1, y1), view, 50) == (5.0, 10.0, 15.0, 30.0)
+    assert box_back((x0, y0, x1, y1), view, 50) == (5.0, 10.0, 15.0, 30.0)
 
 
 def test_views_of_one_object_fuse_into_one_detection_scored_over_all_views() -> None:
@@ -286,13 +287,13 @@ def test_views_of_one_object_fuse_into_one_detection_scored_over_all_views() -> 
         Det("door", 0.7, (10, 10, 20, 20), 1),  # second box of view 1: its own object
         Det("window", 0.9, (10, 10, 20, 20), 2),  # other class: its own object
     ]
-    fused = steps.fuse_views(found, views=8)
+    fused = fuse_views(found, views=8)
     assert [(d.name, d.score, d.box) for d in fused] == [
         ("window", round(0.9 / 8, 4), (10.0, 10.0, 20.0, 20.0)),
         ("door", round(1.5 / 8, 4), (10.0, 10.0, 20.0, 20.0)),
         ("door", round(0.6 / 8, 4), (11.0, 11.0, 21.0, 21.0)),
     ]
-    assert steps.fuse_views(found, views=1) == found
+    assert fuse_views(found, views=1) == found
 
 
 def test_windows_come_from_sure_plans_and_keep_their_own_elements() -> None:

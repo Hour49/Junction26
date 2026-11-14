@@ -442,6 +442,9 @@ def _raster_component(
             arm, _, run = where.partition(":")
             tuned = inside(DETECTOR_RUNS, f"{run}.thresholds.json") if run else None
             return OnnxDetector.from_folder(files, inside(DETECTOR_DIR, arm), tuned)
+        case "detector-v2" | "detector-v4" | "detector-v8" if where:
+            views = int(kind.removeprefix("detector-v"))
+            return OnnxDetector.from_folder(files, inside(DETECTOR_DIR, where), views=views)
         case "verda" if not where:
             client = HttpReaderClient(
                 settings.verda_reader_url,
@@ -470,7 +473,8 @@ def _raster_component(
         case _:
             raise InvalidInputError(
                 f"RASTER_COMPONENTS: unknown source {source!r}; sources are "
-                "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], photo:<arm>, "
+                "exp:<track>/<arm>, dir:<path>, detector:<arm>[:<tune run>], "
+                "detector-v<2|4|8>:<arm>, photo:<arm>, "
                 "region:<arm>, verda, gemini, regionrooms, decisions:<source>, "
                 "decisions-s1536:<source> and one-plan"
             )
