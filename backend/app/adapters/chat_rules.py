@@ -301,8 +301,8 @@ def _remove_wall(turn: _Turn, words: str) -> tuple[str, Json]:
         everything: list[Any] = drawings  # pyright: ignore[reportUnknownVariableType]
         drawings, named = _sheet(words, everything)
         if named and len(drawings) > 1:  # several sheets share the name the message gives
-            options = [{"label": str(d.get("title") or d.get("name"))[:60],
-                        "message": f"{turn.message} on {d.get('title') or d.get('name')}"[:300]}
+            options = [{"label": f"{d.get('title') or d.get('name')} ({d.get('name')})"[:60],
+                        "message": f"{turn.message} on {d.get('name')}"[:300]}
                        for d in drawings[:4]]  # fmt: skip
             return _final("needs_input", "Several drawings have that name. Which one?",
                           options=options)  # fmt: skip
@@ -319,21 +319,28 @@ def _sheet(words: str, drawings: list[Any]) -> tuple[list[Any], bool]:
     S1); else all of them, in order (multi: an edit of a named sheet went to the first drawing
     with walls). Several left: they share the longest name, and the planner asks which."""
 
-    def named(drawing: Any) -> int:
+    def named(drawing: Any) -> tuple[bool, int]:
+        """(the message holds its whole file name, the longest of its names it holds): a file
+        name ("b.pdf") beats a title two drawings share (review-361)."""
         if not isinstance(drawing, dict):
-            return 0
+            return (False, 0)
         given: Json = drawing  # pyright: ignore[reportUnknownVariableType]
-        file = re.sub(r"\.[a-z0-9]+$", "", str(given.get("name") or "").lower())
+        whole = str(given.get("name") or "").lower()
+        file = re.sub(r"\.[a-z0-9]+$", "", whole)
         names = [str(given.get("title") or "").lower(), file, re.sub(r"[_-]+", " ", file)]
-        return max(
+        longest = max(
             len(name)
             if len(name) > 3 and re.search(rf"(?<![\w.]){re.escape(name)}(?![\w]|\.\d)", words)
             else 0
             for name in names
         )
+        exact = re.search(rf"(?<![\w.]){re.escape(whole)}(?!\w)", words) if whole else None
+        return (exact is not None, longest)
 
-    best = max((named(d) for d in drawings), default=0)
-    return ([d for d in drawings if named(d) == best], True) if best else (drawings, False)
+    best = max((named(d) for d in drawings), default=(False, 0))
+    if best == (False, 0):
+        return drawings, False
+    return [d for d in drawings if named(d) == best], True
 
 
 def proposed_wall(turn: _Turn) -> Json | None:
