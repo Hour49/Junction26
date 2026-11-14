@@ -240,6 +240,22 @@ describe('TurnCard', () => {
     ]);
   });
 
+  it('K7 a turn with several all-refused asks says which question each "Not used" line belongs to', () => {
+    mockApi({});
+    const refuse = (question: string) => ({
+      ...projectAsk,
+      question,
+      parts: projectAsk.parts.map((p) => ({
+        ...p,
+        answer: { ...answerRefused, drawing_id: p.drawing_id },
+      })),
+    });
+    card({ ...answerTurn, answers: [refuse('How many doors?'), refuse('How many windows?')] });
+    const lines = screen.getAllByTestId('refused-drawings').map((l) => l.textContent);
+    expect(lines[0]).toMatch(/^“How many doors\?” — Not used: /);
+    expect(lines[1]).toMatch(/^“How many windows\?” — Not used: /);
+  });
+
   it("Tudor's smoke (1): an edit turn's Show it shows the card's own After plan, not the plan beside the chat", () => {
     mockApi({ [DRAWING]: never() });
     const onShow = vi.fn();
