@@ -52,7 +52,7 @@ def judge(
     return "ready", f"read on the {route_words(route)}: {found}"
 
 
-CARBON_FLAG = "read by Gemini Carbon alone: its counts are not measured yet"
+CARBON_FLAG = "counted by Gemini Carbon: its counts are not measured yet"
 
 
 def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:

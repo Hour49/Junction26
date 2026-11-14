@@ -2,9 +2,12 @@
 takeoff row it was read from, in the same shape as the takeoff gives it, and the answer_v1.1 line
 the scorer reads."""
 
+from collections.abc import Callable
+
 from fastapi import APIRouter
 from pydantic import Field
 
+from app.adapters.page_render import render_png
 from app.api.deps import (
     AnsweringDep,
     Ingest,
@@ -27,14 +30,28 @@ from app.core.ingest.model import DrawingInfo
 from app.core.ingest.triage import sheet_doubt
 from app.core.review.ask import Asked, ask
 from app.core.review.check import Check, Level
-from app.core.review.model import MarkView, Refusal, Row
+from app.core.review.model import (
+    MarkView,
+    Refusal,
+    Resolved,
+    ResolverUnavailable,
+    Row,
+    is_none,
+)
 from app.core.review.ports import ReviewStore
 from app.core.review.proof import Proof
+from app.core.review.resolve import among_values, answer_request, conflict_request
 from app.settings import Settings
 
 router = APIRouter(prefix="/api")
 
 QUESTION_CHARS = 2000
+
+
+def page_images(ingest: Ingest, drawing_id: str) -> Callable[[int, int], bytes]:
+    """The drawing's pages as PNGs for the resolver, at the width it asks for, rendered only
+    when it asks for one."""
+    return lambda page, width: render_png(ingest.sheet(drawing_id), page, width)
 
 
 class AskRequest(View):
@@ -78,6 +95,11 @@ class AnswerView(View):
     # sentence with the measured counts; high exactly when `check` is null on a rated answer.
     # None: a refusal, a value a person signed off or settled, the policy off or without levels
     level: Level | None
+    # RESOLVER: what the resolver said about an answer CHECK_POLICY does not certify (`answer`,
+    # `check` and `level` stay as they are: it is a model's check, beside them), and why it said
+    # nothing when it could not; both left out of the JSON when None
+    resolved: Resolved | None = Field(default=None, exclude_if=is_none)
+    resolver_note: str | None = Field(default=None, exclude_if=is_none)
 
 
 class _SheetFiles:
@@ -223,12 +245,30 @@ def answer_view(
         question, drawing, drawing_id, reviews, answering, ingest, owner,
         no_reader_of(drawing_id, ingest, settings),
     )  # fmt: skip
+    shown = asked.row
+    resolved = note = None
+    if answering.resolver is not None and asked.check is not None and shown is not None:
+        if shown.resolved is not None:
+            resolved = shown.resolved  # its conflict was resolved: shown as stored, no call
+        else:
+            # a conflict a person has to choose is asked about as POST .../resolve asks it
+            # (both sides, the same cache entry); any other answer with its own value
+            pages = page_images(ingest, drawing_id)
+            if shown.conflict is not None and shown.needs_person:
+                request = conflict_request(drawing_id, shown)
+                reply = among_values(shown, answering.resolver.resolve(request, pages))
+            else:
+                request = answer_request(drawing_id, question, shown, asked.marks, asked.check)
+                reply = answering.resolver.resolve(request, pages)
+            if isinstance(reply, ResolverUnavailable):
+                note = reply.note
+            else:
+                resolved = reply
     line = asked.answer.model_copy(update={"cost_usd": cost.spent() - spent})
     doubt = None if asked.refusal is not None else doubt_of(ingest, named)
     if doubt is not None:  # on an answer with a value only; it changes no value, check or level
         explanation = "; ".join(said for said in (line.explanation, doubt) if said)
         line = line.model_copy(update={"explanation": explanation})
-    shown = asked.row
     return AnswerView(
         question=question,
         drawing_id=drawing_id,
@@ -249,4 +289,6 @@ def answer_view(
         proof=asked.proof,
         check=asked.check,
         level=asked.level,
+        resolved=resolved,
+        resolver_note=note,
     )

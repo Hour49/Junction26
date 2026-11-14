@@ -199,6 +199,9 @@ SHEET_PLAN_KINDS: frozenset[SheetKindName] = frozenset(
 )
 
 
+EvidenceHow = Literal["described", "text", "listed"]
+
+
 class Sheet(Frozen):
     """Classified.sheet and Triage.sheet: the sheet-kind model's reply and its decision. The
     title, sheet number and printed scale are shown, never acted on."""
@@ -390,6 +393,22 @@ class Rectified(Frozen):
     method: str  # how it was found, shown in the trace and the status
 
 
+class FileEvidence(Frozen):
+    """FileStatus.evidence: whether a file that is not a floor plan is in the project's evidence
+    index, and from what (decision 0012 sources v2). Written by the evidence step for every file it
+    looked at; a file today's triage path set aside and described keeps its record in `triage`."""
+
+    indexed: bool
+    how: EvidenceHow | None = None  # None: not indexed
+    kind: str | None = None  # the hit's kind; None: not indexed
+    why: str  # one plain sentence, always set
+    sheet: Sheet | None = None  # the sheet-kind reply; None: not asked
+    description: Description | None = None  # how = described
+    text_pages: int | None = None  # how = text: the pages that gave text
+    text_chars: int | None = None  # how = text: the characters indexed (after the cut)
+    cost_usd: float = Field(default=0.0, ge=0)
+
+
 class FileStatus(Frozen):
     id: str  # f1, f2... in the order the upload lists the files
     path: str
@@ -412,6 +431,9 @@ class FileStatus(Frozen):
     normalised: Normalised | None = None  # an image sheet: how its frame was made
     # Set for an image file when triage is on (decision 0010); left out of the JSON otherwise
     triage: Triage | None = Field(default=None, exclude_if=lambda value: value is None)
+    # What the evidence index made of the file (decision 0012, EVIDENCE_SCOPE=all_non_plan);
+    # left out of the JSON when that step did not look at it
+    evidence: FileEvidence | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectStatus(Frozen):

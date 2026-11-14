@@ -11,6 +11,7 @@
       "file": "photos/sheet.jpg",
       "page": 1,
       "part": "visible_text",
+      "how": "described",
       "kind": "elevation",
       "subject": "a photographed elevation of a church",
       "snippet": "Kirche St. Anna",

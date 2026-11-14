@@ -40,6 +40,34 @@ const unrelated = () => card().getByRole('button', { name: 'It is not related' }
 const nameField = () => card().getByRole('textbox', { name: 'Your name' });
 
 describe('TriageCard (file-triage.md)', () => {
+  describe('FT-25 a doubted sheet on a file read as a plan', () => {
+    const doubted = (kind: typeof sheet.kind): FileStatus => ({
+      ...south,
+      state: 'ready',
+      triage: {
+        ...must(south.triage),
+        class: 'floor_plan',
+        verdict: null,
+        relevance: null,
+        sheet: { ...sheet, decision: 'doubt', kind },
+      },
+    });
+    it('a small card: class words and what it looks like, the chance, no calls', async () => {
+      await show(doubted('elevation'));
+      expect(
+        card().getByRole('heading', { name: 'A floor plan · Looks like: an elevation' }),
+      ).toBeTruthy();
+      expect(card().queryAllByRole('button')).toEqual([]);
+      expect(screen.getByRole('region', { name: 'Is it a floor plan?' }).textContent).toContain(
+        'Chance of a floor plan',
+      );
+    });
+    it('a plan kind: no card, as today', async () => {
+      await show(doubted('multi_view_sheet'));
+      expect(screen.queryByRole('region', { name: 'Is it a floor plan?' })).toBeNull();
+    });
+  });
+
   it('FT-24 the heading takes the sheet words when the sheet set the file aside', async () => {
     await show({ ...south, triage: { ...must(south.triage), sheet } });
     expect(

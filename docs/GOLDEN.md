@@ -106,6 +106,11 @@ refusal counts as a miss; "cannot tell" is left out), and the scale where one is
 gitignored `data/inbox/`. Records hold aggregates only (`eval/results/hard/runs/`), and labels are committed only
 for files whose licence allows it.
 
+think-local froze the labels on 2026-11-14: 26 files, a second batch of 18, and 4 inbox sheets whose source isn't
+recorded, 48 in all. 44 of them are public in `eval/results/hard/gold/hard-set-20261114.json`; the 4 inbox
+sheets stay local. The rows scored on these labels are the records named "(final labels)". A row can combine
+several runs (`--run` with its `--questions`, repeated), for example when a later batch was run separately.
+
 ### Schedules
 
 The opening_design sheets are mostly schedules. Their gold (review-8) lists the door, window, finish and keynote

@@ -27,7 +27,13 @@ from app.adapters.archive import (
     ZipUnpacker,
 )
 from app.adapters.archive.probe import is_scanned_pdf
-from app.adapters.carbon import CarbonClient, CarbonExtractor, CarbonReader, CarbonSwitch
+from app.adapters.carbon import (
+    CarbonClient,
+    CarbonExtractor,
+    CarbonReader,
+    CarbonSwitch,
+    CarbonThings,
+)
 from app.adapters.carbon.contract import READER_SHA, SOURCE
 from app.adapters.check_policy import load_check
 from app.adapters.count_arbiter import ArbiterCountExtractor
@@ -38,6 +44,7 @@ from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtra
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
 from app.adapters.evidence.embedder import load_embedder
+from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
 from app.adapters.evidence.store import SqliteEvidenceIndex
 from app.adapters.gate_policy import load_gate
@@ -70,13 +77,22 @@ from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
-from app.adapters.triage.gemini_describer import GeminiDescribeClient, GeminiDescriber
+from app.adapters.resolver.carbon import CarbonClient as ResolverClient
+from app.adapters.resolver.carbon import CarbonResolver
+from app.adapters.triage.gemini_describer import (
+    CARBON_MIN_TIMEOUT_S,
+    DESCRIBERS,
+    GeminiDescribeClient,
+    GeminiDescriber,
+)
 from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.triage.sheet_kind import (
+    ADVANCED_LONG_SIDE,
     GeminiSheetKindClient,
     SheetKindClassifier,
     SheetKindReader,
+    long_side,
 )
 from app.adapters.triage.siglip import SiglipClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
@@ -92,8 +108,9 @@ from app.core.answering.ports import (
 )
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
+from app.core.evidence.pictures import EvidenceSteps
 from app.core.ingest.model import ProjectStatus
-from app.core.ingest.ports import Classifier, ContentProbe, Rectifier
+from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
 from app.core.pipeline.ingest import ingest
@@ -117,6 +134,7 @@ from app.core.review.check import (
     no_disputes,
 )
 from app.core.review.disputes import find_disputes
+from app.core.review.ports import Resolver
 from app.core.spend import SpendGuard
 from app.settings import (
     AnswerPriorName,
@@ -209,7 +227,7 @@ def build_pipeline(
     was."""
     files = DatasetFiles(dataset)
     kind_of = kinds or _probed_kinds(settings, files)
-    use_carbon = _carbon_read(settings, advanced)
+    use_carbon = _carbon_read(settings, advanced, files)
     models = IfcModels(files)
     # A sheet is paired with its building model only when the model route can read it.
     with_models = settings.extractor_bim == "ifc"
@@ -285,11 +303,17 @@ def _carbon_part(spec: str) -> bool:
     return any(source.partition(":")[0] == "carbon" for source in sources)
 
 
+# CARBON_READER=large: on a raster image longer than this on its long side Carbon counts the things
+# drawn (the sheet-kind step's size rule, #251); below it the shipped reader stays (CubiCasa pages)
+LARGE_PX = ADVANCED_LONG_SIDE
+
+
 def _carbon_read(
-    settings: Settings, advanced: Callable[[str], bool] | None
+    settings: Settings, advanced: Callable[[str], bool] | None, files: DrawingFiles
 ) -> Callable[[str], bool] | None:
     """CARBON_READER's choice of the files Carbon reads alone, by path: all of them, the ones the
-    sheet-kind step called advanced (a file without that record: not), or none (None)."""
+    sheet-kind step called advanced (a file without that record: not), the images longer than
+    LARGE_PX (their PNG or JPEG header's size; a PDF or another format: not), or none (None)."""
     match settings.carbon_reader:
         case "off":
             return None
@@ -297,6 +321,8 @@ def _carbon_read(
             return lambda _: True
         case "advanced":
             return advanced or (lambda _: False)
+        case "large":
+            return cache(lambda path: (long_side(files.read(path)) or 0) > LARGE_PX)
 
 
 def _stored_advanced(store: DiskProjectStore, project_id: str) -> Callable[[str], bool]:
@@ -361,12 +387,7 @@ def _triage(settings: Settings) -> TriageSteps | None:
                 raise InvalidInputError(f"TRIAGE_CLASSIFIER=siglip: {error}") from error
     name = f"classifier={settings.triage_classifier}, "
     if settings.sheet_kind == "carbon":
-        client = GeminiSheetKindClient(
-            settings.gemini_api_key.get_secret_value(),
-            settings.gemini_timeout_s,
-            budget=spend_guard(settings),
-        )
-        reader = SheetKindReader(client, settings.sheet_kind_cache_dir)
+        reader = _sheet_kind_reader(settings)
         classifier: Classifier = SheetKindClassifier(inner, reader, settings.sheet_kind_cut)
         name += f"sheet_kind={settings.sheet_kind}, "  # named only when on: the same keys as before
     elif inner is None:
@@ -375,15 +396,48 @@ def _triage(settings: Settings) -> TriageSteps | None:
         classifier = inner
     name += f"describer={settings.triage_describer}, judge={settings.triage_judge}"
     judge = RulesJudge() if settings.triage_judge == "rules" else None
-    describer = None
-    if settings.triage_describer == "gemini":
-        client = GeminiDescribeClient(
-            settings.gemini_api_key.get_secret_value(),
-            settings.gemini_timeout_s,
-            budget=spend_guard(settings),
-        )
-        describer = GeminiDescriber(client, settings.triage_describer_cache_dir)
+    describer = _describer(settings)
     return TriageSteps(classifier=classifier, describer=describer, judge=judge, name=name)
+
+
+def _sheet_kind_reader(settings: Settings) -> SheetKindReader:
+    """The sheet-kind model of SHEET_KIND and of the evidence step: one cache, one guard."""
+    client = GeminiSheetKindClient(
+        settings.gemini_api_key.get_secret_value(),
+        settings.gemini_timeout_s,
+        budget=spend_guard(settings),
+    )
+    return SheetKindReader(client, settings.sheet_kind_cache_dir)
+
+
+def _describer(settings: Settings) -> Describer | None:
+    """TRIAGE_DESCRIBER, for triage and for the evidence step; None: off."""
+    if settings.triage_describer == "off":
+        return None
+    model, thinking, usd_per_m = DESCRIBERS[settings.triage_describer]
+    if settings.triage_describer == "carbon" and settings.gemini_timeout_s < CARBON_MIN_TIMEOUT_S:
+        raise InvalidInputError(
+            f"TRIAGE_DESCRIBER=carbon needs GEMINI_TIMEOUT_S of {CARBON_MIN_TIMEOUT_S:.0f} s "
+            f"or more: its replies take up to that long (it is {settings.gemini_timeout_s:g})"
+        )
+    client = GeminiDescribeClient(
+        settings.gemini_api_key.get_secret_value(),
+        settings.gemini_timeout_s,
+        model=model,
+        thinking=thinking,
+        budget=spend_guard(settings),
+        usd_per_m=usd_per_m,
+    )
+    return GeminiDescriber(client, settings.triage_describer_cache_dir)
+
+
+def _evidence_steps(settings: Settings) -> EvidenceSteps | None:
+    """EVIDENCE_SCOPE (decision 0012 sources v2): all_non_plan asks every picture triage did not
+    set aside its kind and describes the ones that are not floor plan sheets; set_aside: None."""
+    if settings.evidence_scope == "set_aside":
+        return None
+    kinds = SheetKindPictures(_sheet_kind_reader(settings), settings.sheet_kind_cut)
+    return EvidenceSteps(kinds=kinds, describer=_describer(settings))
 
 
 def _rectifier(name: RectifierName) -> Rectifier:
@@ -423,6 +477,7 @@ class Answering:
     check: CheckPolicy | None = None  # CHECK_POLICY; None: off, no answer asks for a check
     disputes: Disputes = no_disputes  # where a double-check request points
     scorers: Mapping[str, Scorer] = NO_SCORERS  # LOCAL_GATES, by signal name (lower case)
+    resolver: Resolver | None = None  # RESOLVER; None: off
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -449,7 +504,22 @@ def build_answering(settings: Settings) -> Answering:
         ),
         disputes=find_disputes,
         scorers=scorers,
+        resolver=_resolver(settings),
     )
+
+
+def _resolver(settings: Settings) -> Resolver | None:
+    match settings.resolver:
+        case "off":
+            return None
+        case "carbon":
+            client = ResolverClient(
+                settings.gemini_api_key.get_secret_value(),
+                settings.resolver_timeout_s,
+                settings.resolver_model,
+                budget=spend_guard(settings),
+            )
+            return CarbonResolver(client, settings.resolver_cache_dir)
 
 
 def readers(settings: Settings) -> dict[str, str]:
@@ -492,14 +562,16 @@ def uses_keys(settings: Settings) -> bool:
     raster = settings.extractor_raster == "composite" and (keyed or carbon)
     # the describer is built only when triage is on (`_triage`)
     triage = settings.triage_classifier != "off" or settings.sheet_kind != "off"
-    describer = triage and settings.triage_describer == "gemini"
+    describer = triage and settings.triage_describer != "off"
     sheet_kind = settings.sheet_kind != "off"
+    evidence = settings.evidence_scope == "all_non_plan"  # it always makes the kind call
     return (
         raster
         or settings.decisions_confidence
         or settings.decisions_kind
         or describer
         or sheet_kind
+        or evidence
     )
 
 
@@ -594,6 +666,7 @@ def build_ingest(
         new_id=lambda: secrets.token_hex(6),
         triage=triage or _triage(settings),
         evidence=evidence or build_evidence(settings, root),
+        evidence_steps=_evidence_steps(settings),
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service
@@ -655,6 +728,8 @@ def _raster(
                 )
             if use_carbon is None:
                 return shipped
+            if settings.carbon_reader == "large":  # the things drawn from Carbon, rooms not
+                return CarbonThings(shipped, _carbon(settings, files), use_carbon)
             return CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
 
 
