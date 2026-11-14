@@ -165,3 +165,24 @@ def test_the_demo_config_follows_services_models() -> None:
     found = run("config")
     assert found.returncode == 0, found.stderr
     assert "SERVICES_FOLLOW=on" in found.stdout.split()
+
+
+def test_the_demo_config_is_all_on_with_five_measured_worse_off() -> None:
+    """demo/all-on-2 (Bogdan, 2026-11-15 01:44: "switch on all the implemented features", and "None of
+    these" for the five measured worse): triage's rules classifier is on, the fact sheets are stored
+    where the deploy's precompute writes them, and the five stay off."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    assert "TRIAGE_CLASSIFIER=rules" in config
+    assert "IFC_FACTS_CACHE=../data/cache/facts" in config  # the env's data/cache/facts
+    assert "USER_SCALE=true" in config  # #432: a scale the user types
+    assert "SHEET_KIND_SET_ASIDE=false" in config
+    for off in (
+        "SCALE_CARBON_DOORS",
+        "RASTER_TILES",
+        "VECTOR_FALLBACK",
+        "RESOLVER",
+        "DISCIPLINE_PICTURES",
+    ):
+        assert not any(line.startswith(off + "=") for line in config), off
