@@ -2808,6 +2808,8 @@ export interface components {
              * @enum {string}
              */
             decision: "read" | "doubt" | "set_aside";
+            /** Discipline */
+            discipline?: ("architecture" | "structural" | "plumbing" | "heating" | "ventilation" | "electrical" | "fire" | "site" | "other") | null;
             /**
              * Kind
              * @enum {string}

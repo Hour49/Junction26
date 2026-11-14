@@ -41,7 +41,7 @@
           "title": "Value"
         },
         "unit": {
-          "description": "count; m, cm, mm, ft, in; m2, ft2; min, h",
+          "description": "count; m, cm, mm, ft, in; m2, ft2; m3, ft3; pct; min, h",
           "enum": [
             "count",
             "m",
@@ -51,6 +51,9 @@
             "in",
             "m2",
             "ft2",
+            "m3",
+            "ft3",
+            "pct",
             "min",
             "h"
           ],

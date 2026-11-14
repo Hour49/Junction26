@@ -7,6 +7,7 @@ import urllib.request
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 import qa_serve
@@ -83,3 +84,59 @@ def test_the_api_is_passed_to_the_backend_with_its_status_and_body(site: str) ->
         assert json.loads(response.read()) == {
             "path": "/api/projects?name=a.pdf", "got": "%PDF", "type": "application/octet-stream",
         }  # fmt: skip
+
+
+class SlowStream(BaseHTTPRequestHandler):
+    """A chat step stream as the backend sends it: chunked, the last event only after the first was read."""
+
+    protocol_version = "HTTP/1.1"
+    first_read: ClassVar[threading.Event] = (
+        threading.Event()
+    )  # set once the first event reached the test
+    waited_for_the_reader: ClassVar[list[bool]] = []
+
+    def do_POST(self) -> None:
+        self.rfile.read(int(self.headers["Content-Length"]))
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        self._chunk(b'event: turn\ndata: {"turn":1}\n\n')
+        # a proxy that reads the whole reply first never lets the reader see the first event: this runs out
+        self.waited_for_the_reader.append(self.first_read.wait(timeout=5))
+        self._chunk(b'event: answer\ndata: {"text":"2 doors"}\n\n')
+        self.wfile.write(b"0\r\n\r\n")
+
+    def _chunk(self, data: bytes) -> None:
+        self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
+        self.wfile.flush()
+
+    def log_message(self, *args: object) -> None:
+        pass
+
+
+def test_an_event_stream_is_passed_on_as_it_arrives_not_when_it_ends(tmp_path: Path) -> None:
+    (tmp_path / "index.html").write_text("<p>app</p>")
+    SlowStream.first_read.clear()
+    SlowStream.waited_for_the_reader.clear()
+    for backend_url in _serve(ThreadingHTTPServer(("127.0.0.1", 0), SlowStream)):
+        front = qa_serve.server(tmp_path, 0, backend_url)
+        front.RequestHandlerClass.log_message = lambda *args: None  # type: ignore[method-assign]
+        for site_url in _serve(front):
+            request = urllib.request.Request(
+                f"{site_url}/api/projects/p1/chat/stream", data=b'{"message":"doors?"}', method="POST",
+                headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+            )  # fmt: skip
+            with urllib.request.urlopen(request, timeout=30) as response:
+                assert response.status == 200
+                assert response.headers["Content-Type"] == "text/event-stream; charset=utf-8"
+                assert response.headers["Cache-Control"] == "no-cache"
+                first = response.readline() + response.readline() + response.readline()
+                SlowStream.first_read.set()
+                rest = response.read()
+    assert first == b'event: turn\ndata: {"turn":1}\n\n'
+    assert rest == b'event: answer\ndata: {"text":"2 doors"}\n\n'
+    assert SlowStream.waited_for_the_reader == [
+        True
+    ]  # the first event was out before the last was sent
