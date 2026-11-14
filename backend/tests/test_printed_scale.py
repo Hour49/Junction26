@@ -25,7 +25,7 @@ from app.core.pipeline.printed import (
     ratio_of,
     trusted_dpi,
 )
-from app.core.pipeline.raster_scale import DOOR_M
+from app.core.pipeline.raster_scale import BOX_RATIO, DOOR_M
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, second_count
 from app.core.pipeline.takeoff import take_off
@@ -199,6 +199,24 @@ def test_the_printed_bar_replaces_the_door_estimate_and_measures_the_rooms_again
     side = take_off(drawing, apply_rules(drawing.marks_by_quantity()))["length:room:bedroom"]
     assert side.value == pytest.approx(200 * 0.02)  # within 2x: a length at the bar is not flagged
     assert side.estimate is None
+
+
+def test_label_boxes_a_label_boxed_as_its_room_gets_no_area_at_the_printed_scale() -> None:
+    """pipe-label-boxes: the printed scale made "LOBBY 0.18 m²" read as exact."""
+    inner = Fixed(side_px=DOOR_M / 0.02)
+    hall = Room(id="r2", type="living", page=1, box=(0.2, 0.1, 0.3, 0.25))  # 4 x 3 m at 0.02
+    lobby = Room(id="r3", type="other", label="LOBBY", page=1, box=(0.12, 0.32, 0.16, 0.335))
+    inner.found = inner.found.model_copy(update={"rooms": (*inner.found.rooms, hall, lobby)})
+    found = read(inner, PrintedSheet(printed_scale="1:200", bars=(BAR,)))
+    assert found.scale.status == "scaled"
+    _, hall_read, lobby_read = found.rooms
+    assert hall_read.area_m2 == pytest.approx(4 * 3 / BOX_RATIO, abs=0.01)
+    assert lobby_read.area_m2 is None and lobby_read.label == "LOBBY"
+    said = [note for note in found.notes if note.startswith("room area:")]
+    assert said == [  # once, at the printed scale (the estimate's note is replaced)
+        "room area: r3 not measured, its box is 0.30 m across, narrower than a door (0.7 m): it "
+        "boxes the label, not the room"
+    ]
 
 
 def test_a_printed_ratio_wins_over_the_door_estimate_too(tmp_path: Path) -> None:

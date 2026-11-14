@@ -25,6 +25,7 @@ from app.core.pipeline.raster_scale import (
     SPREAD_MANY,
     door_sides,
     estimate_scale,
+    refused_boxes,
     rooms_with_areas,
 )
 from app.settings import Settings
@@ -71,7 +72,7 @@ def test_a_rooms_box_area_is_corrected_to_its_outline_and_marked_estimated() -> 
     outlined = Room(id="r2", type="bedroom", page=1, box=(0.0, 0.0, 0.2, 0.4), polygon=square)
     printed = Room(id="r3", type="wc", page=1, box=(0.5, 0.5, 0.6, 0.6), area_m2=1.5)
 
-    got = rooms_with_areas([box, outlined, printed], scale, [PAGE])
+    got, notes = rooms_with_areas([box, outlined, printed], scale, [PAGE])
 
     assert got[0].area_m2 == pytest.approx(round(400 * 250 * 0.01**2 / BOX_RATIO, 2))
     assert got[1].area_m2 == pytest.approx(4.0)
@@ -79,6 +80,39 @@ def test_a_rooms_box_area_is_corrected_to_its_outline_and_marked_estimated() -> 
     # the scale's spread counts twice for an area, with the outline's on top
     assert got[0].area_uncertainty is not None and got[0].area_uncertainty > math.expm1(0.2)
     assert got[2] == printed
+    assert notes == []
+
+
+def test_label_boxes_a_box_narrower_than_a_door_gets_no_area_and_a_note() -> None:
+    """pipe-label-boxes: "LOBBY 0.18 m²" on a 7.4 m² floor, the reader boxed the label."""
+    scale = Scale(status="scaled", m_per_unit=0.01, evidence=("scale_bar",))  # page 10 x 5 m
+    room = Room(id="r1", type="living", page=1, box=(0.0, 0.0, 0.4, 0.6))  # 4 x 3 m
+    label = Room(id="r2", type="other", label="LOBBY", page=1, box=(0.45, 0.0, 0.6, 0.06))
+    outlined = Room(id="r3", type="wc", page=1, box=(0.45, 0.1, 0.5, 0.2),
+                    polygon=((0.45, 0.1), (0.5, 0.1), (0.5, 0.2), (0.45, 0.2)))  # fmt: skip
+    got, notes = rooms_with_areas([room, label, outlined], scale, [PAGE])
+    assert got[0].area_m2 is not None and got[2].area_m2 is not None  # an outline is measured
+    assert got[1] == label  # stays, its area unknown: never a smaller number
+    assert notes == [
+        "room area: r2 not measured, its box is 0.30 m across, narrower than a door (0.7 m): it "
+        "boxes the label, not the room"
+    ]
+
+
+def test_label_boxes_scattered_boxes_that_cover_little_of_their_plan_get_no_area() -> None:
+    scale = Scale(status="scaled", m_per_unit=0.01, evidence=("scale_bar",))
+    corners = [(0.0, 0.0), (0.9, 0.0), (0.0, 0.8), (0.9, 0.8)]  # 1 x 1 m boxes: 8% of the plan
+    labels = [Room(id=f"r{i}", type="other", page=1, box=(x, y, x + 0.1, y + 0.2))
+              for i, (x, y) in enumerate(corners)]  # fmt: skip
+    refused = refused_boxes(labels, scale, [PAGE])
+    assert list(refused) == ["r0", "r1", "r2", "r3"]
+    assert "cover 8% of the area around them" in refused["r0"]
+    # two rooms far apart say nothing about coverage; boxes that tile the page are rooms
+    assert refused_boxes(labels[:2], scale, [PAGE]) == {}
+    tiled = [Room(id=f"t{i}", type="other", page=1, box=(0.25 * i, 0.0, 0.25 * (i + 1), 1.0))
+             for i in range(4)]  # fmt: skip
+    assert refused_boxes(tiled, scale, [PAGE]) == {}
+    assert refused_boxes(labels, Scale(status="no_scale"), [PAGE]) == {}
 
 
 def test_the_wrapper_estimates_only_a_missing_scale_and_only_when_doors_were_read() -> None:

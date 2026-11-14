@@ -28,10 +28,11 @@ class PriorScale:
         if scale is None:
             note = "scale estimate: not made, no door was detected"
             return found.model_copy(update={"notes": (*found.notes, note)})
+        rooms, refused = rooms_with_areas(found.rooms, scale, sheet.pages)
         return found.model_copy(
             update={
                 "scale": scale,
-                "rooms": tuple(rooms_with_areas(found.rooms, scale, sheet.pages)),
-                "notes": (*found.notes, f"scale estimate: {scale.source}"),
+                "rooms": tuple(rooms),
+                "notes": (*found.notes, f"scale estimate: {scale.source}", *refused),
             }
         )
