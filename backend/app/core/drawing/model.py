@@ -24,6 +24,14 @@ RoomType = Literal[
     "bedroom", "kitchen", "bathroom", "wc", "sauna", "balcony", "living", "hall", "storage",
     "outdoor", "shaft", "other",
 ]  # fmt: skip
+
+
+def words(kind: str) -> str:
+    """An element class, room type or combined count as a person reads it: "sauna_stove" is
+    "sauna stove", "shower+bathtub" is "shower and bathtub"."""
+    return kind.replace("_", " ").replace("+", " and ")
+
+
 ScaleStatus = Literal["scaled", "no_scale", "not_to_scale", "estimated"]
 ScaleEvidence = Literal[
     "scale_text", "scale_bar", "printed_areas", "dimension_lines", "not_to_scale_note"

@@ -188,7 +188,7 @@ def test_a_row_carries_its_parsed_scope(client: TestClient, drawing_id: str) -> 
     takeoff = client.get(f"/api/drawings/{drawing_id}/takeoff").json()
     found = row(takeoff, "area:room|name=küche")
     assert (found["measure"], found["subject"], found["label"]) == (
-        "area", "room", "area of room (name küche)",
+        "area", "room", "area of room (name Küche)",
     )  # fmt: skip
     assert found["scope"]["name"] == "küche"
 

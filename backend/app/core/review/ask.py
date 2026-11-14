@@ -30,7 +30,7 @@ from app.core.answering.model import (
 )
 from app.core.answering.ports import AnswerConfidence, AnswerPrior, Clock, QuestionParser
 from app.core.answering.tables import answer_table
-from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table
+from app.core.drawing.model import ELEMENT_CLASSES, Drawing, Room, Table, words
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Quantity
@@ -57,7 +57,7 @@ SUGGESTIONS = 6
 NO_SUBJECT = "no element, room or apartment named"
 NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
 # Plurals plain English rules don't give (a kind's id is not always the word a person uses)
-PLURALS = {"sauna_stove": "sauna stoves", "living": "living rooms"}
+PLURALS = {"living": "living rooms"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
 ROOM_NUMBER = re.compile(r"U?\d+\.\d+")  # a room number the parser reads without quotes
@@ -277,6 +277,7 @@ def plural(kind: str) -> str:
     """The English plural of a kind of element or room ("balcony" → "balconies")."""
     if kind in PLURALS:
         return PLURALS[kind]
+    kind = words(kind)
     if kind.endswith("y") and kind[-2:-1] not in ("a", "e", "i", "o", "u"):
         return f"{kind[:-1]}ies"
     if kind.endswith(("s", "x", "z", "ch", "sh")):
@@ -328,8 +329,8 @@ def _unknown_subject(reason: str) -> str | None:
         )
     if found := NO_QUANTITY.fullmatch(reason):
         measure, subject = found.groups()
-        kind = subject.split(":", 1)[-1].replace("_", " ")
-        things = PLURALS.get(kind, kind if kind.endswith("s") else f"{kind}s")
+        kind = subject.split(":", 1)[-1]
+        things = plural(kind) if not kind.endswith("s") else words(kind)
         return f"The takeoff has no {measure} for {things}. Try one of these instead."
     return None
 
@@ -366,6 +367,6 @@ def _refusal(
         return (
             "not-read",
             f"The reader of this drawing doesn't look for {', '.join(missing)}, so it has no "
-            f"{label(query)}.",
+            f"{label(query, drawing)}.",
         )
-    return "not-in-drawing", f"This drawing doesn't give the {label(query)}."
+    return "not-in-drawing", f"This drawing doesn't give the {label(query, drawing)}."

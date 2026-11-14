@@ -18,6 +18,7 @@ from app.core.drawing.model import (
 )
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import Quantity, QuantityConflict
+from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import Asked, ask, suggestions
 from app.core.review.model import Edit, MethodValue, ReviewState
 from app.core.review.review import (
@@ -498,3 +499,30 @@ def test_a_printed_label_with_digits_names_its_room_only_as_printed() -> None:
         assert asked(text, scaled(mh1, mh2)).answer.answer is None, text
     twice = Room(id="r3", type="bedroom", label="MH1", page=1, box=BOX_B, area_m2=9.0)
     assert asked("What is the area of the MH1?", scaled(mh1, twice)).answer.answer is None
+
+
+def test_what_the_user_reads_names_element_classes_in_words() -> None:
+    """R3-qa-5-3: on colorful-444 the sauna card showed the left-out stove as "sauna_stove" and
+    a quantity "sauna_stove count": a class key, not words."""
+    sauna = Room(id="r1", type="sauna", label="S", page=1, box=BOX_A, area_m2=5.55)
+    stove = Element.model_validate(
+        {"id": "e1", "class": "sauna_stove", "page": 1, "box": BOX_B, "attrs": {}}
+    )
+    drawing = Drawing(
+        file="x.pdf", pages=(PAGE,), scale=Scale(status="scaled"), rooms=(sauna,),
+        elements=(stove,),
+    )  # fmt: skip
+    found = asked("How many saunas are there?", drawing)
+    assert found.row is not None
+    assert [mark.label for mark in found.row.marks] == ["S", "sauna stove"]
+    assert label("sauna_stove") == "sauna stove count"
+    assert label("shower+bathtub") == "shower and bathtub count"
+    for key in known_quantities(drawing):
+        assert "_" not in label(key) and "+" not in label(key), key
+
+
+def test_a_room_s_name_in_the_card_title_is_as_printed() -> None:
+    """R3 (F5): "What is the area of the MH1?" was titled "area of room (name mh1)"."""
+    mh1 = Room(id="r1", type="bedroom", label="MH1", page=1, box=BOX_A, area_m2=11.5)
+    found = asked("What is the area of the MH1?", scaled(mh1))
+    assert found.row is not None and found.row.label == "area of room (name MH1)"

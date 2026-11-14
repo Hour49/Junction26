@@ -9,7 +9,7 @@ wording, the text says so.
 
 from collections.abc import Mapping
 
-from app.core.drawing.model import ElementClass, Mark, QuantityKey
+from app.core.drawing.model import ElementClass, Mark, QuantityKey, words
 from app.core.model import Frozen
 from app.core.pipeline.model import Counted, CountingRule, Measure
 
@@ -79,7 +79,7 @@ ROOM_SIDE = CountingRule(
 
 
 # The parts of a fallback count in plain words, as the reason an item is left out says them
-PLAIN = {"room:sauna": "sauna rooms", "sauna_stove": "sauna stoves"}
+PLAIN = {"room:sauna": "sauna rooms", "sauna_stove": f"{words('sauna_stove')}s"}
 
 
 class Combined(Frozen):
