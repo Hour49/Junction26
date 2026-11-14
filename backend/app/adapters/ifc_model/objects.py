@@ -15,6 +15,8 @@ What is read, and the definitions the dataset's answers follow (reviews 5 and 6)
   is contained in. The storey's name is how questions and sheets refer to it.
 - Parts: the objects an object is decomposed into (the layers of a wall, the flights of a
   stair). A sheet may draw the parts and not the object.
+- A space's windows: the model's windows that belong to it, drawn on a sheet or not
+  (windows.py), for a check that asks whether a room has one.
 - A wall's and a slab's quantities are the file's own (its Qto sets), in metres: a wall's
   Length, NetSideArea and NetVolume, a slab's NetVolume. They are the exporter's numbers, not
   measured from geometry, and they are what the dataset's sums add up. An object without a
@@ -39,6 +41,7 @@ import ifcopenshell.util.unit
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
+from app.adapters.ifc_model.windows import Solid, windows_of_spaces
 from app.core.drawing.model import ElementClass, QuantityKey
 from app.core.errors import InvalidInputError
 
@@ -75,6 +78,8 @@ class IfcObject:
     name: str | None
     long_name: str | None
     quantities: Mapping[QuantityKey, float]  # in metres, m2 or m3
+    # A space: the GlobalIds of the model's windows that belong to it; None: not known
+    windows: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -120,12 +125,25 @@ def _model(file: Any) -> Model:
             }
             found.append(_object(entity, quantities))
         elements[class_] = tuple(found)
-    spaces: list[IfcObject] = []
     settings = ifcopenshell.geom.settings()
     settings.set("use-world-coords", True)
+    solids = {
+        entity.GlobalId: solid
+        for entity in file.by_type("IfcSpace")
+        if (solid := _solid(entity, settings)) is not None
+    }
+    windows = windows_of_spaces(file, solids, scales["LENGTHUNIT"])
+    spaces: list[IfcObject] = []
     for entity in file.by_type("IfcSpace"):
-        area = _footprint(entity, settings)
-        spaces.append(_object(entity, {} if area is None else {"area_m2": round(area, 4)}))
+        solid = solids.get(entity.GlobalId)
+        area = None if solid is None else solid.footprint.area or None
+        spaces.append(
+            _object(
+                entity,
+                {} if area is None else {"area_m2": round(area, 4)},
+                windows.get(entity.GlobalId),
+            )
+        )
     storeys = tuple(storey.Name for storey in file.by_type("IfcBuildingStorey") if storey.Name)
     return Model(storeys=storeys, elements=elements, spaces=tuple(spaces))
 
@@ -154,10 +172,10 @@ def _stated(entity: Any) -> dict[str, float]:
     }
 
 
-def _footprint(space: Any, settings: Any) -> float | None:
-    """The floor area a space's solid covers, in m2: its triangles laid flat, each spot counted
-    once (a space under a stair has its floor in steps). ifcopenshell gives the solid in metres
-    whatever the file's unit. None: the space has no solid."""
+def _solid(space: Any, settings: Any) -> Solid | None:
+    """A space's solid: the floor it covers (its triangles laid flat, each spot counted once: a
+    space under a stair has its floor in steps) and its lowest and highest point. ifcopenshell
+    gives the solid in metres whatever the file's unit. None: the space has no solid."""
     try:
         shape: Any = ifcopenshell.geom.create_shape(settings, space)
     except RuntimeError:  # no representation, or one the geometry kernel cannot build
@@ -168,10 +186,15 @@ def _footprint(space: Any, settings: Any) -> float | None:
         Polygon([corners[a], corners[b], corners[c]])
         for a, b, c in zip(solid.faces[0::3], solid.faces[1::3], solid.faces[2::3], strict=True)
     )
-    return unary_union([triangle for triangle in triangles if triangle.area > FLAT]).area or None
+    footprint = unary_union([triangle for triangle in triangles if triangle.area > FLAT])
+    return Solid(footprint, min(solid.verts[2::3]), max(solid.verts[2::3]))
 
 
-def _object(entity: Any, quantities: Mapping[QuantityKey, float]) -> IfcObject:
+def _object(
+    entity: Any,
+    quantities: Mapping[QuantityKey, float],
+    windows: tuple[str, ...] | None = None,
+) -> IfcObject:
     storey = _storey(entity)
     return IfcObject(
         guid=entity.GlobalId,
@@ -181,6 +204,7 @@ def _object(entity: Any, quantities: Mapping[QuantityKey, float]) -> IfcObject:
         name=entity.Name,
         long_name=getattr(entity, "LongName", None),
         quantities=quantities,
+        windows=windows,
     )
 
 

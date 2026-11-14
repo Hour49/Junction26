@@ -276,6 +276,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/files/{file_id}/relevance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Relevance
+         * @description A person says whether a file triage set aside belongs to the project, or takes that back
+         *     (`undo`; with no call made, nothing changes). The file stays set aside either way: a call
+         *     is no reading. 409 until the project is done; 422 `no-description` for a file triage did
+         *     not describe.
+         */
+        post: operations["relevance_api_projects__project_id__files__file_id__relevance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/files/{file_id}/trace": {
         parameters: {
             query?: never;
@@ -594,6 +617,30 @@ export interface components {
             value: number;
         };
         /**
+         * Description
+         * @description Step 2, for a file that is not a floor plan: what the picture shows, in words.
+         */
+        Description: {
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number;
+            /** Language */
+            language?: string | null;
+            /** Model */
+            model: string;
+            /** Subject */
+            subject: string;
+            /** Text */
+            text: string;
+            /**
+             * Text Seen
+             * @default []
+             */
+            text_seen: string[];
+        };
+        /**
          * Disputed
          * @description One place to double-check, as the answer gives it.
          */
@@ -761,6 +808,7 @@ export interface components {
             takeoff?: {
                 [key: string]: number;
             };
+            triage?: components["schemas"]["Triage"] | null;
         };
         /** FileTrace */
         FileTrace: {
@@ -1009,6 +1057,21 @@ export interface components {
             /** Width */
             width: number;
         };
+        /**
+         * Overrule
+         * @description A person's call on a file's relevance; the judge's own verdict stays as it was.
+         */
+        Overrule: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "related" | "unrelated";
+        };
         /** PageView */
         PageView: {
             /** Height */
@@ -1103,6 +1166,8 @@ export interface components {
             issues_open?: number | null;
             /** Name */
             name: string;
+            /** Not Plans */
+            not_plans?: number | null;
             /**
              * State
              * @enum {string}
@@ -1156,6 +1221,8 @@ export interface components {
             ms: number;
             /** Name */
             name: string;
+            /** Not Plans */
+            not_plans?: number | null;
             /** Readers */
             readers?: {
                 [key: string]: string;
@@ -1240,6 +1307,47 @@ export interface components {
             code: "unsupported-question" | "not-in-drawing" | "not-read" | "no-reader" | "no-scale" | "no-drawing";
             /** Text */
             text: string;
+        };
+        /**
+         * Relevance
+         * @description Step 3, once the project's plans are read: does the described file belong to it.
+         */
+        Relevance: {
+            /** Judge */
+            judge: string;
+            /**
+             * Matched On
+             * @default []
+             */
+            matched_on: string[];
+            /**
+             * Plans
+             * @default []
+             */
+            plans: string[];
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "related" | "unrelated" | "unsure";
+            /** Why */
+            why: string;
+        };
+        /**
+         * RelevanceRequest
+         * @description A person's call on a triaged file's relevance (decision 0010). `by` as a sign-off's;
+         *     `undo` takes the call back and, like unsettle, needs nothing else.
+         */
+        RelevanceRequest: {
+            /** By */
+            by?: string | null;
+            /**
+             * Undo
+             * @default false
+             */
+            undo: boolean;
+            /** Verdict */
+            verdict?: ("related" | "unrelated") | null;
         };
         /** Rendering */
         Rendering: {
@@ -1531,6 +1639,29 @@ export interface components {
             quantities: components["schemas"]["Row"][];
             /** Review Queue */
             review_queue: string[];
+        };
+        /**
+         * Triage
+         * @description FileStatus.triage: what triage made of an image file (decision 0010). Build a changed one
+         *     with `model_validate`, not `model_copy`, so `verdict` follows `overruled` and `relevance`.
+         */
+        Triage: {
+            /**
+             * Class
+             * @enum {string}
+             */
+            class: "floor_plan" | "other_drawing" | "not_drawing";
+            description?: components["schemas"]["Description"] | null;
+            /** Method */
+            method: string;
+            /** Note */
+            note?: string | null;
+            overruled?: components["schemas"]["Overrule"] | null;
+            /** P Plan */
+            p_plan: number;
+            relevance?: components["schemas"]["Relevance"] | null;
+            /** Verdict */
+            verdict?: ("related" | "unrelated" | "unsure") | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2068,6 +2199,42 @@ export interface operations {
                 };
                 content: {
                     "image/png": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    relevance_api_projects__project_id__files__file_id__relevance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelevanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileStatus"];
                 };
             };
             /** @description Validation Error */

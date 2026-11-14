@@ -62,6 +62,7 @@ from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
+from app.adapters.triage.rules import RulesClassifier
 from app.adapters.vector_pdf import PdfSecondCounter, PdfVectorExtractor
 from app.core.answering.answer import answer_questions
 from app.core.answering.model import Question
@@ -76,6 +77,7 @@ from app.core.answering.ports import (
 from app.core.errors import DomainError, InvalidInputError
 from app.core.ingest.ports import ContentProbe, Rectifier
 from app.core.ingest.service import IngestService
+from app.core.ingest.triage import TriageSteps
 from app.core.pipeline.ingest import ingest
 from app.core.pipeline.model import IngestReport, Route
 from app.core.pipeline.ports import (
@@ -250,6 +252,20 @@ def _probe(settings: Settings) -> ContentProbe:
     return KindProbe(FileProbe(), KindReader(client, settings.decisions_cache_dir))
 
 
+def _triage(settings: Settings) -> TriageSteps | None:
+    """File triage (decision 0010); None when the classifier is off, whatever else is set."""
+    match settings.triage_classifier:
+        case "off":
+            return None
+        case "rules":
+            classifier = RulesClassifier()
+    name = (
+        f"classifier={settings.triage_classifier}, describer={settings.triage_describer}, "
+        f"judge={settings.triage_judge}"
+    )
+    return TriageSteps(classifier=classifier, describer=None, judge=None, name=name)
+
+
 def _rectifier(name: RectifierName) -> Rectifier:
     match name:
         case "none":
@@ -346,11 +362,18 @@ def uses_keys(settings: Settings) -> bool:
     return raster or settings.decisions_confidence or settings.decisions_kind
 
 
-def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> IngestService:
+def build_ingest(
+    settings: Settings,
+    root: Path,
+    *,
+    background: bool = True,
+    triage: TriageSteps | None = None,
+) -> IngestService:
     """Project ingest over the projects folder `root` (data/projects/). `background` False runs
     each upload inside `start` (CLI, tests). The readers' names are part of the cache key, so a
     changed reader ingests a file again. Reader settings that do not build raise here, so the
-    app fails at startup instead of setting every upload aside."""
+    app fails at startup instead of setting every upload aside. `triage`: file triage's ports,
+    instead of the settings' (tests)."""
     build_pipeline(settings, root)
     store = DiskProjectStore(root)
     names = {
@@ -386,6 +409,7 @@ def build_ingest(settings: Settings, root: Path, *, background: bool = True) -> 
         clock=time.perf_counter,
         now=lambda: datetime.now(UTC).isoformat(timespec="seconds"),
         new_id=lambda: secrets.token_hex(6),
+        triage=triage or _triage(settings),
     )
     service.recover()  # a project a restart cut off is marked failed, not left running
     return service

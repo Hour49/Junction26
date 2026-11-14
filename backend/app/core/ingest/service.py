@@ -13,11 +13,10 @@ import threading
 from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
-from pathlib import PurePosixPath
 
 from app.core import cost
 from app.core.drawing.model import Drawing
-from app.core.errors import DomainError, InvalidInputError, NotFoundError
+from app.core.errors import DomainError, InvalidInputError, NoDescriptionError, NotFoundError
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
@@ -26,13 +25,17 @@ from app.core.ingest.model import (
     DrawingInfo,
     Entry,
     FileState,
+    FileStatus,
     FileTrace,
     LaterPage,
     Normalised,
+    Overrule,
     Probed,
     ProjectState,
     ProjectStatus,
     SheetFile,
+    Unavailable,
+    page_path,
 )
 from app.core.ingest.ports import (
     Clock,
@@ -47,8 +50,24 @@ from app.core.ingest.ports import (
     Unpacker,
 )
 from app.core.ingest.progress import Run
+from app.core.ingest.triage import (
+    NOTE_FAILED,
+    NOTE_JUDGE_FAILED,
+    NOTE_NO_JUDGE,
+    NOTE_RUNNING,
+    Triaged,
+    TriageSteps,
+    context_of,
+    judged,
+    kind_after,
+    overruled,
+    relevance_of,
+    set_aside_reason,
+    triaged,
+)
 from app.core.pipeline.identify import sniff
 from app.core.pipeline.model import DrawingFile
+from app.core.review.review import NotAllowedError
 from app.core.wording import kind_words
 
 logger = logging.getLogger(__name__)
@@ -76,14 +95,18 @@ class IngestService:
         clock: Clock,
         now: Now,
         new_id: NewId,
+        triage: TriageSteps | None = None,
     ) -> None:
         """`readers(project_id)`: the pipeline's ports over that project's files.
         `reader_names`: which adapter reads each route, shown in the status and part of the
-        cache key, so changing a reader re-ingests."""
+        cache key, so changing a reader re-ingests. `triage`: file triage (decision 0010); None
+        is off, ingest as before it existed. It is shown in the status but is not part of the
+        cache key: it decides which files are read, not how a plan is read."""
         self._unpacker, self._probe, self._frame, self._store = unpacker, probe, frame, store
         self._rectifier = rectifier
         self._readers, self._names = readers, dict(reader_names)
         self._runner, self._clock, self._now, self._new_id = runner, clock, now, new_id
+        self._triage = triage
         self._lock = threading.Lock()
         self._live: dict[str, Run] = {}
 
@@ -99,7 +122,7 @@ class IngestService:
             name=name,
             state="queued",
             created_at=self._now(),
-            readers=self._names,
+            readers={**self._names, **self._shown()},
         )
         run = Run(status, fresh)
         with self._lock:
@@ -209,6 +232,31 @@ class IngestService:
             marked.append(project_id)
         return marked
 
+    def overrule(self, project_id: str, file_id: str, overrule: Overrule | None) -> FileStatus:
+        """A person's call on a triaged file's relevance (decision 0010), kept in the project's
+        status so every view of the file shows it; None takes it back. Only in a finished
+        project, and only for a file that was described (one the judge could look at)."""
+        with self._lock:
+            if project_id in self._live:
+                raise NotAllowedError(f"project {project_id} is still being ingested")
+            status, traces = self._store.load_project(project_id)
+            if status.state != "done":
+                raise NotAllowedError(f"project {project_id} is {status.state}, not done")
+            if file_id not in traces:
+                raise NotFoundError(f"project {project_id} has no file {file_id}")
+            file = traces[file_id].file
+            if overrule is None and (file.triage is None or file.triage.overruled is None):
+                return file  # nothing to take back: unchanged
+            if file.triage is None or file.triage.description is None:
+                raise NoDescriptionError(
+                    f"file {file_id} was not described, so there is nothing to overrule"
+                )
+            changed = file.model_copy(update={"triage": overruled(file.triage, overrule)})
+            files = tuple(changed if found.id == file_id else found for found in status.files)
+            traces[file_id] = traces[file_id].model_copy(update={"file": changed})
+            self._store.save_project(status.model_copy(update={"files": files}), traces)
+        return changed
+
     def close(self) -> None:
         self._runner.close()
 
@@ -234,6 +282,7 @@ class IngestService:
         if error is not None:
             for path in run.unfinished():
                 run.finish(path, "set_aside", f"not ingested: {error}")
+        self._judge(run, failed=error is not None)
         ms = (self._clock() - started) * 1000
         run.set_project(state=state, error=error, ms=ms, finished_at=self._now())
         self._save(run)
@@ -250,7 +299,7 @@ class IngestService:
         first_of: dict[str, str] = {}  # sha256 -> the first path with that content
         entries = self._unpacker.entries(name, data)
         # Probed ahead in a bounded window, identified in upload order.
-        probing: deque[tuple[str, bytes, Future[tuple[Probed, float, float]]]] = deque()
+        probing: deque[tuple[str, bytes, Future[tuple[Probed, float, float, Triaged]]]] = deque()
 
         def identify_next() -> None:
             path, read, probed = probing.popleft()
@@ -301,8 +350,7 @@ class IngestService:
         """A later drawn page of the PDF at `path`, unpacked as a file of its own
         (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload."""
         started = self._clock()
-        at = PurePosixPath(path)
-        named = str(at.with_name(f"{at.stem}#p{page.number}.pdf"))
+        named = page_path(path, page.number)
         if run.has(named):
             run.add(Entry(path=named, size=len(page.data), refused="a second file at a path"))
             run.stage(named, "unpack", "refused", 0.0, failure="a second file at a path")
@@ -312,24 +360,28 @@ class IngestService:
         self._store.put_file(run.id, named, page.data)
         run.stage(named, "unpack", f"page {page.number} of {path}, as a PDF of its own",
                   self._ms(started), output=named)  # fmt: skip
-        probed: Future[tuple[Probed, float, float]] = Future()
+        probed: Future[tuple[Probed, float, float, Triaged]] = Future()
         probed.set_result(self._probed(page.data))
         found = self._identify(run, named, page.data, probed, first_of, frames)
         if found is not None:
             drawings[named] = found
 
-    def _probed(self, data: bytes) -> tuple[Probed, float, float]:
-        """Stage 3's probe, its time and the model calls it paid for, on a probing thread."""
+    def _probed(self, data: bytes) -> tuple[Probed, float, float, Triaged]:
+        """Stage 3's probe, then triage's classifier and describer (decision 0010), their time
+        and the model calls they paid for, on a probing thread."""
         started, spent = self._clock(), cost.spent()
         probed = self._probe.probe(data)
-        return probed, self._ms(started), cost.spent() - spent
+        found = Triaged(None, "")
+        if self._triage is not None:
+            found = triaged(self._triage, data, probed, sniff(data))
+        return probed, self._ms(started), cost.spent() - spent, found
 
     def _identify(
         self,
         run: Run,
         path: str,
         data: bytes,
-        probing: Future[tuple[Probed, float, float]],
+        probing: Future[tuple[Probed, float, float, Triaged]],
         first_of: dict[str, str],
         frames: dict[str, Normalised],
     ) -> DrawingFile | None:
@@ -341,9 +393,11 @@ class IngestService:
         run.set(path, sha256=sha256)
         started = self._clock()
         try:
-            probed, identified, paid = probing.result()
+            probed, identified, paid, found = probing.result()
+            probed = kind_after(probed, found.triage, sniff(data))
+            not_plan = found.triage is not None and found.triage.class_ != "floor_plan"
             framed = None
-            if probed.kind in IMAGE_KINDS:  # timed as the normalise stage, which it is
+            if probed.kind in IMAGE_KINDS and not not_plan:  # timed as the normalise stage
                 framing = self._clock()
                 framed = self._upright(data, probed.kind)
                 run.frame_ms[path] = self._ms(framing)
@@ -361,12 +415,13 @@ class IngestService:
                 self._store.put_upload(run.id, path, data)
                 self._store.put_file(run.id, path, upright)
                 data = upright
-        run.stage(
-            path, "identify", probed.did, identified, output=kind_words(probed.kind), cost_usd=paid
-        )
-        run.set(path, kind=probed.kind)
+        did = f"{probed.did}; {found.said}" if found.said else probed.did
+        run.stage(path, "identify", did, identified, output=kind_words(probed.kind), cost_usd=paid)
+        run.set(path, kind=probed.kind, triage=found.triage)
         run.kinds[path] = probed.kind
-        if probed.kind in TEXT_KINDS:
+        if found.triage is not None and not_plan:  # kept, described, not read (decision 0010)
+            run.finish(path, "set_aside", set_aside_reason(found.triage))
+        elif probed.kind in TEXT_KINDS:
             run.finish(path, "text_only", probed.did)
         elif probed.kind not in DRAWING_KINDS or file_format is None:
             run.finish(path, "set_aside", probed.did)
@@ -393,6 +448,48 @@ class IngestService:
                 "rectifier": found.method,
             }
         )
+
+    def _judge(self, run: Run, failed: bool) -> None:
+        """Triage step 3, once every file is finished: each described file judged against the
+        project's plans, names and other descriptions. A file that can't be judged gets a note
+        saying why; nothing stops the project. `failed`: the run failed, so nothing is judged."""
+        if self._triage is None:
+            return
+        files = run.status().files
+        waiting = [
+            file for file in files if file.triage is not None and file.triage.note == NOTE_RUNNING
+        ]
+        judge = self._triage.judge
+        if failed or judge is None:
+            for file in waiting:
+                assert file.triage is not None
+                note = NOTE_FAILED if failed else NOTE_NO_JUDGE
+                run.set(file.path, triage=judged(file.triage, None, note))
+            return
+        drawings = {
+            file.drawing_id: self._store.drawing(file.drawing_id)
+            for file in files
+            if file.drawing_id is not None
+        }
+        context = context_of(files, drawings)
+        for file in waiting:
+            assert file.triage is not None and file.triage.description is not None
+            spent = cost.spent()
+            try:
+                found = relevance_of(judge, file.triage.description, context)
+            except Exception:  # one file's judging must not stop the project
+                logger.warning("judging the relevance of %s failed", file.path, exc_info=True)
+                run.set(file.path, triage=judged(file.triage, None, NOTE_JUDGE_FAILED))
+                continue
+            paid = cost.spent() - spent  # counted in the file's and the project's cost
+            if isinstance(found, Unavailable):
+                triage = judged(file.triage, None, f"not judged: {found.note}")
+            else:
+                triage = judged(file.triage, found, None)
+            run.set(file.path, triage=triage, cost_usd=file.cost_usd + paid)
+
+    def _shown(self) -> dict[str, str]:
+        return {} if self._triage is None else {"triage": self._triage.name}
 
     # ---------------------------------------------------------------- helpers
 

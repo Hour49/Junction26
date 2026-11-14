@@ -23,6 +23,11 @@ RasterExtractorName = Literal["hello", "composite"]
 SecondCounterName = Literal["hello", "pdf", "ifc"]
 # r3: the paper border (R1c), else UVDoc unless the plan fills the photo (app/adapters/rectifier)
 RectifierName = Literal["none", "r3"]  # the photo rectifier of ingest's normalise stage
+# File triage (decision 0010, app/adapters/triage). off: ingest as before triage existed.
+# rules: the content probe's kind, no model (sets aside what ingest sets aside today).
+TriageClassifierName = Literal["off", "rules"]
+TriageDescriberName = Literal["off"]  # eu-big's measured describers are added here
+TriageJudgeName = Literal["off"]  # and its relevance judges
 QuestionParserName = Literal["hello", "templates"]  # templates: words to a takeoff query
 AnswerPriorName = Literal["none", "dev"]  # dev: a refusal keeps the dev answers' best estimate
 # pdf: the vector route also reads the ruled schedules printed on a drawn PDF sheet
@@ -127,3 +132,9 @@ class Settings(BaseSettings):
     # none: images are read as uploaded (EXIF turned upright); a rectifier undoes a photo's
     # perspective first (app/core/ingest/ports.py Rectifier)
     rectifier: RectifierName = "none"
+    # File triage (decision 0010): is each uploaded image a floor plan; a non-plan is kept, set
+    # aside, described and judged against the project. The describer and judge run only with a
+    # classifier on.
+    triage_classifier: TriageClassifierName = "off"
+    triage_describer: TriageDescriberName = "off"
+    triage_judge: TriageJudgeName = "off"
