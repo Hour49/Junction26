@@ -16,10 +16,16 @@ carries two service disciplines is split element by element.
 """
 
 import logging
+import os
+import pickle
+import resource
+import subprocess
+import sys
 import tempfile
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import ifcopenshell
@@ -29,6 +35,11 @@ import ifcopenshell.util.system
 
 from app.adapters.ifc_model.census import entity_census
 from app.adapters.ifc_model.facts_mep import MepElement, mep_elements
+from app.adapters.ifc_model.glb import (
+    _SCOPE,  # pyright: ignore[reportPrivateUsage]
+    _out_of_memory,  # pyright: ignore[reportPrivateUsage]
+    has_systemd_scope,
+)
 from app.adapters.ifc_model.objects import (
     _solid,  # pyright: ignore[reportPrivateUsage]
     _unit_scales,  # pyright: ignore[reportPrivateUsage]
@@ -43,6 +54,14 @@ log = logging.getLogger(__name__)
 MAX_BYTES = 150_000_000  # a larger model is not followed: it would take over a GB to read
 MIXED_SHARE = 0.2  # a second service discipline with this share: the model is split by element
 FILES_KEPT = 8
+# A read runs in a child process with its own budget (S2): ifcopenshell keeps what it parsed until
+# its process ends, so in the API process 16 distinct models grew it by 2.9 GB though only 8 were
+# kept. The largest dataset model under MAX_BYTES peaked at 0.8 GB and read in 12 s.
+READ_MEMORY_MB = 3000
+READ_TIMEOUT_S = 120.0
+CHILD = [sys.executable, "-m", __name__]  # the reader; run with `-m` from the backend folder
+BACKEND = Path(__file__).resolve().parents[2]
+NOT_READ = 2  # the child's exit code for a file it refuses (InvalidInputError), its words on stderr
 
 
 @dataclass(frozen=True)
@@ -69,6 +88,61 @@ def read_service_file(data: bytes) -> ServiceFile:
     if not projects:
         raise InvalidInputError("not an IFC model: it has no IfcProject, so no units")
     return service_file(file)
+
+
+def read_apart(
+    data: bytes, memory_mb: int | None = None, timeout_s: float | None = None
+) -> ServiceFile:
+    """`read_service_file` in a child process held to `memory_mb` (READ_MEMORY_MB) and
+    `timeout_s` (READ_TIMEOUT_S): the parse's memory goes with the child, the caller keeps only
+    the plain data. A file it cannot read, or that needs more, is an InvalidInputError."""
+    memory_mb = memory_mb or READ_MEMORY_MB
+    timeout_s = timeout_s or READ_TIMEOUT_S
+    if len(data) > MAX_BYTES:
+        return read_service_file(data)  # its words, without writing the file out
+    with tempfile.TemporaryDirectory(prefix="services-read-") as work:
+        source = Path(work) / "model.ifc"
+        source.write_bytes(data)
+        child = [*CHILD, str(source)]
+        limit = None
+        if has_systemd_scope():
+            child = [*_SCOPE, "-p", f"MemoryMax={memory_mb}M", *child]
+        else:
+            limit = int(memory_mb * 1.5 * 2**20)  # address space: more than what is touched
+        try:
+            done = subprocess.run(
+                child,
+                cwd=BACKEND,
+                capture_output=True,
+                timeout=timeout_s,
+                check=False,
+                env={**os.environ, "OPENBLAS_NUM_THREADS": "1"},
+                preexec_fn=None if limit is None else lambda: _cap(limit),
+            )
+        except subprocess.TimeoutExpired as error:
+            raise InvalidInputError(f"the model takes more than {timeout_s:g} s to read") from error
+    errors = done.stderr.decode(errors="replace")
+    if done.returncode == 0:
+        return pickle.loads(done.stdout)  # our own child's output
+    if done.returncode == NOT_READ:
+        raise InvalidInputError(errors.strip().splitlines()[-1] if errors.strip() else "not read")
+    if done.returncode < 0 or _out_of_memory(errors):
+        raise InvalidInputError(f"the model needs more than {memory_mb} MB to read")
+    raise RuntimeError(f"the services reader exited {done.returncode}: {errors[-2000:]}")
+
+
+def _cap(limit: int) -> None:
+    resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+
+
+def _child(path: str) -> int:
+    try:
+        read = read_service_file(Path(path).read_bytes())
+    except InvalidInputError as error:
+        print(str(error).replace("\n", " "), file=sys.stderr)
+        return NOT_READ
+    sys.stdout.buffer.write(pickle.dumps(read))
+    return 0
 
 
 def service_file(file: Any) -> ServiceFile:
@@ -162,8 +236,8 @@ def _in_background(job: Callable[[], None]) -> None:
 class ServiceFiles:
     """Read models by content hash, the last few kept."""
 
-    def __init__(self, read: Callable[[bytes], ServiceFile] = read_service_file) -> None:
-        self._read = read
+    def __init__(self, read: Callable[[bytes], ServiceFile] | None = None) -> None:
+        self._read = read or read_apart
         self._kept: dict[str, ServiceFile] = {}
         self._lock = threading.Lock()
         self._asked: set[str] = set()  # read ahead once: by content hash
@@ -199,3 +273,10 @@ class ServiceFiles:
                     log.warning("service model %s not read ahead", sha256[:12], exc_info=True)
 
         start(job)
+
+
+if __name__ == "__main__":
+    # through the module's own name, so what is pickled is app.adapters.ifc_services.ServiceFile
+    from app.adapters.ifc_services import _child as child  # pyright: ignore[reportPrivateUsage]
+
+    sys.exit(child(sys.argv[1]))

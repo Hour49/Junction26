@@ -305,11 +305,11 @@ def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
 
 # SCALE_CARBON_DOORS=on (app/adapters/raster_scale/ CarbonDoorScale): when the detector found no
 # door it is sure of, the Carbon reader's own door boxes (it boxes a door with its swing: a side
-# longer than the detector's leaf box). Fitted by scripts/carbon_door_scale.py on 34 scans of dev
-# swiss/IFC plans with a known scale (scripts/make_scans.py, pre-registered halves): the half-1
-# fit; 13/14 half-2 sheets inside the band (DOOR_M gave 4/28, median -25.3%); USCG fp21 alone fit
-# 1.123. shortcut: only 3 real scans behind it (fp21, 2 HABS), refit when more real scans exist
-CARBON_DOOR_M = 1.086  # m
+# longer than the detector's leaf box). Fitted by scripts/carbon_door_scale.py on 26 scans of dev
+# swiss plans with a known scale, none in golden v2 (scripts/make_scans.py, pre-registered halves):
+# the half-1 fit; 11/11 half-2 sheets inside the band (DOOR_M gave 3/21, median -25.2%); USCG fp21
+# alone fit 1.123. shortcut: only 3 real scans behind it (fp21, 2 HABS), refit when more exist
+CARBON_DOOR_M = 1.069  # m
 
 
 def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
