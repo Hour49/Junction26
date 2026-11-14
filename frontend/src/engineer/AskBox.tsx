@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useInfo } from '../shell/info';
 
 /** The question input; sends the trimmed question, nothing when empty, over the server's limit or while
@@ -8,9 +8,13 @@ export function AskBox(props: {
   busy: boolean;
   asked: number;
   onAsk: (question: string) => void;
+  /** The chat's paperclip (chat.md CH-17): shown only when passed; `attaching` disables it. */
+  onAttach?: (photo: File) => void;
+  attaching?: boolean;
 }) {
-  const { file, busy, asked, onAsk } = props;
+  const { file, busy, asked, onAsk, onAttach, attaching = false } = props;
   const [text, setText] = useState('');
+  const picker = useRef<HTMLInputElement>(null);
   const limit = useInfo().info?.limits.question_chars;
   const question = text.trim();
   const tooLong = limit !== undefined && question.length > limit;
@@ -39,6 +43,40 @@ export function AskBox(props: {
             setText(e.target.value);
           }}
         />
+        {onAttach && (
+          <>
+            <input
+              ref={picker}
+              type="file"
+              accept="image/png,image/jpeg"
+              hidden
+              data-testid="photo-input"
+              onChange={(e) => {
+                const photo = e.target.files?.[0];
+                e.target.value = ''; // the same file can be picked again
+                if (photo) onAttach(photo);
+              }}
+            />
+            <button
+              type="button"
+              className="en-attach v-press"
+              aria-label="Add a photo"
+              title="Add a photo (png or jpeg)"
+              disabled={attaching}
+              onClick={() => picker.current?.click()}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.5 3.5 0 015 5l-8.6 8.6a2 2 0 01-2.8-2.8l7.9-7.9"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </>
+        )}
         <span className="en-meta">
           {asked} asked
           {limit !== undefined && ` · ${String(question.length)} / ${String(limit)}`}

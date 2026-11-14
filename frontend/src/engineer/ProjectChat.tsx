@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  addProjectFile,
   askProject,
+  errorText,
   formatValue,
   getDrawing,
   getProject,
@@ -21,6 +23,14 @@ type ChatTurn =
   | { id: number; question: string; status: 'pending' }
   | { id: number; question: string; status: 'error'; error: unknown }
   | { id: number; question: string; status: 'done'; ask: ProjectAnswer };
+
+/** The photo added from the chat (CH-18..20): the status line, and whether it is still being read. */
+interface Photo {
+  line: string;
+  reading: boolean;
+}
+
+const POLL_MS = 1000;
 
 type Load =
   | { state: 'loading' }
@@ -88,6 +98,45 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   // Starter chips from the drawings' own suggestions; not blocking, failures leave fewer (or none).
   const [chips, setChips] = useState<Suggestion[]>([]);
   const openAsk = query?.get('ask')?.trim() ?? '';
+  const [photo, setPhoto] = useState<Photo | null>(null);
+  const stopPhoto = useRef<AbortController | null>(null);
+  useEffect(() => () => stopPhoto.current?.abort(), []);
+
+  // Adds the photo, then polls the project until that file is read; the new project makes it askable.
+  const attach = useCallback(
+    async (file: File) => {
+      const abort = new AbortController();
+      stopPhoto.current = abort;
+      const { signal } = abort;
+      const name = file.name;
+      setPhoto({ line: `Reading ${name}…`, reading: true });
+      try {
+        const added = await addProjectFile(projectId, file, { signal });
+        for (;;) {
+          await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+          if (signal.aborted) return;
+          const project = await getProject(projectId, { signal });
+          const read = project.files.find((f) => f.id === added.id);
+          if (read && (read.state === 'queued' || read.state === 'running')) continue;
+          setLoad({ state: 'ready', project });
+          const asked = read?.state === 'ready' || read?.state === 'flagged';
+          const why = (read?.reason ?? 'it is not in the project').replace(/\.$/, '');
+          setPhoto({
+            line: asked
+              ? `${name} is read: you can ask about it.`
+              : `${name} was not read as a plan: ${why}.`,
+            reading: false,
+          });
+          return;
+        }
+      } catch (error) {
+        if (!signal.aborted) {
+          setPhoto({ line: `Could not add ${name}: ${errorText(error).detail}`, reading: false });
+        }
+      }
+    },
+    [projectId],
+  );
 
   const send = useCallback(
     (id: number, question: string) => {
@@ -208,13 +257,26 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   };
 
   const box = (
-    <AskBox file="the project's drawings" busy={busy || n === 0} asked={turns.length} onAsk={ask} />
+    <AskBox
+      file="the project's drawings"
+      busy={busy || n === 0}
+      asked={turns.length}
+      onAsk={ask}
+      onAttach={(file) => void attach(file)}
+      attaching={photo?.reading ?? false}
+    />
+  );
+  const photoLine = photo && (
+    <p className="en-small en-photo" role="status">
+      {photo.line}
+    </p>
   );
   // Empty (Tudor 12:45): the heading, the bar in the upper middle and the starter chips under it.
   if (turns.length === 0) {
     return (
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
+        {photoLine}
         {box}
         {n === 0 ? (
           <p className="en-empty">No drawing in this project can be asked yet.</p>
@@ -227,6 +289,7 @@ export function ProjectChat({ projectId, query }: { projectId: string; query?: U
   return (
     <div className="en-page en-chat">
       <h1 className="en-chat-title">{project.name}</h1>
+      {photoLine}
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {turns.map(card)}
       </section>

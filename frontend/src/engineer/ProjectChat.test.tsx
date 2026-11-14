@@ -2,8 +2,17 @@ import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
-import { answerArea, answerRefused, drawing, error, project, projectAsk } from '../api/fixtures';
-import { mockApi, never } from '../test/mockApi';
+import {
+  answerArea,
+  answerRefused,
+  drawing,
+  error,
+  fileReadAsPlan,
+  project,
+  projectAsk,
+} from '../api/fixtures';
+import { mockApi, never, reply } from '../test/mockApi';
+import { AskBox } from './AskBox';
 import { ProjectChat } from './ProjectChat';
 
 const PID = project.id;
@@ -310,4 +319,99 @@ it('CH-16 Show it on <name> opens that drawing asking this question; ?pack= is k
   await answered(q);
   const query = new URLSearchParams(href(flatB.name).split('?')[1]);
   expect([query.get('ask'), query.get('pack')]).toEqual([q, 'fi']);
+});
+
+// Adding a photo (board #203): the new file f4, its drawing askable once read.
+const ADD = `POST /api/projects/${PID}/files`;
+const PHOTO = 'plan.jpg';
+const added = { ...fileReadAsPlan, id: 'f4', path: PHOTO, state: 'queued' as const };
+const photoDrawing = {
+  ...(project.drawings[0] as ProjectView['drawings'][number]),
+  drawing_id: 'photo0001',
+  file: PHOTO,
+  state: 'ready' as const,
+};
+/** The project after the photo: f4 in `state`, and its drawing when it was read as a plan. */
+const withPhoto = (state: 'running' | 'ready' | 'set_aside'): ProjectView => ({
+  ...project,
+  files: [...project.files, { ...added, state, reason: 'not a plan: a photo of a cat.' }],
+  drawings: state === 'ready' ? [...project.drawings, photoDrawing] : project.drawings,
+});
+/** The project route answers `project` first, then each of `polls` in turn (the last repeats). */
+function openWithPhoto(addReply: unknown, polls: ProjectView[]) {
+  let n = 0;
+  return mockApi({
+    [ROUTE]: () => (n++ === 0 ? project : polls[Math.min(n - 2, polls.length - 1)]),
+    ...drawingRoutes(),
+    [`GET /api/drawings/photo0001`]: drawing,
+    [ADD]: addReply,
+    [ASK]: (c: { body: unknown }) => ({
+      ...noneAnswers,
+      question: (c.body as { question: string }).question,
+    }),
+  });
+}
+async function pick() {
+  render(<ProjectChat projectId={PID} />);
+  await screen.findByRole('heading', { level: 1, name: project.name });
+  const input = screen.getByTestId<HTMLInputElement>('photo-input');
+  fireEvent.change(input, {
+    target: { files: [new File(['jpeg'], PHOTO, { type: 'image/jpeg' })] },
+  });
+}
+const slow = { timeout: 4000 };
+
+it('CH-17 the chat has "Add a photo" for png and jpeg; the ask bar without onAttach has none', async () => {
+  openWithPhoto(added, [withPhoto('ready')]);
+  render(<ProjectChat projectId={PID} />);
+  expect(await screen.findByRole('button', { name: 'Add a photo' })).toBeTruthy();
+  expect(screen.getByTestId('photo-input').getAttribute('accept')).toBe('image/png,image/jpeg');
+  cleanup();
+  render(<AskBox file="x" busy={false} asked={0} onAsk={() => undefined} />);
+  expect(screen.queryByRole('button', { name: 'Add a photo' })).toBeNull();
+});
+
+it('CH-18 a picked photo is posted, read while polled, then askable', async () => {
+  const api = openWithPhoto(added, [withPhoto('running'), withPhoto('ready')]);
+  await pick();
+  expect(await screen.findByText(`Reading ${PHOTO}…`)).toBeTruthy();
+  expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Add a photo' }).disabled).toBe(
+    true,
+  );
+  const post = api.calls.find((c) => c.url.startsWith(`/api/projects/${PID}/files`));
+  expect(post?.url).toBe(`/api/projects/${PID}/files?name=${PHOTO}`);
+  expect(post?.body).toBeInstanceOf(File);
+  expect(await screen.findByText(`${PHOTO} is read: you can ask about it.`, {}, slow)).toBeTruthy();
+  expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Add a photo' }).disabled).toBe(
+    false,
+  );
+  await ask('How many doors are there?');
+  expect(posts(api).filter((c) => c.url.endsWith('/ask'))).toHaveLength(1);
+}, 8000);
+
+it('CH-19 a photo that is not a plan says why', async () => {
+  openWithPhoto(added, [withPhoto('set_aside')]);
+  await pick();
+  expect(
+    await screen.findByText(
+      `${PHOTO} was not read as a plan: not a plan: a photo of a cat.`,
+      {},
+      slow,
+    ),
+  ).toBeTruthy();
+});
+
+it('CH-20 a refused post says so, polls nothing and frees the paperclip', async () => {
+  const api = openWithPhoto(reply(415, { detail: 'only png or jpeg', code: 'unsupported' }), [
+    project,
+  ]);
+  await pick();
+  expect(await screen.findByText(`Could not add ${PHOTO}: only png or jpeg`)).toBeTruthy();
+  expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Add a photo' }).disabled).toBe(
+    false,
+  );
+  await new Promise((r) => setTimeout(r, 1200));
+  expect(
+    api.calls.filter((c) => c.method === 'GET' && c.url === `/api/projects/${PID}`),
+  ).toHaveLength(1);
 });
