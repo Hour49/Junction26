@@ -206,6 +206,7 @@
   color: var(--v-danger);
 }
 .adv-pick {
+  overflow-wrap: normal; /* the page's "anywhere" let the select squeeze "File" to a letter per line */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -233,6 +234,7 @@
     linear-gradient(135deg, var(--v-muted) 50%, transparent 50%) calc(100% - 15px) 50% / 5px 5px
       no-repeat,
     var(--v-fill);
+  min-width: 0;
 }
 .adv-strip {
   list-style: none;

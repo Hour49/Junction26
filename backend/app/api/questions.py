@@ -52,6 +52,14 @@ def listed(root: Path, project_id: str) -> list[AskedQuestion]:
     return asked(root, project_id)[::-1][:LISTED]
 
 
+def log_size(root: Path, project_id: str) -> int:
+    """The project's question log in bytes (0 before the first ask): it is only appended to, so
+    a new ask always changes it."""
+    path = _file(root, project_id)
+    with _lock:
+        return path.stat().st_size if path.is_file() else 0
+
+
 def asked(root: Path, project_id: str) -> list[AskedQuestion]:
     """Every question kept for the project, oldest first."""
     path = _file(root, project_id)

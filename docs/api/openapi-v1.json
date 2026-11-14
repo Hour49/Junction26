@@ -1361,7 +1361,10 @@
               "conflict",
               "refused_answer",
               "set_aside",
-              "reading_flag"
+              "reading_flag",
+              "code_check_failed",
+              "double_check",
+              "unrelated_file"
             ],
             "title": "Kind",
             "type": "string"
@@ -3659,6 +3662,13 @@
       "Takeoff": {
         "additionalProperties": false,
         "properties": {
+          "disputes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Disputes",
+            "type": "array"
+          },
           "drawing_id": {
             "title": "Drawing Id",
             "type": "string"
@@ -3686,7 +3696,8 @@
           "drawing_id",
           "file",
           "quantities",
-          "review_queue"
+          "review_queue",
+          "disputes"
         ],
         "title": "Takeoff",
         "type": "object"

@@ -94,6 +94,7 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
         settings.credit_dataset, settings.credit_photos, settings.sample_archive
     )
     app.state.admission = projects.Admission()  # the 429 limit
+    app.state.kept_reviews = projects.KeptReviews()  # the project list's review counts
     for router in (health, info, projects, drawings, ask, takeoff, project_ask, issues):
         app.include_router(router.router)
     for error in STATUS_BY_ERROR:

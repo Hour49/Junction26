@@ -13,9 +13,11 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from test_review_core import BOX_A, disputed, quantity
 
-from app.api import issues, takeoff
+from app.adapters.evidence_render import render as render_evidence
+from app.api import issues, projects, takeoff
 from app.api.questions import AskedQuestion, record
 from app.core.drawing.model import Drawing
+from app.core.review.proof import NO_PROOF
 from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
@@ -273,6 +275,34 @@ def test_the_project_list_counts_open_issues(
     assert summary["issues_open"] == len(open_ones) > 0
 
 
+def test_the_project_list_counts_issues_once_and_again_after_a_refused_ask(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#145 keeps the list's counts until what they are made of changes; issues_open reads the
+    question log too, so a new refused answer must show on the next list."""
+    calls: list[str] = []
+    open_count = projects.open_count
+
+    def counted(status: Any, *args: Any) -> int:
+        calls.append(status.id)
+        return open_count(status, *args)
+
+    monkeypatch.setattr(projects, "open_count", counted)
+    project = sample(client)
+    (before,) = client.get("/api/projects").json()["projects"]
+    assert client.get("/api/projects").json()["projects"] == [before]
+    assert calls == [project["id"]]
+    body = {
+        "drawing_id": drawing_of(project, "scans/ground-floor.png"),
+        "question": DOORS,
+        "project_id": project["id"],
+    }
+    assert client.post("/api/ask", json=body).status_code == 200  # refused: no reader
+    (after,) = client.get("/api/projects").json()["projects"]
+    assert after["issues_open"] == before["issues_open"] + 1
+    assert calls == [project["id"]] * 2
+
+
 def test_a_download_is_named_after_the_project_and_its_pack() -> None:
     assert issues._download("Site visit 2.zip", None, "csv") == "Site_visit_2-issues.csv"
     assert issues._download("site.zip", "fi", "zip") == "site-issues-fi.zip"
@@ -311,6 +341,21 @@ def test_the_zip_holds_the_numbered_csv_and_one_marked_png_per_page_with_boxes(
     assert {"photos/site.jpg", "cad/detail.dxf"} <= {row["file"] for row in rows}
     with Image.open(io.BytesIO(archive.read(pngs[0]))) as picture:
         assert picture.format == "PNG" and picture.width == issues.PAGE_WIDTH
+
+
+def test_each_issue_sentence_under_a_marked_page_starts_its_own_line() -> None:
+    """The zip's footer ran the issues' sentences together as one paragraph (#147 review)."""
+    page = io.BytesIO()
+    Image.new("RGB", (800, 600), "white").save(page, "PNG")
+
+    def height(said: str) -> int:
+        proof = NO_PROOF.model_copy(update={"kind": "count", "arithmetic": said})
+        png = render_evidence(page.getvalue(), 1, [], proof, "plan.pdf, page 1", None, 800)
+        with Image.open(io.BytesIO(png)) as picture:
+            return picture.height
+
+    one_line = height("1. A door.  2. A window.")
+    assert height("1. A door.\n2. A window.") > one_line == height("1. A door.")
 
 
 def test_a_page_without_issues_has_no_png(client: TestClient, plan_pdf: bytes) -> None:

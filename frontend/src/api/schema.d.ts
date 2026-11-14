@@ -785,7 +785,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "conflict" | "refused_answer" | "set_aside" | "reading_flag";
+            kind: "conflict" | "refused_answer" | "set_aside" | "reading_flag" | "code_check_failed" | "double_check" | "unrelated_file";
             links: components["schemas"]["IssueLinks"];
             /** Mark Id */
             mark_id: string | null;
@@ -1487,6 +1487,8 @@ export interface components {
         };
         /** Takeoff */
         Takeoff: {
+            /** Disputes */
+            disputes: string[];
             /** Drawing Id */
             drawing_id: string;
             /** File */

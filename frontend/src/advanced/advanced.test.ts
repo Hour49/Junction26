@@ -84,9 +84,9 @@ describe('advanced.ts', () => {
     const files = [trace.file, second.file];
     const unpack = stepLines(files, traces, 1);
     expect(unpack.map((l) => l.text)).toEqual([
-      `Unpack ${trace.file.path} ${must(trace.stages[0]).output}`,
+      `Unpack ${trace.file.path} ${must(trace.stages[0]).did}`, // AV-29: output is the path itself
       `Hash ${trace.file.path} ${must(trace.stages[1]).output.slice(0, 12)}…`, // sha256 cut to 12
-      `Unpack b.pdf ${must(trace.stages[0]).output}`,
+      `Unpack b.pdf ${must(trace.stages[0]).output}`, // output (plans/flat-a.pdf) is not b.pdf's path
       `Hash b.pdf ${must(trace.stages[1]).output.slice(0, 12)}…`,
     ]);
     const failed = stepLines(
@@ -104,6 +104,44 @@ describe('advanced.ts', () => {
     expect(stepLines([trace.file], new Map([[trace.file.id, cached]]), 3)[0]?.text).toBe(
       `Cache ${trace.file.path} Cached: ingested before`,
     );
+  });
+
+  it('AV-29 stepLines: no path twice, kinds and routes in words', () => {
+    const own: FileTrace = {
+      ...trace,
+      stages: [
+        {
+          stage: 'unpack',
+          did: 'path checked, 9 bytes',
+          ms: 0,
+          output: 'a.pdf',
+          failure: null,
+          cost_usd: 0,
+        },
+        {
+          stage: 'identify',
+          did: 'a drawn PDF',
+          ms: 0,
+          output: 'pdf_vector',
+          failure: null,
+          cost_usd: 0,
+        },
+        {
+          stage: 'route',
+          did: 'vector, read from a.pdf',
+          ms: 0,
+          output: 'vector',
+          failure: null,
+          cost_usd: 0,
+        },
+      ],
+      file: { ...trace.file, path: 'a.pdf' },
+    };
+    const traces = new Map([[own.file.id, own]]);
+    const text = (k: number) => stepLines([own.file], traces, k).map((l) => l.text);
+    expect(text(1)).toEqual(['Unpack a.pdf path checked, 9 bytes']);
+    expect(text(2)).toEqual(['Identify a.pdf PDF vector']);
+    expect(text(3)).toEqual(['Route a.pdf drawn PDF route']);
   });
 
   it('AV-17 planCounts sums room, door, window over drawings only; a key no drawing has is null', () => {
@@ -189,7 +227,8 @@ describe('advanced.ts', () => {
     ] as const)
       expect(previewNote({ ...f, kind })).toBeNull();
     expect(previewNote({ ...f, kind: 'ifc' })).toBe('A model: no picture to show');
-    expect(previewNote({ ...f, kind: 'dxf' })).toBe('No preview for a DXF');
+    expect(previewNote({ ...f, kind: 'dxf' })).toBe('DXF: no preview');
+    expect(previewNote({ ...f, kind: 'svg' })).toBe('SVG: no preview'); // AV-29: no "a SVG"
     expect(previewNote({ ...f, kind: null })).toBe('Not identified yet');
   });
 });

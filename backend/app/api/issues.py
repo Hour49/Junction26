@@ -38,7 +38,18 @@ from app.settings import Settings
 
 router = APIRouter(prefix="/api/projects")
 
-IssueKind = Literal["conflict", "refused_answer", "set_aside", "reading_flag"]
+# Every kind planned, so a screen's exhaustive switch never meets a new one (decision 0008). Not
+# produced yet: code_check_failed (#139, decision 0009, with ?pack=), double_check (#129: an
+# uncertified answer, one issue per disputed place), unrelated_file (decision 0010: file triage).
+IssueKind = Literal[
+    "conflict",
+    "refused_answer",
+    "set_aside",
+    "reading_flag",
+    "code_check_failed",
+    "double_check",
+    "unrelated_file",
+]
 Severity = Literal["fails_rule", "needs_person", "note"]
 IssueState = Literal["open", "settled", "signed_off"]
 SEVERITIES: tuple[Severity, ...] = ("fails_rule", "needs_person", "note")  # the list's order
@@ -188,7 +199,7 @@ def _marked_page(
     drawing_id: str, page: int, placed: list[tuple[int, Issue]], ingest: Ingest, credits: Credits
 ) -> bytes:
     """The page with each issue's box drawn by evidence.png's renderer, numbered with its `n`,
-    coloured by severity; the issues' sentences and the licence credit under it."""
+    coloured by severity; the issues' sentences, one per line, and the licence credit under it."""
     marks = [
         MarkView(
             id=issue.id, n=n, page=page, box=issue.box or (0.0, 0.0, 1.0, 1.0),
@@ -203,7 +214,7 @@ def _marked_page(
         for severity in SEVERITIES
         if (count := sum(issue.severity == severity for _, issue in placed))
     )
-    said = "  ".join(f"{n}. {issue.why}" for n, issue in placed)
+    said = "\n".join(f"{n}. {issue.why}" for n, issue in placed)  # one line per issue
     proof = NO_PROOF.model_copy(update={"kind": "count", "legend": keys, "arithmetic": said})
     file = placed[0][1].file
     shown = f"{file}, page {page}: {count_of(len(placed), 'issue')}"

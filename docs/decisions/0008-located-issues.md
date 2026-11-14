@@ -108,8 +108,12 @@ The fields:
     room or door), and `mark_id` is that mark's takeoff `MarkView.id` when it is a takeoff mark. `why` is the
     result's `why` plus the clause ref, and `check` is `<pack>:<CheckResult.id>`. A `cannot_tell` result is not an
     issue.
-  - Later, additive (a new value of a string the screen shows): `double_check` (#129: an uncertified answer, with
-    the disputed places as one issue each). It is not in this version, because #129 is not merged.
+  - `double_check` (#129: an uncertified answer, with the disputed places as one issue each).
+  - `unrelated_file` (decision 0010, file triage: an uploaded file that is not a floor plan, set aside until a
+    person says it belongs).
+  - Every planned kind is in the type from the start (orchestrator, 2026-11-14), so the frontend's exhaustive
+    switches never meet a new value. Not produced yet: `code_check_failed` (until #139 lands), `double_check`
+    (until #129 lands) and `unrelated_file` (until 0010 is built).
 - `severity`: what the finding asks of a person, not a made-up score. There are three values, in this order:
   - `fails_rule`: the drawing, as read, breaks a rule we check (`code_check_failed`). This is the strongest
     finding we make.

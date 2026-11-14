@@ -6,7 +6,7 @@ import threading
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NamedTuple
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -16,7 +16,7 @@ from app.adapters.page_render import render_upload
 from app.api.deps import FileId, Ingest, IngestDep, ProjectId, ReviewsDep, SettingsDep
 from app.api.drawings import IMMUTABLE, checked_width
 from app.api.issues import open_count
-from app.api.questions import ProjectQuestions, listed
+from app.api.questions import ProjectQuestions, listed, log_size
 from app.api.takeoff import Takeoff, takeoff_rows
 from app.api.views import (
     SHEET_KINDS,
@@ -126,6 +126,49 @@ class Admission:
             self._started.append(project_id)
 
 
+class Counts(NamedTuple):
+    review: ProjectReview
+    issues_open: int
+
+
+class KeptReviews:
+    """Each done project's review and open issue count for the project list (R4-c-2:
+    recomputing every review on every list call took 15-40 s with 18 projects). One is kept
+    until what it is made of changes: the project's status, the size of its question log
+    (refused answers are issues; the log is only appended to), or for one of its drawings the
+    upload that wrote it last (a drawing is shared by content, so another project's ingest may
+    write it again) or its review edits. All are read on every call, so every review write
+    (settle, sign-off, add, reject, restore, reset) and every ask is seen, whoever wrote it."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._kept: dict[str, tuple[object, Counts]] = {}
+
+    def counts(
+        self, status: ProjectStatus, ingest: Ingest, reviews: ReviewStore, settings: Settings
+    ) -> Counts | None:
+        if status.state != "done":
+            return None
+        drawings = tuple(
+            (ingest.drawing_info(entry.drawing_id), reviews.get(status.id, entry.drawing_id))
+            for entry in drawings_of(status)
+        )
+        asked = log_size(settings.projects_dir, status.id)
+        key = (status, drawings, asked)  # read before the counts: they are never newer
+        with self._lock:
+            kept = self._kept.get(status.id)
+        if kept is not None and kept[0] == key:
+            return kept[1]
+        takeoffs = takeoffs_of(status, ingest, reviews)  # once, for the review and the issues
+        found = Counts(
+            review_of(status, ingest, reviews, takeoffs),
+            open_count(status, ingest, reviews, settings, takeoffs),
+        )
+        with self._lock:
+            self._kept[status.id] = (key, found)
+        return found
+
+
 class _Sample(BaseModel):
     """What the API remembers of the sample: the last project made from it (api/sample.json)."""
 
@@ -133,23 +176,27 @@ class _Sample(BaseModel):
 
 
 @router.get("")
-def project_list(ingest: IngestDep, reviews: ReviewsDep, settings: SettingsDep) -> ProjectList:
+def project_list(
+    request: Request, ingest: IngestDep, reviews: ReviewsDep, settings: SettingsDep
+) -> ProjectList:
     """Every project, newest first."""
+    kept: KeptReviews = request.app.state.kept_reviews
+    statuses = ingest.projects()
     return ProjectList(
-        projects=[summary_of(status, ingest, reviews, settings) for status in ingest.projects()]
+        projects=[
+            summary_of(status, kept.counts(status, ingest, reviews, settings))
+            for status in statuses
+        ]
     )
 
 
-def summary_of(
-    status: ProjectStatus, ingest: Ingest, reviews: ReviewStore, settings: Settings
-) -> ProjectSummary:
+def summary_of(status: ProjectStatus, found: Counts | None) -> ProjectSummary:
+    """`found`: the project's counts, for a `done` project."""
     to_review = conflicts_open = issues_open = None
-    if status.state == "done":
-        takeoffs = takeoffs_of(status, ingest, reviews)  # once, for the review and the issues
-        found = review_of(status, ingest, reviews, takeoffs)
-        to_review = sum(drawing.to_review for drawing in found.drawings)
-        conflicts_open = sum(entry.needs_person for entry in found.conflicts)
-        issues_open = open_count(status, ingest, reviews, settings, takeoffs)
+    if found is not None:
+        to_review = sum(drawing.to_review for drawing in found.review.drawings)
+        conflicts_open = sum(entry.needs_person for entry in found.review.conflicts)
+        issues_open = found.issues_open
     return ProjectSummary(
         id=status.id,
         name=status.name,

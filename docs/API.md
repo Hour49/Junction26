@@ -444,7 +444,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict between the two methods (room_area) (7 elements, 5 rooms, scale read from the sheet)",
+      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
@@ -704,7 +704,7 @@ after a restart cut that run off:
   "cost_usd": 0.0,
   "drawings": [],
   "skipped": [],
-  "expected_drawings": 1
+  "expected_drawings": null
 }
 ```
 
@@ -1388,7 +1388,7 @@ upload lists the files, instead of one request per file.
         "sha256": "a7fce07de2895f481058912db6d1cd56d7e2f0e05cb3b38b4b6cfc3578726ab4",
         "kind": "pdf_vector",
         "state": "flagged",
-        "reason": "1 conflict between the two methods (room_area) (7 elements, 5 rooms, scale read from the sheet)",
+        "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
         "group": "plans/flat-b",
         "route": "vector",
         "source": "plans/flat-b.pdf",
@@ -2429,8 +2429,11 @@ Each issue:
     parser can't read are left out.
   - `reading_flag`: the page was read with a caveat (a phone photo, a scan), or its reader read nothing.
   - `set_aside`: ingest set the file aside, with `reason`.
-  - `code_check_failed`: a failed rule of the pack (decision 0009).
-  - `double_check` comes later (#129).
+  - `code_check_failed`: a failed rule of the pack (decision 0009). Not produced yet (#139).
+  - `double_check`: an answer we can't vouch for, one issue per disputed place. Not produced yet (#129).
+  - `unrelated_file`: an upload that is not a floor plan (decision 0010, file triage). Not produced yet.
+  - All seven values are in the type now, so a screen can switch over them; the last three appear once their
+    work lands.
 - `severity`: `fails_rule` (a failed code check), `needs_person` (a conflict no rule decides and nobody settled),
   or `note` (everything else: decided conflicts, refusals, reading flags, set-aside files).
 - `state`: `open`, `settled` (a person settled it, or a rule decides it) or `signed_off`. Only a conflict can be
@@ -3833,7 +3836,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
     },
     "estimate": null,
     "first": null,
@@ -5177,7 +5180,7 @@ any project, which no project shows. A project that does not hold the drawing is
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells stay in, as the dataset's answers do although the question says shafts are left out"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
       },
       "estimate": null,
       "first": null,
@@ -5263,6 +5266,9 @@ any project, which no project shows. A project that does not hold the drawing is
   ],
   "review_queue": [
     "area:room|name=1.01"
+  ],
+  "disputes": [
+    "area:room|name=1.01"
   ]
 }
 ```
@@ -5296,6 +5302,9 @@ any project, which no project shows. A project that does not hold the drawing is
   (decide's count swap adds them with `attrs.located` false). They are in `value` but have no mark; empty when
   there are none.
 - `review_queue`: the keys whose status is `conflict` or `estimate`.
+- `disputes`: the keys of the rows where two methods disagree (`conflict` set, settled or not), one per
+  disagreement: a storey's row or a room's other name that repeats another row's disagreement is left out. These
+  are the drawing's entries in `GET /api/projects/{id}/review` `conflicts`; count these, not the rows.
 - `value` is the current value (after review); `original_value` what ingest computed.
 
 ### `POST /api/drawings/{drawing_id}/review?zeros=<bool>`
@@ -5678,7 +5687,10 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
       "noun": null
     }
   ],
-  "review_queue": []
+  "review_queue": [],
+  "disputes": [
+    "area:room|name=1.01"
+  ]
 }
 ```
 
@@ -5705,10 +5717,15 @@ formula in a spreadsheet.
 
 ## Changelog
 
+- 2026-11-14, additive (QA R4-a-8): `Takeoff.disputes`, the keys of the rows where two methods disagree, one per
+  disagreement, the same ones the project review lists. Behaviour (QA R4-a-1): `ProjectView.expected_drawings` is
+  null while a running project's files are not grouped yet, then final (it overshot, 0/19 then 13/13 on the demo
+  zip, because each rendering counted until its group was read); groups of only DXF or SVG files no longer count,
+  and a file set aside after grouping still does. Ingest records every file's group before reading the first group.
 - 2026-11-14, additive (story #140, decision 0008, Tudor's review #142): `GET /api/projects/{id}/issues?pack=`,
   `issues.csv` and `issues.zip` (every finding as a located issue; the zip adds the pages with the issues marked);
   `ProjectSummary.issues_open`; the question list's lines carry `refusal` (the refusal code) when refused; a new
-  error code `unknown-pack` (404).
+  error code `unknown-pack` (404). `Issue.kind` lists every planned kind, three of them not produced yet.
 - 2026-11-14, additive (board #14, the project chat): `POST /api/projects/{project_id}/ask` with `{question}`
   returns `{question, parts: [{drawing_id, name, answer}], total, total_unit, total_sure, total_note}`, each part
   the `POST /api/ask` answer on one drawing of the project; a total only for one answering drawing or for drawings
@@ -5741,9 +5758,11 @@ formula in a spreadsheet.
     done or failed; null until then. Elapsed is `now - started_at`; there is no `eta_ms` (file times differ too much to
     estimate honestly).
   - `ProjectView.skipped`: `[{path, reason}]`, the files with state `set_aside`, in upload order (empty list if none).
-  - `ProjectView.expected_drawings`: the drawings the upload holds, one per group of renderings and one for a copy under
-    another name, counted from the files identified so far, so it can grow until ingest has identified every file;
-    null while the project is `queued`. Final once `done`; it can be above `drawings.length` when a drawing file fails.
+  - `ProjectView.expected_drawings`: the drawings the upload holds, one per group of renderings that has a sheet
+    (PDF, PNG, JPEG, photo of a plan) or a model (IFC), and one for a copy under another name. null while the project
+    is `queued` and while a file of a `running` project is not grouped yet (until then a plan's renderings would each
+    count as a drawing); once known it is final and never drops: a file set aside after it was grouped still counts,
+    so it can be above `drawings.length` when a drawing file fails. A group of only DXF or SVG files gives no drawing.
   - `GET /api/projects/{id}/trace`: `{project_id, files: FileTrace[]}`, every file's trace in upload order.
   - `second_count` on a file's trace (both trace routes): `{measured, conflicts}`, the quantities the second method
     measured and how many of them disagree; null when the file has no drawing yet or nothing was measured twice.
