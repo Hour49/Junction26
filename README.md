@@ -52,8 +52,19 @@ that show where on the drawing they came from. In the order a user meets it:
 Status on main, 2026-11-14: steps 1 to 7 are merged: the double-check request (#129), plan counts that are sure
 only when two readers agree (#174), the building-code pre-check with its rule packs for Finland and Zürich (#139,
 decision 0009), the located issues list (#140), and file triage with its register, description form, relevance
-verdict and overrule (#183). The Gemini describer (#193, `TRIAGE_DESCRIBER=gemini`) and the local classifier (#202,
-not merged) are off by default, so triage is off in the demo configuration unless its settings are switched on.
+verdict and overrule (#183). The Gemini describer (#193, `TRIAGE_DESCRIBER=gemini`) and the local SigLIP2 classifier (#202) are off by
+default, so triage stays off in the demo configuration unless its settings are switched on.
+
+Merged since:
+- Each drawing in the project response has a plain name and its licence credit (#224).
+- Issues have answers, answer chips and open counts on the project (#223).
+- A spend guard caps Gemini cost with `GEMINI_BUDGET_USD` and an hourly limit, and a public ledger API shows the
+  spend (#225).
+- Each conflict card has a plain title, a reason and suggested answers, and a settle keeps a typed answer as its
+  note (#226).
+- The demo archive holds no CubiCasa scan any more: their licence (CC BY-NC-SA) does not allow a public demo. It
+  has five plans we may serve with credit instead (#231).
+
 What we tried on the raster track, and what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
 Golden-set method and results: [docs/GOLDEN.md](docs/GOLDEN.md). Known issues: [docs/KNOWN.md](docs/KNOWN.md).
 All decision records: [docs/decisions/](docs/decisions/README.md).
@@ -95,15 +106,14 @@ proxy). Not run: `tools/qa-env.sh`, and the sample project clicked through in a 
 - Golden v2, whole pipeline, run from a clean export of commit bd2471f: 2717 of 2948 answers right (92.2%), 92.9%
   on the holdout questions, 4.5% abstained. The dev column is in-sample because of the dev prior, so the holdout
   is the honest one. The series is in [docs/GOLDEN.md](docs/GOLDEN.md).
-- CubiCasa test split, read once for the earlier shipped config C (not C1-T1): 85.0% exact (5708 of 6718), 95% CI [83.4, 86.5],
-  against 56.3% for the train prior ([docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)).
-- Shipping raster config C1-T1, CubiCasa validation split: 88.5% exact (+0.2 points, 95% interval [-0.1, +0.6],
-  against the earlier shipped C1; +1.6 [+0.9, +2.3] against config C). Chosen on validation, so it is optimistic;
-  the one test read is still to come.
+- Shipping raster config C1-T1, CubiCasa test split, read once: 87.2% exact (5,860 of 6,718 questions, 376 test
+  pages). On the validation split it scored 88.5%, so the validation figure was optimistic by 1.3 points.
+  Config C's earlier test read was 85.0% (5708 of 6718, 95% CI [83.4, 86.5], against 56.3% for the train prior,
+  [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md)).
 - Double-check policy, fit on validation for C1-T1: 55.1% of answers ask for a check, which covers 96.0% of the
   wrong answers, and 98.95% of the answers it leaves alone are exact. These are validation estimates; the test
   certificate is still to come ([docs/GOLDEN.md](docs/GOLDEN.md)).
-- Test-read numbers for C1-T1 and the double-check policy: TODO(test read).
+- Double-check certificate on the test read: TODO(certificate).
 
 ### Limits
 
