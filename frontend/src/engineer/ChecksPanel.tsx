@@ -1,5 +1,8 @@
 import { formatTime, formatValue, methodName, type Row } from '../api';
 
+/** Measured once, no conflict: the checks line says "one method; no second check" (EN-35, EN-36). */
+export const oneMethod = (row: Row) => !row.conflict && !(row.first && row.second);
+
 /** The row's review state in words (the status is the pill beside it): the second method or the conflict, estimate, edits. */
 export function ChecksPanel({ row }: { row: Row }) {
   const { conflict, first, second, settled } = row;
