@@ -1152,6 +1152,11 @@ Ingest's project status, plus `drawings`:
   runs, a number can still move (a drawing read before an earlier file is counted first). `credit` on each
   drawing: the licence credit of `file`, the same as `GET /api/drawings/{id}` gives (a page has the credit of the
   PDF it was split from), or null for a file that is not from the dataset, the Commons photos or the sample.
+- `not_a_drawing` on a drawing (additive, QA R4-A9; left out when false): `true` when the sheet-kind step called
+  its sheet not a drawing at all (a screenshot, a photo of a room) and it was read only because the step warns
+  instead of setting aside (`SHEET_KIND_SET_ASIDE=false`: the file is `flagged`). The drawing stays, so a person
+  can still have it read as a floor plan (that clears it), but a screen does not count it as a drawing ready. A
+  sheet doubted as another kind of drawing (a piping plan, an elevation) is a drawing: no field.
 - `stage`: the stage a running file is in, or the last one it finished, so the ingest screen needs no trace
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
@@ -13081,6 +13086,8 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (QA R4-A9, decision 0010 amendment): `DrawingEntry.not_a_drawing` (left out when false):
+  the sheet-kind step called the sheet not a drawing and it was read only under warn-only.
 - 2026-11-15, additive (decision 0018): `ProjectStatus.ran` (left out while empty): per route, the steps that ran
   on this upload's finished files with file counts (`RanStep`: `id`, `label`, `done`, `skipped`, `failed`). Step
   ids are stable: the Carbon check is `carbon_check` (was `carbon`, or `carbon-2` beside the Carbon reader), an
