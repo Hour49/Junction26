@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { ApiError, errorText, startSample, uploadProject, type Started } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
-import { uploadTooLarge } from '../shell/limits';
+import { nameTooLong, uploadTooLarge } from '../shell/limits';
 import { amount, sizeText, uploadedKey } from './ingest';
 import { PANEL } from './ui';
 import { Alert } from '@/components/ui/alert';
@@ -14,12 +14,13 @@ import { Tip } from '@/components/ui/tip';
 import { INGEST_TIPS } from '../shell/tips-ingest';
 
 const ACCEPT = '.zip,.pdf,.png,.jpg,.jpeg,.ifc,.dxf,.svg,image/*';
-// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader.
+// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader. A DXF or SVG alone is set
+// aside (no page to place its model on, API.md), so its chip says it needs its PDF.
 const FORMATS = [
   'IFC models',
-  'DXF',
+  'DXF with its PDF',
   'PDF, drawn or scanned',
-  'SVG',
+  'SVG with its PDF',
   'PNG · JPG scans and photos',
   'ZIP archives',
 ];
@@ -34,8 +35,16 @@ const percent = (s: Sending) => (s.total > 0 ? Math.round((100 * s.sent) / s.tot
 /** What failed and where (Bogdan 2026-11-15): lost while sending, or refused by the server with its detail. */
 function failedLine(f: Failed): string {
   const name = f.file.name;
-  if (f.error instanceof ApiError && f.error.status > 0)
-    return `The server refused ${name}: ${f.error.detail}`;
+  // 5xx: the server (or the proxy in front of it) failed, not the file
+  if (f.error instanceof ApiError && f.error.status >= 500)
+    return `The server could not take ${name} right now. Retry in a moment.`; // the gateway's own words (errors.ts) would say it twice
+  if (f.error instanceof ApiError && f.error.status > 0) {
+    // the server's detail may name the file itself ("site.zip: the upload is empty"): say it once
+    const detail = f.error.detail.startsWith(`${name}: `)
+      ? f.error.detail.slice(name.length + 2)
+      : f.error.detail;
+    return `The server refused ${name}: ${detail}`;
+  }
   if (f.error instanceof ApiError)
     return `The connection was lost while sending ${name} (at ${String(f.at)}%).`;
   return `Could not send ${name}: ${errorText(f.error).detail}`;
@@ -74,12 +83,14 @@ export function UploadBox() {
   function upload(files: FileList | null) {
     const file = files?.[0];
     if (!files || !file) return;
+    setFailed(null); // a new try replaces the last failed upload's line
     if (files.length > 1) {
       setNote('Drop one file or one zip at a time.');
       return;
     }
     // No limits yet (info pending or failed): the server's 413 decides.
-    const refused = info ? uploadTooLarge(file.size, info.limits) : null;
+    const refused =
+      nameTooLong(file.name) ?? (info ? uploadTooLarge(file.size, info.limits) : null);
     if (refused) {
       setError(null);
       setNote(refused);

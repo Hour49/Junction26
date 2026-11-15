@@ -21,8 +21,8 @@ function withConflict(changes: Partial<ConflictEntry>): ProjectReview {
 }
 
 describe('workspaceKind', () => {
-  it('AC-2 an archive reads "Archive · 11 files · 5 drawings"', () => {
-    expect(workspaceKind(summary)).toBe('Archive · 11 files · 5 drawings');
+  it('AC-2 an archive reads "Archive · 12 files · 6 drawings"', () => {
+    expect(workspaceKind(summary)).toBe('Archive · 12 files · 6 drawings');
   });
   it('AC-3 one file reads "Single file · 1 file · 1 drawing"', () => {
     expect(workspaceKind({ ...summary, files: 1, drawings: 1 })).toBe(
@@ -76,7 +76,7 @@ describe('historyEvents', () => {
       ],
       [
         'Analysis done',
-        `5 drawings · 3 ready, 4 flagged, 2 set aside, 2 text only · ${formatMs(project.ms)}`,
+        `6 drawings · 4 ready, 4 flagged, 2 set aside, 2 text only · ${formatMs(project.ms)}`,
       ],
       [
         `Settled by a rule: ${conflict.label}`,
@@ -89,7 +89,7 @@ describe('historyEvents', () => {
   it('AC-16 zero counts are left out of the analysis line', () => {
     const p = { ...project, counts: { ready: 3, flagged: 0, set_aside: 0, text_only: 0 } };
     const done = historyEvents(p, null, []).find((e) => e.kind === 'done');
-    expect(done?.detail).toBe(`5 drawings · 3 ready · ${formatMs(project.ms)}`);
+    expect(done?.detail).toBe(`6 drawings · 3 ready · ${formatMs(project.ms)}`);
   });
 
   it('AC-17 a settled conflict gives "Conflict settled" and no rule event', () => {
@@ -234,7 +234,7 @@ describe('historyEvents', () => {
   it('AC-35 a project ask counts every project drawing, also one with no logged line', () => {
     const line = must(projectQuestions.questions[1]);
     const ids = project.drawings.map((d) => d.drawing_id);
-    expect(ids.length).toBe(5);
+    expect(ids.length).toBe(6);
     const four = ids.slice(0, 4).map((drawing_id) => ({
       ...line,
       drawing_id,
@@ -244,6 +244,6 @@ describe('historyEvents', () => {
     }));
     const log = { ...projectQuestions, questions: four };
     const asked = historyEvents(project, null, [], log).find((e) => e.kind === 'asked');
-    expect(asked?.detail).toBe('answered on 4 of 5 drawings');
+    expect(asked?.detail).toBe('answered on 4 of 6 drawings');
   });
 });

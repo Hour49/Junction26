@@ -96,6 +96,7 @@ the old request. No polling: the screen asks once the project is finished (see S
 | 409 from checks | same text as "not finished" (the backend says not yet) | `reply(409, …)` |
 | Unknown pack (404 `unknown-pack`) | "These rules are not available. Pick another country in the header." | `reply(404, …)` on checks |
 | Unknown project (404 on `getProject`) | `ErrorView` (not found) | `reply(404, …)` on project |
+| Project fails to load (not a 404: backend down, 5xx) | `ErrorView` with Retry (re-requests the project, then the checks) | `reply(502, …)` on project |
 | Other error | `ErrorView` with Retry (re-requests checks only) | `reply(500, …)` |
 | No drawings | note verbatim + "No drawing in this project to check." | `project` with `drawings: []` |
 | All pass | note verbatim + summary + "Every checked place passes these rules." | fixture with only `pass` |
@@ -161,6 +162,8 @@ Layout and access
   destination. [component: roles]
 - CK-18: `checks.css` uses only `--v-*` tokens (no colour literal) and turns animation off under reduced motion.
   [unit on the file text, read from disk]
+- CK-19: A project load that fails with anything but a 404 (a 502 while the backend is down) shows `ErrorView`
+  with Retry; Retry asks for the project again and then the checks. [component, `mockApi`]
 
 ## Not applicable (PR #150)
 

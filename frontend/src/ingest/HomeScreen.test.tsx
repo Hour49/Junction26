@@ -152,6 +152,27 @@ describe('HomeScreen', () => {
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
+  it('IN-93 a file name over 255 characters is refused before sending; 255 (an emoji counts as one) is sent', async () => {
+    const api = mockApi({ [INFO]: info, [LIST]: projectList, [UPLOAD]: projectStarted });
+    render(
+      <InfoProvider>
+        <HomeScreen />
+      </InfoProvider>,
+    );
+    await flush();
+    pick(new File(['x'], `${'a'.repeat(251)}🙂.png`)); // 256 characters
+    await flush();
+    expect(
+      screen.getByText(
+        'This file name is 256 characters long; the limit is 255. Rename the file and try again.',
+      ),
+    ).toBeTruthy();
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+    pick(new File(['x'], `${'a'.repeat(250)}🙂.png`)); // 255 characters, 256 UTF-16 units
+    await flush();
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+
   it.each([
     ['pending', never()],
     ['failed', reply(500, error)],
@@ -181,9 +202,9 @@ describe('HomeScreen', () => {
         .map((li) => li.textContent),
     ).toEqual([
       'IFC models',
-      'DXF',
+      'DXF with its PDF',
       'PDF, drawn or scanned',
-      'SVG',
+      'SVG with its PDF',
       'PNG · JPG scans and photos',
       'ZIP archives',
     ]);
@@ -291,6 +312,16 @@ describe('upload: sending, received, failed', () => {
     expect(HeldXhr.sent).toBe(2);
   });
 
+  it('the server down (a 502 from the proxy) is not called a refusal of the file; Retry is offered', async () => {
+    const xhr = held();
+    xhr.answer(502, { detail: 'the server answered 502', code: 'http-502' });
+    await flush();
+    const alert = screen.getByRole('alert').textContent;
+    expect(alert).not.toContain('refused');
+    expect(alert).toContain('The server could not take site.zip right now. Retry in a moment.');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  });
+
   it('a file the server refuses says the server refused it, with its detail; Retry is offered', async () => {
     const xhr = held();
     xhr.answer(413, { detail: 'the upload is over 200 MB', code: 'too-large' });
@@ -299,5 +330,26 @@ describe('upload: sending, received, failed', () => {
       'The server refused site.zip: the upload is over 200 MB',
     );
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  });
+
+  it('a refusal whose detail starts with the file name says the name once', async () => {
+    const xhr = held();
+    xhr.answer(422, { detail: 'site.zip: the upload is empty', code: 'invalid' });
+    await flush();
+    expect(screen.getByRole('alert').textContent).toContain(
+      'The server refused site.zip: the upload is empty',
+    );
+    expect(screen.getByRole('alert').textContent).not.toContain('site.zip: site.zip');
+  });
+
+  it('a new mistake replaces the last failed upload: no stale failure beside the new note', async () => {
+    const xhr = held();
+    xhr.answer(422, { detail: 'site.zip: the upload is empty', code: 'invalid' });
+    await flush();
+    fireEvent.drop(screen.getByRole('region', { name: 'Drop drawings or an archive' }), {
+      dataTransfer: { files: [new File(['a'], 'a.pdf'), new File(['b'], 'b.pdf')] },
+    });
+    expect(screen.getByText('Drop one file or one zip at a time.')).toBeTruthy();
+    expect(screen.queryByText(/The server refused/)).toBeNull();
   });
 });

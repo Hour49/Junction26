@@ -296,6 +296,21 @@ describe('PageViewer: conflict readings', () => {
     expect(legend).toContain(`B: ${methodName('printed_label')} read 30.00 m²`);
   });
 
+  it('K2 tag B moves right of tag A when both boxes start at the same corner', () => {
+    const [ax0, ay0] = conflict.values[0]?.box ?? [0, 0];
+    const same: QuantityConflict = {
+      ...conflict,
+      values: conflict.values.map((v, i) =>
+        i === 1 && v.box ? { ...v, box: [ax0, ay0, v.box[2], v.box[3]] } : v,
+      ),
+    };
+    const { container } = viewer(answerArea, { marks: [], conflict: same, unit: 'm2' });
+    const [a, b] = [...container.querySelectorAll<HTMLElement>('.vw-tag')];
+    expect(a?.style.left).toBe(`${(ax0 * 100).toFixed(1)}%`);
+    expect(b?.style.left).toBe(`calc(${(ax0 * 100).toFixed(1)}% + 24px)`);
+    expect(b?.style.top).toBe(a?.style.top);
+  });
+
   it('R3 VW-19 conflict readings name the method in words, never the API id', () => {
     const { container } = viewer(answerArea, { marks: conflictRow.marks, conflict, unit: 'm2' });
     const legend = container.querySelector('.vw-legend')?.textContent ?? '';

@@ -161,7 +161,9 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   "Bagno 1.01 + Stanza 1.02 · 24.04 → 24.56 m²", a legend (Existing · Demolished · New · Changed room; colour never
   alone: dash, hatch and words too). Before / After toggle (`aria-pressed`): Before hides the overlay. Below: the
   change list (one line per removed/added item and per room with before → after and the difference), unknowns,
-  flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked.", and Accept /
+  flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked." (with the
+  services followed, SERVICES_FOLLOW=on: "Proposed from the drawn geometry; services followed through their models,
+  as each tab shows. Structure and permits are not checked."), and Accept /
   Reject. After a decision the buttons give way to "Accepted" / "Rejected".
 - AC-33 (ui-bugs 1, 2026-11-15) The pen: a pen button in the ask bar next to the paperclip. Pen on: the question
   box and Ask are disabled, and on each open file in the files list (AC-36) whose drawing can be drawn on, click a
