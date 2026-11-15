@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { getTakeoff, getTrace, type FileTrace } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
+import { parseRoute, useHash } from '../shell/route';
 import {
   formatCost,
   kindLabel,
@@ -83,13 +84,17 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
   );
   const { data: trace, error, failedAt, retry, set } = usePoll(load, live);
   const conflicts = useConflicts(projectId, trace);
+  const from = parseRoute(useHash()).query.get('from');
+  // Back where the person came from: the linking screen adds `?from=` (IN-79); an old link goes to Documents.
+  const [backHref, backLabel] =
+    from === 'ingest'
+      ? [`#/p/${projectId}`, 'Back to Ingest']
+      : from === 'advanced'
+        ? [`#/p/${projectId}?view=advanced`, 'Back to Ingest']
+        : [`#/p/${projectId}/documents`, 'Back to Documents'];
   const back = (
-    // the file rows are on Documents now (ingest.md v3, IN-79)
-    <a
-      className={cn(TAP, 'self-start text-[13px] text-muted-foreground')}
-      href={`#/p/${projectId}/documents`}
-    >
-      Back to Documents
+    <a className={cn(TAP, 'self-start text-[13px] text-muted-foreground')} href={backHref}>
+      {backLabel}
     </a>
   );
 
