@@ -676,7 +676,7 @@ API client
   0123456789abcdef", `message` "no drawing 0123456789abcdef (not-found)". [unit]
 - SH-32 A 422 body with `errors` keeps them in `ApiError.errors`. [unit]
 - SH-33 A 502 with an HTML body rejects with `code` `http-502`, `detail` "The server is not answering right now. Try
-  again in a minute."; so do 503, 504 and 530 and the gate's `{"error": ...}` JSON; a 401 without the error body says
+  again in a minute."; so do 503, 504, 524 (the tunnel gave up on a hung backend) and 530 and the gate's `{"error": ...}` JSON; a 401 without the error body says
   the access code has expired; a 418 HTML body keeps "the server answered 418". [unit]
 - SH-34 A fetch that rejects gives `ApiError` `status` 0, `code` `network`; an aborted request rejects with an
   `AbortError`, not an `ApiError`. [unit]

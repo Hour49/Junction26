@@ -144,6 +144,7 @@ describe('API client', () => {
       [502, '<html>Bad gateway</html>'],
       [503, '<html>Service unavailable</html>'],
       [504, ''],
+      [524, '<html>A timeout occurred</html>'], // Cloudflare: the backend took over 100 s (hung)
       [530, '<html>Origin unreachable</html>'],
       [502, { error: 'the app is offline' }], // the access gate's own reply (site/src/index.js)
     ];

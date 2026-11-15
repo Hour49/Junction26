@@ -42,6 +42,7 @@ const GATEWAY: Record<number, string> = {
   502: OFFLINE,
   503: OFFLINE,
   504: OFFLINE,
+  524: OFFLINE, // Cloudflare gave up waiting (100 s) on a hung backend
   530: OFFLINE,
 };
 
