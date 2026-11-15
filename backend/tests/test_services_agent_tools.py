@@ -322,3 +322,30 @@ def test_sv25_listing_the_project_s_models_loads_none_of_them(
     monkeypatch.setattr(ServicesStore, "load", lambda *_: _never())
     models = _ProjectModels(pipeline, store, [])  # pyright: ignore[reportArgumentType]
     assert list(models) == ["d1"] and len(models) == 1
+
+
+# --- room names (QA #430 c6886540832: a room's name never reached the services model's room) ---
+
+
+def test_listed_items_carry_their_rooms_name() -> None:
+    items = {i["id"]: i for i in _run(_store(), "list_services", drawing_id="d1")["items"]}
+    assert items["E2"]["room"] == "SR1" and items["E2"]["room_name"] == "1 Living"
+    assert items["E3"]["room_name"] == "2 Bedroom"
+
+
+@pytest.mark.parametrize("named", ["1 Living", "living 1", "LIVING", "SR1", "sr1"])
+def test_the_room_argument_takes_a_name_in_any_case_and_word_order(named: str) -> None:
+    found = _run(_store(), "list_services", drawing_id="d1", room_id=named)
+    assert found["room"] == {"id": "SR1", "name": "1 Living"}
+    assert {i["id"] for i in found["items"]} == {"E1", "E2"}
+
+
+def test_a_name_two_rooms_hold_lists_them_and_an_unknown_one_says_so() -> None:
+    model = two_rooms()
+    renamed = model.model_copy(
+        update={"rooms": (model.rooms[0], model.rooms[1].model_copy(update={"name": "2 Living"}))}
+    )
+    both = _run(_store(renamed), "list_services", drawing_id="d1", room_id="living")
+    assert "SR1 '1 Living'" in both["error"] and "SR2 '2 Living'" in both["error"]
+    unknown = _run(_store(), "list_services", drawing_id="d1", room_id="Küche 1-3")
+    assert "no room named 'Küche 1-3'" in unknown["error"] and "1 Living" in unknown["error"]

@@ -18,6 +18,7 @@ caller with the model each drawing's chat edits (its source plus the accepted pa
 
 import json
 import logging
+import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
@@ -321,7 +322,11 @@ class _ListArgs(_Args):
     )
     storey: str | None = Field(default=None, max_length=60, description="storey id (L1...) or name")
     system: str | None = Field(default=None, max_length=120, description="a system's name")
-    room_id: str | None = Field(default=None, pattern=r"^SR\d{1,5}$", description="a room (SR...)")
+    room_id: str | None = Field(
+        default=None,
+        max_length=80,
+        description="a room: its id (SR...) or its name, e.g. 1-3 Küche",
+    )
     kind: str | None = Field(default=None, max_length=60, description="e.g. space_heater")
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
@@ -367,9 +372,10 @@ _CHANGES = " Changes nothing: the person accepts or rejects the proposal."
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
-        "A building's pipes, ducts and cables: storeys, systems, connectivity, and terminals "
-        "and equipment (ids E...); count is how many match, items may be cut: a how-many "
-        "answer states count. With room_id: that room's walls (SW...), what hangs on "
+        "A building's pipes, ducts and cables: storeys, systems, connectivity, terminals "
+        "and equipment (ids E...) with room id and name; count = all matches (list may be cut): "
+        "how-many answer states count. room_id (id or name): that room's walls (SW...), "
+        "what hangs on "
         "them, and whether a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
@@ -446,7 +452,7 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
     storey = _storey_of(model, args.storey) if args.storey else None
-    room = _room(model, args.room_id) if args.room_id else None
+    room = _room_named(model, args.room_id) if args.room_id else None
     if args.selection_id and room is None:  # SV-22: the selection's room, else its storey
         selection = _selection(store, args.drawing_id, args.selection_id)
         resolved = resolve_selection(model, selection)
@@ -464,12 +470,14 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     }
     if room is not None:
         found |= _walls(model, room)
+    names = {r.id: r.name for r in model.rooms}
     items = [
         {
             "id": e.id,
             "kind": e.kind,
             "label": e.label[:40],
             "room": e.room,
+            "room_name": names.get(e.room or ""),
             "system": e.systems[0] if e.systems else None,
             "page": pages.get(e.storey or ""),
             "box": _box(model, e),
@@ -657,6 +665,28 @@ def _room(model: ServicesModel, room_id: str) -> Room:
     if found is None:
         raise ToolError(f"no room {room_id} in this services model")
     return found
+
+
+def _room_named(model: ServicesModel, named: str) -> Room:
+    """The room an id or a name gives, in any case and word order ("küche 1-3" is "1-3 Küche");
+    else the one room whose name holds all its words. Several, or none: said, with the rooms."""
+    by_id = next((r for r in model.rooms if r.id.casefold() == named.strip().casefold()), None)
+    if by_id is not None:
+        return by_id
+    asked = set(_room_words(named))
+    exact = [r for r in model.rooms if set(_room_words(r.name)) == asked]
+    found = exact or [r for r in model.rooms if asked and asked <= set(_room_words(r.name))]
+    if len(found) == 1:
+        return found[0]
+    if found:
+        listed = "; ".join(f"{r.id} {r.name!r}" for r in found[:10])
+        raise ToolError(f"{len(found)} rooms match {named!r}: {listed}; name one by its id")
+    some = "; ".join(f"{r.id} {r.name!r}" for r in model.rooms[:15]) or "none"
+    raise ToolError(f"no room named {named!r} in this services model; its rooms: {some}")
+
+
+def _room_words(text: str) -> list[str]:
+    return [w for w in re.findall(r"\w+", text.casefold()) if w != "the"]
 
 
 def _equipment(e: Element) -> bool:
