@@ -18,7 +18,7 @@ test('IN-113: a lane folder is shown whole or as at least "s…/", at every widt
   const folders = await lanes.locator('.ingest-folder').evaluateAll((spans) =>
     spans.map((span) => {
       const probe = document.createElement('span');
-      probe.textContent = `${(span.textContent ?? '').slice(0, 1)}…/`;
+      probe.textContent = `${span.textContent.slice(0, 1)}…/`;
       probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
       span.appendChild(probe);
       const least = probe.getBoundingClientRect().width;

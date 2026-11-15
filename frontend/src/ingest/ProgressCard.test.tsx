@@ -784,8 +784,14 @@ describe('ProgressCard: pipeline view v5', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent);
     const groups = () =>
-      [...lane('Image').querySelectorAll('.ingest-readers')].map((g) => g.getAttribute('data-group'));
-    const waiting = at({ state: 'running', step_id: 'local_slot', step: 'Waited for the local reader' });
+      [...lane('Image').querySelectorAll('.ingest-readers')].map((g) =>
+        g.getAttribute('data-group'),
+      );
+    const waiting = at({
+      state: 'running',
+      step_id: 'local_slot',
+      step: 'Waited for the local reader',
+    });
     const { rerender } = render(<ProgressCard project={waiting} now={Date.now()} />);
     expect(note()).toBe('Extract: waiting for the local reader');
     expect(groups()).not.toContain('other');

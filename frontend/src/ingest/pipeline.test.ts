@@ -475,7 +475,8 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     expect(triageRan(chip, judge({ found: { unrelated: 0 } }))).toBe('empty');
     expect(triageRan(chip, judge({ found: { unrelated: 2, related: 1 } }))).toBe('ran');
     // no `found` (not from this backend): ran, its did is not parsed
-    const { found: _found, ...bare } = must(done.index_steps.find((s) => s.id === 'judge'));
+    const bare: StepTrace = { ...must(done.index_steps.find((s) => s.id === 'judge')) };
+    delete bare.found;
     const noFound = done.index_steps.map((s) => (s.id === 'judge' ? bare : s));
     expect(triageRan(chip, { ...done, index_steps: noFound })).toBe('ran');
     // a failed judge ran (it may have weighed some before it failed)
