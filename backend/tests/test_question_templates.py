@@ -515,6 +515,9 @@ def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
         ("How many doors in each drawing?", "How many doors?"),
         ("How many windows are there on each sheet?", "How many windows are there?"),
         ("What is the total floor area of each plan?", "What is the total floor area?"),
+        ("How many doors are there in the whole project?", "How many doors are there?"),
+        ("How many doors are there in the project?", "How many doors are there?"),
+        ("How many windows across the entire project?", "How many windows?"),
     ],
 )
 def test_each_drawing_is_the_whole_drawing_not_a_breakdown(text: str, same_as: str) -> None:
