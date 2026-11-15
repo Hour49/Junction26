@@ -2615,8 +2615,9 @@ that is not an evidence id. `description.detail` is a model's description no per
   began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`; `running` for a step of `index_steps` that has started and not ended) and
   `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
   (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
-  (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the Carbon reader, whole sheet or things
-  drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `prior_scale` (the scale
+  (normalise); `local_slot` (the wait for the one local reading slot, `INGEST_LOCAL_IN_FLIGHT`, before the
+  readers' steps; only when it waited 10 ms or more), `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the
+  Carbon reader, whole sheet or things drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `prior_scale` (the scale
   estimated from door sizes, `skipped` when not made), `double_check`, `plans`,
   `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
   `room_areas`, `schedule_tags`, `second_count:<quantity>` (any other comparison) (second_count: `found` is
@@ -13110,6 +13111,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018): step id `local_slot` in extract, the wait for the local reading slot
+  (`INGEST_LOCAL_IN_FLIGHT`) before the readers' steps (`did`: "waited 2.9 s: the local readers read one sheet at a
+  time"; only when the wait was 10 ms or more). Reporting only: the lock and the reading do not change.
 - 2026-11-15, additive (decision 0018): step id `prior_scale` in extract under `RASTER_SCALE=priors`, the scale
   estimated from door sizes (`did`: the scale, or why none; `skipped` when not made). Reporting only: no reading
   changes.
