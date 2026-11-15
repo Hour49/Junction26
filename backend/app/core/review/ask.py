@@ -44,6 +44,7 @@ from app.core.answering.model import (
     NO_SUCH_FLOOR,
     NO_SUCH_STOREY,
     NOT_COUNTED,
+    OUTSIDE_FLAT,
     SEVERAL_FLATS,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
@@ -181,6 +182,8 @@ TRY_THESE = re.compile(r"\s*Try one of these instead\.|;\s*try one of these\.")
 PARTS = {  # an unsupported count that would drop part of the question: which part
     SEVERAL_FLATS: 'This drawing shows more than one apartment, so "this apartment" doesn\'t say '
     "which. Ask about one by its letter (apartment A), or about the whole floor.",
+    OUTSIDE_FLAT: "This drawing also shows rooms outside the apartment, and I count across the "
+    "whole drawing, so that count would not be the apartment's alone. Ask about the whole floor.",
     SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
     "the whole drawing. Ask for each one on its own; try one of these.",
     IN_ONE_ROOM: "This question counts what is inside one room, and I count across the whole "

@@ -22,6 +22,7 @@ from app.core.answering.model import (
     NO_SUBJECT,
     NO_SUCH_FLOOR,
     NO_SUCH_STOREY,
+    OUTSIDE_FLAT,
     SEVERAL_FLATS,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
@@ -437,6 +438,16 @@ class RoomByType:
             and THIS_FLAT.search(text)
         ):
             return Unsupported(reason=SEVERAL_FLATS)  # "this flat" of several: which (R1 row 8)
+        if (
+            parsed.measure == "count"
+            and parsed.apartment is None
+            and len(self._drawing.apartments) == 1
+            and THIS_FLAT.search(text)
+            and any(
+                room.apartment != self._drawing.apartments[0].id for room in self._drawing.rooms
+            )
+        ):
+            return Unsupported(reason=OUTSIDE_FLAT)  # never the sheet's count (review-689 M1)
         rooms = rooms_of_type(parsed, self._drawing)
         if len(rooms) > 1:  # "the living room" of two typed living: the one printed so (r11)
             return self._printed_of(text, parsed, rooms) or parsed

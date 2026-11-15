@@ -145,6 +145,9 @@ THIS_FLAT = re.compile(
 )
 # "this flat" on a sheet of several flats: which one is not said (big QA R1 rows 7, 8)
 SEVERAL_FLATS = "asks about 'the flat' on a sheet of several flats"
+# a count of "this flat" on a sheet that also shows rooms outside it (site1677: Raum 2.09, the
+# stairwell): the sheet's count is not the flat's (review-689 M1)
+OUTSIDE_FLAT = "counts 'the flat' on a sheet that also shows rooms outside it"
 IN_ONE_ROOM = "a count within one room is not taken off"
 SIZE_FILTER = "a size or count filter on the items (larger than, at least...) is not applied"
 SEVERAL_ROOMS = "a question about one room that names more than one"

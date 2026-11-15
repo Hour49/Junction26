@@ -1812,14 +1812,22 @@ def test_r1_7_the_flat_on_a_sheet_of_several_flats_is_refused() -> None:
 )
 def test_r1_8_this_flat_is_the_scope_of_a_count_not_a_second_thing(text: str) -> None:
     """Big QA R1 row 8: "Wie viele Fenster hat diese Wohnung?" was refused as naming two kinds
-    of thing (Fenster, Wohnung). "This flat" already counted the sheet; "diese Wohnung" now does
-    too, on a sheet of one flat; on a sheet of several it says which ones there are."""
+    of thing (Fenster, Wohnung). On a sheet of one flat and no other room it counts the sheet;
+    on a sheet of several it says which ones there are. review-689 M1: on site1677 the sheet
+    also shows rooms outside the flat (Raum 2.09, the stairwell), so its 23 windows are not the
+    flat's: refused, never the sheet's count."""
     windows = tuple(
         Element(id=f"w{n}", class_="window", page=1, box=(0.1 * n, 0.5, 0.1 * n + 0.05, 0.55))
         for n in range(1, 4)
     )
-    one = _site1677("A").model_copy(update={"elements": windows})
-    found = asked(text, one)
+    with_raum = _site1677("A").model_copy(update={"elements": windows})
+    outside = asked(text, with_raum)
+    assert outside.refusal is not None and outside.answer.answer is None
+    assert outside.refusal.text.startswith("This drawing also shows rooms outside the apartment")
+    flat_only = with_raum.model_copy(
+        update={"rooms": tuple(r for r in with_raum.rooms if r.apartment == "aA")}
+    )
+    found = asked(text, flat_only)
     assert (found.refusal, found.answer.answer) == (None, 3)
     several = _site1677("A", "B").model_copy(update={"elements": windows})
     refused = asked(text, several)
