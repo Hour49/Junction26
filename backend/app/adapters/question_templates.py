@@ -304,14 +304,6 @@ SIZE_FILTER_WORDS = re.compile(
 # The question's own sentence, before a hint ("... on this floor plan? Count doorways fitted with
 # a door; ...")
 FIRST_SENTENCE = re.compile(r"\?|(?<=[a-z0-9²)])\.\s")
-# Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
-# balconies" (EXCLUDING), a room's "longer side" (its length); and words that narrow nothing
-# (review-532): "over all", "only". Not "the apartment with number A": the parser reads that
-# name only as "apartment A", so it would answer for the whole sheet (review-539)
-APPLIED = re.compile(
-    r"\b(?:without|excluding|except)\s+(?:the\s+|its\s+)?balcon\w*|\b(?:longer|shorter)\s+side\b"
-    r"|\bover\s+all\b|\bonly\b"
-)
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
 IN_PLACE = re.compile(r"\b(?:in|inside|within|on) (?:the|this|that|a|an|one) ([^\W\d_]+)")
@@ -320,6 +312,19 @@ SHEET = frozenset(
     floor plan floorplan drawing sheet page model storey story level layout image picture map
     diagram building project flat apartment house dwelling unit whole entire
     """.split()  # noqa: SIM905 (a word list reads better as text)
+)
+_SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
+# Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
+# balconies" (EXCLUDING), a room's "longer side" (its length); and words that narrow nothing
+# (review-532): "over all", and "only" at the end or next to the sheet ("on this floor plan
+# only", "only on this drawing"). Anywhere else "only" narrows the thing ("doors only open
+# outward", "toilets only for staff": R4-C2). Not "the apartment with number A": the parser reads
+# that name only as "apartment A", so it would answer for the whole sheet (review-539)
+APPLIED = re.compile(
+    r"\b(?:without|excluding|except)\s+(?:the\s+|its\s+)?balcon\w*|\b(?:longer|shorter)\s+side\b"
+    r"|\bover\s+all\b|\bonly\s*$"
+    rf"|\b(?:{_SHEET_WORDS})\s+only\b"
+    rf"|\bonly\s+(?:in|on|within)\s+(?:the|this|that)\s+(?:{_SHEET_WORDS})\b"
 )
 INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen included")
     r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"

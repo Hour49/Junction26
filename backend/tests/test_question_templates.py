@@ -709,3 +709,35 @@ def test_review_539_a_thing_named_after_with_stays_refused(text: str) -> None:
     the whole sheet ("the apartment", apartment=None). The parser reads the name only as
     "apartment A", so this wording stays refused, as on main."""
     assert isinstance(PARSE(text), Unsupported)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors only open outward?",
+        "How many toilets are only for staff?",
+        "How many windows only open inward?",
+        "How many doors are there only in the kitchen?",
+    ],
+)
+def test_r4_c2_only_inside_the_question_still_narrows_the_thing(text: str) -> None:
+    """R4-C2 (Tudor's QA round 4): since #539 any "only" was let through, so "How many doors only
+    open outward?" answered every door (2) and "How many toilets are only for staff?" every
+    toilet (1) on sample flat-b. "only" narrows nothing only at the end or next to a sheet word;
+    anywhere else it stays a condition on the items."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("How many doors are shown on this floor plan only?", "door"),
+        ("How many doors are there only on this drawing?", "door"),
+        ("How many windows are there in this plan only?", "window"),
+        ("How many toilets are there only on this sheet?", "toilet"),
+        ("How many doors only?", "door"),
+    ],
+)
+def test_r4_c2_only_at_the_end_or_by_the_sheet_narrows_nothing(text: str, subject: str) -> None:
+    found = PARSE(text)
+    assert isinstance(found, Query) and found.subject == subject
