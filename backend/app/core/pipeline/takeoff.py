@@ -355,8 +355,8 @@ def _add_model_spaces(
 ) -> None:
     """A storey's space areas: the total and each space by name; with `total_key`, only the
     total of `spaces` under that key (the model file's whole-model totals). A space's area is
-    the one the model states, else that of the room the sheet draws it as (measured at the
-    sheet's scale); a space with neither leaves the total unknown."""
+    the footprint of its shape in the model, else that of the room the sheet draws it as
+    (measured at the sheet's scale); a space with neither leaves the total unknown."""
 
     def put(key: str, chosen: Sequence[ModelObject]) -> None:
         found_areas = [_space_area(space, rooms) for space in chosen]
@@ -380,8 +380,9 @@ def _add_model_spaces(
 
 
 def _space_area(space: ModelObject, rooms: Mapping[str, Room]) -> tuple[float | None, Room | None]:
-    """A model space's net floor area: the one the model states, else that of the room the sheet
-    draws it as (returned too, for what its measurement rests on); None when it has neither."""
+    """A model space's floor area: the footprint of its shape in the model (objects.py), else that
+    of the room the sheet draws it as (returned too, for what its measurement rests on); None
+    when it has neither."""
     if (stated := space.quantities.get("area_m2")) is not None:
         return stated, None
     room = rooms.get(space.element) if space.element is not None else None

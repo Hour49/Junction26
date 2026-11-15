@@ -55,7 +55,7 @@ def test_each_file_says_why_it_ends_where_it_does(make_service: MakeService) -> 
     )
     assert "a phone photo, read without perspective correction" in reason("photos/plan-photo.jpg")
     assert reason("photos/site.jpg").startswith("a photo, not of a drawing")
-    assert reason("cad/detail.dxf").startswith("no PDF, PNG or JPEG in its group")
+    assert reason("cad/detail.dxf").startswith("this DXF file has no sheet to show on its own")
     assert reason("model/house.ifc") == "read on the BIM model route: 12 model objects"
     # the PNG of a sheet is grouped with its PDF and read from it
     png = files["plans/flat-a.png"]
