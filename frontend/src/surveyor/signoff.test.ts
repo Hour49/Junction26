@@ -10,6 +10,19 @@ describe('signoffBody', () => {
       seen: 2,
     });
   });
+  it('R4-B10 by default sends expected_value, and expected_unit when the row has its unit', () => {
+    expect(signoffBody({ key: 'door', value: 2, unit: 'count' }, 'Ana', false)).toEqual({
+      quantity: 'door',
+      by: 'Ana',
+      expected_value: 2,
+      expected_unit: 'count',
+    });
+    expect(signoffBody({ key: 'door', value: 2 }, 'Ana', false)).toEqual({
+      quantity: 'door',
+      by: 'Ana',
+      expected_value: 2,
+    });
+  });
   it('no value with an undo, nor while the server takes no such field (null)', () => {
     expect(signoffBody({ key: 'door', value: 2 }, 'Ana', true, 'seen')).toEqual({
       quantity: 'door',

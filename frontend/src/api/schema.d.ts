@@ -3563,6 +3563,10 @@ export interface components {
         SignOffRequest: {
             /** By */
             by: string;
+            /** Expected Unit */
+            expected_unit?: string | null;
+            /** Expected Value */
+            expected_value?: number | null;
             /** Quantity */
             quantity: string;
             /** Settle */

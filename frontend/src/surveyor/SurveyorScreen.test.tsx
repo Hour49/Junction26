@@ -695,7 +695,12 @@ describe('sign-off', () => {
     await waitFor(() => {
       expect(posted(api, PATH.sign)).toHaveLength(1);
     });
-    expect(nth(posted(api, PATH.sign), 0).body).toEqual(signoffRequest);
+    // R4-B10 (#634): with the value and unit on screen, so a value changed since is refused (409)
+    expect(nth(posted(api, PATH.sign), 0).body).toEqual({
+      ...signoffRequest,
+      expected_value: 2,
+      expected_unit: 'count',
+    });
   });
 
   it('R4-B10 a sign-off refused because the value changed (409) shows the new value and its Sign off button', async () => {
