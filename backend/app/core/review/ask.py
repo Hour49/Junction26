@@ -604,6 +604,9 @@ def _flagged(
     all is unread the same way when it has pages, a reader that read something and no building
     model (else _refusal's own words: nothing read, a services model): a vector sheet whose
     reader found 0 elements and 26 rooms answered "0 toilets" High (big QA R1 services row 12).
+    Unflagged, a reader that found walls (columns, stairs) but no door, window or fixture of any
+    kind is the same blind 0 for those (review-714 S1), and a class it did not look for is left
+    to _refusal's "doesn't look for" (S2).
     Except a class Carbon counted: Carbon names the classes it could not count (left out of
     `read`), so on a drawing whose elements are Carbon's (CARBON_FLAG, which ingest sets only
     then) a class it read with no element is a read 0, still flagged (brief r8 BD). A drawing
@@ -616,10 +619,14 @@ def _flagged(
     room under one type (the hotel photo: 37 "bedrooms", then 0 bathrooms; #285 review)."""
     empty: set[str] = set()
     read = bool(drawing.pages) and drawing.read != () and not drawing.model_objects
+    # unflagged, a class the reader did not look for keeps _refusal's "doesn't look for" (S2)
+    looked = set(ELEMENT_CLASSES if flags or drawing.read is None else drawing.read)
     if not drawing.elements and (flags or read):  # unflagged: R1 services row 12
-        empty.update(ELEMENT_CLASSES)
+        empty.update(looked.intersection(ELEMENT_CLASSES))
         if CARBON_FLAG in flags and drawing.read is not None:
             empty.difference_update(drawing.read)
+    elif read and not flags and not any(e.class_ in SYMBOLS for e in drawing.elements):
+        empty.update(looked & SYMBOLS)  # walls, no door, window or fixture of any kind (review-714)
     if no_symbols is not None:
         empty.update(SYMBOLS)  # a piping plan's tanks are not toilets (R3-C3)
     if (flags or raster) and not drawing.rooms:

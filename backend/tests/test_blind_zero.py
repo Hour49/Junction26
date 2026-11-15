@@ -56,3 +56,25 @@ def test_a_sheet_that_read_elements_keeps_its_0_of_another_kind() -> None:
 
 def test_rooms_are_still_counted_on_a_sheet_with_no_element() -> None:
     assert asked("How many rooms are there?", vector()).answer.answer == 3
+
+
+WALL = Element(id="e2", class_="wall", page=1, box=(0.1, 0.3, 0.6, 0.31))
+
+
+@pytest.mark.parametrize("question", ["How many toilets are there?", "How many doors are there?"])
+def test_a_sheet_whose_reader_found_only_walls_refuses_a_count_of_0(question: str) -> None:
+    """review-714 S1: walls (or columns, stairs) but no door, window or fixture of any kind is the
+    same blind 0: "0 doors" High on a sheet whose symbols the reader did not see."""
+    found = asked(question, vector(WALL))
+    assert found.answer.answer is None, found.answer
+    assert found.refusal is not None and found.refusal.code == "no-reader"
+    assert "found no doors, windows or fixtures of any kind" in found.refusal.text
+
+
+def test_a_reader_that_does_not_look_for_doors_says_so() -> None:
+    """review-714 S2: a reader that reads only rooms was not asked for doors: its refusal says it
+    does not look for them (as before #714), not that it found none."""
+    rooms_only = vector().model_copy(update={"read": ("room",)})
+    found = asked("How many doors are there?", rooms_only)
+    assert found.refusal is not None and found.refusal.code == "not-read", found.refusal
+    assert asked("How many rooms are there?", rooms_only).answer.answer == 3
