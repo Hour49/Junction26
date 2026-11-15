@@ -47,6 +47,7 @@ from app.core.answering.model import (
     SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SIZE_FILTER,
+    THIS_FLAT,
     UNQUOTED_PLACE,
     Query,
     TableQuery,
@@ -481,6 +482,8 @@ class TemplateParser:
         if hits and not _counted_thing_named(body, hits):
             return Unsupported(reason=NOT_COUNTED)
         subjects = list(dict.fromkeys(subject for _, subject in hits)) or ["room"]
+        if len(subjects) > 1 and "apartment" in subjects and THIS_FLAT.search(lower):
+            subjects.remove("apartment")  # "diese Wohnung": where it counts, not what (R1 row 8)
         if measure in ("area", "length") and subjects[0] in ROOM_NAMED:
             # the area of the sauna (or "the sauna room", "the toilet") is that room's
             subjects = [ROOM_NAMED[subjects[0]], *(s for s in subjects[1:] if s != "room")]
