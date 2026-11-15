@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { Tip } from '@/components/ui/tip';
 import { INGEST_TIPS } from '../shell/tips-ingest';
 import { Decisions, TraceTimeline } from '../advanced/TraceTimeline';
-import { disagreements, type Disagreement } from '../advanced/trace';
+import { disagreements, keyCounts, readWith, type Disagreement } from '../advanced/trace';
 
 /** The file page as the demo's (files.js traceScreen): mono 28 px path (22 px on a phone), hairline facts (IN-83). */
 const FILE_PAGE = cn(
@@ -92,10 +92,18 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
 
   const { file, stages } = trace;
   const takeoff = Object.entries(file.takeoff ?? {});
+  const counts = keyCounts(file.takeoff);
   const facts: [string, string | null | undefined][] = [
     ['Kind', kindLabel(file.kind)],
     ['Size', formatSize(file.size)],
-    ['Route', file.route ? routeLabel(file.route) : null],
+    [
+      'Route',
+      file.route
+        ? readWith(file)
+          ? `read with ${readWith(file) ?? ''} (${routeLabel(file.route)})`
+          : routeLabel(file.route)
+        : null,
+    ],
     ['Read from', file.source],
     ['Group', file.group],
     ['sha256', file.sha256?.slice(0, 12)],
@@ -154,21 +162,35 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
         />
       )}
       {takeoff.length > 0 && (
-        <details className={cn(PANEL, 'ingest-takeoff block')}>
-          <Tip text={INGEST_TIPS.endsAs}>
-            <summary className={SUMMARY}>
-              What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}
-            </summary>
-          </Tip>
-          <dl className="mt-2 mb-0 grid grid-cols-[minmax(0,1fr)_auto] [&>div]:contents">
-            {takeoff.map(([key, value]) => (
-              <div key={key}>
-                <dt className="[overflow-wrap:anywhere]">{key}</dt>
-                <dd className="m-0 text-right">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </details>
+        <section aria-label="What it ends as" className={cn(PANEL, 'tl-ends block')}>
+          <details className="ingest-takeoff">
+            <Tip text={INGEST_TIPS.endsAs}>
+              <summary className={SUMMARY}>
+                What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}
+              </summary>
+            </Tip>
+            <dl className="mt-2 mb-0 grid grid-cols-[minmax(0,1fr)_auto] [&>div]:contents">
+              {takeoff.map(([key, value]) => (
+                <div key={key}>
+                  <dt className="[overflow-wrap:anywhere]">{key}</dt>
+                  <dd className="m-0 text-right">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+          {counts.length > 0 && (
+            <ul className="tl-counts" aria-label="Key counts">
+              {counts.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          )}
+          {file.drawing_id && (
+            <a className="tl-link" href={`#/p/${projectId}/d/${file.drawing_id}/engineer`}>
+              See these on the drawing
+            </a>
+          )}
+        </section>
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { INGEST_TIPS, STAGE_TIPS } from '../shell/tips-ingest';
 import {
   PHASE,
   decisions,
+  repeats,
   foundLine,
   sideBySide,
   stageSpans,
@@ -99,7 +100,7 @@ function StageRow({ s, span }: { s: StageTrace; span: Span | null }) {
         {s.stage === 'cache' && (
           <p className="output">the stages below are from the first ingest of this content</p>
         )}
-        {s.output && s.output !== s.did && <p className="output">{s.output}</p>}
+        {!repeats(s) && <p className="output">{s.output}</p>}
         {s.cost_usd > 0 && <p>Cost: {formatCost(s.cost_usd)}</p>}
         {s.failure && <p className="tl-failure">Failed: {s.failure}</p>}
         {steps.length > 0 && (
