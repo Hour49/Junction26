@@ -151,6 +151,61 @@ def test_ac11_rooms_named_by_label_or_number() -> None:
         assert args["wall_id"] == ("W2" if "1.03" in message else "W1")
 
 
+def test_a_bare_room_number_is_not_read_inside_a_hyphenated_one() -> None:
+    """DigitalHub ground floor (2026-11-15): "Küche 1-3" and "Fluchtflur West 1-20" named by
+    their labels picked "Schacht West 1 301", whose number "1" matched the "1" of "1-3"."""
+    walls = {
+        "status": "ok", "drawing_id": DRAWING, "page": 1,
+        "walls": [
+            {"id": "W16", "rooms": [{"id": "r1", "label": "Treppenhaus West - EG 1-19"},
+                                    {"id": "r2", "label": "Schacht West 1 301"}]},
+            {"id": "W17", "rooms": [{"id": "r4", "label": "Fluchtflur West 1-20"},
+                                    {"id": "r20", "label": "Küche 1-3"}]},
+        ],
+        "rooms": [{"id": "r1", "label": "Treppenhaus West - EG 1-19", "type": "other"},
+                  {"id": "r2", "label": "Schacht West 1 301", "type": "shaft"},
+                  {"id": "r4", "label": "Fluchtflur West 1-20", "type": "hall"},
+                  {"id": "r20", "label": "Küche 1-3", "type": "kitchen"}],
+    }  # fmt: skip
+    drawings = ("list_drawings", {}, [{"drawing_id": DRAWING}])
+    listed = ("list_walls", {"drawing_id": DRAWING, "page": 1}, walls)
+    for message in ("Remove the wall between Küche 1-3 and Fluchtflur West 1-20",
+                    "Remove the wall between 1-3 and 1-20"):  # fmt: skip
+        assert plan(message, drawings, listed) == (
+            "propose_remove_wall",
+            {"drawing_id": DRAWING, "page": 1, "wall_id": "W17"},
+        ), message
+    assert plan("Remove the wall between Schacht West 1 and 1-19", drawings, listed)[1][
+        "wall_id"] == "W16"  # fmt: skip
+
+
+def test_a_bare_room_number_is_not_read_at_the_end_of_a_hyphenated_one() -> None:
+    """DigitalHub ground floor: "Gruppenbüro 3 1-6" ends in "6", the number of "Gruppenbüro 6
+    1-10", so the planner looked for a wall between the two offices instead of W3."""
+    walls = {
+        "status": "ok", "drawing_id": DRAWING, "page": 1,
+        "walls": [
+            {"id": "W2", "rooms": [{"id": "r2", "label": "Gruppenbüro 2 1-5"},
+                                   {"id": "r3", "label": "Gruppenbüro 3 1-6"}]},
+            {"id": "W3", "rooms": [{"id": "r3", "label": "Gruppenbüro 3 1-6"},
+                                   {"id": "r7", "label": "Open Workspace EG 1-7"}]},
+            {"id": "W6", "rooms": [{"id": "r6", "label": "Gruppenbüro 6 1-10"},
+                                   {"id": "r5", "label": "Gruppenbüro 5 1-9"}]},
+        ],
+        "rooms": [{"id": f"r{n}", "label": label, "type": "other"}
+                  for n, label in ((2, "Gruppenbüro 2 1-5"), (3, "Gruppenbüro 3 1-6"),
+                                   (5, "Gruppenbüro 5 1-9"), (6, "Gruppenbüro 6 1-10"),
+                                   (7, "Open Workspace EG 1-7"))],
+    }  # fmt: skip
+    drawings = ("list_drawings", {}, [{"drawing_id": DRAWING}])
+    listed = ("list_walls", {"drawing_id": DRAWING, "page": 1}, walls)
+    message = "Remove the wall between Gruppenbüro 3 1-6 and Open Workspace EG 1-7"
+    assert plan(message, drawings, listed) == (
+        "propose_remove_wall",
+        {"drawing_id": DRAWING, "page": 1, "wall_id": "W3"},
+    )
+
+
 def test_ac11_several_matching_walls_ask_which() -> None:
     drawings = ("list_drawings", {}, [{"drawing_id": DRAWING}])
     walls = ("list_walls", {"drawing_id": DRAWING, "page": 1}, WALLS)
