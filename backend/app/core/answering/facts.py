@@ -58,6 +58,11 @@ SAME_KIND = {"heat_exchanger": "space_heater", "switch": "switching_device"}
 NOT_DRAWN = frozenset({"project", "storey", "space", "system", "discipline", "port"})
 
 
+class _NoRoomNamed(str):
+    """An area total asked by a room word no space's name holds and no room type has ("the total
+    area of the offices"): a refusal whatever the question's form, never every space's total."""
+
+
 class _NoneHeld(str):
     """What a file says when it holds none of the thing asked ("No dampers found in this file
     (not available in it)."): a refusal, not an answer, so a project's answer card never opens on
@@ -138,7 +143,8 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
     text = _written(query, facts) if rows is None else rows.text()
     if text is None:
         return None
-    if isinstance(text, _NoneHeld) and query.how_many:  # "Which ... are present?" keeps its text
+    if isinstance(text, _NoRoomNamed) or (isinstance(text, _NoneHeld) and query.how_many):
+        # "Which ... are present?" keeps its text
         return Answer(
             id=question.id,
             answer=None,
@@ -798,6 +804,42 @@ def _room_kinds(words: Sequence[str]) -> frozenset[str] | None:
     )
 
 
+# The noun an area total names ("the total office area", "the total area of the offices"), as the
+# templates parser reads it (question_templates.TOTAL_NOUN); a noun that is the model, a floor or
+# its spaces names no room
+_AREA_OF = re.compile(
+    r"\btotal (?P<before>[^\W\d_]+)(?= area\b)"
+    r"|\barea (?:of|for) (?:the |all (?:of )?(?:the )?|every |its |this )?(?P<of>[^\W\d_]+)"
+    # "rooms labelled 'Büro'": the label is the room word
+    r"|\b(?:labell?ed|named|called)\s+(?:as\s+)?[\"'\u2018\u201c\u201e\u00ab]?(?P<label>\w[\w/-]*)",
+    re.IGNORECASE,
+)
+_NOT_A_ROOM = frozenset(
+    """
+    floor floors plan drawing sheet page storey level layout apartment flat dwelling unit house
+    room rooms space spaces indoor interior internal numbered net usable this these whole entire
+    gross building model project file each the a an all every its
+    """.split()  # noqa: SIM905 (a word list reads better as text)
+)
+
+
+def _area_room_word(asked: str, facts: _Facts) -> str | None:
+    """The room word an area total names that is no word for the model, a floor or its spaces,
+    nor a word of the model's own project or building name ("the dental clinic")."""
+    names = {
+        word
+        for topic, _ in _PROJECT_TOPICS
+        if topic.endswith("name")
+        for fact in facts.get(topic)
+        for word in _tokens(str(fact.value))
+    }
+    for found in _AREA_OF.finditer(asked):
+        word = (found.group("before") or found.group("of") or found.group("label")).casefold()
+        if word not in _NOT_A_ROOM and word not in names:
+            return word
+    return None
+
+
 _SPACE_AREAS = ("space.stated_area", "space.net_floor_area", "space.area", "space.gross_floor_area")
 
 
@@ -878,6 +920,10 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
         named = " ".join(query.words)
         said = f"named '{named}' or typed as {_rooms_said(kinds)}"
         return f"No space{where} in this file is {said} (not available)."
+    if not picked and "area" in query.measures and (word := _area_room_word(query.asked, facts)):
+        # a room word no space's name holds and no room type has ("the total area of the
+        # offices"): never every space as its answer (sample explorers 2026-11-15, 903.07 m²)
+        return _NoRoomNamed(f"No space{where} in this file is named '{word}' ({NOT_AVAILABLE}).")
     lines = [missing] if missing else []
     if len(query.words) == 1 and not picked and _HOW_MANY.match(query.asked):
         # "How many offices?" and no space is one: said, then every space
