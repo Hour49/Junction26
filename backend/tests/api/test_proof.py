@@ -174,6 +174,11 @@ def test_a_typed_space_count_lists_the_spaces_it_counted_in_words() -> None:
         model,
     )  # fmt: skip
     assert on_l2.arithmetic == "2 spaces in the model whose names say bedroom, on L2"
+    # one space is one space (#555 nit: "1 spaces in the model whose names say kitchen")
+    kitchen = takeoff_proof(
+        a_row("room:kitchen", "count", "room:kitchen", 1, "count", rule="model-space-types"), model
+    )
+    assert kitchen.arithmetic == "1 space in the model whose name says kitchen"
 
 
 def test_a_schedule_answer_shows_its_rows_cells_and_how_many_of_the_table() -> None:
