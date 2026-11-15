@@ -24,6 +24,9 @@ it('SH-43 formatValue and formatTime follow the shared rule', () => {
   expect(formatValue(30.0, 'm2')).toBe('30.00 m²');
   expect(formatValue(1.5, 'ft2')).toBe('1.50 ft²');
   expect(formatValue(3, null)).toBe('3');
+  // QA R3-B2: a count the server gives with its noun as the unit (a conflict's counted variant)
+  expect(formatValue(28, 'rooms')).toBe('28 rooms');
+  expect(formatValue(2.5, 'mm')).toBe('2.50 mm');
   process.env.TZ = 'Europe/Helsinki';
   expect(formatTime(projectList.projects[0]?.created_at ?? '')).toBe('2026-11-14 08:00 UTC');
 });

@@ -5,6 +5,8 @@ const UNITS: Record<string, string> = { m: 'm', m2: 'm²', m3: 'm³', ft: 'ft', 
 /** A value as every screen shows it: a count as an integer, anything else with 2 decimals and its unit. */
 export function formatValue(value: number, unit: string | null): string {
   if (unit === null || unit === 'count') return String(Math.round(value));
+  // a whole number with a noun for its unit ("28 rooms") is a count too, not a measure
+  if (!(unit in UNITS) && Number.isInteger(value)) return `${String(value)} ${unit}`;
   return `${value.toFixed(2)} ${UNITS[unit] ?? unit}`;
 }
 
