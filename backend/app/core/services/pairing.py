@@ -265,6 +265,19 @@ def _metadata(plan: Sheet, sheet: Sheet) -> tuple[str, str]:
     """What the two sheets' words agree on ("'Floor 1' on both; sheet numbers A-101 / H-101"),
     "" when they say nothing either way; and the refusal ("another floor: ..."), else ""."""
     mine, theirs = _floors(plan), _floors(sheet)
+    # A folder's floor words ("EG/", "OG 1/") refuse when they differ, but never agree: a set's
+    # folder ("B1/") is on every floor's sheet (review-558)
+    every_mine = mine | {k: v for k, v in _floors(plan, folders=True).items() if k not in mine}
+    every_theirs = theirs | {
+        k: v for k, v in _floors(sheet, folders=True).items() if k not in theirs
+    }
+    only_mine = [k for k in every_mine if k not in every_theirs]
+    only_theirs = [k for k in every_theirs if k not in every_mine]
+    if only_mine and only_theirs:
+        return (
+            "",
+            f"another floor: '{every_theirs[only_theirs[0]]}' against '{every_mine[only_mine[0]]}'",
+        )
     agreed: list[str] = []
     if mine and theirs:
         # each names a floor the other doesn't: they differ, whatever else both name (a building
@@ -285,13 +298,18 @@ def _metadata(plan: Sheet, sheet: Sheet) -> tuple[str, str]:
     return "; ".join(agreed), ""
 
 
-def _floors(sheet: Sheet) -> dict[str, str]:
+def _floors(sheet: Sheet, folders: bool = False) -> dict[str, str]:
     """The floors a sheet's title, sheet number and file name name: key -> the words as printed.
-    Not its folders: a set's folder ("B1/") is on every floor's sheet (review-558 M1)."""
+    Not its folders (a set's folder "B1/" is on every floor's sheet, review-558 M1); with
+    `folders`, only what its folders name."""
     found: dict[str, str] = {}
-    name = PurePosixPath(sheet.name).name if sheet.name else None
-    for source, text in (("title", sheet.storey), ("number", sheet.sheet_number),
-                         ("name", name)):  # fmt: skip
+    path = PurePosixPath(sheet.name) if sheet.name else None
+    if folders:
+        where = [("folder", " ".join(path.parent.parts))] if path else []
+    else:
+        where = [("title", sheet.storey), ("number", sheet.sheet_number),
+                 ("name", path.name if path else None)]  # fmt: skip
+    for source, text in where:
         if not text:
             continue
         spaced = text.replace("_", " ")

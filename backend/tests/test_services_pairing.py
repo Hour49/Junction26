@@ -274,6 +274,15 @@ def test_a_floor_word_in_a_folder_is_not_the_sheet_s_floor() -> None:
     assert found == "only 0 room names appear on both sheets (3 are needed)"
 
 
+def test_floor_words_in_folders_refuse_when_they_differ() -> None:
+    # folders name floors too: differing ones refuse, as on main; equal ones agree on nothing
+    # (review-558 at fa1c7a31)
+    plan = PLAN.model_copy(update={"name": "Projekt/OG 1/Grundriss.pdf"})
+    assert one(plan, sheet(name="Projekt/EG/Heizung.png")) == "another floor: 'EG' against 'OG 1'"
+    found = one(plan, sheet(name="Projekt/OG 1/Heizung.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+
+
 def test_a_level_code_inside_an_electrical_sheet_s_name_is_its_level() -> None:
     # a DigitalHub electrical export names its level inside the name like the others (review-558 M2)
     plan = PLAN.model_copy(update={"name": "dh_arc_plan-02-e00-okrd.pdf"})

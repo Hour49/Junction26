@@ -248,8 +248,9 @@ pics-edit-follow W1). Pure, one result per candidate sheet in the candidates' or
 the reason it is refused. Metadata first, cheapest first, then geometry:
 
 - The plan's own page: `same_page`, identity, "the plan's own page".
-- Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name (not its
-  ZIP folders: a set's folder such as "B1/" is on every floor's sheet): floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, first floor, L1 → 1;
+- Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name (its ZIP
+  folders only refuse: a set's folder such as "B1/" is on every floor's sheet, so floor words in folders that
+  differ refuse, as "OG 1/" against "EG/", and equal ones agree on nothing): floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, first floor, L1 → 1;
   UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1, read from the title's floor and from inside a file
   name, never as a sheet number nor as a file name's first word ("E01 Elektro.png" is the first electrical sheet); DG, roof,
   attic → roof) and the sheet number's part after its discipline letters
@@ -366,6 +367,9 @@ Pairing (tests in `tests/test_services_pairing.py`):
   with room names, refused without (`test_a_floor_word_in_a_folder_is_not_the_sheet_s_floor`); a DigitalHub
   electrical "…_plan-03-e01-okrd.png" against the "…-e00-okrd" plan is refused "another floor: 'e01' against 'e00'"
   (`test_a_level_code_inside_an_electrical_sheet_s_name_is_its_level`).
+- **SFP-28** "Projekt/OG 1/Grundriss.pdf" against "Projekt/EG/Heizung.png" is refused "another floor: 'EG' against
+  'OG 1'"; against "Projekt/OG 1/Heizung.png" it pairs by `geometry`, not by the folder
+  (`test_floor_words_in_folders_refuse_when_they_differ`).
 
 **The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
 `picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the
