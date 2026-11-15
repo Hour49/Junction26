@@ -2,7 +2,7 @@
 bathroom A | 0.12 m wall with a door | bedroom B, a balcony C past the façade, a hall D apart."""
 
 import pytest
-from shapely.geometry import Polygon, box
+from shapely.geometry import MultiPolygon, Polygon, box
 
 from app.core.plan_edit.edit import EditRefusedError, place_room, remove_wall
 from app.core.plan_edit.model import Ring
@@ -70,6 +70,21 @@ def test_ac17_removing_the_wall_merges_both_rooms_and_the_wall() -> None:
     assert found.unknowns and "load-bearing" in found.unknowns[0]
     assert {f.code for f in found.flags} == {"structural", "wet_room"}  # AC-19
     assert all(0 <= x <= 1 and 0 <= y <= 1 for x, y in merged.polygon)  # AC-20 page fractions
+
+
+def test_a_wall_strip_in_two_pieces_names_each_piece() -> None:
+    """DigitalHub W17 (2026-11-15): the strip was two pieces with one label, so the edit card
+    listed "Removed: Wall W17, 6.87 m, 0.2 m thick" twice. Each piece says which part it is,
+    as a room cut in two does."""
+    from app.core.plan_edit.edit import _items  # pyright: ignore[reportPrivateUsage]
+
+    strip = MultiPolygon([box(3, 0, 3.12, 1), box(3, 2, 3.12, 3.2)])
+    found = _items(page(), "W1", strip, "Wall W1, 2.2 m")
+    assert [(i.id, i.label) for i in found] == [
+        ("W1", "Wall W1, 2.2 m (part 1)"),
+        ("W1.2", "Wall W1, 2.2 m (part 2)"),
+    ]
+    assert [i.label for i in _items(page(), "W1", box(3, 0, 3.12, 3), "Wall W1")] == ["Wall W1"]
 
 
 def test_ac17_a_wall_by_its_id_is_the_same_edit() -> None:

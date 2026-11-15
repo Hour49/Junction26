@@ -511,6 +511,10 @@ Thread and pages
   (EN-88) is left out. A High answer shows no panel, so its estimate line stays. [component]
 - EN-90 (#350) An answer with `partial` true shows CH-49's "May be partial" tag beside the value (name and title
   "May be partial: sums 7 rooms; 2 not in it"); nothing without it. [component]
+- EN-91 (QA 2026-11-15) The mark list shows at most 12 rows; with more marks the first 12 and a button "Show all
+  <n>" (`aria-expanded`), which shows every row and becomes "Show fewer". A selected mark past the 12th (a badge
+  clicked in the viewer, EN-17) shows the whole list, so its row is there. Before: a schedule's 38 rows listed "1 item"
+  … "38 item", 2,000 px of card. [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

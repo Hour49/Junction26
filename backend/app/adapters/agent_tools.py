@@ -6,7 +6,8 @@ in this build is simply not offered."""
 import json
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import replace
 from functools import partial
 from typing import Any
 
@@ -14,9 +15,11 @@ from app.adapters.counting_rules import TOOLS as COUNTING_TOOLS
 from app.adapters.counting_rules import run_counting_tool
 from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
+from app.adapters.user_scale import ScaledIngest
 from app.api.views import drawings_of
 from app.core.agent.rooms import FIND_ROOMS, TOKEN, name_words
 from app.core.checks.model import RulePack
+from app.core.drawing.model import Scale
 from app.core.errors import DomainError
 from app.core.plan_edit.law_check import ROOM_WORDS
 from app.core.plan_edit.model import Proposal, Selection
@@ -90,11 +93,15 @@ def project_toolbox(
     selection: list[Selection],
     proposals: dict[str, Proposal],
     pack: RulePack | None = None,
+    scales: Mapping[str, Scale] | None = None,
 ) -> AgentToolbox:
     """The tools of `project_id` in `app` (create_app()'s state). `proposals`: the chat's
     proposals so far, so the plan tools number new ones after them. `pack`: the rule pack this
-    turn's plan edits are checked against (LC-6), None: not checked."""
+    turn's plan edits are checked against (LC-6), None: not checked. `scales`: USER_SCALE on,
+    the scales the chat's user gave by drawing id: every tool reads those drawings at them."""
     pipeline = PipelineStore.of_app(app, project_id)
+    if scales is not None:
+        pipeline = replace(pipeline, ingest=ScaledIngest(pipeline.ingest, scales), user_scale=True)
     pipe: Runner = partial(run_pipeline_tool, pipeline)
     sets: list[tuple[list[Json], Runner]] = [
         (PIPELINE_TOOLS, partial(_by_number, pipe)),

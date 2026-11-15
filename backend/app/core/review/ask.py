@@ -75,6 +75,7 @@ from app.core.pipeline.takeoff import (
     room_names,
     storeys,
 )
+from app.core.pipeline.user_scale import is_user_scale
 from app.core.review.check import (
     ASK,
     LEVELS,
@@ -432,6 +433,29 @@ def ask(
         level=level,
         partial=None if found is None else found.partial,
     )
+
+
+USER_SCALE_TEXT = (
+    "Low confidence: measured using the scale you gave, which was not checked against the "
+    "drawing." + ASK["low"]
+)
+MEASURED_UNITS = ("m", "m2", "ft", "ft2")
+
+
+def user_scaled(asked: Asked, drawing: Drawing) -> Asked:
+    """USER_SCALE: an area or length measured at a scale the user gave rests on their word, not
+    on a reading: never sure, an estimate, and Low (when the policy gives levels at all)."""
+    if (
+        not is_user_scale(drawing.scale)
+        or asked.refusal is not None
+        or asked.answer.unit not in MEASURED_UNITS
+    ):
+        return asked
+    answer = asked.answer.model_copy(update={"sure": False, "estimate": True})
+    level = (
+        None if asked.level is None else Level(level="low", basis="unrated", text=USER_SCALE_TEXT)
+    )
+    return asked.model_copy(update={"answer": answer, "level": level})
 
 
 def carbon_answer(

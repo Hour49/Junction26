@@ -721,7 +721,8 @@ def _left_out_why(doors: list[tuple[str, list[RoomType]]]) -> str:
     if len(doors) > 3:
         named = f"{', '.join(names)} and {len(doors) - 3} more"
     kinds: list[RoomType] = list(dict.fromkeys(kind for _, types in doors for kind in types))
-    nouns = " or ".join(room_noun(kind) for kind in kinds)
+    # "other" is a room the reader could not type, which may print a name (fail-1, #462)
+    nouns = " or ".join("room of unknown use" if k == "other" else room_noun(k) for k in kinds)
     article = "an" if nouns[:1] in "aeiou" else "a"
     opens = "opens" if len(doors) == 1 else "open"
     return (

@@ -13,13 +13,19 @@ import threading
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import Extractor
 
-_one = threading.Lock()
+_slots: dict[int, threading.BoundedSemaphore] = {}  # by the count: one per process
+_slots_guard = threading.Lock()
 
 
 class OneAtATime:
-    def __init__(self, inner: Extractor) -> None:
+    """`slots` local readings at once (INGEST_LOCAL_IN_FLIGHT), shared by every pipeline of the
+    process; 1 is one at a time."""
+
+    def __init__(self, inner: Extractor, slots: int = 1) -> None:
         self._inner = inner
+        with _slots_guard:
+            self._slots = _slots.setdefault(slots, threading.BoundedSemaphore(slots))
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        with _one:
+        with self._slots:
             return self._inner.extract(source, sheet)

@@ -312,4 +312,25 @@ describe('upload: sending, received, failed', () => {
     );
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
+
+  it('a refusal whose detail starts with the file name says the name once', async () => {
+    const xhr = held();
+    xhr.answer(422, { detail: 'site.zip: the upload is empty', code: 'invalid' });
+    await flush();
+    expect(screen.getByRole('alert').textContent).toContain(
+      'The server refused site.zip: the upload is empty',
+    );
+    expect(screen.getByRole('alert').textContent).not.toContain('site.zip: site.zip');
+  });
+
+  it('a new mistake replaces the last failed upload: no stale failure beside the new note', async () => {
+    const xhr = held();
+    xhr.answer(422, { detail: 'site.zip: the upload is empty', code: 'invalid' });
+    await flush();
+    fireEvent.drop(screen.getByRole('region', { name: 'Drop drawings or an archive' }), {
+      dataTransfer: { files: [new File(['a'], 'a.pdf'), new File(['b'], 'b.pdf')] },
+    });
+    expect(screen.getByText('Drop one file or one zip at a time.')).toBeTruthy();
+    expect(screen.queryByText(/The server refused/)).toBeNull();
+  });
 });
