@@ -376,23 +376,38 @@ class RoomByType:
             return parsed
         rooms = rooms_of_type(parsed, self._drawing)
         if len(rooms) > 1:  # "the living room" of two typed living: the one printed so (r11)
-            return self._printed_of(text) or parsed
+            return self._printed_of(text, parsed, rooms) or parsed
         if len(rooms) != 1:
             return parsed
         return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
 
-    def _printed_of(self, text: str) -> Query | None:
+    def _printed_of(self, text: str, parsed: Query, rooms: Sequence[Room]) -> Query | None:
         """The area of the one room whose printed label the question holds, when no other room
-        carries that label, whatever type the reader gave it ("the Multi-Purpose Hall", typed
-        other, among 11 rooms typed hall: R3-A5); None otherwise."""
+        carries that label; None otherwise. A label of the type's own words ("Hall") names a
+        room only among `rooms`, the rooms of the type `parsed` asks for: "the Sports Hall" holds
+        "Hall" and is not that room (review-595). A label with more words names its room whatever
+        type the reader gave it ("the Multi-Purpose Hall", typed other, among 11 rooms typed
+        hall: R3-A5)."""
         named = printed_rooms(self._parser, self._drawing, text)
         if named is None or len(named[1]) != 1:
+            return None
+        if named[1][0] not in rooms and self._type_words(named[0].name or "", parsed):
             return None
         for _, pattern in _printed_names(named[1][0]):
             # "the living room 1" names a room the label doesn't: refused, as before (review-415)
             if (at := pattern.search(text)) is not None and AFTER_ID.match(text, at.end()):
                 return None
         return self._area_of(named[1][0], named[0])
+
+    def _type_words(self, name: str, parsed: Query) -> bool:
+        """Every word of `name` is a word for the room type `parsed` asks about (or "room")."""
+        for word in name.split():
+            if word.casefold() in ("room", "rooms"):
+                continue
+            alone = self._parser.parse(f"What is the area of the {word}?")
+            if not (isinstance(alone, Query) and alone.subject == parsed.subject):
+                return False
+        return True
 
     def _not_a_room(self, text: str, parsed: Query) -> Unsupported | None:
         """A bare number the parser took as the room ("Area 3.14?", "level 1.5") that no room of

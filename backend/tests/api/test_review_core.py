@@ -1546,6 +1546,35 @@ def test_a_printed_name_holding_a_type_word_names_that_room_whatever_its_type() 
     assert asked("What is the area of the hall?", drawing).refusal is not None
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What is the area of the Multi-Purpose Hall?",
+        "What is the area of the Sports Hall?",
+        "What is the area of the hall?",
+    ],
+)
+def test_a_room_printed_only_the_type_word_answers_no_longer_name(question: str) -> None:
+    """review-595 MUST (qa-a): with one room printed just "Hall" (typed other) among rooms typed
+    hall, "the Multi-Purpose Hall" and "the Sports Hall" found "Hall" inside them and answered
+    its 100 m². A printed name of the type's own words keeps main's rule: it names a room only
+    among the rooms of that type; "the hall" stays refused (decided)."""
+    printed = Room(id="r1", type="other", label="Hall", page=1, box=BOX_A, area_m2=100.0)
+    corridors = [Room(id=f"r{n}", type="hall", label="Corridor", page=1, box=BOX_B,
+                      area_m2=float(n)) for n in (2, 3)]  # fmt: skip
+    found = asked(question, scaled(printed, *corridors))
+    assert found.refusal is not None and found.answer.answer != 100.0, found.answer
+
+
+def test_a_printed_name_with_more_than_the_type_word_answers_among_any_type() -> None:
+    """review-595: "Sports Hall" printed on a room typed other still answers "the Sports Hall"."""
+    sports = Room(id="r1", type="other", label="Sports Hall", page=1, box=BOX_A, area_m2=288.0)
+    corridors = [Room(id=f"r{n}", type="hall", label="Corridor", page=1, box=BOX_B,
+                      area_m2=float(n)) for n in (2, 3)]  # fmt: skip
+    found = asked("What is the area of the Sports Hall?", scaled(sports, *corridors))
+    assert found.refusal is None and found.answer.answer == 288.0, found.refusal
+
+
 def test_the_largest_room_refusal_names_the_unmeasured_room_not_a_missing_name() -> None:
     """R3-G6 (Tudor's QA round 3, T1): one of the rooms printed "Group Room" had no area (its box
     refused), so none of the Group Rooms could be compared, and the refusal said they "have no
