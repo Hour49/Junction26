@@ -15,7 +15,12 @@ from test_picture_lane import SheetKind, _ask, _ingest, _settings, heating_scan
 from app import composition
 from app.adapters.discipline_pictures.lane import PictureLane
 from app.adapters.discipline_pictures.mask import MaskReader
-from app.adapters.discipline_pictures.runs_graph import GraphReader, read_graph, thin
+from app.adapters.discipline_pictures.runs_graph import (
+    GraphReader,
+    graph_of_masks,
+    read_graph,
+    thin,
+)
 from app.composition import build_ingest
 from app.core.picture_facts import LegendEntry, PictureReading
 
@@ -185,3 +190,16 @@ def test_graph_reads_the_runs_and_keeps_its_own_sheets(
     length = float(said.split("Total length: ")[1].split(" m")[0])
     assert abs(length - 5.0) <= 0.15, said  # the lane's mask test's 3%
     assert metres.sure is False
+
+
+def test_ready_masks_give_runs_and_a_graph() -> None:
+    # the entry for another reader's line masks (a learned segmenter): style -> pixels
+    mask = np.zeros((H, W), np.uint8)
+    mask[199:202, 50:550] = 1  # 5.00 m, 3 px wide
+    mask[199:202, 600:700] = 255  # 1.00 m, after a 0.5 m gap: bridged at the default bound
+    runs, graph = graph_of_masks({"Heating supply": mask}, (W, H), M_PER_PX)
+    (run,) = runs
+    assert (run.label, run.length_m) == ("Heating supply", pytest.approx(6.5, rel=0.02))
+    assert graph.size_px == (W, H) and [e.bridged for e in graph.edges].count(True) == 1
+    with pytest.raises(ValueError, match="not"):
+        graph_of_masks({"x": mask[:10]}, (W, H), M_PER_PX)

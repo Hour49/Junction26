@@ -16,6 +16,7 @@ what `picture_graph` hangs terminals on. Black and grey lines are not read (as `
 
 import math
 from collections import defaultdict
+from collections.abc import Mapping
 from itertools import pairwise
 
 import cv2
@@ -96,7 +97,7 @@ def read_graph(
         x0, y0, x1, y1 = pixels(entry.box, width, height)
         sample = [piece for piece, _ in _pieces(_mask(rgb[y0:y1, x0:x1], colour))]
         styles.append((entry, colour, dash_pattern(sample)))
-    builder = _Builder(m_per_px)
+    masks: dict[str, np.ndarray] = {}
     for entry, colour, dashes in styles:
         mask = _mask(rgb, colour)
         for x0, y0, x1, y1 in on_legend:
@@ -106,9 +107,38 @@ def read_graph(
         if dashes is not None:  # the dashes closed into one line, across their gaps
             k = min(MAX_CLOSE_PX, round(dashes.gap) + 2)
             ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, np.ones((k, k), np.uint8))
-        builder.add(entry.label, ink, max(1, int(bridge_m / m_per_px)))
+        masks[entry.label] = ink
+    runs, graph = graph_of_masks(masks, (width, height), m_per_px, bridge_m)
+    reading = PictureReading(
+        reader=READER,
+        legend=legend,
+        read=tuple(entry.label for entry, _, _ in styles),
+        runs=runs,
+        notes=tuple(notes),
+    )
+    return reading, graph
+
+
+def graph_of_masks(
+    masks: Mapping[str, np.ndarray],
+    size_px: tuple[int, int],
+    m_per_px: float,
+    bridge_m: float = BRIDGE_M,
+) -> tuple[tuple[Run, ...], LineGraph]:
+    """Runs and their graph from ready line masks: style label (a legend line's label) -> its
+    pixels (height x width = `size_px` reversed, nonzero = the line), at `m_per_px`. Each mask is
+    thinned, cut into nodes and edges, its gaps bridged up to `bridge_m` of the building; a run
+    is one connected network of a style. The entry for a mask made by another reader (a learned
+    line segmenter): legend-less pixels, any style names."""
+    builder = _Builder(m_per_px)
+    width, height = size_px
+    for style, mask in masks.items():
+        if mask.shape[:2] != (height, width):
+            raise ValueError(f"the mask of {style!r} is {mask.shape[:2]}, not {(height, width)}")
+        ink = (np.asarray(mask) > 0).astype(np.uint8)
+        builder.add(style, ink, max(1, int(bridge_m / m_per_px)))
     graph = builder.graph(width, height)
-    runs = [
+    runs = tuple(
         Run(
             label=style,
             size=size_of(style),
@@ -116,15 +146,8 @@ def read_graph(
             spots=(Spot(page=1, box=page_box(*_bounds(edges), width, height), reader=READER),),
         )
         for style, edges in _components(graph)
-    ]
-    reading = PictureReading(
-        reader=READER,
-        legend=legend,
-        read=tuple(entry.label for entry, _, _ in styles),
-        runs=tuple(runs),
-        notes=tuple(notes),
     )
-    return reading, graph
+    return runs, graph
 
 
 # --- pixels -------------------------------------------------------------------------------
