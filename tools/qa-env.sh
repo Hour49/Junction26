@@ -70,7 +70,9 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   DOOR_PRIOR_BOXES=on  # acc-settings (#681): a sheet counted only from Carbon's door boxes estimates its scale at Carbon's box width (1.069 m); golden v2 dev: no answer or extraction changed, 0 USD
   LABEL_SCALE=on  # acc-settings (#675): areas printed in 3+ room labels give a raster sheet's scale when the door estimate is missing or disagrees; golden v2 dev: no answer or extraction changed, 0 USD
   PRINTED_OCR_CHECK=on  # acc-settings (#678): local PP-OCR (CPU, no model call) reads the printed facts again, a differing value gets a note; golden v2 dev: no answer or extraction changed, 0 USD
-  SCALE_SIGNATURES=bar)  # acc-settings (#677): a bar and its printed ratio a known print slip apart keep the bar, the ratio as a conflict value; golden v2 dev: no answer or extraction changed, 0 USD
+  SCALE_SIGNATURES=bar  # acc-settings (#677): a bar and its printed ratio a known print slip apart keep the bar, the ratio as a conflict value; golden v2 dev: no answer or extraction changed, 0 USD
+  GROSS_NET_CHECK=on  # acc-settings-2 (#684, #725): a printed total/gross/KERROSALA area is checked against the rooms found summed; outside 60-102% the net is kept and shown beside it, flagged; golden v2 dev: no answer changed, 1 flag (a sheet whose printed gross covers more than its drawn rooms), 0 USD
+  PRINTED_TOTAL_ANSWERS=on)  # acc-settings-2 (#674, #723): a count the sheet prints for exactly the asked subject and floor, in the fact's own text, is the answer, the count read kept as the conflict's other value; golden v2 dev: no answer or extraction changed, 0 USD
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
