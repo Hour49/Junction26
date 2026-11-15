@@ -21,6 +21,9 @@ type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
 
 const NOTE = 'Proposed from the drawn geometry. Structure, services and permits are not checked.';
+// SERVICES_FOLLOW=on: the tabs above show what the change does to each service model
+const NOTE_FOLLOWED =
+  'Proposed from the drawn geometry; services followed through their models, as each tab shows. Structure and permits are not checked.';
 
 /** The legend's swatch: the same stroke, dash and fill as on the plan (colour never alone). */
 function Swatch({
@@ -352,7 +355,7 @@ export function EditCard(props: {
             </ul>
           </>
         )}
-        <p className="en-small">{NOTE}</p>
+        <p className="en-small">{p.services ? NOTE_FOLLOWED : NOTE}</p>
         {p.state === 'proposed' ? (
           <div className="ag-decide">
             <button
