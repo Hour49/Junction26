@@ -4,6 +4,7 @@ stage, a restart, and what the API reads (drawing info, uploads, project list)."
 import io
 import json
 import threading
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -285,3 +286,27 @@ def test_a_png_and_a_tiff_of_one_name_are_both_read_and_none_stays_queued(
     assert paths == ["dir/x.png", "plan#p2.png", "plan-2.png", "plan.png", "x.png"]
     assert all(file.state not in ("queued", "reading") for file in status.files)
     assert all(file.drawing_id is not None or file.state == "set_aside" for file in status.files)
+
+
+def test_the_same_file_twice_at_one_path_sets_the_copy_aside_at_a_name_of_its_own(
+    make_service: MakeService,
+) -> None:
+    """A zip may hold one name twice. The copy used to be added at the taken path, so the run's
+    record of the first file was lost and it stayed queued after the project was done."""
+    scan = png_bytes(raster_plan())
+    buffer = io.BytesIO()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # zipfile warns about the duplicate name
+        with zipfile.ZipFile(buffer, "w") as archive:
+            archive.writestr("plan.png", scan)
+            archive.writestr("plan.png", scan)
+    ingest = make_service()
+    status = ingest.wait(ingest.start("a.zip", buffer.getvalue()))
+    by_path = {file.path: file for file in status.files}
+    assert list(by_path) == ["plan.png", "plan-2.png"]
+    assert by_path["plan.png"].state not in ("queued", "running")
+    assert by_path["plan.png"].kind == "png_plan"
+    assert (by_path["plan-2.png"].state, by_path["plan-2.png"].reason) == (
+        "set_aside",
+        "a second file at a path",
+    )

@@ -22,6 +22,9 @@ ProjectState = Literal["queued", "running", "done", "failed"]
 # What Gemini Carbon read of a raster drawing: its elements (CARBON_READER sent it to Carbon), or
 # another part a composite takes from the `carbon` source (rooms, plans, scale, a class)
 CarbonRead = Literal["elements", "part"]
+# why a second file at a path the upload already used is set aside, at a free name ("plan-2.png"):
+# a name the user never gave, so the evidence index does not list it (fix/dup-path)
+SECOND_PATH = "a second file at a path"
 # The reading flags (judge.reading_flags) that say Carbon read the page. Carbon counted the
 # drawing's elements (CARBON_READER); review/ask.py reads this flag as "a class Carbon counted and
 # found none of is a read 0" (brief r8 BD), so it is never set for a part
