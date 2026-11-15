@@ -4,7 +4,14 @@ the plan by its register (the room-name shift by default)."""
 
 from app.core.plan_edit.walls import PlanPage
 from app.core.services.model import Affine, Pairing
-from app.core.services.pairing import by_room_names, by_walls, either, pair, plan_wall_lines
+from app.core.services.pairing import (
+    Register,
+    by_room_names,
+    by_walls,
+    either,
+    pair,
+    plan_wall_lines,
+)
 from app.core.services.picture_follow import Sheet
 from app.core.services.register import Segment
 
@@ -161,6 +168,12 @@ def segments(lines: object) -> list[Segment]:
     return [Segment(a=a, b=b) for a, b in lines]  # type: ignore[union-attr]
 
 
+def laid_with(register: Register, plan: Sheet, picture: Sheet) -> tuple[Affine, str]:
+    found = register(plan, picture)
+    assert not isinstance(found, str), found
+    return found
+
+
 def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
     plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
     picture = sheet(name="scan.png", rooms=(), size_m=None)
@@ -174,6 +187,11 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
         x, y = on_sheet(corner)
         fx, fy = to_plan.apply((x / PAGE_PX[0], y / PAGE_PX[1]))
         assert abs(fx - corner[0] / 12) < 0.005 and abs(fy - corner[1] / 10) < 0.005, corner
+    # a scale bar that agrees says nothing; one 20 % off is named, not picked silently
+    _, agreed = laid_with(walls, plan, picture.model_copy(update={"size_m": (10.0, 12.0)}))
+    assert agreed == how
+    _, named = laid_with(walls, plan, picture.model_copy(update={"size_m": (12.0, 14.4)}))
+    assert named.endswith("; its scale says 24.0 mm a pixel, the walls 20.0 mm: laid by the walls")
     # the follower's register: room names first, then walls
     [found] = pair(plan, [picture], register=either(by_room_names, walls))
     assert isinstance(found, Pairing) and found.paired_by == "geometry"
