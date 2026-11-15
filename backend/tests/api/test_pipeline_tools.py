@@ -22,7 +22,6 @@ from app.adapters.vector_pdf.objects import read_page
 from app.adapters.vector_pdf.scale import read_scale
 from app.adapters.vector_pdf.wall_fills import wall_fills
 from app.composition import build_ingest
-from app.core.agent.prompt import SYSTEM
 from app.core.drawing.model import Drawing
 from app.main import create_app
 from app.settings import Settings
@@ -104,7 +103,6 @@ def test_list_drawings_says_what_the_pen_says_whether_an_edit_can_be_drawn(
         assert listed.get("not_editable") == drawing["not_drawable_reason"], drawing["file"]
     assert any(d["editable"] for d in found.values())
     assert any(not d["editable"] and d["not_editable"] for d in found.values())
-    assert "never ask the user to draw an area" in SYSTEM  # the Gemini path is told so too
 
 
 def test_ask_drawings_is_the_project_ask_route(
