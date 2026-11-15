@@ -11,12 +11,15 @@ corridors included, so it sits above an assignable ratio; the top of NET_TO_GROS
 - Outside NET_TO_GROSS the rooms found miss part of the floor (or the scale is off, or the total
   is another floor's or the building's): the sheet's floor area gets two stage-8 values, the rooms
   summed (`summed_rooms`) and the printed gross (`printed_total`), the note saying which is which.
-  No rule decides between them, so the indoor area answer keeps the net number and is held for a
-  person (takeoff._conflict_keys); it never becomes the gross number.
+  The rule keeps the rooms' sum (second_count.RULES): the indoor area answer keeps the net number
+  and shows both, flagged, not held (takeoff._conflict_keys); it never becomes the gross number.
+  Not held, because the ratio cannot tell rooms missed (T2, us_daf dorm: 0.41) from a total that
+  covers more than the drawing (golden dev 14874, KERROSALA 227 over two flats: the gold rooms
+  sum to 0.52 of it); a floor between the two would be fitted to two sheets.
 - Inside it the printed gross is only context: a note on the reading.
 
-The gross is a printed fact in m² (the reader converts a printed ft²) whose subject is floor_area
-or whose text says TOTAL or GROSS, the largest of them (a floor total is never smaller than its
+The gross is a printed fact in m² (the reader converts a printed ft²) whose text says it is a
+total (`_TOTAL`) and not a net one, the largest of them (a floor total is never smaller than its
 wing subtotals). The net is the indoor rooms as the takeoff sums them (`takeoff._area_sum`): a
 room whose box area was refused is left out, any other room without an area leaves the net
 unknown, and then nothing is checked.
@@ -31,7 +34,15 @@ from app.core.pipeline.printed import PrintedFact
 from app.core.pipeline.raster_scale import AREA_REFUSED
 
 NET_TO_GROSS = (0.60, 1.02)  # the plausible net/gross band: the module docstring
-_TOTAL = re.compile(r"\b(?:total|gross)\b", re.IGNORECASE)
+# Words that make a printed area a floor's or building's total: English, German
+# (Brutto-Grundfläche), Swedish (bruttoarea), Finnish (kerrosala, bruttoala, kokonaisala). Carbon's
+# subject floor_area alone is not enough: golden dev 10036's room label "27,5 m2" came as
+# floor_area. "SUBTOTAL" is a part (no word start); a net total (huoneistoala: a flat's net area)
+# is no gross
+_TOTAL = re.compile(
+    r"\b(?:total|gross|brutto|gfa|bgf|bta|kerrosala|kokonaisala|floor\s+area)", re.IGNORECASE
+)
+_NET = re.compile(r"\b(?:net|netto|nfa|ngf|huoneistoala)", re.IGNORECASE)
 
 
 def printed_gross(facts: Sequence[PrintedFact]) -> tuple[float, PrintedFact] | None:
@@ -42,7 +53,8 @@ def printed_gross(facts: Sequence[PrintedFact]) -> tuple[float, PrintedFact] | N
         for fact in facts
         if fact.unit == "m2"  # the Carbon reader gives a printed ft² in m² (carbon._facts)
         and fact.value > 0
-        and (fact.subject == "floor_area" or _TOTAL.search(fact.text))
+        and _TOTAL.search(fact.text)
+        and not _NET.search(fact.text)
     ]
     return max(totals, key=lambda total: total[0], default=None)
 
@@ -76,7 +88,10 @@ def gross_net_checked(found: Extracted, facts: Sequence[PrintedFact]) -> Extract
         return found.model_copy(
             update={"notes": (*found.notes, f"{said}: as expected of a net area")}
         )
-    said += f": outside the {low:.0%}-{high:.0%} expected of a net area, left for a person"
+    said += (
+        f": outside the {low:.0%}-{high:.0%} expected of a net area; rooms may be missing, or the "
+        "total may cover more than this drawing (other floors or flats)"
+    )
     sheet = Subject(kind="sheet", ref=None)
     printed = MeasuredValue(
         value=m2,

@@ -144,7 +144,7 @@ class Settings(BaseSettings):
     printed_ocr_check: PrintedOcrCheckName = "off"
     # on (needs RASTER_PRINTED_SCALE=carbon, no extra call): a gross floor area the sheet prints
     # ("TOTAL SECOND FLOOR = 26,562 SF") is checked against the indoor rooms found summed; a net/
-    # gross ratio outside 0.60-1.02 puts both on the indoor area answer, held for a person
+    # gross ratio outside 0.60-1.02 puts both on the indoor area answer, the net kept and flagged
     # (app/core/pipeline/gross_net.py)
     gross_net_check: GrossNetCheckName = "off"
     # on: with RASTER_PRINTED_SCALE=carbon, a sheet whose printed text is imperial (an imperial
