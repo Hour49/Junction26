@@ -23,3 +23,16 @@ def test_a_named_drawing_is_the_only_one_asked(client: TestClient) -> None:
     assert [part["name"] for answer in named["answers"] for part in answer["parts"]] == ["b.pdf"]
     first = ask(client, project, "how many rooms on drawn plan 1")
     assert first["text"] == "Drawn plan 1: 6 [1].", first["text"]
+
+
+def test_review_693_m1_and_the_others_asks_every_drawing(client: TestClient) -> None:
+    project = upload(
+        client, zipped({"a.pdf": swiss_sheet().pdf(), "b.pdf": walled_flat()}), "two.zip"
+    )
+    for message in (
+        "How many rooms are there on Drawn plan 1 and the others?",
+        "How many rooms are there besides Drawn plan 1?",
+    ):
+        turn = ask(client, project, message)
+        asked = [part["name"] for answer in turn["answers"] for part in answer["parts"]]
+        assert asked != ["a.pdf"], (message, turn["text"])

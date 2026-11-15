@@ -107,7 +107,8 @@ def project_ask(
     settings: SettingsDep,
     models_3d: Models3dDep = None,
 ) -> ProjectAnswer:
-    """`models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D)."""
+    """`models_3d`: the 3D views' state to put on IFC parts at response time (MODEL_3D); the chat
+    tool calls this without, so a kept chat never keeps a stale state."""
     return ask_project(project_id, body, ingest, reviews, answering, settings, models_3d)
 
 
@@ -121,9 +122,8 @@ def ask_project(
     models_3d: Models3dDep = None,
     only: frozenset[str] = frozenset(),
 ) -> ProjectAnswer:
-    """POST /{project_id}/ask. The chat tool calls this without `models_3d`, so a kept chat never
-    keeps a stale state. `only`: the drawings to ask, by id (the ones the chat's message names,
-    big QA R1 S2); empty: every drawing."""
+    """POST /{project_id}/ask. `only`: the drawings to ask, by id (the ones the chat's message
+    names, big QA R1 S2); empty: every drawing."""
     status = ingest.status(project_id)  # 404 for a project that doesn't exist
     if status.state != "done":
         raise NotAllowedError(f"project {project_id} is {status.state}; ask when it is done")
