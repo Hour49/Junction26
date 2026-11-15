@@ -208,6 +208,8 @@ Layout
 - AC-25 At 390x844 the page has no horizontal scroll with a 60-character unbroken workspace name, the list is above
   the panel, and the stats are two columns. [e2e, qa-r1's long-name upload]
 - AC-26 At 1440x900 the list and the panel sit side by side. [e2e screenshot, looked at]
+- AC-37 (QA round 2) Below 900 px wide (a tablet, or 200% zoom) the panel goes under the list: at 800x900
+  there is no horizontal scroll (the side-by-side panel was 233 px wide, its stats broke mid-word). [e2e, desktop]
 - AC-28 (#121, pre-QA) A list item with `to_review: 2, conflicts_open: 1` shows the pill "2 to review" and no
   conflict pill (rule-settled conflicts are counted open by the API); with `to_review` null or 0 no pill shows; no
   element has `data-pending`. [component]
