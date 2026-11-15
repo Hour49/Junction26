@@ -25,9 +25,11 @@ MIN_SHARE = 0.5  # services lines (pipes, ducts) are no walls: half the sheet's 
 QUADRANTS = 3  # the matched lines lie in this many of the sheet's quarters: not one corner
 TURN_DEG = 3.0  # the pose's turn agrees with the direction histograms' (mod 90) this closely
 MARGIN = 1.3  # the best pose must beat another quarter turn's by this, or it is a guess
-FLIP_MARGIN = 1.5  # ... and the same pose turned half round (refitted from there) by this: a
-# near-symmetric floor fits both ways; Tudor's bench (#538): 3 of 8 wrong other-floor lays and
-# 2 of 3 wrong same-floor lays were 180 deg flips (set before any run, not tuned)
+FLIP_MARGIN = MARGIN  # ... and the same pose turned half round (refitted from there) by the
+# same margin: a near-symmetric floor fits both ways. Tudor's bench (#538): 3 of 8 wrong
+# other-floor lays and 2 of 3 wrong same-floor lays were 180 deg flips. First set at 1.5; the
+# dev1 DigitalHub bench (2026-11-15, post hoc) showed 1.5 refusing right lays at 1.39 and 1.45
+# (the pairing test's floor) while the one wrong lay it caught was at 1.02
 COVER = (0.75, 1.33)  # the placed sheet spans this share of the plan's extent: a sheet of the
 # same floor draws the same building; a wrong scale shrinks it onto part of a dense plan
 NUDGES = (0.94, 0.96, 0.98, 1.02, 1.04, 1.06)  # the best pose restarted at these scales:
