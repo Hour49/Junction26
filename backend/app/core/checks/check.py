@@ -439,7 +439,7 @@ def _room_windows(
     if (why := _unread(drawing, "room", "window")) is not None:
         return [], why, "cannot_tell"
     pages = {page.page: page for page in drawing.pages}
-    windows = [element for element in drawing.elements if element.class_ == "window"]
+    windows = _distinct(element for element in drawing.elements if element.class_ == "window")
     # What a building model says of each of its spaces' windows (attrs.windows), by the room
     modelled = {
         item.element: item.attrs["windows"]
@@ -502,6 +502,20 @@ def _window_hold(
         # The model's IfcWindows without a shape are not drawn on its sheets (decision 0009)
         return "a sheet drawn from a building model does not draw all its windows"
     return None
+
+
+def _distinct(elements: Iterable[Element]) -> list[Element]:
+    """The elements less the second and later drawn in exactly one place (class, page, box): a
+    Swiss dwelling's PDF draws a door or window twice, once per side (R4-I2, site339 e25/e28).
+    The count keeps both, as the dataset's answers do; a check judges each place once."""
+    seen: set[tuple[str, int, Box]] = set()
+    kept: list[Element] = []
+    for element in elements:
+        key = (element.class_, element.page, element.box)
+        if key not in seen:
+            seen.add(key)
+            kept.append(element)
+    return kept
 
 
 def _door_out(drawing: Drawing, room: Room, pages: Mapping[int, Page]) -> str | None:
@@ -609,7 +623,7 @@ def _door_width(drawing: Drawing, rule: CodeRule, quantities: Quantities, pictur
     scale = drawing.scale
     results: list[CheckResult] = []
     left_out: list[tuple[str, list[RoomType]]] = []  # doors to the rule's rooms it does not check
-    for item in (element for element in drawing.elements if element.class_ == door):
+    for item in _distinct(element for element in drawing.elements if element.class_ == door):
         if not _door_applies(item, rule, drawing, pages):
             if types := _left_out(item, rule, drawing, pages):
                 left_out.append((_door_name(item, drawing, pages), types))

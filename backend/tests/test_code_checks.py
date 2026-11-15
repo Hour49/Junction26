@@ -835,3 +835,26 @@ def test_a_room_with_no_printed_name_is_named_by_its_kind_not_its_id() -> None:
     assert small.why.startswith("A bedroom is 6 m2;")
     for why in (shut.why, small.why):
         assert re.search(r"\b[re]\d+\b", why) is None, why
+
+
+def test_a_door_drawn_twice_in_one_place_is_checked_once() -> None:
+    """Tudor R4-I2: site339's PDF draws 8 doors twice (two DOOR objects, one box: e25/e28), so
+    Checks showed two identical "fail" cards for one door. The count keeps both, as the
+    dataset's own answer does (36 doors); a check judges each door's place once."""
+    twin = (0.5, 0.5, 0.58, 0.54)  # 0.8 m: fails
+    plan = drawing(elements=[element(25, "door", twin), element(28, "door", twin)])
+    found = check_rule(plan, rule("door-width"))
+    assert [result.id for result in found.results] == ["test-door-width:e25"]
+    assert statuses(found) == ["fail"]
+
+
+def test_a_window_drawn_twice_in_one_place_counts_once_for_its_room() -> None:
+    plan = drawing(
+        rooms=[room(1)], elements=[element(1, "window", ON_WALL), element(2, "window", ON_WALL)]
+    )
+    found = check_rule(plan, rule("bedroom-window"))
+    assert found.results[0].value == 1
+    assert [(mark.ref, mark.role) for mark in found.results[0].marks] == [
+        ("r1", "subject"),
+        ("e1", "counted"),
+    ]
