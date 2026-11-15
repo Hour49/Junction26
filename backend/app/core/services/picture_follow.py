@@ -70,13 +70,17 @@ _WORDS = {
 
 class Sheet(Frozen):
     """Where a page lies: its drawing and page, the floor its title names, its size in metres
-    (None: no scale) and the room names it prints with their places (page fractions)."""
+    (None: no scale), the room names it prints with their places (page fractions), and what
+    pairing reads besides (services-follow.md SFP-9..)."""
 
     drawing_id: str
     page: int
     storey: str | None = None
     size_m: Point2 | None = None
     rooms: tuple[tuple[str, Point2], ...] = ()
+    name: str | None = None  # the upload's path, ZIP folders included
+    sheet_number: str | None = None  # as the title block prints it (triage)
+    disciplines: tuple[Discipline, ...] = ()  # the services lanes its picture marks
 
 
 Place = Callable[[Point2], Point2]  # a services page's fractions -> the plan page's fractions
