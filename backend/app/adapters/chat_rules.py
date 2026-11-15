@@ -610,8 +610,7 @@ def _edit(found: Json, evidence: list[str], more: str = "") -> tuple[str, Json]:
         f"{room['label']}: {room['area_before_m2']} → {room['area_after_m2']} m²"
         for room in proposal.get("rooms", [])
     ]
-    # a wall a door splits is one item per piece, all with its label: name it once
-    removed = list(dict.fromkeys(item["label"] for item in proposal.get("removed", [])))
+    removed = [item["label"] for item in proposal.get("removed", [])]
     text = "Proposed: " + "; ".join(changes) + "."
     if removed:
         text += " Removed: " + "; ".join(removed) + "."

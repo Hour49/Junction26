@@ -294,16 +294,6 @@ def test_edits_5_a_second_drawn_area_is_said_unused() -> None:
     assert args["kind"] == "edit" and args["text"].endswith(OTHER_AREAS)
 
 
-def test_qa_a_wall_a_door_splits_in_two_is_named_once() -> None:
-    message = "Remove wall W18"
-    wall = {"id": "W18", "label": "Wall W18, 6.92 m, 0.2 m thick"}
-    door = {"label": "door, no longer needed"}
-    removed = [wall, {**wall, "id": "W18.2"}, door]
-    proposal = {"status": "ok", "proposal": {"proposal_id": "p1", "rooms": [], "removed": removed}}
-    _, args = plan(message, ("propose_remove_wall", {"wall_id": "W18"}, proposal))
-    assert "Removed: Wall W18, 6.92 m, 0.2 m thick; door, no longer needed." in args["text"]
-
-
 LAW_TOOLS = [*TOOLS, {"type": "function", "function": {"name": "search_law"}}]
 
 
