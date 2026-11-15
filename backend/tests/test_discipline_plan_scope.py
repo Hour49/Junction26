@@ -29,12 +29,49 @@ SERVICES = "the sheet-kind step calls this page a services plan"  # triage.symbo
         ("How many windows are shown on this heating plan?", "window"),
         ("How many doors are on the HVAC layout?", "door"),
         ("How many sinks are on the sanitary drawing?", "sink"),
+        ("How many doors are on the plumbing floor plan?", "door"),
+        # review-711 M2: a capitalised discipline is no storey name or code ("MEP" is 3 capitals)
+        ("How many WCs are on the Plumbing plan?", "toilet"),
+        ("How many doors are on the MEP plan?", "door"),
+        ("How many doors are on the HVAC plan?", "door"),
     ],
 )
 def test_a_discipline_s_plan_is_the_whole_sheet(text: str, subject: str) -> None:
     parsed = PARSE(text)
     assert isinstance(parsed, Query), (text, parsed)
-    assert (parsed.measure, parsed.subject, parsed.name) == ("count", subject, None)
+    assert (parsed.measure, parsed.subject, parsed.name, parsed.storey) == (
+        "count",
+        subject,
+        None,
+        None,
+    ), (text, parsed)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [  # review-711 M1: a part of the building, not a drawing of it (as on main)
+        "How many doors are on the mechanical floor?",
+        "How many doors are in the services building?",
+        "How many toilets are in the sanitary unit?",
+        "How many doors are in the power house?",
+        "How many windows are on the electrical storey?",
+    ],
+)
+def test_a_discipline_s_part_of_the_building_is_not_the_sheet(text: str) -> None:
+    assert PARSE(text) == Unsupported(reason=IN_ONE_ROOM), text
+
+
+@pytest.mark.parametrize(
+    ("text", "storey"),
+    [
+        ("How many doors are on the P1 plan?", "P1"),
+        ("How many doors are on the Erdgeschoss?", "Erdgeschoss"),
+        ("How many doors are on level OG2?", "OG2"),
+    ],
+)
+def test_a_real_storey_still_scopes(text: str, storey: str) -> None:
+    parsed = PARSE(text)
+    assert isinstance(parsed, Query) and parsed.storey == storey, (text, parsed)
 
 
 @pytest.mark.parametrize(

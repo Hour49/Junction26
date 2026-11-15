@@ -340,10 +340,14 @@ SHEET = frozenset(
 )
 _SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
 # A discipline's plan is the sheet, not a room: "on the plumbing plan" (big QA R1 services, P-101
-# refused as a count in one room); "the plumbing room" stays a room
+# refused as a count in one room); "the plumbing room" stays a room. Only words for a drawing
+# follow it: "the mechanical floor", "the services building" are parts of the building
+# (review-711 M1), and "the MEP plan" is no storey (M2, _storey_at)
 DISCIPLINE_SHEET = re.compile(
     r"(?:plumbing|heating|ventilation|hvac|mep|electrical|lighting|power|sanitary|drainage|"
-    rf"sprinkler|fire|mechanical|services?|structural) (?:{_SHEET_WORDS})\b"
+    r"sprinkler|fire|mechanical|services?|structural) "
+    r"(?:floor ?plan|plan|drawing|sheet|page|layout|diagram|image|picture|map|model)\b",
+    re.IGNORECASE,
 )
 # English words that leave something out, one list for the balcony rule (APPLIED), the exclusion
 # check (ENGLISH_EXCLUDING) and a parenthesis that is an exclusion (NOT_EXCLUSION); answer's nit on
@@ -602,6 +606,8 @@ def _storey_at(bare: str) -> re.Match[str] | None:
     counted thing, sheet or floor word ("on the Balcony", "on the Plan" stay what they were), and
     a code must have a capital or follow a storey word ("on p1" alone may be a typo)."""
     for found in STOREY_AT.finditer(bare):
+        if DISCIPLINE_SHEET.match(bare, found.start("name" if found.group("name") else "code")):
+            continue  # "the MEP plan", "the Plumbing plan": a discipline's drawing (review-711 M2)
         if (name := found.group("name")) is not None:
             word = name.casefold()
             if not name[0].isupper() or word in SHEET or PLACE.search(word) or _subjects(word)[1]:
