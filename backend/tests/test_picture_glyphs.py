@@ -3,7 +3,17 @@ head decoding, with a fake detector. No model, no partner data."""
 
 import numpy as np
 
-from app.adapters.discipline_pictures.glyphs import TILE, Glyph, bind, decode, read_glyphs, tiled
+from app.adapters.discipline_pictures import page_box
+from app.adapters.discipline_pictures.glyphs import (
+    TILE,
+    Glyph,
+    bind,
+    decode,
+    glyph_legend,
+    own_legend_reading,
+    read_glyphs,
+    tiled,
+)
 from app.core.picture_facts import LegendEntry
 
 W, H = 2000, 1200
@@ -114,3 +124,116 @@ def test_glyphs_keeps_its_sheets_apart_from_templates(tmp_path) -> None:
     assert kept_in(tmp_path, "template") == tmp_path
     assert kept_in(tmp_path, "glyphs") == tmp_path / "glyphs"
     assert kept_in(tmp_path, "gemini") == tmp_path / "gemini"
+
+
+# --- DISCIPLINE_GLYPHS_LEGEND=glyphs: the legend read from the detector's own glyphs -----------
+# A legend row is a detected glyph with a printed label right of it; the rows stack in a column.
+# Label ink here is a band of short strokes (text-like: many inked rows), pipes are 2 px lines.
+
+
+def white() -> np.ndarray:
+    return np.full((H, W, 3), 255, dtype=np.uint8)
+
+
+def label(rgb: np.ndarray, glyph: Glyph, width: int = 300) -> None:
+    """Text-like ink right of the glyph: 3 px strokes every 6 px, 16 rows tall."""
+    x0, cy = int(glyph.box[2]) + 20, int(glyph.centre[1])
+    for x in range(x0, x0 + width, 6):
+        rgb[cy - 8 : cy + 8, x : x + 3] = 0
+
+
+class Recognise:
+    """A fake OCR recognition: the next label for each crop, crops kept to look at."""
+
+    def __init__(self, *labels: str) -> None:
+        self.labels = list(labels)
+        self.crops: list[np.ndarray] = []
+
+    def __call__(self, crops):
+        self.crops += list(crops)
+        return [(self.labels.pop(0), 0.9) for _ in crops]
+
+
+def test_the_legend_is_the_column_of_glyphs_with_labels_right_of_them() -> None:
+    rgb = white()
+    rows = [Glyph(1, 0.9, box(1700, 100)), Glyph(2, 0.9, box(1700, 140)),
+            Glyph(3, 0.9, box(1700, 220))]  # fmt: skip  # 220: a line style's row between
+    for g in rows:
+        label(rgb, g)
+    on_pipe = Glyph(2, 0.9, box(400, 600))
+    rgb[599:601, 420:900] = 0  # a pipe runs right of a plan glyph: no label
+    plan = [Glyph(1, 0.9, box(300, 300)), on_pipe]
+    legend = glyph_legend(rgb, rows + plan, Recognise("Radiator", "Valve", "Pump"))
+    assert legend is not None
+    assert [e.label for e in legend] == ["Radiator", "Valve", "Pump"]
+    assert not any(e.line for e in legend)
+    assert legend[0].box == page_box(*rows[0].box, W, H)
+
+
+def test_a_one_row_legend_is_a_legend() -> None:
+    rgb = white()
+    row = Glyph(4, 0.9, box(1700, 100))
+    label(rgb, row)
+    legend = glyph_legend(rgb, [row, Glyph(4, 0.8, box(300, 300))], Recognise("Radiator"))
+    assert legend is not None and [e.label for e in legend] == ["Radiator"]
+
+
+def test_no_glyph_with_a_label_is_no_legend() -> None:
+    rgb = white()
+    rgb[299:301, 320:900] = 0  # only a pipe
+    assert glyph_legend(rgb, [Glyph(1, 0.9, box(300, 300))], Recognise()) is None
+
+
+def test_a_label_crop_ends_at_its_text_not_at_scan_salt() -> None:
+    rgb = white()
+    row = Glyph(1, 0.9, box(1000, 100))
+    label(rgb, row, width=300)
+    for x in range(1400, 1900, 37):
+        rgb[100, x] = 0  # one dark pixel per column: salt, not ink
+    seen = Recognise("Radiator")
+    glyph_legend(rgb, [row], seen)
+    (crop,) = seen.crops
+    assert 290 <= crop.shape[1] <= 320
+
+
+def test_plan_glyphs_take_their_labels_from_the_glyph_legend() -> None:
+    rgb = white()
+    rows = [Glyph(1, 0.9, box(1700, 100)), Glyph(2, 0.9, box(1700, 140))]
+    for g in rows:
+        label(rgb, g)
+    plan = [
+        Glyph(1, 0.9, box(300, 300)),
+        Glyph(2, 0.8, box(500, 500)),
+        Glyph(2, 0.7, box(700, 900)),
+    ]
+    reading = own_legend_reading(rgb, rows + plan, Recognise("Radiator", "Valve"))
+    assert sorted(s.label for s in reading.sightings) == ["Radiator", "Valve", "Valve"]
+    assert [e.label for e in reading.legend or ()] == ["Radiator", "Valve"]
+
+
+def test_the_glyph_legend_is_off_by_default_and_keeps_its_own_sheets(tmp_path, monkeypatch) -> None:
+    from test_picture_lane import _settings
+
+    from app import composition
+    from app.adapters.discipline_pictures.glyphs import GlyphReader
+    from app.adapters.discipline_pictures.lane import PictureLane
+    from app.composition import build_ingest
+
+    def lane(**extra):
+        settings = _settings(tmp_path, monkeypatch, discipline_pictures="glyphs",
+                             discipline_pictures_cache_dir=tmp_path / "facts", **extra)  # fmt: skip
+        built = composition._pictures(settings, object(), object(), None)  # type: ignore[arg-type]
+        assert isinstance(built, PictureLane)
+        names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
+        reader = built._template  # pyright: ignore[reportPrivateUsage]
+        assert isinstance(reader, GlyphReader)
+        return reader, built._sheets.path("0" * 64).parent, names  # pyright: ignore[reportPrivateUsage]
+
+    reader, kept, names = lane()
+    assert reader._recognise is None  # pyright: ignore[reportPrivateUsage]
+    assert kept == tmp_path / "facts" / "glyphs"
+    assert "discipline_glyphs_legend" not in names
+    reader, kept, names = lane(discipline_glyphs_legend="glyphs")
+    assert reader._recognise is not None  # pyright: ignore[reportPrivateUsage]
+    assert kept == tmp_path / "facts" / "glyphs" / "legend-glyphs"
+    assert names["discipline_glyphs_legend"] == "glyphs"

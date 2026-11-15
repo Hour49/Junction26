@@ -236,6 +236,11 @@ class Settings(BaseSettings):
     # Its sheets are kept in their own folder
     discipline_runs: Literal["mask", "graph"] = "mask"
     discipline_glyphs_model: Path = Path("../data/models/pic-glyphs")
+    # DISCIPLINE_PICTURES=glyphs: where its symbols' legend comes from. "ocr" = the OCR legend
+    # (legend.py); "glyphs" = read from the detector's own glyphs, each label by OCR recognition of
+    # the band right of its glyph (glyphs.py; DigitalHub held out 27/54 count units within 10% vs
+    # 9/54, .agents/exp/pics-pipe-glyph.md). Its sheets are kept in their own folder
+    discipline_glyphs_legend: Literal["ocr", "glyphs"] = "ocr"
     discipline_pictures_cache_dir: Path = Path("../data/cache/discipline-pictures")
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none

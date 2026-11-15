@@ -379,7 +379,9 @@ def _pictures(
     legend = OcrLegend(files, _ocr())
     symbols = check = None
     if settings.discipline_pictures == "glyphs":
-        symbols = GlyphReader(files, legend.legend, settings.discipline_glyphs_model)
+        own = settings.discipline_glyphs_legend == "glyphs"  # the legend from its own glyphs
+        recognise = _ocr().recognise if own else None
+        symbols = GlyphReader(files, legend.legend, settings.discipline_glyphs_model, recognise)
     elif settings.discipline_pictures == "gemini":
         key = settings.gemini_api_key.get_secret_value()
         client = CarbonClient(
@@ -408,6 +410,8 @@ def _pictures(
 
 def _pictures_cache(settings: Settings) -> Path:
     kept = kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
+    if settings.discipline_pictures == "glyphs" and settings.discipline_glyphs_legend != "ocr":
+        kept = kept / f"legend-{settings.discipline_glyphs_legend}"
     # another runs reader keeps its own sheets: switching never serves the other one's
     return kept if settings.discipline_runs == "mask" else kept / f"runs-{settings.discipline_runs}"
 
@@ -926,6 +930,8 @@ def build_ingest(
         names["discipline_pictures"] = f"{settings.discipline_pictures}:{PICTURES_CODE}"
         if settings.discipline_runs != "mask":  # named only when not the default
             names["discipline_runs"] = settings.discipline_runs
+        if settings.discipline_pictures == "glyphs" and settings.discipline_glyphs_legend != "ocr":
+            names["discipline_glyphs_legend"] = settings.discipline_glyphs_legend
     if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
         # (ladder acts only when answering), so they share one name and a switch reads nothing again
         names["carbon_levels"] = f"demote:{READER_SHA[:12]}"
