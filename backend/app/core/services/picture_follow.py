@@ -30,6 +30,9 @@ from app.core.services.model import (
     Affine,
     Code,
     DisciplineFollow,
+    FollowPicture,
+    Pairing,
+    PictureMark,
     Point2,
     ServiceAction,
     ServiceMark,
@@ -93,6 +96,8 @@ class _Thing:
     shape: BaseGeometry
     run: bool
     frac: tuple[Point2, ...]  # its centre (a symbol) or its line (a run), plan fractions
+    sheet: tuple[str, int] = ("", 0)  # the drawing and page it is drawn on
+    own: tuple[Point2, ...] = ()  # `frac` in that sheet's fractions
 
     @property
     def name(self) -> str:
@@ -140,9 +145,14 @@ def align(plan: Sheet, sheet: Sheet) -> Affine | str:
 
 
 def picture_follow(
-    proposal: Proposal, plan: Sheet, sheets: Sequence[tuple[Sheet, FactSheet]]
+    proposal: Proposal,
+    plan: Sheet,
+    sheets: Sequence[tuple[Sheet, FactSheet]],
+    pairings: Sequence[Pairing | str] | None = None,
 ) -> ServicesFollow:
-    """The proposal's removed and added walls followed on every services picture of the floor."""
+    """The proposal's removed and added walls followed on every services picture of the floor.
+    `pairings`, in the sheets' order: how each lies on the plan, or why it does not (pics W1);
+    None: each by `align`."""
     unit = plan.size_m or (1.0, 1.0)
     metres = plan.size_m is not None
     on, inside, near = (ON_M, IN_M, NEAR_M) if metres else (ON_FRAC, IN_FRAC, NEAR_FRAC)
@@ -152,16 +162,19 @@ def picture_follow(
     things: dict[Discipline, list[_Thing]] = defaultdict(list)
     sources: dict[Discipline, list[str]] = defaultdict(list)
     refused: dict[Discipline, str] = {}
-    for sheet, facts in sheets:
-        place = align(plan, sheet)
-        if isinstance(place, str):
+    taken: dict[Discipline, Pairing] = {}  # the first sheet laid over, per lane
+    for n, (sheet, facts) in enumerate(sheets):
+        paired = pairings[n] if pairings is not None else _paired(plan, sheet)
+        if isinstance(paired, str):
             for f in facts.facts:
                 if f.discipline in LANES and f.spots:
-                    refused.setdefault(f.discipline, place)
+                    refused.setdefault(f.discipline, paired)
             continue
-        for discipline, found in _things(sheet, facts, place.apply, unit).items():
+        place = (paired.to_plan or Affine()).apply
+        for discipline, found in _things(sheet, facts, place, unit).items():
             things[discipline] += found
             sources[discipline].append(sheet.drawing_id)
+            taken.setdefault(discipline, paired)
     lanes: list[DisciplineFollow] = []
     for discipline in LANES:
         name = discipline.capitalize()
@@ -184,12 +197,64 @@ def picture_follow(
             *_on_wall(here, removed, "removed", on, inside, passage),
             *_on_wall(here, added, "added", on, inside, passage),
         ]
-        lanes.append(_lane(discipline, here, found, changed, near, sources[discipline]))
+        lane = _lane(discipline, here, found, changed, near, sources[discipline])
+        lanes.append(
+            lane.model_copy(update={"picture": _picture(lane, here, proposal, taken[discipline])})
+        )
     return ServicesFollow(
         storey=plan.storey,
         disciplines=tuple(lanes),
         unknowns=UNKNOWNS if any(d.status == "checked" for d in lanes) else (),
     )
+
+
+def _paired(plan: Sheet, sheet: Sheet) -> Pairing | str:
+    """`align` as a pairing: the plan's own page, or a sheet laid over by its room names."""
+    place = align(plan, sheet)
+    if isinstance(place, str):
+        return place
+    own = (sheet.drawing_id, sheet.page) == (plan.drawing_id, plan.page)
+    return Pairing(
+        drawing_id=sheet.drawing_id,
+        page=sheet.page,
+        paired_by="same_page" if own else "geometry",
+        reason="the services marks are on the plan's own page"
+        if own
+        else f"laid over the plan by the room names both sheets print (within {ALIGN_M} m) "
+        "and their scales",
+        to_plan=place,
+    )
+
+
+def _picture(
+    lane: DisciplineFollow, here: list[_Thing], proposal: Proposal, paired: Pairing
+) -> FollowPicture:
+    """The lane's sheet with the edit and the lane's marks in that sheet's page fractions."""
+    back = (paired.to_plan or Affine()).inverse()
+    sheet = (paired.drawing_id, paired.page)
+
+    def mapped(items: Sequence[Item]) -> tuple[tuple[Point2, ...], ...]:
+        return tuple(tuple(_round(back.apply(p)) for p in i.polygon) for i in items)
+
+    mine = {t.frac: t for t in here if t.sheet == sheet}  # a mark's plan place gives its thing
+    marks: list[PictureMark] = []
+    for mark in lane.marks:
+        thing = mine.get(mark.line or ((mark.at,) if mark.at else ()))
+        if thing is not None:
+            line, at = (thing.own, None) if thing.run else ((), thing.own[0])
+            marks.append(PictureMark(ref=mark.ref, line=line, at=at))
+    return FollowPicture(
+        drawing_id=paired.drawing_id,
+        page=paired.page,
+        pairing=paired,
+        removed=mapped(proposal.removed),
+        added=mapped(proposal.added),
+        marks=tuple(marks),
+    )
+
+
+def _round(p: Point2) -> Point2:
+    return (round(p[0], 5), round(p[1], 5))
 
 
 # --- reading the picture's marks ------------------------------------------------------------------
@@ -235,6 +300,7 @@ def _things(
                     place,
                     unit,
                     measure == "length",
+                    (sheet.drawing_id, sheet.page),
                 )
             )
     return out
@@ -249,23 +315,28 @@ def _thing(
     place: Place,
     unit: Point2,
     run: bool,
+    sheet: tuple[str, int] = ("", 0),
 ) -> _Thing:
-    x0, y0 = place((spot.box[0], spot.box[1]))
-    x1, y1 = place((spot.box[2], spot.box[3]))
+    sx0, sy0, sx1, sy1 = spot.box
+    x0, y0 = place((sx0, sy0))
+    x1, y1 = place((sx1, sy1))
     word = _WORDS.get(kind) or (label if kind == "symbol" else kind.replace("_", " "))
     if not run:
         centre = (round((x0 + x1) / 2, 5), round((y0 + y1) / 2, 5))
         shape = box(x0 * unit[0], y0 * unit[1], x1 * unit[0], y1 * unit[1])
-        return _Thing(discipline, word, label, size, shape, False, (centre,))
+        own = (_round(((sx0 + sx1) / 2, (sy0 + sy1) / 2)),)
+        return _Thing(discipline, word, label, size, shape, False, (centre,), sheet, own)
     # shortcut: a run piece's spot is its box, so the piece is taken along the box's long side;
     # a diagonal piece reads as its box's long side (pass the piece's ends when readers give them)
     if (x1 - x0) * unit[0] >= (y1 - y0) * unit[1]:
         ends = ((x0, (y0 + y1) / 2), (x1, (y0 + y1) / 2))
+        own = ((sx0, (sy0 + sy1) / 2), (sx1, (sy0 + sy1) / 2))
     else:
         ends = (((x0 + x1) / 2, y0), ((x0 + x1) / 2, y1))
+        own = (((sx0 + sx1) / 2, sy0), ((sx0 + sx1) / 2, sy1))
     line = LineString([(x * unit[0], y * unit[1]) for x, y in ends])
     frac = tuple((round(x, 5), round(y, 5)) for x, y in ends)
-    return _Thing(discipline, word, label, size, line, True, frac)
+    return _Thing(discipline, word, label, size, line, True, frac, sheet, tuple(map(_round, own)))
 
 
 def _strips(items: Sequence[Item], unit: Point2) -> tuple[BaseGeometry, float]:

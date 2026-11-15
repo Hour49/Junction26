@@ -208,6 +208,25 @@ class Pairing(Frozen):
     )  # the sheet on the plan; not in the API
 
 
+class PictureMark(Frozen):
+    """A lane's mark where the discipline sheet draws it (`ref` as in the lane's marks)."""
+
+    ref: str
+    line: Path = ()
+    at: Point2 | None = None
+
+
+class FollowPicture(Frozen):
+    """The discipline sheet a lane was read from, with the edit drawn in its page fractions."""
+
+    drawing_id: str
+    page: int
+    pairing: Pairing
+    removed: tuple[Path, ...] = ()  # the removed walls' strips
+    added: tuple[Path, ...] = ()  # the new partitions' strips
+    marks: tuple[PictureMark, ...] = ()
+
+
 class DisciplineFollow(Frozen):
     discipline: Discipline
     status: Literal["checked", "no_model", "not_aligned"]
@@ -218,6 +237,7 @@ class DisciplineFollow(Frozen):
     summary: Summary = Summary()
     marks: tuple[ServiceMark, ...] = ()
     actions: tuple[ServiceAction, ...] = ()
+    picture: FollowPicture | None = None  # a lane a services picture checked
 
 
 class ServicesFollow(Frozen):
