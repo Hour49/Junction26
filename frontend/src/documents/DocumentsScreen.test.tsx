@@ -429,7 +429,9 @@ describe('DocumentsScreen (documents.md)', () => {
     await flush();
     const files = within(screen.getByRole('region', { name: 'Files' }));
     const row = must(files.getByText('plans/flat-b.pdf').closest('a'));
-    expect(within(row).getByText('1 conflict between the two methods (room areas)')).toBeTruthy();
+    // R4-B7: its one conflict a rule settled; the file stays flagged
+    const why = '1 conflict between the two methods (room areas), settled by a rule';
+    expect(within(row).getByText(why)).toBeTruthy();
     expect(issuesRegion().getByText('Nothing needs your answer right now.')).toBeTruthy();
     // the same words as the ingest page's summary (routeSummary), so the two pages agree
     expect(
