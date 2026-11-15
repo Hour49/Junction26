@@ -5,25 +5,28 @@ with its spots as evidence. Off (the default), nothing is built and ingest is un
 Every page is drawn in the test: no partner data."""
 
 import io
+import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-from app.adapters.discipline_pictures.lane import PictureLane
+from app.adapters.discipline_pictures.lane import FROM_FILE_NAME, PictureLane, PictureSheets
 from app.adapters.discipline_pictures.legend import read_legend
+from app.adapters.ifc_model.facts_source import read_facts
 from app.adapters.raster_ocr import RapidOcrEngine
 from app.composition import build_ingest, build_pipeline
 from app.core.answering.facts import FACTS
 from app.core.answering.model import Answer, Question
 from app.core.drawing.model import Page
+from app.core.ifc_facts import FactSheet
 from app.core.ingest.model import Classified
 from app.core.ingest.triage import TriageSteps
 from app.core.picture_facts import storey_of_title
 from app.core.pipeline.printed import printed_scale
 from app.settings import Settings
-from scripts.make_sample_archive import build_archive
+from scripts.make_sample_archive import build_archive, ifc_model
 
 W, H, TILE, DPI = 2000, 1400, 40, 150
 M_PER_PX = 50 * 0.0254 / DPI  # printed 1:50 at the file's 150 dpi
@@ -55,9 +58,10 @@ RADIATORS = [(200, 200, 0), (600, 200, 90), (1000, 200, 180), (200, 700, 270), (
 VALVES = [(300, 450), (800, 450), (1200, 450)]
 
 
-def heating_scan() -> bytes:
+def heating_scan(scaled: bool = True) -> bytes:
     """A scanned heating plan: grey walls, 6 radiators, 3 valves, a red 5.00 m run, a legend
-    headed LEGEND with a group heading, the printed scale, the file's own 150 dpi."""
+    headed LEGEND with a group heading, the printed scale, the file's own 150 dpi (`scaled`
+    False: neither the printed scale nor a dpi, so the page has no scale)."""
     page = Image.new("RGB", (W, H), (255, 255, 255))
     draw = ImageDraw.Draw(page)
     draw.rectangle((20, 20, W - 20, H - 20), outline=(0, 0, 0), width=3)
@@ -77,8 +81,11 @@ def heating_scan() -> bytes:
     draw.text((x + 70, 1056), "Valve", fill=(0, 0, 0), font=FONT)
     draw.line((x, 1130, x + 50, 1130), fill=RED, width=4)
     draw.text((x + 70, 1116), "Heating pipe DN20", fill=(0, 0, 0), font=FONT)
-    draw.text((60, 1300), "SCALE 1:50", fill=(0, 0, 0), font=FONT)
     out = io.BytesIO()
+    if not scaled:
+        page.save(out, "PNG")
+        return out.getvalue()
+    draw.text((60, 1300), "SCALE 1:50", fill=(0, 0, 0), font=FONT)
     page.save(out, "PNG", dpi=(DPI, DPI))
     return out.getvalue()
 
@@ -127,10 +134,10 @@ class _NoDrawings:
         return None
 
 
-def _ask(settings: Settings, files: str, *texts: str) -> list[Answer]:
+def _ask(settings: Settings, files: str, *texts: str, file: str = "heating.png") -> list[Answer]:
     pipeline = build_pipeline(settings, Path(files))
     sink = _Sink()
-    asked = [Question(id=n, file="heating.png", text=t) for n, t in enumerate(texts, 1)]
+    asked = [Question(id=n, file=file, text=t) for n, t in enumerate(texts, 1)]
     pipeline.answer_questions(asked, _NoDrawings(), sink)
     return sink.answers
 
@@ -286,6 +293,56 @@ def test_a_sheet_triage_names_no_discipline_is_not_read(
     assert not any((tmp_path / "facts").glob("*.json"))
 
 
+# --- no sheet-kind reply: the discipline from the file name (sheet code or strong word) ----------
+
+
+def _untriaged(settings: Settings, name: str) -> tuple[Any, str]:
+    """`name` ingested with triage off (no sheet-kind step), as the no-keys backend does."""
+    ingest = build_ingest(settings, settings.projects_dir, background=False)
+    status = ingest.wait(ingest.start(name, heating_scan()))
+    return status, str(settings.projects_dir / status.id / "files")
+
+
+def test_a_picture_no_sheet_kind_step_saw_is_routed_by_its_file_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    _, files = _untriaged(settings, "H-102 heating plan.png")
+    [sheet] = (tmp_path / "facts").glob("*.json")
+    sources = {f["source"] for f in json.loads(sheet.read_text())["facts"]}
+    assert sources and all(FROM_FILE_NAME in s and s.startswith("picture:") for s in sources)
+    # Low, as every picture fact
+    [answer] = _ask(settings, files, "How many radiators are there?", file="H-102 heating plan.png")
+    assert answer.method == FACTS and answer.sure is False
+    assert "confidence is Low" in (answer.explanation or "")
+
+
+def test_a_file_name_that_names_no_discipline_leaves_the_picture_unread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    _untriaged(settings, "pipe layout 7.png")  # "pipe" is a weak word: plumbing or heating
+    assert not any((tmp_path / "facts").glob("*.json"))
+
+
+def test_off_the_file_name_changes_no_route_flag_or_drawing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, tuple[Any, ...]] = {}
+    for mode in ("off", "template"):
+        (tmp_path / mode).mkdir()
+        settings = _settings(tmp_path / mode, monkeypatch, discipline_pictures=mode,
+                             discipline_pictures_cache_dir=tmp_path / mode / "facts")  # fmt: skip
+        status, _ = _untriaged(settings, "H-102 heating plan.png")
+        drawings = sorted(p.read_bytes() for p in (settings.projects_dir / "drawings").glob("*"))
+        flags = [(f.path, f.state, f.route, f.reason) for f in status.files]
+        seen[mode] = (flags, drawings)
+    assert seen["off"] == seen["template"]
+    assert not (tmp_path / "off" / "facts").exists()
+
+
 # --- AC-14: off is the default and changes nothing ----------------------------------------------
 
 
@@ -316,3 +373,37 @@ def test_ac14_ingest_output_is_byte_identical_with_the_lane_on_or_off(
         drawings = settings.projects_dir / "drawings"  # named by key: the readers' names differ
         stored[mode] = sorted(p.read_bytes() for p in drawings.glob("*.json"))
     assert stored["off"] and stored["off"] == stored["template"]
+
+
+# --- the page's scale beside the facts (W1/W4: the services overlay on a picture needs it) -------
+
+
+@pytest.mark.parametrize("scaled", [True, False])
+def test_the_lane_keeps_the_pages_scale_when_it_reads_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scaled: bool
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    status, _ = _ingest(settings, heating_scan(scaled), SheetKind())
+    sha = status.files[0].sha256
+    kept = PictureSheets(None, tmp_path / "facts").sheet(sha)
+    assert kept is not None and kept.facts  # the symbols are read with or without a scale
+    if not scaled:
+        assert kept.scale is None
+        assert "scale" not in json.loads(
+            PictureSheets(None, tmp_path / "facts").path(sha).read_text()
+        )
+        return
+    assert kept.scale is not None
+    assert kept.scale.width_px * kept.scale.m_per_px == pytest.approx(W * M_PER_PX, rel=0.01)
+    assert kept.scale.height_px * kept.scale.m_per_px == pytest.approx(H * M_PER_PX, rel=0.01)
+
+
+def test_an_ifc_fact_sheet_is_the_json_it_was() -> None:
+    """Prebuilt IFC sheets are kept by CODE, which hashes core/ifc_facts.py: the picture's scale
+    lives picture-side, so an IFC sheet has the same fields and the same bytes."""
+    assert set(FactSheet.model_fields) == {"model", "disciplines", "facts"}
+    sheet = read_facts(ifc_model(), "house")
+    said = sheet.model_dump_json()
+    assert set(json.loads(said)) == {"model", "disciplines", "facts"}
+    assert FactSheet.model_validate_json(said).model_dump_json() == said

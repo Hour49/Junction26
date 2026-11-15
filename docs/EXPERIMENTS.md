@@ -4,7 +4,8 @@ On the night of 13-14 November the team ran about a dozen experiment tracks on t
 part of the Stoa dataset where we read a drawing from pixels). This page lists every arm worth naming, what it
 changed, what it scored, whether it shipped, and what it cost. It is the "how we improved" record that
 [GOLDEN.md](GOLDEN.md) points at. Sections 1 to 13 are final as of 2026-11-14 09:14 (every track closed, the last arm, integ-5, at 08:59). Section 14
-covers the later round "local" (from 09:42) and is a draft.
+covers the later round "local" (from 09:42) and is a draft. Section 15 covers the rounds of the night of 14-15 November
+from midnight to 03:00, one short entry per measured round.
 
 ## Protocol
 
@@ -1035,6 +1036,153 @@ street addresses from two sheets, and a no-personal-data rule and a contact-reda
   a handful of errors.
 - The hand-drawn gold and its reconciliation come from one model family; no person has counted those sheets.
 - The window-error shares are from small hand samples (20 pages, 20 extra boxes, 20 missed windows).
+
+## 15. The night of 14-15 November: accuracy arms, speed and memory, chat (2026-11-15 00:00-03:00)
+
+Each entry gives what was tried, the line written before measuring, the number, the verdict and the log (in
+`.agents/exp/` unless named otherwise; local, not in this repo). "Golden 0/3,058" means a golden v2 run in the demo
+config on cached replies gave no changed answer against main, and "204/204" that every extraction file was
+byte-identical. Every val and golden dev number here is from the same pages the earlier rounds tuned on; no arm was
+fitted on the test split or on the eval half of golden v2.
+
+### 15.1 Accuracy arms on raster sheets: none passed
+
+- **Room zoom** (`room-zoom.md`). A second Carbon call on a crop around each Carbon room box, asking for the room's
+  outline. 22 design rooms and 29 held rooms with printed areas, on 8 dev CubiCasa pages, at the gold scale. Line:
+  held rooms within 10% of the printed area >= 94.3% (today's box/1.104 gives 79.3%, so +15 points). Measured on held:
+  79.3%, +0 points. The median error halved (6.9% to 3.6%), and the slowest call took 38 s, over the 10 s per sheet
+  limit. **NO-GO**, nothing built. 0.365 USD. One held room is 3.4 points.
+- **K5 arm B: area band per door count and door-width spread** (`k5-door-band.md`). Line: every door-count bucket
+  with at least 20 rooms has at least 60% of its rooms inside the band the answer states, on val (held-out half) and
+  golden dev. Today the 5-9 door bucket fails: 48% on val, 49% on golden dev. Arm B (refit per door count x spread,
+  two ways on val) held out: 41% and 52% on val, 44% on golden dev. **NO-GO**. The two other registered arms did not
+  apply: the room-box term is calibrated (spread 0.152 against the shipped 0.157) and no fitted band is above the
+  0.37 refusal level. Found after the result, not a line: the misses follow the CubiCasa drawing style. On
+  `high_quality` sheets the page scale is inside its band on 30 of 70 val pages (43%) and 6 of 19 golden dev pages
+  (32%), against 73-90% on the other styles. 0 USD.
+- **K5 arm S: an image trait for that style** (`k5-style.md`). Five traits from the image and the detected doors,
+  never the file name; the rule picked on val half A was "mid-grey pixels are at least 65.06% of the non-white ones". Line L2: it flags at
+  most 10% of half B's other-style pages. Measured: 18 of 151 (11.9%), and it found only 12 of 35 `high_quality`
+  pages. **NO-GO**. 0 USD.
+- **K6: link an IFC model to its PDF sheets without the SVG twin** (`k6-pdf-link.md`). 71 plan sheets of 14 models.
+  Line L1: the vitoria plan-02 sheet gives the same 4 sheet-vs-model conflicts PDF-only as with its SVG; L2: no new
+  conflict a reviewer would call false. The cheap arm (the vector reader's door, window and room counts against the
+  model's storey) kept 52 of the 235 conflicts, lost 183, added 29, all 29 false; vitoria kept 1 of 4. A full arm
+  (rebuild the twin or fit the model geometry to the PDF) was estimated over the 2 h build gate. **NO-GO**, no build.
+  Every dataset sheet ships with its SVG (0 of 14 groups affected). 0 USD.
+- **Door view rule** (`door-views.md`, worker qa-c). Also count a door that most of the 8 views see when its fused
+  score is under the 0.28 threshold; views and score fitted on val half A (182 pages), judged on half B (194). Line:
+  exact door count +3.0 points. Fitted rule: seen in all 8 views and score >= 0.26. Half B: 68.04% to 68.56%,
+  +0.52 points. **NO-GO**. The looser rule a QA note suggested (6 views, score 0.20) gives the same +0.52 and 21% more
+  false doors per page. 0 USD.
+- **Window count arbiter refit** (`windows-r13.md`). Where the window misses come from, 376 val pages: right 207
+  (55.1%); the right count among the arbiter's candidates but not picked 81 (21.5%); not among them 88 (23.4%). The
+  window arbiter's pick equals the 8-view detector count on all 376 pages. Arm V refit the window model on val half A
+  (190 pages) and was judged on half B (186). Line: exact window count +3.0 points. Measured: 55.9% to 57.0%, +1.1
+  [-1.1, +3.2]; fitted on B and judged on A, -2.6 [-5.8, +0.5]. **NO-GO**: where the one-view count or the page count
+  model disagrees with the 8-view count, the 8-view count is right as often or more, so there is nothing for a refit to
+  learn. 0 USD.
+- **Carbon double counts** (`r11-local-dec.md`). Rule T merges two Carbon fixtures of one class whose centres are under
+  0.75 m apart; rule W drops a Carbon window that touches only an outdoor room. Line: no page goes from exact to
+  wrong. T: 5 shower pages went from exact to wrong (317 to 314 exact). W: 3 window pages did (185 to 182): on Nordic
+  sheets a window on a balcony is a real window. **NO-GO** for both. 0 USD.
+
+### 15.2 Answering
+
+- **A room type word that two rooms share** (`r11-answer.md`, PR #415, merged). "The living room" when two rooms are
+  typed living answers the one printed LIVING ROOM. Line: golden 0/3,058 worse. Measured 0/3,058 changed. **PASS**.
+  A second line asked whether named-room areas from a Carbon box need a guard (more than 20% of them outside their
+  stated band): 13 of 109 (11.9%; 16 of 112 counting unmatched boxes), so no guard.
+- **"Shower rooms" read as bathrooms** (same log). Golden 0 changes, but on one judge-set sheet it turned a refusal into
+  a wrong Low answer (1 against 5). Not shipped: the rule of the round was that no refusal is traded for a Low guess
+  unless the line says so.
+- **USER_SCALE: a scale the user types in the chat** (`user-scale.md`, PRs #432 and #480, merged, off by default).
+  Line L1: on 69 golden dev CubiCasa sheets, giving one room's area sets every other room's area within 2% of the gold
+  scale's. Measured: 17,320 of 17,320 (sheet, given room, other room) triples. With it off: golden 0/3,058, 204/204.
+  Refusal and "never High" lines held as tests. **PASS**. 0 USD.
+- **Confident wrong answers on golden v2** (`.agents/qa/r12/confident-wrong.md`, worker fail-1). Run 030abbb: 278
+  raster answers marked sure, 274 right, 4 wrong: 2 questions in 2 languages (colorful-30 WC seats 2 against 1,
+  high_quality_architectural-8517 storeys 2 against 3). No cause covers more than one question. A rule "sure needs a
+  score of 0.8" would remove both and demote 13 right answers; it was not adopted, because it would be chosen from two
+  golden dev items. No change. 0 USD.
+- **Golden dev misses by family** (`answer-r13.md`). 2,388 dev items, 2,217 right, 171 not. 164 of the 171 are CubiCasa
+  counts, the same drawings and numbers in English and Finnish, with errors in both directions (windows: 35 drawings,
+  21 under, 14 over). That points at the readers, not the question parser. Nothing built. 0 USD.
+- **Judge set re-score** (`r11-integ.md`; a measurement set, nothing tuned on it). Main 030abbb: 36 right, 12 wrong, 20
+  refused, 0 wrong at High (the earlier e2a48d7 had 34/11/23). With SCALE_CARBON_DOORS on: 37/14/17; on the one sheet it
+  touches it turns two refusals into two wrong Low areas (16 m² against 9.8, 149 m² against 100). The setting stays
+  off. 0.72 USD.
+- **Eight vocabulary refusals on the judge set** (`r11-eu-big.md`): closets, porches, vaults, telephone booths,
+  fireplaces, flats, lifts, staircases. Three would need a label count that already failed its held-out line (5 of 16
+  right), lifts only Carbon's side reading has, and the other four need a reader we don't have. Stoa's dev questions
+  never ask these nouns on raster sheets. No change. 0 USD.
+
+### 15.3 Speed and memory
+
+- **Parallel ingest** (`parallel-ingest.md`, PR #395, merged with default 1). Drawing groups read in parallel. Six cold
+  images, one run each: 253.0 s on main, 78.9 s with 4 groups (-69%). The memory line failed for both (each pinned at
+  the 10 GB cap), so the default stayed 1. Golden 0/3,058, 204/204. 3.11 USD.
+- **Raster memory** (`raster-memory.md`, PR #405, merged). A 138.6 Mpx greyscale page took 11.5 GB: every reader made
+  its own full-page RGB copy (about 0.42 GB each) and they run at once. With the copies removed, the readers' peak
+  above idle went from 11.13 to 2.84 GB cold and from 9.30 to 1.51 GB warm. Golden 0/3,058, 204/204; 4 of 4 hard photos
+  gave identical extractions. 0 USD.
+- **Ingest of 10 cold files** (`ingest-60s.md`, PR #422, merged). Line L2: under 60 s, median of 2. One cold run each:
+  273.1 s on main (2.49 USD), 88.3 s on the branch (2.78 USD), memory peak 7.3 GB under the 8 GB cap, golden 0/3,058,
+  204/204. L2 not met; it shipped because it cut the wait to about a third. The demo config took its settings (10 groups, 48 Carbon calls in flight,
+  12 tile calls per read, MALLOC_ARENA_MAX=2; the last cut a cached replay's peak from 9.6 to 6.7 GB). Three paid cold
+  runs of the merged code around 02:00 took 190.9, 277.8 and 188.9 s: Gemini answered about twice as slowly as in the
+  earlier run. Round 2 (PR #453, open) predicts 87.1 to 82.4 s on a latency replay; the slowest files wait on their own
+  chain of Carbon calls.
+- **Three uploads at once** (`concurrent-uploads.md`). One backend at the live cap (8 GB, no swap), the same 10 files
+  as three projects on cached replies. Line: peak under 8 GB, 0 errors, every file ends as it does alone. Measured: peak
+  6.35 GiB, 0 5xx, all 30 files the same; each project took 73-96 s against 37 s alone, because they queue on the one
+  local reading slot. **PASS**, no change needed. 0 USD.
+- **First project GET** (`cold-get.md`, PR #419, merged; no line registered). A 130-drawing project's first GET took
+  7.8 s, 60% of it rebuilding per-drawing name tables once per takeoff row. Built once per drawing: 7.8 s to 3.2 s
+  (5.1 s to 2.96 s on a quieter machine), responses byte-identical.
+- **Chat latency** (`chat-latency.md`, PR #447, merged). 20 recorded turns: 96.7 of 104.6 s (92%) is the model.
+  The one slow server step was "which room is the largest?" rebuilding the drawing's takeoff for every room. Line:
+  that step at least 50% faster, answers unchanged. Arm A (takeoff once): -48%, missed. Arm B (also the storey table
+  once): median 1.958 to 0.419 s (-79%), 0 answer changes on 20 turns, golden 0/3,058. **PASS**. 0.40 USD.
+- **Services prebuild** (`precompute-services.md`). A change to the deploy's prebuild step builds the ventilation and
+  plumbing stores next to heating: 19.2 s (333 MB), 13.1 s (302 MB) and 156.8 s (1,331 MB), 189.1 s in all, 3.1 s when already built. A
+  measurement for the deploy change, no line. 0.156 USD.
+
+### 15.4 Chat
+
+- **A cheaper final model step** (`final-step.md`). Every turn is two model steps; the arms changed only the second:
+  T thinking off, F a faster Gemini model, C shorter tool results. Line: the median turn 25% faster with right and
+  grounded answers not lower. Pilot on 20 recorded requests: F cut the step by 42% but changed the kind of answer on
+  4 of 20, which predicts about -16% on the turn; T predicts -3%; C removed 2.5% of the prompt. **NO-GO** for all three,
+  nothing built. 1.08 USD.
+- **Streaming the answer text** (`stream-text.md`, a study). On the endpoint we call, a tool call's arguments arrive
+  in one piece (one chunk at 5.98 s), so streaming needs the answer moved out of the tool call: a loop and frontend
+  change of about 3-3.5 h, with lines written for it. Not built. About 0 USD.
+- **The final config's chat** (`chat-final.md`). Line: the all-on branch has no more wrong answers than main on the
+  chat set (22 scripts, 64 turns, 18 with a truth), and 0 5xx. Main, two runs: 14 of 18 right in each, 6 wrong in all,
+  63 of 64 grounded, median 4.96 and 5.23 s per turn, about 1.09 USD per run. The all-on arm had not run when this
+  was written.
+
+### 15.5 Robustness
+
+- **Gemini faults** (`gemini-faults.md`, PR #439, open). Every Gemini call answered with 429, 503, 402, a timeout, a
+  reset or a non-JSON body, on a small upload and a chat, with seven lines written first. Before the fix two failed: a
+  file read with failed calls said it held nothing, and that empty reading was reused on the next upload of the same
+  file, even after Gemini recovered. No Gemini adapter retried a 429 or 503. After: all seven hold; a persistent 503 makes the upload take 42 s instead of
+  10 s. 0 USD (calls faked).
+
+### 15.6 Gaps in this section
+
+- Most rounds ran once, on a machine shared with other jobs. Paid cold timings move with Gemini's speed: the same
+  ingest code took 88.3 s in one run and 188.9-277.8 s in three runs around 02:00.
+- Small data: room zoom has 29 held rooms, the K5 bands rest on a few pages with cached rooms, and the judge set is 68
+  questions.
+- Not in this page yet: the logs written on 2026-11-14 between 17:40 and midnight (among them `carbon-first.md`,
+  `carbon-reader.md`, `judge-fresh.md`, `printed-scale.md`, `vector-generic.md`, `hard-set.md`, `big-tiles.md`,
+  `certified-bathroom.md`, `chat-eval.md`, `per-floor.md`, `rag-evidence.md`); the whole-turn faster-model arm
+  (`whole-turn-model.md`, registered 02:46, running); the all-on chat arm; ingest round 2 (#453).
+- Fixes without an experiment (TIFF and WebP uploads, the services-only IFC, the evidence-index lock, set-aside
+  wording) are in their PRs, not here.
 
 ---
 
