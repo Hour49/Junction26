@@ -6,6 +6,7 @@ export type Route =
   | { name: 'home'; query: URLSearchParams }
   | { name: 'account'; query: URLSearchParams }
   | { name: 'about'; query: URLSearchParams }
+  | { name: 'stats'; query: URLSearchParams }
   | { name: 'project'; projectId: string; query: URLSearchParams }
   | { name: 'chat'; projectId: string; query: URLSearchParams }
   | { name: 'checks'; projectId: string; query: URLSearchParams }
@@ -34,6 +35,7 @@ export function parseRoute(hash: string): Route {
   if (path === '/') return { name: 'home', query };
   if (path === '/workspaces') return { name: 'account', query };
   if (path === '/about') return { name: 'about', query };
+  if (path === '/stats') return { name: 'stats', query };
   let m = PROJECT_ONLY.exec(path);
   if (m?.[1]) return { name: 'project', projectId: m[1], query };
   m = OLD_TABS.exec(path);
@@ -62,6 +64,8 @@ export function routePath(route: Route): string {
       return '/workspaces';
     case 'about':
       return '/about';
+    case 'stats':
+      return '/stats';
     case 'project':
       return `/p/${route.projectId}`;
     case 'chat':
@@ -91,6 +95,11 @@ function subscribe(onChange: () => void): () => void {
 }
 
 const currentHash = () => window.location.hash;
+
+/** `/stats` typed as a path (not `#/stats`): the hash route it means, or null. */
+export function pathRedirect(pathname: string, hash: string): string | null {
+  return pathname.replace(/\/$/, '') === '/stats' && hash === '' ? '/#/stats' : null;
+}
 
 /** The location hash, re-read on every `hashchange`. */
 export function useHash(): string {

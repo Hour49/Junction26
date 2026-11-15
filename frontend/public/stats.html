@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>How Vellum reads a floor plan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the pipeline diagram is the page; it runs left to right at full width and forks at the classifier. Two small figures sit side by side under it. */
+:root {
+  --bg: #eef1f6;
+  --sheet: #fcfdfe;
+  --node: #ffffff;
+  --ink: #111a26;
+  --ink-2: #47566a;
+  --ink-3: #6f7d90;
+  --rule: #d5dce6;
+  --accent: #1d4f91;
+  --accent-soft: #e6eef9;
+  --right: #2a78d6;
+  --wrong: #eb6834;
+  --det: #13865a;
+  --ml: #2563c9;
+  --llm: #c94f16;
+  --flow-alt: #7a5cc8;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1218; --sheet: #151c26; --node: #1b2431; --ink: #e9eef5; --ink-2: #b3bfce; --ink-3: #8593a6;
+    --rule: #2b3645; --accent: #7fb0ee; --accent-soft: #1b2a3f; --right: #3987e5; --wrong: #d95926;
+    --det: #3cc68f; --ml: #6ea6f5; --llm: #f2874f; --flow-alt: #a58cf2;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1218; --sheet: #151c26; --node: #1b2431; --ink: #e9eef5; --ink-2: #b3bfce; --ink-3: #8593a6;
+  --rule: #2b3645; --accent: #7fb0ee; --accent-soft: #1b2a3f; --right: #3987e5; --wrong: #d95926;
+  --det: #3cc68f; --ml: #6ea6f5; --llm: #f2874f; --flow-alt: #a58cf2;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 36px 64px;
+}
+.page { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(1.8rem, 4.5vw, 2.5rem); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 1.2rem; font-weight: 600; }
+p { margin: 0; max-width: 64ch; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.lede { color: var(--ink-2); font-size: 1.05rem; }
+.live { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 0.8rem; color: var(--ink-2); }
+.live i { width: 9px; height: 9px; border-radius: 50%; background: var(--det); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.75); } }
+section { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding: 22px clamp(16px, 3vw, 26px); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.note { font-size: 0.85rem; color: var(--ink-3); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 0.85rem; color: var(--ink-2); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.back { font-size: 0.9rem; color: var(--accent); }
+.inapp .back { display: none; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.dot.d { background: var(--det); } .dot.m { background: var(--ml); } .dot.g { background: var(--llm); }
+.sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.sw.new { border: 1.5px dashed var(--ink-3); border-radius: 3px; width: 14px; height: 12px; }
+.sw.r { background: var(--right); } .sw.w { background: var(--wrong); }
+.scroll { overflow-x: auto; }
+
+/* pipeline */
+#pipe { display: block; width: 100%; min-width: 1120px; height: auto; }
+#pipe .box { fill: var(--node); stroke: var(--rule); stroke-width: 1.5; }
+#pipe .box.key { stroke: var(--ink-3); stroke-width: 2; fill: var(--accent-soft); }
+#pipe .ttl { font-family: var(--display); font-weight: 600; font-size: 15.5px; fill: var(--ink); }
+#pipe .sub { font-family: var(--body); font-size: 12.5px; fill: var(--ink-2); }
+#pipe .tech { font-family: var(--mono); font-size: 11.8px; fill: var(--ink); }
+#pipe .wire { fill: none; stroke: var(--rule); stroke-width: 2; }
+#pipe .flow { fill: none; stroke-width: 2; stroke-dasharray: 5 9; stroke-linecap: round; animation: run 0.9s linear infinite; }
+#pipe .flow.plan { stroke: var(--ink-2); }
+#pipe .flow.other { stroke: var(--ink-3); }
+#pipe .flow.ifc { stroke: var(--flow-alt); }
+#pipe .box.d { stroke: var(--det); stroke-width: 2; }
+#pipe .box.m { stroke: var(--ml); stroke-width: 2; }
+#pipe .box.g { stroke: var(--llm); stroke-width: 2; }
+#pipe .box.new { stroke-dasharray: 6 5; }
+#pipe .pk.ifc { fill: var(--flow-alt); }
+@keyframes run { to { stroke-dashoffset: -14; } }
+#pipe .pill rect { fill: var(--sheet); stroke: var(--rule); stroke-width: 1; }
+#pipe .pill text { font-family: var(--mono); font-size: 11px; fill: var(--ink-2); }
+#pipe .pill.strong rect { stroke: var(--ink-2); stroke-width: 1.5; }
+#pipe .pill.strong text { fill: var(--ink); font-weight: 500; }
+#pipe .pk.plan { fill: var(--ink-2); }
+#pipe .pk.other { fill: var(--ink-3); }
+#pipe circle.d { fill: var(--det); } #pipe circle.m { fill: var(--ml); } #pipe circle.g { fill: var(--llm); }
+#pipe .lane { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; fill: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { #pipe .flow, .live i { animation: none; } #pipe .pk { display: none; } }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+
+/* chart */
+#progress { display: block; width: 100%; min-width: 520px; height: auto; }
+#progress text { font-family: var(--body); fill: var(--ink-2); font-size: 13px; }
+#progress .tick { font-family: var(--mono); font-size: 12px; fill: var(--ink-3); }
+#progress .lab { fill: var(--ink); font-weight: 600; font-size: 14px; }
+#progress .grid { stroke: var(--rule); stroke-width: 1; }
+#progress .line { stroke: var(--right); stroke-width: 2; fill: none; stroke-linejoin: round; }
+#progress .base { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 4; }
+#progress .pt { fill: var(--right); stroke: var(--sheet); stroke-width: 2; }
+#progress .hit { fill: transparent; }
+#progress .hit:focus { outline: none; }
+#progress .hit:focus + .pt, #progress .hit:hover + .pt { stroke: var(--ink); }
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 0.82rem; line-height: 1.4; padding: 8px 10px; border-radius: 4px; max-width: 250px; }
+#tip b { font-family: var(--mono); font-weight: 500; }
+
+/* before / after */
+h3 { font-family: var(--display); font-size: 0.98rem; font-weight: 600; margin: 0; }
+.ba { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; }
+.panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.arrow { font-size: 1.8rem; color: var(--ink-3); }
+.piles { display: flex; flex-wrap: wrap; gap: 14px 30px; }
+.piles > div { display: flex; flex-direction: column; gap: 8px; }
+.waffle { display: grid; grid-template-columns: repeat(var(--cols), 15px); gap: 3px; }
+.waffle i { width: 15px; height: 15px; border-radius: 3px; background: var(--right); }
+.waffle i.w { background: var(--wrong); }
+.cap2 { font-size: 0.9rem; color: var(--ink-2); max-width: 34ch; }
+.cap2 b { color: var(--ink); font-weight: 600; }
+/* experiments */
+.exp { display: grid; grid-template-columns: minmax(120px, 1.1fr) minmax(120px, 1fr) 3.2em; gap: 9px 12px; align-items: center; font-size: 0.88rem; }
+.exp .lbl { color: var(--ink); line-height: 1.3; }
+.exp .bar { position: relative; height: 16px; }
+.exp .bar::before { content: ""; position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--ink-3); }
+.exp .bar i { position: absolute; top: 0; height: 100%; }
+.exp .bar i.p { left: calc(50% + 1px); background: var(--right); border-radius: 0 4px 4px 0; }
+.exp .bar i.n { right: 50%; background: var(--wrong); border-radius: 4px 0 0 4px; }
+.exp .val { font-family: var(--mono); font-size: 0.82rem; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-2); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px; }
+.stats div { display: flex; flex-direction: column; gap: 2px; }
+.stats .v { font-family: var(--display); font-size: 1.9rem; font-weight: 600; line-height: 1.1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.stats .v.g { color: var(--llm); }
+.stats .k { font-size: 0.86rem; color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<header>
+  <div>
+    <h1>How we read a floor plan</h1>
+    <p class="lede">Every file is classified first, now including its discipline. Plans are read and double-checked. Piping, heating and the other disciplines take the same route, models or pictures, into a fact sheet per discipline. Everything else becomes searchable evidence. Gemini 4 Carbon does the jobs our local models cannot.</p>
+  </div>
+  <span class="live"><i></i>pipeline running</span>
+  <a class="back" href="/#/" target="_top">Back to Vellum</a>
+</header>
+
+<section>
+  <div class="legend">
+    <span><i class="dot d"></i>deterministic, no model</span>
+    <span><i class="dot m"></i>local ML model, no LLM</span>
+    <span><i class="dot g"></i>LLM</span>
+    <span><i class="sw new"></i>new tonight, off by default; some steps not built yet</span>
+  </div>
+  <p class="note">Green steps are plain code: the same file gives the same result every time, and no model is called. Blue steps run a trained vision or text model on our machine, with no LLM. Orange steps call a large language model: Gemini through an outside API, or Qwen3.8-27B on EU infrastructure in place of every orange step, for 1 to 2 points less. A box takes the colour of its most model-heavy step.</p>
+  <div class="scroll"><svg id="pipe" viewBox="0 0 1415 890" role="img" aria-label="Pipeline: upload, then a classifier sorts every file three ways and names its discipline from the same reply. Floor plans: vector files are parsed exactly, scans are read by vision models and double-checked, both feed the drawing model and the answer. Discipline drawings and models (piping, heating, ventilation, electrical, structural) follow the same steps: models and vector files are parsed exactly, pictures are read with vision and double-checked (not built yet), and both feed a fact sheet per discipline that answers questions at Low confidence until measured. Everything else is described by Carbon, chunked and stored in a hybrid search index that feeds the answer."></svg></div>
+  <h2>Cost per page</h2>
+  <div class="stats">
+    <div><span class="v">$0</span><span class="k">vector file: parsed on our machine, no model</span></div>
+    <div><span class="v">$0</span><span class="k">scan, local models only: about 2 s of CPU</span></div>
+    <div><span class="v">€0.002</span><span class="k">scan with Qwen3.8-27B on a rented EU GPU</span></div>
+    <div><span class="v">$0.007</span><span class="k">scan with the three Gemini calls</span></div>
+    <div><span class="v g">$0.012</span><span class="k">Carbon names the kind of sheet</span></div>
+    <div><span class="v g">$0.03</span><span class="k">Carbon describes an elevation, section or photo for search</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>We know which answers to trust</h2>
+  <p>Out of every 100 answers on scanned plans, 13 are wrong. The double-check flags 97% of those for a person to look at, and the answers it marks High are 99% exact.</p>
+  <div class="ba">
+    <div class="panel">
+      <h3>Without the double-check</h3>
+      <div class="waffle" id="w-before" style="--cols:20"></div>
+      <p class="cap2"><b>87 right, 13 wrong.</b> Nobody knows which 13.</p>
+    </div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="panel">
+      <h3>With the double-check</h3>
+      <div class="piles">
+        <div>
+          <div class="waffle" id="w-sure" style="--cols:8"></div>
+          <p class="cap2"><b>High confidence: 38 answers.</b> 99% of them exact.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="legend"><span><i class="sw r"></i>right answer</span><span><i class="sw w"></i>wrong answer</span></div>
+  <p class="note">Scaled to 100 from 6,718 answers on 376 test scans, read once and never tuned on: 99.0% of High answers are exact, 97.0% of all mistakes are flagged. This is why a hard family such as windows is still safe to use: its answers ask for a look.</p>
+</section>
+
+<section>
+  <h2>Piping, heating and other disciplines</h2>
+  <p>The organiser's hardest questions ask about pipes, heating, slabs and baseboards, and those come as building models or as pictures of drawings. The classifier now sends them down their own branch, the same way it sends floor plans: a model or vector file is parsed exactly, a picture is read with vision and double-checked, and both end in a fact sheet per discipline. An answer takes its numbers only from that sheet. Before tonight the pipeline answered none of the 649 practice questions on building models.</p>
+  <div class="stats">
+    <div><span class="v">0 of 649</span><span class="k">practice questions answered before tonight</span></div>
+    <div><span class="v">9%</span><span class="k">score for always saying "not available" (56 of 621 scored questions)</span></div>
+    <div><span class="v">21 of 21</span><span class="k">single-discipline models sorted right by what they contain</span></div>
+    <div><span class="v">510 of 584</span><span class="k">reference numbers for plumbing, ventilation and electrical already in the fact sheets</span></div>
+    <div><span class="v">49 of 49</span><span class="k">parts reached tracing one heating system from the manifold to its radiators</span></div>
+    <div><span class="v">$0</span><span class="k">per question: facts are computed once at upload, about 11 s for the largest services model</span></div>
+  </div>
+  <p class="note">Work in progress, measured on the practice split only; the sealed test split is never looked at. The 510 of 584 is a first pass with a loose match; the scored run with real answers is still running. Fact-sheet answers show Low confidence until that run is in. Reading pipes from pictures and its double-check are drawn but not built yet; tonight's numbers all come from building models.</p>
+</section>
+
+<div class="two">
+  <section>
+    <h2>Score on our golden set</h2>
+    <div class="scroll"><svg id="progress" viewBox="0 0 620 330" role="img" aria-label="Step chart of golden set accuracy from 0% on Friday 23:24 to 93.1% with the shipped demo configuration on Saturday 17:19"></svg></div>
+    <p class="note">2,948 questions on 155 drawings, whole product end to end. Every point is a recorded run. Hover a point.</p>
+  </section>
+
+  <section>
+    <h2>What moved the score, and what did not</h2>
+    <div class="exp" id="exp"></div>
+    <p class="note">Points of accuracy on 376 held-out scans, each against the version it replaced. The four at the bottom were dropped.</p>
+  </section>
+</div>
+
+<section>
+  <h2>The night in numbers</h2>
+  <div class="stats">
+    <div><span class="v">36</span><span class="k">literature reports read, 511 ideas listed</span></div>
+    <div><span class="v">12</span><span class="k">experiment tracks, every arm an A/B test</span></div>
+    <div><span class="v">€54</span><span class="k">of rented GPU, plus about $23 of API calls</span></div>
+  </div>
+</section>
+
+</div>
+<div id="tip" hidden></div>
+
+<script>
+(function () {
+  if (window.self !== window.top) document.documentElement.classList.add("inapp");
+  var NS = "http://www.w3.org/2000/svg";
+  function mk(parent, tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    parent.appendChild(e); return e;
+  }
+
+  /* ---------- pipeline ---------- */
+  var pipe = document.getElementById("pipe");
+  // lines: ["s", text] = plain line, ["d", text] = deterministic, no model, ["m", text] = local ML model, no LLM,
+  // ["g", text] = LLM. cls: the class of a box with no classed lines. The box border takes the most
+  // model-heavy class among its lines (any LLM: g; else any local ML: m; else d).
+  var nodes = {
+    up:   { x: 20,   y: 330, w: 105, h: 110, cls: "d", t: "Upload", lines: [["s", "PDF, scan,"], ["s", "photo, IFC"]] },
+    cls:  { x: 165,  y: 300, w: 175, h: 162, key: 1, t: "Classifier", lines: [["s", "Is it a floor plan?"], ["g", "Gemini Decisions"], ["g", "Carbon: sheet kind"], ["d", "discipline, no call"]] },
+    dk:   { x: 385,  y: 105, w: 160, h: 110, key: 1, nw: 1, cls: "d", t: "Model or scan?", lines: [["s", "IFC, vector PDF"], ["s", "or a picture"]] },
+    dex:  { x: 605,  y: 30,  w: 185, h: 118, nw: 1, t: "Parse exactly", lines: [["d", "ifcopenshell · IFC"], ["d", "census of objects"], ["d", "port graph · pipes"]] },
+    dsc:  { x: 605,  y: 172, w: 185, h: 120, nw: 1, t: "Read with vision", lines: [["s", "pipe runs, symbols,"], ["s", "legends, sizes"], ["s", "not built yet"]] },
+    ddc:  { x: 835,  y: 172, w: 190, h: 120, nw: 1, t: "Double-check", lines: [["s", "totals vs legend,"], ["s", "systems connected"], ["s", "not built yet"]] },
+    fact: { x: 1070, y: 120, w: 150, h: 140, nw: 1, t: "Fact sheets", lines: [["d", "at upload, $0"], ["s", "one per discipline:"], ["s", "pipes, ducts, slabs,"], ["s", "systems, baseboards"]] },
+    kind: { x: 385,  y: 475, w: 160, h: 110, key: 1, t: "Vector or scan?", lines: [["d", "by file content,"], ["s", "not by extension"]] },
+    ex:   { x: 605,  y: 400, w: 185, h: 118, t: "Parse exactly", lines: [["d", "pypdfium2 · PDF"], ["d", "ifcopenshell · IFC"], ["d", "tables · Shapely"]] },
+    sc:   { x: 605,  y: 542, w: 185, h: 142, t: "Read with vision", lines: [["m", "YOLO26 L · ONNX"], ["m", "U-Net · UVDoc"], ["g", "Gemini 3.5 Flash"], ["g", "Carbon: huge sheets"]] },
+    dc:   { x: 835,  y: 530, w: 190, h: 186, t: "Double-check", lines: [["d", "area, scale, counts"], ["m", "YOLO26 M"], ["m", "ConvNeXt-S · PP-OCRv6"], ["m", "logistic regression"], ["g", "Gemini Decisions"], ["g", "Carbon: printed scale"]] },
+    json: { x: 1070, y: 500, w: 150, h: 120, cls: "d", t: "Drawing model", lines: [["s", "one JSON per plan:"], ["s", "rooms, doors,"], ["s", "windows, areas"]] },
+    ans:  { x: 1265, y: 505, w: 130, h: 110, key: 1, t: "Answer", lines: [["s", "number + marks"], ["s", "sure or"], ["s", "please check"]] },
+    desc: { x: 605,  y: 775, w: 185, h: 100, t: "Describe", lines: [["s", "what the file shows"], ["g", "Gemini 4 Carbon"]] },
+    chk:  { x: 835,  y: 775, w: 190, h: 100, cls: "d", t: "Chunk", lines: [["s", "description + text"], ["s", "printed on the sheet"]] },
+    rag:  { x: 1255, y: 775, w: 150, h: 100, t: "Hybrid RAG", lines: [["d", "keyword"], ["m", "MiniLM vector"]] }
+  };
+  function R(n) { return [n.x + n.w, n.y + n.h / 2]; }
+  function Lf(n) { return [n.x, n.y + n.h / 2]; }
+  function curve(a, b) {
+    var mx = (a[0] + b[0]) / 2;
+    return "M" + a[0] + " " + a[1] + " C" + mx + " " + a[1] + " " + mx + " " + b[1] + " " + b[0] + " " + b[1];
+  }
+  var N = nodes;
+  var wires = [
+    { d: curve(R(N.up), Lf(N.cls)), k: "plan", dur: 1.4 },
+    { d: curve([340, 330], Lf(N.dk)), k: "ifc", dur: 1.6 },
+    { d: curve([340, 400], Lf(N.kind)), k: "plan", dur: 1.4 },
+    { d: "M340 440 C352 440 352 452 352 470 V795 C352 825 362 825 400 825 H605", k: "other", dur: 2.6 },
+    { d: curve([545, 145], Lf(N.dex)), k: "ifc", dur: 1.4 },
+    { d: curve([545, 175], Lf(N.dsc)), k: "ifc", dur: 1.4 },
+    { d: "M790 89 H960 C1020 89 1010 175 1070 175", k: "ifc", dur: 2.0 },
+    { d: curve(R(N.dsc), [835, 232]), k: "ifc", dur: 1.2 },
+    { d: curve(R(N.ddc), [1070, 220]), k: "ifc", dur: 1.2 },
+    { d: "M1220 190 H1290 C1330 190 1330 220 1330 250 V505", k: "ifc", dur: 2.0 },
+    { d: curve([545, 515], Lf(N.ex)), k: "plan", dur: 1.4 },
+    { d: curve([545, 545], Lf(N.sc)), k: "plan", dur: 1.4 },
+    { d: "M790 445 H960 C1020 445 1010 530 1070 530", k: "plan", dur: 2.0 },
+    { d: curve(R(N.sc), [835, 620]), k: "plan", dur: 1.2 },
+    { d: curve(R(N.dc), [1070, 585]), k: "plan", dur: 1.2 },
+    { d: curve(R(N.json), Lf(N.ans)), k: "plan", dur: 1.2 },
+    { d: curve(R(N.desc), Lf(N.chk)), k: "other", dur: 1.4 },
+    { d: curve(R(N.chk), Lf(N.rag)), k: "other", dur: 2.4 },
+    { d: "M1330 775 L1330 615", k: "other", dur: 2.4 }
+  ];
+  wires.forEach(function (w, i) {
+    mk(pipe, "path", { d: w.d, "class": "wire" });
+    mk(pipe, "path", { d: w.d, "class": "flow " + w.k });
+    var c = mk(pipe, "circle", { r: 4.5, "class": "pk " + w.k });
+    mk(c, "animateMotion", { dur: w.dur + "s", repeatCount: "indefinite", path: w.d, begin: (i * 0.23) + "s" });
+  });
+  mk(pipe, "text", { x: 385, y: 18, "class": "lane" }, "DISCIPLINES: PIPING, HEATING, VENTILATION, ELECTRICAL, STRUCTURAL");
+  mk(pipe, "text", { x: 385, y: 388, "class": "lane" }, "FLOOR PLANS");
+  mk(pipe, "text", { x: 605, y: 763, "class": "lane" }, "EVERYTHING ELSE: ELEVATIONS, SECTIONS, SITE PLANS, PHOTOS, TEXT");
+  function pill(cx, cy, text, strong) {
+    var g = mk(pipe, "g", { "class": "pill" + (strong ? " strong" : "") });
+    var w = text.length * 6.8 + 16;
+    mk(g, "rect", { x: cx - w / 2, y: cy - 10, width: w, height: 20, rx: 10 });
+    mk(g, "text", { x: cx, y: cy + 4, "text-anchor": "middle" }, text);
+  }
+  pill(575, 112, "model");
+  pill(575, 208, "scan");
+  pill(1330, 380, "Low for now");
+  pill(575, 482, "vector");
+  pill(575, 578, "scan");
+  pill(905, 445, "100% on our golden set", true);
+  pill(352, 700, "other");
+  pill(1330, 700, "evidence");
+  Object.keys(nodes).forEach(function (id) {
+    var n = nodes[id];
+    var kinds = n.lines.map(function (ln) { return ln[0]; });
+    var heavy = kinds.indexOf("g") >= 0 ? "g" : kinds.indexOf("m") >= 0 ? "m" : kinds.indexOf("d") >= 0 ? "d" : n.cls || "";
+    n.heavy = heavy;
+    mk(pipe, "rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: 8, "data-node": id, "data-class": heavy, "class": "box" + (n.key ? " key" : "") + (n.nw ? " new" : "") + (heavy ? " " + heavy : "") });
+    mk(pipe, "text", { x: n.x + 14, y: n.y + 27, "class": "ttl" }, n.t);
+    n.lines.forEach(function (ln, i) {
+      var ty = n.y + 50 + i * 21;
+      if (ln[0] === "s") {
+        mk(pipe, "text", { x: n.x + 14, y: ty, "class": "sub" }, ln[1]);
+      } else {
+        mk(pipe, "circle", { cx: n.x + 19, cy: ty - 4, r: 4.5, "class": ln[0] });
+        mk(pipe, "text", { x: n.x + 31, y: ty, "class": "tech" }, ln[1]);
+      }
+    });
+  });
+
+  /* ---------- progress chart: recorded runs (docs/GOLDEN.md series) ---------- */
+  var pts = [
+    { t: 24,   v: 0.0,  n: 0,    when: "Fri 23:24", what: "Empty skeleton" },
+    { t: 55,   v: 42.8, n: 1262, when: "Fri 23:55", what: "Reader for drawn PDFs", lab: "42.8% drawn PDFs" },
+    { t: 99,   v: 71.5, n: 2109, when: "Sat 00:39", what: "A labelled best guess for what is not read yet" },
+    { t: 163,  v: 74.7, n: 2201, when: "Sat 01:43", what: "Reader for building models", lab: "74.7% building models" },
+    { t: 356,  v: 91.6, n: 2701, when: "Sat 04:56", what: "Reader for scans, and for schedule tables", lab: "91.6% scans" },
+    { t: 478,  v: 91.6, n: 2701, when: "Sat 06:58", what: "Demo configuration after QA, same score" },
+    { t: 555,  v: 91.9, n: 2709, when: "Sat 08:15", what: "Larger detector" },
+    { t: 674,  v: 92.2, n: 2717, when: "Sat 10:14", what: "Kitchen rule" },
+    { t: 1099, v: 93.1, n: 2746, when: "Sat 17:19", what: "Shipped demo configuration: eight-view detector, local arbiter, double-check and confidence levels", lab: "93.1%" }
+  ];
+  var W = 620, H = 330, L = 44, Rm = 58, T = 26, B = 30, END = 1140;
+  var x = function (t) { return L + (t / END) * (W - L - Rm); };
+  var y = function (v) { return T + (1 - v / 100) * (H - T - B); };
+  var svg = document.getElementById("progress");
+  [0, 25, 50, 75, 100].forEach(function (v) {
+    mk(svg, "line", { x1: L, x2: W - Rm, y1: y(v), y2: y(v), "class": "grid" });
+    mk(svg, "text", { x: L - 8, y: y(v) + 4, "text-anchor": "end", "class": "tick" }, v + "%");
+  });
+  [[60, "Sat 00:00"], [420, "06:00"], [780, "12:00"], [1140, "18:00"]].forEach(function (d) {
+    mk(svg, "text", { x: x(d[0]), y: H - B + 19, "text-anchor": "middle", "class": "tick" }, d[1]);
+  });
+  mk(svg, "line", { x1: L, x2: W - Rm, y1: y(28.4), y2: y(28.4), "class": "base" });
+  mk(svg, "text", { x: W - Rm - 4, y: y(28.4) + 17, "text-anchor": "end" }, "always guessing: 28.4%");
+  var d = "M" + x(pts[0].t) + " " + y(pts[0].v);
+  for (var i = 1; i < pts.length; i++) d += " H" + x(pts[i].t) + " V" + y(pts[i].v);
+  mk(svg, "path", { d: d, "class": "line" });
+  pts.forEach(function (p) {
+    if (!p.lab) return;
+    var last = p === pts[pts.length - 1];
+    mk(svg, "text", { x: x(p.t) + (last ? 0 : 9), y: last ? y(p.v) - 12 : y(p.v) + 19, "text-anchor": last ? "middle" : "start", "class": "lab" }, p.lab);
+  });
+
+  var tip = document.getElementById("tip");
+  function show(p, ev, target) {
+    tip.innerHTML = "";
+    var b = document.createElement("b"); b.textContent = p.v.toFixed(1) + "% · " + p.n.toLocaleString("en") + " of 2,948";
+    var w = document.createElement("div"); w.textContent = p.when;
+    var t = document.createElement("div"); t.textContent = p.what;
+    tip.appendChild(b); tip.appendChild(w); tip.appendChild(t);
+    tip.hidden = false;
+    var r = target.getBoundingClientRect();
+    var cx = ev && ev.clientX ? ev.clientX : r.left + r.width / 2;
+    var cy = ev && ev.clientY ? ev.clientY : r.top;
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - tw - 8, cx - tw / 2)) + "px";
+    tip.style.top = (cy - th - 14 < 8 ? cy + 18 : cy - th - 14) + "px";
+  }
+  function hide() { tip.hidden = true; }
+  pts.forEach(function (p) {
+    var hit = mk(svg, "circle", { cx: x(p.t), cy: y(p.v), r: 14, "class": "hit", tabindex: 0, role: "img", "aria-label": p.when + ": " + p.v + "%. " + p.what });
+    mk(svg, "circle", { cx: x(p.t), cy: y(p.v), r: 5, "class": "pt", "pointer-events": "none" });
+    hit.addEventListener("mousemove", function (e) { show(p, e, hit); });
+    hit.addEventListener("mouseleave", hide);
+    hit.addEventListener("focus", function () { show(p, null, hit); });
+    hit.addEventListener("blur", hide);
+  });
+
+  /* ---------- trust: per 100 answers ---------- */
+  function waffle(id, n, wrongAt) {
+    var box = document.getElementById(id);
+    for (var i = 0; i < n; i++) {
+      var c = document.createElement("i");
+      if (wrongAt.indexOf(i) >= 0) c.className = "w";
+      box.appendChild(c);
+    }
+  }
+  waffle("w-before", 100, [4, 13, 22, 27, 31, 38, 46, 59, 62, 71, 75, 83, 97]);
+  waffle("w-sure", 38, []);
+
+  /* ---------- experiments ---------- */
+  var exps = [
+    ["Larger detector (YOLO26 S to M)", 2.7],
+    ["Eight views of each page, voted", 1.0],
+    ["Mask out the neighbouring flat", 0.7],
+    ["Room rules from printed labels", 0.6],
+    ["Second count by Gemini on showers", 0.5],
+    ["Reinforcement learning on a VLM counter", -0.6],
+    ["Input at 2048 px", -1.6],
+    ["A model that re-checks every box", -2.4],
+    ["Fine-tuned VLM as the counter", -4.4]
+  ];
+  var ex = document.getElementById("exp");
+  exps.forEach(function (e) {
+    var l = document.createElement("div"); l.className = "lbl"; l.textContent = e[0];
+    var b = document.createElement("div"); b.className = "bar";
+    var i = document.createElement("i"); i.className = e[1] >= 0 ? "p" : "n";
+    i.style.width = (Math.abs(e[1]) / 5 * 50) + "%";
+    b.title = e[0] + ": " + (e[1] > 0 ? "+" : "") + e[1].toFixed(1) + " points";
+    b.appendChild(i);
+    var v = document.createElement("div"); v.className = "val"; v.textContent = (e[1] > 0 ? "+" : "−") + Math.abs(e[1]).toFixed(1);
+    ex.appendChild(l); ex.appendChild(b); ex.appendChild(v);
+  });
+})();
+</script>
+
+</body>
+</html>

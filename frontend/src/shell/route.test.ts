@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { packOf, parseRoute, routeHref, withPack } from './route';
+import { packOf, parseRoute, pathRedirect, routeHref, withPack } from './route';
 
 const P = '5e0c1a2b3d4f';
 const D = 'adeefbbcc17559fc';
@@ -66,6 +66,15 @@ describe('parseRoute', () => {
     expect(routeHref(parseRoute(`#/p/${P}/issues?pack=fi`))).toBe(`#/p/${P}?pack=fi`);
     for (const hash of ['#/p/XYZ/conflicts', `#/p/${P}/conflicts/x`, `#/p/${P}/issues/x`])
       expect(parseRoute(hash).name).toBe('not-found');
+  });
+
+  it('the stats route, and /stats typed as a path', () => {
+    for (const hash of ['#/stats', '#/stats/']) expect(parseRoute(hash).name).toBe('stats');
+    expect(routeHref(parseRoute('#/stats'))).toBe('#/stats');
+    expect(pathRedirect('/stats', '')).toBe('/#/stats');
+    expect(pathRedirect('/stats/', '')).toBe('/#/stats');
+    expect(pathRedirect('/', '')).toBeNull();
+    expect(pathRedirect('/stats.html', '')).toBeNull();
   });
 
   it('SH-80 the about route, with or without ?project', () => {

@@ -553,3 +553,12 @@ main {
   min-height: 44px;
   color: var(--v-muted);
 }
+
+/* How it works (/stats): the plain stats page fills the screen under the header. */
+.stats-frame {
+  display: block;
+  width: 100%;
+  height: calc(100dvh - 120px);
+  min-height: 480px;
+  border: 0;
+}
