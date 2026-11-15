@@ -550,6 +550,22 @@ describe('thread', () => {
   });
 });
 
+describe('EN-92 a thread of refusals keeps the drawing in view', () => {
+  it('shows the page after a refusal, and only the answer card once a question is answered', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused, answer) });
+    const empty = () => screen.queryByRole('figure', { name: 'Drawing' });
+    expect(await screen.findByRole('figure', { name: 'Drawing' })).toBeTruthy();
+    await typeAndAsk(answerRefused.question);
+    const t = await turn(answerRefused.question);
+    await within(t).findByText("I can't answer that from this drawing.");
+    // QA r2 R2-A2: a judge whose first question is refused still sees the sheet
+    expect(empty()).toBeTruthy();
+    fireEvent.click(within(t).getByRole('button', { name: answer.question }));
+    await within(await turn(answer.question)).findByTestId('answer-value');
+    expect(document.querySelector('.en-card--empty')).toBeNull();
+  });
+});
+
 /** Asks one question and waits for its answer, refusal or error to show. */
 async function shownTurn(a: AnswerView, d = drawing) {
   open({ [DRAWING_ROUTE]: d, 'POST /api/ask': answers(a) });

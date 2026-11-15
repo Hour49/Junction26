@@ -10,24 +10,34 @@ export interface InfoState {
 
 const InfoContext = createContext<InfoState>({ info: null, error: null, reload: () => undefined });
 
-/** Asks `GET /api/info` once when the app starts, and again on `reload`. */
+/** After a failed `GET /api/info`, it is asked again this often until it answers (a backend back from a freeze or
+ * restart clears the error strip and brings the upload limits without a click). */
+export const INFO_RETRY_MS = 15_000;
+
+/** Asks `GET /api/info` once when the app starts, again on `reload`, and every INFO_RETRY_MS while it fails. */
 export function InfoProvider({ children }: { children: ReactNode }) {
   const [info, setInfo] = useState<Info | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const abort = new AbortController();
+    let again: ReturnType<typeof setTimeout> | undefined;
     getInfo({ signal: abort.signal }).then(
       (found) => {
         setInfo(found);
         setError(null);
       },
       (failed: unknown) => {
-        if (!abort.signal.aborted) setError(failed);
+        if (abort.signal.aborted) return;
+        setError(failed);
+        again = setTimeout(() => {
+          setAttempt((n) => n + 1);
+        }, INFO_RETRY_MS);
       },
     );
     return () => {
       abort.abort();
+      clearTimeout(again);
     };
   }, [attempt]);
   const reload = useCallback(() => {

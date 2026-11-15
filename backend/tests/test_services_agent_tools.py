@@ -388,3 +388,50 @@ def test_the_list_tool_says_breakdowns_come_from_the_groups() -> None:
     listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
     said = listing["function"]["description"]
     assert "by_type" in said and "by_room" in said
+
+
+def _plumbing() -> ServicesModel:
+    """The fixture plus a plumbing system: 3 WCs and 2 basins (sanitary terminals), a water
+    heater (unitary equipment), a roof drain (waste terminal) and a filter, as a real plumbing
+    model has them (#430 c6887184725: "91 in total" for its 72 sanitary fixtures)."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    radiator = next(e for e in doc["elements"] if e["id"] == "E3")
+    made = (
+        [("sanitary_terminal", "flow_terminal", "WC")] * 3
+        + [("sanitary_terminal", "flow_terminal", "Waschtisch")] * 2
+        + [
+            ("unitary_equipment", "energy_conversion_device", "Durchlauferhitzer"),
+            ("waste_terminal", "flow_terminal", "Regenablauf"),
+            ("filter", "flow_treatment_device", "Rückspülfilter"),
+        ]
+    )
+    more = [
+        {**radiator, "id": f"E{200 + i}", "ref": {"guid": f"s{i}"}, "ports": [], "kind": kind,
+         "group": group, "type": name, "label": name, "systems": ["Trinkwasser"],
+         "discipline": "plumbing"}
+        for i, (kind, group, name) in enumerate(made)
+    ]  # fmt: skip
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *more]})
+
+
+def test_a_kind_counts_that_kind_only_and_every_list_counts_its_kinds() -> None:
+    whole = _run(_store(_plumbing()), "list_services", drawing_id="d1", system="Trinkwasser")
+    assert whole["by_kind"]["sanitary_terminal"] == 5  # the fixtures, apart from what is not one
+    assert whole["by_kind"]["unitary_equipment"] == whole["by_kind"]["waste_terminal"] == 1
+    fixtures = _run(_store(_plumbing()), "list_services", drawing_id="d1", kind="sanitary_terminal")
+    assert fixtures["count"] == sum(fixtures["by_type"].values()) == len(fixtures["items"]) == 5
+    assert fixtures["by_type"] == {"WC": 3, "Waschtisch": 2}
+    assert fixtures["by_kind"] == {"sanitary_terminal": 5}
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "by_kind" in json.dumps(listing)
+
+
+def test_566_moving_a_washbasin_is_a_refusal_not_a_failure() -> None:
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    e2 = next(e for e in doc["elements"] if e["id"] == "E2")
+    e2["ports"].append({"id": "E2.p3", "at": (2.5, 0.1, 0.1), "flow": "source"})
+    found = _run(_store(ServicesModel.model_validate(doc)), "propose_move_terminal",
+                 drawing_id="d1", element_id="E2", wall_id="SW2")  # fmt: skip
+    assert found["status"] == "refused" and "3 pipe connections" in found["reason"], found
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "propose_move_terminal")
+    assert "frame" in listing["function"]["description"]

@@ -47,7 +47,9 @@ def test_ac11_ac22_an_answer_turn_with_sources_and_steps(client: TestClient) -> 
     assert [step["tool"] for step in turn["steps"]] == ["ask_drawings"]
     cited = set(re.findall(r"\[(\d+)\]", turn["text"]))
     assert {str(e["n"]) for e in turn["evidence"]} == cited  # only what the text cites
-    assert turn["text"] == "The answer is below [1][2][3]."
+    assert turn["text"] == (  # R2-A6: each drawing's value, the model too (it has no mark)
+        "Drawn plan 1: 2 [1]; Drawn plan 2: 2 [2]; Drawn plan 3: 1 [3]; Building model 1: 2."
+    )
     [answer] = turn["answers"]  # the project ask result, as POST /api/projects/{id}/ask gives it
     asked = client.post(
         f"/api/projects/{project}/ask", json={"question": "How many doors are there?"}

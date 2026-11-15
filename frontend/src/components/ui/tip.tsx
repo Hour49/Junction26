@@ -56,9 +56,13 @@ export function Tip({ text, children, wrap = false, side = 'bottom', className }
     };
   }, [open]);
 
+  const locked =
+    React.isValidElement<{ disabled?: boolean }>(children) && children.props.disabled === true;
   const trigger = wrap ? (
     <span
       tabIndex={0}
+      // a Tab stop around a locked control needs a role and a name (R2-D6): the tip says why it is locked
+      {...(locked ? { role: 'group', 'aria-label': text } : {})}
       className={cn('inline-flex rounded-md [&>*]:pointer-events-none', className)}
     >
       {children}

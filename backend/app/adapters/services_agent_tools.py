@@ -68,7 +68,7 @@ NOT_READ = (
     "ducts and cables cannot be followed"
 )
 MAX_ITEMS = 60
-MAX_GROUPS = 30  # of by_type and by_room before a result is cut to LIMIT
+MAX_GROUPS = 30  # of each by_ count before a result is cut to LIMIT
 NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
 )
@@ -329,7 +329,7 @@ class _ListArgs(_Args):
         max_length=80,
         description="a room: its id (SR...) or its name, e.g. 1-3 Küche",
     )
-    kind: str | None = Field(default=None, max_length=60, description="e.g. space_heater")
+    kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
     )
@@ -375,8 +375,8 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
         "Pipes, ducts, cables: storeys, systems, connectivity, terminals and equipment "
-        "(ids E...) with room; count = all matches (items may be cut), state it; by_type, "
-        "by_room count all matches: answer breakdowns from them. room_id (id or name): its "
+        "(ids E...) with room. count, by_kind, by_type, by_room: all matches (items may be cut); "
+        "state totals and breakdowns from them. room_id (id or name): its "
         "walls (SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
@@ -388,8 +388,8 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     ),
     (
         "propose_move_terminal",
-        "Propose moving a terminal (radiator, air terminal) to another wall of its room "
-        "(wall_id, or the user's selection_id), its pipes rerouted along the walls." + _CHANGES,
+        "Propose moving a terminal (radiator, basin; not a frame) to another wall of its room "
+        "(wall_id or selection_id), pipes rerouted along walls." + _CHANGES,
         _MoveArgs,
     ),
     (
@@ -496,12 +496,13 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     ]
     found["count"] = len(items)
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
-    types = Counter(e.type for e in matched)
+    kinds, types = Counter(e.kind for e in matched), Counter(e.type for e in matched)
     rooms = Counter(f"{e.room} {names.get(e.room, '')}".strip() if e.room else "no room"
                     for e in matched)  # fmt: skip
     top = MAX_GROUPS
     while True:  # the groups count every match: items go first, then the smallest groups
-        found["by_type"], found["by_room"] = _groups(types, top), _groups(rooms, top)
+        found["by_kind"], found["by_type"] = _groups(kinds, top), _groups(types, top)
+        found["by_room"] = _groups(rooms, top)
         short = len(json.dumps(found, ensure_ascii=False)) <= LIMIT
         if short or (top == 1 and not found["items"]):
             break

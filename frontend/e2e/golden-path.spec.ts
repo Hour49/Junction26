@@ -26,8 +26,20 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     pid = /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
     await expect(filesThrough(page)).toHaveText('12 / 12', { timeout: 30_000 });
     await expect(page.getByText('All 9 steps done').first()).toBeVisible();
+    // IN-116: a drawing on a route whose reader is `hello` was not read. Both e2e modes run the image route on
+    // `hello` (start-backend.sh), so the sample's scan and photo are not (4 / 6); a server with an image reader reads
+    // them (6 / 6). The number comes from the project's own readers, exactly.
+    const sample = (await (await page.request.get(`/api/projects/${pid}`)).json()) as {
+      readers: Record<string, string>;
+      drawings: { route: string | null }[];
+      expected_drawings: number;
+    };
+    const read = sample.drawings.filter(
+      (d) => d.route === null || sample.readers[d.route] !== 'hello',
+    ).length;
+    expect(sample.expected_drawings).toBe(6);
     await expect(page.locator('dt', { hasText: 'Drawings ready' }).locator('+ dd')).toHaveText(
-      '6 / 6',
+      `${String(read)} / 6`,
     );
     flatB = await drawingOf(page, pid, 'plans/flat-b.pdf');
     // GP-41: exactly Ingest, Chat, Documents (no Conflicts, Issues, Checks or Surveyor tab).
@@ -35,7 +47,9 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
       page.getByRole('banner').getByRole('navigation', { name: 'Views' }).getByRole('link'),
     ).toHaveText(['Ingest', 'Chat', /^Documents/]);
     const main = page.getByRole('main');
-    await expect(main.getByText(/^6 drawings ready\. Conflicts are below\./)).toBeVisible();
+    await expect(
+      main.getByText(new RegExp(`^${String(read)} drawings ready\\. Conflicts are below\\.`)),
+    ).toBeVisible();
     // GP-42: the conflicts under the progress card; the sample's one conflict is settled by the rule.
     const conflicts = main.getByRole('region', { name: 'Conflicts' });
     await expect(
@@ -46,9 +60,20 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(card).toContainText('Settled by rule');
     await expect(card).toContainText('22.40 m²');
     await expect(card).toContainText('30.00 m²');
-    // No issues and no file list on Ingest: they are in Documents.
+    // No issues on Ingest: they are in Documents. Files show only in the pipeline's route lanes (IN-100).
     await expect(main.getByRole('region', { name: 'Issues on demand' })).toHaveCount(0);
-    await expect(main.locator('a[href*="/f/f"]')).toHaveCount(0);
+    const routes = main.getByRole('region', { name: 'Routes' });
+    await expect(routes.getByRole('heading', { level: 3 })).toHaveText([
+      'How each file is read',
+      'IFC model route',
+      'CAD route',
+      'Drawn PDF route',
+      'Image route',
+      'Not drawings',
+    ]);
+    await expect(main.locator('a[href*="/f/f"]')).toHaveCount(
+      await routes.locator('a[href*="/f/f"]').count(),
+    );
     // GP-45: nothing needs a person, so the chat is open; the workspace link is there.
     await expect(main.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
     await expect(main.getByRole('link', { name: 'Open the workspace' })).toBeVisible();
