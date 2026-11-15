@@ -208,3 +208,15 @@ def test_an_expected_scale_narrows_the_search() -> None:
     assert isinstance(out, Place) and abs(out.scale / 0.0105 - 1) < 0.02, out
     wrong = register(plan, sheet, expected_scale=0.0105 * 2)  # a misread printed scale
     assert isinstance(wrong, Refusal), wrong
+
+
+def test_a_lay_off_the_wall_directions_quarter_turns_is_refused(monkeypatch) -> None:
+    """The fitted turn must agree (mod 90) with the direction histograms' peak; a fit that ends
+    further off was forced (DigitalHub: 6 wrong lays 7-26 deg off a quarter turn). Here the
+    peak is made to read 2 deg, ICP still finds the true 0 deg, and the gate is 1 deg."""
+    plan = floor(7)
+    monkeypatch.setattr(register_module, "_rotation", lambda plan, sheet: 2.0)
+    monkeypatch.setattr(register_module, "TURN_DEG", 1.0)
+    out = register(plan, plan)
+    assert isinstance(out, Refusal), out
+    assert out.reason.startswith("the fitted turn is 2.0 deg off"), out
