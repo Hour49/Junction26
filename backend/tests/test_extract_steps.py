@@ -105,7 +105,7 @@ def test_a_double_check_reader_is_its_own_step_and_never_counted() -> None:
     )
     got = built.extract(FILE, SHEET)
     check = next(step for step in got.steps if step.id == "double_check:l1")
-    assert check.label == "Double-check reader l1: Symbol detector"
+    assert check.label == "Double-check reader 1: Symbol detector"
     assert check.did.startswith("never counted") and check.found == {"door": 2}
     assert len(got.elements) == 1
 
@@ -312,6 +312,27 @@ class PrintedFixed:
         return self.printed
 
 
+def test_double_check_readers_are_numbered_in_words_and_keep_their_ids() -> None:
+    # QA R4 (detail's audit): "Double-check reader l1 / m1" showed config names on screen
+    readers = {
+        "detector:A": Fake(elements=[element("door", LEFT)], read=["door"]),
+        "detector:B": Fake(read=["door"]),
+        "detector:C": Fake(read=["door"]),
+        "one-plan": Fake(plans=PLANS),
+    }
+    built = assemble(
+        parse_components("elements=detector:A,plans=one-plan"),
+        readers.__getitem__,
+        double_check={"l1": "detector:B", "m1": "detector:C"},
+    )
+    got = built.extract(FILE, SHEET)
+    checks = [(s.id, s.label) for s in got.steps if s.id.startswith("double_check:")]
+    assert sorted(checks) == [
+        ("double_check:l1", "Double-check reader 1: Symbol detector"),
+        ("double_check:m1", "Double-check reader 2: Symbol detector"),
+    ]
+
+
 class PrintedFiles:
     def read(self, path: str) -> bytes:
         return b""
@@ -326,7 +347,7 @@ def test_the_count_arbiter_lists_its_three_reads_in_order() -> None:
     assert [(step.id, step.label) for step in got.steps] == [
         ("base", "Symbol detector (arbiter base)"),
         ("second", "Symbol detector (arbiter second read)"),
-        ("pick", "Count arbiter (L1 page counts)"),
+        ("pick", "Count arbiter (a page-level count model)"),
     ]
     assert got.steps[0].found == {"toilet": 1} and got.steps[1].found == {"toilet": 2}
     assert got.steps[2].did.startswith("toilet 1 -> 2 (P = ")
@@ -364,7 +385,7 @@ def test_each_source_is_heard_live_as_it_starts_on_its_own_thread() -> None:
         built.extract(FILE, SHEET)
     assert sorted(heard) == [
         ("detector", "Symbol detector"),
-        ("double_check:l1", "Double-check reader l1: Symbol detector"),
+        ("double_check:l1", "Double-check reader 1: Symbol detector"),
         ("plans", "Whole page as one plan"),
     ]
     starting("vector", "nobody listens")  # outside the block: heard by no one

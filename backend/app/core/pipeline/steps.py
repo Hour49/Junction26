@@ -63,11 +63,12 @@ class Span(NamedTuple):
     ms: float
     cost_usd: float  # its model calls on this thread
     faults: int  # its model calls that got no answer
+    cached: int = 0  # its model replies read from a cache (`cost.hit`), not asked
 
 
 def timed[T](call: Callable[[], T]) -> tuple[T, Span]:
     """`call()`'s result and its span. An error of `call` is raised as it is."""
-    paid, failed = cost.mark(), cost.faults()
+    paid, failed, cached = cost.mark(), cost.faults(), cost.hits()
     started = now_ms()
     found = call()
     ended = now_ms()
@@ -76,8 +77,15 @@ def timed[T](call: Callable[[], T]) -> tuple[T, Span]:
         ms=ended - started,
         cost_usd=cost.since(paid),
         faults=cost.faults_since(failed),
+        cached=cost.hits_since(cached),
     )
     return found, span
+
+
+def cached_words(span: Span) -> str | None:
+    """What a step adds when model replies came from the cache: its time is then the cache read,
+    not the model's."""
+    return f"{count(span.cached, 'reply', 'replies')} from the cache" if span.cached else None
 
 
 def without_steps(found: Extracted) -> Extracted:

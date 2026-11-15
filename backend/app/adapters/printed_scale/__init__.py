@@ -22,7 +22,7 @@ from app.adapters.beside import beside
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import PrintedSheet, trusted_dpi, with_printed
-from app.core.pipeline.steps import Span, timed
+from app.core.pipeline.steps import Span, cached_words, timed
 from app.core.wording import SCALE_WORDS, count
 
 # The content kinds of a camera photo (ingest's probe: camera EXIF): a camera writes its own
@@ -73,6 +73,8 @@ def _step(printed: PrintedSheet, span: Span, result: Extracted) -> StepTrace:
     said.append(f"the sheet's scale: {SCALE_WORDS[result.scale.status]}")
     if span.faults:
         said.append(f"{count(span.faults, 'model call')} got no answer")
+    if cached := cached_words(span):
+        said.append(cached)
     return StepTrace(
         id="printed_scale",
         label="Printed scale and counts (Gemini Carbon)",

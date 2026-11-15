@@ -22,7 +22,14 @@ from app.adapters.carbon.reader import CarbonClient, CarbonExtractor, CarbonRead
 from app.core.drawing.model import Box, CarbonCheck, Element, Plan, ReadClass
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.steps import Span, found_of, found_words, starting, timed
+from app.core.pipeline.steps import (
+    Span,
+    cached_words,
+    found_of,
+    found_words,
+    starting,
+    timed,
+)
 from app.core.wording import count
 
 __all__ = [
@@ -240,6 +247,8 @@ def _carbon_step(
     did = found_words(found)
     if span.faults:
         did += f"; {count(span.faults, 'model call')} got no answer"
+    if cached := cached_words(span):
+        did += f"; {cached}"
     return StepTrace(
         id=step_id,
         label=label,

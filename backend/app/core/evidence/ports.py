@@ -21,7 +21,7 @@ class PictureKind(Frozen):
     sheet: Sheet
     floor_plan_on_sheet: bool  # the model's own answer, before any cut
     usd: float  # 0 from the cache
-    said: str  # "gemini-4-carbon, sheet-kind-2" (+ ", cached")
+    said: str  # the method in words: "Gemini sheet kind" (+ " (cached reply)")
 
 
 class PictureKinds(Protocol):
