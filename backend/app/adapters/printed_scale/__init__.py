@@ -31,8 +31,8 @@ from typing import Protocol
 from PIL import Image
 
 from app.adapters.beside import beside
-from app.core.pipeline.gross_net import gross_net_checked
 from app.core.pipeline.door_prior import imperial_doors
+from app.core.pipeline.gross_net import gross_net_checked
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import PrintedSheet, trusted_dpi, with_printed

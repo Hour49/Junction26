@@ -257,6 +257,8 @@ def test_mixed_doors_keep_the_detector_width() -> None:
         ({"reader": "carbon:ffffffffffff"}, False),  # another Carbon reader's tag
         ({"score": 0.9}, False),
         ({"reader": CARBON, "score": 0.3}, False),  # not counted: below MIN_DOOR_SCORE
+        # snapped onto a detector door (#310): the detector's opening box, not Carbon's
+        ({"reader": CARBON, "box_from": "detector"}, False),
     ],
 )
 def test_read_only_by_looks_at_the_counted_doors(attrs: dict[str, object], only: bool) -> None:
@@ -297,3 +299,20 @@ def test_the_boxes_setting_is_off_by_default_and_named_only_when_on(tmp_path: Pa
     service = build_ingest(settings, tmp_path / "projects", background=False)
     service.close()
     assert service._names["door_prior_boxes"] == "on"  # pyright: ignore[reportPrivateUsage]
+
+
+def test_snapped_carbon_doors_keep_the_detector_width() -> None:
+    """Review of #681: in the demo (detector + CARBON_READER=large) Carbon's doors on a big sheet
+    are mostly snapped onto the detector's boxes; one snapped door among Carbon's own keeps DOOR_M
+    for the whole sheet (no mixing of box kinds in one median)."""
+    inner = carbon_doors(side_px=DOOR_M / 0.02, n=5)
+    snapped = [
+        e.model_copy(update={"attrs": {**e.attrs, "box_from": "detector"}})
+        for e in inner.found.elements
+    ]
+    for doors in (snapped, [*inner.found.elements[:4], snapped[4]]):
+        inner.found = inner.found.model_copy(update={"elements": tuple(doors)})
+        on = boxes(inner, on=True)
+        assert on.scale.m_per_unit == pytest.approx(0.02)
+        assert on.scale.source is not None and CARBON_DOORS not in on.scale.source
+        assert without_steps(on) == without_steps(boxes(inner, on=False))

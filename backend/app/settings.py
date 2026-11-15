@@ -143,8 +143,8 @@ class Settings(BaseSettings):
     # scale, feet-inch dimensions, SF or ft) gets its door estimate at a 0.914 m (3'-0") leaf, not
     # the CubiCasa-fitted 0.794 m, and its rooms measured again (app/core/pipeline/door_prior.py)
     door_prior_units: DoorPriorName = "off"
-    # on: with RASTER_SCALE=priors, a sheet whose counted doors were all read by Carbon (the
-    # composite reads doors with Carbon: no detector weights) gets its door estimate at Carbon's
+    # on: with RASTER_SCALE=priors, a sheet whose counted doors are all Carbon's own boxes (none
+    # snapped onto a detector door) gets its door estimate at Carbon's
     # box width CARBON_DOOR_M (1.069 m) instead of the detector's DOOR_M
     # (app/core/pipeline/door_prior.py)
     door_prior_boxes: DoorPriorName = "off"

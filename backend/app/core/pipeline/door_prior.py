@@ -6,8 +6,8 @@ on it). Where the composite reads the doors with Carbon (no detector weights, `c
 components), `PriorScale` divided Carbon's boxes by DOOR_M: the scale came out 0.66-0.78 of a hand
 reference on T1 (UK school, metric), T2 (US dorm) and T3 (US piping), 1.01 / 1.05 / 0.89 at
 CARBON_DOOR_M (.agents/research/accuracy/t2-scale.md). `read_only_by`: every door the prior counts
-(`door_sides`) was read by that reader; the estimate then takes `carbon_door_scale`. With detector
-weights the composite's doors are the detector's and nothing changes.
+(`door_sides`) was read by that reader in a box it drew itself; the estimate then takes
+`carbon_door_scale`. A Carbon door snapped onto a detector box (#310) keeps the sheet at DOOR_M.
 
 DOOR_PRIOR_UNITS=on: the door estimate on a sheet whose printed text is imperial takes a US door.
 
@@ -65,11 +65,20 @@ _IMPERIAL_UNIT = re.compile(
 
 def read_only_by(reader: str, elements: Sequence[Element], pages: Sequence[Page]) -> bool:
     """Whether every door the door prior counts (`door_sides`: sure, located, on a page) was read
-    by `reader` (`attrs.reader`); False when it counts none. An unlocated placeholder door is not
-    counted, so it does not decide either way."""
+    by `reader` (`attrs.reader`) in a box it drew itself; False when it counts none. A Carbon door
+    snapped onto a detector door (`box_from` detector, #310) has the detector's opening box, so one
+    such door keeps the sheet at DOOR_M (review of #681: in the demo, with the detector and
+    CARBON_READER=large, most of a big sheet's doors are snapped). An unlocated placeholder door is
+    not counted, so it does not decide either way."""
     counted = door_sides(elements, pages)
-    mine = door_sides([e for e in elements if e.attrs.get("reader") == reader], pages)
+    own = [e for e in elements if e.attrs.get("reader") == reader and not _snapped(e)]
+    mine = door_sides(own, pages)
     return bool(counted) and len(mine) == len(counted)
+
+
+def _snapped(element: Element) -> bool:
+    """A box the reader took from the detector (as raster_scale/carbon_doors.py `snapped`)."""
+    return element.attrs.get("box_from") == "detector"
 
 
 def is_imperial(texts: Iterable[str | None]) -> bool:

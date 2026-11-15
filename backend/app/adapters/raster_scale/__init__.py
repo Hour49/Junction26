@@ -10,8 +10,8 @@ from the room's outline at the estimated scale becomes a conflict (`label_area_c
 The estimate is a `prior_scale` step after the inner reader's steps (decision 0018): the scale it
 found, or why none; `skipped` when it is not made (a scale was read, no page, doors not read). The
 step is reporting only: what the sheet is read as is the same with or without it.
-`carbon` (DOOR_PRIOR_BOXES=on): when every door counted was read by that Carbon reader (the
-composite reads doors with Carbon: no detector weights), the estimate takes Carbon's door width,
+`carbon` (DOOR_PRIOR_BOXES=on): when every door counted is a box that Carbon reader drew itself
+(none snapped onto a detector door, #310), the estimate takes Carbon's door width,
 CARBON_DOOR_M, fitted on its boxes, not DOOR_M, fitted on the detector's (door_prior.py).
 """
 
