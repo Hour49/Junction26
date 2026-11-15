@@ -10,6 +10,7 @@ import pytest
 from conftest import plan_png, raster_arm, upload
 from fastapi.testclient import TestClient
 from test_api_check import gate, policy
+from test_api_issues import waits_for_you
 from test_review_core import AT, BOX_A, BOX_B, DRAWING, disputed, quantity
 
 from app import composition
@@ -322,9 +323,7 @@ def test_a_picked_conflict_stays_listed_checked_by_the_model_and_needs_no_answer
     for counts in (project, summary):
         assert (counts["conflicts_open"], counts["conflicts_picked"]) == (0, 1)
         assert counts["issues_to_answer"] == sum(
-            found["severity"] != "note" and found["answer"] is None
-            for found in client.get(f"/api/projects/{project_id}/issues").json()["issues"]
-            if found["state"] == "open"
+            map(waits_for_you, client.get(f"/api/projects/{project_id}/issues").json()["issues"])
         )
 
 
@@ -337,6 +336,9 @@ def test_cannot_tell_keeps_the_conflict_open_and_to_answer(
     assert "which could not tell" in issue["why"]
     project = client.get(f"/api/projects/{project_id}").json()
     assert (project["conflicts_open"], project["conflicts_picked"]) == (1, 0)
+    # Documents lists it (it has `resolved`) and counts it: so does the badge (R3-G1)
+    issues = client.get(f"/api/projects/{project_id}/issues").json()["issues"]
+    assert waits_for_you(issue) and project["issues_to_answer"] == sum(map(waits_for_you, issues))
 
 
 def test_off_no_pick_count_appears(client: TestClient) -> None:

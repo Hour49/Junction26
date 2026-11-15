@@ -299,8 +299,8 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
 ### Documents badge (#212)
 
 - The Documents tab shows an orange badge with the number of issues still to answer: the project's
-  `issues_to_answer` (#223), else fe-ingest's `needsYou(issues)` (documents.md DOC-12: not a `conflict`, severity
-  not `note`, `open`, no `Issue.answer`).
+  `issues_to_answer` (#223), else fe-ingest's `needsYou(issues)` (documents.md DOC-12: a `conflict` only with
+  `resolved`, severity not `note`, `open`, no `Issue.answer`); both count the same (R3-G1).
 - Source: `useIssuesToAnswer(projectId, reload?): number | null` in `src/shell/issueCount.ts` (fe-shared):
   `getProject(projectId)`, asked again every 1 s while `queued` or `running` (the issues answer 409 until the ingest
   is done, and the browser logs that as a console error: re-sweep item 9); `failed` → null; `done` → its
