@@ -83,29 +83,41 @@ def _dicts(value: Any) -> list[dict[str, Any]]:
 
 
 def _changed_rooms(parts: list[dict[str, Any]], proposal: Proposal) -> list[str]:
-    """For each room area the parts answer that the edit merged or changed (by the room ids the
-    proposal names): "Bagno 1.01 is part of Bagno 1.01 + Stanza 1.02: 21.02 m²"."""
+    """Once per room change the parts' room areas count (by the room ids the proposal names):
+    one room, "Bagno 1.01 is part of Bagno 1.01 + Stanza 1.02: 21.02 m²"; a total over all of
+    the change's rooms, the total with the edit, "the total is 21.02 m² (Bagno 1.01 + Stanza
+    1.02: 21.02 m²)"; a total over only some of them, the changed room once."""
     said: list[str] = []
     for part in parts:
         quantity = _quantity(part)
         if quantity.get("measure") != "area" or quantity.get("subject") != "room":
             continue
-        for mark in _dicts(quantity.get("marks")):
-            ref = str(mark.get("ref") or "")
-            change = next(
-                (c for c in proposal.rooms if ref and (ref in c.was or ref == c.id)), None
-            )
-            if change is None:
+        marks = [m for m in _dicts(quantity.get("marks")) if m.get("state", "counted") == "counted"]
+        for change in proposal.rooms:
+            mine = [m for m in marks if str(m.get("ref") or "") in (*change.was, change.id)]
+            if not mine:
                 continue
-            name = _room_name(mark, change.label)
-            text = (
-                f"{name} is part of {change.label}: {change.area_after_m2:g} m²"
-                if len(change.was) > 1
-                else f"{change.label} is {change.area_after_m2:g} m²"
-            )
+            after = f"{change.label}: {_m2(change.area_after_m2)} m²"
+            value = quantity.get("value")
+            if len(marks) == 1:
+                name = _room_name(mine[0], change.label)
+                text = f"{name} is part of {after}" if len(change.was) > 1 else after
+            elif isinstance(value, int | float) and {str(m.get("ref")) for m in mine} >= set(
+                change.was or (change.id,)
+            ):
+                drawn = sum(float(m.get("value") or 0.0) for m in mine)
+                total = float(value) - drawn + change.area_after_m2
+                text = f"the total is {_m2(total)} m² ({after})"
+            else:
+                text = f"{change.label} is one room of {_m2(change.area_after_m2)} m²"
             if text not in said:
                 said.append(text)
     return said
+
+
+def _m2(value: float) -> str:
+    """An area as the answer prints its own (1159.67, 21.02, 9): no thousands separator."""
+    return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
 def _room_name(mark: dict[str, Any], merged: str) -> str:
