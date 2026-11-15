@@ -74,6 +74,7 @@ from app.core.drawing.model import (
 from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
+from app.core.picture_facts import kind_of
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Partial, Quantity
 from app.core.pipeline.takeoff import (
@@ -453,7 +454,19 @@ def ask(
             and parsed.reason in (NO_SUBJECT, NOT_COUNTED)
             and (noun := counted_noun(text)) is not None
         ):
-            words = _noun_refusal(noun, drawing)  # vocab-nouns P2
+            kind = _picture_kind(noun)
+            if kind is None:
+                words = _noun_refusal(noun, drawing)  # vocab-nouns P2
+            elif answer.method == FACTS_NOT_READ and answer.explanation:
+                # the picture lane read this sheet's legend: its facts say what it lists
+                code = "not-in-drawing"
+                words = answer.explanation[:1].upper() + answer.explanation[1:]
+            else:  # a thing the picture lane counts, never "I don't count" (live pics-digitalhub)
+                code = "not-read"
+                words = (
+                    f"The reader of this drawing doesn't look for {noun}, so it has no "
+                    f"{label(kind)}."
+                )
         if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
             words += _not_measured(parsed, drawing)  # review-349 S3
         if not can_answer:
@@ -1361,6 +1374,19 @@ def _phrasings(key: str) -> Iterable[str]:
 
 
 LABELS_LISTED = 12  # printed labels a refusal names, the rest counted
+
+
+# What answer_from_facts refuses with when a picture's legend lists none of the asked thing
+FACTS_NOT_READ = "refused:not-read"
+
+
+def _picture_kind(noun: str) -> str | None:
+    """The kind the picture lane counts that a noun names ("radiators": space_heater), or None. A
+    fire damper is no IFC kind there: the picture answers count it from its legend's symbol rows
+    (answering/facts.py _PICTURE_ROWS)."""
+    if (found := kind_of(noun, None)) is not None:
+        return found[0]
+    return "damper" if re.search(r"\bdampers?\b", noun, re.I) else None
 
 
 def _noun_refusal(noun: str, drawing: Drawing) -> str:
