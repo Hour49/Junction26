@@ -248,7 +248,7 @@ describe('FileMatrix', () => {
     project.files.forEach((f, i) => {
       const row = must(rows[i]);
       expect(within(row).getByRole('link', { name: f.path }).getAttribute('href')).toBe(
-        `#/p/${PID}/f/${f.id}`,
+        `#/p/${PID}/f/${f.id}?from=advanced`,
       );
       // a file read with its group names that file (AD-119), else its route
       expect(row.textContent).toContain(

@@ -139,7 +139,7 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
   return (
     <li className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-1 border-t border-muted py-2.5 first:border-t-0">
       <a
-        href={`#/p/${projectId}/f/${file.id}`}
+        href={`#/p/${projectId}/f/${file.id}?from=ingest`}
         // min-h-6: a 24 px tap target (QA R4-E2: 20 px)
         className="flex min-h-6 min-w-0 items-center font-mono text-[13px] text-foreground no-underline hover:underline"
         title={file.path}
