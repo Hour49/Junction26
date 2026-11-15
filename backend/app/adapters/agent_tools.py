@@ -103,13 +103,15 @@ def project_toolbox(
     pack: RulePack | None = None,
     scales: Mapping[str, Scale] | None = None,
     named: Mapping[str, str] | None = None,
+    message: str = "",
 ) -> AgentToolbox:
     """The tools of `project_id` in `app` (create_app()'s state). `proposals`: the chat's
     proposals so far, so the plan tools number new ones after them. `pack`: the rule pack this
     turn's plan edits are checked against (LC-6), None: not checked. `scales`: USER_SCALE on,
     the scales the chat's user gave by drawing id: every tool reads those drawings at them.
     `named`: the drawings this turn's message names (id → plain name): ask_drawings asks only
-    them, its question without their names (big QA R1 S2)."""
+    them, its question without their names (big QA R1 S2). `message`: this turn's user message,
+    whose room words ask_drawings keeps (room_as_said)."""
     pipeline = replace(PipelineStore.of_app(app, project_id), only=frozenset(named or {}))
     if scales is not None:
         pipeline = replace(pipeline, ingest=ScaledIngest(pipeline.ingest, scales), user_scale=True)
@@ -117,7 +119,7 @@ def project_toolbox(
     sets: list[tuple[list[Json], Runner]] = [
         (
             PIPELINE_TOOLS,
-            partial(_by_number, partial(_unnamed, pipe, list((named or {}).values()))),
+            partial(_as_said, partial(_unnamed, pipe, list((named or {}).values())), message),
         ),
         (FIND_TOOLS, partial(_find_rooms, pipeline)),
     ]
@@ -240,27 +242,29 @@ def _printed(label: str | None, number: Any) -> str | None:
     return f"{label} {number}" if number and str(number) not in label else label
 
 
-def room_by_number(question: str) -> str:
-    """`question` with each "<room word or label> <number>" read as "room <number>"."""
-
-    def swap(found: re.Match[str]) -> str:
+def room_as_said(question: str, message: str) -> str:
+    """`question` with each "room <number>" asked as the user's message names that room ("Bagno
+    1.01", "bathroom 1.01"): the parser reads the word and refuses a drawing whose room of that
+    number is another room (big QA R2 edits row 4). The prompt asks for "room 1.01"."""
+    for found in ROOM_NUMBER.finditer(message):
         word = found[1].lower()
         if word == "room" or not any(re.search(pattern, word) for _, pattern in ROOM_WORDS):
-            return found[0]
-        return f"room {found[2]}"
+            continue
+        number = re.escape(found[2])
+        question = re.sub(rf"\broom\s+{number}\b", f"{found[1]} {found[2]}", question, count=1,
+                          flags=re.IGNORECASE)  # fmt: skip
+    return question
 
-    return ROOM_NUMBER.sub(swap, question)
 
-
-def _by_number(run: Runner, name: str, arguments: str) -> str:
-    """ask_drawings with its question's rooms named by number (QA smoke-1)."""
+def _as_said(run: Runner, message: str, name: str, arguments: str) -> str:
+    """ask_drawings with its question's rooms named as the user named them (room_as_said)."""
     try:
         given: Any = json.loads(arguments)
     except json.JSONDecodeError:
         return run(name, arguments)
     question: Any = given.get("question") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     if name == "ask_drawings" and isinstance(question, str):
-        arguments = json.dumps({**given, "question": room_by_number(question)})  # pyright: ignore[reportUnknownArgumentType]
+        arguments = json.dumps({**given, "question": room_as_said(question, message)})  # pyright: ignore[reportUnknownArgumentType]
     return run(name, arguments)
 
 

@@ -196,7 +196,14 @@ def _turn_runner(
             kept = kept_drawings(body.message, earlier, names)
             named = {d: names[d] for d in kept}
             tools = project_toolbox(
-                request.app, project_id, body.selection, current.proposals, pack, scales, named
+                request.app,
+                project_id,
+                body.selection,
+                current.proposals,
+                pack,
+                scales,
+                named,
+                body.message,
             )
             # the rules planner is free: the Gemini budget never stops it (QA robust-3)
             guard = SpendGuard() if settings.chat_model == "rules" else spend_guard(settings)

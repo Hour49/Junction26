@@ -194,13 +194,26 @@ def test_rerun_edits_n2_ac6_a_missing_argument_still_gives_plain_words() -> None
 
 
 # Smoke after #309
-def test_smoke_1_ac31_a_room_by_type_word_or_label_and_number_is_asked_as_room_number() -> None:
-    from app.adapters.agent_tools import room_by_number
+def test_r2_edits_4_a_room_asked_by_number_keeps_the_label_the_user_said() -> None:
+    """Big QA R2 edits row 4 (pic-sync): "What is the area of Bagno 1.01?" was asked as "room 1.01"
+    (the prompt's rule, and this tool's rewrite), so flat-a's and flat-b's Küche 1.01 answered too
+    and flat-b's own conflict made the turn "The sources disagree.". The parser reads "Bagno 1.01"
+    (and "bathroom 1.01") itself and refuses a drawing whose room 1.01 is another room, so the
+    tool asks with the word the user said."""
+    from app.adapters.agent_tools import room_as_said
 
-    assert room_by_number("How big is bathroom 1.01?") == "How big is room 1.01?"
-    assert room_by_number("How big is Bagno 1.01?") == "How big is room 1.01?"
-    assert room_by_number("bathroom 1.01 and Cucina 1.03") == "room 1.01 and room 1.03"
-    for kept in ("How big is room 1.01?", "Is room 1.01 bigger than 7.50?", "scale 1.50",
-                 "Is it 7.50 m2?", "How big is the bathroom?"):  # fmt: skip
-        assert room_by_number(kept) == kept
-    assert 'as "room 1.01"' in SYSTEM  # the Gemini path is told too
+    said = "What is the area of Bagno 1.01?"
+    assert room_as_said("What is the area of room 1.01?", said) == said
+    assert room_as_said("area of room 1.01", "How big is bathroom 1.01?") == "area of bathroom 1.01"
+    assert room_as_said("How big is room 1.01?", "Bagno 1.01 and Cucina 1.03?") == (
+        "How big is Bagno 1.01?"
+    )
+    for kept, message in (
+        ("How big is bathroom 1.01?", "How big is bathroom 1.01?"),  # no rewrite to "room"
+        ("How big is room 1.01?", "How big is room 1.01?"),
+        ("How big is room 1.01?", "How big is room 1.01 on Drawn plan 3?"),
+        ("Is room 1.01 bigger than 7.50?", "Is it bigger than 7.50 m2?"),  # a measurement
+        ("How big is room 1.02?", "How big is Bagno 1.01?"),  # another number
+    ):
+        assert room_as_said(kept, message) == kept, (kept, message)
+    assert 'as "room 1.01"' in SYSTEM  # the Gemini path is still told so (no prompt change)
