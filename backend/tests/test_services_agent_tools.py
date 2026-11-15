@@ -439,6 +439,25 @@ def test_an_ifc_type_counts_that_type_only_and_every_list_counts_its_types() -> 
     assert {i["id"] for i in wcs["items"]} == {"E301", "E302", "E303"} and wcs["untyped"] == 0
     blind = _run(_store(wc_room(untyped=10)), "list_services", drawing_id="d1", room_id=WC_ROOM,
                  kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
-    assert blind["count"] == 0 and blind["untyped"] == 10
+    assert "its types: untyped" in blind["error"], blind  # #559 S1: no TOILETPAN anywhere
     listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
     assert "by_predefined" in json.dumps(listing) and "predefined" in json.dumps(listing)
+
+
+def test_an_ifc_type_the_model_lacks_is_an_error_naming_its_types() -> None:
+    """#559 review S1 (ifc-ask, 2026-11-15): predefined="TOILET" matched nothing and gave a
+    confident 0; a type no element of that kind has is an error naming the types, as an unknown
+    room name is. A type the model has elsewhere is a true 0 in a room without it."""
+    store = _store(wc_room(untyped=2))
+    wrong = _run(store, "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="TOILET")  # fmt: skip
+    assert "TOILET" in wrong["error"] and "TOILETPAN" in wrong["error"], wrong
+    assert "WASHHANDBASIN" in wrong["error"] and "untyped" in wrong["error"], wrong
+    none_here = _run(store, "list_services", drawing_id="d1", room_id="2 Bedroom",
+                     kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
+    assert none_here["count"] == 0 and "error" not in none_here, none_here
+    loose = _run(store, "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="untyped")  # fmt: skip
+    assert loose["count"] == 2 and {i["id"] for i in loose["items"]} == {"E309", "E310"}, loose
+    empty = _run(store, "list_services", drawing_id="d1", predefined="")
+    assert "predefined" in empty["error"], empty

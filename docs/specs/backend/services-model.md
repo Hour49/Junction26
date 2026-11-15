@@ -234,7 +234,9 @@ with a plain reason. The input model is never mutated (test: its hash before and
   c6887184725). `by_predefined` counts them per IFC PredefinedType (of the element, else its type object; "untyped"
   when neither gives one), and `predefined` narrows the count, items and every group to that type, with `untyped`
   the matches that carry none: a WC, a washbasin and their mounting frames are all `sanitary_terminal`, told apart
-  only by TOILETPAN, WASHHANDBASIN and SANITARYFOUNTAIN (2026-11-15, R5).
+  only by TOILETPAN, WASHHANDBASIN and SANITARYFOUNTAIN (2026-11-15, R5). `predefined="untyped"` selects those
+  with none; a type that no terminal of that kind in the whole model has is an error naming the types it has, not
+  a 0 (a type the model has elsewhere is a true 0 in a room without it) (2026-11-15, #559 review S1).
 - SV-24 `ask_services(drawing_id, op, element_id?, to_element_id?, system?, storey?, kind?, size?)` with `op` a
   closed list of SV-10's operations → the value, the elements behind it (ids with boxes, at most 30), or
   `{status: "unknown", reason}`.

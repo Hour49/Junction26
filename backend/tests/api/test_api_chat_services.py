@@ -576,7 +576,7 @@ def test_a_room_count_asks_the_model_that_holds_that_kind_however_many_ifc_files
     [
         ("How many toilets are in 13 WC Damen Ost - EG?", f"3 toilets in {WC_ROOM}: "),
         ("How many washbasins are in 13 WC Damen Ost - EG?", f"2 washbasins in {WC_ROOM}: "),
-        ("How many urinals are in 13 WC Damen Ost - EG?", f"0 urinals in {WC_ROOM}."),
+        ("How many toilets are in 2 Bedroom?", "0 toilets in 2 Bedroom."),
     ],
 )
 def test_a_sanitary_word_counts_its_ifc_type_not_every_sanitary_terminal(
@@ -612,3 +612,14 @@ def test_typed_matches_beside_untyped_fixtures_are_at_least_their_count(
     assert found["kind"] == "answer", found
     assert found["text"].startswith(f"At least 3 toilets in {WC_ROOM}"), found
     assert "2 more sanitary terminals there carry no IFC type" in found["text"], found
+
+
+def test_a_sanitary_word_whose_type_the_model_lacks_is_not_counted(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """#559 review S1: the model types its fixtures but has no URINAL anywhere: "I can't tell"
+    with the types it has, not "0 urinals"."""
+    found = _rules(_client(settings, tmp_path, model=wc_room()),
+                   "How many urinals are in 13 WC Damen Ost - EG?")  # fmt: skip
+    assert found["kind"] == "dont_know", found
+    assert "0 urinal" not in found["text"] and "TOILETPAN" in found["text"], found

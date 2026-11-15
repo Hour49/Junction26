@@ -327,11 +327,11 @@ class _ListArgs(_Args):
     room_id: str | None = Field(
         default=None,
         max_length=80,
-        description="a room: its id (SR...) or its name, e.g. 1-3 Küche",
+        description="its id (SR...) or name, e.g. 1-3 Küche",
     )
     kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
     predefined: str | None = Field(
-        default=None, max_length=40, description="a by_predefined key (IFC type)"
+        default=None, min_length=1, max_length=40, description="a by_predefined key or untyped"
     )
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
@@ -378,9 +378,9 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
         "Pipes, ducts, cables: storeys, systems, connectivity, terminals and equipment "
-        "(ids E...) with room. count, by_kind, by_predefined, by_type, by_room: all matches (items "
-        "may be cut); state totals and breakdowns from them. room_id (id or name): its "
-        "walls (SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
+        "(ids E...) with room. count, by_kind, by_predefined (IFC type), by_type, by_room: all "
+        "matches (items may be cut); state totals and breakdowns from them. room_id: its walls "
+        "(SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
     (
@@ -485,8 +485,20 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
     if args.predefined is not None:  # R5: a WC, a basin and its frame are one IFC class
+        wanted = args.predefined.upper()
+        types = {
+            e.predefined or "untyped"
+            for e in model.elements
+            if (e.group == "flow_terminal" or _equipment(e))
+            and (args.kind is None or args.kind in (e.kind, e.group))
+        }
+        if wanted not in {t.upper() for t in types}:  # #559 S1: not a confident 0 for a typo
+            raise ToolError(
+                f"no {args.kind or 'terminal'} has the IFC type {args.predefined!r}; "
+                f"its types: {', '.join(sorted(types))}"
+            )
         found["untyped"] = sum(e.predefined is None for e in matched)
-        matched = [e for e in matched if (e.predefined or "").upper() == args.predefined.upper()]
+        matched = [e for e in matched if (e.predefined or "untyped").upper() == wanted]
     items = [
         {
             "id": e.id,
