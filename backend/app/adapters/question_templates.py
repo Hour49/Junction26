@@ -325,6 +325,15 @@ STOREY_AT = re.compile(
     r"|\bon\s+the\s+(?P<name>[A-ZÄÖÜ][^\W\d_]{2,})\b(?!\s+(?:floor|level|storey|story)\b)",
     re.IGNORECASE,
 )
+# The same storey after "of" a drawing word ("the plumbing plan of P1", "the floor plan of the
+# Erdgeschoss"; review-711 re-check): only after one (OF_DRAWING), so "the height of P1" or "the
+# doors of P1" read as before; by STOREY_AT's rules (_storey_at)
+STOREY_OF = re.compile(
+    rf"\bof\s+(?:the\s+)?(?:(?:level|floor|storey|story)\s+)?(?P<code>{STOREY_CODE})\b"
+    r"|\bof\s+the\s+(?P<name>[A-ZÄÖÜ][^\W\d_]{2,})\b(?!\s+(?:floor|level|storey|story)\b)",
+    re.IGNORECASE,
+)
+OF_DRAWING = re.compile(r"\b(?:plan|sheet|drawing|layout)\s*$", re.IGNORECASE)
 # A second storey joined to the first ("on P1 and P2", "P1, P2", "level P1 to P3", "EG & OG1"):
 # one storey at a time, never the first one's count for both (review-702 M1)
 STOREY_ALSO = re.compile(
@@ -605,7 +614,8 @@ def _storey_at(bare: str) -> re.Match[str] | None:
     """The storey the question names without quotes (STOREY_AT), or None: a name must be no
     counted thing, sheet or floor word ("on the Balcony", "on the Plan" stay what they were), and
     a code must have a capital or follow a storey word ("on p1" alone may be a typo)."""
-    for found in STOREY_AT.finditer(bare):
+    after_of = (f for f in STOREY_OF.finditer(bare) if OF_DRAWING.search(bare, 0, f.start()))
+    for found in (*STOREY_AT.finditer(bare), *after_of):
         if DISCIPLINE_SHEET.match(bare, found.start("name" if found.group("name") else "code")):
             continue  # "the MEP plan", "the Plumbing plan": a discipline's drawing (review-711 M2)
         if (name := found.group("name")) is not None:
