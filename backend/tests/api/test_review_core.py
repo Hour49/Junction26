@@ -641,9 +641,14 @@ def test_a_flagged_photo_whose_reader_found_nothing_refuses_instead_of_counting_
         assert found.row is None and found.refusal is not None, text
         assert found.refusal.code == "no-reader"
         assert PHOTO_FLAG in found.refusal.text and f"no {what}" in found.refusal.text
-    # Not flagged: the reader's 0 stays an answer (a clean scan with no doors has 0 doors)
+    # Not flagged and still no element of any kind: a blind 0 too (big QA R1 services row 12);
+    # a reader that found other elements keeps its 0 (tests/test_blind_zero.py)
     clean = asked_flagged("How many doors are there?", photo(), ())
-    assert clean.refusal is None and clean.answer.answer == 0
+    assert clean.refusal is not None and clean.refusal.code == "no-reader"
+    assert clean.answer.answer is None
+    window = Element(id="w1", class_="window", page=1, box=(0.1, 0.1, 0.2, 0.2))
+    seen = asked_flagged("How many doors are there?", photo(elements=(window,)), ())
+    assert seen.refusal is None and seen.answer.answer == 0
 
 
 def test_a_raster_page_with_no_rooms_read_refuses_room_questions_flagged_or_not() -> None:
