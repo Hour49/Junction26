@@ -119,7 +119,13 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
         <span aria-hidden="true">{icon}</span>
         {word}
       </span>
-      <span className={cn('min-w-0 text-[13px] text-muted-foreground', 'line-clamp-2')}>
+      {/* a flagged or set-aside file's reason is shown whole (IN-122); a running note stays at 2 lines */}
+      <span
+        className={cn(
+          'ingest-note min-w-0 text-[13px] text-muted-foreground [overflow-wrap:anywhere]',
+          !isFinished(file) && 'line-clamp-2',
+        )}
+      >
         {rowNote(file)}
       </span>
       <Track file={file} />

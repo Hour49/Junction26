@@ -761,6 +761,13 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   The whole is a group "Readers", each group a list named by its label. Changed on purpose with it: IN-100's,
   IN-105's and IN-118's expected chip texts. [unit: `groupReaders`, `chipWords`; component; browser: screenshots
   at 1440 and 390]
+- IN-121 (QA R3-G8, "Bauprojekt_Mehrfamilienhaus_Zuerich-Nord_2026.zip" at 390): the title `h1` wraps a long
+  name after its own separators (`_`, `-`, `.`, `/`: a `<wbr>` after each, `nameParts`) before it breaks inside a
+  word; `overflow-wrap:anywhere` stays only for a part longer than a line. Its accessible name and `title` stay the
+  exact name (IN-114). [unit: `nameParts`; component; browser: screenshots at 390 and 1440]
+- IN-122 (QA R3-G8, flag reason cut at 390): a finished file's row note in the lanes (what it found and why it is
+  flagged or set aside) is shown whole, wrapping over as many lines as it needs; a queued or running file's note
+  stays at 2 lines. [component; browser: screenshot at 390]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,

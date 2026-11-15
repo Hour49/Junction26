@@ -140,6 +140,14 @@ describe('ProgressCard: pipeline view v5', () => {
       <ProgressCard project={flagged('a phone photo read without correction')} now={Date.now()} />,
     );
     expect(lane('Image').textContent).toContain('2 doors. a phone photo read without correction');
+    // IN-122 (QA R3-G8): the reason is shown whole, not cut at 2 lines; a running file's note stays at 2
+    const note = must(lane('Image').querySelector('.ingest-note'));
+    expect(note.className).not.toContain('line-clamp');
+    cleanup();
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const live = must(lane('Image').querySelector('.ingest-note'));
+    expect(live.textContent).toBe('Extract: Symbol detector, 8 views');
+    expect(live.className).toContain('line-clamp-2');
     cleanup();
     render(<ProgressCard project={flagged('')} now={Date.now()} />);
     expect(lane('Image').textContent).toContain('2 doors');
