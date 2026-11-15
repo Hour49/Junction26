@@ -22,6 +22,7 @@ from app.core.ingest.judge import judge, pipeline_stages, reading_flags, with_sh
 from app.core.ingest.model import Normalised, Outcome, SheetKind, StageTrace, split_from
 from app.core.ingest.ports import Clock, ProjectStore, Readers
 from app.core.ingest.progress import Run
+from app.core.ingest.steps import frame_steps, second_count_steps
 from app.core.ingest.timing import (
     CollectingSink,
     StageClock,
@@ -36,6 +37,7 @@ from app.core.pipeline.ingest import FALLBACK_ROUTE, ingest
 from app.core.pipeline.model import DrawingFile, DrawingGroup, FileKind, Route
 from app.core.pipeline.ports import Extractor, PageReader
 from app.core.pipeline.route import route
+from app.core.pipeline.steps import shifted
 from app.core.wording import count, route_words
 
 logger = logging.getLogger(__name__)
@@ -199,7 +201,9 @@ class Groups:
                     timer.ms.get(file.path, {}),
                     timer.usd.get(file.path, {}),
                 )
-                stages = with_steps(stages, timer.steps.get(file.path, {}))
+                compared = second_count_steps(drawing.conflicts)
+                timed_steps = timer.steps.get(file.path, {})
+                stages = with_steps(stages, {**timed_steps, "second_count": compared})
                 stages = _with_frame(
                     stages, self._frames.get(file.path), run.frame_ms.get(file.path, 0.0)
                 )
@@ -402,7 +406,13 @@ def _with_frame(stages: list[StageTrace], frame: Normalised | None, ms: float) -
         done.append(f"rectified by {frame.rectifier}: paper corners at {corners}")
     said = f"{'; '.join(done)}: {frame.width}x{frame.height} px; " if done else ""
     return [
-        stage.model_copy(update={"did": said + stage.did, "ms": stage.ms + ms})
+        stage.model_copy(
+            update={
+                "did": said + stage.did,
+                "ms": stage.ms + ms,
+                "steps": (*frame_steps(frame, ms), *shifted(stage.steps, ms)),
+            }
+        )
         if stage.stage == "normalise"
         else stage
         for stage in stages

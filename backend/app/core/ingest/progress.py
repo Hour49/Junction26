@@ -15,6 +15,7 @@ from app.core.ingest.model import (
     ProjectStatus,
     Stage,
     StageTrace,
+    StepTrace,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,9 +84,16 @@ class Run:
         output: str = "",
         failure: str | None = None,
         cost_usd: float = 0.0,
+        steps: Sequence[StepTrace] = (),
     ) -> None:
         trace = StageTrace(
-            stage=stage, did=did, ms=ms, output=output, failure=failure, cost_usd=cost_usd
+            stage=stage,
+            did=did,
+            ms=ms,
+            output=output,
+            failure=failure,
+            cost_usd=cost_usd,
+            steps=tuple(steps),
         )
         self.add_stages(path, [trace])
 

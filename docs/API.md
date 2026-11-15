@@ -2288,7 +2288,18 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "drawn PDF",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "group",
@@ -2315,7 +2326,18 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "pages",
+          "label": "Page size",
+          "did": "1 page, page 1 is 600 x 400 pt",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "extract",
@@ -2361,7 +2383,21 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "room_areas",
+          "label": "Room areas: printed vs measured",
+          "did": "5 quantities compared: 5 agree, 0 conflicts",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "agree": 5,
+            "conflict": 0
+          }
+        }
+      ]
     },
     {
       "stage": "takeoff",
@@ -2400,12 +2436,13 @@ that is not an evidence id. `description.detail` is a model's description no per
   yet. Each step: `id` (a stable machine id, below), `label` (plain words to show: "Symbol detector, 8 views"),
   `did` (one line of what it found, or the error when it failed), `at_ms` (when it began, ms after its stage
   began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`) and
-  `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`,
-  `sheet_kind`, `classifier`, `describer` (identify); `exif`, `rectifier`, `scan_render` (normalise); `detector`,
-  `decisions`, `arbiter`, `rooms`, `carbon`, `printed_scale`, `double_check`, `plans`, `reader` (any other raster
-  source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`, `room_areas`, `schedule_tags`,
-  `second_count` (second_count); `judge`, `describe`, `evidence` (the project's `index_steps`). A new id may be
-  added; a screen shows `label` and need not know the id.
+  `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
+  (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
+  (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon`, `printed_scale`, `double_check`, `plans`,
+  `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
+  `room_areas`, `schedule_tags`, `second_count` (second_count: `found` is `{"agree": n, "conflict": m}`); `judge`,
+  `describe`, `evidence` (the project's `index_steps`). A step that is not timed on its own (a comparison, the EXIF
+  turn) has `ms` 0. A new id may be added; a screen shows `label` and need not know the id.
 
 A file set aside at a stage that failed (a zip entry that would be written outside the project folder): the
 stage carries `failure`, and later stages are not run:
@@ -2647,7 +2684,18 @@ upload lists the files, instead of one request per file.
           "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -2674,7 +2722,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -2720,7 +2779,21 @@ upload lists the files, instead of one request per file.
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 5 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 5,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -2944,7 +3017,18 @@ upload lists the files, instead of one request per file.
           "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x800 px, 93% white, 99% paper, 0.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -2971,7 +3055,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1200 x 800 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 800 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3017,7 +3112,21 @@ upload lists the files, instead of one request per file.
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 5 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 5,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3232,7 +3341,18 @@ upload lists the files, instead of one request per file.
           "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 141 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3259,7 +3379,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3305,7 +3436,21 @@ upload lists the files, instead of one request per file.
           "output": "5 quantities measured twice, 1 conflict",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 4 agree, 1 conflict",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 4,
+                "conflict": 1
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3472,7 +3617,18 @@ upload lists the files, instead of one request per file.
           "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 13 paths, 0 images, 80 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3499,7 +3655,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3542,7 +3709,21 @@ upload lists the files, instead of one request per file.
           "output": "2 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "2 quantities compared: 2 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 2,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3624,7 +3805,18 @@ upload lists the files, instead of one request per file.
           "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3651,7 +3843,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 850 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3748,7 +3951,18 @@ upload lists the files, instead of one request per file.
           "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3784,7 +3998,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 850 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3881,7 +4106,18 @@ upload lists the files, instead of one request per file.
           "output": "photo of a drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink (2.2% on the paper), camera EXIF (SyntheticPhone Model 1))",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3908,7 +4144,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1600 x 1200 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1600 x 1200 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3996,7 +4243,18 @@ upload lists the files, instead of one request per file.
           "output": "photo",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -4100,7 +4358,18 @@ upload lists the files, instead of one request per file.
           "output": "IFC model",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "first bytes: an IFC building model (STEP)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -4223,7 +4492,18 @@ upload lists the files, instead of one request per file.
           "output": "DXF drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "first bytes: a DXF drawing",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -4293,7 +4573,18 @@ upload lists the files, instead of one request per file.
           "output": "text PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -4345,7 +4636,18 @@ upload lists the files, instead of one request per file.
           "output": "text file",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "plain text, 80 bytes",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null

@@ -131,6 +131,8 @@ class Probed(Frozen):
     # Set when the signal was asked and gave no reply ("kind signal not available: <why>"), so a
     # triage method can say the signal timed out and not that it is off; None otherwise.
     signal_missing: str | None = None
+    # What ran to identify it (the probe, triage), `at_ms` after identify began (decision 0018)
+    steps: tuple[StepTrace, ...] = Field(default=(), exclude=True)
 
 
 # File triage (decision 0010): is an uploaded image a floor plan, and if not, what is it and does

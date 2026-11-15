@@ -13,6 +13,7 @@ from app.core.ingest.ports import Clock
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor, PageReader, SecondCounter
 from app.core.pipeline.steps import now_ms, shifted
+from app.core.wording import count
 
 
 @dataclass
@@ -79,9 +80,21 @@ class TimedPages:
         self._inner, self._timer = inner, timer
 
     def pages(self, file: DrawingFile) -> tuple[Page, ...]:
+        before = self._timer.ms.get(file.path, {}).get("normalise", 0.0)
         started = self._timer.start("normalise", file.path)
+        began = now_ms()
         found = self._inner.pages(file)
         self._timer.stop("normalise", file.path, started)
+        first = found[0] if found else None
+        step = StepTrace(
+            id="pages",
+            label="Page size",
+            did=f"{count(len(found), 'page')}"
+            + (f", page 1 is {first.width:g} x {first.height:g} {first.unit}" if first else ""),
+            at_ms=began,
+            ms=now_ms() - began,
+        )
+        self._timer.add_steps("normalise", file.path, [step], began, before)
         return found
 
 

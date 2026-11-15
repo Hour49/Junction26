@@ -66,6 +66,7 @@ from app.core.ingest.ports import (
     Unpacker,
 )
 from app.core.ingest.progress import Run, failed_stage
+from app.core.ingest.steps import probe_step, triage_step
 from app.core.ingest.triage import (
     NOTE_FAILED,
     NOTE_JUDGE_FAILED,
@@ -89,6 +90,7 @@ from app.core.ingest.triage import (
 )
 from app.core.pipeline.identify import sniff, sniff_raster
 from app.core.pipeline.model import DrawingFile
+from app.core.pipeline.steps import now_ms, shifted, timed
 from app.core.review.review import NotAllowedError
 from app.core.wording import kind_words
 
@@ -525,11 +527,14 @@ class IngestService:
     def _probed(self, data: bytes) -> tuple[Probed, float, float, Triaged]:
         """Stage 3's probe, then triage's classifier and describer (decision 0010), their time
         and the model calls they paid for, on a probing thread."""
-        started, spent = self._clock(), cost.mark()
-        probed = self._probe.probe(data)
+        started, spent, began = self._clock(), cost.mark(), now_ms()
+        probed, span = timed(lambda: self._probe.probe(data))
+        steps = [probe_step(probed, span)]
         found = Triaged(None, "")
-        if self._triage is not None:
-            found = triaged(self._triage, data, probed, sniff(data))
+        if (steps_of := self._triage) is not None:
+            found, span = timed(lambda: triaged(steps_of, data, probed, sniff(data)))
+            steps.append(triage_step(found.triage, found.said, span))
+        probed = probed.model_copy(update={"steps": shifted(steps, -began)})
         return probed, self._ms(started), cost.since(spent), found
 
     def _identify(
@@ -550,6 +555,7 @@ class IngestService:
         started = self._clock()
         try:
             probed, identified, paid, found = probing.result()
+            steps = probed.steps
             probed = kind_after(probed, found.triage, sniff(data))
             not_plan = found.triage is not None and found.triage.class_ != "floor_plan"
             framed = None
@@ -572,7 +578,8 @@ class IngestService:
                 self._store.put_file(run.id, path, upright)
                 data = upright
         did = f"{probed.did}; {found.said}" if found.said else probed.did
-        run.stage(path, "identify", did, identified, output=kind_words(probed.kind), cost_usd=paid)
+        run.stage(path, "identify", did, identified, output=kind_words(probed.kind), cost_usd=paid,
+                  steps=steps)  # fmt: skip
         run.set(path, kind=probed.kind, triage=found.triage)
         run.kinds[path] = probed.kind
         if found.triage is not None and not_plan:  # kept, described, not read (decision 0010)

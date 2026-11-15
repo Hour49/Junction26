@@ -2,7 +2,10 @@
 
 from conftest import MakeService
 
-from app.core.ingest.model import FileStatus, ProjectStatus, StageTrace, StepTrace
+from app.core.drawing.model import Conflict
+from app.core.ingest.model import FileStatus, Normalised, ProjectStatus, StageTrace, StepTrace
+from app.core.ingest.steps import frame_steps, second_count_steps, triage_step
+from app.core.pipeline.steps import Span
 from scripts.make_sample_archive import build_archive
 
 
@@ -45,3 +48,69 @@ def test_a_drawn_pdf_trace_lists_what_ran_inside_extract(make_service: MakeServi
     assert vector.found["room"] == 5 and "5 rooms" in vector.did
     assert steps[1].at_ms >= steps[0].at_ms  # the schedules are read after the drawn page
     assert stages["takeoff"].steps == ()
+
+
+def test_identify_normalise_and_second_count_say_what_ran_inside(
+    make_service: MakeService,
+) -> None:
+    ingest = make_service()
+    status = ingest.status(ingest.start("a.zip", build_archive()))
+    by_path = {file.path: file for file in status.files}
+    stages = {s.stage: s for s in ingest.trace(status.id, by_path["plans/flat-b.pdf"].id).stages}
+    (probe,) = stages["identify"].steps
+    assert (probe.id, probe.label) == ("probe", "Content probe")
+    assert probe.did.startswith("a drawn PDF (page 1 of 1")
+    (pages,) = stages["normalise"].steps
+    assert (pages.id, pages.did) == ("pages", "1 page, page 1 is 600 x 400 pt")
+    (areas,) = stages["second_count"].steps
+    assert (areas.id, areas.label) == ("room_areas", "Room areas: printed vs measured")
+    assert areas.found == {"agree": 4, "conflict": 1}
+    assert areas.did == "5 quantities compared: 4 agree, 1 conflict"
+    model = ingest.trace(status.id, by_path["model/house.ifc"].id).stages
+    assert [s.id for stage in model for s in stage.steps] == ["probe", "ifc"]
+
+
+def test_a_turned_and_rectified_photo_lists_both_in_normalise() -> None:
+    frame = Normalised(exif=6, rectified=True, width=800, height=600, rectifier="R3 quad")
+    exif, rectifier = frame_steps(frame, 40.0)
+    assert (exif.id, exif.did, exif.ms) == ("exif", "orientation 6 applied", 0)
+    assert (rectifier.label, rectifier.ms) == ("Photo rectifier (R3 quad)", 40.0)
+    assert frame_steps(Normalised(exif=1, width=8, height=6), 3.0) == []
+
+
+def test_each_kind_of_comparison_is_a_step() -> None:
+    def compared(quantity: str, methods: tuple[str, str], status: str) -> Conflict:
+        return Conflict.model_validate(
+            {
+                "id": "c",
+                "quantity": quantity,
+                "subject": {"kind": "sheet", "ref": None},
+                "status": status,
+                "tolerance": 0,
+                "values": [{"value": 1, "method": method} for method in methods],
+            }
+        )
+
+    steps = second_count_steps(
+        [
+            compared("scale", ("scale_text", "scale_bar"), "agree"),
+            compared("element_count", ("plan_drawing", "ifc_model"), "conflict"),
+            compared("element_count", ("plan_drawing", "ifc_model"), "agree"),
+            compared("element_count", ("detector", "schedule"), "agree"),
+            compared("room_count", ("detector", "annotation"), "agree"),
+        ]
+    )
+    assert [(s.id, s.found) for s in steps] == [
+        ("scale_check", {"agree": 1, "conflict": 0}),
+        ("ifc_vs_sheet", {"agree": 1, "conflict": 1}),
+        ("schedule_tags", {"agree": 1, "conflict": 0}),
+        ("second_count", {"agree": 1, "conflict": 0}),
+    ]
+    assert steps[-1].label == "Room count: annotation vs detector"
+    assert second_count_steps(None) == []
+
+
+def test_triage_that_could_not_answer_is_a_failed_step() -> None:
+    span = Span(at_ms=0, ms=5, cost_usd=0.001, faults=0)
+    step = triage_step(None, "triage not available: timed out; read as today", span)
+    assert (step.id, step.state, step.cost_usd) == ("classifier", "failed", 0.001)
