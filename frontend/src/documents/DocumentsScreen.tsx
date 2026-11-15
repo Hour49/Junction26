@@ -16,7 +16,7 @@ import { Loading } from '../shell/Loading';
 import { DocumentLists } from './DocumentLists';
 import { IssueCard } from './IssueCard';
 import { issueModel } from '../model3d/model3d';
-import { documentIssues, needsYou, waitsForYou } from './documents';
+import { documentIssues, isAnswerable, needsYou, waitsForYou } from './documents';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/ui/tip';
 import { TIPS } from '../shell/tips';
@@ -56,9 +56,13 @@ export function DocumentsScreen({
   }, [done, projectId, pack, reload]);
 
   const list = issues && 'list' in issues ? issues.list : null;
-  // Issues on demand: only what waits for the person's answer now, plus what they answered on this visit
+  // Issues on demand: what waits for the person's answer now, the answerable notes still open (the call on a file
+  // triage set aside: answerable, not counted, documents.md DOC-7), and what they answered on this visit
+  const answerableOpen = (i: Issue) => isAnswerable(i) && i.state === 'open' && !i.answer;
   const rows = list
-    ? documentIssues(list.filter((i) => waitsForYou(i) || answeredHere.has(i.id)))
+    ? documentIssues(
+        list.filter((i) => waitsForYou(i) || answerableOpen(i) || answeredHere.has(i.id)),
+      )
     : [];
   // one getDrawing per drawing with a located issue; a failure shows that drawing's cards with no picture
   const wanted = [

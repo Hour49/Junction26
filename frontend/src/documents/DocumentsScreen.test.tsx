@@ -300,6 +300,20 @@ describe('DocumentsScreen (documents.md)', () => {
       expect(card().getByRole('button', { name: 'It does not belong' })).toBeTruthy();
     });
 
+    it('listed as the backend sends it, a note: answerable, so on the list, but not counted', async () => {
+      // triage's set-aside file comes as `unrelated_file` with severity `note` (documents.md: "unrelated_file
+      // notes answerable and not counted"); #440's list rule (the badge's count) dropped it
+      const note: Issue = { ...issue, severity: 'note' };
+      show(body, { ...list, issues: [note] });
+      await flush();
+      expect(waitsForYou(note)).toBe(false); // the badge does not count it
+      expect(cards()).toHaveLength(1);
+      expect(
+        within(must(cards()[0])).getByRole('button', { name: 'It belongs to this project' }),
+      ).toBeTruthy();
+      expect(issuesRegion().queryByText('Nothing needs your answer right now.')).toBeNull();
+    });
+
     it('a failed call is worded under the card and the chips work again', async () => {
       localStorage.setItem(NAME_KEY, 'Ana');
       show(body, list, { [POST]: reply(409, { ...error, code: 'not-allowed' }) });
