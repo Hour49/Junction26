@@ -485,6 +485,7 @@ describe('AdvancedIngest', () => {
       ...must(takeoff.quantities[0]),
       key: `k${String(i)}`,
       status: 'agree' as const,
+      second: { method: 'printed_label', value: i }, // six measurements, not one repeated (AD-131)
       conflict: null, // an agreeing row has no conflict
     });
     const long = {
