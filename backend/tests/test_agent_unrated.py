@@ -253,3 +253,17 @@ def test_r4_a14_saying_no_confidence_level_does_not_drop_that_rooms_were_missed(
     model = Model(step(call("find_rooms", query="classroom")),
                   final(text=missed, evidence_ids=["ev_1"]))  # fmt: skip
     assert FOUND_ONLY not in turn(model, Tools(find_rooms=CLASSROOMS)).text  # not said twice
+
+
+def test_review_644_s1_only_the_count_find_rooms_gives_gets_the_found_only_sentence() -> None:
+    """review-644 S1: rooms_read, unlabelled and a room's page are in the result too, yet they
+    are no count of the rooms found with that label."""
+    for said in ("The reader read 55 rooms in all [ev_1].", "Two classrooms are on page 1 [ev_1].",
+                 "9 rooms have no printed label [ev_1]."):  # fmt: skip
+        model = Model(step(call("find_rooms", query="classroom")),
+                      final(text=said, evidence_ids=["ev_1"]))  # fmt: skip
+        assert FOUND_ONLY not in turn(model, Tools(find_rooms=CLASSROOMS)).text, said
+    listed = "I found 2 Secondary Classrooms [ev_1] [ev_2]."  # the count still gets it
+    model = Model(step(call("find_rooms", query="classroom")),
+                  final(text=listed, evidence_ids=["ev_1", "ev_2"]))  # fmt: skip
+    assert turn(model, Tools(find_rooms=CLASSROOMS)).text.endswith(FOUND_ONLY)
