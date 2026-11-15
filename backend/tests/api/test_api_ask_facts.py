@@ -3,15 +3,21 @@ answered from the model's fact sheet, read once per file content (sha256)."""
 
 import threading
 import time
-from typing import Any
+from collections.abc import Callable
+from types import SimpleNamespace
+from typing import Any, cast
 
 import ifcopenshell
 import pytest
 from fastapi.testclient import TestClient
 
 from app.adapters.ifc_model import facts_source, facts_store
+from app.adapters.ifc_model.facts_store import StoredFacts
 from app.api.ask import STILL_READING
+from app.api.deps import Ingest
+from app.api.projects import start_facts
 from app.composition import build_ingest
+from app.core.ingest.model import FileState, FileStatus, ProjectStatus
 from app.main import create_app
 from app.settings import Settings
 
@@ -70,6 +76,60 @@ def test_a_question_while_the_model_is_read_says_so(
     stored(client)
     answered = client.post("/api/ask", json=on_model(project, WALLS)).json()
     assert answered["method"] == "facts"
+
+
+def test_a_failed_build_is_not_said_to_be_still_reading(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """review-5: "still being read" only while a build runs; after a failed one the takeoff's
+    own reason stands (and no build starts again in this process)."""
+    tried: list[str] = []
+
+    def fails(*args: Any, **kwargs: Any) -> Any:
+        tried.append("build")
+        raise RuntimeError("not an IFC model")
+
+    monkeypatch.setattr(facts_store, "store_facts", fails)
+    client, project = sample(settings)  # the read starts the build, which fails
+    folder = settings.projects_dir.parent / "cache" / "facts"
+    facts = client.app.state.answering.facts  # type: ignore[attr-defined]
+    (model,) = [f["sha256"] for f in project["files"] if f["path"] == "model/house.ifc"]
+    for _ in range(200):
+        if tried and not facts.reading(model):
+            break
+        time.sleep(0.05)
+    found = client.post("/api/ask", json=on_model(project, WALLS)).json()
+    assert found["refusal"] is not None and found["refusal"]["text"] != STILL_READING
+    client.get(f"/api/projects/{project['id']}")  # the screen's next poll: no second build
+    assert tried == ["build"] and not list(folder.glob("*.json"))
+
+
+class Starts:
+    """A StoredFacts stand-in that records the builds start_facts asks for."""
+
+    def __init__(self) -> None:
+        self.started: list[str] = []
+
+    def start(self, sha256: str, path: str, data: Callable[[], bytes]) -> None:
+        self.started.append(path)
+
+
+@pytest.mark.parametrize("state", ["queued", "running"])
+def test_a_model_ingest_is_not_done_with_starts_no_build(state: FileState) -> None:
+    """review-5: start_facts builds only files ingest finished (their bytes and kind are final)."""
+    files = (
+        FileStatus(id="f1", path="a.ifc", size=1, sha256="a" * 64, kind="ifc", state=state),
+        FileStatus(id="f2", path="b.ifc", size=1, sha256="b" * 64, kind="ifc", state="ready"),
+        FileStatus(
+            id="f3", path="c.pdf", size=1, sha256="c" * 64, kind="pdf_vector", state="ready"
+        ),
+    )
+    status = ProjectStatus(id="p", name="p", state="running", created_at="2026-11-15T00:00:00Z",
+                           files=files)  # fmt: skip
+    starts = Starts()
+    no_bytes = SimpleNamespace(upload_bytes=lambda *_: b"")
+    start_facts(status, cast(Ingest, no_bytes), cast(StoredFacts, starts))
+    assert starts.started == ["b.ifc"]
 
 
 def sample(settings: Settings) -> tuple[TestClient, dict[str, Any]]:
