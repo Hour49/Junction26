@@ -51,6 +51,7 @@ from app.adapters.discipline_pictures.glyphs import GlyphReader
 from app.adapters.discipline_pictures.lane import CODE as PICTURES_CODE
 from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets, kept_in
 from app.adapters.discipline_pictures.legend import OcrLegend
+from app.adapters.discipline_pictures.template import TemplateReader
 from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
@@ -373,7 +374,7 @@ def _pictures(
     if settings.discipline_pictures == "off":
         return inner
     legend = OcrLegend(files, _ocr())
-    symbols = None
+    symbols = check = None
     if settings.discipline_pictures == "glyphs":
         symbols = GlyphReader(files, legend.legend, settings.discipline_glyphs_model)
     elif settings.discipline_pictures == "gemini":
@@ -386,6 +387,7 @@ def _pictures(
         )
         replies = kept_in(settings.discipline_pictures_cache_dir, "gemini") / "replies"
         symbols = GeminiPictureReader(files, client, replies)
+        check = TemplateReader(files, legend.legend)  # its agreement unholds a label (pic-det)
     return PictureLane(
         inner,
         files,
@@ -393,6 +395,7 @@ def _pictures(
         PictureSheets(files, _pictures_cache(settings)),
         legend,
         symbols,
+        check,
     )
 
 
