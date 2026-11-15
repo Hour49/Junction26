@@ -47,6 +47,17 @@ import {
   refusalWithMarkup,
 } from './testing';
 
+// EN-23: the score shows where the checks line names a second method (EN-93 hides it beside "one method").
+const scoredAgree = {
+  ...answerConfidence,
+  quantity: answerConfidence.quantity && {
+    ...answerConfidence.quantity,
+    status: 'agree' as const,
+    first: { method: 'plan_drawing', value: 2 },
+    second: { method: 'ifc_model', value: 2 },
+  },
+};
+
 const PROJECT = '5e0c1a2b3d4f';
 const DRAWING = drawing.id;
 const DRAWING_ROUTE = `GET /api/drawings/${DRAWING}`;
@@ -329,6 +340,15 @@ describe('answers', () => {
     ).toBeTruthy();
   });
 
+  it("QA R3-A2 EN-93 one method, no second check: no second reader's score beside it", async () => {
+    expect(answerConfidence.confidence).not.toBeNull();
+    const t = await shown(answerConfidence);
+    expect(within(t).getByText('Measured by one method; no second check.')).toBeTruthy();
+    expect(within(t).queryByText(/Second reader's score/)).toBeNull();
+    const details = within(t).getByText('Details').closest('details') as HTMLElement;
+    expect(within(details).getByText('Signal: g1main')).toBeTruthy();
+  });
+
   it('EN-20 the viewer gets the proof legend: one colour per room label', async () => {
     const t = await shown(answerArea);
     const html = t.innerHTML;
@@ -337,10 +357,10 @@ describe('answers', () => {
   });
 
   it("QA R1 EN-23 the second reader's score, no signal name on the card, never a probability", async () => {
-    const conf = answerConfidence.confidence;
+    const conf = scoredAgree.confidence;
     expect(conf).not.toBeNull();
     const signal = conf?.signal ?? '';
-    const t = await shown(answerConfidence);
+    const t = await shown(scoredAgree);
     expect(
       within(t).getByText(
         `Second reader's score ${formatScore(conf?.score ?? NaN)} (not a probability)`,
@@ -1341,7 +1361,7 @@ describe('hover tips on the engineer page (docs/ui-tooltips.md)', () => {
   });
 
   it('the checks, second reader score and counting rule explain themselves', async () => {
-    const t = await shownTurn(answerConfidence);
+    const t = await shownTurn(scoredAgree);
     await tipOf(within(t).getByText('Checks'), TIPS.checks);
     await tipOf(within(t).getByText(/^Second reader's score/), TIPS.secondScore);
     await tipOf(within(t).getByText(/^Counting rule:/), TIPS.rule);

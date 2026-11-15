@@ -69,6 +69,7 @@ describe('conflicts.ts', () => {
     expect(parseAnswer('12', 'count')).toEqual({ value: 12 });
     expect(parseAnswer('0', 'count')).toEqual({ value: 0 });
     expect(parseAnswer('2.5', 'count')).toBe('Type a whole number, like 12.');
+    expect(parseAnswer('28.5', 'rooms')).toBe('Type a whole number, like 12.'); // a room count
     expect(parseAnswer('two are the same door', 'count')).toEqual({
       note: 'two are the same door',
     });
