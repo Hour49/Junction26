@@ -27,6 +27,7 @@ SCORE_BOTH, SCORE_PAGE, SCORE_GEOMETRY = 0.9, 0.7, 0.6
 FACES_M = (0.03, 0.6)  # two parallel faces of the wall mass this far apart are one wall
 FACE_MIN_M = 0.3  # shorter faces (door reveals, wall ends) give no wall line
 PARALLEL_DEG = 3.0
+SCALE_SLACK = 0.05  # a sheet's own scale and the walls' fitted one further apart are named
 SAME_SIZE = 0.02  # two sheets this close in metres are taken to share their frame
 
 # Floor words -> one key per floor ("0" ground, "1" first upper, "-1" basement, "roof").
@@ -74,7 +75,15 @@ def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register
         placed = register(plan_walls, lines)
         if not isinstance(placed, Place):
             return placed.reason
-        return _fractions(placed, size, plan.size_m), placed.reason
+        how = placed.reason
+        if sheet.size_m is not None:  # its own scale (a scale bar): say when the walls disagree
+            bar = sheet.size_m[0] / size[0]
+            if abs(placed.scale / bar - 1) > SCALE_SLACK:
+                how += (
+                    f"; its scale says {bar * 1000:.1f} mm a pixel, the walls "
+                    f"{placed.scale * 1000:.1f} mm: laid by the walls"
+                )
+        return _fractions(placed, size, plan.size_m), how
 
     return laid
 

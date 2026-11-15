@@ -267,7 +267,8 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
   the centre lines of its drawn wall mass in metres (each pair of parallel faces 3–60 cm apart, outer walls
   included); the sheet's come from the sheet-walls reader in its own pixels with its page size. The map is
   `register`'s rotation, scale and shift turned into page fractions, and its words are `register`'s ("walls match:
-  41 of 47 within 0.2 m after rotation 0.3 deg"). The follower tries room names first, then walls; a refusal of
+  41 of 47 within 0.2 m after rotation 0.3 deg"); when the sheet has its own scale (a scale bar) and the walls' fitted
+  one differs by more than 5 %, the words name both and say the walls were used. The follower tries room names first, then walls; a refusal of
   both gives both reasons. Without a sheet-walls reader only room names are tried.
 - Several sheets paired for one discipline: the highest score wins (the plan's own page first, then the candidates'
   order); its reason names the others; each other is refused "another <discipline> picture was taken: <name>".
@@ -328,7 +329,7 @@ Pairing (tests in `tests/test_services_pairing.py`):
   (`test_sheets_of_two_folders_are_two_sets`).
 - **SFP-18** A sheet drawn turned a quarter at 50 px a metre, its walls in pixels: `by_walls` gives the map that puts its
   corners back on the plan's page fractions and `register`'s words; with no room names the follower's register
-  (room names, then walls) pairs it `geometry`; both refusing gives both reasons
+  (room names, then walls) pairs it `geometry`; both refusing gives both reasons; a sheet scale 20 % off the walls' is named
   (`test_walls_lay_a_turned_half_size_sheet_over_the_plan`).
 - **SFP-19** The wall mass of a 0.2 m walled box gives its four centre lines (`test_the_plans_wall_lines_are_centre_lines`).
 
