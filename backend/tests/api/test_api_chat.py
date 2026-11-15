@@ -466,3 +466,20 @@ def test_which_drawing_has_the_largest_floor_area_names_it(client: TestClient) -
     assert turn["evidence"][0]["name"] == "Drawn plan 2"
     [answer] = turn["answers"]  # the card: every drawing's total
     assert answer["question"] == "What is the total floor area?"
+
+
+def test_r2_edits_4_bagno_1_01_is_flat_c_s_room_not_a_conflict(client: TestClient) -> None:
+    """Big QA R2 edits row 4: "What is the area of Bagno 1.01?" on the sample said "The sources
+    disagree." with flat-a's and flat-b's Küche 1.01 (22.4 / 30, flat-b a conflict) next to flat-c's
+    Bagno 9.0. Both planners: the rules chat, and ask_drawings as Gemini calls it ("room 1.01")."""
+    project = sample(client)
+    message = "What is the area of Bagno 1.01?"
+    turn = ask(client, project, message)
+    assert turn["kind"] == "answer", turn["text"]
+    answered = [p["name"] for a in turn["answers"] for p in a["parts"] if p["answer"]["answer"]]
+    assert answered == ["plans/flat-c.pdf"], turn["text"]
+    toolbox = project_toolbox(client.app, project, [], {}, message=message)
+    found = json.loads(toolbox.run("ask_drawings", json.dumps({"question": "area of room 1.01"})))
+    assert found["question"] == "area of Bagno 1.01"
+    got = [(p["name"], p["answer"]["answer"]) for p in found["parts"] if p["answer"]["answer"]]
+    assert got == [("plans/flat-c.pdf", 9.0)], got
