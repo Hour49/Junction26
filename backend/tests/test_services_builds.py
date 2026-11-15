@@ -10,7 +10,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from test_services_build import _architecture, _services  # pyright: ignore[reportPrivateUsage]
+from test_services_build import (  # pyright: ignore[reportPrivateUsage]
+    _architecture,
+    _Ifc,
+    _services,
+)
 
 from app.adapters import services_store
 from app.adapters.pipeline_tools import ToolError
@@ -93,6 +97,22 @@ def test_the_child_stores_a_services_model_and_nothing_for_a_building_model(
     assert not ServicesStore(cache).path(sha).is_file()
     (tmp_path / "x.ifc").write_bytes(b"no ifc")
     assert _child(str(tmp_path / "x.ifc"), "x.ifc", str(cache)) == NOT_READ
+
+
+def test_a_building_model_with_proxies_only_is_no_services_model(tmp_path: Path) -> None:
+    """Services demo check (2026-11-15): DigitalHub's architecture IFC lists 150 portless
+    IfcBuildingElementProxy items (parking marks, trees, bike stands). The child kept them as a
+    services model, so the chat named "Building model 1" among the services models. A proxy
+    counts only with ports (an exporter's toilet or socket); a distribution element always."""
+    m = _Ifc()
+    m.box("IfcSpace", 2.5, 2.0, 0.0, (5.0, 4.0, 2.7), Name="1 Living")
+    m.box("IfcBuildingElementProxy", 1.0, 1.0, 0.0, (0.5, 0.5, 6.0), Name="Baum")
+    building = m.save(tmp_path / "a.ifc")
+    cache = tmp_path / "cache"
+    assert _child(str(building), "architecture.ifc", str(cache)) == NO_SERVICES
+    sha = hashlib.sha256(building.read_bytes()).hexdigest()
+    assert not ServicesStore(cache).path(sha).is_file()
+    assert ServicesStore(cache).none_path(sha).is_file()
 
 
 def test_a_building_model_is_tried_once_not_again_after_a_restart(tmp_path: Path) -> None:
