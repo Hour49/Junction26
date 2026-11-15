@@ -27,6 +27,7 @@ from app.core.drawing.model import Page
 from app.core.errors import InvalidInputError
 from app.core.ingest.judge import CARBON_FLAG, CARBON_PART_FLAG, judge, reading_flags
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.steps import without_steps
 from app.core.spend import SpendGuard
 from app.settings import Settings
 from scripts.make_sample_archive import png_bytes, raster_plan
@@ -918,7 +919,9 @@ def test_on_a_large_page_carbon_gives_the_things_drawn_and_the_shipped_reader_th
     assert found.count_arbiter is None
     assert found.notes[0].startswith("carbon: carbon:")
     small = CarbonThings(Shipped(), carbon, lambda _: False).extract(source, sheet)
-    assert small == Shipped().extract(source, sheet)  # every other page: the shipped reader's
+    assert without_steps(small) == Shipped().extract(
+        source, sheet
+    )  # every other page: the shipped reader's
 
     failed = CarbonExtractor(Files(), CarbonReader(FakeCarbon(RuntimeError("HTTP 503"), [tile]),
                                                    tmp_path / "f"))  # fmt: skip
@@ -961,9 +964,11 @@ def test_on_a_small_page_carbon_counts_only_where_the_shipped_reader_found_fewer
         assert [r.type for r in got.rooms] == ["kitchen"]  # the shipped reader's rooms
         assert took == {"scan.png"}
     else:
-        assert got == Shipped().extract(source, sheet) and took == set()
+        assert without_steps(got) == Shipped().extract(source, sheet) and took == set()
     unset = CarbonThings(Shipped(), carbon, lambda _: False).extract(source, sheet)
-    assert unset == Shipped().extract(source, sheet)  # few=0 (the default): the size rule alone
+    assert without_steps(unset) == Shipped().extract(
+        source, sheet
+    )  # few=0 (the default): the size rule alone
 
 
 def test_carbon_failure_on_a_two_door_page(tmp_path: Path) -> None:
@@ -990,7 +995,7 @@ def test_carbon_failure_on_a_two_door_page(tmp_path: Path) -> None:
     sheet = Sheet(file=source, pages=(Page(page=1, width=900, height=700, unit="px"),))
     took: set[str] = set()
     got = CarbonThings(Shipped(), failed, lambda _: False, 3, took).extract(source, sheet)
-    assert got == Shipped().extract(source, sheet) and took == set()
+    assert without_steps(got) == Shipped().extract(source, sheet) and took == set()
     # over 4,000 px a failed call still drops the shipped elements (no fallback, as built in #269)
     large = CarbonThings(Shipped(), failed, lambda _: True, 3, took).extract(source, sheet)
     assert large.elements == () and took == set()

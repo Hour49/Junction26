@@ -42,7 +42,8 @@ and what a source's calls cost is charged to the caller's thread (app/core/cost.
 
 Each source that read the sheet is one step of the result (`Extracted.steps`, decision 0018): what
 it was read for, when it began and how long it ran (sources overlap), what it cost and what it
-found; a source whose model calls got no answer is a failed step.
+found; a source whose model calls got no answer is a failed step. The steps a source reports itself
+(the count arbiter's three reads) follow its own.
 """
 
 import time
@@ -68,7 +69,7 @@ from app.core.pipeline.disputed_marks import ANSWER
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.plan_rooms import floor_plans
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.steps import found_of, found_words
+from app.core.pipeline.steps import found_of, found_words, shifted
 from app.core.wording import SCALE_WORDS, count
 
 RoomPolicy = Callable[[Sequence[Room]], Sequence[Room]]
@@ -201,10 +202,10 @@ class CompositeRasterExtractor:
             cost.charge(sum(spent.values()))
             cost.fail(sum(failed.values()))
         read = {name: future.result() for name, future in pending.items()}
-        steps = [
-            self._step(name, read[name], began, spans[name], spent[name], failed[name])
-            for name in sorted(read, key=lambda name: spans[name][0])
-        ]
+        steps: list[StepTrace] = []
+        for name in sorted(read, key=lambda name: spans[name][0]):
+            step = self._step(name, read[name], began, spans[name], spent[name], failed[name])
+            steps += [step, *shifted(read[name].steps, step.at_ms)]  # and what ran inside it
         return merged.model_copy(update={"steps": (*merged.steps, *steps)})
 
     def _step(

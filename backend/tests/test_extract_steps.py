@@ -4,6 +4,11 @@ was read for, when it began, how long it ran, what it cost and what it found."""
 import threading
 
 from pdf_sheets import SheetPdf
+from test_count_arbiter import FILE as ARBITER_FILE
+from test_count_arbiter import SHEET as ARBITER_SHEET
+from test_count_arbiter import Files as ArbiterFiles
+from test_count_arbiter import Read as ArbiterRead
+from test_count_arbiter import follows_second, l1
 from test_ifc_model import DEMO, IfcModelExtractor, IfcModels, model_file, stored
 from test_ifc_model import extract as ifc_extract
 from test_pdf_tables import untitled_boxes
@@ -11,6 +16,9 @@ from test_raster_composite import FILE, LEFT, RIGHT, SHEET, Fake, composite, ele
 from test_vector_pdf import extract as vector_extract
 from test_vector_pdf import swiss_sheet
 
+from app.adapters.carbon import THINGS, CarbonChecked, CarbonSwitch, CarbonThings
+from app.adapters.count_arbiter import ArbiterCountExtractor
+from app.adapters.printed_scale import PrintedScale
 from app.adapters.raster import assemble, parse_components, source_label
 from app.core import cost
 from app.core.drawing.model import Plan, Scale
@@ -18,6 +26,7 @@ from app.core.ingest.model import StageTrace
 from app.core.ingest.timing import StageClock, TimedExtractor, with_steps
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
+from app.core.pipeline.printed import PrintedSheet
 
 PLANS = (Plan(id="x", page=1, box=(0.0, 0.0, 1.0, 1.0)),)
 
@@ -157,3 +166,111 @@ def test_a_second_extract_call_lists_its_steps_after_the_first() -> None:
     other = StageTrace(stage="takeoff", did="t", ms=1)
     traced = with_steps([stage, other], timer.steps[FILE.path])
     assert traced[0].steps == tuple(steps) and traced[1].steps == ()
+
+
+class Paid(Fake):
+    """A reader whose model calls cost `usd`, `faults` of them unanswered, and that reports one
+    step of its own."""
+
+    def __init__(self, usd: float = 0.0, faults: int = 0, **found: object) -> None:
+        super().__init__(**found)  # type: ignore[arg-type]
+        self.usd, self.faults = usd, faults
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        cost.charge(self.usd)
+        if self.faults:
+            cost.fail(self.faults)
+        own = StepTrace(id="detector", label="Symbol detector", at_ms=0, ms=1)
+        return super().extract(source, sheet).model_copy(update={"steps": (own,)})
+
+
+def test_carbon_on_a_large_sheet_keeps_the_shipped_steps_and_adds_its_own() -> None:
+    barrier = threading.Barrier(2)
+    shipped = Meeting(barrier, rooms=[room("kitchen", LEFT)], plans=PLANS, read=["room"])
+    carbon = Meeting(barrier, usd=0.02, elements=[element("door", LEFT)], plans=PLANS)
+    shipped.found = shipped.found.model_copy(
+        update={"steps": (StepTrace(id="rooms", label="Room reader (Gemini)"),)}
+    )
+    got = CarbonThings(shipped, carbon, lambda _: True).extract(FILE, SHEET)
+    assert [step.id for step in got.steps] == ["rooms", "carbon"]
+    step = got.steps[1]
+    assert (step.label, step.state, step.cost_usd) == (THINGS, "done", 0.02)
+    assert step.found == {"door": 1, "plan": 1} and step.did == "1 door, 1 plan"
+    # both met at the barrier, so Carbon ran beside the shipped reader
+
+
+def test_carbon_not_needed_by_the_few_clause_is_a_skipped_step() -> None:
+    shipped = Fake(elements=[element("door", LEFT), element("door", RIGHT)], plans=PLANS)
+    got = CarbonThings(shipped, Fake(), lambda _: False, few=2).extract(FILE, SHEET)
+    (step,) = got.steps
+    assert (step.id, step.state) == ("carbon", "skipped")
+    assert (
+        step.did == "not needed: the shipped reader found 2 elements (it reads a sheet with "
+        "fewer than 2)"
+    )
+
+
+def test_carbon_that_read_nothing_is_a_failed_step_and_the_shipped_reading_stays() -> None:
+    shipped = Fake(plans=PLANS)
+    nothing = Paid(faults=1, read=[])
+    nothing.found = nothing.found.model_copy(update={"notes": ("carbon: HTTP 503",)})
+    got = CarbonThings(shipped, nothing, lambda _: False, few=3).extract(FILE, SHEET)
+    (step,) = [step for step in got.steps if step.id == "carbon"]
+    assert step.state == "failed"
+    assert step.did == "read nothing: HTTP 503; the shipped reading stays"
+
+
+def test_carbon_alone_and_carbon_as_a_check_are_steps() -> None:
+    carbon = Paid(usd=0.01, elements=[element("window", LEFT)], plans=PLANS, read=["window"])
+    alone = CarbonSwitch(Fake(), carbon, lambda _: True).extract(FILE, SHEET)
+    assert [s.label for s in alone.steps] == [
+        "Symbol detector",
+        "Gemini Carbon reader (the whole sheet)",
+    ]
+    assert alone.steps[1].found == {"window": 1, "plan": 1}
+    checked = CarbonChecked(Fake(plans=PLANS), carbon).extract(FILE, SHEET)
+    (step,) = checked.steps
+    assert (step.label, step.found, step.cost_usd) == (
+        "Gemini Carbon check (never counted)",
+        {"window": 1, "plan": 1},
+        0.01,
+    )
+
+
+def test_the_printed_scale_is_a_step_after_the_inner_readers() -> None:
+    printed = PrintedSheet(printed_scale="1:100")
+    inner = Paid(plans=PLANS)
+    got = PrintedScale(inner, PrintedFixed(printed), PrintedFiles()).extract(FILE, SHEET)
+    assert [step.id for step in got.steps] == ["detector", "printed_scale"]
+    step = got.steps[1]
+    assert step.label == "Printed scale and counts (Gemini Carbon)"
+    assert step.did.startswith("printed scale 1:100; the sheet's scale: ")
+
+
+class PrintedFixed:
+    def __init__(self, printed: PrintedSheet) -> None:
+        self.printed = printed
+
+    def read(self, source: DrawingFile, sheet: Sheet) -> PrintedSheet:
+        return self.printed
+
+
+class PrintedFiles:
+    def read(self, path: str) -> bytes:
+        return b""
+
+
+def test_the_count_arbiter_lists_its_three_reads_in_order() -> None:
+    base = ArbiterRead({"toilet": 1})
+    second = ArbiterRead({"toilet": 2})
+    got = ArbiterCountExtractor(
+        base, second, l1(), follows_second("toilet"), ArbiterFiles()
+    ).extract(ARBITER_FILE, ARBITER_SHEET)
+    assert [(step.id, step.label) for step in got.steps] == [
+        ("detector", "Symbol detector (arbiter base)"),
+        ("detector", "Symbol detector (arbiter second read)"),
+        ("arbiter", "Count arbiter (L1 page counts)"),
+    ]
+    assert got.steps[0].found == {"toilet": 1} and got.steps[1].found == {"toilet": 2}
+    assert got.steps[2].did.startswith("toilet 1 -> 2 (P = ")
+    assert got.steps[0].at_ms <= got.steps[1].at_ms <= got.steps[2].at_ms
