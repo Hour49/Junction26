@@ -78,7 +78,8 @@ NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 # Levels only where measured (item 4): these tools' numbers are read from the drawing as it is,
 # with no confidence level; an answer whose number rests only on them says so, in no digits
-SHOW_THEM = "Show me where they are"  # the "Show them on the plan" chip (contract F)
+# the show chip's label and message, one text (QA R4-E8); "show me" routes it (prompt, chat_rules)
+SHOW_THEM = "Show me where they are"
 AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
 UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
 # the tools besides ask_drawings whose results report a conflict (pipeline_tools' descriptions)
@@ -895,7 +896,7 @@ class _Run:
         # not after a show: it showed the page with the most marks, the rest are on other
         # pages, and the same chip would come back after every click (review-379)
         if not self.shown and marks > (len(view.marks) if view is not None else 0):
-            out.append(Option(label="Show them on the plan", message=SHOW_THEM))
+            out.append(Option(label=SHOW_THEM, message=SHOW_THEM))
         if not self.did_review and any(_doubtful(given) for given in answers):
             out.append(Option(label="Are you sure?", message="Are you sure?"))
         named = [e.label for e in evidence if e.label in self.printed]

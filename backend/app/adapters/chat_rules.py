@@ -30,7 +30,7 @@ NO_PACK = (
     "and ask again."
 )
 ROOM = re.compile(r"\broom\b")
-# "Where are they?" about the last answer (the "Show them on the plan" chip, contract F)
+# "Where are they?" about the last answer (the "Show me where they are" chip, contract F)
 SHOW = re.compile(
     r"\b(show me where|where are they|show (them|it|me them) on the plan|mark them)\b"
 )

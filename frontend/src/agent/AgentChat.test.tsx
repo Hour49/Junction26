@@ -151,7 +151,7 @@ it('CH-45 follow-up chips after an answer (questions not asked yet); none after 
 
 it("#369 the answer's own next chips (at most 3) replace the drawing follow-ups; a click asks its message", async () => {
   const next = [
-    { label: 'Show them on the plan', message: 'Show me where they are' },
+    { label: 'Show me where they are', message: 'Show me where they are' },
     { label: 'Which is the largest?', message: 'Which bathroom is the largest?' },
     { label: 'Total area', message: 'What is the total bathroom area?' },
     { label: 'A fourth', message: 'never shown' },
@@ -164,8 +164,8 @@ it("#369 the answer's own next chips (at most 3) replace the drawing follow-ups;
     within(group)
       .getAllByRole('button')
       .map((b) => b.textContent),
-  ).toEqual(['Show them on the plan', 'Which is the largest?', 'Total area']);
-  fireEvent.click(within(group).getByRole('button', { name: 'Show them on the plan' }));
+  ).toEqual(['Show me where they are', 'Which is the largest?', 'Total area']);
+  fireEvent.click(within(group).getByRole('button', { name: 'Show me where they are' }));
   await waitFor(() => {
     expect(posts(api).at(-1)).toEqual({
       chat_id: answerTurn.chat_id,
