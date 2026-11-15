@@ -94,11 +94,11 @@ def test_a_gap_where_a_symbol_sits_is_bridged_up_to_the_bound() -> None:
     image = Image.fromarray(picture(draw))
     ImageDraw.Draw(image).rectangle((290, 185, 310, 215), fill="white", outline="black", width=2)
     rgb = np.asarray(image)
-    reading, graph = read_graph(rgb, legend_of(draw), M_PER_PX, bridge_m=0.5)
+    reading, graph = read_graph(rgb, legend_of(draw), M_PER_PX, bridge_m=0.5, join_m=0.0)
     assert lengths(reading)["Supply"] == [pytest.approx(5.0, rel=0.03)]  # the gap counted
     assert [e.bridged for e in graph.edges].count(True) == 1
     # a gap wider than the bound stays a gap: two runs, the symbol's width not counted
-    reading, _ = read_graph(rgb, legend_of(draw), M_PER_PX, bridge_m=0.1)
+    reading, _ = read_graph(rgb, legend_of(draw), M_PER_PX, bridge_m=0.1, join_m=0.0)
     assert lengths(reading)["Supply"] == [
         pytest.approx(2.4, abs=0.05),
         pytest.approx(2.4, abs=0.05),
@@ -110,7 +110,9 @@ def test_ends_that_do_not_point_at_each_other_are_not_bridged() -> None:
     draw = [("Supply", RED, [(50, 200), (300, 200)], None)]
     image = Image.fromarray(picture(draw))
     ImageDraw.Draw(image).line([(50, 220), (300, 220)], fill=RED, width=3)
-    reading, graph = read_graph(np.asarray(image), legend_of(draw), M_PER_PX, bridge_m=0.5)
+    reading, graph = read_graph(
+        np.asarray(image), legend_of(draw), M_PER_PX, bridge_m=0.5, join_m=0.0
+    )
     assert lengths(reading)["Supply"] == [pytest.approx(2.5, rel=0.03)] * 2
     assert not any(e.bridged for e in graph.edges)
 
@@ -203,3 +205,23 @@ def test_ready_masks_give_runs_and_a_graph() -> None:
     assert graph.size_px == (W, H) and [e.bridged for e in graph.edges].count(True) == 1
     with pytest.raises(ValueError, match="not"):
         graph_of_masks({"x": mask[:10]}, (W, H), M_PER_PX)
+
+
+def test_an_elbow_and_a_tee_join_the_pieces_into_one_network() -> None:
+    # fittings are not drawn: an elbow leaves two ends at a right angle, a tee a branch end short
+    # of the main's side; joined within the bound, uncounted in the length
+    mask = np.zeros((H, W), np.uint8)
+    mask[100:103, 50:400] = 1  # the main, 3.50 m
+    mask[130:330, 200:203] = 1  # a branch whose end stops 0.28 m below the main's side: a tee
+    mask[120:300, 430:433] = 1  # an elbow: 0.3 m right of the main's end, 0.2 m below it
+    runs, graph = graph_of_masks({"Supply": mask}, (W, H), M_PER_PX, join_m=0.5)
+    (run,) = runs
+    assert run.length_m == pytest.approx(3.5 + 2.0 + 1.8, rel=0.03)  # the joins not counted
+    assert max(n.degree for n in graph.nodes) == 3  # the tee
+    assert [e.bridged for e in graph.edges].count(True) == 2
+    # without joins: three networks
+    runs, _ = graph_of_masks({"Supply": mask}, (W, H), M_PER_PX, join_m=0.0)
+    assert len(runs) == 3
+    # beyond the bound: no join
+    runs, _ = graph_of_masks({"Supply": mask}, (W, H), M_PER_PX, join_m=0.1)
+    assert len(runs) == 3

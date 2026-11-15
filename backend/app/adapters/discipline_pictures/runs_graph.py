@@ -18,6 +18,7 @@ import math
 from collections import defaultdict
 from collections.abc import Mapping
 from itertools import pairwise
+from typing import NamedTuple
 
 import cv2
 import numpy as np
@@ -48,6 +49,7 @@ SAME_COLOUR = 50  # per channel: a pixel drawn in the legend line's colour (as m
 CHROMA_SHARE = 0.5  # and at least this share of its colourfulness (max - min channel)
 PAD = 2  # pixels around a legend box
 BRIDGE_M = 1.0  # the largest gap bridged, building metres (clinic: 22/50; 0.5: 21, 0.25: 18)
+JOIN_M = 1.0  # elbows and tees joined up to here, building metres (clinic pair precision 78%)
 BRIDGE_ANGLE = 30.0  # degrees between an end's direction and the gap, at both ends
 BACK_PX = 8  # an end's direction: from this far back along its edge
 SPUR_WIDTHS = 2.0  # an end edge on a junction this many line widths long or less is a spur
@@ -80,6 +82,7 @@ def read_graph(
     legend: tuple[LegendEntry, ...],
     m_per_px: float,
     bridge_m: float = BRIDGE_M,
+    join_m: float | None = None,
 ) -> tuple[PictureReading, LineGraph]:
     """The picture's runs, one per connected component of each legend line style, and the graph
     they were read from."""
@@ -108,7 +111,7 @@ def read_graph(
             k = min(MAX_CLOSE_PX, round(dashes.gap) + 2)
             ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, np.ones((k, k), np.uint8))
         masks[entry.label] = ink
-    runs, graph = graph_of_masks(masks, (width, height), m_per_px, bridge_m)
+    runs, graph = graph_of_masks(masks, (width, height), m_per_px, bridge_m, join_m)
     reading = PictureReading(
         reader=READER,
         legend=legend,
@@ -124,6 +127,7 @@ def graph_of_masks(
     size_px: tuple[int, int],
     m_per_px: float,
     bridge_m: float = BRIDGE_M,
+    join_m: float | None = None,
 ) -> tuple[tuple[Run, ...], LineGraph]:
     """Runs and their graph from ready line masks: style label (a legend line's label) -> its
     pixels (height x width = `size_px` reversed, nonzero = the line), at `m_per_px`. Each mask is
@@ -136,13 +140,15 @@ def graph_of_masks(
         if mask.shape[:2] != (height, width):
             raise ValueError(f"the mask of {style!r} is {mask.shape[:2]}, not {(height, width)}")
         ink = (np.asarray(mask) > 0).astype(np.uint8)
-        builder.add(style, ink, max(1, int(bridge_m / m_per_px)))
+        join = JOIN_M if join_m is None else join_m
+        builder.add(style, ink, max(1, int(bridge_m / m_per_px)), int(join / m_per_px))
     graph = builder.graph(width, height)
+    joins = builder.uncounted()
     runs = tuple(
         Run(
             label=style,
             size=size_of(style),
-            length_m=sum(e.length_m or 0.0 for e in edges),
+            length_m=sum(e.length_m or 0.0 for e in edges if e.id not in joins),
             spots=(Spot(page=1, box=page_box(*_bounds(edges), width, height), reader=READER),),
         )
         for style, edges in _components(graph)
@@ -240,14 +246,15 @@ _STEPS = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
 
 
 class _Builder:
-    """Nodes and edges of every style, then the bridges."""
+    """Nodes and edges of every style: the ink, then the bridges, then the joins."""
 
     def __init__(self, m_per_px: float) -> None:
         self._m_per_px = m_per_px
         self.nodes: list[LineNode] = []
         self.edges: list[LineEdge] = []
+        self.counted: list[bool] = []  # per edge: its length is a run's (a join's is not)
 
-    def add(self, style: str, ink: np.ndarray, bridge_px: int) -> None:
+    def add(self, style: str, ink: np.ndarray, bridge_px: int, join_px: int = 0) -> None:
         if not ink.any():
             return
         ys, xs = np.nonzero(ink)
@@ -257,26 +264,29 @@ class _Builder:
         width = float(crop.sum()) / max(1.0, float(skeleton.sum()))  # the line's width in px
         nodes, edges = _trace(skeleton)
         nodes, edges = _pruned(nodes, edges, SPUR_WIDTHS * width)
-        base = len(self.nodes)
-        ids = {k: f"n{base + i + 1}" for i, k in enumerate(nodes)}
         at = {k: (float(x + x0), float(y + y0)) for k, (x, y) in nodes.items()}
         degree: dict[int, int] = defaultdict(int)
         for a, b, _ in edges:
             degree[a] += 1
             degree[b] += 1
-        style_edges: list[LineEdge] = []
+        local: list[_Local] = []
         for a, b, chain in edges:
             points = [at[a], *((float(x + x0), float(y + y0)) for x, y in chain), at[b]]
-            line = _simplified(points)
-            style_edges.append(self._edge(style, ids[a], ids[b], line, bridged=False))
+            local.append(_Local(a, b, _simplified(points), "ink"))
         ends = {k for k in nodes if degree[k] == 1}
-        bridges = _bridges(ends, at, edges, x0, y0, bridge_px)
-        for a, b in bridges:
+        for a, b in _bridges(ends, at, edges, x0, y0, bridge_px):
             degree[a] += 1
             degree[b] += 1
-            style_edges.append(self._edge(style, ids[a], ids[b], [at[a], at[b]], bridged=True))
-        self.nodes += [LineNode(id=ids[k], at=at[k], degree=degree[k]) for k in nodes]
-        self.edges += style_edges
+            local.append(_Local(a, b, [at[a], at[b]], "bridge"))
+        if join_px > 0:
+            local = _joined(local, at, degree, join_px)
+        base = len(self.nodes)
+        ids = {k: f"n{base + i + 1}" for i, k in enumerate(at)}
+        self.nodes += [LineNode(id=ids[k], at=at[k], degree=degree[k]) for k in at]
+        for edge in local:
+            bridged = edge.kind != "ink"
+            self.edges.append(self._edge(style, ids[edge.a], ids[edge.b], edge.points, bridged))
+            self.counted.append(edge.kind != "join")
 
     def _edge(
         self, style: str, a: str, b: str, points: list[tuple[float, float]], bridged: bool
@@ -293,15 +303,127 @@ class _Builder:
         )
 
     def graph(self, width: int, height: int) -> LineGraph:
-        renumbered: list[LineEdge] = []
-        for i, edge in enumerate(self.edges, 1):
-            renumbered.append(edge.model_copy(update={"id": f"e{i}"}))
         return LineGraph(
             nodes=tuple(self.nodes),
-            edges=tuple(renumbered),
+            edges=tuple(self.edges),
             px_per_m=1.0 / self._m_per_px,
             size_px=(width, height),
         )
+
+    def uncounted(self) -> set[str]:
+        """The ids of the joins: edges whose length is no run's."""
+        return {
+            edge.id for edge, counted in zip(self.edges, self.counted, strict=True) if not counted
+        }
+
+
+class _Local(NamedTuple):
+    a: int
+    b: int
+    points: list[tuple[float, float]]
+    kind: str  # "ink", "bridge" (facing ends: a symbol's or a label's gap), "join" (elbow, tee)
+
+
+def _joined(
+    local: list[_Local],
+    at: dict[int, tuple[float, float]],
+    degree: dict[int, int],
+    join_px: int,
+) -> list[_Local]:
+    """`local` with the joins of one style: an end to another end at any angle (an elbow), or to
+    the nearest point inside an edge, split there at a new node (a tee); within `join_px`, only
+    between parts not yet connected, nearest first, each end once. New nodes go into `at` and
+    `degree`."""
+    parent = {k: k for k in at}
+
+    def root(n: int) -> int:
+        while parent[n] != n:
+            parent[n] = parent[parent[n]]
+            n = parent[n]
+        return n
+
+    for edge in local:
+        parent[root(edge.a)] = root(edge.b)
+    ends = sorted(k for k in at if degree[k] == 1)
+    found: list[tuple[float, int, int, int, float, tuple[float, float]]] = []
+    for i, p in enumerate(ends):  # elbows: (gap, end, other end, -1, 0, its point)
+        for q in ends[i + 1 :]:
+            gap = math.dist(at[p], at[q])
+            if gap <= join_px and root(p) != root(q):
+                found.append((gap, p, q, -1, 0.0, at[q]))
+    segments = [
+        (e, s, edge.points[s], edge.points[s + 1])
+        for e, edge in enumerate(local)
+        if edge.kind == "ink"
+        for s in range(len(edge.points) - 1)
+    ]
+    if segments:
+        a = np.array([seg[2] for seg in segments])
+        b = np.array([seg[3] for seg in segments])
+        ab = b - a
+        lengths = np.maximum((ab * ab).sum(axis=1), 1e-9)
+        for p in ends:  # tees: (gap, end, -1, edge index, its segment + share along it, point)
+            t = np.clip(((np.array(at[p]) - a) * ab).sum(axis=1) / lengths, 0.0, 1.0)
+            near = a + ab * t[:, None]
+            gaps = np.hypot(*(near - np.array(at[p])).T)
+            for j in np.argsort(gaps):
+                if gaps[j] > join_px:
+                    break
+                e, s = segments[j][0], segments[j][1]
+                if root(local[e].a) != root(p):
+                    point = (float(near[j][0]), float(near[j][1]))
+                    found.append((float(gaps[j]), p, -1, e, s + float(t[j]), point))
+                    break
+    used: set[int] = set()
+    cuts: dict[int, list[tuple[float, int]]] = defaultdict(list)  # edge -> (where, new node)
+    joins: list[_Local] = []
+    for _gap, p, q, e, where, point in sorted(found):
+        if p in used or (q >= 0 and q in used):
+            continue
+        target = q if q >= 0 else local[e].a
+        if root(p) == root(target):
+            continue
+        if q < 0:
+            first, last = local[e].a, local[e].b
+            if where <= 0.0:
+                q = first
+            elif where >= len(local[e].points) - 1:
+                q = last
+            else:
+                q = max(at) + 1
+                at[q] = point
+                parent[q] = q
+                cuts[e].append((where, q))
+        used |= {p, q} if degree[q] == 1 else {p}
+        degree[p] += 1
+        degree[q] += 1
+        parent[root(p)] = root(q)
+        joins.append(_Local(p, q, [at[p], at[q]], "join"))
+    out: list[_Local] = []
+    for e, edge in enumerate(local):
+        if e not in cuts:
+            out.append(edge)
+            continue
+        prev_node, prev_at = edge.a, 0.0
+        for where, node in [*sorted(cuts[e]), (float(len(edge.points) - 1), edge.b)]:
+            degree[node] += 2 if node != edge.b else 0
+            piece = _cut(edge.points, prev_at, where)
+            out.append(_Local(prev_node, node, piece, "ink"))
+            prev_node, prev_at = node, where
+    return out + joins
+
+
+def _cut(points: list[tuple[float, float]], start: float, stop: float) -> list[tuple[float, float]]:
+    """The polyline between two places along it (segment index + share along that segment)."""
+
+    def place(where: float) -> tuple[float, float]:
+        s = min(int(where), len(points) - 2)
+        t = where - s
+        (ax, ay), (bx, by) = points[s], points[s + 1]
+        return (ax + (bx - ax) * t, ay + (by - ay) * t)
+
+    inner = [points[i] for i in range(math.floor(start) + 1, math.ceil(stop))]
+    return [place(start), *inner, place(stop)]
 
 
 Chain = list[tuple[int, int]]  # (x, y) pixels between two nodes, in order
