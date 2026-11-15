@@ -17,8 +17,9 @@ from app.settings import Settings
 
 def followed(tmp_path: Path, mode: Literal["off", "template"]) -> Any:
     cache = tmp_path / "pictures"
-    sheet = PictureFactSheet.model_validate(heating().model_dump())
-    PictureSheets(None, cache).put("sheet", sheet)  # the plan file's sha256
+    PictureSheets(None, cache).put(
+        "sheet", PictureFactSheet.model_validate(heating().model_dump())
+    )  # the plan file's sha256
     settings = Settings(discipline_pictures=mode, discipline_pictures_cache_dir=cache)
     pipeline = project()
     pipeline.settings = settings
