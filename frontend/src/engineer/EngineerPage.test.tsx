@@ -23,6 +23,7 @@ import {
 import { InfoProvider } from '../shell/info';
 import { TIPS } from '../shell/tips';
 import { mockApi, never } from '../test/mockApi';
+import { KEPT_VERSION } from '../shell/kept';
 import { EngineerPage } from './EngineerPage';
 import { formatScore } from './format';
 import {
@@ -538,6 +539,19 @@ describe('thread', () => {
     open({ [DRAWING_ROUTE]: drawing });
     expect(await screen.findByText('Ask a question about this drawing.')).toBeTruthy();
     expect(screen.getByText('0 asked')).toBeTruthy();
+  });
+
+  it('R4-C13 a thread kept by an older build (no version, or a turn missing what the card reads) is dropped, not a blank page', async () => {
+    const key = `engineer-thread:${PROJECT}:${DRAWING}`;
+    const old = [{ id: 1, status: 'done', question: answer.question, answer: { answer: 2 } }];
+    for (const value of [old, [{ ...old[0], answer }], { v: KEPT_VERSION, turns: old }]) {
+      sessionStorage.setItem(key, JSON.stringify(value));
+      open({ [DRAWING_ROUTE]: drawing });
+      expect(await screen.findByText('Ask a question about this drawing.')).toBeTruthy();
+      expect(screen.getByText('0 asked')).toBeTruthy();
+      expect(sessionStorage.getItem(key)).toBeNull(); // dropped, so the next reload starts clean too
+      unmount();
+    }
   });
 
   it('EN-47 each turn is an article named by its question', async () => {

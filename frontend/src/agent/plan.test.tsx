@@ -7,6 +7,7 @@ import { drawing, info, project } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
+import { KEPT_VERSION } from '../shell/kept';
 import { AgentChat } from './AgentChat';
 import { paneFocus, viewMarks } from './PlanPane';
 import { unionBox, viewOf, type ChatTurn, type View } from './agent';
@@ -222,6 +223,7 @@ describe('the plan beside the chat (wide window)', () => {
   it('a restored thread (back from the workspace) reopens its newest view', async () => {
     // answers-5 keeps the thread in sessionStorage; the older turn has no place, the newest has one
     const kept = {
+      v: KEPT_VERSION, // the current kept shape (R4-C13: another version is dropped)
       chatId: viewTurn.chat_id,
       rows: [
         { id: 1, message: 'Where is Bagno 1.01?', chips: [], status: 'done', turn: viewTurn },
