@@ -40,6 +40,7 @@ export const TIPS = {
   sendDisabled: 'Type a question first.',
   mark: 'One thing Vellum counted. The number matches the list of marks.',
   checks: 'How this number was verified: which methods measured it and whether they agree.',
+  // Shown only where the checks name a second method or a conflict (engineer.md EN-93).
   secondScore:
     'How much a second, independent reader agrees. Higher is better; it is not a probability.',
   flagged: 'Vellum read this drawing, but something looks off. Check the answer against the plan.',
