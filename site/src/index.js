@@ -12,8 +12,15 @@ const FORM_STYLE =
   "display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 10px;margin:0;padding:6px 12px;" +
   "background:#fff;color:#111;border-bottom:1px solid #ccc;font:14px/1.3 system-ui,sans-serif";
 
+// the live site's password, said in plain text on the static demo (Bogdan, 2026-11-15 09:46)
+const PASSWORD = "sauna";
+const BANNER_STYLE =
+  "flex:1 1 100%;margin:0;padding:10px 12px;background:#ffd400;color:#111;border-radius:4px;" +
+  "font:700 26px/1.25 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere";
+
 const FORM =
   `<form method="post" action="/__unlock" style="${FORM_STYLE}">` +
+  `<p style="${BANNER_STYLE}">Want the live website? Enter the password <strong>${PASSWORD}</strong> below</p>` +
   `<a href="/credits.html" style="color:inherit;margin-right:auto">Credits</a>` +
   `<label>Have an access code? ` +
   `<input name="code" type="password" autocomplete="off" required style="font:inherit;width:11em"></label> ` +
@@ -39,7 +46,7 @@ function page(body, status = 200) {
 function unlockPage(message) {
   const note = message ? `<p><strong>${message}</strong></p>` : "";
   return page(
-    `<h1>Access code</h1>${note}<form method="post" action="/__unlock"><p><input name="code" type="password" ` +
+    `<h1>Access code</h1>${note}<p>Want the live website? The password is <strong>${PASSWORD}</strong>.</p><form method="post" action="/__unlock"><p><input name="code" type="password" ` +
       `autocomplete="off" autofocus required> <button type="submit">Open the app</button></p></form>` +
       `<p><a href="/">Back to the demo</a></p>`,
     message ? 401 : 200,
