@@ -153,8 +153,9 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   the design frames the centre. No auto-scrolling film: the band scrolls by hand.
 - Caption (mono, under the band): while working, `"<path> · <formatSize(size)>"` of that file; else
   `plural(files.length, 'file')`, total `formatSize` of all files.
-- Stats: **Elapsed** (`formatMs(project.ms)` when `done`/`failed`; while running now − `started_at` on a 1 s clock;
-  "–" while `started_at` is null),
+- Stats: **Elapsed** (`elapsedMs` from `ingest.ts`, as the Simple view: `formatMs(project.ms)` once ended with a
+  `finished_at`; while running now − `started_at` on a 1 s clock; "–" while `started_at` is null), with the Simple
+  view's wait line under it when the project waited for a free slot (`queueWaitMs`, `formatWait`; IN-132, AD-133),
   **Files opened** (`files with stage != null` / `files.length`), **Set aside** (files `state === 'set_aside'`),
   **Cost** (`formatCost(project.cost_usd)`). No "Remaining" (Bogdan: no `eta_ms`).
 
@@ -188,7 +189,7 @@ Common to all four: page title and Simple/Advanced toggle belong to `ProjectScre
   `normalisedSteps(file.normalised)` of the drawing's file, or "Pages as the file gives them" for a PDF.
 - Stats (`planCounts`, summed over `project.drawings`, each drawing's file's `takeoff`, so a PNG beside its PDF is
   not counted twice): **Rooms** (`takeoff.room`), **Doors** (`takeoff.door`), **Windows** (`takeoff.window`), and
-  **Drawings ready** (`"<finished drawings> / <expected_drawings>"`, finished drawings alone while `expected_drawings` is null). A key no drawing has shows "–",
+  **Drawings ready** (`drawingTally(project)`, the Simple tile's rule: `"<ready> / <of>"`, ready alone while `of` is null; AD-133). A key no drawing has shows "–",
   never 0.
 
 ### Screen 12, Second count and Takeoff (`IngestCheck`)
@@ -260,7 +261,7 @@ Visuals and stats
 
 - AV-13: Unpack stats: Files opened `"<with stage> / <all>"`, Set aside = set_aside files, Cost =
   `formatCost(project.cost_usd)`, Elapsed = `formatMs(project.ms)` when done, now − `started_at` while running, "–"
-  before it starts; `project.skipped` as "Skip <path> <reason>" log lines. [component]
+  before it starts (and with no `finished_at` once ended, as Simple's IN-61; the wait line under it, AD-133); `project.skipped` as "Skip <path> <reason>" log lines. [component]
 - AV-14: The file strip lists every file with path, size and state word, and is keyboard scrollable. [component]
 - AV-15: Identify/Route lanes count files by route (bim+cad+vector vs raster) and show the reader names from
   `project.readers` via `readerName`; reader `hello` reads "not read"; the words "vision model" appear nowhere unless a reader
@@ -541,6 +542,13 @@ Acceptance criteria
 - AD-132 (detail audit): On the file page, Identify's decision for a sheet the sheet-kind step called not a drawing
   (AD-127's rule) is titled "Not a drawing, read anyway" in the warning tone, not "A floor plan" (the triage class
   stays floor_plan because the sheet is read; its plan chance is 0 %). [unit `trace.test.ts`]
+- AD-133 (Simple's IN-131/IN-132 in Advanced, 2026-11-15): Extract's **Drawings ready** is the Simple tile's number,
+  from the same helper (`drawingTally` in `ingest/pipeline.ts`): a sheet called not a drawing is out of both numbers,
+  so the demo sample reads "6 / 6" in both views (Advanced said "6 / 7"), and AD-127's project "3 / 5" (was "3 / 6").
+  Every Elapsed stat uses Simple's `elapsedMs` and, when the project waited 2 s or more for a free slot, says so
+  under it with Simple's words: "after 64 s waiting for a free slot", or "waiting 12 s for a free slot" under "–"
+  while still queued (`queueWaitMs`, `formatWait`). Advanced's own `elapsedMs` is gone. [component
+  `AdvancedIngest.test.tsx`; e2e `ingest-detail.spec.ts`]
 
 ## Not in the API
 
