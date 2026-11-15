@@ -76,7 +76,6 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0, names = {}
           {error instanceof ApiError ? (
             <>
               <p>{error.detail}</p>
-              <p>code: {error.code}</p>
             </>
           ) : (
             <p>{String(error)}</p>

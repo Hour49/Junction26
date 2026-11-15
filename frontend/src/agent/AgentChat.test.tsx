@@ -72,7 +72,9 @@ it('AC-30 a failed turn says why and can be sent again', async () => {
     n++ === 0 ? { status: 500, body: { detail: 'internal error', code: 'internal' } } : answerTurn,
   );
   await send('How big is the bathroom?');
-  expect((await screen.findByRole('alert')).textContent).toMatch(/internal error/);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toMatch(/internal error/);
+  expect(alert.textContent).not.toMatch(/code:/); // R2-C5: no raw code for a person
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
 });

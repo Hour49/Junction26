@@ -52,7 +52,7 @@ export function failure(error: unknown): { reason: string; retry: boolean } {
     return { reason: error.detail, retry: false };
   if (error instanceof ApiError && error.status === 404)
     return { reason: 'no 3D model for this file', retry: false };
-  if (error instanceof ApiError) return { reason: error.message, retry: true };
+  if (error instanceof ApiError) return { reason: error.detail, retry: true };
   return { reason: errorText(error).detail, retry: true };
 }
 

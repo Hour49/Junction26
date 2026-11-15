@@ -239,11 +239,7 @@ export function QuantityDetail(props: Props) {
         </p>
       )}
       {saving && <p role="status">Saving…</p>}
-      {err && (
-        <div role="alert">
-          {err.detail} (code: {err.code})
-        </div>
-      )}
+      {err && <div role="alert">{err.detail}</div>}
     </section>
   );
 }

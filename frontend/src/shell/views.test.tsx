@@ -22,15 +22,15 @@ describe('common views', () => {
     const { unmount } = render(<ErrorView error={busy} onRetry={retry} />);
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toContain('three projects are being ingested');
-    expect(alert.textContent).toContain('code: busy');
-    expect(alert.textContent).toContain('429');
+    // R2-C5/R3-L7: the sentence only, no raw code or HTTP status for a person to decode
+    expect(alert.textContent).not.toMatch(/busy\b|429|code/);
     expect(screen.queryByRole('link', { name: 'Back to workspaces' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(retry).toHaveBeenCalledOnce();
     unmount();
     render(<ErrorView error={new Error('boom')} />);
     expect(screen.getByRole('alert').textContent).toContain('boom');
-    expect(screen.getByRole('alert').textContent).toContain('code: client');
+    expect(screen.getByRole('alert').textContent).not.toContain('client');
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
   });
