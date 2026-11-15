@@ -142,6 +142,22 @@ type DisciplineFollow = {
     moved_to: [number, number] | null  // a re-seated terminal's new place
     paths: [number, number][][]        // proposed connections, drawn dashed
   }[]
+  picture: FollowPicture | null        // a lane a services picture checked (Pictures below); else null
+}
+type Pairing = {                       // why the discipline sheet is taken to be the plan's floor (W1)
+  drawing_id: string
+  page: number
+  paired_by: "same_page" | "metadata" | "geometry" | "user"
+  reason: string                       // plain words, server-written
+  score: number | null                 // 0..1; null for same_page and user
+}
+type FollowPicture = {                 // all places in THIS sheet's page fractions
+  drawing_id: string
+  page: number
+  pairing: Pairing
+  removed: [number, number][][]        // the removed walls' strips
+  added: [number, number][][]          // the new partitions' strips
+  marks: { ref: string, line: [number, number][], at: [number, number] | null }[]  // refs as in `marks`
 }
 ```
 
@@ -257,3 +273,32 @@ Acceptance criteria (tests in `tests/test_services_picture_follow.py` and `tests
   model's text names it (`test_a_wall_removed_on_a_picture_plan_gets_the_picture_lane_of_its_services_marks`).
 - **SFP-8** Without a services picture the follow-up is as before
   (`test_without_a_services_picture_the_follow_up_is_as_before`).
+
+**The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
+`picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the
+plan's floor (W1: `paired_by` same_page, metadata, geometry or user; `reason` in plain words; `score`), and the edit
+drawn in **that sheet's** page fractions: the removed walls' strips and the new partitions' strips (each a polygon,
+the plan's strips mapped back through the inverse of the sheet-to-plan transform), and each of the lane's marks that
+the sheet draws, by the same `ref`, at its place on the sheet (a symbol's centre, a run piece's line). The lane's
+`marks` and `actions` stay in the plan's fractions, as before. When several sheets give one lane, `picture` is the
+first sheet laid over (W1 names the others in the reason). A lane from a building model, or not checked, has no
+`picture`. With `DISCIPLINE_PICTURES` off nothing gives a picture lane, so no lane has one.
+
+The transform is an affine map of page fractions, `plan = (a·x + b·y + c, d·x + e·y + f)` for a sheet point (x, y):
+the identity on the plan's own page, a scale and shift from the room names today, a rotation too when W1/register
+fits one. It is not in the API.
+
+- **SFPW-1** The plan's own page: `picture` is that page, `paired_by` `same_page`, the removed strip as on the plan,
+  each mark at its spot's place (`test_the_plans_own_page_gives_its_picture_with_the_strip_and_marks_as_drawn`).
+- **SFPW-2** Another sheet 1 m off on a 12 m page (SFP-5): the strip lands 1 m back on the sheet (1/12 of its
+  width), the marks at their own spots, refs equal to the lane's marks
+  (`test_another_sheet_gets_the_edit_in_its_own_fractions`).
+- **SFPW-3** An added partition is in `added`, not `removed`, on the sheet (`test_an_added_partition_is_drawn_on_the_sheet`).
+- **SFPW-4** A lane not aligned, or not checked, or from a model has no `picture`
+  (`test_a_lane_not_laid_over_has_no_picture`).
+- **SFPW-5** The affine map: inverse(apply(p)) is p for a shift, a scale and a rotation
+  (`test_the_affine_map_inverts`).
+- **SFPW-6** A pairing given by the caller (W1's `pair()`, in the sheets' order) is the one shown; a str refuses the
+  lane (`test_a_pairing_given_by_the_caller_is_the_one_shown`). Through `ServiceFollower.run`: the picture lane has
+  its `picture`, the model's tool result has none, and with no pictures (DISCIPLINE_PICTURES off) every lane's
+  `picture` is null (`test_through_the_follower_the_picture_lane_has_its_picture_and_no_picture_none`).
