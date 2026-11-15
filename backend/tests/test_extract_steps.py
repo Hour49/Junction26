@@ -3,6 +3,7 @@ was read for, when it began, how long it ran, what it cost and what it found."""
 
 import threading
 
+import pytest
 from pdf_sheets import SheetPdf
 from test_count_arbiter import FILE as ARBITER_FILE
 from test_count_arbiter import SHEET as ARBITER_SHEET
@@ -27,7 +28,7 @@ from app.core.ingest.timing import StageClock, TimedExtractor, with_steps
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.printed import PrintedSheet
-from app.core.pipeline.steps import listening, now_ms, starting
+from app.core.pipeline.steps import listening, starting
 
 PLANS = (Plan(id="x", page=1, box=(0.0, 0.0, 1.0, 1.0)),)
 
@@ -147,23 +148,44 @@ def test_the_ifc_reader_is_one_step_on_a_sheet_and_on_the_model_itself() -> None
     assert sum(step.found.values()) == len(itself.model_objects or ())
 
 
+class StepsClock:
+    """The steps' clock (`now_ms`), standing still until a test moves it: exact bounds."""
+
+    def __init__(self, at_ms: float = 100.0) -> None:
+        self.at_ms = at_ms
+
+    def __call__(self) -> float:
+        return self.at_ms
+
+
+@pytest.fixture
+def clock(monkeypatch: pytest.MonkeyPatch) -> StepsClock:
+    fake = StepsClock()
+    monkeypatch.setattr("app.core.ingest.timing.now_ms", fake)  # what TimedExtractor reads
+    return fake
+
+
 class Stepped:
     """An extractor that reports one step that began 1 ms after its call, on the steps' clock."""
 
+    def __init__(self, clock: StepsClock) -> None:
+        self._clock = clock
+
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        step = StepTrace(id="vector", label="v", at_ms=now_ms() + 1, ms=2)
+        step = StepTrace(id="vector", label="v", at_ms=self._clock() + 1, ms=2)
         return Extracted(method="parser", scale=Scale(status="no_scale"), steps=(step,))
 
 
-def test_a_second_extract_call_lists_its_steps_after_the_first() -> None:
+def test_a_second_extract_call_lists_its_steps_after_the_first(clock: StepsClock) -> None:
     now = iter([0.0, 0.010, 0.010, 0.030])  # the first call ran 10 ms, the second 20 ms
     timer = StageClock(lambda: next(now))
-    timed = TimedExtractor(Stepped(), timer)
+    timed = TimedExtractor(Stepped(clock), timer)
     timed.extract(FILE, SHEET)
+    clock.at_ms += 500  # the steps' clock moved on between the calls: it does not matter
     timed.extract(FILE, SHEET)
     steps = timer.steps[FILE.path]["extract"]
-    # 1 ms into each call (plus the few µs the call took to get there)
-    assert 1 <= steps[0].at_ms < 2 and 11 <= steps[1].at_ms < 12
+    # 1 ms into each call; the second call starts 10 ms into the stage
+    assert (steps[0].at_ms, steps[1].at_ms) == (1, 11)
     stage = StageTrace(stage="extract", did="read", ms=30)
     other = StageTrace(stage="takeoff", did="t", ms=1)
     traced = with_steps([stage, other], timer.steps[FILE.path])
@@ -176,21 +198,19 @@ class Waiting:
     """A wrapper that waits `ms` (a queue) before its inner reader runs, then passes its steps
     on as they are."""
 
-    def __init__(self, inner: Extractor, ms: float) -> None:
-        self.inner, self.ms = inner, ms
+    def __init__(self, inner: Extractor, ms: float, clock: StepsClock) -> None:
+        self.inner, self.ms, self._clock = inner, ms, clock
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        until = now_ms() + self.ms
-        while now_ms() < until:
-            pass
+        self._clock.at_ms += self.ms  # the wait, on the steps' clock
         return self.inner.extract(source, sheet)
 
 
-def test_a_step_after_a_wait_in_a_wrapper_begins_after_the_wait() -> None:
+def test_a_step_after_a_wait_in_a_wrapper_begins_after_the_wait(clock: StepsClock) -> None:
     timer = StageClock(lambda: 0.0)
-    TimedExtractor(Waiting(Stepped(), 20), timer).extract(FILE, SHEET)
+    TimedExtractor(Waiting(Stepped(clock), 20, clock), timer).extract(FILE, SHEET)
     (step,) = timer.steps[FILE.path]["extract"]
-    assert step.at_ms >= 21  # the 20 ms wait, then 1 ms into the inner call
+    assert step.at_ms == 21  # the 20 ms wait, then 1 ms into the inner call
 
 
 class Paid(Fake):
