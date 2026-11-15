@@ -13,9 +13,11 @@ test.skip(
   'run with DISCIPLINE_PICTURES=template SERVICES_FOLLOW=on PICS_ZIP=<zip>',
 );
 
+// With the rooms' numbers: the rules planner (no keys) matches a multi-word name only with its number
+// (chat_rules._named); without them it asks which wall.
 const REMOVE =
   process.env.PICS_REMOVE ??
-  'Remove the wall between WC Herren West - EG and Eingangsbereich / Flur';
+  'Remove the wall between WC Herren West - EG 1.16 and Eingangsbereich / Flur 1.1';
 
 test('sync: a wall removed on the plan, then each discipline sheet with the edit on it', async ({
   page,

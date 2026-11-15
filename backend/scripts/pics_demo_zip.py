@@ -88,9 +88,10 @@ def plan_pdf(arc: Path, storey: str, truth: dict[str, Any], size_px: tuple[int, 
         ring = [at(p) for p in shape.exterior.coords]
         sheet.path(ring, stroke=GREY, width=0.37, fill=(255, 255, 255))
         name = (entity.LongName or entity.Name or "").strip()
-        # the swiss reader takes rooms numbered like 1.19 (swiss.NUMBER): 1-19 -> 1.19, 301 -> 3.01
+        # the swiss reader takes rooms numbered like 1.19 (swiss.NUMBER): 1-19 -> 1.19, and a
+        # plain number gets 0. (301 -> 0.301, 13 -> 0.13: never one of the 1-x rooms' numbers)
         raw = (entity.Name or "").strip() if entity.LongName else ""
-        number = raw.replace("-", ".") if "-" in raw else (f"{raw[0]}.{raw[1:]}" if raw else "")
+        number = raw.replace("-", ".") if "-" in raw else (f"0.{raw}" if raw else "")
         x, y = at(shape.representative_point().coords[0])
         lines = [t for t in (name, number, f"{shape.area:.2f} m²") if t]
         for n, line in enumerate(lines):
