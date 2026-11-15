@@ -1108,6 +1108,15 @@ def test_the_largest_room_of_a_model_file_is_ranked_from_its_spaces() -> None:
     refused = asked("Which room is the largest?", unknown)
     assert refused.refusal is not None
     assert "Store (A2)" in refused.refusal.text and "no area" in refused.refusal.text
+    # two spaces of one stated area: either could be, both named (the duplex's two living rooms)
+    tie = model_file(
+        space("m1", "Level 1", "A102", "Living Room", 27.66),
+        space("m2", "Level 1", "B102", "Living Room", 27.66),
+        space("m3", "Level 1", "A104", "Bathroom", 3.2),
+    )
+    tied = asked("What is the largest room?", tie)
+    assert tied.refusal is not None and "either could be" in tied.refusal.text
+    assert "Living Room (A102)" in tied.refusal.text and "Living Room (B102)" in tied.refusal.text
 
 
 def test_a_schedule_s_largest_room_is_left_to_the_schedule() -> None:
