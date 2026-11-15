@@ -85,6 +85,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action, a `note` on an edit other than `settle`, an empty `note` or one over 280 characters) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
+| A sign-off whose `expected_value` or `expected_unit` is no longer the quantity's (the current value in `errors`) | 409 `value-changed` |
 | Upload over 200 MB | 413 `too-large` |
 | A file added to a project (`POST …/files`) that is not a png or jpeg | 415 `unsupported` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
@@ -12192,6 +12193,28 @@ sign-off.
 `"settle": true` (optional) first keeps the quantity's current value as its settled value, then signs it off, for a
 "Looks right" button: a conflict no rule decides is signed in one call, with no `needs_person` 409. The 409 for a
 signed-off quantity is the same; `settle` together with `undo` is 422 `invalid`.
+
+`"expected_value"` and `"expected_unit"` (optional, R4-B10): the value and unit the client showed when the person
+signed (the row's `value` and `unit` as the last takeoff gave them). When the quantity's value or unit is now another
+one (someone settled or edited it since), nothing is signed: 409 `value-changed`, the current value and unit in
+`errors`. Left out, the value in use is signed, as before.
+
+```json
+{
+  "quantity": "door",
+  "by": "Ana",
+  "expected_value": 2,
+  "expected_unit": "count"
+}
+```
+
+```json
+{
+  "detail": "door count is now 3 count, not the 2 count shown: nothing was signed. Look at it again before you sign it off.",
+  "code": "value-changed",
+  "errors": [{"loc": ["body", "expected_value"], "current_value": 3, "unit": "count"}]
+}
+```
 
 <!-- fixture: signoff_settle_request.json -->
 ```json

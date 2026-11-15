@@ -8689,6 +8689,29 @@
             "title": "By",
             "type": "string"
           },
+          "expected_unit": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit"
+          },
+          "expected_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Value"
+          },
           "quantity": {
             "minLength": 1,
             "title": "Quantity",
