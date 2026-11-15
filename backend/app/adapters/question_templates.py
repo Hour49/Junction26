@@ -58,7 +58,12 @@ QUOTED = re.compile(r"(?<!\w)'(.+?)'(?!\w)|„([^“”]*)[“”]|«([^»]*)»|
 # Subject nouns, matched at a word start on the casefolded question. The order matters where one
 # pattern contains another: a matched span is blanked out before the next pattern runs (WC rooms
 # before WC seats, bathtubs before bathrooms, balconies before beams).
+SPACE_THING = "space_thing"  # a SUBJECTS hit that names no subject of the takeoff
+NOT_A_ROOM_SPACE = "a space heater, space heating or space frame is not a room the takeoff has"
 SUBJECTS: Sequence[tuple[str, str]] = (
+    # Matched first, so its "space" is no room: a service or structure named with it (space
+    # heaters, space heating, space frames; QA #430, review-470 S1). Never a Query: refused
+    (SPACE_THING, r"\bspaces?[\s-]+(?:heat\w*|frames?|truss\w*|cool\w*)"),
     ("room:wc", r"\bwc[- ]?(?:rooms?|til\w*|räume?)\b|\btoilet rooms?\b|\bseparate wcs?\b"),
     (
         "bathtub",
@@ -246,6 +251,24 @@ BREAKDOWN = re.compile(
     r"|width|system|function)\b|breakdown|distribut|grouped|\btypes\b|\bdifferent\b|\bdistinct\b"
     r"|proportion|\bwhich\b|\bwhere\b|\blist\b|\bwhat are\b|\bmetrics\b|statistic"
 )
+# "in each drawing" asked of one drawing is its own quantity, not a breakdown (the project chat
+# asks every drawing the question as written: qa-a cross-drawing walk, 2026-11-15)
+EACH_SHEET = re.compile(
+    r"\s*\b(?:in|on|of|for)\s+(?:each|every)\s+(?:drawing|plan|floor ?plan|sheet|file|page)s?\b",
+    re.IGNORECASE,
+)
+# "Is there a kitchen?", "Does this drawing show a kitchen?", "Which drawings show a kitchen?":
+# asked as the count of one drawing, 0 is no
+IS_THERE = re.compile(
+    r"^(?:is|are)\s+there\s+(?:an?|any|some)\s+(?P<thing>[^?]+?)"
+    r"(?:\s+(?:on|in)\s+(?:this|the)\s+(?:drawing|plan|sheet|file|page|image))?\s*\??$"
+    r"|^(?:does|do)\s+(?:(?:this|the|any)\s+)?(?:drawing|plan|floor ?plan|sheet|file|page|image|it)"
+    r"\s+(?:show|have|contain|include|depict)\s+(?:an?|any|some)\s+(?P<shown>[^?]+?)\s*\??$"
+    r"|^which\s+(?:drawing|plan|floor ?plan|sheet|file|page|image)s?\s+(?:show|have|has|contain"
+    r"|include|depict)s?\s+(?!(?:the|no|more|most|fewer|fewest|less|least)\b)"
+    r"(?:(?:an?|any|some)\s+)?(?P<which>[^?]+?)\s*\??$",
+    re.IGNORECASE,
+)
 PLACE = re.compile(
     r"\b(?:ground|first|second|third|fourth|fifth|sixth|top|upper|lower|north|south|east|west)\b"
     r"|\bhouse [a-z]\b|\bfa[cç]ade\b|\bwing\b|\bplan \d+[a-z]?\b"
@@ -300,7 +323,7 @@ class TemplateParser:
     """The `QuestionParser` port, from words and quoted names (see the module docstring)."""
 
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
-        raw = unicodedata.normalize("NFC", " ".join(text.split()))
+        raw = _as_asked(unicodedata.normalize("NFC", " ".join(text.split())))
         parsed = self._parse(raw)
         text, read = corrected(raw, [match.span() for match in QUOTED.finditer(raw)])
         if not read:
@@ -332,6 +355,8 @@ class TemplateParser:
         if measure is None:
             return Unsupported(reason="no count, area, length or volume asked for")
         body, hits = _subjects(lower)
+        if any(subject == SPACE_THING for _, subject in hits):
+            return Unsupported(reason=NOT_A_ROOM_SPACE)
         model = any(q.role == "model" for q in quoted) or BUILDING.search(lower) is not None
         floor_total = (
             measure == "area"
@@ -516,3 +541,11 @@ def _counted_thing_named(body: str, hits: list[tuple[int, str]]) -> bool:
         if word.group() not in FILLER:
             return False
     return True
+
+
+def _as_asked(raw: str) -> str:
+    """The question one drawing answers: "in each drawing" dropped, and "is there a X" / "does
+    this drawing show a X" / "which drawings show a X" asked as "How many X?"."""
+    if found := IS_THERE.match(raw):
+        raw = f"How many {found['thing'] or found['shown'] or found['which']}?"
+    return EACH_SHEET.sub("", raw)

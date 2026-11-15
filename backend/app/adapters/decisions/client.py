@@ -85,6 +85,7 @@ class DecisionsClient:
 
     def decide(self, body: Json) -> Json:
         if self._budget is not None and (refused := self._budget.exhausted()):
+            cost.fail()  # refused, not asked: the reading is partial (as a call with no answer)
             raise DecisionsError(refused)
         raw = json.dumps(body).encode()
         delay = 1.0
@@ -93,6 +94,7 @@ class DecisionsClient:
             try:
                 status, data = self._transport(raw, self._key, self._timeout)
             except OSError as error:  # URLError, timeouts, resets: not retried
+                cost.fail()
                 raise DecisionsError(f"no answer: {type(error).__name__}") from None
             if status == 200:
                 try:
@@ -113,6 +115,7 @@ class DecisionsClient:
                 self._sleep(delay)
                 delay *= 2
                 continue
+            cost.fail()
             raise DecisionsError(f"HTTP {status} {_status(data)}".strip())
         raise AssertionError("unreachable")
 

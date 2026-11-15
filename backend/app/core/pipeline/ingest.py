@@ -158,11 +158,13 @@ def _ingest_model(
     """Stages 7-10 for a building model that is asked about itself. It has no page, so its
     drawing model is the objects its extractor lists of it (`model_objects`), with nothing
     placed and nothing to measure a second time. None: it is not the model its group is read
-    from, or the extractor lists nothing of it, so there is no drawing model to write."""
+    from, or the extractor read nothing of it, so there is no drawing model to write. A model
+    read whose objects are none of the plan's classes (a services model: pipes, ducts,
+    radiators) is still a drawing: its list is empty, not unread (QA B4)."""
     if routed.route != MODEL_ROUTE or file != routed.source:
         return None
     found = extract(routed, Sheet(file=file, pages=()), extractors)
-    if not found.model_objects:
+    if found.model_objects is None:
         return None
     drawing = Drawing(
         file=file.path,

@@ -1040,7 +1040,9 @@ Ingest's project status, plus `drawings`:
 - A multi-page PDF: page 1 is read with the file itself, as before. Each later page that holds a drawing (up to 50
   after page 1) is listed as a file of its own, `<name>#p<n>.pdf` next to the PDF (e.g. `plans/set#p3.pdf`), later
   in the list, with its own group, route and drawing; its first stage (`unpack`) says "page 3 of plans/set.pdf, as a
-  PDF of its own". The PDF's `reason` (or its `identify` stage) names those pages. Text pages are not split.
+  PDF of its own". The PDF's `reason` (or its `identify` stage) names those pages. Text pages are not split. A
+  PDF of more than 51 pages is looked at up to page 51: its `reason` ends "; read pages 1-51 of <m>; the rest were
+  not read", and its `identify` stage notes "pages after 51 of <m> were not looked at" (#434).
 - `drawings`: one entry per plan, for the workspace's list. The files of one plan (same folder and name: a PDF and
   its PNG) are one group; its entry is the sheet the drawing was read from when that is a sheet, else PDF before
   PNG before JPEG; the group's other drawings are `other_renderings`. A copy of the same content under another
@@ -8812,6 +8814,11 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 `label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
+The proposal's `services` (with `SERVICES_FOLLOW=on`; else null) is the follow-up through the project's services
+models or pictures, specified in [services-follow.md § API](specs/backend/services-follow.md#api-additive-to-v1). A
+lane a services picture checked has `picture`: the discipline sheet (`drawing_id`, `page`), its `pairing` (why that
+sheet is taken to be the plan's floor: `paired_by`, `reason`, `score`) and the edit's strips and the lane's marks in
+that sheet's page fractions; every other lane has `picture: null`.
 
 Levels only where measured (added 2026-11-14): when a number in an `answer` or `conflict` turn's `text` comes only from
 `get_plan_geometry`, `get_takeoff` or `list_walls` (no confidence level) and from no `ask_drawings` answer or the
@@ -10498,34 +10505,50 @@ without wall fills) gets `dont_know` saying so.
         "polygon": [
           [
             0.3084,
+            0.32087
+          ],
+          [
+            0.3084,
+            0.34213
+          ],
+          [
+            0.3084,
+            0.37047
+          ],
+          [
+            0.3084,
+            0.39173
+          ],
+          [
+            0.3084,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.39173
+          ],
+          [
+            0.31407,
+            0.37047
+          ],
+          [
+            0.31407,
+            0.34213
+          ],
+          [
+            0.31407,
+            0.32087
+          ],
+          [
+            0.31407,
             0.25
           ],
           [
             0.3084,
-            0.32087
-          ],
-          [
-            0.3084,
-            0.39173
-          ],
-          [
-            0.3084,
-            0.4626
-          ],
-          [
-            0.31407,
-            0.4626
-          ],
-          [
-            0.31407,
-            0.39173
-          ],
-          [
-            0.31407,
-            0.32087
-          ],
-          [
-            0.31407,
             0.25
           ]
         ],
@@ -10729,34 +10752,50 @@ unchanged.
       "polygon": [
         [
           0.3084,
+          0.32087
+        ],
+        [
+          0.3084,
+          0.34213
+        ],
+        [
+          0.3084,
+          0.37047
+        ],
+        [
+          0.3084,
+          0.39173
+        ],
+        [
+          0.3084,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.39173
+        ],
+        [
+          0.31407,
+          0.37047
+        ],
+        [
+          0.31407,
+          0.34213
+        ],
+        [
+          0.31407,
+          0.32087
+        ],
+        [
+          0.31407,
           0.25
         ],
         [
           0.3084,
-          0.32087
-        ],
-        [
-          0.3084,
-          0.39173
-        ],
-        [
-          0.3084,
-          0.4626
-        ],
-        [
-          0.31407,
-          0.4626
-        ],
-        [
-          0.31407,
-          0.39173
-        ],
-        [
-          0.31407,
-          0.32087
-        ],
-        [
-          0.31407,
           0.25
         ]
       ],

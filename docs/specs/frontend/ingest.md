@@ -223,7 +223,8 @@ The header is the shell's (logo, "Vellum", "Workspaces"); these screens draw non
   refusal and error lines. Under the inner zone the format chips: "IFC models", "DXF with its PDF", "PDF, drawn or
   scanned", "SVG with its PDF", "PNG · JPG scans and photos", "ZIP archives" (a scanned PDF is named, since ingest
   routes it to the raster reader; user-facing copy changed 2026-11-14; a DXF or SVG uploaded alone is set aside with
-  "no PDF, PNG or JPEG in its group", API.md, so its chip says so: QA 2026-11-15, before it read "DXF", "SVG").
+  "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image" (SVG the same; API.md,
+  #459), so its chip says so: QA 2026-11-15, before it read "DXF", "SVG").
 - Under the card, centred: "Earlier uploads are in Workspaces" (a link to `#/workspaces`).
 - Not built: the edit-plan link, the country picker, the avatar (common brief).
 
@@ -478,7 +479,8 @@ count and every conflict comes from the API, never from the demo's data.
      the first drawing's workspace `#/p/<id>/d/<drawings[0].drawing_id>/engineer`.
   No "Settle the conflicts" button (the conflicts are on this screen), no issues list (they are on Documents).
 - **Done with no drawings** stays IN-72's "Nothing read" card (no conflicts list, no chat row), now with the line
-  "Every file is listed in Documents." linking to `#/p/<id>/documents` (the Files list moved there).
+  "Every file is listed in Documents." linking to `#/p/<id>/documents` (the Files list moved there), and with a DXF
+  among the set-aside files, the line of IN-93.
 - **Failed** is unchanged (IN-23, IN-62).
 
 ### Shared pieces (exported from `src/ingest/`, used by Simple here and by fe-scaffold's Advanced view)
@@ -639,6 +641,10 @@ Index has no stage id: the backend keeps the project `running` with every file f
   "Cross-check" or "Drawing model". [unit]
 - IN-91: e2e at 1440 and 390: a finished sample project shows "All 9 steps done" and the nine names in order on Simple;
   Advanced's rail shows the same nine. Screenshots `ingest-steps-<width>.png`, `advanced-steps-<width>.png`. [e2e]
+- IN-93 (QA 2026-11-15, #468): IN-72's "Nothing read" card adds "A DXF is read with the PDF or PNG of the same
+  name: put both in one .zip and upload that." when any set-aside file is a DXF, and no such line otherwise
+  (`ProjectScreen.tsx`). [component: ProjectScreen.test.tsx "a lone DXF set aside: the Nothing-read card says to
+  upload it with its PDF or PNG in one zip", "no DXF hint when the set-aside files are not DXF"]
 
 ## Out of scope
 

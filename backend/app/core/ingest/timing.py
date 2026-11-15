@@ -24,14 +24,17 @@ class StageClock:
     on_start: Callable[[Stage, str], None] = lambda stage, path: None  # shows the live stage
     ms: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
     usd: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
+    faults: dict[str, int] = field(default_factory=dict[str, int])  # model calls that failed
     running: tuple[Stage, str] | None = None
     _ended: dict[str, float] = field(default_factory=dict[str, float])
     _spent: int = 0  # cost.mark() when the running call started
+    _failed: int = 0  # cost.faults() when the running call started
 
     def start(self, stage: Stage, path: str) -> float:
         self.running = (stage, path)
         self.on_start(stage, path)
         self._spent = cost.mark()
+        self._failed = cost.faults()
         return self.clock()
 
     def stop(self, stage: Stage, path: str, started: float) -> None:
@@ -44,6 +47,9 @@ class StageClock:
 
     def _charged(self, stage: Stage, path: str) -> None:
         paid, self._spent = cost.since(self._spent), cost.mark()
+        failed, self._failed = cost.faults_since(self._failed), cost.faults()
+        if failed:
+            self.faults[path] = self.faults.get(path, 0) + failed
         if paid:
             usd = self.usd.setdefault(path, {})
             usd[stage] = usd.get(stage, 0.0) + paid

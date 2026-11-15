@@ -197,3 +197,21 @@
 .ag-planbox:has(.ms-layer) .ag-badges {
   display: none;
 }
+
+/* AC-40, AC-42: a lane's own services sheet. The removed strip is struck through (a solid dark line along it, so
+   the demolition reads without its colour); the pairing line and "Not this sheet" wrap on a phone. */
+.ag-strike {
+  fill: none;
+  stroke: var(--v-text);
+  stroke-width: 2.5;
+}
+.ms-pairing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--v-text-2);
+  overflow-wrap: anywhere;
+}
