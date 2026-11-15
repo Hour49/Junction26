@@ -831,3 +831,16 @@ def test_r4_besides_an_apartment_without_its_balconies_still_answers(word: str) 
     for text in (f"What is the floor area of the apartment, {word} the balconies?",
                  f"What is the floor area of the apartment ({word} the balconies)?"):  # fmt: skip
         assert isinstance(PARSE(text), Query), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Wie viele Fenster hat diese Wohnung?", "How many windows does this apartment have?",
+     "How many windows does the flat have?"],
+)  # fmt: skip
+def test_r1_8_this_flat_is_where_the_count_is_not_what_is_counted(text: str) -> None:
+    assert PARSE(text) == Query(measure="count", subject="window")
+
+
+def test_r1_8_apartments_and_another_thing_still_name_two_kinds() -> None:
+    assert PARSE("How many apartments and windows are there?") == Unsupported(reason=SEVERAL_THINGS)

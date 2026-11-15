@@ -1,6 +1,7 @@
 """Questions, queries and answers. `Answer` serialises as answer_v1
 (docs/decisions/0002-answer-format.md)."""
 
+import re
 from typing import Literal
 
 from pydantic import Field
@@ -136,6 +137,14 @@ class Unsupported(Frozen):
 # Unsupported reasons the answer explains in its own words: a count where answering would drop
 # part of the question (R1-5-2).
 SEVERAL_THINGS = "a count that names more than one kind of thing"
+# "this flat", "diese Wohnung": where the question is, not a second thing it counts (big QA R1 8)
+THIS_FLAT = re.compile(
+    r"\b(?:this|the|diese[rm]?|die|der|cette|cet|la|le|questo|questa|tämä|tässä)\s+"
+    r"(?:flat|apartment|dwelling|wohnung|appartement|appartamento|asunno\w*)\b",
+    re.IGNORECASE,
+)
+# "this flat" on a sheet of several flats: which one is not said (big QA R1 rows 7, 8)
+SEVERAL_FLATS = "asks about 'the flat' on a sheet of several flats"
 IN_ONE_ROOM = "a count within one room is not taken off"
 SIZE_FILTER = "a size or count filter on the items (larger than, at least...) is not applied"
 SEVERAL_ROOMS = "a question about one room that names more than one"

@@ -21,9 +21,11 @@ from app.core.answering.model import (
     GLUED_FLOOR,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
+    SEVERAL_FLATS,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SHARED_FLOOR,
+    THIS_FLAT,
     UNQUOTED_PLACE,
     Answer,
     ConflictValue,
@@ -423,6 +425,12 @@ class RoomByType:
             return inside  # "How many doors does Bagno have?" is not the sheet's count
         if not isinstance(parsed, Query):
             return parsed
+        if (
+            parsed.apartment is None
+            and len(self._drawing.apartments) > 1
+            and THIS_FLAT.search(text)
+        ):
+            return Unsupported(reason=SEVERAL_FLATS)  # "this flat" of several: which (R1 row 8)
         rooms = rooms_of_type(parsed, self._drawing)
         if len(rooms) > 1:  # "the living room" of two typed living: the one printed so (r11)
             return self._printed_of(text, parsed, rooms) or parsed
