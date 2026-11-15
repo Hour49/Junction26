@@ -252,9 +252,9 @@ the detectors when their weights are in `data/models`; the weights are not in th
 `tools/qa-env.sh <commit> [port] --frontend` exports a commit and runs it with the settings the live demo uses;
 `tools/qa-env.sh config` prints them, and [docs/PIPELINE.md §4](docs/PIPELINE.md#4-settings-the-demo-config-and-what-stays-off)
 says what each one does. Two things are built ahead for the demo, in `backend/`: the services models the chat's
-services tools read (`uv run python -m app.cli services build`; nothing builds them at upload yet, so a model not
-built ahead is not offered) and the 3D views (`uv run python -m app.cli glb`; without it the first view converts
-on demand, 4 to 52 s on our models).
+services tools read (`uv run python -m app.cli services build`; a model not built ahead is built when a chat turn
+first needs it, and the tools say so until it is ready) and the 3D views (`uv run python -m app.cli glb`; without it
+the first view converts on demand, 4 to 52 s on our models).
 
 Guides: [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md),
 [eval/README.md](eval/README.md). The golden path a release is checked against: [docs/QA.md](docs/QA.md).

@@ -41,10 +41,9 @@ per entry; an entry goes when its fix is merged.
 - K13 · minor · backend · A services proposal on a services IFC that was set aside at upload carries the first 16
   characters of the file's sha256 as its drawing id: the edit card's picture works, a lookup by drawing name may
   show the bare id (#413) (Sun 01:30)
-- K14 · limit · backend · The chat's services tools read only services models built ahead by `app.cli services
-  build` (`adapters/services_agent_tools.py` `_ProjectModels`: "never built here"); nothing builds one at upload, so
-  a user's own services IFC is not offered to them. The follow-up after a plan edit reads the IFC itself, in a
-  capped child process (#399), so it does not depend on the build (Sun 01:30)
+- K15 · minor · backend · A group read before is reused by content and keeps the reason text it was read with, so
+  a reason reworded since (#459, #475) shows its old words until a fresh run reads the file again (seen on #475's
+  run, not re-run here) (Sun 02:55)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).
