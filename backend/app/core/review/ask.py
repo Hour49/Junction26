@@ -402,6 +402,15 @@ def ask(
                     "doesn't say which one. Ask about one of them."
                 )
                 can_answer = each
+            if parsed.apartment is not None and parsed.subject.startswith("room:"):
+                kind, flat = parsed.subject.split(":", 1)[1], parsed.apartment.upper()
+                words = (  # never the whole flat, nor another flat's room (R1 row 11)
+                    f"{len(rooms)} rooms of the type {kind} are in apartment {flat}, so the "
+                    "question doesn't say which one. Ask about one of them."
+                    if rooms
+                    else f"The drawing doesn't say which {kind} is in apartment {flat}, so I "
+                    "can't give its area. Ask about the room by its number or name."
+                )
         if (
             isinstance(parsed, Unsupported)
             and parsed.reason == SEVERAL_PRINTED

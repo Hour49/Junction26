@@ -529,8 +529,20 @@ class TemplateParser:
             return Query(measure="count", subject=subject, **common)
         if len({s for s in subjects if s in ELEMENT_SUBJECTS}) > 1:
             return Unsupported(reason="one sum over several element classes is not taken off")
+        # "the kitchen in apartment B", "apartment B's kitchen", "the kitchen in the apartment":
+        # a room type named anywhere is the subject and the flat its place, never the whole flat
+        # (R1 row 11, review-688 M1); a type after an excluding word is left out, also past a
+        # comma ("all its rooms except balconies, loggias ... and other outdoor spaces")
+        cut = EXCLUDING.search(body)
+        typed = next(
+            (s for at, s in hits if s.startswith("room:") and (cut is None or at < cut.start())),
+            subjects[0] if subjects[0].startswith("room:") else None,  # ROOM_NAMED's
+        )
         if measure == "area" and apartment is not None:
-            return Query(measure="area", subject="apartment", apartment=apartment.group(1))
+            subject = typed or "apartment"
+            return Query(measure="area", subject=subject, apartment=apartment.group(1))
+        if measure == "area" and typed is not None and "apartment" in subjects:
+            subjects = [typed, *(s for s in subjects if s not in (typed, "apartment"))]
         subject = next((s for s in subjects if s in AREA_SUBJECTS), subjects[0])
         code = ROOM_CODE.search(bare)
         if largest:

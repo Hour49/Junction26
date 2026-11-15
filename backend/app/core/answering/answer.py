@@ -706,7 +706,8 @@ def _sheet_count(parsed: Query) -> bool:
 
 def rooms_of_type(parsed: Query, drawing: Drawing) -> list[Room]:
     """The drawing's rooms a question about a room's area by its type alone ("the kitchen") is
-    about; none for any other question."""
+    about, within the apartment it names ("the kitchen in apartment B": the rooms the drawing
+    puts in B; none when it puts none there); none for any other question."""
     if not (
         parsed.measure == "area"
         and parsed.subject.startswith("room:")
@@ -716,7 +717,12 @@ def rooms_of_type(parsed: Query, drawing: Drawing) -> list[Room]:
     ):
         return []
     kind = parsed.subject.split(":", 1)[1]
-    return [room for room in drawing.rooms if room.type == kind]
+    rooms = [room for room in drawing.rooms if room.type == kind]
+    if parsed.apartment is None:
+        return rooms
+    flat = parsed.apartment.casefold()
+    ids = {a.id for a in drawing.apartments if (a.label or "").casefold() == flat}
+    return [room for room in rooms if room.apartment in ids]
 
 
 def _from_facts(question: Question, facts: Callable[[], FactSheet | None]) -> Answer | None:
