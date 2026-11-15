@@ -2,13 +2,16 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { takeoff, trace } from '../api/fixtures';
 import type { FileTrace, StageTrace, StepTrace } from '../api';
-import { sheet, traceVariants } from '../ingest/testing';
+import { must, sheet, traceVariants } from '../ingest/testing';
 import {
   decisions,
   disagreements,
   foundLine,
   foundOf,
+  keyCounts,
   phaseRuns,
+  reasonLines,
+  repeats,
   sideBySide,
   stageSpans,
   stepSpans,
@@ -87,7 +90,11 @@ describe('trace view v5', () => {
     expect(d[1]?.lines).toContain('Grouped: plans/flat-a: flat-a.pdf, flat-a.png');
     expect(d[2]).toMatchObject({ title: 'Both counts agree', tone: 'ok' });
     expect(d[2]?.lines).toEqual(['5 quantities measured a second way: all agree.']);
-    expect(d[3]).toMatchObject({ title: 'Ready to ask', tone: 'ok', lines: [trace.file.reason] });
+    expect(d[3]).toMatchObject({
+      title: 'Ready to ask',
+      tone: 'ok',
+      lines: [`${trace.file.reason}.`],
+    });
   });
 
   it('AD-106 triage, read-from, cache, conflicts with their values, flagged reasons, failure', () => {
@@ -126,7 +133,7 @@ describe('trace view v5', () => {
     );
     expect(d[2]?.lines[1]).toBe('Room 1.01 area: 22.4 m² on the drawing, 30.0 m² the second way.');
     expect(d[3]).toMatchObject({ title: 'Flagged for a look', tone: 'warn' });
-    expect(d[3]?.lines).toEqual(['scale estimated', '1 conflict']);
+    expect(d[3]?.lines).toEqual(['scale estimated.', '1 conflict.']);
     const failed = decisions(traceVariants.failed);
     expect(failed.at(-1)).toMatchObject({ title: 'Set aside', tone: 'bad' });
     expect(failed.at(-1)?.lines).toContain('Extract failed: no page could be read');
@@ -162,6 +169,57 @@ describe('trace view v5', () => {
     expect(foundOf({ ...trace.file, takeoff: {} })).toBe('');
   });
 
+  it('AD-117 a stage output that repeats its did line is shown once', () => {
+    const [unpack, hash, identify, , route, , , , takeoffStage] = trace.stages;
+    expect(repeats(must(hash))).toBe(true); // did "sha256 dd2c…", output the full hash
+    expect(repeats(must(identify))).toBe(true); // "drawn PDF" inside "a drawn PDF (…)"
+    expect(repeats(must(route))).toBe(true); // "vector" is the "drawn PDF route" of the did
+    expect(repeats(must(takeoffStage))).toBe(true); // "takeoff: 141 …" at the end of the did
+    expect(repeats(must(unpack))).toBe(false); // the path adds something
+    expect(repeats(stage({ did: 'x', output: '' }))).toBe(true);
+  });
+
+  it('AD-118 a reason with a trailing summary reads as plain lines, never two brackets in a row', () => {
+    expect(
+      reasonLines(
+        '1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)',
+      ),
+    ).toEqual([
+      '1 conflict between the two methods (room areas).',
+      'Found: 7 elements, 5 rooms, scale read from the sheet.',
+    ]);
+    expect(reasonLines('scale estimated; 1 conflict')).toEqual(['scale estimated.', '1 conflict.']);
+    expect(reasonLines('read on the drawn PDF route: 7 elements')).toEqual([
+      'read on the drawn PDF route: 7 elements.',
+    ]);
+    expect(reasonLines('')).toEqual([]);
+  });
+
+  it('AD-119 a file read with its group says so: the route decision names the file it was read with', () => {
+    const png: FileTrace = {
+      ...trace,
+      file: { ...trace.file, path: 'plans/flat-a.png', source: 'plans/flat-a.pdf' },
+    };
+    expect(decisions(png)[1]?.title).toBe('Read with plans/flat-a.pdf');
+    expect(decisions(trace)[1]?.title).toBe('The drawn PDF route');
+  });
+
+  it('AD-120 keyCounts: the plain class counts, rooms, doors, windows first, at most 8', () => {
+    expect(
+      keyCounts({
+        window: 2,
+        'door|name=a': 1,
+        room: 5,
+        door: 2,
+        'area:room': 64.7,
+        bathtub: 1,
+        plan: 1,
+      }),
+    ).toEqual(['5 rooms', '2 doors', '2 windows', '1 bathtub', '1 plan']);
+    expect(keyCounts({ toilet_room: 2 })).toEqual(['2 toilet rooms']);
+    expect(keyCounts(undefined)).toEqual([]);
+  });
+
   it('AD-116 trace.css: only --v-* colours, and no animation under reduced motion', () => {
     const css = readFileSync('src/advanced/trace.css', 'utf8');
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
@@ -171,5 +229,14 @@ describe('trace view v5', () => {
     // a segment takes its phase's colour: no background of its own that would win over .phase-*
     const seg = /\.fm-seg \{[^}]*\}/.exec(css)?.[0] ?? '';
     expect(seg).not.toContain('background');
+    // the five phases are told apart: each its own fill (review of #546: read and store were two dark greens)
+    const fills = ['open', 'page', 'read', 'check', 'store'].map(
+      (p) => new RegExp(`\\.phase-${p} \\{([^}]*)\\}`).exec(css)?.[1]?.trim() ?? '',
+    );
+    expect(new Set(fills).size).toBe(5);
+    expect(fills.every((f) => f.includes('background'))).toBe(true);
+    expect(fills.filter((f) => /--v-accent(-strong)?\b(?!-)/.test(f)).length).toBeLessThanOrEqual(
+      1,
+    );
   });
 });

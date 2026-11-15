@@ -160,6 +160,21 @@ describe('FileMatrix', () => {
     expect(document.querySelector('.fm-found')).toBeNull();
   });
 
+  it('AD-119 a file read with its group names that file, not the route as if it were read itself', () => {
+    const files = [
+      {
+        ...must(project.files[0]),
+        path: 'plans/flat-a.png',
+        source: 'plans/flat-a.pdf',
+        route: 'vector' as const,
+      },
+    ];
+    render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
+    const meta = must(document.querySelector('.fm-meta'));
+    expect(meta.textContent).toContain('read with plans/flat-a.pdf');
+    expect(meta.textContent).not.toContain('drawn PDF route');
+  });
+
   it('AD-112 bars compare files: the slowest is full width, the others their share', () => {
     const files = project.files.slice(0, 2).map((f, i) => ({ ...f, ms: i === 0 ? 1000 : 250 }));
     render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
