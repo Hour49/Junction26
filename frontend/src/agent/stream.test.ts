@@ -3,7 +3,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api';
 import { answerTurn } from './fixtures';
-import { LIVE_START, liveStep, SseParser, streamTurn, type StreamEvent } from './stream';
+import {
+  LIVE_START,
+  liveStep,
+  SseParser,
+  STREAM_IDLE_MS,
+  streamTurn,
+  type StreamEvent,
+} from './stream';
 
 const PID = 'p1';
 const BODY = { message: 'How many doors?' };
@@ -44,6 +51,28 @@ function sse(chunks: string[], fail = false): Response {
       if (k !== undefined) c.enqueue(enc.encode(k));
       else if (fail) c.error(new TypeError('network error'));
       else c.close();
+    },
+  });
+  return new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+/** One chunk per read, each `gapMs` after the last; then the stream stays open and silent (the backend killed
+ * behind a proxy that keeps the connection, or frozen mid-turn). */
+function slow(chunks: string[], gapMs: number): Response {
+  let i = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(c) {
+      const k = chunks[i++];
+      if (k === undefined) return new Promise<void>(() => undefined);
+      if (gapMs === 0) {
+        c.enqueue(enc.encode(k));
+        return undefined;
+      }
+      return new Promise<void>((done) => {
+        setTimeout(() => {
+          c.enqueue(enc.encode(k));
+          done();
+        }, gapMs);
+      });
     },
   });
   return new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
@@ -139,6 +168,64 @@ describe('streamTurn', () => {
     await expect(streamTurn(PID, BODY, () => undefined)).rejects.toBeInstanceOf(ApiError);
     expect(urls).toEqual([STREAM]);
     expect(ended).toEqual([STREAM]);
+  });
+
+  it('a stream silent for STREAM_IDLE_MS (no byte, no ping) is a lost connection, not a spinner forever (R2-C6)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }); // the stream's own scheduling stays real
+    try {
+      routes(() => slow(FIXTURE.slice(0, 3), 0));
+      const failed = expect(streamTurn(PID, BODY, () => undefined)).rejects.toMatchObject({
+        status: 0,
+        code: 'network',
+      });
+      // in steps: each read's idle clock starts only after the last chunk went through the stream
+      for (let t = 0; t < STREAM_IDLE_MS + 5_000; t += 5_000)
+        await vi.advanceTimersByTimeAsync(5_000);
+      await failed;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a request with no answer at all for STREAM_IDLE_MS is a lost connection, and is aborted (R2-C6)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let signal: AbortSignal | null | undefined;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_url: string, init: RequestInit) => {
+          signal = init.signal;
+          // as a browser's fetch: an abort rejects it at once
+          return new Promise<Response>((_, reject) => {
+            init.signal?.addEventListener('abort', () => {
+              reject(new DOMException('signal is aborted without reason', 'AbortError'));
+            });
+          });
+        }),
+      );
+      const failed = expect(streamTurn(PID, BODY, () => undefined)).rejects.toMatchObject({
+        status: 0,
+        code: 'network',
+      });
+      await vi.advanceTimersByTimeAsync(STREAM_IDLE_MS);
+      await failed;
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the server's pings keep a long turn alive: 80 s with a byte every 10 s still answers", async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const pings = Array<string>(6).fill(': ping\n\n');
+      routes(() => slow([FIXTURE[0] as string, ...pings, FIXTURE.at(-1) as string], 10_000));
+      const turn = streamTurn(PID, BODY, () => undefined);
+      for (let t = 0; t < 80_000; t += 1_000) await vi.advanceTimersByTimeAsync(1_000);
+      await expect(turn).resolves.toEqual(answerTurn);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("an error event fails the turn with the server's detail", async () => {
