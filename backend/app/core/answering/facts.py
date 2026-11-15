@@ -909,7 +909,7 @@ _KINDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "sanitary_terminal": (
         (r"toilets?|wcs?", ("WCSEAT", "TOILETPAN")),
         (r"basins?|lavator", ("WASHHANDBASIN",)),
-        (r"sinks?", ("SINK",)),
+        (r"sinks?", ("SINK", "WASHHANDBASIN")),  # a washbasin is a sink too (R4-C3)
     ),
 }
 

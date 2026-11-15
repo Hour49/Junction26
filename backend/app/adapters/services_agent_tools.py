@@ -331,7 +331,10 @@ class _ListArgs(_Args):
     )
     kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
     predefined: str | None = Field(
-        default=None, min_length=1, max_length=40, description="by_predefined key or untyped"
+        default=None,
+        min_length=1,
+        max_length=80,
+        description="by_predefined key(s) a,b or untyped",
     )
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
@@ -520,20 +523,20 @@ def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
     if args.predefined is not None:  # R5: a WC, a basin and its frame are one IFC class
-        wanted = args.predefined.upper()
+        wanted = {key.strip().upper() for key in args.predefined.split(",")}  # "SINK,WASHHANDBASIN"
         types = {
             e.predefined or "untyped"
             for e in model.elements
             if (e.group == "flow_terminal" or _equipment(e))
             and (args.kind is None or args.kind in (e.kind, e.group))
         }
-        if wanted not in {t.upper() for t in types}:  # #559 S1: not a confident 0 for a typo
+        if not wanted & {t.upper() for t in types}:  # #559 S1: not a confident 0 for a typo
             raise ToolError(
                 f"no {args.kind or 'terminal'} has the IFC type {args.predefined!r}; "
                 f"its types: {', '.join(sorted(types))}"
             )
         found["untyped"] = sum(e.predefined is None for e in matched)
-        matched = [e for e in matched if (e.predefined or "untyped").upper() == wanted]
+        matched = [e for e in matched if (e.predefined or "untyped").upper() in wanted]
     items = [
         {
             "id": e.id,
