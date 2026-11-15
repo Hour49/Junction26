@@ -15,7 +15,7 @@ function nowText(live: Live | undefined): string | null {
   const now = live.now;
   if (!now) return null;
   if (now.kind === 'thinking') return 'Thinking…';
-  if (now.kind === 'writing') return 'Writing the answer…';
+  if (now.kind === 'writing') return 'Reading the results…';
   if (now.kind === 'checking') return 'Checking the answer…';
   return now.reason ? `Checking again: ${now.reason}` : 'Checking again…';
 }

@@ -214,7 +214,7 @@ describe('liveStep', () => {
     expect(live.now).toEqual({ kind: 'retry', reason: 'a number is not in the results' });
   });
 
-  it('the model step after every tool line ended is the one that writes the reply: "writing"', () => {
+  it('the model step after every tool line ended reads their results: "writing"', () => {
     const done = {
       type: 'tool_result' as const,
       ...call,

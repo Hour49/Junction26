@@ -137,8 +137,8 @@ function put(steps: LiveStep[], s: LiveStep): LiveStep[] {
 export function liveStep(live: Live, e: StreamEvent): Live {
   switch (e.type) {
     case 'thinking':
-      // A model step once every tool line has ended is the one that writes the reply (every measured turn is a tool
-      // step, then final_answer: .agents/exp/chat-latency.md); if it picks more tools, their plan replaces this.
+      // A model step once every tool line has ended reads their results: most often it writes the reply
+      // (.agents/exp/chat-latency.md), about 1 in 5 it picks more tools (review-481), whose plan replaces this.
       return {
         ...live,
         now:
