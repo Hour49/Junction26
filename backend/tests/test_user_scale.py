@@ -350,6 +350,8 @@ def test_room_301_on_the_hotel_photo(entries: None) -> None:
     "message",
     [
         "Is the study on Plan image 5 4.9 m wide?",
+        "The kitchen is 12 m2?",  # a statement asked back: a trailing "?" asks
+        "The kitchen on Plan image 5 is 4 m wide?",
         "Is room 301 18 m2?",
         "What is the area of room 301 on Plan photo 2?",
         "the scale of Plan image 5 is 1:100 or 1:50",
