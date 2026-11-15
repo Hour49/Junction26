@@ -58,6 +58,12 @@ the service ("H-101 Floor 1 heating.png"); a weak word ("pipe layout 7.png") or 
 reply always wins, even one with no discipline. Each fact read this way says so in its `source`, after its readers
 (`picture:template+mask:discipline-from-file-name`), and stays Low like every picture fact.
 
+The page's discipline (the reply's, else the file name's) is also each fact's discipline when its legend label names
+none (AC-21): a valve, pipe or pump label, a label with no kind, a line style that names no system. A group heading or
+label that names a discipline by a strong word ("Cold water", "Hydronic Supply") still wins; a weak word ("Ventil",
+"valve") does not. Without it, a heating plan's "Absperrventil" and Gemini's misspelt "HeizkAcrper Plan Ventil" were
+plumbing valves.
+
 The page is one of:
 
 | Page | Lane | What is read |
@@ -363,6 +369,9 @@ Core (P1):
 - **AC-1** `kind_of`: "Radiator", "Heizkörper", "lämpöpatteri" → `("space_heater", "heating")`; "Supply air
   diffuser" → `("air_terminal", "ventilation")`; "Socket outlet 2x" → `("outlet", "electrical")`; "Valve" with group
   "Heating" → `("valve", "heating")`, with group "Cold water" → `("valve", "plumbing")`; "Logo" → None.
+- **AC-21** `kind_of(label, group, sheet)`: on a heating sheet "Absperrventil allgemein" and "HeizkAcrper Plan Ventil
+  Unten:Rechts" → heating; on a plumbing sheet "Valve" → plumbing; "Valve" with group "Cold water" on a heating sheet →
+  plumbing; no sheet → as AC-1. `line_kind_of("H_Transport_VL_", None, "heating")` → `("pipe_segment", "heating")`.
 - **AC-2** `double_check` on two readings of label L, 10 spots each, 9 within `near` of each other: L agreed; the 1
   + 1 unmatched spots are the disputed places, each with both readers' sentences; at most 5 disputed, strongest
   (highest-scoring reader A spot) first.

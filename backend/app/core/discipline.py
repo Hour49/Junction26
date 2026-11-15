@@ -344,6 +344,13 @@ def discipline_from_question(text: str) -> Discipline | None:
     return _discipline(text, codes=False)
 
 
+def discipline_named_in(text: str) -> Discipline | None:
+    """The one discipline `text` names by a strong word ("Heizung", "cold water"), weak words
+    ("valve", "Ventil") left out; None when it names several or none."""
+    strong = _strong_in(text, codes=False)
+    return strong.pop() if len(strong) == 1 else None
+
+
 def discipline_from_title(text: str) -> Discipline | None:
     """A 2D sheet's discipline from its title-block text (title, sheet number, drawing list
     line); None when unsure. Also reads sheet codes (A-101, S-201, ARK, RAK, SÄH, IV-)."""
