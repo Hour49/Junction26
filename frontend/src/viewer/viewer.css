@@ -96,6 +96,11 @@
 .vw-shape:not([fill]) {
   fill: var(--vw-c);
 }
+/* The fill of a mark with marks inside it (PageViewer: the inner ones are holes); its polygon keeps the outline. */
+.vw-fill {
+  fill: var(--vw-c);
+  stroke: none;
+}
 .vw-hatch {
   stroke: var(--v-muted);
 }

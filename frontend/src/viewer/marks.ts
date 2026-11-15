@@ -98,14 +98,69 @@ export interface PlacedLabel {
 const RINGS = 12;
 const GAP = 1; // px of clearance between two badges
 
+type Pt = readonly number[];
+const corners = (b: readonly number[]): Pt[] => [
+  [b[0] ?? 0, b[1] ?? 0],
+  [b[2] ?? 0, b[1] ?? 0],
+  [b[2] ?? 0, b[3] ?? 0],
+  [b[0] ?? 0, b[3] ?? 0],
+];
+
+/** Inside the ring or within `slack` of one of its edges (rooms share walls). */
+function inRing(p: Pt, ring: readonly Pt[], slack: number): boolean {
+  const [x = 0, y = 0] = p;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [ax = 0, ay = 0] = ring[i] ?? [];
+    const [bx = 0, by = 0] = ring[j] ?? [];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const t =
+      dx || dy
+        ? Math.min(1, Math.max(0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+        : 0;
+    if (Math.hypot(x - ax - t * dx, y - ay - t * dy) <= slack) return true;
+    if (ay > y !== by > y && x < ax + ((y - ay) * (bx - ax)) / (by - ay)) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * The other marks drawn directly inside `mark` (a Reduit in a Küche): every vertex of their polygon
+ * (their box corners without one) lies inside `mark`'s polygon (its box without one), within
+ * `slack`; a mark inside one of those is left to it (A > B > C: A's are B only).
+ */
+export function nestedBoxes<T extends { box: readonly number[]; polygon?: readonly Pt[] | null }>(
+  mark: T,
+  others: readonly T[],
+  slack = 0.002,
+): T[] {
+  const area = (b: readonly number[]) => ((b[2] ?? 0) - (b[0] ?? 0)) * ((b[3] ?? 0) - (b[1] ?? 0));
+  const within = (inner: T, outer: T) =>
+    inner !== outer &&
+    area(inner.box) < area(outer.box) &&
+    (inner.polygon ?? corners(inner.box)).every((p) =>
+      inRing(p, outer.polygon ?? corners(outer.box), slack),
+    );
+  const inside = others.filter((o) => within(o, mark));
+  return inside.filter((o) => !inside.some((d) => within(o, d)));
+}
+
 /**
  * Where each badge goes so no two overlap (the rule of the backend's evidence_render.place_labels,
  * simplified): smallest box first; the box centre, then a 5 x 5 grid inside the box nearest the
  * centre, then rings around the box in 8 directions; full text first, then the number only.
+ * The centre and grid spots whose badge would cover one of the label's `nested` boxes (another
+ * mark inside this one) are skipped, so a room's badge never sits on the room inside it.
  * null: no free spot on the page.
  */
 export function placeLabels(
-  labels: readonly { box: readonly number[]; full: string; short: string }[],
+  labels: readonly {
+    box: readonly number[];
+    full: string;
+    short: string;
+    nested?: readonly (readonly number[])[];
+  }[],
   W: number,
   H: number,
 ): (PlacedLabel | null)[] {
@@ -136,8 +191,14 @@ export function placeLabels(
     const cx = (x0 + x1) / 2;
     const cy = (y0 + y1) / 2;
     const texts = label.full === label.short ? [label.full] : [label.full, label.short];
+    const holes = (label.nested ?? []).map(px);
     for (const text of texts) {
       const { w, h } = badgeSize(text);
+      const clear = ([x, y]: [number, number]) =>
+        holes.every(
+          ([a = 0, b = 0, c = 0, d = 0]) =>
+            x + w / 2 <= a || x - w / 2 >= c || y + h / 2 <= b || y - h / 2 >= d,
+        );
       const grid: [number, number][] = [];
       for (let a = 1; a <= 5; a++)
         for (let b = 1; b <= 5; b++)
@@ -156,8 +217,8 @@ export function placeLabels(
             cy + Math.sin(angle) * ((y1 - y0) / 2 + h / 2 + gap),
           ]);
         }
-      const spot = [[cx, cy] as [number, number], ...inside, ...rings].find(([x, y]) =>
-        free(x, y, w, h),
+      const spot = [...[[cx, cy] as [number, number], ...inside].filter(clear), ...rings].find(
+        ([x, y]) => free(x, y, w, h),
       );
       if (spot) {
         const placed = {
