@@ -219,3 +219,105 @@ def test_the_plans_wall_lines_are_centre_lines() -> None:
         frozenset(((0.2, 0.1), (9.8, 0.1))), frozenset(((9.9, 0.2), (9.9, 7.8))),
         frozenset(((0.2, 7.9), (9.8, 7.9))), frozenset(((0.1, 0.2), (0.1, 7.8))),
     }  # fmt: skip
+
+
+# --- review-495: a wrong floor is refused, not paired with a confident reason (SFP-21..25) -----
+
+
+def test_floor_words_that_differ_refuse_even_when_one_is_shared() -> None:
+    # the set's building folder "B1" is on both; the floors are 1 and 2 (review-495 M1)
+    plan = PLAN.model_copy(update={"name": "B1/A-101 Floor 1 plan.pdf"})
+    found = one(plan, sheet(name="B1/H-102 Floor 2 heating.png"))
+    assert found == "another floor: 'Floor 2' against 'Floor 1'"
+    no_rooms = sheet(name="B1/H-102 Floor 2 heating.png", rooms=(), size_m=(10.0, 10.0))
+    found = one(plan.model_copy(update={"rooms": ()}), no_rooms)
+    assert found == "another floor: 'Floor 2' against 'Floor 1'"
+    # a floor word one sheet names and the other doesn't is no disagreement
+    found = one(plan, sheet(name="B1/H-101 heating.png", storey="Floor 1"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_an_electrical_sheet_number_is_not_a_level_code() -> None:
+    # E01 is the first electrical sheet, not level 1 (review-495 M2); E00/E01 levels still read
+    found = one(PLAN, sheet(name="E01 Elektro.png", disciplines=("electrical",)))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    found = one(PLAN, sheet(name="set/E01 heating.png", sheet_number="E01"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    found = one(PLAN, sheet(name="digitalhub_plan-02-e00-okrd heating.png"))
+    assert found == "another floor: 'e00' against 'Floor 1'"
+    found = one(PLAN, sheet(name="heating.png", storey="E01_OKRD"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_two_floors_that_fit_alike_and_name_no_floor_are_both_refused() -> None:
+    # a plan with no floor hint; two heating sheets print the same room names (review-495 M3)
+    plain = PLAN.model_copy(update={"name": "plan.pdf"})
+    found = pair(plain, [sheet("d2", name="heating-a.png"), sheet("d3", name="heating-b.png")])
+    said = (
+        "2 heating pictures fit this plan alike and none names its floor "
+        "(heating-a.png, heating-b.png): which one is this floor is not known"
+    )
+    assert found == [said, said]
+    # one that names the plan's floor still wins over one laid by geometry alone
+    named = pair(PLAN, [sheet("d3", name="heating-b.png"), sheet("d2")])
+    assert isinstance(named[1], Pairing) and named[1].paired_by == "metadata"
+
+
+def test_a_floor_word_in_a_folder_is_not_the_sheet_s_floor() -> None:
+    # the set's folder "B1" names no sheet's floor: a heating sheet naming none is no "same floor"
+    # (review-558 M1)
+    plan = PLAN.model_copy(update={"name": "B1/A-101 Floor 1 plan.pdf"})
+    found = one(plan, sheet(name="B1/H-heating.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    no_rooms = sheet(name="B1/H-heating.png", rooms=(), size_m=(10.0, 10.0))
+    found = one(plan.model_copy(update={"rooms": ()}), no_rooms)
+    assert found == "only 0 room names appear on both sheets (3 are needed)"
+
+
+def test_floor_words_in_folders_refuse_when_they_differ() -> None:
+    # folders name floors too: differing ones refuse, as on main; equal ones agree on nothing
+    # (review-558 at fa1c7a31)
+    plan = PLAN.model_copy(update={"name": "Projekt/OG 1/Grundriss.pdf"})
+    assert one(plan, sheet(name="Projekt/EG/Heizung.png")) == "another floor: 'EG' against 'OG 1'"
+    found = one(plan, sheet(name="Projekt/OG 1/Heizung.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+
+
+def test_a_level_code_inside_an_electrical_sheet_s_name_is_its_level() -> None:
+    # a DigitalHub electrical export names its level inside the name like the others (review-558 M2)
+    plan = PLAN.model_copy(update={"name": "dh_arc_plan-02-e00-okrd.pdf"})
+    found = one(plan, sheet(name="dh_elt_plan-03-e01-okrd.png", disciplines=("electrical",)))
+    assert found == "another floor: 'e01' against 'e00'"
+
+
+def test_discipline_folders_are_one_set() -> None:
+    # review-495 S1: folders by discipline are one delivery, not two sets
+    plan = PLAN.model_copy(update={"name": "Architektur/A-101 Floor 1 plan.pdf"})
+    found = one(plan, sheet(name="Heizung/H-101 Floor 1 heating.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+    found = one(PLAN.model_copy(update={"name": "ARK/plan.pdf"}), sheet(name="LVI/heating.png"))
+    assert isinstance(found, Pairing)
+
+
+def test_sheets_drawn_years_apart_still_pair() -> None:
+    # a real set's services sheets are often redrawn years after the plan (USCG building 110: as
+    # built 1965, heating 1958, electrical 1981, one basement), so years refuse nothing
+    plan = PLAN.model_copy(update={"name": "Building 110 Basement Plan As Built, 1965.png"})
+    found = one(plan, sheet(name="Building 110 Basement Plan Heating, May 26, 1958.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_written_floor_ordinals_name_a_floor() -> None:
+    # "Second Floor" is floor 2 (the USCG sheets): another floor is refused, not laid by geometry
+    plan = PLAN.model_copy(update={"name": "Building 407 Second Floor Plan.png"})
+    found = one(plan, sheet(name="Building 407 Heating Layout First Floor Plan.png"))
+    assert found == "another floor: 'First Floor' against 'Second Floor'"
+    found = one(plan, sheet(name="Building 407 Heating Layout Second Floor Plan.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_a_project_year_is_not_a_sheet_number() -> None:
+    # review-495 N1: "KOY_2019" on both files is the project, not floor 2019 of each
+    plan = PLAN.model_copy(update={"name": "KOY_2019 plan.pdf", "rooms": ()})
+    found = one(plan, sheet(name="KOY_2019 heating.png", rooms=(), size_m=(10.0, 10.0)))
+    assert found == "only 0 room names appear on both sheets (3 are needed)"
