@@ -29,12 +29,19 @@ const NOTE = 'Proposed from the drawn geometry. Structure, services and permits 
 // SERVICES_FOLLOW=on: the tabs above show what the change does to each services model or picture
 const NOTE_NOT_FOLLOWED =
   'Proposed from the drawn geometry; no services model or picture covers it, as each tab shows. Structure, services and permits are not checked.';
+const NOTE_NOT_ALIGNED =
+  'Proposed from the drawn geometry; a services model or picture could not be laid on this drawing, as each tab shows. Structure, services and permits are not checked.';
 
 /** The note with a services follow-up: what its lanes were followed through, as the tabs show them (edits R1 1b:
  * "followed through their models" while every tab said "no model"). A lane a picture checked carries `picture`. */
 function followedNote(follow: ServicesFollow): string {
   const checked = follow.disciplines.filter((l) => l.status === 'checked');
-  if (checked.length === 0) return NOTE_NOT_FOLLOWED;
+  if (checked.length === 0) {
+    // review-710: a lane with a model or picture that could not be laid on the sheet is "not aligned", not "no model"
+    return follow.disciplines.some((l) => l.status === 'not_aligned')
+      ? NOTE_NOT_ALIGNED
+      : NOTE_NOT_FOLLOWED;
+  }
   const pictures = checked.filter((l) => l.picture).length;
   const how =
     pictures === 0

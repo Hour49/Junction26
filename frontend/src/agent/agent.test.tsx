@@ -359,7 +359,7 @@ describe('EditCard', () => {
           ? { ...heatingPicture, discipline: l.discipline }
           : { ...l, status, picture: null, source: status === 'checked' ? l.source : null },
       );
-    const note = (disciplines: ReturnType<typeof lanes>) => {
+    const note = (disciplines: typeof services.disciplines) => {
       cleanup();
       mockApi({ [DRAWING]: drawing });
       render(
@@ -374,6 +374,11 @@ describe('EditCard', () => {
     // pics-digitalhub, a floor no services picture covers: every tab says "no model"
     expect(note(lanes('no_model', false))).toBe(
       'Proposed from the drawn geometry; no services model or picture covers it, as each tab shows. Structure, services and permits are not checked.',
+    );
+    // review-710: a lane whose model or picture could not be laid on the sheet says "not aligned", not "no model"
+    const aligned = lanes('no_model', false).map((l) => ({ ...l, status: 'not_aligned' as const }));
+    expect(note(aligned)).toBe(
+      'Proposed from the drawn geometry; a services model or picture could not be laid on this drawing, as each tab shows. Structure, services and permits are not checked.',
     );
     expect(note(lanes('checked', true))).toBe(
       'Proposed from the drawn geometry; services followed on their pictures, as each tab shows. Structure and permits are not checked.',

@@ -180,8 +180,9 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked." (with the
   services followed, SERVICES_FOLLOW=on: "Proposed from the drawn geometry; services followed through their models,
   as each tab shows. Structure and permits are not checked.", with "on their pictures" or "through their models and
-  pictures" when services pictures checked the lanes, and "no services model or picture covers it, as each tab shows.
-  Structure, services and permits are not checked." when no lane was checked (edits R1 1b)), and Accept /
+  pictures" when services pictures checked the lanes; when no lane was checked, "a services model or picture could not
+  be laid on this drawing, as each tab shows. Structure, services and permits are not checked." if a lane is not
+  aligned, else "no services model or picture covers it, ..." (edits R1 1b, review-710)), and Accept /
   Reject. After a decision the buttons give way to "Accepted" / "Rejected".
 - AC-33 (ui-bugs 1, 2026-11-15) The pen: a pen button in the ask bar next to the paperclip. Pen on: the question
   box and Ask are disabled, and on each open file in the files list (AC-36) whose drawing can be drawn on, click a
