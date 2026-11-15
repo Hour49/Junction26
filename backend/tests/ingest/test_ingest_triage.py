@@ -158,6 +158,45 @@ def test_an_image_the_classifier_calls_a_floor_plan_is_read_even_where_the_probe
     assert file_of(status, "plan.png").state == "set_aside"
 
 
+def identify_of(make_service: MakeService, files: dict[str, bytes], path: str, **ports: object):
+    ingest = make_service(**ports)
+    project = ingest.start("site.zip", zipped(files))
+    file = file_of(ingest.wait(project), path)
+    stages = ingest.trace(project, file.id).stages
+    return file, next(stage for stage in stages if stage.stage == "identify")
+
+
+def test_where_the_probe_and_triage_disagree_the_identify_line_says_which_said_what(
+    make_service: MakeService,
+) -> None:
+    # QA R4-A10: the demo's site photo read "a photo, not of a drawing; ...; read as one", its
+    # output "photo of a drawing": the probe's guess stood as if it were the outcome
+    photo, identify = identify_of(
+        make_service, {"site.jpg": PHOTO}, "site.jpg", triage=steps(FakeClassifier({}))
+    )
+    assert photo.kind == "photo_plan" and identify.output == "photo of a drawing"
+    assert identify.did.startswith("the probe guessed a photo, not of a drawing ("), identify.did
+    assert "; triage calls it a floor plan, so it is read as a photo of a drawing; " in (
+        identify.did
+    )
+    assert identify.steps[0].did.startswith("a photo, not of a drawing (")  # the probe's own step
+    # the other way round: the probe saw a drawing, triage calls it not a drawing
+    scan, identify = identify_of(
+        make_service, {"scan.png": SCAN}, "scan.png",
+        triage=steps(FakeClassifier({SCAN: "not_drawing"})),
+    )  # fmt: skip
+    assert scan.state == "set_aside" and identify.output == "PNG drawing"  # kinds unchanged
+    assert identify.did.startswith("the probe guessed a drawing as a PNG ("), identify.did
+    assert "; triage calls it not a drawing, so it is not read; triage: not a drawing" in (
+        identify.did
+    )
+    # where they agree, the probe's line stands as it is
+    _, identify = identify_of(
+        make_service, {"scan.png": SCAN}, "scan.png", triage=steps(FakeClassifier({}))
+    )
+    assert identify.did.startswith("a drawing as a PNG ("), identify.did
+
+
 def test_a_classifier_that_cannot_answer_leaves_the_file_as_today(
     make_service: MakeService,
 ) -> None:

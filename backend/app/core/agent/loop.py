@@ -78,6 +78,9 @@ NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 # Levels only where measured (item 4): these tools' numbers are read from the drawing as it is,
 # with no confidence level; an answer whose number rests only on them says so, in no digits
+SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³", "ft2": " ft²", "ft": " ft"}
+# a lead that leaves the values to the answer card under it, as the prompt asks
+TO_THE_CARD = re.compile(r"\bbelow\b", re.I)
 SHOW_THEM = "Show me where they are"  # the "Show them on the plan" chip (contract F)
 AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
 UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
@@ -95,10 +98,16 @@ UNRATED_BOTH = (
     "Those numbers are read straight from the drawing's takeoff and geometry and have no "
     "confidence level; ask about them directly for a rated answer."
 )
+FOUND_ONLY = (  # find_rooms: the labels a reader found, not every such room (R4-A14)
+    "That count is only the rooms a reader found with that label on the drawing; rooms it "
+    "missed or found without a label are not in it, so it has no confidence level."
+)
 # the model already said it (the prompt asks it to): not said twice (review-342 N3)
 SAID_UNRATED = re.compile(
     r"\b(no|without( a)?|not have a|has no) confidence level|\bunrated\b|\bnot rated\b", re.I
 )
+# the model already said a found-rooms count leaves rooms out: FOUND_ONLY not said twice
+SAID_MISSED = re.compile(r"\b(missed|not (all|every)|only the rooms)\b", re.I)
 # a number the user names a place by ("floor 3", "room 102") is no quantity they state
 NAMED_BY = re.compile(
     r"\b(floors?|levels?|storeys?|stor(y|ies)|rooms?|pages?|sheets?|plans?|drawings?|units?|"
@@ -582,7 +591,7 @@ class _Run:
                     self.printed.add(label)
         if name == ASK:
             self.rated += _values(found)  # the answers' own values (review-342 S2)
-        elif name in UNRATED_TOOLS:
+        elif name in UNRATED_TOOLS or name == FIND_ROOMS:
             self.unrated.append((name, text))
         self.failures.append(failed(found))
         self.chat.results.append({"tool": name, "arguments": arguments, "result": found})
@@ -855,6 +864,8 @@ class _Run:
             # also asked another tool that reports conflicts keeps the model's (review-624 M1)
             kind = "answer"
             answers = self._answers(set(cited) | set(shown), kind)
+        if kind == "answer" and (values := self._values_said(text, answers)):
+            text = f"{text.rstrip()} {values}"
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
         evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
@@ -904,15 +915,36 @@ class _Run:
             out.append(Option(label=ask[:60], message=ask))
         return tuple(out[:3])
 
+    def _values_said(self, text: str, answers: tuple[Json, ...]) -> str | None:
+        """Each answering drawing's value of the ask_drawings answers the turn rests on, as the
+        rules lead says them ("Drawn plan 1: 156 m²."), when `text` points at the card (the
+        prompt's "The answer is below [ev_1].") and states no number of its own; None: it states
+        one, does not point at the card ("The first door is here [1]."), or nothing answered.
+        A drawing's name ("Drawn plan 5") is no number."""
+        if not TO_THE_CARD.search(text):
+            return None
+        for name in sorted(self.names.values(), key=len, reverse=True):
+            text = text.replace(name, " ")
+        if claims(re.sub(r"\[\d+\]", " ", text)):
+            return None
+        listed: list[Json] = []
+        for given in answers:
+            found: Json = _answered(given)
+            items: list[Any] = found.get("answered") or []
+            listed += [item for item in items if isinstance(item, dict)]
+        names = {file: self.names.get(drawing_id) or file for drawing_id, file in self._files()}
+        said = [f"{names.get(str(a['drawing']), a['drawing'])}: {said_value(a)}" for a in listed]
+        return f"{'; '.join(said[:12])}." if said else None
+
     def _unrated(self, text: str) -> str | None:
         """The sentence for a number in `text` that rests only on unrated places (an
         UNRATED_TOOLS result of this turn gives it; no rated answer's value, earlier ones
         included, nor the user's message does), worded for the tools that gave it; None: no
         such number, or the text says so already. A label's number ("LOBBY 104") is a name, and
         so is a drawing's ("Drawn plan 5": qa-a, "which drawing has no scale"), or its file's
-        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516)."""
-        if SAID_UNRATED.search(text):
-            return None
+        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516). A
+        number only find_rooms gives is a count of the rooms a reader found (FOUND_ONLY), said
+        unless the text says rooms were missed: "no confidence level" does not say that."""
         labels = _labels([_json(found) for _, found in self.unrated])
         names = [*labels, *self.names.values(), *(file for _, file in self._files())]
         for label in sorted(names, key=len, reverse=True):  # "Drawn plan 10" before "... 1"
@@ -923,13 +955,15 @@ class _Run:
             for n in claims(text)
             if not backed(n, rated)
             for tool, found in self.unrated
-            if backed(n, numbers([found]))
+            if backed(n, numbers([_counted(found) if tool == FIND_ROOMS else found]))
         }
-        if not tools:
-            return None
-        if tools == {"get_takeoff"}:
-            return UNRATED_TAKEOFF
-        return UNRATED_BOTH if "get_takeoff" in tools else UNRATED
+        said = [FOUND_ONLY] if FIND_ROOMS in tools and not SAID_MISSED.search(text) else []
+        rest = tools - {FIND_ROOMS} if not SAID_UNRATED.search(text) else set[str]()
+        if rest == {"get_takeoff"}:
+            said.append(UNRATED_TAKEOFF)
+        elif rest:
+            said.append(UNRATED_BOTH if "get_takeoff" in rest else UNRATED)
+        return " ".join(said) or None
 
     def _view(
         self, kind: TurnKind, cited: list[str], number: Mapping[str, int], proposal_id: str | None
@@ -1029,6 +1063,14 @@ def _asked(found: Json, evs: set[str], given: Json) -> Json:
         disputed += _evs(check.get("disputed"))
     ordered = sorted(evs, key=lambda ev: int(ev.removeprefix("ev_")))
     return {"answer": given, "evs": ordered, "marks": marks, "disputed": disputed}
+
+
+def said_value(answered: Json) -> str:
+    """An `answered` value as the card shows it: at most 2 decimals, in the drawing's unit."""
+    value = answered.get("answer")
+    if isinstance(value, float):
+        value = f"{value:.2f}".rstrip("0").rstrip(".")
+    return f"{value}{SAID_UNIT.get(str(answered.get('unit')), '')}"
 
 
 def _answered(found: Any) -> Any:
@@ -1135,6 +1177,17 @@ def _json(text: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError:
         return None
+
+
+def _counted(found: str) -> str:
+    """A find_rooms result's own counts: `count` and the rooms listed, not its rooms_read,
+    unlabelled, pages or boxes, which count no rooms found with the label (review-644 S1)."""
+    given = _json(found)
+    if not isinstance(given, dict):
+        return found
+    listed: Any = given.get("rooms") or []  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    count: Any = given.get("count")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return json.dumps({"count": count, "listed": len(listed) if isinstance(listed, list) else 0})  # pyright: ignore[reportUnknownArgumentType]
 
 
 def _labels(found: Any) -> list[str]:

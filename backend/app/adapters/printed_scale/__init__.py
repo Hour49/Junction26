@@ -22,6 +22,7 @@ from app.adapters.beside import beside
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import PrintedSheet, trusted_dpi, with_printed
+from app.core.pipeline.printed_answer import printed_answers
 from app.core.pipeline.steps import Span, cached_words, timed
 from app.core.wording import SCALE_WORDS, count
 
@@ -37,11 +38,13 @@ class PrintedScale:
         reader: PrintedReader,
         files: DrawingFiles,
         kind_of: Callable[[str], str | None] = lambda path: None,
+        answers: bool = False,
     ) -> None:
         self._inner = inner
         self._reader = reader
         self._files = files
         self._kind_of = kind_of  # the content kind ingest gave a file, by its path
+        self._answers = answers  # PRINTED_TOTAL_ANSWERS: an exactly matching count is reported
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if not sheet.pages:
@@ -54,6 +57,8 @@ class PrintedScale:
         camera = self._kind_of(source.path) in CAMERA
         dpi = None if camera else trusted_dpi(stated_dpi(self._files.read(source.path)))
         result = with_printed(found, printed, sheet.pages, dpi)
+        if self._answers:
+            result = printed_answers(result, printed.printed_facts)
         steps = (*found.steps, _step(printed, span, result))
         return result.model_copy(update={"steps": steps})
 

@@ -18,8 +18,9 @@ scale and the stage-8 measurements to check the reading with.
   and length on the sheet (`takeoff.disputed_scale`); a ratio does not (it needs a resolution and
   can belong to another detail): the estimate stays the sheet's scale and no rule decides.
 - Printed facts. A printed count of an element class, of a room type or of all rooms becomes a
-  second value of that count (method `printed_total`). It never replaces the count read off the
-  drawing: no rule decides between the two, so a difference stays open for a person.
+  second value of that count (method `printed_total`). It does not replace the count read off the
+  drawing: no rule decides between the two, so a difference stays open for a person. With
+  PRINTED_TOTAL_ANSWERS=on, one that matches the count exactly is reported (printed_answer.py).
 """
 
 import math

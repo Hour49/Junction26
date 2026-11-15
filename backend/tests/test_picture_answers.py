@@ -131,11 +131,20 @@ def test_lengths_per_system_list_each_system() -> None:
 
 
 def test_a_system_no_run_is_labelled_as_is_said_with_the_runs_there_are() -> None:
-    said = str(_ask_p101("How long are the cold water pipes?").answer)
+    said = str(_ask_p101("How long are the gas pipes?").answer)
     assert said.splitlines()[0] == (
-        "No run on this sheet is labelled as cold water (not available); its runs by system:"
+        "No run on this sheet is labelled as gas (not available); its runs by system:"
     ), said
     assert "- S_PWC: 18.86 m" in said and "Total length" not in said
+
+
+def test_cold_and_hot_water_find_the_en_806_pwc_and_pwh_runs() -> None:
+    """pics-runs.md known gap: on the live P-101 "cold water" was said not labelled though S_PWC
+    is the potable water cold run (EN 806 PWC; PWH hot). Truth from the model: PWC 18.97 m."""
+    cold = str(_ask_p101("How long are the cold water pipes?").answer)
+    assert cold.startswith("S_PWC: 18.86 m") and "not available" not in cold, cold
+    hot = str(_ask_p101("What is the length of the hot water pipes?").answer)
+    assert hot.startswith("S_PWH_: 1.80 m") and "not available" not in hot, hot
 
 
 def test_a_picture_length_says_it_is_an_estimate_with_the_readers_measured_spread() -> None:

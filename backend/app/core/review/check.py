@@ -388,7 +388,7 @@ def carbon_checked(
         return level
     if check.failed is not None:
         return level.model_copy(
-            update={"text": f"{level.text} Gemini Carbon did not check it: {check.failed}."}
+            update={"text": f"{level.text} A second AI reader did not check it: {check.failed}."}
         )
     if carbon is None:
         return level
@@ -397,8 +397,8 @@ def carbon_checked(
             return level
         measured = round(100 * CARBON_AGREED.exact / CARBON_AGREED.units)
         text = (
-            "High confidence: checked by Carbon: two readers agree. Gemini Carbon, read as a "
-            f"second reader, counted the same here. On our validation plans, {measured}% of the "
+            "High confidence: two readers agree: a second AI reader counted the same here. On "
+            f"our validation plans, {measured}% of the "
             f"answers checked this way were exact ({CARBON_AGREED.exact} of "
             f"{CARBON_AGREED.units})." + ASK["high"]
         )
@@ -406,7 +406,7 @@ def carbon_checked(
     read = int(carbon) if isinstance(carbon, float) and carbon.is_integer() else carbon
     measured = round(100 * CARBON_DEMOTED.exact / CARBON_DEMOTED.units)
     text = (
-        f"Low confidence: Gemini Carbon, read as a second reader, counted {read} here. On our "
+        f"Low confidence: a second AI reader counted {read} here. On our "
         f"validation plans, {measured}% of the answers it counted differently were exact "
         f"({CARBON_DEMOTED.exact} of {CARBON_DEMOTED.units})." + ASK["low"]
     )

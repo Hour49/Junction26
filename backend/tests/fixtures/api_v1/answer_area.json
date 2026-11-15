@@ -44,7 +44,7 @@
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in"
     },
     "estimate": null,
     "first": null,

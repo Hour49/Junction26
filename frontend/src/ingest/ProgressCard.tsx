@@ -27,6 +27,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Tip } from '@/components/ui/tip';
 import { INGEST_TIPS } from '../shell/tips-ingest';
+import type { ConflictCounts } from './IngestFinished';
 
 const ICON = { done: '✓', working: '◌', waiting: '○' } as const;
 const DOT = {
@@ -87,19 +88,30 @@ function IndexSteps({ project }: { project: ProjectView }) {
 
 /** Screen 2's card (ingest.md "Pipeline view v5"): where the ingest is, live totals, the steps beside the files
  * moving through them by route, and once done what was read. */
+/** The list's own numbers, so the tile agrees with "1 conflict found · 1 settled by a rule" (QA R4-E6): the count
+ * alone while none is settled, "0 open of 1" once some are; "—" until the list has loaded. */
+export function conflictsStat(c: ConflictCounts | null): string {
+  if (c === null) return '—';
+  if (c.needsPerson === c.total) return String(c.total);
+  return `${String(c.needsPerson)} open of ${String(c.total)}`;
+}
+
 /** `now`: browser time of the last poll, so Elapsed moves with each answer. */
 /** `footer`: the finished screen's done line, the card's last row (ingest.md v3). */
 /** `actions`: the chat row, right under "Ready" so it is seen without scrolling (IN-88). */
+/** `conflicts`: what the conflicts list under the card reports (`onCounts`); null until it has loaded. */
 export function ProgressCard({
   project,
   now,
   footer,
   actions,
+  conflicts = null,
 }: {
   project: ProjectView;
   now: number;
   footer?: ReactNode;
   actions?: ReactNode;
+  conflicts?: ConflictCounts | null;
 }) {
   const { files, state } = project;
   const live = isLive(project);
@@ -120,7 +132,6 @@ export function ProgressCard({
       : i === low || i === step || (!index && busy.has(i))
         ? 'working'
         : 'waiting';
-  const conflicts = project.conflicts_open;
   return (
     <Card role="region" aria-label="Progress" className={cn(PANEL, 'grid gap-5')}>
       <div className="flex items-center justify-between gap-4">
@@ -165,8 +176,7 @@ export function ProgressCard({
           {live && done === 0 ? '—' : thingsFound(files)}
         </Stat>
         <Stat label="Conflicts" tip={PIPELINE_TIPS.conflicts}>
-          {/* the server counts them once the project is done; null until then */}
-          {conflicts == null ? '—' : conflicts}
+          {conflictsStat(conflicts)}
         </Stat>
         <Stat label="Flagged" tip={PIPELINE_TIPS.flagged}>
           {/* read but needing a look: a file on a route with no reader was not read (IN-116) */}
