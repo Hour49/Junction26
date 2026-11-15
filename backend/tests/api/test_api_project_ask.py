@@ -177,8 +177,8 @@ def test_a_fact_sheets_words_have_no_total_and_are_not_called_a_room_s_name(
     changed(monkeypatch, in_words)
     found = ask(client, project["id"], "How many doors are there?")
     assert found["total"] is None
-    # flat-a and flat-b answer a count: only the model's part is words
-    assert found["total_note"].startswith("1 drawing of 3 answered in words, so there is no total")
+    # flat-a, flat-b and flat-c (#427) answer a count: only the model's part is words
+    assert found["total_note"].startswith("1 drawing of 4 answered in words, so there is no total")
     assert "a room's name" not in found["total_note"]
 
 
@@ -197,8 +197,8 @@ def test_parts_in_different_units_have_no_total(
     changed(monkeypatch, in_feet)
     found = ask(client, project["id"], "What is the total indoor area?")
     assert found["total"] is None
-    # the sample's IFC model answers an area too (R4b-4), so three drawings answered
-    assert "3 drawings answered in different units, so there is no total" in found["total_note"]
+    # the sample's IFC model (R4b-4) and its walled flat-c answer an area too: four drawings
+    assert "4 drawings answered in different units, so there is no total" in found["total_note"]
 
 
 def test_a_total_is_sure_only_when_every_summed_part_is(

@@ -31,6 +31,7 @@ from app.core.evidence.step import file_evidence
 from app.core.ingest.groups import Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
+    SECOND_PATH,
     TEXT_KINDS,
     ContentKind,
     DrawingInfo,
@@ -86,7 +87,7 @@ from app.core.ingest.triage import (
     to_judge,
     triaged,
 )
-from app.core.pipeline.identify import sniff
+from app.core.pipeline.identify import sniff, sniff_raster
 from app.core.pipeline.model import DrawingFile
 from app.core.review.review import NotAllowedError
 from app.core.wording import kind_words
@@ -314,11 +315,15 @@ class IngestService:
         f<n+1> at its own name (a taken name gets "-2", "-3"...), then identified, triaged and
         read in the background, alone, as at upload; the project stays done. Returns the file,
         queued; poll the project for the rest."""
-        if sniff(data) not in ("png", "jpeg"):
-            raise UnsupportedFileError(f"{name}: only a png or jpeg image can be added")
+        if sniff(data) not in ("png", "jpeg") and sniff_raster(data) is None:
+            raise UnsupportedFileError(f"{name}: only a png, jpeg, tiff or webp image can be added")
         base = PurePosixPath(name.replace("\\", "/")).name
         if base in ("", ".", "..") or ":" in base or any(ord(char) < 32 for char in base):
             raise InvalidInputError(f"{name!r} is not a file name")
+        # A tiff or webp is written again as PNG, a sheet per tiff page, as at upload.
+        sheets = list(self._unpacker.entries(base, data))
+        if sheets[0].data is None:  # the first page cannot be read: nothing is added
+            raise UnsupportedFileError(f"{name}: {sheets[0].refused}")
         with self._lock:
             if project_id in self._live:
                 raise NotAllowedError(f"project {project_id} is still being read; try again")
@@ -326,16 +331,22 @@ class IngestService:
             if status.state != "done":
                 raise NotAllowedError(f"project {project_id} is {status.state}, not done")
             run = Run.resumed(status, traces)
-            path, stem, n = base, PurePosixPath(base), 1
-            while run.has(path):
-                n += 1
-                path = f"{stem.stem}-{n}{stem.suffix}"
-            run.add(Entry(path=path, size=len(data), data=data))
-            run.set(path, reason="added to the project, queued to be read")
+            added: list[tuple[str, bytes]] = []
+            for sheet in sheets:
+                path = _free_path(run, sheet.path)
+                if sheet.data is None:  # past the cap or unreadable, as at upload
+                    reason = sheet.refused or "not read"
+                    run.add(sheet.model_copy(update={"path": path}))
+                    run.stage(path, "unpack", "refused", 0.0, failure=reason)
+                    run.finish(path, "set_aside", reason)
+                    continue
+                run.add(Entry(path=path, size=len(sheet.data), data=sheet.data))
+                run.set(path, reason="added to the project, queued to be read")
+                added.append((path, sheet.data))
             self._live[project_id] = run
-        queued = run.file(path)
+        queued = run.file(added[0][0])
         self._save(run)
-        self._runner.submit(lambda: self._add(run, path, data))
+        self._runner.submit(lambda: self._add(run, added))
         return queued
 
     def _doubt_read_as_plan(
@@ -427,6 +438,7 @@ class IngestService:
         """Stages 1-3 for every file. Returns the drawing files by path, for the pipeline."""
         drawings: dict[str, DrawingFile] = {}
         first_of: dict[str, str] = {}  # sha256 -> the first path with that content
+        digests: dict[str, str] = {}  # path -> sha256 of the file read there
         entries = self._unpacker.entries(name, data)
         # Probed ahead in a bounded window, identified in upload order.
         probing: deque[tuple[str, bytes, Future[tuple[Probed, float, float, Triaged]]]] = deque()
@@ -437,6 +449,8 @@ class IngestService:
             if found is not None:
                 drawings[path] = found
             if probed.exception() is None:  # a failed probe was set aside by `_identify`
+                if (cut := probed.result()[0].cut) is not None:
+                    run.cut[path] = cut
                 for page in probed.result()[0].pages:
                     run.split.add(path)
                     self._page_file(run, path, page, first_of, frames, drawings)
@@ -449,9 +463,18 @@ class IngestService:
                     break
                 unpacked = self._ms(started)
                 if run.has(entry.path):
-                    entry = Entry(
-                        path=entry.path, size=entry.size, refused="a second file at a path"
-                    )
+                    # A copy of the file at that path is set aside, as before; another file of the
+                    # same name (a tiff and a png of one name, or two files in a zip) is read. Both
+                    # at a free name: `run` keeps its files by path, and a second record at a taken
+                    # path would take the first one's place (it stayed queued).
+                    same = entry.data is not None and digests.get(entry.path) == _digest(entry.data)
+                    free = _free_path(run, entry.path)
+                    if same or entry.data is None:
+                        entry = Entry(path=free, size=entry.size, refused=SECOND_PATH)
+                    else:
+                        entry = entry.model_copy(update={"path": free})
+                if entry.data is not None:
+                    digests.setdefault(entry.path, _digest(entry.data))
                 run.add(entry)
                 if entry.data is None:
                     reason = entry.refused or "not read"
@@ -482,10 +505,11 @@ class IngestService:
         (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload."""
         started = self._clock()
         named = page_path(path, page.number)
-        if run.has(named):
-            run.add(Entry(path=named, size=len(page.data), refused="a second file at a path"))
-            run.stage(named, "unpack", "refused", 0.0, failure="a second file at a path")
-            run.finish(named, "set_aside", "a second file at a path")
+        if run.has(named):  # set aside at a free name, not over the record of the file there
+            named = _free_path(run, named)
+            run.add(Entry(path=named, size=len(page.data), refused=SECOND_PATH))
+            run.stage(named, "unpack", "refused", 0.0, failure=SECOND_PATH)
+            run.finish(named, "set_aside", SECOND_PATH)
             return
         run.add(Entry(path=named, size=len(page.data), data=page.data))
         self._store.put_file(run.id, named, page.data)
@@ -632,7 +656,19 @@ class IngestService:
                 del self._live[run.id]
             run.done.set()
 
-    def _add(self, run: Run, path: str, data: bytes) -> None:
+    def _add(self, run: Run, added: list[tuple[str, bytes]]) -> None:
+        """Each added file (a tiff's pages are several) read in turn, then the project is free."""
+        try:
+            for path, data in added:
+                self._add_one(run, path, data)
+        finally:
+            self._save(run)
+            self._index(run.status())
+            with self._lock:
+                del self._live[run.id]
+            run.done.set()
+
+    def _add_one(self, run: Run, path: str, data: bytes) -> None:
         """Stages 1-3 for the added file, then its group, route and readers, as `_run` does for
         an upload of one file. A failure sets the file aside with why; the project stays done."""
         try:
@@ -663,10 +699,6 @@ class IngestService:
             run.finish(path, "set_aside", f"not ingested: {type(failure).__name__}")
         finally:
             self._save(run)
-            self._index(run.status())
-            with self._lock:
-                del self._live[run.id]
-            run.done.set()
 
     def _unread(self, run: Run, path: str, failure: str, line: str | None = None) -> None:
         """A re-read that failed: the file is set aside with why and back to triage's call (no
@@ -804,3 +836,17 @@ def _cut(file: FileStatus, ingesting: bool) -> dict[str, object]:
         return {"state": "set_aside", "reason": f"not ingested: {RESTARTED}"}
     triage = None if file.triage is None else read_as_plan(file.triage, None)
     return {"state": "set_aside", "reason": REREAD_CUT, "triage": triage}
+
+
+def _free_path(run: Run, path: str) -> str:
+    """`path`, or with "-2", "-3"... before its extension when the run already has a file there."""
+    taken = PurePosixPath(path)
+    free, number = path, 1
+    while run.has(free):
+        number += 1
+        free = str(taken.with_name(f"{taken.stem}-{number}{taken.suffix}"))
+    return free
+
+
+def _digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()

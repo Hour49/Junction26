@@ -204,12 +204,24 @@ class PictureReader(Protocol):
 
 | Setting | Values | Default |
 | --- | --- | --- |
-| `DISCIPLINE_PICTURES` | `off`, `vlm`, `vlm+template` | `off` (the lane writes nothing; triage is unchanged) |
+| `DISCIPLINE_PICTURES` | `off`, `template`; later `vlm`, `vlm+template` | `off` (the lane writes nothing; triage is unchanged) |
+| `DISCIPLINE_PICTURES_CACHE_DIR` | a folder | `../data/cache/discipline-pictures` |
 | `DISCIPLINE_PICTURES_PROVIDER` | `gemini`, `eu` (openvlm) | `gemini` |
 | `DISCIPLINE_PICTURES_MAX_USD` | USD per page | `0.15` |
 | `DISCIPLINE_PICTURES_NEAR` | fraction of the page diagonal | `0.006` |
 
 Only `app/settings.py` reads them, and only `app/composition.py` builds the readers.
+
+Built (2026-11-15, brief pic-1, local readers only, no VLM): `DISCIPLINE_PICTURES=template` wraps the raster
+extractor in `PictureLane` (`app/adapters/discipline_pictures/lane.py`). The drawing model passes through unchanged.
+A page triage names a routed discipline (and does not set aside) gets its legend and printed scale read by the local
+OCR (`legend.py`: the block under a "Legend" header; ink left of a label is its sample; a label with no ink is a
+group heading), symbols by `template`, coloured runs by `mask` (a run's size from its legend label). The `FactSheet`
+is kept by the page file's sha256 and is the `FactSource` the answers read (`composition._facts`). One reader per
+label, so every fact is held: Low, never sure. Facts are written sheet-wide (no storey, no system) plus the
+title's storey and each system's copies, so the fact answers (`answering/facts.py`) find them. A class the legend
+does not list is refused ("not read on this picture"), not 0. Not wired yet: vector PDFs (triage gives them no
+`Sheet`), the product's ask (it reads no fact sheet; only `Pipeline.answer_questions` does), the VLM readers.
 
 ## Cost per page
 

@@ -111,7 +111,8 @@ def test_the_csv_and_zip_carry_the_failed_checks(client: TestClient) -> None:
     reply = client.get(f"/api/projects/{project['id']}/issues.csv", params={"pack": "fi"})
     assert reply.status_code == 200
     assert 'filename="flat-fi-issues-fi.csv"' in reply.headers["content-disposition"]
-    rows = [row for row in csv.DictReader(io.StringIO(reply.text)) if row["check"]]
+    text = reply.content.decode("utf-8-sig")
+    rows = [row for row in csv.DictReader(io.StringIO(text)) if row["check"]]
     assert [(row["id"], row["check"]) for row in rows] == [
         (issue["id"], issue["check"]) for issue in issues
     ]

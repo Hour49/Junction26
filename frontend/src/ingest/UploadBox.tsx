@@ -14,12 +14,13 @@ import { Tip } from '@/components/ui/tip';
 import { INGEST_TIPS } from '../shell/tips-ingest';
 
 const ACCEPT = '.zip,.pdf,.png,.jpg,.jpeg,.ifc,.dxf,.svg,image/*';
-// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader.
+// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader. A DXF or SVG alone is set
+// aside (no page to place its model on, API.md), so its chip says it needs its PDF.
 const FORMATS = [
   'IFC models',
-  'DXF',
+  'DXF with its PDF',
   'PDF, drawn or scanned',
-  'SVG',
+  'SVG with its PDF',
   'PNG · JPG scans and photos',
   'ZIP archives',
 ];
