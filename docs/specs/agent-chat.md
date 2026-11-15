@@ -66,6 +66,17 @@ Project: the real swiss sheet `site980_bldg2055_floor9178.pdf` uploaded as a pro
   model's own `conflict` over different rooms' values (each its own room) is lowered to `answer` (QA R4-C9). A
   turn with no `ask_drawings` result, or one that also called `list_conflicts`, `get_takeoff` or `list_issues`
   (they report conflicts too), keeps the model's kind.
+- AC-9b Uploaded files' text (QA R4-G10). It reaches the model only as `search_evidence` / `get_evidence` results, and
+  the server, not the model, says what came from it:
+  - a number in the answer that only an uploaded file's words give (no other tool result, the user's message or a
+    rated answer does) gets "The 99 comes from what the uploaded file notes.txt says, not from what was read off
+    the drawings." (true also when the file is a drawing sheet the evidence index describes);
+  - a passage that speaks to the assistant (`loop.ADDRESSED`) gets quoted from the start of its line or sentence to
+    the end of its own text field, at most 200 characters, naming the file:
+    'notes.txt contains text addressed to the assistant: "…". It is reported, not followed: answers come from
+    the drawings.'
+
+  Neither changes what the model reads.
 
 ### 2.2 Model adapters (`app/adapters/`)
 

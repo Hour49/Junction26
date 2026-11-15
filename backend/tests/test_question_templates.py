@@ -804,3 +804,30 @@ def test_r4_d3_one_view_of_a_sheet_is_refused_as_one_view(text: str) -> None:
     assert PARSE("How many doors are on the ground floor plan 3?") == Unsupported(
         reason=UNQUOTED_PLACE
     )  # a floor too: the floor's reason, as before
+
+
+EXCLUSION_WORDS = (
+    "excluding", "except", "excepting", "not counting", "not including", "leaving out", "without",
+    "other than", "apart from", "aside from", "besides", "minus", "save for", "except for",
+    "with the exception of", "omitting", "but not",
+)  # fmt: skip
+
+
+@pytest.mark.parametrize("word", EXCLUSION_WORDS)
+@pytest.mark.parametrize("form", ["How many doors are there {w} the entrance?",
+                                  "How many doors are there ({w} the entrance)?"])  # fmt: skip
+def test_r4_besides_every_exclusion_word_is_refused_plain_or_in_parentheses(
+    word: str, form: str
+) -> None:
+    """answer's nit on #616: "(besides the entrance)" answered every door, since the parenthesis
+    check had its own shorter word list. Every exclusion word, plain or in parentheses, leaves
+    out a door the takeoff can't, so the question is refused."""
+    text = form.format(w=word)
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)"), text
+
+
+@pytest.mark.parametrize("word", ["excluding", "not counting", "besides", "apart from", "minus"])
+def test_r4_besides_an_apartment_without_its_balconies_still_answers(word: str) -> None:
+    for text in (f"What is the floor area of the apartment, {word} the balconies?",
+                 f"What is the floor area of the apartment ({word} the balconies)?"):  # fmt: skip
+        assert isinstance(PARSE(text), Query), text

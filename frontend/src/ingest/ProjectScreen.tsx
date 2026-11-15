@@ -10,6 +10,7 @@ import {
   isLive,
   keepPolling,
   nameParts,
+  plural,
   sizeText,
   uploadedKey,
 } from './ingest';
@@ -124,27 +125,65 @@ export function TitleRow({
   );
 }
 
-/** A done project with no drawings: every file and skipped entry with why it was not read (IN-72). */
+/** A reason this many entries or more share is one row with a few example paths (IN-128, QA R4-G4). */
+const GROUP_AT = 4;
+const EXAMPLES = 3;
+/** Rows the "Nothing read" card lists; the entries past them are counted, with the link to Documents. */
+export const NOTHING_ROWS = 12;
+
+type WhyRow = { reason: string | null; paths: string[] };
+
+/** Each entry its own row, but a reason shared by `GROUP_AT` or more entries one row for all of them. */
+export function whyRows(why: readonly { path: string; reason?: string | null }[]): WhyRow[] {
+  const byReason = new Map<string, string[]>();
+  for (const w of why) {
+    const paths = byReason.get(w.reason ?? '');
+    if (paths) paths.push(w.path);
+    else byReason.set(w.reason ?? '', [w.path]);
+  }
+  return [...byReason].flatMap(([reason, paths]) =>
+    paths.length >= GROUP_AT
+      ? [{ reason: reason || null, paths }]
+      : paths.map((p) => ({ reason: reason || null, paths: [p] })),
+  );
+}
+
+/** A done project with no drawings: every file and skipped entry with why it was not read (IN-72), entries with
+ * the same reason grouped and the rows capped (IN-128). */
 function NothingRead({ projectId, project }: { projectId: string; project: ProjectView }) {
   const paths = new Set(project.files.map((f) => f.path));
   const why = [
     ...project.files.map((f) => ({ path: f.path, reason: f.reason })),
     ...project.skipped.filter((s) => !paths.has(s.path)),
   ];
+  const rows = whyRows(why);
+  const shown = rows.slice(0, NOTHING_ROWS);
+  const more = rows.slice(NOTHING_ROWS).reduce((n, r) => n + r.paths.length, 0);
   return (
     <Card role="region" aria-label="Nothing read" className={cn(PANEL, 'grid gap-4')}>
       <h2 className="v-h2">Nothing could be read from this upload</h2>
       {why.length === 0 && <p>There were no files in it.</p>}
       {why.length > 0 && (
         <ul className="grid gap-3">
-          {why.map((w) => (
-            <li key={w.path} className="grid gap-1 [overflow-wrap:anywhere]">
-              <b>{w.path}</b>
-              {w.reason && <span className={MUTED}>{w.reason}</span>}
-            </li>
-          ))}
+          {shown.map((w) =>
+            w.paths.length === 1 ? (
+              <li key={w.paths[0]} className="grid gap-1 [overflow-wrap:anywhere]">
+                <b>{w.paths[0]}</b>
+                {w.reason && <span className={MUTED}>{w.reason}</span>}
+              </li>
+            ) : (
+              <li key={`group:${w.reason ?? ''}`} className="grid gap-1 [overflow-wrap:anywhere]">
+                <b>{plural(w.paths.length, 'file')}</b>
+                {w.reason && <span className={MUTED}>{w.reason}</span>}
+                <span className={MUTED}>
+                  {`For example: ${w.paths.slice(0, EXAMPLES).join(', ')}`}
+                </span>
+              </li>
+            ),
+          )}
         </ul>
       )}
+      {more > 0 && <p>{`And ${plural(more, 'more file')}.`}</p>}
       {project.files.some((f) => f.kind === 'dxf' && f.state === 'set_aside') && (
         // with no drawing at all, a DXF was set aside for want of a page to place it on
         <p>
@@ -261,6 +300,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
           <ProgressCard
             project={project}
             now={at}
+            conflicts={counts}
             actions={<ChatRow projectId={projectId} project={project} counts={counts} />}
             footer={<DoneLine projectId={projectId} project={project} counts={counts} />}
           />

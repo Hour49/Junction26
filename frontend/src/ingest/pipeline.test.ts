@@ -21,8 +21,10 @@ import {
   thingsFound,
   triageReaders,
   unread,
+  triageEnded,
+  triageRan,
 } from './pipeline';
-import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
+import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must, sampleRun } from './testing';
 
 const base = must(project.files[0]);
 const file = (id: string, changes: Partial<FileStatus>): FileStatus => ({
@@ -207,7 +209,9 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
       chipCovers('symbol detector', { id: null, label: 'Symbol detector, 8 views' }, known),
     ).toBe(true);
     // a chip with no known id (or a step label as a chip): label only
-    expect(chipSteps('scale from door sizes', known)).toEqual([]);
+    expect(chipSteps('tiles for big sheets', known)).toEqual([]);
+    // the door-size scale estimate has its own step since #651
+    expect(chipSteps('scale from door sizes', known)).toEqual(['prior_scale']);
     expect(chipCovers('Wall tracer', { id: 'walls', label: 'Wall tracer' }, known)).toBe(true);
   });
 
@@ -224,7 +228,10 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     expect(chipRan('Gemini reader', [r('carbon', 0, 2)], known)).toBe('skipped');
     expect(chipRan('Gemini reader', [r('probe', 3)], known)).toBe('absent');
     expect(chipRan('Gemini reader', undefined, known)).toBeNull(); // an older project
-    expect(chipRan('scale from door sizes', [r('probe', 3)], known)).toBeNull(); // no known id
+    expect(chipRan('tiles for big sheets', [r('probe', 3)], known)).toBeNull(); // no known id
+    // the door-size scale (#651): skipped when a scale was read, no page, or the doors were not read
+    expect(chipRan('scale from door sizes', [r('prior_scale', 1)], known)).toBe('ran');
+    expect(chipRan('scale from door sizes', [r('prior_scale', 0, 2)], known)).toBe('skipped');
   });
 
   it('IN-102 things found: plain counts only, each drawing once (not its other renderings)', () => {
@@ -356,5 +363,46 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     expect(readDrawings({ drawings: [{ ...shot, not_a_drawing: false }], readers })).toHaveLength(
       1,
     );
+  });
+
+  it('IN-127 triageRan: each sorting chip from the step ids that really ran (the demo sample)', () => {
+    const done = sampleRun('done');
+    const chips = [
+      'scan or photo (Gemini)',
+      'sheet kind (Gemini)',
+      'describes sheets that are not plans (Gemini)',
+      'keep or set aside (rules)',
+    ];
+    expect(chips.map((c) => triageRan(c, done))).toEqual(['ran', 'ran', 'ran', 'ran']);
+    // mid-run: the files' identify steps ended on some files; the last phase has not begun
+    const mid = sampleRun('mid');
+    expect(chips.map((c) => triageRan(c, mid))).toEqual(['ran', 'ran', null, null]);
+    expect(chips.map((c) => triageEnded(c, mid))).toEqual([false, false, false, false]);
+    expect(chips.map((c) => triageEnded(c, done))).toEqual([true, true, true, true]);
+    // running: a file in its classifier step; the describer's index step started
+    const files = mid.files.map((f, i) =>
+      i === 0 ? { ...f, state: 'running' as const, step_id: 'classifier' } : f,
+    );
+    expect(triageRan('sheet kind (Gemini)', { ...mid, files })).toBe('running');
+    const describing = done.index_steps.map((s) =>
+      s.id === 'describe' ? { ...s, state: 'running' as const } : s,
+    );
+    expect(triageRan(chips[2] ?? '', { ...done, index_steps: describing })).toBe('running');
+    // only skipped, or not there at all
+    const judged = done.index_steps.map((s) =>
+      s.id === 'judge' ? { ...s, state: 'skipped' as const } : s,
+    );
+    expect(triageRan('keep or set aside (rules)', { ...done, index_steps: judged })).toBe(
+      'skipped',
+    );
+    const noDescribe = done.index_steps.filter((s) => s.id !== 'describe');
+    expect(triageRan(chips[2] ?? '', { ...done, index_steps: noDescribe })).toBe('absent');
+    const ran = { raster: [{ id: 'classifier', label: 'x', done: 0, skipped: 2, failed: 0 }] };
+    expect(triageRan('sheet kind (Gemini)', { ...done, ran })).toBe('skipped');
+    expect(triageRan('plan or not (rules)', { ...done, ran: { raster: [] } })).toBe('absent');
+    // an older server or record: nothing to tell
+    expect(triageRan('sheet kind (Gemini)', { ...done, ran: undefined })).toBeNull();
+    expect(triageRan(chips[3] ?? '', { ...done, index_steps: [] })).toBeNull();
+    expect(triageRan(chips[3] ?? '', { files: done.files, ran: done.ran })).toBeNull();
   });
 });

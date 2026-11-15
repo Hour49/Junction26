@@ -5,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
 import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
-import { LANE_ROWS, splitPath } from './RouteLanes';
-import { ProgressCard } from './ProgressCard';
+import { LANE_ROWS, nameEnds, splitPath } from './RouteLanes';
+import { ProgressCard, conflictsStat } from './ProgressCard';
 import type { RanStep } from './pipeline';
-import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
+import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must, sampleRun } from './testing';
 
 beforeEach(stubResizeObserver);
 afterEach(cleanup);
@@ -70,6 +70,8 @@ const running: ProjectView = {
       stage: null,
     }),
   ],
+  // as the API lists them: one entry per drawing read off the files (backend api/views.py `drawings_of`)
+  drawings: [{ ...must(project.drawings[0]), drawing_id: 'd1', route: 'vector', state: 'ready' }],
 };
 
 const lane = (name: string) => screen.getByRole('region', { name });
@@ -317,9 +319,32 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(statOf('Flagged')).toBe('0');
     expect(statOf('Cost')).toBe('$0.03');
     cleanup();
-    render(<ProgressCard project={{ ...project, conflicts_open: 2 }} now={Date.now()} />);
+    // the conflicts list's counts, never the server's conflicts_open (QA R4-E6)
+    render(
+      <ProgressCard
+        project={{ ...project, conflicts_open: 0 }}
+        conflicts={{ total: 2, needsPerson: 2 }}
+        now={Date.now()}
+      />,
+    );
     expect(statOf('Conflicts')).toBe('2');
     expect(statOf('Flagged')).toBe('1');
+  });
+
+  it('IN-108 (QA R4-E6) Conflicts: "0 open of 1" once one is settled, the count alone otherwise', () => {
+    expect(conflictsStat(null)).toBe('—');
+    expect(conflictsStat({ total: 0, needsPerson: 0 })).toBe('0');
+    expect(conflictsStat({ total: 3, needsPerson: 3 })).toBe('3');
+    expect(conflictsStat({ total: 1, needsPerson: 0 })).toBe('0 open of 1');
+    expect(conflictsStat({ total: 3, needsPerson: 1 })).toBe('1 open of 3');
+    render(
+      <ProgressCard
+        project={{ ...project, conflicts_open: 0 }}
+        conflicts={{ total: 1, needsPerson: 0 }}
+        now={Date.now()}
+      />,
+    );
+    expect(statOf('Conflicts')).toBe('0 open of 1');
   });
 
   it('IN-109 the last phase: Index with what it runs (index_steps), named from the server phase', () => {
@@ -395,6 +420,41 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
     expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');
+  });
+
+  it('IN-129 (QA R4-A2) two names with a long shared start keep their ends and extensions; 24 px links (R4-E2)', () => {
+    expect(nameEnds('site1000_bldg2082_floor3_plan.dxf')).toEqual([
+      'site1000_bldg2082_flo',
+      'or3_plan.dxf',
+    ]);
+    expect(nameEnds('plan.pdf')).toEqual(['', 'plan.pdf']);
+    expect(nameEnds('README')).toEqual(['', 'README']); // no extension: the last 8 characters
+    const stem = 'site1000_bldg2082_floor3_ground_floor_plan_rev_C';
+    render(
+      <ProgressCard
+        project={{
+          ...running,
+          files: [
+            file('d', { route: 'raster', path: `drawings/${stem}.dxf` }),
+            file('p', { route: 'raster', path: `drawings/${stem}.pdf` }),
+          ],
+        }}
+        now={Date.now()}
+      />,
+    );
+    const ends = ['dxf', 'pdf'].map((ext) => {
+      const link = within(lane('Image')).getByRole('link', { name: `drawings/${stem}.${ext}` });
+      expect(link.className).toContain('min-h-6'); // a 24 px tap target
+      const name = must(link.querySelector('.ingest-name'));
+      expect(name.textContent).toBe(`${stem}.${ext}`); // the whole name, in two parts
+      expect(name.className).toContain('shrink-0'); // IN-113: the folder still gives way first
+      expect(must(name.querySelector('.ingest-name-start')).className).toContain('truncate');
+      const end = must(name.querySelector('.ingest-name-end'));
+      expect(end.className).toContain('shrink-0');
+      expect(end.className).not.toContain('truncate');
+      return end.textContent;
+    });
+    expect(ends).toEqual(['an_rev_C.dxf', 'an_rev_C.pdf']);
   });
 
   it('IN-116 (QA R2-A1) a file on a route with no reader is not a drawing ready nor read', () => {
@@ -513,6 +573,7 @@ describe('ProgressCard: pipeline view v5', () => {
         ranStep('rooms', { done: 1 }),
         ranStep('carbon', { skipped: 1 }),
         ranStep('double_check:l1', { done: 1 }),
+        ranStep('prior_scale', { skipped: 1 }),
       ],
     };
     // a finished project opened fresh: nothing was seen running, `ran` says what ran
@@ -532,7 +593,7 @@ describe('ProgressCard: pipeline view v5', () => {
       'Gemini cross-check · did not run',
       'double check by 2 more readers✓',
       'Gemini reader · not needed here', // only skipped: the sheet had enough symbols
-      'scale from door sizes', // no step of its own: nothing to tell
+      'scale from door sizes · not needed here', // `prior_scale` only skipped: a scale was read
     ]);
     const dim = must(
       within(lane('Image'))
@@ -560,6 +621,65 @@ describe('ProgressCard: pipeline view v5', () => {
       />,
     );
     expect(chipsOf('Image').join()).not.toMatch(/did not run|not needed here|✓/);
+  });
+
+  it('IN-126 (trace e2e) a lane counts each drawing read once, never one called not a drawing', () => {
+    // the demo sample: the image lane has the scan, its copy (the same drawing), the plan photo and the site photo
+    render(<ProgressCard project={sampleRun('done')} now={Date.now()} />);
+    expect(lane('Image').textContent).toContain('4 files · 2 drawings read');
+    expect(lane('Drawn PDF').textContent).toContain('4 files · 3 drawings read');
+    expect(lane('IFC model').textContent).toContain('1 file · 1 drawing read');
+    expect(statOf('Drawings ready')).toBe('6 / 7'); // the lanes add up to it
+  });
+
+  it('IN-127 the sorting chips tick from the steps that ran, and dim once theirs cannot run', () => {
+    const sortingChips = () =>
+      within(screen.getByRole('list', { name: 'Sorting' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent);
+    const done = sampleRun('done');
+    render(<ProgressCard project={done} now={Date.now()} />);
+    expect(sortingChips()).toEqual([
+      'scan or photo (Gemini)✓',
+      'sheet kind (Gemini)✓',
+      'describes sheets that are not plans (Gemini)✓',
+      'keep or set aside (rules)✓',
+    ]);
+    cleanup();
+    // mid-run: what ran on the files so far is ticked, the last phase's steps are still to come, nothing dimmed
+    render(<ProgressCard project={sampleRun('mid')} now={Date.now()} />);
+    expect(sortingChips()).toEqual([
+      'scan or photo (Gemini)✓',
+      'sheet kind (Gemini)✓',
+      'describes sheets that are not plans (Gemini)',
+      'keep or set aside (rules)',
+    ]);
+    cleanup();
+    // a done upload whose judge only skipped and with no describe step: dimmed, saying why
+    const index_steps = done.index_steps
+      .filter((s) => s.id !== 'describe')
+      .map((s) => (s.id === 'judge' ? { ...s, state: 'skipped' as const } : s));
+    render(<ProgressCard project={{ ...done, index_steps }} now={Date.now()} />);
+    expect(sortingChips().slice(2)).toEqual([
+      'describes sheets that are not plans (Gemini) · did not run',
+      'keep or set aside (rules) · not needed here',
+    ]);
+    const sorting = screen.getByRole('list', { name: 'Sorting' });
+    const dim = must(
+      within(sorting)
+        .getByText(/did not run/)
+        .closest('li'),
+    );
+    expect(dim.dataset.dimmed).toBe('true');
+    cleanup();
+    // a file in its classifier step: the sheet-kind chip is the one running
+    const files = sampleRun('mid').files.map((f) =>
+      f.path === 'photos/site.jpg'
+        ? { ...f, stage: 'identify' as const, step_id: 'classifier' }
+        : f,
+    );
+    render(<ProgressCard project={{ ...sampleRun('mid'), files }} now={Date.now()} />);
+    expect(sortingChips()[1]).toBe('running: sheet kind (Gemini)');
   });
 
   it('IN-125 a running last-phase step reads as running, not as a bare label', () => {

@@ -1,0 +1,968 @@
+{
+  "note": "The demo sample run on main 9e08a439 (2026-11-15 05:38, 0 USD), trimmed to what the lanes read: ids, paths, states, ran, index_steps, readers.",
+  "done": {
+    "id": "117d844b5e60",
+    "state": "done",
+    "phase": null,
+    "readers": {
+      "bim": "ifc",
+      "cad": "hello",
+      "vector": "pdf",
+      "raster": "composite",
+      "raster_components": "elements=decisions-s1536:detector-v8:C-yolo26l,plans=decisions-s1536:detector-v8:C-yolo26l,door=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,window=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,sink=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,toilet=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,shower=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,bathtub=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,rooms=regionrooms",
+      "tables": "pdf",
+      "second_counter": "ifc",
+      "rectifier": "r3",
+      "decisions_kind": "True",
+      "raster_scale": "priors",
+      "raster_printed_scale": "carbon",
+      "room_words": "swiss+generic:v1",
+      "floor_plans": "rooms:v2",
+      "double_check_readers": "l1=detector:C-yolo26l,m1=detector:C-yolo26m",
+      "carbon_reader": "large+few3+snap+storey:dcb03cd7955c",
+      "carbon_levels": "demote:dcb03cd7955c",
+      "triage": "classifier=off, sheet_kind=carbon, describer=carbon, judge=rules",
+      "evidence_scope": "all_non_plan"
+    },
+    "counts": {
+      "ready": 6,
+      "flagged": 3,
+      "set_aside": 1,
+      "text_only": 2
+    },
+    "ran": {
+      "cad": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "bim": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "ifc",
+          "label": "IFC model reader",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "vector": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "pages",
+          "label": "Page size",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "vector",
+          "label": "Drawn-PDF reader (Swiss plan rules)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "tables",
+          "label": "Schedule tables (PDF)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "room_areas",
+          "label": "Room areas: printed vs measured",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "raster": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "pages",
+          "label": "Page size",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "printed_scale",
+          "label": "Printed scale and counts (Gemini Carbon)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "carbon_check",
+          "label": "Gemini Carbon check (never counted)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "decisions",
+          "label": "Gemini Decisions count swap (1536 px) over Symbol detector, 8 views",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter",
+          "label": "Symbol detector, 8 views + count arbiter",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter/base",
+          "label": "Symbol detector (arbiter base)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "rooms",
+          "label": "Room reader (Gemini + region model)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "double_check:l1",
+          "label": "Double-check reader l1: Symbol detector",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "double_check:m1",
+          "label": "Double-check reader m1: Symbol detector",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter/second",
+          "label": "Symbol detector (arbiter second read)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter/pick",
+          "label": "Count arbiter (L1 page counts)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "carbon",
+          "label": "Gemini Carbon reader (things drawn)",
+          "done": 1,
+          "skipped": 3,
+          "failed": 0
+        },
+        {
+          "id": "rectifier",
+          "label": "Photo rectifier (paper edges)",
+          "done": 2,
+          "skipped": 0,
+          "failed": 0
+        }
+      ]
+    },
+    "index_steps": [
+      {
+        "id": "judge",
+        "label": "Relevance judge",
+        "did": "0 files judged",
+        "at_ms": 0.019928008317947388,
+        "ms": 1.0555469989776611,
+        "cost_usd": 0,
+        "state": "done",
+        "found": {}
+      },
+      {
+        "id": "describe",
+        "label": "Files for the evidence index",
+        "did": "4 files indexed: 1 described, 1 listed by name, 2 by their text",
+        "at_ms": 1.109277993440628,
+        "ms": 8.48073399066925,
+        "cost_usd": 0,
+        "state": "done",
+        "found": {
+          "described": 1,
+          "listed": 1,
+          "text": 2
+        }
+      },
+      {
+        "id": "evidence",
+        "label": "Evidence index",
+        "did": "the index is in step with the project",
+        "at_ms": 11.036107003688812,
+        "ms": 2539.9922160208225,
+        "cost_usd": 0,
+        "state": "done",
+        "found": {}
+      }
+    ],
+    "files": [
+      {
+        "id": "f1",
+        "path": "plans/flat-a.pdf",
+        "kind": "pdf_vector",
+        "state": "ready",
+        "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
+        "group": "plans/flat-a",
+        "route": "vector",
+        "source": "plans/flat-a.pdf",
+        "drawing_id": "609d7100453662c7",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 5
+        }
+      },
+      {
+        "id": "f2",
+        "path": "plans/flat-a.png",
+        "kind": "png_plan",
+        "state": "ready",
+        "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
+        "group": "plans/flat-a",
+        "route": "vector",
+        "source": "plans/flat-a.pdf",
+        "drawing_id": "13a605aad2c56525",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 5
+        }
+      },
+      {
+        "id": "f3",
+        "path": "plans/flat-b.pdf",
+        "kind": "pdf_vector",
+        "state": "flagged",
+        "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+        "group": "plans/flat-b",
+        "route": "vector",
+        "source": "plans/flat-b.pdf",
+        "drawing_id": "9b28f1bd7c01976f",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 5
+        }
+      },
+      {
+        "id": "f4",
+        "path": "plans/flat-c.pdf",
+        "kind": "pdf_vector",
+        "state": "ready",
+        "reason": "read on the drawn PDF route: 2 elements, 3 rooms, scale read from the sheet",
+        "group": "plans/flat-c",
+        "route": "vector",
+        "source": "plans/flat-c.pdf",
+        "drawing_id": "9a42c7a82c096631",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 1,
+          "window": 1,
+          "plan": 1,
+          "room": 3
+        }
+      },
+      {
+        "id": "f5",
+        "path": "scans/ground-floor.png",
+        "kind": "png_plan",
+        "state": "ready",
+        "reason": "read on the image route: 4 elements, 3 rooms, scale estimated",
+        "group": "scans/ground-floor",
+        "route": "raster",
+        "source": "scans/ground-floor.png",
+        "drawing_id": "5c50b8d7e7c637d9",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 3
+        }
+      },
+      {
+        "id": "f6",
+        "path": "scans/ground-floor-copy.png",
+        "kind": "png_plan",
+        "state": "ready",
+        "reason": "read on the image route: 4 elements, 3 rooms, scale estimated",
+        "group": "scans/ground-floor-copy",
+        "route": "raster",
+        "source": "scans/ground-floor-copy.png",
+        "drawing_id": "5c50b8d7e7c637d9",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 3
+        }
+      },
+      {
+        "id": "f7",
+        "path": "photos/plan-photo.jpg",
+        "kind": "photo_plan",
+        "state": "flagged",
+        "reason": "a phone photo, rectified by paper edges: check the paper's corners (4 elements, 3 rooms, scale estimated)",
+        "group": "photos/plan-photo",
+        "route": "raster",
+        "source": "photos/plan-photo.jpg",
+        "drawing_id": "76e6295a74ab4d6a",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 3
+        }
+      },
+      {
+        "id": "f8",
+        "path": "photos/site.jpg",
+        "kind": "photo_plan",
+        "state": "flagged",
+        "reason": "the sheet may not be a floor plan: it looks like not a drawing; a phone photo, rectified by page flattening: check the paper's corners; counted by Gemini Carbon, an AI reader: check its marks on the plan (0 elements, 0 rooms, no scale on the sheet)",
+        "group": "photos/site",
+        "route": "raster",
+        "source": "photos/site.jpg",
+        "drawing_id": "6ab882d5a108bdb7",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 0,
+          "window": 0,
+          "plan": 0,
+          "room": 0
+        }
+      },
+      {
+        "id": "f9",
+        "path": "model/house.ifc",
+        "kind": "ifc",
+        "state": "ready",
+        "reason": "read on the BIM model route: 12 model objects",
+        "group": "model/house",
+        "route": "bim",
+        "source": "model/house.ifc",
+        "drawing_id": "cdb49d7952520ff5",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 3,
+          "room": 2
+        }
+      },
+      {
+        "id": "f10",
+        "path": "cad/detail.dxf",
+        "kind": "dxf",
+        "state": "set_aside",
+        "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
+        "group": "cad/detail",
+        "route": "cad",
+        "source": "cad/detail.dxf",
+        "drawing_id": null,
+        "stage": "route",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      },
+      {
+        "id": "f11",
+        "path": "docs/specification.pdf",
+        "kind": "pdf_text",
+        "state": "text_only",
+        "reason": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
+        "group": null,
+        "route": null,
+        "source": null,
+        "drawing_id": null,
+        "stage": "identify",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      },
+      {
+        "id": "f12",
+        "path": "docs/notes.txt",
+        "kind": "text",
+        "state": "text_only",
+        "reason": "plain text, 80 bytes",
+        "group": null,
+        "route": null,
+        "source": null,
+        "drawing_id": null,
+        "stage": "identify",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      }
+    ],
+    "drawings": [
+      {
+        "drawing_id": "609d7100453662c7",
+        "route": "vector",
+        "file": "plans/flat-a.pdf",
+        "state": "ready"
+      },
+      {
+        "drawing_id": "9b28f1bd7c01976f",
+        "route": "vector",
+        "file": "plans/flat-b.pdf",
+        "state": "flagged"
+      },
+      {
+        "drawing_id": "9a42c7a82c096631",
+        "route": "vector",
+        "file": "plans/flat-c.pdf",
+        "state": "ready"
+      },
+      {
+        "drawing_id": "5c50b8d7e7c637d9",
+        "route": "raster",
+        "file": "scans/ground-floor.png",
+        "state": "ready"
+      },
+      {
+        "drawing_id": "76e6295a74ab4d6a",
+        "route": "raster",
+        "file": "photos/plan-photo.jpg",
+        "state": "flagged"
+      },
+      {
+        "drawing_id": "6ab882d5a108bdb7",
+        "route": "raster",
+        "file": "photos/site.jpg",
+        "state": "flagged",
+        "not_a_drawing": true
+      },
+      {
+        "drawing_id": "cdb49d7952520ff5",
+        "route": "bim",
+        "file": "model/house.ifc",
+        "state": "ready"
+      }
+    ],
+    "expected_drawings": 7
+  },
+  "mid": {
+    "state": "running",
+    "phase": "files",
+    "ran": {
+      "cad": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "bim": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "ifc",
+          "label": "IFC model reader",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "vector": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "pages",
+          "label": "Page size",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "vector",
+          "label": "Drawn-PDF reader (Swiss plan rules)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "tables",
+          "label": "Schedule tables (PDF)",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "room_areas",
+          "label": "Room areas: printed vs measured",
+          "done": 4,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "raster": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "classifier",
+          "label": "Triage: is it a floor plan?",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "pages",
+          "label": "Page size",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "printed_scale",
+          "label": "Printed scale and counts (Gemini Carbon)",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "carbon_check",
+          "label": "Gemini Carbon check (never counted)",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "decisions",
+          "label": "Gemini Decisions count swap (1536 px) over Symbol detector, 8 views",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter",
+          "label": "Symbol detector, 8 views + count arbiter",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter/base",
+          "label": "Symbol detector (arbiter base)",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "rooms",
+          "label": "Room reader (Gemini + region model)",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "double_check:l1",
+          "label": "Double-check reader l1: Symbol detector",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "double_check:m1",
+          "label": "Double-check reader m1: Symbol detector",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter/second",
+          "label": "Symbol detector (arbiter second read)",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "arbiter/pick",
+          "label": "Count arbiter (L1 page counts)",
+          "done": 1,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "id": "carbon",
+          "label": "Gemini Carbon reader (things drawn)",
+          "done": 0,
+          "skipped": 1,
+          "failed": 0
+        }
+      ]
+    },
+    "index_steps": [],
+    "files": [
+      {
+        "id": "f1",
+        "path": "plans/flat-a.pdf",
+        "kind": "pdf_vector",
+        "state": "ready",
+        "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
+        "group": "plans/flat-a",
+        "route": "vector",
+        "source": "plans/flat-a.pdf",
+        "drawing_id": "609d7100453662c7",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 5
+        }
+      },
+      {
+        "id": "f2",
+        "path": "plans/flat-a.png",
+        "kind": "png_plan",
+        "state": "ready",
+        "reason": "read on the drawn PDF route: 7 elements, 5 rooms, scale read from the sheet",
+        "group": "plans/flat-a",
+        "route": "vector",
+        "source": "plans/flat-a.pdf",
+        "drawing_id": "13a605aad2c56525",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 5
+        }
+      },
+      {
+        "id": "f3",
+        "path": "plans/flat-b.pdf",
+        "kind": "pdf_vector",
+        "state": "flagged",
+        "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+        "group": "plans/flat-b",
+        "route": "vector",
+        "source": "plans/flat-b.pdf",
+        "drawing_id": "9b28f1bd7c01976f",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 5
+        }
+      },
+      {
+        "id": "f4",
+        "path": "plans/flat-c.pdf",
+        "kind": "pdf_vector",
+        "state": "ready",
+        "reason": "read on the drawn PDF route: 2 elements, 3 rooms, scale read from the sheet",
+        "group": "plans/flat-c",
+        "route": "vector",
+        "source": "plans/flat-c.pdf",
+        "drawing_id": "9a42c7a82c096631",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 1,
+          "window": 1,
+          "plan": 1,
+          "room": 3
+        }
+      },
+      {
+        "id": "f5",
+        "path": "scans/ground-floor.png",
+        "kind": "png_plan",
+        "state": "ready",
+        "reason": "read on the image route: 4 elements, 3 rooms, scale estimated",
+        "group": "scans/ground-floor",
+        "route": "raster",
+        "source": "scans/ground-floor.png",
+        "drawing_id": "5c50b8d7e7c637d9",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 2,
+          "plan": 1,
+          "room": 3
+        }
+      },
+      {
+        "id": "f6",
+        "path": "scans/ground-floor-copy.png",
+        "kind": "png_plan",
+        "state": "running",
+        "reason": "",
+        "group": "scans/ground-floor-copy",
+        "route": "raster",
+        "source": "scans/ground-floor-copy.png",
+        "drawing_id": null,
+        "stage": "extract",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      },
+      {
+        "id": "f7",
+        "path": "photos/plan-photo.jpg",
+        "kind": "photo_plan",
+        "state": "running",
+        "reason": "",
+        "group": "photos/plan-photo",
+        "route": "raster",
+        "source": "photos/plan-photo.jpg",
+        "drawing_id": null,
+        "stage": "extract",
+        "step": "Double-check reader m1: Symbol detector",
+        "step_id": "double_check:m1",
+        "takeoff": {}
+      },
+      {
+        "id": "f8",
+        "path": "photos/site.jpg",
+        "kind": "photo_plan",
+        "state": "running",
+        "reason": "",
+        "group": "photos/site",
+        "route": "raster",
+        "source": "photos/site.jpg",
+        "drawing_id": null,
+        "stage": "extract",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      },
+      {
+        "id": "f9",
+        "path": "model/house.ifc",
+        "kind": "ifc",
+        "state": "ready",
+        "reason": "read on the BIM model route: 12 model objects",
+        "group": "model/house",
+        "route": "bim",
+        "source": "model/house.ifc",
+        "drawing_id": "cdb49d7952520ff5",
+        "stage": "write",
+        "step": null,
+        "step_id": null,
+        "takeoff": {
+          "door": 2,
+          "window": 3,
+          "room": 2
+        }
+      },
+      {
+        "id": "f10",
+        "path": "cad/detail.dxf",
+        "kind": "dxf",
+        "state": "set_aside",
+        "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
+        "group": "cad/detail",
+        "route": "cad",
+        "source": "cad/detail.dxf",
+        "drawing_id": null,
+        "stage": "route",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      },
+      {
+        "id": "f11",
+        "path": "docs/specification.pdf",
+        "kind": "pdf_text",
+        "state": "text_only",
+        "reason": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
+        "group": null,
+        "route": null,
+        "source": null,
+        "drawing_id": null,
+        "stage": "identify",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      },
+      {
+        "id": "f12",
+        "path": "docs/notes.txt",
+        "kind": "text",
+        "state": "text_only",
+        "reason": "plain text, 80 bytes",
+        "group": null,
+        "route": null,
+        "source": null,
+        "drawing_id": null,
+        "stage": "identify",
+        "step": null,
+        "step_id": null,
+        "takeoff": {}
+      }
+    ],
+    "drawings": [
+      {
+        "drawing_id": "609d7100453662c7",
+        "route": "vector",
+        "file": "plans/flat-a.pdf",
+        "state": "ready"
+      },
+      {
+        "drawing_id": "9b28f1bd7c01976f",
+        "route": "vector",
+        "file": "plans/flat-b.pdf",
+        "state": "flagged"
+      },
+      {
+        "drawing_id": "9a42c7a82c096631",
+        "route": "vector",
+        "file": "plans/flat-c.pdf",
+        "state": "ready"
+      },
+      {
+        "drawing_id": "5c50b8d7e7c637d9",
+        "route": "raster",
+        "file": "scans/ground-floor.png",
+        "state": "ready"
+      },
+      {
+        "drawing_id": "cdb49d7952520ff5",
+        "route": "bim",
+        "file": "model/house.ifc",
+        "state": "ready"
+      }
+    ],
+    "expected_drawings": 7
+  }
+}

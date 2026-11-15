@@ -384,7 +384,8 @@ File trace
   characters of `sha256`, time and cost. [component, `trace.json`]
 - IN-33: Every stage of `trace.json` is an item in order with its label, `did`, and `ms` formatted by `formatMs`;
   `output` shows only when not empty and not equal to `did`. [component]
-- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234; `formatCost` gives "$0.00"
+- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234, "<0.01 ms" for 0.0042
+  (a measured time above 0 and under 0.01; 0 stays "0.00 ms"); `formatCost` gives "$0.00"
   for 0, "<$0.01" for 0.004, "$0.12" for 0.123; `formatSize` gives "2.2 KB" for 2263 and "1.0 MB" for 1048576.
   [unit]
 - IN-35: `trace-failed` shows the `extract` item as "Failed: no page could be read" with an icon and the word, the
@@ -698,9 +699,12 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   (the current tick pulses, `motion-safe` only). [component]
 - IN-107: With no `step`, `phase` or `readers` (an older server) the card renders from `stage` and `state`, with no
   reader chips and no "No reader" line. [component]
-- IN-108: The totals are, in order: Elapsed, Files through, Drawings ready, Things found, Conflicts
-  (`conflicts_open`, "—" until the server counts them), Flagged, Set aside, Cost (`formatCost(cost_usd)`). This
-  brings Cost back beside Set aside (IN-86 said "not Cost"; changed with its test). [component]
+- IN-108: The totals are, in order: Elapsed, Files through, Drawings ready, Things found, Conflicts, Flagged, Set
+  aside, Cost (`formatCost(cost_usd)`). This brings Cost back beside Set aside (IN-86 said "not Cost"; changed with
+  its test). Conflicts counts what the conflicts list under the card reports (`onCounts`, the card's "N conflicts
+  found"), never `conflicts_open`: "—" until the list has loaded, the count alone while none is settled ("0" with
+  none), "<open> open of <found>" once some are ("0 open of 1" beside "1 conflict found · 1 settled by a rule").
+  Was `conflicts_open`, which read "Conflicts 0" there (QA R4-E6; changed with its test). [component]
 - IN-109: With `phase: "index"` the card names step 9 "Index" even if a file still runs, its hint reads "judging
   what was set aside, describing the rest, indexing it all for the chat" (was "every file made searchable for
   questions": IN-89 changed with its test), and its row lists `index_steps` as "<label>: <did>". [component]
@@ -779,8 +783,9 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   ifc_vs_sheet, schedule_tags, scale_check, room_areas; "Gemini cross-check" ← carbon_check; "Gemini reader" / "for
   sheets with few symbols" ← carbon; "printed scale (Gemini)" ← printed_scale; "photo flattening" ← rectifier;
   "schedule tables" ← tables; "drawn-PDF reader" ← vector; "IFC model reader" ← ifc. The chip running now is found
-  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("scale
-  from door sizes", "tiles for big sheets": no step of their own). [unit: `chipStepsOf`, `chipSteps`,
+  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("tiles
+  for big sheets": no step of its own). "scale from door sizes" ← prior_scale (#651, 2026-11-15; before it had no
+  step and was never ticked or dimmed: changed on purpose with IN-123's and IN-124's tests). [unit: `chipStepsOf`, `chipSteps`,
   `chipHasStep`, `chipCovers`; component]
 - IN-124 (`ProjectStatus.ran`): a chip one of whose ids ended done or failed on a file of its route gets its "ran"
   tick, also on a finished project opened fresh (nothing seen running). Once every file of the lane has ended, a
@@ -794,6 +799,25 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   ready, as IN-116: "Drawings ready", the done line and the chat row leave it out, "Open the workspace" opens the
   first drawing that was read, and a done project whose only drawings are such shows IN-72's "Nothing read" card
   with the backend's flag reason, not "Ready" and the chat offer. No new words. [unit: `readDrawings`; component]
+  A lane's "<n> drawings read" counts the same drawings (trace's e2e on the demo sample, 2026-11-15: the image
+  lane said 4 with the site photo and a copy of the scan): each drawing of `readDrawings` read off the lane's
+  files, once, so the lanes add up to "Drawings ready". [component, from the demo sample's real status]
+- IN-127 (trace's e2e, 2026-11-15: the sorting chips never ticked): each "Sorting" chip (IN-119) ticks from the
+  step id that really ran: "scan or photo" ← `probe` (it asks the sheet-kind signal), "plan or not" and "sheet
+  kind" ← `classifier`, both in `ran` on any route; "describes sheets that are not plans" ← `describe` and "keep
+  or set aside" ← `judge` in `index_steps`. Running (a file's `step_id`, or a `running` index step) highlights it
+  as a reader chip; once its step can no longer run (every file ended for `probe`/`classifier`, the project ended
+  for the index steps) a chip whose step did not run dims as IN-124 ("not needed here", "did not run"). No `ran`,
+  or no or empty `index_steps` (an older server or record): as before. [unit: `triageRan`, `triageEnded`;
+  component, from the demo sample's real status]
+- IN-128 (QA R4-G4, a 3000-file zip of text files): IN-72's "Nothing read" card lists each entry on its own row as
+  before, but a reason shared by 4 or more entries is one row: "<n> files", the reason, and "For example: <the
+  first 3 paths>". It shows 12 rows at most; the entries past them are counted ("And <n> more files.") above the
+  link to Documents. A 3-file upload looks as before. [unit: `whyRows`; component: 3000 + 20 entries]
+- IN-129 (QA R4-A2, R4-E2): a lane file row's name, after its folder gave way (IN-113), gives up its middle, not its
+  end: the extension and the 8 characters before it stay ("site1000_bldg2082_flo…or3_plan.dxf"), so a DXF and its
+  PDF of the same name stay apart, at 390 too. The file link is at least 24 px high (`min-h-6`), a tap target.
+  [unit: `nameEnds`; component: two names with a long shared start; browser at 390, the link box measured]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,

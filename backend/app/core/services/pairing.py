@@ -406,6 +406,17 @@ def _metadata(plan: Sheet, sheet: Sheet) -> tuple[str, str]:
     return "; ".join(agreed), ""
 
 
+def file_floors(path: str) -> dict[str, str]:
+    """The floors a file's name names (key -> the words as printed), read as a sheet's are:
+    "H-101 E00 heating.png" is {"0": "E00"}; a sheet number is no floor."""
+    return _floors(Sheet(drawing_id="file", page=1, name=path))
+
+
+def floors_in(text: str) -> dict[str, str]:
+    """The floors a phrase names, keyed as `file_floors`: "the ground floor" is {"0": ...}."""
+    return _read(text.replace("_", " "), "title")[0]
+
+
 def _floors(sheet: Sheet, folders: bool = False) -> dict[str, str]:
     """The floors a sheet's title, sheet number and file name name: key -> the words as printed.
     Not its folders (a set's folder "B1/" is on every floor's sheet, review-558 M1); with

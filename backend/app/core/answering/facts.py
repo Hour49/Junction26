@@ -20,6 +20,7 @@ from app.core.answering.model import Answer, Evidence, Question
 from app.core.discipline import SYSTEM_DISCIPLINE, system_from_question
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
+from app.core.services.pairing import file_floors, floors_in
 
 FACTS = "facts"  # `method` of an answer read from the fact sheet
 WHY = "read from the file's fact sheet; not yet measured, so confidence is Low"
@@ -43,6 +44,13 @@ GRAPH_SPREAD = (
 # Only the colour readers: `paths` reads a drawn PDF's lines exactly, and an unscored reader's
 # answer is Low with a double-check anyway (review/ask.py FACTS_LEVEL).
 _SPREADS = {"mask": MASK_SPREAD, "graph": GRAPH_SPREAD}
+# A line style's EN 806 water codes, in the words a question uses: P-101's S_PWC is potable
+# water cold, S_PWH_ potable water hot. Only for matching a picture's run styles to the asked
+# system; discipline.py feeds lane routing and pairing, so it stays as it is (orchestrator 06:05)
+_STYLE_CODES = (
+    (re.compile(r"\bpwc\b", re.I), "cold water"),
+    (re.compile(r"\bpwh\b", re.I), "hot water"),
+)
 # a radiator is an IfcSpaceHeater in a model too; a picture names a switch's kind as IFC does
 SAME_KIND = {"heat_exchanger": "space_heater", "switch": "switching_device"}
 # What a question asks about that is not a drawn thing: never refused as not read
@@ -86,9 +94,27 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
             abstain=True,
             explanation=f"{NOT_READ}: its legend lists no {_plural(_noun(query.entity))}",
         )
+    floor = ""
+    if picture and query.storey is not None and not _storeys_by_height(facts):
+        floor, refused = _picture_floor(query.storey, question.file)
+        if refused is not None:
+            return Answer(
+                id=question.id,
+                answer=None,
+                unit=None,
+                evidence=(),
+                method="refused:not-in-drawing",
+                cost_usd=0.0,
+                latency_s=latency_s,
+                abstain=True,
+                explanation=refused,
+            )
+        query = query.model_copy(update={"storey": None})  # the picture is that floor
     text = _written(query, facts)
     if text is None:
         return None
+    if floor:
+        text = f"This picture is {floor} by its file name.\n{text}"
     asked = [fact for fact in facts.read if fact.topic.startswith(f"{query.entity}.")]
     seen = dict.fromkeys((s.page, s.box) for fact in asked for s in fact.spots)
     return Answer(
@@ -102,6 +128,30 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         sure=False if picture else None,  # a picture's count is never certified (decision 0011)
         explanation=WHY,
     )
+
+
+def _picture_floor(asked: str, file: str) -> tuple[str, str | None]:
+    """A picture whose reading names no floor, asked about `asked`: the floor its file name
+    names, as pairing reads it ("H-101 E00 heating.png" is E00, the ground floor; the sheet
+    number H-101 is no floor), and why it is refused when that is not the floor asked or no
+    floor is named (live 2026-11-15: "No storey 'ground floor' ... 0 storeys: none")."""
+    mine, wanted = file_floors(file), floors_in(asked)
+    if not mine:
+        return (
+            "",
+            f"this picture's floor is not stated (not in its reading or its file name), so {asked}"
+            " cannot be told",
+        )
+    word = " / ".join(dict.fromkeys(mine.values()))
+    if len(mine) == 1 and set(wanted) == set(mine):
+        return word, None
+    if not wanted:
+        return (
+            "",
+            f"'{asked}' names no floor a picture can be matched to; this picture is {word} by its"
+            " file name",
+        )
+    return "", f"this picture is {word} by its file name, not {asked}"
 
 
 def _picture(fact: Fact) -> bool:
@@ -839,7 +889,7 @@ def _runs_by_system(query: FactQuery, facts: _Facts, storey: str | None) -> str 
         and (
             (
                 query.system is not None
-                and system_from_question(f.system.replace("_", " ")) == query.system
+                and system_from_question(_style_words(f.system)) == query.system
             )
             or re.search(rf"(?<![^\W_]){re.escape(f.system)}(?![^\W_])", query.asked, re.I)
         )
@@ -868,6 +918,14 @@ def _runs_by_system(query: FactQuery, facts: _Facts, storey: str | None) -> str 
     else:
         return None
     return "\n".join([*lines, *_spread(systems)])
+
+
+def _style_words(style: str) -> str:
+    """A line style's name as words for system_from_question: "S_PWC" is "S cold water"."""
+    text = style.replace("_", " ")
+    for code, words in _STYLE_CODES:
+        text = code.sub(words, text)
+    return text
 
 
 def _spread(runs: Sequence[Fact]) -> list[str]:
@@ -909,7 +967,7 @@ _KINDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "sanitary_terminal": (
         (r"toilets?|wcs?", ("WCSEAT", "TOILETPAN")),
         (r"basins?|lavator", ("WASHHANDBASIN",)),
-        (r"sinks?", ("SINK",)),
+        (r"sinks?", ("SINK", "WASHHANDBASIN")),  # a washbasin is a sink too (R4-C3)
     ),
 }
 

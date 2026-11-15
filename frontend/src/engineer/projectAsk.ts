@@ -3,9 +3,10 @@ import type { ProjectAnswer, ProjectView, Suggestion } from '../api';
 
 type Entry = ProjectView['drawings'][number];
 
-/** The drawings a question can go to: read ones (`ready`, or `flagged` for something a person should see). */
+/** The drawings a question can go to: read ones (`ready`, or `flagged` for something a person should see), not a
+ * sheet the sheet-kind step called not a drawing at all (a screenshot; API.md `not_a_drawing`, as `readDrawings`). */
 export function askable(drawings: Entry[]): Entry[] {
-  return drawings.filter((d) => d.state === 'ready' || d.state === 'flagged');
+  return drawings.filter((d) => (d.state === 'ready' || d.state === 'flagged') && !d.not_a_drawing);
 }
 
 /** Whether the pen can draw on this drawing (ui-bugs 1): the backend's call (`drawable`: a drawn plan with
