@@ -39,8 +39,14 @@ counted. It is there for an answer to say where the readers disagree with it
 The distinct sources read a sheet at the same time, one thread each (they are independent, and
 most wait on ONNX Runtime or a model API); their results are merged in the same order as before,
 and what a source's calls cost is charged to the caller's thread (app/core/cost.py).
+
+Each source that read the sheet is one step of the result (`Extracted.steps`, decision 0018): what
+it was read for, when it began and how long it ran (sources overlap), what it cost and what it
+found; a source whose model calls got no answer is a failed step. The steps a source reports itself
+(the count arbiter's three reads) follow its own.
 """
 
+import contextvars
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
@@ -60,9 +66,11 @@ from app.core.drawing.model import (
 )
 from app.core.errors import InvalidInputError
 from app.core.pipeline.disputed_marks import ANSWER
-from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.plan_rooms import floor_plans
 from app.core.pipeline.ports import Extractor
+from app.core.pipeline.steps import found_of, found_words, nested, now_ms, starting
+from app.core.wording import SCALE_WORDS, count
 
 RoomPolicy = Callable[[Sequence[Room]], Sequence[Room]]
 GROUPS = ("elements", "rooms", "plans", "scale")
@@ -175,22 +183,93 @@ class CompositeRasterExtractor:
         components = {c.name: c for c in self._components()}
         spent: dict[str, float] = {}  # what each source that ran paid for, failed or not
         failed: dict[str, int] = {}  # and how many of its model calls got no answer
+        spans: dict[str, tuple[float, float]] = {}  # when each began and ended, on now_ms()
         try:
             with ThreadPoolExecutor(len(components), thread_name_prefix="raster") as pool:
                 pending = {
                     name: pool.submit(
-                        _charged, component.reader, source, sheet, spent, failed, name
+                        contextvars.copy_context().run,  # so the source's step is heard live
+                        _charged,
+                        component.reader,
+                        source,
+                        sheet,
+                        spent,
+                        failed,
+                        name,
+                        spans,
+                        self._label(name),
                     )
                     for name, component in components.items()
                 }
                 try:
-                    return self._merge(pending)
+                    merged = self._merge(pending)
                 finally:
                     for future in pending.values():
                         future.cancel()
         finally:  # every started source has finished here: charge them all to the caller
             cost.charge(sum(spent.values()))
             cost.fail(sum(failed.values()))
+        read = {name: future.result() for name, future in pending.items()}
+        steps: list[StepTrace] = []
+        for name in sorted(read, key=lambda name: spans[name][0]):
+            step = self._step(name, read[name], spans[name], spent[name], failed[name])
+            inner = (s.model_copy(update={"id": f"{step.id}/{s.id}"}) for s in read[name].steps)
+            steps += [step, *inner]  # and what ran inside it, as `<its id>/<inner id>`
+        return merged.model_copy(update={"steps": (*merged.steps, *steps)})
+
+    def _step(
+        self,
+        name: str,
+        got: Extracted,
+        span: tuple[float, float],
+        paid: float,
+        faults: int,
+    ) -> StepTrace:
+        """One source's step: what it was read for, what it found of that, its time and cost."""
+        parts = [part for part, by in self.parts().items() if by == name]
+        checks = [check for check, by in self._double_check.items() if by.name == name]
+        step_id, label = self._label(name)
+        rooms = len(got.rooms) if "rooms" in parts and _looked_for(got.read, "room") else None
+        plans = len(got.plans) if "plans" in parts else None
+        # a part's source counts only the classes it gives; a double-check reader all it saw
+        classes: list[ReadClass] = [
+            kind for kind in ELEMENT_CLASSES if kind in parts and _looked_for(got.read, kind)
+        ]
+        found = found_of(got.elements, classes if parts else got.read, rooms=rooms, plans=plans)
+        kinds = [part for part in parts if part in ELEMENT_CLASSES]
+        other = [part for part in parts if part not in ELEMENT_CLASSES]
+        given = (
+            [count(len(kinds), "element class", "element classes"), *other]
+            if len(kinds) > 4
+            else parts
+        )
+        said = [f"read for {', '.join(given)}" if parts else "never counted"]
+        if checks and parts:
+            said.append(f"also double-check reader {', '.join(checks)}")
+        said.append(found_words(found))
+        if "scale" in parts:
+            said.append(SCALE_WORDS[got.scale.status])
+        if faults:
+            said.append(f"{count(faults, 'model call')} got no answer")
+        return StepTrace(
+            id=step_id,
+            label=label,
+            did="; ".join(said),
+            at_ms=span[0],
+            ms=span[1] - span[0],
+            cost_usd=paid,
+            state="failed" if faults else "done",
+            found=found,
+        )
+
+    def _label(self, name: str) -> tuple[str, str]:
+        """The step id and label of the source `name`: a double-check reader's says so."""
+        step_id, label = source_label(name)
+        if name in self.parts().values():
+            return step_id, label
+        checks = [check for check, by in self._double_check.items() if by.name == name]
+        named = ", ".join(checks)
+        return f"double_check:{named}", f"Double-check reader {named}: {label}"
 
     def _components(self) -> list[Component]:
         """Every source this composite reads a sheet with, the parts' first."""
@@ -311,15 +390,52 @@ def _charged(
     spent: dict[str, float],
     failed: dict[str, int],
     name: str,
+    spans: dict[str, tuple[float, float]],
+    step: tuple[str, str],
 ) -> Extracted:
     """The reader's result, read on this (worker) thread; what its calls cost goes in
-    `spent[name]` also when it fails."""
+    `spent[name]` also when it fails, when it began and ended in `spans[name]`."""
     before, faulted = cost.mark(), cost.faults()
+    started = now_ms()
+    starting(*step)
     try:
-        return reader.extract(source, sheet)
+        with nested(step[0]):  # its own steps are heard as `<its id>/<inner id>`
+            return reader.extract(source, sheet)
     finally:
         spent[name] = cost.since(before)
         failed[name] = cost.faults_since(faulted)
+        spans[name] = (started, now_ms())
+
+
+# What a source name's kind (before its first ":") is, as a step: (id, label)
+SOURCE_STEPS: dict[str, tuple[str, str]] = {
+    "one-plan": ("plans", "Whole page as one plan"),
+    "exp": ("reader", "Precomputed reading"),
+    "dir": ("reader", "Precomputed reading"),
+    "detector": ("detector", "Symbol detector"),
+    "detector-v2": ("detector", "Symbol detector, 2 views"),
+    "detector-v4": ("detector", "Symbol detector, 4 views"),
+    "detector-v8": ("detector", "Symbol detector, 8 views"),
+    "photo": ("detector", "Symbol detector for photos"),
+    "region": ("detector", "Symbol detector with region model"),
+    "verda": ("reader", "Remote reader"),
+    "gemini": ("rooms", "Room reader (Gemini)"),
+    "regionrooms": ("rooms", "Room reader (Gemini + region model)"),
+    "carbon": ("carbon", "Gemini Carbon reader"),
+    "arbiter-t1": ("arbiter", "Symbol detector, 8 views + count arbiter"),
+    "decisions": ("decisions", "Gemini Decisions count swap"),
+    "decisions-s1536": ("decisions", "Gemini Decisions count swap (1536 px)"),
+}
+
+
+def source_label(source: str) -> tuple[str, str]:
+    """The step id and label of a RASTER_COMPONENTS source name: `decisions:<inner>` names its
+    inner reader too ("Gemini Decisions count swap over Symbol detector")."""
+    kind, _, where = source.partition(":")
+    step_id, label = SOURCE_STEPS.get(kind, ("reader", f"Reader {source}"))
+    if kind.startswith("decisions") and where:
+        return step_id, f"{label} over {source_label(where)[1]}"
+    return step_id, label
 
 
 def _looked_for(read: Sequence[ReadClass] | None, kind: ReadClass) -> bool:

@@ -909,7 +909,98 @@ Ingest's project status, plus `drawings`:
   "ms": 12.5,
   "cost_usd": 0.0,
   "phase": null,
-  "index_steps": [],
+  "index_steps": [
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "raster": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "bim": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "ifc",
+        "label": "IFC model reader",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "cad": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "adeefbbcc17559fc",
@@ -1065,10 +1156,18 @@ Ingest's project status, plus `drawings`:
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
   0), 0.0 with no paid reader, which is the point to show. `normalised` on an image file: as on the drawing's page.
-- `step` on a running file (decision 0018, additive): the label of the step running now ("Room reader"); left
-  out when none is. `phase` on the project while it runs: `files` (reading the files) or `index` (the last phase:
+- `step` and `step_id` on a running file (decision 0018, additive): the label and the `id` of the step running
+  now ("Room reader (Gemini)", `rooms`; the step that started last when several run at once); left out when none
+  is. `phase` on the project while it runs: `files` (reading the files) or `index` (the last phase:
   judging relevance, describing, the evidence index); null otherwise. `index_steps`: what ran in that last phase,
-  as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs.
+  as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs. Each step shows as it starts
+  (`state` `running`) and is replaced by the step that ended; the evidence index's step is added once it ends.
+- `ran` on the project (decision 0018, additive; left out while empty): per route (`raster`, `vector`, `bim`,
+  `cad`), each step `id` that ran on that route's finished files, in first-seen order, as `{id, label, done,
+  skipped, failed}` (the number of files it ended on in each state; a file counts once per id, as `failed` if
+  the step failed anywhere in it, else `done`, else `skipped`). It grows as each file finishes and is final when
+  the project is done; a file read again replaces its own count. A screen ticks the readers that ran (`done` or
+  `failed` > 0) and dims the ones that did not, by id. A reused file counts the steps of the ingest it reuses.
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
   `set_aside`: no screen polls it for ever.
 
@@ -1122,7 +1221,7 @@ after a restart cut that run off:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
-  "phase": null,
+  "phase": "files",
   "index_steps": [],
   "drawings": [],
   "skipped": [],
@@ -1180,7 +1279,7 @@ after a restart cut that run off:
   "error": "the server restarted during ingest",
   "ms": 12.5,
   "cost_usd": 0.0,
-  "phase": null,
+  "phase": "files",
   "index_steps": [],
   "drawings": [],
   "skipped": [
@@ -1679,7 +1778,78 @@ photo of an elevation sheet with its register, showing a building that matches n
   "ms": 12.5,
   "cost_usd": 0.0,
   "phase": null,
-  "index_steps": [],
+  "index_steps": [
+    {
+      "id": "judge",
+      "label": "Relevance judge",
+      "did": "4 files judged: 1 related, 2 unrelated, 1 unsure",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {
+        "related": 1,
+        "unrelated": 2,
+        "unsure": 1
+      }
+    },
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "classifier",
+        "label": "Triage: is it a floor plan?",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "6a47e9a1c33db404",
@@ -2289,7 +2459,18 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "drawn PDF",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "group",
@@ -2316,7 +2497,18 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "pages",
+          "label": "Page size",
+          "did": "1 page, page 1 is 600 x 400 pt",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "extract",
@@ -2325,7 +2517,35 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "vector",
+          "label": "Drawn-PDF reader (Swiss plan rules)",
+          "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "door": 2,
+            "window": 2,
+            "toilet": 1,
+            "sink": 1,
+            "bathtub": 1,
+            "room": 5
+          }
+        },
+        {
+          "id": "tables",
+          "label": "Schedule tables (PDF)",
+          "did": "no ruled schedule on page 1",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "second_count",
@@ -2334,7 +2554,21 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "room_areas",
+          "label": "Room areas: printed vs measured",
+          "did": "5 quantities compared: 5 agree, 0 conflicts",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "agree": 5,
+            "conflict": 0
+          }
+        }
+      ]
     },
     {
       "stage": "takeoff",
@@ -2372,13 +2606,19 @@ that is not an evidence id. `description.detail` is a model's description no per
 - `steps` (decision 0018, additive): what ran inside the stage, in start order; `[]` where nothing is broken down
   yet. Each step: `id` (a stable machine id, below), `label` (plain words to show: "Symbol detector, 8 views"),
   `did` (one line of what it found, or the error when it failed), `at_ms` (when it began, ms after its stage
-  began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`) and
-  `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`,
-  `sheet_kind`, `classifier`, `describer` (identify); `exif`, `rectifier`, `scan_render` (normalise); `detector`,
-  `decisions`, `arbiter`, `rooms`, `carbon`, `printed_scale`, `double_check`, `plans`, `reader` (any other raster
-  source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`, `room_areas`, `schedule_tags`,
-  `second_count` (second_count); `judge`, `describe`, `evidence` (the project's `index_steps`). A new id may be
-  added; a screen shows `label` and need not know the id.
+  began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`; `running` for a step of `index_steps` that has started and not ended) and
+  `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
+  (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
+  (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the Carbon reader, whole sheet or things
+  drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `double_check`, `plans`,
+  `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
+  `room_areas`, `schedule_tags`, `second_count:<quantity>` (any other comparison) (second_count: `found` is
+  `{"agree": n, "conflict": m}`); `judge`,
+  `describe`, `evidence` (the project's `index_steps`). An id is unique in its stage: a double-check reader's is
+  `double_check:<reader name>` (`double_check:l1`), a raster source's own steps are `<its id>/<inner id>` and
+  follow it (`arbiter/base`, `arbiter/second`, `arbiter/pick`: the count arbiter's reads and its pick), and an id
+  met again in a stage is numbered (`detector`, `detector-2`). A step that is not timed on its own (a comparison,
+  the EXIF turn) has `ms` 0. A new id may be added; a screen shows `label` and need not know the id.
 
 A file set aside at a stage that failed (a zip entry that would be written outside the project folder): the
 stage carries `failure`, and later stages are not run:
@@ -2620,7 +2860,18 @@ upload lists the files, instead of one request per file.
           "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -2647,7 +2898,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -2656,7 +2918,35 @@ upload lists the files, instead of one request per file.
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -2665,7 +2955,21 @@ upload lists the files, instead of one request per file.
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 5 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 5,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -2889,7 +3193,18 @@ upload lists the files, instead of one request per file.
           "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x800 px, 93% white, 99% paper, 0.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -2916,7 +3231,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1200 x 800 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 800 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -2925,7 +3251,35 @@ upload lists the files, instead of one request per file.
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -2934,7 +3288,21 @@ upload lists the files, instead of one request per file.
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 5 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 5,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3149,7 +3517,18 @@ upload lists the files, instead of one request per file.
           "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 141 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3176,7 +3555,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3185,7 +3575,35 @@ upload lists the files, instead of one request per file.
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -3194,7 +3612,21 @@ upload lists the files, instead of one request per file.
           "output": "5 quantities measured twice, 1 conflict",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 4 agree, 1 conflict",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 4,
+                "conflict": 1
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3361,7 +3793,18 @@ upload lists the files, instead of one request per file.
           "output": "drawn PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 13 paths, 0 images, 80 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3388,7 +3831,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3397,7 +3851,32 @@ upload lists the files, instead of one request per file.
           "output": "2 elements, 3 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "3 rooms, 1 door, 1 window; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 1,
+                "window": 1,
+                "room": 3
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -3406,7 +3885,21 @@ upload lists the files, instead of one request per file.
           "output": "2 quantities measured twice, 0 conflicts",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "2 quantities compared: 2 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 2,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3488,7 +3981,18 @@ upload lists the files, instead of one request per file.
           "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3515,7 +4019,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 850 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3612,7 +4127,18 @@ upload lists the files, instead of one request per file.
           "output": "PNG drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3648,7 +4174,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 850 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3745,7 +4282,18 @@ upload lists the files, instead of one request per file.
           "output": "photo of a drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink (2.2% on the paper), camera EXIF (SyntheticPhone Model 1))",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3772,7 +4320,18 @@ upload lists the files, instead of one request per file.
           "output": "1 page, page 1 is 1600 x 1200 px",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1600 x 1200 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3860,7 +4419,18 @@ upload lists the files, instead of one request per file.
           "output": "photo",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -3972,7 +4542,18 @@ upload lists the files, instead of one request per file.
           "output": "IFC model",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "first bytes: an IFC building model (STEP)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -4008,7 +4589,24 @@ upload lists the files, instead of one request per file.
           "output": "12 model objects",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "ifc",
+              "label": "IFC model reader",
+              "did": "12 model objects: 4 walls, 3 windows, 2 doors, 2 spaces, 1 slab",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 3,
+                "wall": 4,
+                "slab": 1,
+                "space": 2
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -4078,7 +4676,18 @@ upload lists the files, instead of one request per file.
           "output": "DXF drawing",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "first bytes: a DXF drawing",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -4148,7 +4757,18 @@ upload lists the files, instead of one request per file.
           "output": "text PDF",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -4200,7 +4820,18 @@ upload lists the files, instead of one request per file.
           "output": "text file",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "plain text, 80 bytes",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -4628,7 +5259,57 @@ tell, and an uncertain answer with the model's check:
   "ms": 12.5,
   "cost_usd": 0.0,
   "phase": null,
-  "index_steps": [],
+  "index_steps": [
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -12400,8 +13081,14 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018): `ProjectStatus.ran` (left out while empty): per route, the steps that ran
+  on this upload's finished files with file counts (`RanStep`: `id`, `label`, `done`, `skipped`, `failed`). Step
+  ids are stable: the Carbon check is `carbon_check` (was `carbon`, or `carbon-2` beside the Carbon reader), an
+  unnamed comparison `second_count:<quantity>` (was `second_count`). Fixtures regenerated.
+- 2026-11-15, additive (decision 0018): `StepTrace.state` gains `running`; `ProjectStatus.index_steps` fills while the
+  last phase runs (a running step, then the step that ended).
 - 2026-11-15, additive (decision 0018, ingest trace steps): `StageTrace.steps` (a `StepTrace` list: `id`, `label`,
-  `did`, `at_ms`, `ms`, `cost_usd`, `state`, `found`), `FileStatus.step` (left out when none), `ProjectStatus.phase`
+  `did`, `at_ms`, `ms`, `cost_usd`, `state`, `found`), `FileStatus.step` (left out when none), `FileStatus.step_id`, `ProjectStatus.phase`
   and `ProjectStatus.index_steps`. Old clients ignore them; fixtures regenerated.
 - 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
   reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and

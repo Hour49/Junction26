@@ -17,6 +17,7 @@ from app.core.drawing.model import Element, Room
 from app.core.errors import InvalidInputError
 from app.core.pipeline.printed import CARBON_DOORS_REFUSED
 from app.core.pipeline.raster_scale import CARBON_DOOR_M, SPREAD_FEW, SPREAD_MANY
+from app.core.pipeline.steps import without_steps
 from app.settings import Settings
 
 LIVING = Room(id="r1", type="living", page=1, box=(0.0, 0.0, 0.5, 0.5))
@@ -47,14 +48,15 @@ def test_no_detector_door_and_carbon_doors_give_an_estimate_from_carbon_s() -> N
 def test_without_carbon_doors_the_sheet_stays_refused() -> None:
     inner = things(Fake(rooms=[LIVING]), Fake(elements=[element("window", (0.1, 0.1, 0.2, 0.2))]))
     found = CarbonDoorScale(inner).extract(FILE, SHEET)
-    assert found == inner.extract(FILE, SHEET)
+    assert without_steps(found) == without_steps(inner.extract(FILE, SHEET))
     assert found.scale.status == "no_scale" and NO_DOOR in found.notes
 
 
 def test_a_detector_door_keeps_priorscale_s_estimate_unchanged() -> None:
     detector = Fake(elements=[element("door", (0.1, 0.1, 0.3, 0.2))], rooms=[LIVING])
     inner = things(detector, Fake(elements=[carbon_door((0.1, 0.1, 0.5, 0.5))]))
-    assert CarbonDoorScale(inner).extract(FILE, SHEET) == inner.extract(FILE, SHEET)
+    found = CarbonDoorScale(inner).extract(FILE, SHEET)
+    assert without_steps(found) == without_steps(inner.extract(FILE, SHEET))
 
 
 def test_the_setting_needs_priors_and_carbon_s_things(
@@ -139,7 +141,8 @@ def test_carbon_doors_on_s2_only_priorscale_s_no_door_refusal_is_replaced() -> N
     shipped = Fake(rooms=[LIVING], read=["room"])
     inner = things(shipped, Fake(elements=[carbon_door((0.1, 0.1, 0.3, 0.3))]))
     found = CarbonDoorScale(inner).extract(FILE, SHEET)
-    assert found.scale.status == "no_scale" and found == inner.extract(FILE, SHEET)
+    assert found.scale.status == "no_scale"
+    assert without_steps(found) == without_steps(inner.extract(FILE, SHEET))
 
 
 def test_carbon_doors_on_s2_the_band_is_the_widest_with_five_doors_or_more() -> None:

@@ -101,7 +101,7 @@ SHEET = Sheet(file=SOURCE, pages=(Page(page=1, width=100, height=100, unit="px")
 def test_the_check_keeps_the_reader_s_drawing_and_carbon_s_reading_beside_it() -> None:
     carbon = Extracted(method="detector", scale=SCAN.scale, elements=THREE, read=("door", "room"))
     found = CarbonChecked(Reads(SHIPPED), Reads(carbon)).extract(SOURCE, SHEET)
-    assert found.model_copy(update={"carbon_check": None}) == SHIPPED
+    assert found.model_copy(update={"carbon_check": None, "steps": ()}) == SHIPPED
     assert found.carbon_check == CarbonCheck(read=("door", "room"), elements=THREE)
 
 
@@ -134,7 +134,7 @@ def test_any_error_in_the_check_keeps_the_reader_s_drawing(
     the file aside, so the reader's own drawing was lost for a check that is never counted."""
     with caplog.at_level(logging.ERROR, logger="app.adapters.carbon"):
         found = CarbonChecked(Reads(SHIPPED), Reads(error)).extract(SOURCE, SHEET)
-    assert found.model_copy(update={"carbon_check": None}) == SHIPPED
+    assert found.model_copy(update={"carbon_check": None, "steps": ()}) == SHIPPED
     assert found.carbon_check == CarbonCheck(failed=f"the check failed: {type(error).__name__}")
     assert "Carbon check of plan.png raised" in caplog.text and "Traceback" in caplog.text
 

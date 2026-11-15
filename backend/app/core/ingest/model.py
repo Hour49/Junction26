@@ -14,7 +14,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from app.core.discipline import Discipline
 from app.core.model import Frozen
-from app.core.pipeline.model import Route
+from app.core.pipeline.model import Route, StepTrace
 
 FileState = Literal["queued", "running", "ready", "flagged", "text_only", "set_aside"]
 FINISHED: frozenset[FileState] = frozenset({"ready", "flagged", "text_only", "set_aside"})
@@ -131,6 +131,8 @@ class Probed(Frozen):
     # Set when the signal was asked and gave no reply ("kind signal not available: <why>"), so a
     # triage method can say the signal timed out and not that it is off; None otherwise.
     signal_missing: str | None = None
+    # What ran to identify it (the probe, triage), `at_ms` after identify began (decision 0018)
+    steps: tuple[StepTrace, ...] = Field(default=(), exclude=True)
 
 
 # File triage (decision 0010): is an uploaded image a floor plan, and if not, what is it and does
@@ -379,24 +381,6 @@ class ProjectContext(Frozen):
     descriptions: tuple[str, ...]  # the other described files' subjects
 
 
-StepState = Literal["done", "failed", "skipped"]
-
-
-class StepTrace(Frozen):
-    """One thing that ran inside a stage (a reader, a check, a model call), or in the project's
-    last phase (decision 0017). Readers that run at the same time have overlapping
-    [at_ms, at_ms + ms) spans."""
-
-    id: str  # stable machine id of what ran: "detector", "carbon", "vector", ... (docs/API.md)
-    label: str  # plain words for the screen: "Symbol detector, 8 views"
-    did: str = ""  # one readable line of what it found, or the error when it failed
-    at_ms: float = Field(default=0, ge=0)  # when it began, ms after its stage (or phase) began
-    ms: float = Field(default=0, ge=0)  # how long it ran
-    cost_usd: float = Field(default=0.0, ge=0)
-    state: StepState = "done"
-    found: dict[str, int] = Field(default_factory=dict[str, int])  # counts by class
-
-
 class StageTrace(Frozen):
     stage: Stage
     did: str  # what the stage did, one readable line
@@ -504,6 +488,19 @@ class FileStatus(Frozen):
     model_3d: Model3d | None = Field(default=None, exclude_if=lambda value: value is None)
     # While running: the label of the step running now; left out of the JSON otherwise
     step: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    # While running: that step's StepTrace.id; left out of the JSON otherwise
+    step_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
+class RanStep(Frozen):
+    """One step that ran on a route's files in this upload (decision 0018): its id and label, and
+    on how many files it ended done, skipped or failed (each file counted once per id)."""
+
+    id: str
+    label: str
+    done: int = Field(default=0, ge=0)
+    skipped: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
 
 
 class ProjectStatus(Frozen):
@@ -524,6 +521,11 @@ class ProjectStatus(Frozen):
     # While running: reading the files, or the last phase (judge, describe, evidence index)
     phase: ProjectPhase | None = None
     index_steps: tuple[StepTrace, ...] = ()  # what ran in the last phase, in start order
+    # Per route, the steps that ran on its finished files so far, in first-seen order; left out
+    # of the JSON while empty
+    ran: dict[Route, tuple[RanStep, ...]] = Field(
+        default_factory=dict[Route, tuple[RanStep, ...]], exclude_if=lambda value: not value
+    )
 
 
 class SecondCount(Frozen):

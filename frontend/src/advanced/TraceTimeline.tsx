@@ -41,6 +41,7 @@ const STEP_ICON = {
   done: { icon: '✓', word: 'done' },
   failed: { icon: '✕', word: 'failed' },
   skipped: { icon: '–', word: 'skipped' },
+  running: { icon: '…', word: 'running' },
 } as const;
 
 function StepRow({
