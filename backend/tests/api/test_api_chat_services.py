@@ -16,6 +16,7 @@ from app.composition import build_ingest
 from app.core.agent.ports import Reply
 from app.core.errors import NotFoundError
 from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.services.stored import ServicesModel
 from app.main import create_app
 from app.settings import Settings
 from tests.services_fixtures import two_rooms
@@ -48,6 +49,18 @@ class _SetAside(_Ingest):
     """The IFC file was set aside at upload ("no PDF, PNG or JPEG in its group"): no drawing."""
 
     drawing_key: str | None = None
+
+
+class _WithPlan(_Ingest):
+    """The services IFC and a floor plan PDF: the plan rules answer what is no services question."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        done = super().status(project_id)
+        plan = FileStatus(
+            id="f2", path="m/plan.pdf", size=1, sha256="e" * 64, kind="pdf_vector", state="ready",
+            route="vector", drawing_id="fedcba9876543210",
+        )  # fmt: skip
+        return done.model_copy(update={"files": (*done.files, plan)})
 
 
 class _PdfOnly(_Ingest):
@@ -94,12 +107,16 @@ def client(settings: Settings, tmp_path: Path) -> TestClient:
 
 
 def _client(
-    settings: Settings, tmp_path: Path, follow: str = "on", ingest: _Ingest | None = None
+    settings: Settings,
+    tmp_path: Path,
+    follow: str = "on",
+    ingest: _Ingest | None = None,
+    model: ServicesModel | None = None,
 ) -> TestClient:
     """The services tools are offered behind SERVICES_FOLLOW (on here unless `follow`)."""
     cache = tmp_path / "services"
     cache.mkdir(exist_ok=True)
-    model = two_rooms()
+    model = model or two_rooms()
     ServicesStore(cache).path(model.source.sha256).write_bytes(
         gzip.compress(model.model_dump_json().encode())
     )
@@ -308,3 +325,36 @@ def test_a_room_the_services_model_lacks_is_said_with_its_rooms(client: TestClie
     found = _rules(client, "How many radiators are in the kitchen?")
     assert found["kind"] == "dont_know", found
     assert "no room named 'kitchen'" in found["text"] and "2 Bedroom" in found["text"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "How many toilets are in the bathroom?",
+        "How many toilets are there in the second floor?",
+        "How many toilets are in all bathrooms?",
+        "Which radiators are in the bedroom?",
+        "How many radiators are there in total in the building?",
+        "How many radiators are in the building model?",
+        "How many sinks are in room 1?",
+        "How many toilets are in the bathroom in the second floor?",
+    ],
+)
+def test_with_a_plan_beside_the_services_model_the_drawings_answer_as_before(
+    settings: Settings, tmp_path: Path, message: str
+) -> None:
+    """#491 review (fail-1): the room path is for a project whose only drawing is the services
+    model; with a plan beside it the question goes to the drawings, as on main."""
+    found = _rules(_client(settings, tmp_path, ingest=_WithPlan()), message)
+    assert "ask the drawings" in found["text"], found  # the fake ingest has no drawing read
+    assert "no room named" not in found["text"]
+
+
+def test_a_name_two_rooms_hold_is_answered_with_both(settings: Settings, tmp_path: Path) -> None:
+    model = two_rooms()
+    renamed = model.model_copy(
+        update={"rooms": (model.rooms[0], model.rooms[1].model_copy(update={"name": "2 Living"}))}
+    )
+    found = _rules(_client(settings, tmp_path, model=renamed), "Which radiators are in the living?")
+    assert found["kind"] == "dont_know", found
+    assert "SR1 '1 Living'" in found["text"] and "SR2 '2 Living'" in found["text"]

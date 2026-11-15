@@ -76,11 +76,14 @@ IN_ROOM_TERMINALS = {**TERMINALS, "sink": "sanitary_terminal", "washbasin": "san
                      "basin": "sanitary_terminal", "toilet": "sanitary_terminal"}  # fmt: skip
 IN_ROOM_TERMINAL = re.compile(r"\b(" + "|".join(IN_ROOM_TERMINALS) + r")s?\b")
 LISTING = re.compile(r"\b(how many|which|what|list|count|are there|is there)\b")
-IN_ROOM = re.compile(
-    r"\b(?:in|inside)\s+(?:the\s+)?([^?!,]+?)(?:\s+(?:on|at)\s+.*)?[\s?!.]*$", re.I
+IN_ROOM = re.compile(  # the LAST "in <room>" at the end, before an "on level 2"
+    r".*\b(?:in|inside)\s+(?:the\s+)?([^?!,]+?)(?:\s+(?:on|at)\s+.*)?[\s?!.]*$", re.I
 )
-NOT_A_ROOM = {"total", "all", "building", "this building", "model", "this model", "project",
-              "house", "file", "each room", "every room", "all rooms", "each storey"}  # fmt: skip
+NOT_A_ROOM = re.compile(  # "in total", "in the building model", "in all bathrooms", "on a floor"
+    r"\b(total|all|every|each|building|model|project|house|file|floor|floors|storey|storeys|story"
+    r"|stories|level|levels|basement|ground|attic|plan|drawing)\b",
+    re.I,
+)
 
 
 @dataclass
@@ -167,7 +170,7 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
             return _ask_services(turn, words, op)
         kind = IN_ROOM_TERMINAL.search(words)
         room = IN_ROOM.search(turn.message.strip())
-        if kind and room and LISTING.search(words) and room[1].lower() not in NOT_A_ROOM:
+        if kind and room and LISTING.search(words) and not NOT_A_ROOM.search(room[1]):
             step = _in_room(turn, words, kind[1], room[1])
             if step is not None:  # None: no services model, so the drawings answer as before
                 return step
@@ -248,6 +251,8 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
     found = _services(turn, words)
     if isinstance(found, tuple):
         return None if found[0] == "final_answer" else found
+    if _beside(turn, found["drawing_id"]):  # #491 review: the drawings answer, as before
+        return None
     listed = turn.result("list_services", room_id=room)
     if listed is None:
         kind = IN_ROOM_TERMINALS[word]
@@ -263,6 +268,17 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
         f": {cited}." if cited else "."
     )
     return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
+
+
+def _beside(turn: _Turn, services: str) -> bool:
+    """The project has a drawing besides the services model (a plan, a building model): a
+    question about a room then goes to the drawings; only a project whose one drawing is the
+    services model (or none, an IFC set aside) asks the services model about a room."""
+    drawings = turn.result("list_drawings")
+    if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
+        drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    listed: list[Json] = [d for d in drawings or [] if isinstance(d, dict)]  # pyright: ignore[reportUnknownVariableType]
+    return any(d.get("drawing_id") != services for d in listed)
 
 
 def _picked(words: str, items: list[Json]) -> tuple[str | None, list[Json]]:

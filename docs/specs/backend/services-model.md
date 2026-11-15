@@ -231,7 +231,9 @@ with a plain reason. The input model is never mutated (test: its hash before and
   + radiator, socket, outlet, air terminal, diffuser → `list_services` → `propose_move_terminal`; "what feeds",
   "what does … serve", "what is cut off" → `ask_services`; how many / which + a terminal (also sink, basin,
   toilet) + "in <room>" → `list_services(room_id=<room>, kind)` and the count with the items, or the tool's
-  error; with no services model the drawings answer as before (2026-11-15, QA #430).
+  error, only when the project's one drawing is the services model (or none: an IFC set aside); with a plan or
+  another model beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the drawings
+  answer as before (2026-11-15, QA #430, #491 review).
 - SV-27 Cost: no model call beyond the chat's own steps. *Sourced*: at $1.50 in / $7.50 out per million tokens a
   four-step turn is about $0.03-0.06, inside `AGENT_TURN_USD` 0.10. The six tool schemas together stay under
   1,500 tokens (test: a character count).
