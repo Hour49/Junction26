@@ -45,7 +45,8 @@ from app.composition import Answering
 from app.core.checks.model import RulePack
 from app.core.drawing.model import Drawing
 from app.core.errors import DomainError
-from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.ingest.model import FileStatus, ProjectStatus, Triage
+from app.core.ingest.triage import sheet_flag
 from app.core.pipeline.user_scale import HINT as SCALE_HINT
 from app.core.review.ports import ReviewStore
 from app.settings import Settings
@@ -125,8 +126,10 @@ def _tool(name: str, description: str, model: type[_Args]) -> dict[str, Any]:
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_drawings",
-        "The drawings of the project: id, file name, kind, read state, page count and, for a "
-        "file that is not a floor plan, what triage thinks it shows and whether it belongs.",
+        "The drawings of the project: id, file name, kind, read state, page count, what kind "
+        "of sheet triage says each picture looks like (with its printed title, sheet number and "
+        "whether it may not be a floor plan) and, for a file that is not a floor plan, what "
+        "triage thinks it shows and whether it belongs.",
         _NoArgs,
     ),
     (
@@ -268,7 +271,26 @@ def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) 
             "subject": None if triage.description is None else triage.description.subject,
             "relevance": None if triage.relevance is None else triage.relevance.verdict,
             "verdict": triage.verdict,
+            "sheet": _sheet(triage),
         },
+    }
+
+
+def _sheet(triage: Triage) -> dict[str, Any] | None:
+    """What the sheet-kind step called the picture, so the chat can say what kind of drawing it
+    is: a doubted piping plan is read, so its class is floor_plan (R3-G4: "a raster floor
+    plan"). `flag`: the reading flag its answers carry (triage.sheet_flag)."""
+    sheet = triage.sheet
+    if sheet is None:
+        return None
+    return {
+        "looks_like": sheet.kind_words,
+        "decision": sheet.decision,
+        "title": sheet.title,
+        "sheet_number": sheet.sheet_number,
+        "printed_scale": sheet.printed_scale,
+        "seen": sheet.seen,
+        "flag": sheet_flag(triage),
     }
 
 
