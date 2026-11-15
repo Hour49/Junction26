@@ -555,7 +555,7 @@ describe('ProjectScreen', () => {
     const rows = stepRows();
     expect(rows.map(iconOf)).toEqual([...Array<string>(8).fill('done'), 'working']);
     expect(must(rows[8]).textContent).toContain(
-      'judging what was set aside, describing the rest, indexing it all for the chat',
+      'judging what triage set aside, describing the rest, indexing it all for the chat',
     );
     expect(must(rows[8]).textContent).not.toContain(' files');
   });
