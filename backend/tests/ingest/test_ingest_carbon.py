@@ -4,6 +4,7 @@ runs on a fake model or a stubbed urlopen: no network, no data/."""
 
 import io
 import json
+import threading
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -183,6 +184,31 @@ def test_a_small_page_is_one_page_call_and_one_tile_call(tmp_path: Path) -> None
     assert len(found.plans) == 1 and found.method == "detector"
     assert found.notes[0] == f"carbon: {c.SOURCE} (gemini-4-carbon, carbon-reader-1)"
     assert "carbon: printed on the sheet: 2 FLATS" in found.notes
+
+
+class SlowCarbon(FakeCarbon):
+    """FakeCarbon whose calls take 0.2 s, so two reads at once overlap."""
+
+    def generate(
+        self, jpeg: bytes, prompt: str, schema: dict[str, Any], max_tokens: int
+    ) -> dict[str, Any]:
+        threading.Event().wait(0.2)
+        return super().generate(jpeg, prompt, schema, max_tokens)
+
+
+def test_two_reads_of_one_sheet_at_once_ask_each_tile_once(tmp_path: Path) -> None:
+    """CarbonThings and CarbonChecked read a large image with Carbon at the same time, each with
+    its own reader on one cache: the second waits for the first's tile reply instead of paying
+    for it again (review-422 Should 2: 71 tile calls for 36 tiles)."""
+    model = SlowCarbon(page_form(), [tile_form(), tile_form()])
+    readers = [CarbonReader(model, tmp_path) for _ in range(2)]
+    page = page_image(3600, 1000)
+    both = [threading.Thread(target=reader.read, args=(page,)) for reader in readers]
+    for read in both:
+        read.start()
+    for read in both:
+        read.join(10)
+    assert sorted(model.calls) == ["page", "tile0", "tile1"]
 
 
 def test_a_large_page_is_tiled_from_the_plan_boxes_and_a_door_two_tiles_saw_is_one(
@@ -733,7 +759,9 @@ def test_at_most_four_tile_calls_are_in_flight(tmp_path: Path) -> None:
                 state["now"] -= 1
             return answer(tile_form())
 
-    found = CarbonReader(Counting(page_form(), []), tmp_path).read(page_image(12000, 1000))
+    page = page_image(12000, 1000)
+    ImageDraw.Draw(page).line((0, 0, 11999, 999), fill="black", width=9)  # no two tiles alike
+    found = CarbonReader(Counting(page_form(), []), tmp_path).read(page)
     assert len(c.tile_plan(12000, 1000, [(0.0, 0.0, 1.0, 1.0)]) or []) == 5
     assert found.read == ("room", *c.CLASSES)
     assert state["most"] == 4
