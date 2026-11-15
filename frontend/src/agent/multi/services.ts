@@ -22,28 +22,13 @@ export const STATUS: Record<Status, { word: string; icon: string }> = {
 /** Strongest first: the list's order, and the status a mark takes when two actions name it. */
 const RANK: Status[] = ['cut_off', 'needs_decision', 'follows', 'stays'];
 
-/** How a services sheet was taken to be this floor's (pics-edit-follow W1 `Pairing`). */
-export type Pairing = {
-  drawing_id: string;
-  page: number;
-  paired_by: 'same_page' | 'metadata' | 'geometry' | 'user';
-  reason: string;
-  score: number | null;
-};
-/** A lane's own services sheet (pics-edit-follow W2 `FollowPicture`, null on model and unchecked lanes and with
- * DISCIPLINE_PICTURES off): the edit's strips and the lane's marks in THAT sheet's page fractions; `marks` joins
- * `lane.marks` and `lane.actions` by ref. shortcut: typed here as W2 fixed it (branch pics/follow-picture) until
- * that schema is on main; then `Schemas['FollowPicture']`. */
-export type LanePicture = {
-  drawing_id: string;
-  page: number;
-  pairing: Pairing;
-  removed: Point[][];
-  added: Point[][];
-  marks: { ref: string; line: Point[]; at: Point | null }[];
-};
-export const pictureOf = (l: Lane): LanePicture | null =>
-  (l as Lane & { picture?: LanePicture | null }).picture ?? null;
+/** How a services sheet was taken to be this floor's (pics-edit-follow W1). */
+export type Pairing = Schemas['Pairing'];
+/** A lane's own services sheet (pics-edit-follow W2, services-follow.md SFPW-1..6; null on model and unchecked
+ * lanes and always with DISCIPLINE_PICTURES off): the edit's strips and the lane's marks in THAT sheet's page
+ * fractions; `marks` joins `lane.marks` and `lane.actions` by ref. */
+export type LanePicture = Schemas['FollowPicture'];
+export const pictureOf = (l: Lane): LanePicture | null => l.picture ?? null;
 
 /** AC-42: how the sheet was paired, in words. */
 export const PAIRED_BY: Record<Pairing['paired_by'], string> = {
