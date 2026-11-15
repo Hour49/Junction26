@@ -29,6 +29,7 @@ from pathlib import Path
 
 from app.adapters.ifc_model import services_model
 from app.adapters.ifc_model.glb import (
+    _ONE_AT_A_TIME,  # pyright: ignore[reportPrivateUsage]
     _SCOPE,  # pyright: ignore[reportPrivateUsage]
     _out_of_memory,  # pyright: ignore[reportPrivateUsage]
     has_systemd_scope,
@@ -180,7 +181,9 @@ class ServicesBuilds:
         self._build = build
         self._start = start
         self._lock = threading.Lock()  # guards the two sets
-        self._one = threading.Lock()  # one build at a time: two at once would double the memory
+        # one child at a time in the process, with the 3D builds: each child has its own scope
+        # outside the app's cap, so two at once add to the app's memory (QA r12)
+        self._one = _ONE_AT_A_TIME
         self._busy: set[str] = set()  # sha256s in flight
         self._failed: set[str] = set()
 

@@ -13,6 +13,7 @@ import pytest
 from test_services_build import _architecture, _services  # pyright: ignore[reportPrivateUsage]
 
 from app.adapters import services_store
+from app.adapters.ifc_model.facts_store import StoredFacts
 from app.adapters.pipeline_tools import ToolError
 from app.adapters.services_agent_tools import (  # pyright: ignore[reportPrivateUsage]
     BUILDING,
@@ -134,6 +135,39 @@ def test_two_files_are_built_one_at_a_time(tmp_path: Path) -> None:
     for thread in threads:
         thread.join(10)
     assert entered["b"].is_set()
+
+
+def test_a_facts_build_and_a_services_build_are_not_children_at_the_same_time(
+    tmp_path: Path,
+) -> None:
+    """QA r12 (story, 2026-11-15): each build kept its own lock, so the project GET's fact-sheet
+    child and the first chat turn's services child ran together, each in its own 3000 MB scope
+    outside the app's cap (measured 1.4 GB + 1.3 GB beside the app's 3.4 GB). One lock for both."""
+    facts_in, services_in, release = threading.Event(), threading.Event(), threading.Event()
+    threads: list[threading.Thread] = []
+
+    def facts_build(data: bytes, model: str, out: Path) -> None:
+        facts_in.set()
+        assert release.wait(10)
+        out.write_text("{}", encoding="utf-8")
+
+    def services_build(data: bytes, name: str, cache: Path, architecture: bytes | None) -> None:
+        services_in.set()
+
+    def start(job: Callable[[], None]) -> None:
+        threads.append(threading.Thread(target=job))
+        threads[-1].start()
+
+    facts = StoredFacts(tmp_path / "facts", build=facts_build, start=start)
+    builds = ServicesBuilds(tmp_path / "svc", build=services_build, start=start)
+    facts.start("sha-f", "m.ifc", lambda: b"")
+    assert facts_in.wait(10)
+    assert builds.building("sha-s", "s", lambda: b"")
+    assert not services_in.wait(0.5)  # held behind the fact sheet's build
+    release.set()
+    for thread in threads:
+        thread.join(10)
+    assert services_in.is_set()
 
 
 def test_the_capped_child_builds_the_model_the_api_reads(tmp_path: Path) -> None:
