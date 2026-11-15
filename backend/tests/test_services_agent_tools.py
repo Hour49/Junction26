@@ -104,6 +104,26 @@ def test_sv23_list_services_bad_ids_say_so() -> None:
     assert "error" in _run(_store(), "list_services", drawing_id="d1", room_id="SR9")
 
 
+NOT_READ = (
+    "none of this project's IFC files has been read into a services model yet, so its pipes, "
+    "ducts and cables cannot be followed"
+)
+
+
+def test_sv23_a_project_with_no_services_model_read_says_so_in_words() -> None:
+    """QA: an IFC upload has no services model until one is built; the error says that, with
+    no drawing id and no "models: none" (it is what a person reads in the chat)."""
+    store = ServicesToolStore(models={})
+    assert _run(store, "list_services", drawing_id="78b0f2d7c0284c60") == {"error": NOT_READ}
+    assert _run(store, "list_services") == {"error": NOT_READ}
+    assert _run(store, "ask_services", drawing_id="d1", op="feeds", element_id="E2") == {
+        "error": NOT_READ
+    }
+    # a project that has models still names them, so the chat can pick one
+    named = _run(_store(), "list_services", drawing_id="x")["error"]
+    assert "the project's services models: d1" in named
+
+
 # --- SV-24 ask_services --------------------------------------------------------------------------
 
 

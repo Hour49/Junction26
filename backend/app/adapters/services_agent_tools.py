@@ -59,6 +59,11 @@ from app.core.services.stored import Element, Point2, Room, ServicesModel, Store
 log = logging.getLogger(__name__)
 
 LIMIT = 3900  # characters of one result (SV-23: under 4,000)
+# what a person reads in the chat when a project's IFC files have no stored services model
+NOT_READ = (
+    "none of this project's IFC files has been read into a services model yet, so its pipes, "
+    "ducts and cables cannot be followed"
+)
 MAX_ITEMS = 60
 NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
@@ -112,7 +117,9 @@ class ServicesToolStore:
         except DomainError as error:  # the project could not be read
             raise ToolError(f"no services model: {error}") from error
         if found is None:
-            have = ", ".join(self.models) or "none"
+            if not self.models:  # an upload's IFC files have no model until one is built (SV-8)
+                raise ToolError(NOT_READ)
+            have = ", ".join(self.models)
             raise ToolError(
                 f"drawing {drawing_id!r} has no services model; the project's services models: "
                 f"{have}"
@@ -369,9 +376,12 @@ def run_services_tool(store: ServicesToolStore, name: str, arguments: str | dict
 def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     if args.drawing_id is None:  # the project's only model: a set-aside IFC is in no drawing list
         have = list(store.models)
+        if not have:
+            raise ToolError(NOT_READ)
         if len(have) != 1:
-            raise ToolError(f"name the drawing_id; the project's services models: "
-                            f"{', '.join(have) or 'none'}")  # fmt: skip
+            raise ToolError(
+                f"name the drawing_id; the project's services models: {', '.join(have)}"
+            )
         args = args.model_copy(update={"drawing_id": have[0]})
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
