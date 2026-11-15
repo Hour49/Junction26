@@ -26,7 +26,7 @@ def test_an_answer_showing_some_of_its_disputed_marks_offers_the_rest_and_a_doub
     model = Model(step(call("ask_drawings", question="how many doors")),
                   final(text="There are 3 doors [ev_1].", evidence_ids=["ev_1"]))  # fmt: skip
     got = turn(model, Tools(ask_drawings=DOORS), names=NAMES)
-    assert labels(got) == ["Show them on the plan", "Are you sure?"]
+    assert labels(got) == [SHOW_THEM, "Are you sure?"]
     assert [chip.message for chip in got.next] == [SHOW_THEM, "Are you sure?"]
 
 
@@ -70,7 +70,7 @@ def test_a_printed_room_named_without_its_area_offers_its_size() -> None:
 def test_every_chip_is_one_the_rules_planner_answers() -> None:
     chat, tools, rules = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=DOORS), RulesChatModel()
     first = run_turn(chat, "How many doors are there?", (), rules, tools, Caps(), SpendGuard())
-    assert labels(first) == ["Show them on the plan", "Are you sure?"]
+    assert labels(first) == [SHOW_THEM, "Are you sure?"]
     shown = run_turn(chat, first.next[0].message, (), rules, tools, Caps(), SpendGuard())
     assert [s.tool for s in shown.steps] == ["show_on_plan"] and shown.kind == "answer"
     assert shown.view is not None and len(shown.view.marks) == 3
@@ -111,8 +111,22 @@ def test_review_369_all_three_chips_at_once_and_no_more() -> None:
                         evidence_ids=["ev_1"]))  # fmt: skip
     tools = Tools(ask_drawings=doors, find_rooms={"status": "ok", "count": 1, "rooms": [ROOM]})
     got = turn(model, tools, names=NAMES)
-    want = ["Show them on the plan", "Are you sure?", "How big is OPEN OFFICE 102?"]
+    want = [SHOW_THEM, "Are you sure?", "How big is OPEN OFFICE 102?"]
     assert labels(got) == want
+
+
+def test_r4_e8_each_chip_sends_what_it_reads() -> None:
+    """Tudor QA R4-E8: the chip read "Show them on the plan" and sent "Show me where they are".
+    A chip's message is its label (a long one is cut on the chip, so the label starts it)."""
+    model = Model(step(call("ask_drawings", question="how many doors")),
+                  final(text="There are 3 doors [ev_1].", evidence_ids=["ev_1"]))  # fmt: skip
+    doors = {**DOORS, "parts": [{**DOORS["parts"][0], "answer": {
+        **DOORS["parts"][0]["answer"], "answer": 3, "unit": "count"}}]}  # fmt: skip
+    tools = Tools(ask_drawings=doors, find_rooms={"status": "ok", "count": 1, "rooms": [ROOM]})
+    got = turn(model, tools, names=NAMES)
+    assert len(got.next) >= 2
+    for chip in got.next:
+        assert chip.message.startswith(chip.label), (chip.label, chip.message)
 
 
 def test_review_369_gemini_is_told_to_answer_the_show_chip_with_show_on_plan() -> None:
@@ -147,7 +161,7 @@ def test_review_379_the_show_chip_is_not_offered_again_after_showing() -> None:
     two["parts"][0]["answer"]["marks"][2]["page"] = 2
     chat, tools, rules = Chat("c3f9a1b2c4d5"), Tools(ask_drawings=two), RulesChatModel()
     first = run_turn(chat, "How many doors are there?", (), rules, tools, Caps(), SpendGuard())
-    assert "Show them on the plan" in labels(first)
+    assert SHOW_THEM in labels(first)
     shown = run_turn(chat, SHOW_THEM, (), rules, tools, Caps(), SpendGuard())
     assert [s.tool for s in shown.steps] == ["show_on_plan"]
-    assert "Show them on the plan" not in labels(shown)
+    assert SHOW_THEM not in labels(shown)

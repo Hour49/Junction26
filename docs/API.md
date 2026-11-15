@@ -9707,7 +9707,7 @@ still come from this turn's tool results).
 
 `next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
 message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
-results, never from the model's text, in this order: "Show them on the plan" (`message` "Show me where they are")
+results, never from the model's text, in this order: "Show me where they are" (its `message` the same, QA R4-E8)
 when the answer has more marks than the view shows; "Are you sure?" when an answer is rated Medium or Low or has
 disputed marks, not after a review; "How big is <label>?" when the answer names a room `find_rooms` returned without
 an area. `next` is `[]` on a turn with `options` and on every other kind.
@@ -10683,7 +10683,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   },
   "next": [
     {
-      "label": "Show them on the plan",
+      "label": "Show me where they are",
       "message": "Show me where they are"
     }
   ]

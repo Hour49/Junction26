@@ -102,7 +102,7 @@ test("#369: the answer's own next chip asks its question", async ({ page }) => {
   });
   await page
     .getByRole('group', { name: 'Follow-up questions' })
-    .getByRole('button', { name: 'Show them on the plan' })
+    .getByRole('button', { name: 'Show me where they are' })
     .click();
   const shown = page.getByRole('article', { name: 'Show me where they are' });
   await expect(shown.locator('.ag-card')).toBeVisible({ timeout: 30_000 });
