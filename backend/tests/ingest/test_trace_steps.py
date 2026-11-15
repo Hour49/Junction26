@@ -13,6 +13,7 @@ from triage_fakes import FakeClassifier, FakeDescriber, WordJudge, steps
 from app.adapters.archive import ThreadRunner
 from app.adapters.carbon import CarbonThings
 from app.adapters.evidence.store import SqliteEvidenceIndex
+from app.adapters.raster_scale import PriorScale
 from app.core.drawing.model import Conflict, Scale
 from app.core.evidence.chunks import passages
 from app.core.ingest.model import (
@@ -301,6 +302,22 @@ def test_a_project_says_which_steps_ran_on_each_route(make_service: MakeService)
     assert {"probe", "vector", "tables"} <= set(vector) and "carbon" not in vector
     assert "ran" in status.model_dump(mode="json")
     assert ingest.status(status.id).ran == status.ran  # the stored project says the same
+
+
+def test_the_door_size_scale_estimate_is_a_step_that_reaches_ran(make_service: MakeService) -> None:
+    """The ingest screen's "scale from door sizes" ticks by the `prior_scale` id in `ran`."""
+    other = png_bytes(raster_plan().resize((900, 640)))
+    ingest = make_service(raster=lambda files: PriorScale(Shipped("a.png")))
+    status = ingest.wait(ingest.start("a.zip", zipped({"a.png": SCAN, "b.png": other})))
+    raster = {step.id: step for step in status.ran["raster"]}
+    # a.png: a door, so a scale; b.png: no door, so none (it ran and says why)
+    assert raster["prior_scale"] == RanStep(id="prior_scale", label="Scale from door sizes", done=2)
+    by_path = {file.path: file for file in status.files}
+    stages = {s.stage: s for s in ingest.trace(status.id, by_path["b.png"].id).stages}
+    assert [(s.id, s.did) for s in stages["extract"].steps] == [
+        ("detector", ""),
+        ("prior_scale", "no scale: no door was detected"),
+    ]
 
 
 def test_ran_grows_as_each_file_finishes_and_a_file_read_again_is_counted_once() -> None:
