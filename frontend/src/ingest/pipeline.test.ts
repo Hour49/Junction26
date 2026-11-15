@@ -345,4 +345,16 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     ]);
     expect(readDrawings({ ...project, readers: DEMO_READERS })).toHaveLength(6);
   });
+
+  it('IN-126 (QA R4-A9) a sheet the sheet-kind step called not a drawing is not among the drawings read', () => {
+    const [real, shot] = [must(project.drawings[0]), must(project.drawings[1])];
+    const screenshot = { ...shot, not_a_drawing: true };
+    const readers = DEMO_READERS;
+    expect(readDrawings({ drawings: [screenshot], readers })).toEqual([]);
+    expect(readDrawings({ drawings: [real, screenshot], readers })).toEqual([real]);
+    // left out when false (API.md): an old or a plain drawing counts
+    expect(readDrawings({ drawings: [{ ...shot, not_a_drawing: false }], readers })).toHaveLength(
+      1,
+    );
+  });
 });

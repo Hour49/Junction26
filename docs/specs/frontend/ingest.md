@@ -789,6 +789,11 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   project) the chips are as before. [unit: `chipRan`; component]
 - IN-125: in the Index row, a `running` step of `index_steps` reads "<label> … running" in the running tone, not
   as a bare label. [component]
+- IN-126 (QA R4-A9, a screenshot of a web page): a drawing with `not_a_drawing: true` (the sheet-kind step called
+  it not a drawing at all; it was read only because the step warns, and its file is flagged) is not a drawing
+  ready, as IN-116: "Drawings ready", the done line and the chat row leave it out, "Open the workspace" opens the
+  first drawing that was read, and a done project whose only drawings are such shows IN-72's "Nothing read" card
+  with the backend's flag reason, not "Ready" and the chat offer. No new words. [unit: `readDrawings`; component]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
