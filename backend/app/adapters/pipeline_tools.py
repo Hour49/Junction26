@@ -41,7 +41,7 @@ from app.api.issues import issues_of
 from app.api.project_ask import ProjectAnswer, ProjectAskRequest, ask_project
 from app.api.projects import review_of
 from app.api.takeoff import takeoff_rows
-from app.api.views import DrawingEntry, drawings_of
+from app.api.views import DrawingEntry, drawings_of, skipped_of
 from app.composition import Answering
 from app.core.checks.model import RulePack
 from app.core.drawing.model import Drawing, Room
@@ -259,10 +259,15 @@ def _entry(status: ProjectStatus, drawing_id: str) -> DrawingEntry:
     return found
 
 
-def _list_drawings(store: PipelineStore, args: Any) -> list[dict[str, Any]]:
+def _list_drawings(store: PipelineStore, args: Any) -> list[dict[str, Any]] | dict[str, Any]:
+    """The drawings; with files set aside, {items: the drawings, set_aside: each file with its
+    reason} (the shape of a cut list), so the chat can say which files could not be read and
+    why (live S1 2026-11-15: a DWG set aside was not a drawing, and the chat said none failed)."""
     status = store.ingest.status(store.project_id)
     files = {file.path: file for file in status.files}
-    return [_listed(store, entry, files.get(entry.file)) for entry in drawings_of(status)]
+    listed = [_listed(store, entry, files.get(entry.file)) for entry in drawings_of(status)]
+    skipped = [s.model_dump() for s in skipped_of(status)]
+    return {"items": listed, "set_aside": skipped} if skipped else listed
 
 
 def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) -> dict[str, Any]:

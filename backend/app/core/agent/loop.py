@@ -593,6 +593,8 @@ class _Run:
             found = _as_shown(found)  # what the model reads and what backs its numbers
         if name == "list_drawings" and isinstance(found, list):
             found = self._titled(found)  # pyright: ignore[reportUnknownArgumentType]
+        elif name == "list_drawings" and isinstance(found, dict) and "items" in found:
+            found = {**found, "items": self._titled(found["items"])}  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType, reportUnknownVariableType]
         before = set(self.ledger)
         mint(found, self.ledger, self.chat.minted + 1)
         if name == ASK and isinstance(found, dict):  # kept as the route gives it, without ev ids
@@ -1361,6 +1363,9 @@ def _summary(name: str, found: Any, names: Mapping[str, str]) -> str | None:
     if not isinstance(found, dict):
         return None
     result: Json = found  # pyright: ignore[reportUnknownVariableType]
+    if name == "list_drawings" and isinstance(result.get("items"), list):  # files set aside too
+        drawings = _summary(name, result["items"], names)
+        return f"{drawings}, {len(result.get('set_aside') or [])} set aside"
     if failed(result):
         why = result.get("error") or result.get("reason")
         return str(why)[:160] if why else None
