@@ -2,7 +2,8 @@
 
 Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening; the golden paragraph, rows 1-2 and 5 and §4-§6 (demo config, parallel ingest, memory, drawable sheets, services) checked 2026-11-15 01:30 against main 3d0dc59, row 1-2 and §4 again at 02:15 against b8c9d8e4 (#414, #425, #434, #443), §4-§6 at 02:50 against 992d98b1 (#422, #464), §4 at 02:45 against 98588dcc (#480, #486), rows 7 and §6 at 02:50 against f54bbce2 (#455, #475), §4 and §6 at
 03:10 against 1c20bc31 (#439, #490, #495, #503, #506, #511, #512, #515), §4 and §6 at 03:15 against d004a67e
-(#491, #498, #499, #517), rows 3-4 and 7, §4 at 04:10 against 1b2f5ba1 (#527, #555, #557, #562). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
+(#491, #498, #499, #517), rows 3-4 and 7, §4 at 04:10 against 1b2f5ba1 (#527, #555, #557, #562), §4 and §6 at 04:35
+against f5a58f54 (#538, #551, #554, #558, #575, #580). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
 methods). The per-plan output, the drawing model, becomes decision record 0004.
 
 ## 1. Ingestion: from files to one drawing model per plan
@@ -247,7 +248,7 @@ Off in the demo on purpose, with what was measured:
 | Setting | Why it stays off |
 | --- | --- |
 | `SCALE_CARBON_DOORS` | Meant for a scan whose detector found no door: the area scale would come from Carbon's door boxes (door width `CARBON_DOOR_M` 1.069 m, fitted on one half of a set of rendered scans with a known scale; 11 of 11 sheets of the other half inside the band; #401). On a fresh set of 68 questions about public scans nobody on the team had used (truths by eye, hashed before any run), main 030abbb with it off gave 36 right, 12 wrong, 20 refused; with it on 37, 14, 17. All three changes were on one sheet with a hand-written 1/4" scale the reader did not read: the kitchen came out 16 m² against 9.8 and the house 149 m² against 100, both outside the ±16% band the answer printed (the third change was a right answer). A wrong number whose stated band does not hold is worse than a refusal, so it stays off. #417 now gives no door scale when a printed scale was seen but not read; that has not been measured with the setting on. On golden v2 the setting changes nothing (Carbon reads elements only on images over 4,000 px) |
-| `DISCIPLINE_PICTURES` (`off` or `template`; #414) | With `template`, a scan that triage names a services or structural sheet is read by local readers only (legend, symbols, coloured runs) into a fact sheet whose answers are Low, decision 0015. Tudor's per-class bench on pictures rendered from the services models (#281): counts within ±10% 49% of the time on clean renders, 37% on scans, 35% at 100 dpi and 36% on photos; on scans precision falls to 0.05-0.2; 8% of run lengths within 10%. Run end to end on #414 with the readers on (10 bench pictures), nothing reached a user. #486 made the readers work end to end and cleans each page before reading it (a median filter on salt-and-pepper pages, flattening, deskew up to ±2°). On the tune half of noisy 150 dpi pictures, with the legend boxes given, precision went from 0.58, 0.56 and 0.17 to 0.97, 0.92 and 1.00 (air terminals, other symbols, lights), at recall 0.87, 0.73 and 0.93. #486 reports only the tune half, and in real use nobody gives the legend boxes, so it stays off until a bench passes. Since #490, #495, #498, #511 and #515 a services picture is paired with the plan's floor (by its words first, then by its walls), with the reason, and laid over the plan for the services follow-up, and the edit card's discipline tab shows that picture with the edit drawn on it (#499); a finder for a sheet's plan views, to read before its walls, is merged but not called yet (#557); #500's pairing check on DigitalHub refused all 8 pairs (0 wrong), before #495 read the floor codes, and was not run again |
+| `DISCIPLINE_PICTURES` (`off` or `template`; #414) | With `template`, a scan that triage names a services or structural sheet is read by local readers only (legend, symbols, coloured runs) into a fact sheet whose answers are Low, decision 0015. Tudor's per-class bench on pictures rendered from the services models (#281): counts within ±10% 49% of the time on clean renders, 37% on scans, 35% at 100 dpi and 36% on photos; on scans precision falls to 0.05-0.2; 8% of run lengths within 10%. Run end to end on #414 with the readers on (10 bench pictures), nothing reached a user. #486 made the readers work end to end and cleans each page before reading it (a median filter on salt-and-pepper pages, flattening, deskew up to ±2°). On the tune half of noisy 150 dpi pictures, with the legend boxes given, precision went from 0.58, 0.56 and 0.17 to 0.97, 0.92 and 1.00 (air terminals, other symbols, lights), at recall 0.87, 0.73 and 0.93. #486 reports only the tune half, and in real use nobody gives the legend boxes, so it stays off until a bench passes. Pairing a picture with the plan's floor and laying it over are in §6, with what they measured; the DINO symbol check, not called yet, now confirms only air terminals (#551) |
 | `RASTER_TILES` | Large sheets took 77 to 95 s longer each in the all-on run, and its CubiCasa criterion failed (#381) |
 | `VECTOR_FALLBACK` | Failed its pre-registered check (#381) |
 | `RESOLVER=carbon` | The pilot was inconclusive, and its cost is paid inline on every answer (#381) |
@@ -328,3 +329,22 @@ or runs out of memory is not started again until the backend restarts. From that
   (on the removed wall, inside it, through it) and against the model's port graph, per system, for terminals that
   lose their connection. No model call; the result rides on the proposal. It needs the edited sheet on the IFC
   route with its wall geometry (KNOWN K6).
+
+Services pictures (`DISCIPLINE_PICTURES=template`, off in the demo; spec `docs/specs/backend/services-follow.md`).
+A services picture (a scan or photo of a heating, plumbing or ventilation sheet) can follow a plan edit like a services
+model: it is paired with the plan's floor, laid over the plan, and the edit card's discipline tab shows it with the
+edit drawn on it (#490, #499).
+
+- Pairing by words first (#495, #558, #575): floor words, level codes and listed or ranged floors in titles and file
+  names; another floor or another set is refused with the reason, and so is a floor name no rule reads. Measured on
+  the USCG Governors Island sheets on Wikimedia Commons, 4,610 unseen units with the line "0 wrong" written first:
+  #558 gave 603 right and 10 wrong (main before it: 371 right, 602 wrong), so the line failed. #575 fixed those
+  causes and gives 630 right, 0 wrong on the same units, but that is after the fact; its pre-registered confirmation
+  on other Commons sheets found only 6 units (10 needed) and is inconclusive (2 right, 0 wrong, 4 refused on both
+  arms).
+- Laying over by walls (#580, with the register of #538 and #554 and the plan-view finder of #557): each plan view
+  of the picture is laid over the plan by its wall lines; two parts that lay it two ways with no clear winner, or a
+  part more than 5% off the sheet's own scale, are refused. On the DigitalHub bench (#580): same floor 3 right, 0
+  wrong, 33 refused (the bench's plan side has no outer walls); other floor 0 wrong of 72. Walls are read per
+  proposal, about 0.2-0.5 s a picture plus about 0.3 s of register per part, not cached. #580 lists an end-to-end run of
+  this path as still to do.
