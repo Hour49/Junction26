@@ -618,6 +618,15 @@ def test_typed_matches_beside_untyped_fixtures_are_at_least_their_count(
     assert not RAW_IFC.search(found["text"]), found
 
 
+def test_one_untyped_fixture_is_said_in_the_singular(settings: Settings, tmp_path: Path) -> None:
+    """review-559 nit: one fixture with no type is "1 more sanitary fixture there has", not
+    "1 more sanitary fixtures there have"."""
+    found = _rules(_client(settings, tmp_path, model=wc_room(untyped=1)),
+                   "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
+    assert found["kind"] == "answer", found
+    assert "(1 more sanitary fixture there has no type in the model)" in found["text"], found
+
+
 def test_a_sanitary_word_whose_type_the_model_lacks_is_not_counted(
     settings: Settings, tmp_path: Path
 ) -> None:
