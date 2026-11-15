@@ -219,8 +219,11 @@ class Settings(BaseSettings):
     # The picture lane's runs reader: "mask" = each coloured piece is a run (mask.py); "graph" =
     # each legend line style thinned into a line graph, gaps bridged, a run per connected network
     # (runs_graph.py; DigitalHub held out 33/64 vs mask 22/64 within 10%, .agents/exp/pics-runs.md).
-    # Its sheets are kept in their own folder
-    discipline_runs: Literal["mask", "graph"] = "mask"
+    # "gemini" = one Carbon call per page traces each system's runs as polylines, measured at the
+    # sheet's scale (gemini_runs.py, GEMINI_API_KEY, spend guard; DigitalHub 34/54 within 10%,
+    # printed sizes 165/180, .agents/exp/pics-pic-cls.md round 5). Its sheets are kept in their own
+    # folder
+    discipline_runs: Literal["mask", "graph", "gemini"] = "mask"
     discipline_glyphs_model: Path = Path("../data/models/pic-glyphs")
     discipline_pictures_cache_dir: Path = Path("../data/cache/discipline-pictures")
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when

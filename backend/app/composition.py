@@ -47,6 +47,7 @@ from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtra
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
 from app.adapters.discipline_pictures.gemini import GeminiPictureReader
+from app.adapters.discipline_pictures.gemini_runs import GeminiRunReader
 from app.adapters.discipline_pictures.glyphs import GlyphReader
 from app.adapters.discipline_pictures.lane import CODE as PICTURES_CODE
 from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets, kept_in
@@ -390,6 +391,15 @@ def _pictures(
     runs = None
     if settings.discipline_runs == "graph":
         runs = GraphReader(files, legend.legend, legend.scale)
+    elif settings.discipline_runs == "gemini":
+        client = CarbonClient(
+            settings.gemini_api_key.get_secret_value(),
+            settings.carbon_timeout_s,
+            budget=spend_guard(settings),
+            in_flight=settings.carbon_calls_in_flight,
+        )
+        replies = settings.discipline_pictures_cache_dir / "runs-gemini-replies"
+        runs = GeminiRunReader(files, client, replies, legend.scale)
     return PictureLane(
         inner,
         files,
