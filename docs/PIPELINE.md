@@ -134,6 +134,19 @@ decided (the 2x rule above), keeps the behaviour above. `carbon`
 reads them with the Carbon client (page call shared with `CARBON_READER`, a bars call, one full-resolution call per
 bar), on the process's spend guard.
 
+OCR check of the printed digits (2026-11-15, accuracy task 7, `PRINTED_OCR_CHECK=off|on`, default off, only with
+`RASTER_PRINTED_SCALE=carbon`; `app/core/pipeline/printed_ocr.py`, `app/adapters/raster_ocr/tiles.py`): PP-OCR
+(rapidocr, local, CPU) reads again the places of the digits Carbon read. A printed fact: its box, padded 0.4% of the
+page, overlapping boxes read as one, cut at full resolution, enlarged to 48 px when lower, read in 1600 px tiles with
+5% overlap, ruling lines of 100 px or more removed first, each text box read upright and at 180 degrees (a short box
+also at 90 and 270). The scale text has no box: the whole sheet is read for it, only on a sheet of at most 40 MP
+(T1's 139 MP took too long). Per value: confirmed (OCR reads Carbon's number there, either reading of a separator),
+disagrees (OCR reads another number with the same count of digits there; for the scale text, exactly one other scale
+of the same family on the whole sheet), not found (nothing changes). A disagreement keeps the value from deciding
+silently: a printed count gets a third value with OCR's reading (method `annotation`, no rule), an area a note, and
+the scale text is not used (the estimate stays). The step's trace counts the three outcomes; with no disagreement
+the reading is unchanged.
+
 How a conflict shows in the answer (answer_v1.1, [0002](decisions/0002-answer-format.md)): `answer` holds the
 resolved value, `conflicts` lists every measured value with its method, file, page and box (page and box are null
 for a value read from an IFC model), and `resolution` says which rule picked the answer. With no rule, `answer`
@@ -233,6 +246,7 @@ commented line per setting. The live demo runs with the settings `tools/qa-env.s
 | `RECTIFIER=r3` | `none` | A camera photo of a plan is flattened before it is read |
 | `RASTER_SCALE=priors` | `off` | A scan that prints no scale gets one estimated from its doors; its areas are labelled estimates with a band |
 | `RASTER_PRINTED_SCALE=carbon` | `off` | A measured printed scale (a bar, or a ratio at a resolution the file states) replaces the estimate (§2) |
+| `PRINTED_OCR_CHECK=on` | `off` | PP-OCR reads Carbon's printed digits again; a value it reads differently does not decide silently (§2) |
 | `CARBON_READER=large` | `off` | Carbon counts what is drawn on an image over 4,000 px, or on a page where the shipped reader found fewer than 3 things; flagged, never certified |
 | `CARBON_LEVELS=ladder` | `off` | Carbon reads every raster drawing: a Medium answer it disagrees with drops to Low, one it agrees with rises to High |
 | `DECISIONS_CONFIDENCE`, `DECISIONS_KIND`, `GATE_POLICY`, `ANSWER_POLICY`, `CHECK_POLICY`, `DOUBLE_CHECK_READERS`, `LOCAL_GATES` | off or empty | The confidence levels and the double-check, from policy files frozen in `eval/results/` (fitted on val, certified once on test) |

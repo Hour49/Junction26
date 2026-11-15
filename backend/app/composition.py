@@ -90,6 +90,7 @@ from app.adapters.raster_detector import OnnxDetector
 from app.adapters.raster_ocr.engine import RapidOcrEngine
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
 from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
+from app.adapters.raster_ocr.tiles import PrintedOcr
 from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
@@ -895,6 +896,8 @@ def build_ingest(
         names["raster_printed_scale"] = settings.raster_printed_scale
     if settings.printed_total_answers != "off":  # the same
         names["printed_total_answers"] = settings.printed_total_answers
+    if settings.printed_ocr_check != "off" and settings.raster_printed_scale != "off":  # the same
+        names["printed_ocr_check"] = settings.printed_ocr_check
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -1095,7 +1098,7 @@ def _printed(
 ) -> Extractor:
     """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/),
     read by gemini-4-carbon on the process's spend guard, cached with the Carbon reader's
-    replies (its page reply is shared)."""
+    replies (its page reply is shared). PRINTED_OCR_CHECK=on: PP-OCR reads its values again."""
     match settings.raster_printed_scale:
         case "off":
             return inner
@@ -1109,7 +1112,10 @@ def _printed(
             )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
             answers = settings.printed_total_answers == "on"
-            return PrintedScale(inner, reader, files, kind_of, answers)  # kind: no camera dpi
+            checker = PrintedOcr(_ocr(), files) if settings.printed_ocr_check == "on" else None
+            return PrintedScale(  # kind: no camera dpi
+                inner, reader, files, kind_of, answers, checker
+            )
 
 
 def _raster_component(
