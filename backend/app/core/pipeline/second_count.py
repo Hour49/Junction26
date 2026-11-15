@@ -101,6 +101,11 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
     ("room_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
         "ifc_model", "keep the spaces of the sheet's storey"
     ),
+    # GROSS_NET_CHECK (gross_net.py): a printed gross is to the outside walls and may cover more
+    # than the drawing; it never answers a net question
+    ("floor_area", frozenset({"summed_rooms", "printed_total"})): Rule(
+        "summed_rooms", "the rooms found, summed: a printed gross area is not a net one"
+    ),
 }
 
 

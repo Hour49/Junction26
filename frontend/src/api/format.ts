@@ -59,10 +59,11 @@ const METHODS: Record<string, string> = {
   other: 'other method',
 };
 
-/** A measuring-method id as a plain label; no id is "no method"; an id with no label shows as is. */
+/** A measuring-method id as a plain label; no id is "no method"; a snake_case id with no label becomes words
+ * ("symbol_detector": a reader name the backend may send, VW-101); anything else (a mark's label) shows as is. */
 export function methodName(id: string | null | undefined): string {
   if (id === null || id === undefined) return 'no method';
-  return METHODS[id] ?? id;
+  return METHODS[id] ?? (/^[a-z0-9]+(_[a-z0-9]+)+$/.test(id) ? id.replaceAll('_', ' ') : id);
 }
 
 /** The rule packs `/api/info` lists (#139); none before info loads. */

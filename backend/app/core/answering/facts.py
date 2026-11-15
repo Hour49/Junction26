@@ -16,7 +16,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Protocol
 
-from app.core.answering.model import Answer, Evidence, Question
+from app.core.answering.model import IN_ONE_ROOM, Answer, Evidence, Question
 from app.core.discipline import SYSTEM_DISCIPLINE, system_from_question
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
@@ -82,6 +82,18 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         return None
     query, facts = _kind_of_sheet(query, sheet), _Facts(sheet.facts)
     picture = bool(sheet.facts) and all(_picture(fact) for fact in sheet.facts)
+    if picture and query.place is not None:  # a picture's facts are whole-sheet counts only
+        return Answer(
+            id=question.id,
+            answer=None,
+            unit=None,
+            evidence=(),
+            method="refused:unsupported-question",  # answer.UNSUPPORTED_QUESTION
+            cost_usd=0.0,
+            latency_s=latency_s,
+            abstain=True,
+            explanation=IN_ONE_ROOM,  # never the sheet total for one room (big QA R1 services)
+        )
     rows = _picture_rows(query, facts) if picture else None
     unread = rows is None and query.entity not in NOT_DRAWN and not facts.topics(f"{query.entity}.")
     if picture and (unread or (rows is not None and not rows.counted)):
@@ -252,6 +264,17 @@ def fact_text(query: FactQuery, sheet: FactSheet) -> str | None:
 def _written(query: FactQuery, facts: "_Facts") -> str | None:
     if query.aggregate == "unavailable":
         return f"{UNAVAILABLE}: a building file does not record it."
+    if query.storey is None and query.between is None:
+        named = _storeys_named(query.asked, facts)
+        if len(named) > 1:  # never one of them, nor the whole file (big QA R1 E13)
+            return (
+                f"The question names {len(named)} storeys ({', '.join(named)}); this file's"
+                " facts answer for one storey at a time (not available for several)."
+            )
+        if named:  # "on P1": the storey, not a word some space is named (R1 E13)
+            asked = {*_tokens(named[0]), named[0].casefold()}
+            words = tuple(word for word in query.words if word.casefold() not in asked)
+            query = query.model_copy(update={"storey": named[0].lower(), "words": words})
     storey = None if query.storey is None else _storey_of(query.storey, facts)
     if query.storey is not None and storey is None:
         n = len(_storeys_by_height(facts))
@@ -488,6 +511,32 @@ def _label(name: str | None, facts: _Facts) -> str:
     at = names.index(name) - names.index(_ground(storeys))
     said = "Ground floor" if at == 0 else f"Level {at}" if at > 0 else f"Basement {-at}"
     return f"{said.replace('Basement 1', 'Basement')} ({name})"
+
+
+def _storeys_named(text: str, facts: _Facts) -> list[str]:
+    """The model's storeys a question names by the file's own name or code, the way the
+    templates read a drawing's (#702): "on P1", "on E01" (E01_OKRD), "on OG2" (OK OG2), "on the
+    Erdgeschoss". A name follows on/in/at, or a named storey with and/or/to ("on P1 and P2"); a
+    part of a name counts only with a digit in it; a name of letters only only capitalised, and
+    a short one (EG) as written."""
+    names = [name for name, _ in _storeys_by_height(facts)]
+    found: list[str] = []
+    for lead in (r"\b(?:on|in|at)\s+(?:the\s+)?", r"\s*(?:and|or|to|&|,|-)\s*(?:the\s+)?"):
+        for name in names:
+            parts = [name, *(t for t in re.split(r"[\W_]+", name) if re.search(r"\d", t))]
+            for part in dict.fromkeys(p.strip() for p in parts if len(p.strip()) >= 2):
+                exact = part.isalpha() and len(part) <= 3  # "EG" never as "eg"
+                # a number with a unit after it is a height ("at 12 m"), not storey "12 ..."
+                unit = r"(?!\s*(?:mm|cm|m²|m2|m|ft|metres?|meters?|%|°)(?!\w))" * part.isdigit()
+                pattern = rf"{lead}(?P<at>{re.escape(part)})(?![\w.]){unit}"
+                if lead.startswith(r"\s*") and not found:
+                    continue  # "and P2" counts only after a storey named by on/in/at
+                hit = re.search(pattern, text, 0 if exact else re.I)
+                # a name of letters only is a storey when written as one: "on the Erdgeschoss",
+                # never "in the roof construction" for a storey named "Roof"
+                if hit and (not part.isalpha() or hit["at"][0].isupper()) and name not in found:
+                    found.append(name)
+    return found
 
 
 def _storey_of(phrase: str, facts: _Facts) -> str | None:

@@ -1,11 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { drawing, fileReadAsPlan, project } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
 import { KEPT_VERSION } from '../shell/kept';
 import { AgentChat } from './AgentChat';
 import type { ChatRequest } from './agent';
-import { answerTurn, dontKnowTurn, model, needsInputTurn } from './fixtures';
+import { answerTurn, dontKnowTurn, editTurn, model, needsInputTurn } from './fixtures';
 
 const PID = project.id;
 const CHAT = `POST /api/projects/${PID}/chat`;
@@ -369,5 +369,42 @@ it('R4-C13 a thread kept by an older build (no version, or a turn missing what t
     expect(screen.queryByText('How many doors?')).toBeNull();
     expect(sessionStorage.getItem(key)).toBeNull(); // dropped, so the next reload starts clean too
     cleanup();
+  }
+});
+
+it('R1 edits S3: a card keeps what the user chose (Before) when the window crosses the wide breakpoint', async () => {
+  // The chat was wrapped in the split only while wide, so crossing 1200 px remounted every card: the edit card
+  // went back to its Plan tab and After (big QA R1, edits). A matchMedia whose answer the test flips.
+  let wide = false;
+  const listeners: (() => void)[] = [];
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    get matches() {
+      return wide;
+    },
+    media: query,
+    addEventListener: (_: string, on: () => void) => listeners.push(on),
+    removeEventListener: () => undefined,
+  }));
+  try {
+    open(editTurn);
+    await send('Remove the wall between Bagno 1.01 and Stanza 1.02');
+    const before = await screen.findByRole('button', { name: 'Before' });
+    fireEvent.click(before);
+    expect(before.getAttribute('aria-pressed')).toBe('true');
+    wide = true;
+    act(() => {
+      listeners.forEach((on) => {
+        on();
+      });
+    });
+    await waitFor(() => {
+      expect(document.querySelector('.ag-split')).toBeTruthy();
+    });
+    expect(screen.getByRole('button', { name: 'Before' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(before.isConnected).toBe(true); // the same card, not a new one
+  } finally {
+    vi.unstubAllGlobals();
   }
 });

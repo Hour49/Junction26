@@ -239,6 +239,20 @@ describe('ConflictsList', () => {
     expect(counts).toHaveBeenLastCalledWith({ total: 0, needsPerson: 0 });
   });
 
+  it('VW-101 a method id the wording map does not know is never shown raw on a variant', async () => {
+    const [v0, ...rest] = base.conflict.values;
+    if (!v0) throw new Error('fixture changed');
+    // a reader name the backend may send as a method (Bogdan's QA: "symbol_detector, page 1")
+    const raw = { ...v0, method: 'symbol_detector' as typeof v0.method };
+    const odd: ConflictEntry = { ...base, conflict: { ...base.conflict, values: [raw, ...rest] } };
+    const { container } = show({ [PATH.review]: withConflicts([odd]) });
+    await ready();
+    const a = tile(card(base.label), 1);
+    expect(a.textContent).toContain('symbol detector, page 1');
+    expect(a.getAttribute('aria-label')).toContain('symbol detector, page 1');
+    expect(container.textContent).not.toContain('symbol_detector');
+  });
+
   it('CF-5 / CF-40 a rule card shows its kicker, label, file and numbered variant tiles', async () => {
     show();
     await ready();

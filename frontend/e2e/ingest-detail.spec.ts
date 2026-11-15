@@ -59,7 +59,7 @@ test('AD-110 AD-100 AD-106 AD-115: files by stage, then one file on its time axi
   expect(lines.filter(([, n]) => n !== 1)).toEqual([]);
 
   await matrix.getByRole('link', { name: 'plans/flat-b.pdf' }).click();
-  await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/f\/f\d+$/);
+  await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/f\/f\d+\?from=advanced$/);
   const decisions = page.getByRole('region', { name: 'Decisions' });
   await expect(decisions.getByText('1 conflict between the counts')).toBeVisible();
   await expect(decisions.getByText(/on the drawing, .* the second way/).first()).toBeVisible();
@@ -157,6 +157,31 @@ test('AD-103: the readers inside a stage, side by side on its time axis', async 
   await expect(steps.getByRole('img', { name: 'skipped' })).toHaveCount(1);
   await steps.scrollIntoViewIfNeeded();
   await shot(page, testInfo, 'detail-steps', offline);
+  // IN-79: opened from Advanced, the back link returns there
+  await page.getByRole('link', { name: 'Back to Ingest' }).click();
+  await expect(page).toHaveURL(new RegExp(`#/p/${pid}\\?view=advanced$`));
+  await expect(page.getByRole('region', { name: 'Files by stage' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+// IN-79: a file opened from the Simple view's lanes goes back to Ingest, not Documents.
+test('IN-79 a file opened from the Ingest lanes goes back to Ingest', async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const offline = await noKeys(page);
+  const pid = await sampleDone(page);
+  await page.goto(`/#/p/${pid}`);
+  await page
+    .getByRole('region', { name: 'Drawn PDF' })
+    .getByRole('link', { name: 'plans/flat-a.pdf' })
+    .click();
+  await expect(page.getByRole('heading', { level: 1, name: 'plans/flat-a.pdf' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back to Documents' })).toHaveCount(0);
+  await shot(page, testInfo, 'detail-back-to-ingest', offline);
+  await page.getByRole('link', { name: 'Back to Ingest' }).click();
+  await expect(page).toHaveURL(new RegExp(`#/p/${pid}$`));
+  await expect(page.getByRole('region', { name: 'Routes' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

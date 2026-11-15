@@ -71,7 +71,11 @@ function FileRow({
     <li className="fm-row">
       <div className="fm-file">
         {/* the label keeps the name the plain path: a browser puts a space between the two flex parts */}
-        <a href={`#/p/${projectId}/f/${file.id}`} title={file.path} aria-label={file.path}>
+        <a
+          href={`#/p/${projectId}/f/${file.id}?from=advanced`}
+          title={file.path}
+          aria-label={file.path}
+        >
           <PathName path={file.path} />
         </a>
         <span className="fm-meta">
