@@ -283,6 +283,13 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+/* A text answer (an IFC model's fact answer): its lines as written, at reading size */
+.en-value--text {
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  white-space: pre-line;
+}
 .en-noun {
   font-size: 17px;
   color: var(--v-muted);

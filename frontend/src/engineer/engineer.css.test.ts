@@ -87,3 +87,8 @@ it('CH-39 ui-bugs 8: no Show it on link style left; the why line smaller', () =>
   expect(css).not.toMatch(/\.en-show\b/);
   expect(rulesFor('.en-lead--why')).toMatch(/font-size:\s*14px/);
 });
+
+it('deep QA research-lead 1: a text answer keeps its line breaks at reading size', () => {
+  expect(rulesFor('.en-value--text')).toMatch(/white-space:\s*pre-line/);
+  expect(rulesFor('.en-value--text')).toMatch(/font-size:\s*15px/);
+});
