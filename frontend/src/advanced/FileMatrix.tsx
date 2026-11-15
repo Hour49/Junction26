@@ -8,6 +8,7 @@ import {
   plural,
   routeLabel,
 } from '../ingest/ingest';
+import { rowStep } from '../ingest/pipeline';
 import { StateBadge } from '../ingest/ProjectScreen';
 import { splitPath } from '../ingest/RouteLanes';
 import {
@@ -58,9 +59,10 @@ function FileRow({
   const share = slowest > 0 ? Math.max(0.04, file.ms / slowest) : 0;
   const found = foundOf(file);
   const readFrom = readWith(file);
+  const now = rowStep(file);
   const note = live
-    ? file.step
-      ? `Now: ${file.step}`
+    ? now
+      ? `Now: ${now}`
       : file.stage
         ? `Now: after ${STAGE_LABEL[file.stage]}`
         : 'Waiting'
