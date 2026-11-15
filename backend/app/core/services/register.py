@@ -167,15 +167,14 @@ def _guesses(
 
 
 def _nearest(points: np.ndarray, walls: np.ndarray) -> np.ndarray:
-    """Each point's nearest point on any wall."""
-    a, b = walls[:, 0][None], walls[:, 1][None]
-    ab = b - a
-    t = np.clip(
-        ((points[:, None] - a) * ab).sum(-1) / np.maximum((ab * ab).sum(-1), 1e-12), 0.0, 1.0
-    )
-    near = a + t[..., None] * ab
-    i = np.argmin(((points[:, None] - near) ** 2).sum(-1), axis=1)
-    return near[np.arange(len(points)), i]
+    """Each point's nearest point on any wall (by matrix products: no points x walls x 2)."""
+    a, ab = walls[:, 0], walls[:, 1] - walls[:, 0]
+    length2 = np.maximum((ab * ab).sum(1), 1e-12)
+    pa = points @ ab.T - (a * ab).sum(1)  # (p - a) . ab
+    t = np.clip(pa / length2, 0.0, 1.0)
+    p_a2 = (points * points).sum(1)[:, None] - 2 * points @ a.T + (a * a).sum(1)  # |p - a|^2
+    i = np.argmin(p_a2 - 2 * t * pa + t * t * length2, axis=1)
+    return a[i] + t[np.arange(len(points)), i, None] * ab[i]
 
 
 def _place(q: np.ndarray, deg: float, scale: float, shift: np.ndarray) -> np.ndarray:
@@ -193,7 +192,7 @@ def _icp(
     """The pose (deg, scale, shift) refined by trimmed ICP with Umeyama's similarity, its scale
     kept in the `searched` range (left alone, ICP on lines that match nothing shrinks the sheet
     toward a point, where every line lies on a wall)."""
-    q = _points(sheet)  # ends and middle: the fit needs no more
+    q = _points(sheet, SAMPLES)
     size = _extent(q) * scale
     moved = _place(q, deg, scale, shift)
     for _ in range(ICP_STEPS):
