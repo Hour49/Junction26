@@ -203,3 +203,29 @@ def test_sv26_a_named_element_the_list_does_not_have_is_said_so() -> None:
     assert (name, args["kind"]) == ("final_answer", "dont_know")
     assert "E7 is not in the services list" in args["text"]
     assert "no room" not in args["text"]
+
+
+IFC2 = "1111222233334444"
+TWO = [*DRAWINGS, {"drawing_id": IFC2, "name": "m/electrical.ifc", "kind": "ifc"}]
+SOCKET = {"id": "E7", "kind": "outlet", "label": "Duplex Receptacle", "room": "SR1", "ev": "ev_7"}
+
+
+def test_sv26_an_empty_list_of_one_model_goes_on_to_the_next_model() -> None:
+    """QA: a project with two services models; the first has no socket, the second has one."""
+    message = "move the socket"
+    listing: Done = ("list_drawings", {}, TWO)
+    none: Done = ("list_services", {"drawing_id": IFC, "kind": "outlet"},
+                  {"drawing_id": IFC, "items": [], "more": 0})  # fmt: skip
+    assert plan(message, listing, none) == ("list_services", {"drawing_id": IFC2, "kind": "outlet"})
+    found: Done = ("list_services", {"drawing_id": IFC2, "kind": "outlet"},
+                   {"drawing_id": IFC2, "items": [SOCKET], "more": 0})  # fmt: skip
+    assert plan(message, listing, none, found) == (
+        "list_services", {"drawing_id": IFC2, "room_id": "SR1"})  # fmt: skip
+    empty: Done = ("list_services", {"drawing_id": IFC2, "kind": "outlet"},
+                   {"drawing_id": IFC2, "items": [], "more": 0})  # fmt: skip
+    assert plan(message, listing, none, empty)[0] == "list_services"  # the PDF last
+    pdf: Done = ("list_services", {"drawing_id": PDF, "kind": "outlet"},
+                 {"error": f"drawing {PDF!r} has no services model"})  # fmt: skip
+    name, args = plan(message, listing, none, empty, pdf)
+    assert name == "final_answer"
+    assert args["text"] == "I found no socket in the services model to move."
