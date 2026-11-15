@@ -66,10 +66,19 @@ function IndexSteps({ project }: { project: ProjectView }) {
     >
       {steps.map((s) => (
         <li key={s.id}>
-          <span className={cn(s.state === 'failed' ? 'text-danger' : 'text-text-2')}>
+          <span
+            className={cn(
+              s.state === 'failed'
+                ? 'text-danger'
+                : s.state === 'running'
+                  ? 'font-semibold text-primary'
+                  : 'text-text-2',
+            )}
+          >
             {s.label}
           </span>
-          {s.did && `: ${s.did}`}
+          {/* a step that has started and not ended says so, not a bare label (IN-125) */}
+          {s.state === 'running' ? ' … running' : s.did && `: ${s.did}`}
         </li>
       ))}
     </ul>

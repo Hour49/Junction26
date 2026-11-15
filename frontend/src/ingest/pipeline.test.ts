@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
 import type { FileStatus } from '../api';
 import {
+  chipCovers,
+  chipHasStep,
+  chipRan,
+  chipSteps,
+  chipStepsOf,
   busySteps,
   chipWords,
   foundLine,
@@ -166,6 +171,60 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     ).toEqual(['plan or not (rules)']);
     expect(triageReaders(project.readers)).toEqual([]);
     expect(triageReaders(undefined)).toEqual([]);
+  });
+
+  it('IN-123 each chip knows its step ids, from the components as configured', () => {
+    const known = chipStepsOf(DEMO_READERS);
+    // Gemini Decisions over the detector: the detector reads inside the decisions step
+    expect(chipSteps('symbol detector', known)).toEqual([
+      'detector',
+      'decisions',
+      'arbiter/base',
+      'arbiter/second',
+    ]);
+    expect(chipSteps('count arbiter', known)).toEqual(['arbiter', 'arbiter/pick']);
+    expect(chipSteps('Gemini count decision', known)).toEqual(['decisions']);
+    expect(chipSteps('room reader', known)).toEqual(['rooms']);
+    expect(chipSteps('double check by 2 more readers (not counted)', known)).toEqual([
+      'double_check:',
+    ]);
+    expect(
+      chipHasStep('double check by 2 more readers (not counted)', 'double_check:m1', known),
+    ).toBe(true);
+    expect(chipHasStep('second count', 'second_count:door', known)).toBe(true);
+    expect(chipHasStep('Gemini cross-check (not counted)', 'carbon_check', known)).toBe(true);
+    expect(chipHasStep('Gemini for sheets with few symbols', 'carbon_check', known)).toBe(false);
+    expect(chipHasStep('Gemini for sheets with few symbols', 'carbon', known)).toBe(true);
+    // a precomputed rooms reading runs as `reader`
+    expect(chipSteps('room reader', chipStepsOf({ raster_components: 'rooms=exp:ocr/x' }))).toEqual(
+      ['reader'],
+    );
+    // the id wins over a label that begins with another chip's name; no id: the label
+    const arbiter = { id: 'arbiter', label: 'Symbol detector, 8 views + count arbiter' };
+    expect(chipCovers('symbol detector', arbiter, known)).toBe(false);
+    expect(chipCovers('count arbiter', arbiter, known)).toBe(true);
+    expect(
+      chipCovers('symbol detector', { id: null, label: 'Symbol detector, 8 views' }, known),
+    ).toBe(true);
+    // a chip with no known id (or a step label as a chip): label only
+    expect(chipSteps('scale from door sizes', known)).toEqual([]);
+    expect(chipCovers('Wall tracer', { id: 'walls', label: 'Wall tracer' }, known)).toBe(true);
+  });
+
+  it('IN-124 chipRan: ran when done or failed on a file, skipped when only skipped, absent, or nothing to tell', () => {
+    const known = chipStepsOf(DEMO_READERS);
+    const r = (id: string, done = 0, skipped = 0, failed = 0) => ({
+      id,
+      label: id,
+      done,
+      skipped,
+      failed,
+    });
+    expect(chipRan('Gemini reader', [r('carbon', 0, 0, 1)], known)).toBe('ran');
+    expect(chipRan('Gemini reader', [r('carbon', 0, 2)], known)).toBe('skipped');
+    expect(chipRan('Gemini reader', [r('probe', 3)], known)).toBe('absent');
+    expect(chipRan('Gemini reader', undefined, known)).toBeNull(); // an older project
+    expect(chipRan('scale from door sizes', [r('probe', 3)], known)).toBeNull(); // no known id
   });
 
   it('IN-102 things found: plain counts only, each drawing once (not its other renderings)', () => {

@@ -768,6 +768,25 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
 - IN-122 (QA R3-G8, flag reason cut at 390): a finished file's row note in the lanes (what it found and why it is
   flagged or set aside) is shown whole, wrapping over as many lines as it needs; a queued or running file's note
   stays at 2 lines. [component; browser: screenshot at 390]
+- IN-123 (decision 0018, step ids): each reader chip knows the step ids it stands for. The image route's component
+  chips take theirs from `readers.raster_components` as the backend names its sources (`SOURCE_STEPS`): a
+  `decisions*` source adds `decisions` to its inner reader's chip (the detector reads inside that step) and gives
+  "Gemini count decision" `decisions`; `arbiter-t1` gives "symbol detector" arbiter/base, arbiter/second and "count
+  arbiter" arbiter, arbiter/pick; a detector source `detector`, Gemini rooms `rooms`, `exp`/`dir`/`verda` `reader`.
+  The rest are fixed: "double check by n more readers" ← double_check:*; "second count" ← second_count:*,
+  ifc_vs_sheet, schedule_tags, scale_check, room_areas; "Gemini cross-check" ← carbon_check; "Gemini reader" / "for
+  sheets with few symbols" ← carbon; "printed scale (Gemini)" ← printed_scale; "photo flattening" ← rectifier;
+  "schedule tables" ← tables; "drawn-PDF reader" ← vector; "IFC model reader" ← ifc. The chip running now is found
+  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("scale
+  from door sizes", "tiles for big sheets": no step of their own). [unit: `chipStepsOf`, `chipSteps`,
+  `chipHasStep`, `chipCovers`; component]
+- IN-124 (`ProjectStatus.ran`): a chip one of whose ids ended done or failed on a file of its route gets its "ran"
+  tick, also on a finished project opened fresh (nothing seen running). Once every file of the lane has ended, a
+  chip with known ids none of which ran is dimmed and says why: "not needed here" (its steps only skipped) or "did
+  not run" (none appeared). While a lane still has files to read nothing is dimmed; without `ran` (an older
+  project) the chips are as before. [unit: `chipRan`; component]
+- IN-125: in the Index row, a `running` step of `index_steps` reads "<label> … running" in the running tone, not
+  as a bare label. [component]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
