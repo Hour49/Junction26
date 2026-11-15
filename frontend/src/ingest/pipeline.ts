@@ -342,6 +342,14 @@ const ROUTE_PLURAL: Record<RouteId, [string, string]> = {
   raster: ['image', 'images'],
 };
 
+/** Flagged files a person should look at; one on a route with no reader counts as "not read" instead (IN-116). */
+export const flaggedCount = (files: readonly FileStatus[], readers?: Record<string, string>) =>
+  files.filter((f) => f.state === 'flagged' && !unread(f, readers)).length;
+
+/** "2 flagged files need a look": the finished screen's words, which Documents repeats (R4-E15). */
+export const needALook = (n: number) =>
+  `${plural(n, 'flagged file')} ${n === 1 ? 'needs' : 'need'} a look`;
+
 /**
  * The finished screen's sentence: what was read by which route, then what needs a person. "Read 3 drawn PDFs and
  * 1 image. 2 flagged files need a look; 1 not read; 1 set aside." Each drawing once (another rendering is not
@@ -367,10 +375,10 @@ export function routeSummary(
     read.length > 1
       ? `${read.slice(0, -1).join(', ')} and ${read[read.length - 1] ?? ''}`
       : read[0];
-  const flagged = files.filter((f) => f.state === 'flagged' && !unread(f, readers)).length;
+  const flagged = flaggedCount(files, readers);
   const aside = files.filter((f) => f.state === 'set_aside').length;
   const person = [
-    flagged ? `${plural(flagged, 'flagged file')} ${flagged === 1 ? 'needs' : 'need'} a look` : '',
+    flagged ? needALook(flagged) : '',
     notRead ? `${String(notRead)} not read` : '',
     aside ? `${String(aside)} set aside` : '',
   ].filter(Boolean);
