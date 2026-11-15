@@ -116,3 +116,28 @@ def test_the_sheet_total_in_other_words_is_its_indoor_total(text: str) -> None:
 
 def test_a_count_before_an_unknown_room_word_is_still_refused() -> None:
     assert answered("What is the total area of the two offices?") is None
+
+
+# review-755: a sheet's word before an unknown room word ("main", "home", "internal") is read past,
+# never the whole sheet's rooms for offices
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total area of the main offices?",
+        "What is the total area of the home office?",
+        "What is the total area of the internal offices?",
+    ],
+)
+def test_a_sheet_word_before_an_unknown_room_word_is_still_refused(text: str) -> None:
+    assert answered(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total area of all rooms on this floor?",
+        "What is the total area of the home in m²?",
+    ],
+)
+def test_the_phrase_ends_where_its_place_or_unit_starts(text: str) -> None:
+    assert answered(text) == pytest.approx(SHEET_TOTAL)

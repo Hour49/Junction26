@@ -248,13 +248,22 @@ TOTAL_NOUN = re.compile(
     r"\btotal (?P<before>[^\W\d_]+)(?= area\b)"
     r"|\barea (?:of|for) (?:the |all (?:of )?(?:the )?|both (?:of )?(?:the )?|every |its |this )?"
     # a number before the noun says how many, not which ("the two bedrooms", "all 3 kitchens")
-    r"(?:(?:\d+|two|three|four|five|six|seven|eight|nine|ten) )?(?P<of>[^\W\d_]+)"
+    r"(?:(?:\d+|two|three|four|five|six|seven|eight|nine|ten) )?(?P<of>[^\W\d_]+(?: [^\W\d_]+)*)"
 )
 TOTAL_WORDS = frozenset(
     """
     floor floors plan drawing sheet page storey level layout apartment flat dwelling unit house
     room rooms space spaces indoor interior internal numbered net usable this these whole entire
     living habitable heated residential home property main
+    """.split()  # noqa: SIM905 (a word list reads better as text)
+)
+# Where a noun phrase after "area of" ends: the words that start what follows it ("all rooms on this
+# floor", "the home in m²")
+PHRASE_END = frozenset(
+    """
+    on in at of for with within inside across and or per by from to including excluding except
+    without is are as that which shown drawn only together combined m m² m2 sqm sq square metres
+    meters ft feet
     """.split()  # noqa: SIM905 (a word list reads better as text)
 )
 # A room label named without quotes, as the question's last word ("rooms labelled Büro?"): read as
@@ -648,9 +657,17 @@ def _unknown_total_noun(body: str, hits: list[tuple[int, str]]) -> bool:
     floor or its rooms (TOTAL_NOUN): "the total area of the offices", "the total garage area"."""
     starts = {position for position, _ in hits}
     for found in TOTAL_NOUN.finditer(body):
-        group = "before" if found.group("before") is not None else "of"
-        if found.group(group) not in TOTAL_WORDS and found.start(group) not in starts:
-            return True
+        if found.group("before") is not None:
+            if found.group("before") not in TOTAL_WORDS and found.start("before") not in starts:
+                return True
+            continue
+        # the noun phrase after "area of", read on past the sheet's words: "the main offices",
+        # "the home office" name offices, not the home (review-755)
+        for word in WORD.finditer(found.group("of")):
+            if found.start("of") + word.start() in starts or word.group() in PHRASE_END:
+                break  # a subject the parser knows, or the phrase ended
+            if word.group() not in TOTAL_WORDS:
+                return True
     return False
 
 

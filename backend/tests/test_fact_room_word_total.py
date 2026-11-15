@@ -49,6 +49,9 @@ def _answer(text: str) -> Answer | None:
         "What is the total office area?",
         "What is the total area of all rooms labelled Büro?",
         "What is the total area of all rooms labelled 'Büro'?",
+        "What is the total area of the main offices?",  # review-755
+        "What is the total area of the home office?",
+        "What is the total area of the internal offices?",
     ],
 )
 def test_a_total_by_a_room_word_no_space_has_is_refused(text: str) -> None:
