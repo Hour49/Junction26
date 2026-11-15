@@ -92,3 +92,28 @@ def test_a_picture_that_cannot_be_read_leaves_the_model_lanes_and_their_wording(
     assert all(
         d.reason is None or "could not be read" not in d.reason for d in services.disciplines
     )
+
+
+def test_a_heating_picture_of_another_floor_is_not_followed() -> None:
+    """SFP-16: the follower pairs before it follows; a floor 2 heating picture is refused."""
+    base = project()
+    plan_file, *_ = base.ingest.status("p").files
+    listed = (
+        plan_file.model_copy(update={"path": "A-101 Floor 1 plan.pdf"}),
+        FileStatus(id="f2", path="H-102 Floor 2 heating.png", size=1, sha256="h", kind="png_plan",
+                   state="ready", group="h", route="raster", drawing_id="d2"),
+    )  # fmt: skip
+    status = base.ingest.status("p").model_copy(update={"files": listed})
+    drawing = base.ingest.drawing(PLAN)
+    ingest = SimpleNamespace(status=lambda _: status, drawing=lambda _: drawing)
+    follower = ServiceFollower(
+        SimpleNamespace(project_id="p", ingest=ingest),  # pyright: ignore[reportArgumentType]
+        ServiceFiles(),
+        pictures={"d2": heating()}.get,
+    )
+    services, _ = follower.run(Proposal(proposal_id="p1", drawing_id=PLAN, page=1, removed=(WALL,)))
+    lanes = {d.discipline: d for d in services.disciplines}
+    assert lanes["heating"].status == "not_aligned"
+    assert (
+        lanes["heating"].reason == "another floor: '2. krs' against 'Floor 1'"
+    )  # its title block first

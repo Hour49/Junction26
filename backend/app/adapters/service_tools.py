@@ -48,6 +48,7 @@ from app.core.services.model import (
     ServicesFollow,
     fit_frame,
 )
+from app.core.services.pairing import pair
 from app.core.services.picture_follow import Sheet, picture_follow
 
 log = logging.getLogger(__name__)
@@ -163,16 +164,21 @@ class ServiceFollower:
         status = _done(self.pipeline, self.pipeline.project_id)
         if _entry(status, proposal.drawing_id).route == "bim":
             return followed
+        files = {f.drawing_id: f for f in reversed(status.files) if f.drawing_id}  # the first
         sheets: list[tuple[Sheet, FactSheet]] = []
         for drawing_id in dict.fromkeys(f.drawing_id for f in status.files if f.drawing_id):
             facts = self.pictures(drawing_id)
             if facts is not None:  # a picture lane reads page 1; the plan's own sheet its page
                 page = proposal.page if drawing_id == proposal.drawing_id else 1
-                sheets.append((self._sheet(drawing_id, page, facts), facts))
+                sheets.append((self._sheet(files[drawing_id], page, facts), facts))
         if not sheets:
             return followed
-        plan = self._sheet(proposal.drawing_id, proposal.page, self.pictures(proposal.drawing_id))
-        seen = picture_follow(proposal, plan, sheets)
+        plan_file = files.get(proposal.drawing_id) or FileStatus(
+            id="", path="", size=0, drawing_id=proposal.drawing_id
+        )
+        plan = self._sheet(plan_file, proposal.page, self.pictures(proposal.drawing_id))
+        pairings = pair(plan, [sheet for sheet, _ in sheets])
+        seen = picture_follow(proposal, plan, sheets, pairings=pairings)
         lanes = tuple(
             mine if mine.status != "no_model" else theirs
             for mine, theirs in zip(seen.disciplines, followed.disciplines, strict=True)
@@ -185,10 +191,13 @@ class ServiceFollower:
             }
         )
 
-    def _sheet(self, drawing_id: str, page: int, facts: FactSheet | None) -> Sheet:
+    def _sheet(self, file: FileStatus, page: int, facts: FactSheet | None) -> Sheet:
         """Where a drawing's page lies: its size in metres when it has a scale, its room names
-        at their boxes' centres, the floor its services facts name."""
+        at their boxes' centres, the floor its services facts name, and what pairing reads:
+        the upload's path, the sheet number triage read, the lanes its picture marks."""
+        drawing_id = file.drawing_id or ""
         drawing = self.pipeline.ingest.drawing(drawing_id)
+        read = file.triage.sheet if file.triage else None
         shown = next((p for p in drawing.pages if p.page == page), None)
         m = drawing.scale.m_per_unit
         return Sheet(
@@ -200,6 +209,13 @@ class ServiceFollower:
                 (r.label, ((r.box[0] + r.box[2]) / 2, (r.box[1] + r.box[3]) / 2))
                 for r in drawing.rooms
                 if r.page == page and r.label
+            ),
+            name=file.path or None,
+            sheet_number=read.sheet_number if read else None,
+            disciplines=tuple(
+                lane
+                for lane in LANES
+                if facts and any(f.discipline == lane and f.spots for f in facts.facts)
             ),
         )
 

@@ -19,13 +19,19 @@ SCORE_BOTH, SCORE_PAGE, SCORE_GEOMETRY = 0.9, 0.7, 0.6
 SAME_SIZE = 0.02  # two sheets this close in metres are taken to share their frame
 
 # Floor words -> one key per floor ("0" ground, "1" first upper, "-1" basement, "roof").
+# shortcut: one numbering for every set (Finnish "1. krs" is the ground floor, German "EG" is 0);
+# a mixed-language set compares wrong: normalise per set when a real one shows it
 _FLOORS: tuple[tuple[str, str], ...] = (
     (r"\b(?:eg|erdgeschoss|gf|ground(?:\s+floor)?)\b", "0"),
-    (r"\b(?:dg|dachgeschoss|roof|attic)\b", "roof"),
-    (r"\b(?:ug|kg|untergeschoss|kellergeschoss|keller|basement|cellar)\b", "-1"),
+    (r"\b(?:dg|dachgeschoss|roof|attic|ullakko)\b", "roof"),
+    (r"\b(?:ug|kg|untergeschoss|kellergeschoss|keller|kellari|basement|cellar)\b", "-1"),
+    (r"\b(\d)f\b", "{}"),
     (r"\bb(\d)\b", "-{}"),
     (r"\b(\d{1,2})\s*\.?\s*(?:og|obergeschoss|krs|kerros|etage|stock)\b", "{}"),
-    (r"\b(?:og|floor|level|storey|story|etage|niveau|lvl|l|krs|kerros)\s*[-.]?\s*(\d{1,2})\b", "{}"),
+    (
+        r"\b(?:og|floor|fl|level|storey|story|etage|niveau|lvl|l|krs|kerros)\s*[-.]?\s*(\d{1,2})\b",
+        "{}",
+    ),
     (r"\b(\d{1,2})(?:st|nd|rd|th)\s+floor\b", "{}"),
 )
 _NUMBER = re.compile(r"\b([A-Z]{1,3})[-_ .]?(\d{3,4})\b")
@@ -33,7 +39,9 @@ _NUMBER = re.compile(r"\b([A-Z]{1,3})[-_ .]?(\d{3,4})\b")
 
 def by_room_names(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
     """The default register: the room-name shift (`align`); floors are `pair`'s business."""
-    place = align(plan.model_copy(update={"storey": None}), sheet.model_copy(update={"storey": None}))
+    place = align(
+        plan.model_copy(update={"storey": None}), sheet.model_copy(update={"storey": None})
+    )
     if isinstance(place, str):
         return place
     n = len(_printed_once(plan) & _printed_once(sheet))
@@ -63,9 +71,7 @@ def pair(
         # shortcut: a sheet that wins one of its lanes is kept whole; split a sheet's lanes when
         # one picture marks several disciplines and loses some of them
         if len(lost) == len(sheet.disciplines):
-            out.append(
-                f"another {lost[0]} picture was taken: {_shown(candidates[best[lost[0]]])}"
-            )
+            out.append(f"another {lost[0]} picture was taken: {_shown(candidates[best[lost[0]]])}")
             continue
         others = [
             _shown(other)
@@ -75,7 +81,9 @@ def pair(
             and set(other.disciplines) & {d for d in sheet.disciplines if best[d] == i}
         ]
         if others:
-            got = got.model_copy(update={"reason": f"{got.reason} (also offered: {', '.join(others)})"})
+            got = got.model_copy(
+                update={"reason": f"{got.reason} (also offered: {', '.join(others)})"}
+            )
         out.append(got)
     return out
 
@@ -105,7 +113,7 @@ def _pair(plan: Sheet, sheet: Sheet, register: Register) -> Pairing | str:
     if hints and _same_size(plan, sheet):
         assert plan.size_m is not None
         w, h = plan.size_m
-        how = f"laid over page to page: both sheets are {w:.1f} × {h:.1f} m"
+        how = f"laid over page to page: both sheets are {w:.1f} by {h:.1f} m"
         return made("metadata", f"same floor: {hints}; {how}", SCORE_PAGE, Affine())
     if hints:
         assert isinstance(laid, str)

@@ -46,7 +46,12 @@ def test_the_plans_own_page_pairs_same_page() -> None:
 def test_same_floor_and_sheet_number_and_rooms() -> None:
     found = one(PLAN, sheet())
     assert isinstance(found, Pairing)
-    assert (found.drawing_id, found.page, found.paired_by, found.score) == ("d2", 1, "metadata", 0.9)
+    assert (found.drawing_id, found.page, found.paired_by, found.score) == (
+        "d2",
+        1,
+        "metadata",
+        0.9,
+    )
     assert "floor 1" in found.reason.casefold()
     assert "A-101 / H-101" in found.reason
     assert "3 room names" in found.reason
@@ -111,3 +116,16 @@ def test_the_register_plugs_in() -> None:
     assert isinstance(found, Pairing)
     assert (found.paired_by, found.to_plan) == ("geometry", turned)
     assert found.reason == "walls match: 41 of 47 wall lines within 0.2 m after rotation 90 deg"
+
+
+def test_floor_words_of_several_languages() -> None:
+    from app.core.services.pairing import _floors  # pyright: ignore[reportPrivateUsage]
+
+    cases = {
+        "EG": "0", "Erdgeschoss": "0", "Ground floor": "0", "1. OG": "1", "OG1": "1",
+        "Level 02": "2", "2nd floor": "2", "3F": "3", "2. krs": "2", "KRS1": "1", "Kellari": "-1",
+        "B1": "-1", "ullakko": "roof", "A-101 plan.pdf": None,
+    }  # fmt: skip
+    for words, key in cases.items():
+        found = _floors(Sheet(drawing_id="d", page=1, storey=words))
+        assert (next(iter(found)) if found else None) == key, words
