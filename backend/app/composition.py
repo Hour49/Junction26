@@ -142,7 +142,6 @@ from app.core.drawing.model import Room
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import reading_flags
 from app.core.ingest.model import CarbonRead, ContentKind, ProjectStatus
 from app.core.ingest.model import Sheet as SheetKind
@@ -672,9 +671,9 @@ class Answering:
     resolver: Resolver | None = None  # RESOLVER; None: off
     carbon_ladder: bool = False  # CARBON_LEVELS=ladder: a Medium answer Carbon reads alike is High
     room_words: RoomWords = no_room_words  # what a room's printed label names (room_word_doubt)
-    # IFC_FACTS: a file's stored fact sheet by (sha256, path, its bytes when a build must start),
-    # never parsed in this process (adapters/ifc_model/facts_store.py). None: off
-    facts: Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None = None
+    # IFC_FACTS: the files' stored fact sheets by sha256, built apart when ingest is done with a
+    # model or on a miss, never parsed here (adapters/ifc_model/facts_store.py). None: off
+    facts: StoredFacts | None = None
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -711,14 +710,12 @@ def build_answering(settings: Settings) -> Answering:
     )
 
 
-def _chat_facts(
-    settings: Settings,
-) -> Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None:
+def _chat_facts(settings: Settings) -> StoredFacts | None:
     if not settings.ifc_facts:
         return None
     if settings.ifc_facts_cache:
-        return StoredFacts(Path(settings.ifc_facts_cache)).facts
-    return StoredFacts(settings.projects_dir.parent / "cache" / "facts").facts
+        return StoredFacts(Path(settings.ifc_facts_cache))
+    return StoredFacts(settings.projects_dir.parent / "cache" / "facts")
 
 
 def _scan_confidence(

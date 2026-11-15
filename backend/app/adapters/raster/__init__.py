@@ -174,10 +174,13 @@ class CompositeRasterExtractor:
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         components = {c.name: c for c in self._components()}
         spent: dict[str, float] = {}  # what each source that ran paid for, failed or not
+        failed: dict[str, int] = {}  # and how many of its model calls got no answer
         try:
             with ThreadPoolExecutor(len(components), thread_name_prefix="raster") as pool:
                 pending = {
-                    name: pool.submit(_charged, component.reader, source, sheet, spent, name)
+                    name: pool.submit(
+                        _charged, component.reader, source, sheet, spent, failed, name
+                    )
                     for name, component in components.items()
                 }
                 try:
@@ -187,6 +190,7 @@ class CompositeRasterExtractor:
                         future.cancel()
         finally:  # every started source has finished here: charge them all to the caller
             cost.charge(sum(spent.values()))
+            cost.fail(sum(failed.values()))
 
     def _components(self) -> list[Component]:
         """Every source this composite reads a sheet with, the parts' first."""
@@ -301,15 +305,21 @@ class CompositeRasterExtractor:
 
 
 def _charged(
-    reader: Extractor, source: DrawingFile, sheet: Sheet, spent: dict[str, float], name: str
+    reader: Extractor,
+    source: DrawingFile,
+    sheet: Sheet,
+    spent: dict[str, float],
+    failed: dict[str, int],
+    name: str,
 ) -> Extracted:
     """The reader's result, read on this (worker) thread; what its calls cost goes in
     `spent[name]` also when it fails."""
-    before = cost.mark()
+    before, faulted = cost.mark(), cost.faults()
     try:
         return reader.extract(source, sheet)
     finally:
         spent[name] = cost.since(before)
+        failed[name] = cost.faults_since(faulted)
 
 
 def _looked_for(read: Sequence[ReadClass] | None, kind: ReadClass) -> bool:

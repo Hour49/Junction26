@@ -45,6 +45,7 @@ from typing import Any, Protocol, cast
 
 from PIL import Image
 
+from app.adapters import gemini_http
 from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
 from app.adapters.triage.gemini_describer import encode
 from app.adapters.whole_file import write_whole
@@ -343,7 +344,7 @@ class GeminiSheetKindClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+            with gemini_http.urlopen(request, timeout=self._timeout) as response:
                 return json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None

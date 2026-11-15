@@ -570,6 +570,8 @@ def test_ifc_cut_solids_are_walls_and_the_note_says_columns_are_among_them() -> 
     assert len(walls) == 3
     assert walls[0].polygon is not None and len(walls[0].polygon) == 4
     assert any("3 cut solids are listed as walls" in note for note in found.notes)
+    doors = [element for element in found.elements if element.class_ == "door"]
+    assert any(f"{len(doors)} doors are read from drawn shapes" in note for note in found.notes)
 
 
 def test_ifc_window_pieces_are_one_window_and_a_strip_is_several() -> None:

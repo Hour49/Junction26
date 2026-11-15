@@ -35,7 +35,7 @@ export function errorText(error: unknown): { detail: string; code: string } {
   return { detail: typeof error === 'string' ? error : 'unknown error', code: 'client' };
 }
 
-const OFFLINE = 'The server is not answering right now. Try again in a minute.';
+export const OFFLINE = 'The server is not answering right now. Try again in a minute.';
 /** What a gateway's own reply means to a person (the access gate, site/, or the tunnel), not the app's error body. */
 const GATEWAY: Record<number, string> = {
   401: 'The access code has expired. Reload the page to enter it again.',

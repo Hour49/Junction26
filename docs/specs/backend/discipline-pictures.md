@@ -46,6 +46,12 @@ A page reaches this lane when triage says so:
   (evacuation-plan photos) `mep_plan`, so routing on the kind would send floor plans to this lane;
 - and `Sheet.decision != "set_aside"`.
 
+A page the sheet-kind step gave **no reply** for (triage off, as on the no-keys backend) is routed by its file name
+instead (AC-20): `discipline_from_sheet("mep_plan", <file stem>, None)`, so only a sheet code or a strong word names
+the service ("H-101 Floor 1 heating.png"); a weak word ("pipe layout 7.png") or none leaves the file as it was. A
+reply always wins, even one with no discipline. Each fact read this way says so in its `source`, after its readers
+(`picture:template+mask:discipline-from-file-name`), and stays Low like every picture fact.
+
 The page is one of:
 
 | Page | Lane | What is read |
@@ -362,6 +368,10 @@ Readers (P2):
   calls are made. The tiles not read leave their labels unknown.
 - **AC-14** `DISCIPLINE_PICTURES=off`: composition builds no reader, ingest output is byte-identical on the sample
   project.
+- **AC-20** No sheet-kind reply: `H-102 heating plan.png` is read and its facts' `source` names the file name
+  (`test_a_picture_no_sheet_kind_step_saw_is_routed_by_its_file_name`); `pipe layout 7.png` is not
+  (`test_a_file_name_that_names_no_discipline_leaves_the_picture_unread`); off, the same upload gives the same
+  routes, flags and drawings and no fact sheet (`test_off_the_file_name_changes_no_route_flag_or_drawing`).
 
 Bench (P3, P4) and measured bars:
 - **AC-15** The renderer, on a synthetic IFC (one storey, 4 space heaters, 2 pipe systems with known lengths):

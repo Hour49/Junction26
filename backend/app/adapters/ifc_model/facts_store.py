@@ -22,6 +22,7 @@ from pathlib import Path, PurePosixPath
 
 from app.adapters.ifc_model.facts_source import CODE, read_facts
 from app.adapters.ifc_model.glb import (
+    _ONE_AT_A_TIME,  # pyright: ignore[reportPrivateUsage]
     _SCOPE,  # pyright: ignore[reportPrivateUsage]
     _out_of_memory,  # pyright: ignore[reportPrivateUsage]
     has_systemd_scope,
@@ -104,10 +105,12 @@ def _in_background(job: Callable[[], None]) -> None:
 class StoredFacts:
     def __init__(self, folder: Path, build: Build = build_apart, start: Start = _in_background):
         self._folder = folder
-        self._build = build
+        self._builder = build
         self._start = start
         self._lock = threading.Lock()  # guards the two sets
-        self._one = threading.Lock()  # one build at a time: two at once would double the memory
+        # one child at a time in the process, with the 3D builds: each child has its own scope
+        # outside the app's cap, so two at once add to the app's memory (QA r12)
+        self._one = _ONE_AT_A_TIME
         self._busy: set[str] = set()  # sha256s in flight
         self._failed: set[str] = set()
 
@@ -122,16 +125,32 @@ class StoredFacts:
                 return FactSheet.model_validate_json(out.read_text(encoding="utf-8"))
             except ValueError as error:  # pydantic's ValidationError is one
                 log.warning("%s: stored sheet unreadable, built again: %s", sha256[:12], error)
+        self._build(sha256, path, data)
+        return None
+
+    def start(self, sha256: str, path: str, data: Callable[[], bytes]) -> None:
+        """The build of a model's sheet started when none is stored, in flight or failed, without
+        reading a stored one: ingest is done with the model, so its first question finds it."""
+        stored = (self._folder / f"{sha256}-{CODE}.json").is_file()
+        if PurePosixPath(path).suffix.lower() == ".ifc" and not stored:
+            self._build(sha256, path, data)
+
+    def reading(self, sha256: str) -> bool:
+        """The sheet of the model with this content is being built now."""
+        with self._lock:
+            return sha256 in self._busy
+
+    def _build(self, sha256: str, path: str, data: Callable[[], bytes]) -> None:
         with self._lock:
             if sha256 in self._busy or sha256 in self._failed:
-                return None
+                return
             self._busy.add(sha256)
 
         def job() -> None:
             failed = False
             try:
                 with self._one:
-                    store_facts(self._folder, path, data(), self._build, sha256)
+                    store_facts(self._folder, path, data(), self._builder, sha256)
             except Exception:  # the question was answered without it; said once in the log
                 log.warning("%s: no fact sheet built", sha256[:12], exc_info=True)
                 failed = True
@@ -141,7 +160,6 @@ class StoredFacts:
                     self._failed.add(sha256)
 
         self._start(job)
-        return None
 
 
 def _cap(limit: int) -> None:

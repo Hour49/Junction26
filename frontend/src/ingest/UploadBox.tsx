@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { ApiError, errorText, startSample, uploadProject, type Started } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
-import { uploadTooLarge } from '../shell/limits';
+import { nameTooLong, uploadTooLarge } from '../shell/limits';
 import { amount, sizeText, uploadedKey } from './ingest';
 import { PANEL } from './ui';
 import { Alert } from '@/components/ui/alert';
@@ -35,6 +35,9 @@ const percent = (s: Sending) => (s.total > 0 ? Math.round((100 * s.sent) / s.tot
 /** What failed and where (Bogdan 2026-11-15): lost while sending, or refused by the server with its detail. */
 function failedLine(f: Failed): string {
   const name = f.file.name;
+  // 5xx: the server (or the proxy in front of it) failed, not the file
+  if (f.error instanceof ApiError && f.error.status >= 500)
+    return `The server could not take ${name} right now. Retry in a moment.`; // the gateway's own words (errors.ts) would say it twice
   if (f.error instanceof ApiError && f.error.status > 0) {
     // the server's detail may name the file itself ("site.zip: the upload is empty"): say it once
     const detail = f.error.detail.startsWith(`${name}: `)
@@ -86,7 +89,8 @@ export function UploadBox() {
       return;
     }
     // No limits yet (info pending or failed): the server's 413 decides.
-    const refused = info ? uploadTooLarge(file.size, info.limits) : null;
+    const refused =
+      nameTooLong(file.name) ?? (info ? uploadTooLarge(file.size, info.limits) : null);
     if (refused) {
       setError(null);
       setNote(refused);

@@ -118,10 +118,11 @@ floor area as the dataset defines it, `side_area_m2` is one face of a wall), `el
 sheet, or the room for a space; null when not drawn here) and `attrs`. A null `model_objects` (left out) means the
 source has no model: every non-BIM file, and all gold today.
 
-The model checks that every `element` names a listed element of the same class (a listed room for a space) and
-that no element or room is named twice. An `.ifc` file with a non-empty `model_objects` may have `pages: []`, and
-then has empty `plans`, `elements` and `rooms`; every other file still needs at least one page. `--strict-v2` asks
-no scale of such a file, since it has no image. Part 1 scoring doesn't change: elements are what is drawn.
+The model checks that every `element` names a listed element of the same class (a listed room for a space) and that
+no element or room is named twice. An `.ifc` file with `model_objects` set (an empty list for a services model, see
+the amendment of 2026-11-15) may have `pages: []`, and then has empty `plans`, `elements` and `rooms`; every other
+file still needs at least one page. `--strict-v2` asks no scale of such a file, since it has no image. Part 1
+scoring doesn't change: elements are what is drawn.
 
 Alternative rejected: a nullable `Element.box`. It would change the Part 1 scorer and every consumer that assumes a
 box, and it would mix "drawn on this sheet" with "in the model".
@@ -212,3 +213,17 @@ not scored).
 
 Alternative rejected: the backend writing the room type somewhere else (a `sheet` subject plus a note, or a new
 subject kind). It would lose the type or add a kind that `counts` doesn't need for the same idea.
+
+## Amendment, 2026-11-15 02:15: an `.ifc` model may list no object of the plan's classes
+
+A services model (DigitalHub's heating `-hzg-v2.ifc`, ventilation `-lft-v2.ifc`) uploaded on its own has no wall,
+door, window, column, stair, slab, beam, railing or space, so its `model_objects` is `[]`. Before, an `.ifc` file
+without pages needed a non-empty `model_objects`, so ingest set the model aside ("no PDF, PNG or JPEG in its group")
+and the chat had no drawing to ask (Tudor's QA batch 1, B4). Now an `.ifc` file without pages may have
+`model_objects: []`: the model was read and lists none of the plan's classes. `null` still means the file is no
+model (`eval/stoa_eval/extraction.py`, `backend/app/core/drawing/model.py`). Every file valid before stays valid. No
+gold has such a file, so nothing scores differently. Its MEP elements are answered from its fact sheet
+(`IFC_FACTS`) and the services tools, not from `model_objects`.
+
+Alternative rejected: services classes in `model_objects`. It would add classes to `ModelClass` and to the API
+schema the frontend generates, for counts the fact sheet already gives.
