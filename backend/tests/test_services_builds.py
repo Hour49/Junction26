@@ -13,6 +13,7 @@ import pytest
 from test_services_build import _architecture, _services  # pyright: ignore[reportPrivateUsage]
 
 from app.adapters import services_store
+from app.adapters.ifc_model import glb
 from app.adapters.ifc_model.facts_store import StoredFacts
 from app.adapters.pipeline_tools import ToolError
 from app.adapters.services_agent_tools import (  # pyright: ignore[reportPrivateUsage]
@@ -168,6 +169,13 @@ def test_a_facts_build_and_a_services_build_are_not_children_at_the_same_time(
     for thread in threads:
         thread.join(10)
     assert services_in.is_set()
+
+
+def test_both_builds_hold_the_lock_the_3d_builds_hold(tmp_path: Path) -> None:
+    """review-506 S1: a 3D conversion, a fact-sheet child and a services child are one child at a
+    time, which holds only while the stores take glb's lock and not a lock of their own."""
+    assert StoredFacts(tmp_path / "facts")._one is glb._ONE_AT_A_TIME  # pyright: ignore[reportPrivateUsage]
+    assert ServicesBuilds(tmp_path / "svc")._one is glb._ONE_AT_A_TIME  # pyright: ignore[reportPrivateUsage]
 
 
 def test_the_capped_child_builds_the_model_the_api_reads(tmp_path: Path) -> None:
