@@ -51,6 +51,7 @@ from app.adapters.discipline_pictures.glyphs import GlyphReader
 from app.adapters.discipline_pictures.lane import CODE as PICTURES_CODE
 from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets, kept_in
 from app.adapters.discipline_pictures.legend import OcrLegend
+from app.adapters.discipline_pictures.runs_graph import GraphReader
 from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
@@ -386,6 +387,9 @@ def _pictures(
         )
         replies = kept_in(settings.discipline_pictures_cache_dir, "gemini") / "replies"
         symbols = GeminiPictureReader(files, client, replies)
+    runs = None
+    if settings.discipline_runs == "graph":
+        runs = GraphReader(files, legend.legend, legend.scale)
     return PictureLane(
         inner,
         files,
@@ -393,11 +397,14 @@ def _pictures(
         PictureSheets(files, _pictures_cache(settings)),
         legend,
         symbols,
+        runs,
     )
 
 
 def _pictures_cache(settings: Settings) -> Path:
-    return kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
+    kept = kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
+    # another runs reader keeps its own sheets: switching never serves the other one's
+    return kept if settings.discipline_runs == "mask" else kept / f"runs-{settings.discipline_runs}"
 
 
 @cache
@@ -908,6 +915,8 @@ def build_ingest(
         names["carbon_reader"] = f"{rule}+storey:{READER_SHA[:12]}"
     if settings.discipline_pictures != "off":  # the same; with the lane's code version
         names["discipline_pictures"] = f"{settings.discipline_pictures}:{PICTURES_CODE}"
+        if settings.discipline_runs != "mask":  # named only when not the default
+            names["discipline_runs"] = settings.discipline_runs
     if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
         # (ladder acts only when answering), so they share one name and a switch reads nothing again
         names["carbon_levels"] = f"demote:{READER_SHA[:12]}"

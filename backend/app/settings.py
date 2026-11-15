@@ -216,6 +216,11 @@ class Settings(BaseSettings):
     # GEMINI_API_KEY, on the spend guard), mask runs as template. Off: ingest is unchanged. The
     # sheets are kept in the cache folder by the page file's content
     discipline_pictures: Literal["off", "template", "glyphs", "gemini"] = "off"
+    # The picture lane's runs reader: "mask" = each coloured piece is a run (mask.py); "graph" =
+    # each legend line style thinned into a line graph, gaps bridged, a run per connected network
+    # (runs_graph.py; DigitalHub held out 33/64 vs mask 22/64 within 10%, .agents/exp/pics-runs.md).
+    # Its sheets are kept in their own folder
+    discipline_runs: Literal["mask", "graph"] = "mask"
     discipline_glyphs_model: Path = Path("../data/models/pic-glyphs")
     discipline_pictures_cache_dir: Path = Path("../data/cache/discipline-pictures")
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when

@@ -4,13 +4,19 @@ known length: lines thinned into a graph, junctions, bridged gaps, styles kept a
 import math
 from collections.abc import Sequence
 from itertools import pairwise
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
 from PIL import Image, ImageDraw
+from test_picture_lane import SheetKind, _ask, _ingest, _settings, heating_scan
 
-from app.adapters.discipline_pictures.runs_graph import read_graph, thin
+from app import composition
+from app.adapters.discipline_pictures.lane import PictureLane
+from app.adapters.discipline_pictures.mask import MaskReader
+from app.adapters.discipline_pictures.runs_graph import GraphReader, read_graph, thin
+from app.composition import build_ingest
 from app.core.picture_facts import LegendEntry, PictureReading
 
 W, H = 800, 400
@@ -143,3 +149,39 @@ def test_thinning_leaves_a_one_pixel_line() -> None:
     mask[8:13, 5:55] = 1
     line = thin(mask)
     assert line.sum() >= 45 and line[:, 10:50].sum(axis=0).max() == 1
+
+
+# --- DISCIPLINE_RUNS in the picture lane ------------------------------------------------------
+
+
+def test_the_default_runs_reader_is_mask_in_its_folder_and_names_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    assert settings.discipline_runs == "mask"
+    lane = composition._pictures(settings, object(), object(), None)  # type: ignore[arg-type]
+    assert isinstance(lane, PictureLane) and isinstance(lane._mask, MaskReader)  # pyright: ignore[reportPrivateUsage]
+    assert lane._sheets.path("0" * 64).parent == tmp_path / "facts"  # pyright: ignore[reportPrivateUsage]
+    names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
+    assert "discipline_runs" not in names
+
+
+def test_graph_reads_the_runs_and_keeps_its_own_sheets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_runs="graph",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    lane = composition._pictures(settings, object(), object(), None)  # type: ignore[arg-type]
+    assert isinstance(lane, PictureLane) and isinstance(lane._mask, GraphReader)  # pyright: ignore[reportPrivateUsage]
+    assert lane._sheets.path("0" * 64).parent == tmp_path / "facts" / "runs-graph"  # pyright: ignore[reportPrivateUsage]
+    names = build_ingest(settings, tmp_path / "projects", background=False)._names  # pyright: ignore[reportPrivateUsage]
+    assert names["discipline_runs"] == "graph"
+    status, files = _ingest(settings, heating_scan(), SheetKind())
+    assert status.state == "done", status
+    (metres,) = _ask(settings, files, "How many metres of heating pipe?")
+    said = str(metres.answer)
+    length = float(said.split("Total length: ")[1].split(" m")[0])
+    assert abs(length - 5.0) <= 0.15, said  # the lane's mask test's 3%
+    assert metres.sure is False
