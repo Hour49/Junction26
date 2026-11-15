@@ -1,5 +1,5 @@
 // One function per endpoint of docs/API.md (v1); relative URLs, the dev/preview server proxies /api.
-import { ApiError, errorOf } from './errors';
+import { ApiError, errorOf, OFFLINE } from './errors';
 import type {
   AnswerView,
   AskRequest,
@@ -53,11 +53,35 @@ function isAbort(error: unknown): boolean {
   return (error as { name?: unknown } | null)?.name === 'AbortError';
 }
 
-async function call<T>(
-  method: 'GET' | 'POST',
-  url: string,
-  opts: Opts & { body?: BodyInit; type?: string; bytes?: boolean } = {},
-): Promise<T> {
+/** The slowest GET seen is ~11 s (issues of a 40-file project); Cloudflare gives up on the backend at 100 s. */
+export const GET_TIMEOUT_MS = 60_000;
+
+type CallOpts = Opts & { body?: BodyInit; type?: string; bytes?: boolean };
+
+/** A JSON GET with no answer in GET_TIMEOUT_MS (a frozen backend) is aborted and rejects as `timeout`, so the
+ * screen shows its error view with Retry instead of loading forever. POSTs (asks can take minutes) and byte
+ * downloads are not timed. */
+async function call<T>(method: 'GET' | 'POST', url: string, opts: CallOpts = {}): Promise<T> {
+  if (method !== 'GET' || opts.bytes) return send<T>(method, url, opts);
+  const clock = new AbortController();
+  const stop = () => {
+    clock.abort();
+  };
+  opts.signal?.addEventListener('abort', stop);
+  if (opts.signal?.aborted) stop();
+  const timer = setTimeout(stop, GET_TIMEOUT_MS);
+  try {
+    return await send<T>(method, url, { ...opts, signal: clock.signal });
+  } catch (error) {
+    if (clock.signal.aborted && !opts.signal?.aborted) throw new ApiError(0, 'timeout', OFFLINE);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    opts.signal?.removeEventListener('abort', stop);
+  }
+}
+
+async function send<T>(method: 'GET' | 'POST', url: string, opts: CallOpts): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url, {

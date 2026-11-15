@@ -680,7 +680,7 @@ API client
   the access code has expired; a 418 HTML body keeps "the server answered 418". [unit]
 - SH-34 A fetch that rejects gives `ApiError` `status` 0, `code` `network`; an aborted request rejects with an
   `AbortError`, not an `ApiError`. [unit]
-- SH-35 Every function passes the caller's `signal` to `fetch`. [unit]
+- SH-35 The caller's `signal` aborts every function's request. [unit]
 
 Generated types
 
@@ -830,6 +830,10 @@ Vellum round (round 2)
   issues while the project is `running`, and the count comes once it reads `done`; a `failed` project gives null. In
   the header: the link's name "Documents, 2 issues to answer" (singular "1 issue"), the badge `aria-hidden`, none
   for 0 or null. [unit + component, mockApi]
+- SH-89 A JSON GET with no answer in 60 s (`GET_TIMEOUT_MS`, a frozen backend) is aborted and rejects with
+  `ApiError` `status` 0, `code` `timeout`, `detail` "The server is not answering right now. Try again in a minute.", so
+  the screen shows its error view instead of loading forever; POSTs and byte downloads are not timed. [unit, fake
+  timers]
 - SH-88 (orch) With `?pack=ch-zh` the badge ignores `issues_to_answer` and counts `needsYou` over
   `GET /api/projects/{pid}/issues?pack=ch-zh` (an open `fails_rule` issue counts), asked again on `issuesChanged`;
   without a pack the issues are not asked when `issues_to_answer` is set. [unit + component, mockApi]
