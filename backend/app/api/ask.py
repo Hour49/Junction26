@@ -30,7 +30,7 @@ from app.core.errors import NotFoundError
 from app.core.ifc_facts import FactSheet
 from app.core.ingest.model import DrawingInfo, FileStatus
 from app.core.ingest.triage import sheet_doubt, sheet_flag
-from app.core.review.ask import Asked, ask
+from app.core.review.ask import Asked, ask, user_scaled
 from app.core.review.check import Check, Level
 from app.core.review.model import (
     MarkView,
@@ -196,6 +196,7 @@ def asked_on(
         room_words=answering.room_words,
         facts=facts_of(answering, ingest, named, found),
     )
+    asked = user_scaled(asked, drawing)  # USER_SCALE: a no-op on a drawing at its own scale
     sha256 = None if found is None else found.sha256
     if asked.refusal is None or answering.facts is None or sha256 is None:
         return asked

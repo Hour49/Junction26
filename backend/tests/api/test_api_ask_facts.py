@@ -177,3 +177,14 @@ def test_the_api_process_never_opens_a_model_for_a_chat_question(
     stored(client)
     answered = client.post("/api/ask", json=body).json()
     assert answered["method"] == "facts" and "Total walls: 4" in answered["answer"]
+
+
+def test_a_fact_answer_in_the_project_chat_is_said_to_be_in_words(settings: Settings) -> None:
+    """QA ifc-ask: its total line said "answered with a room's name" under every fact answer."""
+    client, _ = model_ask(settings, WALLS, ifc_facts=True)
+    stored(client)
+    project = client.get("/api/projects").json()["projects"][0]["id"]
+    found = client.post(f"/api/projects/{project}/ask", json={"question": WALLS}).json()
+    assert found["parts"][0]["answer"]["method"] == "facts"
+    assert found["total"] is None
+    assert found["total_note"].startswith("1 drawing answered in words, so there is no total")

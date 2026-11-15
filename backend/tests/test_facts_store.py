@@ -94,6 +94,17 @@ def test_the_child_builds_the_sheet_a_model_gives(tmp_path: Path) -> None:
     assert sheet.model == "house" and any(f.topic == "wall.count" for f in sheet.facts)
 
 
+def test_a_relative_out_is_the_callers_not_the_childs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA ifc-ask: IFC_FACTS_CACHE is relative by default and the child runs in backend/, so an
+    API started from another folder sent its sheet elsewhere."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "cache").mkdir()
+    build_apart(ifc_model(), "house", Path("cache/sheet.json"))
+    assert (tmp_path / "cache" / "sheet.json").is_file()
+
+
 @pytest.mark.parametrize("scope", [True, False], ids=["systemd-scope", "rlimit"])
 def test_a_build_is_held_to_its_memory_and_time_budget(
     scope: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -29,8 +29,8 @@ test('AC-25 AC-26 AC-27 the workspaces list and the selected one', async ({ page
     `#/p/${id}`,
   );
   const stat = (label: string) => panel.locator('dt', { hasText: label }).locator('+ dd');
-  await expect(stat('Files')).toHaveText('11');
-  await expect(stat('Drawings')).toHaveText('5');
+  await expect(stat('Files')).toHaveText('12');
+  await expect(stat('Drawings')).toHaveText('6');
   await expect(stat('Signed off')).toHaveText(/^0 of \d+$/);
   await expect(panel.getByText('Uploaded sample-project.zip')).toBeVisible();
   await expect(panel.getByText('Analysis done')).toBeVisible();

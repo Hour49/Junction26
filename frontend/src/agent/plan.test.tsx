@@ -256,6 +256,7 @@ describe('the plan beside the chat (wide window)', () => {
     expect(names).toEqual([
       'Drawn plan 1',
       'Drawn plan 2',
+      'Drawn plan 3',
       'Plan image 1',
       'Plan photo 1',
       'Building model 1',

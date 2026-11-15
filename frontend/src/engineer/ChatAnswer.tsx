@@ -125,7 +125,10 @@ export function ChatAnswer(props: {
   const labelOf = (p: (typeof parts)[number]) =>
     drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
   // ui-bugs 7: why a value was refused or flagged stays on screen; the confidence sentence is behind "Why?"
-  const reason = (p: (typeof parts)[number]) => p.answer.check?.reason;
+  // CH-50: methods that disagree say which value was kept and why (their pill says it is below)
+  const reason = (p: (typeof parts)[number]) =>
+    p.answer.check?.reason ??
+    (p.answer.quantity?.status === 'conflict' ? (p.answer.explanation ?? undefined) : undefined);
   // CH-46: the reason already says it is an estimate and why (the backend quotes it): one line, not two
   const estimate = (p: (typeof parts)[number]) => {
     const e = p.answer.quantity?.estimate;

@@ -181,7 +181,8 @@ export const keepPolling = (p: ProjectView) =>
 
 /** Elapsed ms: the project's `ms` once ingest ends; while live, `now − started_at` (never below 0); null before it starts. */
 export function elapsedMs(p: ProjectView, now: number): number | null {
-  if (!isLive(p)) return p.ms;
+  // a restart mid-ingest leaves no finished_at and ms 0: unknown, not "0.00 ms"
+  if (!isLive(p)) return p.finished_at ? p.ms : null;
   return p.started_at ? Math.max(0, now - Date.parse(p.started_at)) : null;
 }
 

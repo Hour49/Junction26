@@ -117,8 +117,9 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
       <main id="main" tabIndex={-1} ref={main}>
         {body}
       </main>
-      {/* Licence credits are off every screen (Tudor, #204) and reachable here (CC BY): shared.md "Credits". */}
-      {route.name !== 'about' && (
+      {/* Licence credits are off every screen (Tudor, #204) and reachable here (CC BY): shared.md "Credits".
+          Not on Documents (2026-11-15): the other routes keep the link. */}
+      {route.name !== 'about' && route.name !== 'documents' && (
         <footer className="app-foot">
           <a href={project ? `#/about?project=${project}` : '#/about'}>About and credits</a>
         </footer>
