@@ -147,3 +147,29 @@ def test_a_picture_length_says_it_is_an_estimate_with_the_readers_measured_sprea
     assert graph.splitlines()[-1] == GRAPH_SPREAD and "21 of 32 clean" in GRAPH_SPREAD
     exact = str(_ask_p101("How long is the rainwater pipe run?", reader="paths").answer)
     assert exact == "S_Regenwasser: 16.40 m"  # a drawn PDF's lines: read exactly, no estimate
+
+
+def test_heating_pipe_on_a_heating_sheet_whose_styles_name_no_system_is_all_its_runs() -> None:
+    """review-652 M1: DigitalHub heating styles (flow/return) carry no system word, so "heating
+    pipe" was answered "No run ... labelled as heating"; main gave the total. Heating is the
+    sheet's whole discipline, so every run is meant. "Cold water" on plumbing is not (P-101)."""
+    styles = {"H_Transport_VL_": 237.6, "H_Transport_RL_": 229.8}
+    legend = tuple(
+        LegendEntry(label=label, group=None, line=True, box=(0.8, 0.1 * i, 0.85, 0.1 * i + 0.01))
+        for i, label in enumerate(styles)
+    )
+    runs = PictureReading(
+        reader="mask", legend=legend, read=tuple(styles),
+        runs=tuple(Run(label=label, size=None, length_m=metres, spots=(_spot(i, "mask"),))
+                   for i, (label, metres) in enumerate(styles.items())),
+    )  # fmt: skip
+    sheet = picture_facts("dh", Checked(readings=(runs,), agreed={}, disputed=()), "heating")
+    question = Question(id=1, file="H.png", text="How many metres of heating pipe are there?")
+    answer = answer_from_facts(question, sheet, 0.0)
+    said = str(answer and answer.answer)
+    assert said.splitlines()[:3] == [
+        "- H_Transport_RL_: 229.80 m",
+        "- H_Transport_VL_: 237.60 m",
+        "Total length: 467.40 m",
+    ], said
+    assert "not available" not in said

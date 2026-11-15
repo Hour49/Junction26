@@ -759,7 +759,14 @@ def _runs_by_system(query: FactQuery, facts: _Facts, storey: str | None) -> str 
     elif query.system is not None or query.by == "system":
         facts.read += systems
         lines = [f"- {f.system}: {_num(f)}" for f in systems]
-        if query.system is not None:
+        # a system that is a whole discipline ("heating") asked of a sheet all of that
+        # discipline means every run on it, whatever its styles are named (review-652 M1);
+        # "cold water" on a plumbing sheet does not: it is one of several systems there
+        discipline = SYSTEM_DISCIPLINE.get(query.system)  # type: ignore[call-overload]
+        whole = query.system is not None and discipline == query.system
+        if query.system is not None and not (
+            whole and all(f.discipline == query.system for f in systems)
+        ):
             asked = query.system.replace("_", " ")
             head = (
                 f"No run on this sheet is labelled as {asked} (not available); its runs by system:"
