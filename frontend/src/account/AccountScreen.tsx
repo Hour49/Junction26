@@ -120,7 +120,7 @@ function Item({
   pressed: boolean;
   onSelect: () => void;
 }) {
-  const pill = workspacePill(summary.state);
+  const pill = workspacePill(summary.state, summary.drawings);
   // Null until the workspace is done: then no pill. `conflicts_open` is not shown: the API counts conflicts a rule
   // settled as open, while the conflicts screen calls them settled (account.md).
   const toReview = summary.to_review ?? 0;

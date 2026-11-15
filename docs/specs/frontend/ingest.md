@@ -271,7 +271,8 @@ Home and upload
   without it the API's 422 read "query.name: String should have at most 255 characters". [component]
 - IN-5: With `/api/info` not loaded (pending or failed), a file of any size is uploaded and the server decides.
   [component]
-- IN-6: Dropping two files shows "Drop one file or one zip at a time." and sends no request; dropping one file
+- IN-6: Dropping two files shows "Drop one file at a time. To send several, such as a DXF or SVG with its PDF, put
+  them in one .zip." (QA R4-G3) and sends no request; dropping one file
   uploads it as IN-3. [component]
 - IN-7: While an upload or sample request is in flight, the box shows the upload's progress (IN-89) or "Starting
   the sample…", both controls are disabled, and a second click sends nothing. [component, pending promise]
@@ -287,7 +288,8 @@ Home and upload
   `{name, bytes}` in sessionStorage `uploaded:<id>`; the project screen then shows "Uploaded: <name>, <MB> MB,
   received by the server." and "Unpacking…" until the server lists files, then "<n> files found.". Failures, with
   a Retry that sends the file again: no answer, "The connection was lost while sending <name> (at <p>%)."; an
-  HTTP error, "The server refused <name>: <detail>". [component `HomeScreen.test.tsx`, `ProjectScreen.test.tsx`,
+  HTTP error, "The server refused <name>: <detail>". A 4xx about the file itself (empty, too large, not a drawing)
+  has no Retry, since the same file would be refused again; 408 and 429 (busy) keep it (QA R4-G6). [component `HomeScreen.test.tsx`, `ProjectScreen.test.tsx`,
   unit `client.test.ts`; e2e `upload.spec.ts` 1440 and 390]
 
 Project list
