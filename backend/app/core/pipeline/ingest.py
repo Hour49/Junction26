@@ -13,6 +13,7 @@ from app.core.pipeline.model import (
     SHEET_KINDS,
     DrawingFile,
     DrawingGroup,
+    FileKind,
     IngestReport,
     Route,
     Routed,
@@ -35,9 +36,23 @@ from app.core.pipeline.second_count import measured, resolved_rooms, second_coun
 from app.core.pipeline.takeoff import take_off
 from app.core.wording import SCALE_WORDS, count, kind_words, route_words
 
-NO_SHEET = "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
 MODEL_ROUTE: Route = "bim"  # the one route whose source can be asked about without a page
 FALLBACK_ROUTE: Route = "raster"  # VECTOR_FALLBACK reads a page the vector route can't as an image
+
+
+def no_sheet(kind: FileKind) -> str:
+    """Why a file is set aside when its group has no PDF, PNG or JPEG, in words a user can act
+    on: a DXF or SVG is only another rendering of a sheet, and a building model is set aside
+    when its reader found nothing in it to ask about."""
+    if kind == "ifc":
+        return (
+            "no spaces, walls, doors, windows or other building parts were read from this "
+            "building model, and no sheet of it came with it"
+        )
+    return (
+        f"this {kind.upper()} file has no sheet to show on its own; upload it with the drawing's "
+        "PDF or image"
+    )
 
 
 def nothing_read(drawing: Drawing) -> bool:
@@ -128,7 +143,7 @@ def ingest(
             ) is not None:
                 sheets.append(model)
             elif not sheet_files:
-                set_aside.append(SetAside(path=file.path, reason=NO_SHEET))
+                set_aside.append(SetAside(path=file.path, reason=no_sheet(file.kind)))
     return IngestReport(sheets=tuple(sheets), set_aside=tuple(set_aside))
 
 

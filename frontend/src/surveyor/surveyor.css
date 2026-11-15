@@ -308,3 +308,40 @@
 .sv-detail {
   scroll-margin-top: 88px; /* the shell's sticky header: the scrolled-to detail is not hidden under it */
 }
+/* K3: on a phone the drawings and conflicts fold behind one toggle with both counts, so the drawing starts above
+   the fold; wider screens never show the toggle */
+.sv-side-toggle {
+  display: none;
+}
+@media (max-width: 640px) {
+  .sv-side-toggle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 40px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--v-accent);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sv-side-toggle:focus-visible {
+    outline: 2px solid var(--v-accent);
+    outline-offset: 2px;
+  }
+  .sv-side-caret {
+    margin-left: auto;
+  }
+  .sv-side[data-open='false'] .sv-side-body {
+    display: none;
+  }
+  .sv-screen.sv-work .sv-side {
+    padding: 4px 16px;
+  }
+  .sv-side[data-open='true'] .sv-side-body {
+    padding-bottom: 8px;
+  }
+}

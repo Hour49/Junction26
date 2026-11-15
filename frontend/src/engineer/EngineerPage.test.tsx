@@ -297,6 +297,29 @@ describe('answers', () => {
     expect(sumRows).toContain('1 Küche 22.40 m²');
   });
 
+  it('EN-91 the mark list shows 12 rows and "Show all <n>", which toggles to every row', async () => {
+    const m0 = (answer.marks[0] ?? {}) as (typeof answer.marks)[number];
+    const many = {
+      ...answer,
+      marks: Array.from({ length: 38 }, (_, i) => ({ ...m0, id: `e${String(i + 1)}`, n: i + 1 })),
+    };
+    const t = await shown(many);
+    const list = () => t.querySelectorAll('.en-marks li');
+    expect(list()).toHaveLength(12);
+    const more = within(t).getByRole('button', { name: 'Show all 38' });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(more);
+    expect(list()).toHaveLength(38);
+    const fewer = within(t).getByRole('button', { name: 'Show fewer' });
+    expect(fewer.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(fewer);
+    expect(list()).toHaveLength(12);
+    cleanup();
+    const two = await shown(answer);
+    expect(two.querySelectorAll('.en-marks li')).toHaveLength(2);
+    expect(within(two).queryByRole('button', { name: /^Show all/ })).toBeNull();
+  });
+
   it('EN-18 the counting rule', async () => {
     const t = await shown(answer);
     expect(
@@ -860,7 +883,7 @@ describe('Vellum (screen 4)', () => {
     expect(fig.textContent).toContain('PDF vector · drawn PDF route');
     const also = within(t).getByRole('link', { name: 'flat-a.png' });
     expect(also.getAttribute('href')).toBe(`#/p/${PROJECT}/d/c9b719f715357201/engineer`);
-    expect(within(t).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(t).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it('EN-56 previous and next drawing wrap round; none for one drawing or before the project', async () => {
@@ -879,7 +902,7 @@ describe('Vellum (screen 4)', () => {
     const nav = await screen.findByRole('navigation', { name: 'Drawings' });
     expect(within(nav).getByRole('link', { name: 'Next drawing' })).toBeTruthy();
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(nav).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it.each([
@@ -892,7 +915,7 @@ describe('Vellum (screen 4)', () => {
       `#/p/${PROJECT}/d/${project.drawings[1]?.drawing_id ?? ''}/engineer`,
     );
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5')).toBeTruthy();
+    expect(within(nav).getByText('1 / 6')).toBeTruthy();
   });
 
   it.each([

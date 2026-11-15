@@ -53,7 +53,7 @@ async function noSideScroll(page: Page, where: string) {
 
 const banner = (page: Page) => page.getByRole('banner');
 
-test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks, the note verbatim, the ch-zh fail outlined on the drawing', async ({
+test('CK-16 VW-79 DOC-16: the picker sets ?pack= and links to the checks, no note, the ch-zh fail outlined in a dialog', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
@@ -83,11 +83,11 @@ test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks,
   const main = page.getByRole('main');
   await expect(main.getByRole('note')).toHaveCount(0);
   // Codecheck/sample-rooms: the sample's bedroom "Zimmer 1.05" is typed. fi (>= 7 m²) passes it on both flats,
-  // so nothing fails and the two flats count as passing.
+  // so nothing fails and the three flats (flat-c has no bedroom) count as passing.
   const fi = await liveResults(page, pid, 'fi');
   expect(fi.filter((r) => r.status === 'fail')).toEqual([]);
   expect(fi.some((r) => r.status === 'pass' && r.subject.label === 'Zimmer 1.05')).toBe(true);
-  await expect(main.getByText('2 drawings pass every checked place')).toBeVisible();
+  await expect(main.getByText('3 drawings pass every checked place')).toBeVisible();
   await expect(main.getByRole('article', { name: /^Zimmer 1\.05 · / })).toHaveCount(0);
   await noSideScroll(page, 'checks');
   await shot(page, testInfo, 'ck-checks', offline);
@@ -108,20 +108,19 @@ test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks,
   await expect(fail).toContainText('Fails');
   await expect(fail).toContainText('File: plans/flat-b.pdf');
   await expect(fail).toContainText('8.06');
-  await expect(main.getByText('1 drawing passes every checked place')).toBeVisible();
-  // VW-79: "Show on the drawing" outlines the failed room on its page, visible without scrolling.
-  await fail.getByRole('button', { name: 'Show on the drawing' }).click();
-  const mark = page
-    .getByRole('complementary')
-    .getByRole('button', { name: /fails the rule/ })
-    .first();
-  await expect(mark).toBeVisible();
-  // At 390 the viewer sits under the list (CK-16): the page scrolls to it; the mark itself needs no scrolling
-  // inside the viewer's scroll box (VW-79).
-  await page.getByRole('complementary').scrollIntoViewIfNeeded();
-  await expect(mark).toBeInViewport();
+  await expect(main.getByText('2 drawings pass every checked place')).toBeVisible();
   await noSideScroll(page, 'checks ch-zh');
   await shot(page, testInfo, 'ck-checks-ch-zh', offline);
+  // VW-79: "Show on the drawing" opens the drawing in a dialog with the failed room outlined, visible without
+  // scrolling the page; Close shuts it.
+  await fail.getByRole('button', { name: 'Show on the drawing' }).click();
+  const dialog = page.getByRole('dialog', { name: 'plans/flat-b.pdf' });
+  const mark = dialog.getByRole('button', { name: /fails the rule/ }).first();
+  await expect(mark).toBeVisible();
+  await expect(mark).toBeInViewport();
+  await shot(page, testInfo, 'ck-checks-ch-zh-dialog', offline);
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).toHaveCount(0);
   expect(errors, 'no console or page errors').toEqual([]);
 });
 
@@ -139,14 +138,16 @@ test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail
     .filter({
       has: page.getByRole('link', { name: 'Open the file' }),
     });
-  // Issues on demand: only what waits for an answer now (documents.ts waitsForYou); no conflicts or notes.
+  // Issues on demand: what waits for an answer now (documents.ts waitsForYou: no conflicts, no notes) plus the open
+  // unanswered `unrelated_file` note, the call on a file triage set aside (DOC-7; there is one only with
+  // TRIAGE_CLASSIFIER=rules). Not counted by the badge.
   const shown = async (query: string) =>
     (await liveIssues(page, pid, query)).filter(
       (i) =>
-        (i.kind !== 'conflict' || !!i.resolved) &&
-        i.severity !== 'note' &&
         i.state === 'open' &&
-        !i.answer,
+        !i.answer &&
+        (i.kind === 'unrelated_file' ||
+          ((i.kind !== 'conflict' || !!i.resolved) && i.severity !== 'note')),
     ).length;
   const { label } = await drawingOf(page, pid, 'plans/flat-b.pdf');
 
@@ -194,8 +195,11 @@ test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail
   await page.goto(`/#/p/${pid}/documents?pack=fi`);
   await expect(issueList).toHaveCount(await shown('?pack=fi'));
   await expect(issueList.filter({ hasText: 'Fails a rule' })).toHaveCount(0);
+  // no answer box on a rule row (the triage call on a set-aside file has its own name box, DOC-7)
   await expect(
-    main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
+    issueList
+      .filter({ hasNot: page.getByRole('button', { name: 'It belongs to this project' }) })
+      .getByRole('textbox'),
   ).toHaveCount(0);
   await noSideScroll(page, 'documents?pack=fi');
   // ui-bugs 10, 11: the header has no project picker and no Workspaces link.

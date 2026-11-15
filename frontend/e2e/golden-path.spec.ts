@@ -24,10 +24,10 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await page.getByRole('button', { name: 'Try the sample project' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
     pid = /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
-    await expect(filesThrough(page)).toHaveText('11 / 11', { timeout: 30_000 });
+    await expect(filesThrough(page)).toHaveText('12 / 12', { timeout: 30_000 });
     await expect(page.getByText('All 9 steps done').first()).toBeVisible();
     await expect(page.locator('dt', { hasText: 'Drawings ready' }).locator('+ dd')).toHaveText(
-      '5 / 5',
+      '6 / 6',
     );
     flatB = await drawingOf(page, pid, 'plans/flat-b.pdf');
     // GP-41: exactly Ingest, Chat, Documents (no Conflicts, Issues, Checks or Surveyor tab).
@@ -35,7 +35,7 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
       page.getByRole('banner').getByRole('navigation', { name: 'Views' }).getByRole('link'),
     ).toHaveText(['Ingest', 'Chat', /^Documents/]);
     const main = page.getByRole('main');
-    await expect(main.getByText(/^5 drawings ready\. Conflicts are below\./)).toBeVisible();
+    await expect(main.getByText(/^6 drawings ready\. Conflicts are below\./)).toBeVisible();
     // GP-42: the conflicts under the progress card; the sample's one conflict is settled by the rule.
     const conflicts = main.getByRole('region', { name: 'Conflicts' });
     await expect(
@@ -139,13 +139,17 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
       toAnswer ? new RegExp(`^Documents, ${String(toAnswer)} issues? to answer$`) : 'Documents',
     );
     await expect(main.getByRole('region', { name: 'Drawings' }).getByRole('listitem')).toHaveCount(
-      5,
+      6,
     );
     const files = main.getByRole('region', { name: 'Files' }).getByRole('link');
-    await expect(files).toHaveCount(11);
-    // A note is shown, never answered.
+    await expect(files).toHaveCount(12);
+    // A note is shown, never answered (the triage call on a set-aside file, DOC-7, has its own name box)
     await expect(
-      main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
+      main
+        .getByRole('region', { name: 'Issues on demand' })
+        .getByRole('listitem')
+        .filter({ hasNot: page.getByRole('button', { name: 'It belongs to this project' }) })
+        .getByRole('textbox'),
     ).toHaveCount(toAnswer ? toAnswer : 0);
     await shot(page, testInfo, '05-documents', offline);
   });
@@ -182,8 +186,17 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     ).toHaveAttribute('aria-current', 'page');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: 'sample-project.zip' })).toBeVisible();
-    // Empty (chat.md): the heading, the ask bar and 3 suggestion chips; no plan, image or marks.
-    await expect(main.locator('img, figure, canvas, svg image')).toHaveCount(0);
+    // Empty (chat.md): the heading, the ask bar and 3 suggestion chips; no plan, image or marks in the chat.
+    // At 1200 px and wider the plan pane sits beside it (agent-chat.md AC-36) with its first file open and no
+    // marks; it loads after the chat, so it is waited for, never raced.
+    const pane = main.getByRole('complementary', { name: 'Plan' });
+    if ((page.viewportSize()?.width ?? 0) >= 1200) {
+      await expect(pane.getByRole('img', { name: /^Page 1 of / })).toBeVisible();
+      await expect(pane.locator('.vw-badge')).toHaveCount(0);
+    } else {
+      await expect(pane).toHaveCount(0);
+    }
+    await expect(main.locator('.en-chat').locator('img, figure, canvas, svg image')).toHaveCount(0);
     await expect(main.getByRole('textbox', { name: 'Question' })).toBeVisible();
     await expect(main.getByRole('button', { name: 'Ask' })).toBeVisible();
     const chips = main.getByRole('group', { name: 'Suggested questions' }).getByRole('button');
@@ -282,6 +295,9 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     // No Surveyor tab (SH-75) and no surveyor link on the conflict card (CF-47): the area answer sends it there.
     await turn(AREA).getByRole('link', { name: 'Send to surveyor' }).click();
     await expect(page).toHaveURL(new RegExp(`^${escape(drawingUrl)}/surveyor(\\?.*)?$`));
+    // K3: on a phone the drawings and conflicts fold behind one toggle; the drawing comes first
+    const fold = page.getByRole('button', { name: /^Drawings \(\d+\) · Conflicts \(\d+\)$/ });
+    if ((page.viewportSize()?.width ?? 0) <= 640) await fold.click();
     for (const text of [
       'area of room (name Küche · 1.01)',
       '22.40 m² vs 30.00 m²',
@@ -374,8 +390,8 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(first).toHaveAttribute('aria-pressed', 'true');
     const panel = page.getByRole('region', { name: 'Selected workspace' });
     const stat = (label: string) => panel.locator('dt', { hasText: label }).locator('+ dd');
-    await expect(stat('Files')).toHaveText('11');
-    await expect(stat('Drawings')).toHaveText('5');
+    await expect(stat('Files')).toHaveText('12');
+    await expect(stat('Drawings')).toHaveText('6');
     // #131: the sample's one conflict (Küche · 1.01) is settled and signed off: nothing left to review.
     await expect(stat('To review')).toHaveText('0');
     // One sign-off per room, though #131 signs the room's twin row too (fe-shared counts by room).

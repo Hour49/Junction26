@@ -17,9 +17,11 @@ from app.adapters.raster_ocr import RapidOcrEngine
 from app.composition import build_ingest, build_pipeline
 from app.core.answering.facts import FACTS
 from app.core.answering.model import Answer, Question
+from app.core.drawing.model import Page
 from app.core.ingest.model import Classified
 from app.core.ingest.triage import TriageSteps
 from app.core.picture_facts import storey_of_title
+from app.core.pipeline.printed import printed_scale
 from app.settings import Settings
 from scripts.make_sample_archive import build_archive
 
@@ -140,7 +142,7 @@ def test_the_legend_is_read_by_ocr_with_its_group_symbols_and_line() -> None:
     rgb = Image.open(io.BytesIO(heating_scan())).convert("RGB")
     import numpy as np
 
-    legend, scale_text = read_legend(np.asarray(rgb), RapidOcrEngine())
+    legend, printed = read_legend(np.asarray(rgb), RapidOcrEngine())
     assert legend is not None
     by = {e.label: e for e in legend}
     assert set(by) == {"Radiator", "Valve", "Heating pipe DN20"}
@@ -148,14 +150,93 @@ def test_the_legend_is_read_by_ocr_with_its_group_symbols_and_line() -> None:
     assert by["Heating pipe DN20"].line and not by["Radiator"].line and not by["Valve"].line
     x0, y0, x1, y1 = by["Radiator"].box or (0, 0, 0, 0)
     assert 1560 / W - 0.01 < x0 < x1 < 1600 / W + 0.01 and 990 / H < y0 < y1 < 1030 / H
-    assert scale_text is not None and "1:50" in scale_text
+    assert printed.printed_scale is not None and "1:50" in printed.printed_scale
+    assert printed.bars == ()  # no bar printed: the ratio at the file's dpi is the scale
 
 
-def test_a_page_with_no_legend_header_has_no_legend() -> None:
+def test_a_blank_page_has_no_legend_and_no_scale() -> None:
     import numpy as np
 
     blank = np.full((400, 600, 3), 255, dtype=np.uint8)
-    assert read_legend(blank, RapidOcrEngine()) == (None, None)
+    legend, printed = read_legend(blank, RapidOcrEngine())
+    assert legend is None and printed.printed_scale is None and printed.bars == ()
+
+
+GREEN = (30, 160, 30)
+BAR_PX = 591  # a 5 m bar at 1:50 and 150 dpi
+
+
+def revit_sheet() -> tuple[bytes, dict[str, tuple[int, int, int, int]]]:
+    """A services plan as Revit exports it: a legend with no heading word, its rows tight (system
+    headings without a sample, line samples, symbols left of family names), a printed scale bar
+    "5 m 1:50", and no dpi in the file. Returns the png and each symbol's drawn box."""
+    page = Image.new("RGB", (W, H), (255, 255, 255))
+    draw = ImageDraw.Draw(page)
+    for y in (300, 800):
+        draw.line((60, y, 1000, y), fill=(0, 0, 0), width=4)
+    draw.ellipse((400, 500, 430, 530), outline=(0, 0, 0), width=2)  # a radiator on the plan
+    x, step = 1150, 34
+    rows = [
+        (None, "Unit A Hydronic Supply In", 0),
+        ("red", "Unit A Hydronic Supply In", 130),
+        ("square", "M_Ball Valve - 50 mm", 75),
+        (None, "Unit A Hydronic Supply In,Unit A Hydronic Supply Out", 0),
+        ("circle", "M_Radiator - Hosted:Readiator - 25", 75),
+        ("green", "Unit B Hydronic Supply In", 130),
+    ]
+    symbols: dict[str, tuple[int, int, int, int]] = {}
+    for n, (sample, label, indent) in enumerate(rows):
+        y = 60 + n * step
+        mid = y + 15
+        if sample in ("red", "green"):
+            draw.line((x, mid, x + 100, mid), fill=RED if sample == "red" else GREEN, width=3)
+        elif sample == "square":
+            symbols[label] = (x + 15, mid - 11, x + 37, mid + 11)
+            draw.rectangle(symbols[label], outline=(0, 0, 0), width=2)
+        elif sample == "circle":
+            symbols[label] = (x + 15, mid - 11, x + 37, mid + 11)
+            draw.ellipse(symbols[label], outline=(0, 0, 0), width=2)
+        draw.text((x + indent, y), label, fill=(0, 0, 0), font=FONT)
+    draw.rectangle((30, 1320, 30 + BAR_PX - 1, 1329), fill=(0, 0, 0))
+    draw.text((30 + BAR_PX + 15, 1308), "5 m   1:50", fill=(0, 0, 0), font=FONT)
+    out = io.BytesIO()
+    page.save(out, "PNG")  # no dpi: the bar is the only scale
+    return out.getvalue(), symbols
+
+
+def test_a_legend_with_no_heading_word_is_read_with_tight_symbol_crops() -> None:
+    import numpy as np
+
+    data, symbols = revit_sheet()
+    legend, _ = read_legend(
+        np.asarray(Image.open(io.BytesIO(data)).convert("RGB")), RapidOcrEngine()
+    )
+    assert legend is not None
+    by = {e.label.split(" - ")[0]: e for e in legend}
+    assert set(by) == {"Unit A Hydronic Supply In", "M_Ball Valve", "M_Radiator",
+                       "Unit B Hydronic Supply In"}, legend  # fmt: skip
+    assert by["Unit A Hydronic Supply In"].line and by["Unit B Hydronic Supply In"].line
+    assert not by["M_Ball Valve"].line and not by["M_Radiator"].line
+    assert by["M_Ball Valve"].group == "Unit A Hydronic Supply In"
+    assert (by["M_Radiator"].group or "").startswith("Unit A Hydronic Supply In,")
+    for name, drawn in symbols.items():  # the symbol only: no heading or label ink in the crop
+        x0, y0, x1, y1 = by[name.split(" - ")[0]].box or (0, 0, 0, 0)
+        dx0, dy0, dx1, dy1 = drawn
+        pad = 4
+        assert (dx0 - pad) / W <= x0 <= dx0 / W and dx1 / W <= x1 <= (dx1 + pad) / W, name
+        assert (dy0 - pad) / H <= y0 <= dy0 / H and dy1 / H <= y1 <= (dy1 + pad) / H, name
+
+
+def test_a_printed_scale_bar_gives_metres_without_a_dpi() -> None:
+    import numpy as np
+
+    data, _ = revit_sheet()
+    _, printed = read_legend(
+        np.asarray(Image.open(io.BytesIO(data)).convert("RGB")), RapidOcrEngine()
+    )
+    assert [bar.length_m for bar in printed.bars] == [5.0]
+    scale = printed_scale(printed, [Page(page=1, width=W, height=H, unit="px")], None)
+    assert scale is not None and scale.m_per_unit == pytest.approx(5.0 / BAR_PX, rel=0.01)
 
 
 def test_the_storey_is_the_one_the_title_names() -> None:

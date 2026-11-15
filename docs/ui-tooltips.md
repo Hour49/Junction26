@@ -52,7 +52,7 @@ class names on `TooltipContent`:
 
 | Screen | file:line | Element | Proposed tip | Pri |
 | --- | --- | --- | --- | --- |
-| Home | `ingest/UploadBox.tsx:160-169` | "Try the sample project" | A small made-up flat with 11 files. Click it to see Vellum work end to end. | P1 |
+| Home | `ingest/UploadBox.tsx:160-169` | "Try the sample project" | A small made-up flat with 12 files. Click it to see Vellum work end to end. | P1 |
 | Home | `ingest/UploadBox.tsx:171` | "The sample starts from scratch each time." (plain text) | (no tip: already clear) | n/a |
 | Home | `ingest/UploadBox.tsx:205-211` | Format chips ("IFC models", "DXF", "PDF, drawn or scanned", "SVG") | IFC and DXF are CAD/BIM files; drawn PDFs are read exactly, scanned PDFs and photos are read by AI. | P2 |
 | Home | `ingest/UploadBox.tsx:139-148,160-169` | Disabled buttons while an upload runs | Wait for the current upload to finish. | P3 |

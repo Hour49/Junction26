@@ -520,7 +520,10 @@ and `message = "<detail> (<code>)"`. Parsed from every non-2xx response:
 - body is JSON with string `detail` and `code` (API.md "Errors", fixture `error.json`): those, plus `errors` when
   present (422 `validation`);
 - any other body (not JSON, an HTML proxy page, JSON without those fields): `code` `http-<status>`, `detail`
-  `the server answered <status>`;
+  `the server answered <status>`, except two a gateway sends that a person can act on: 502, 503, 504 and 530 (the
+  app's machine or tunnel is down; the live gate, site/, answers its own JSON) give `The server is not answering
+  right now. Try again in a minute.`, and 401 (the access gate's cookie has expired) gives `The access code has
+  expired. Reload the page to enter it again.`;
 - `fetch` itself rejects (server down, no network): `status` 0, `code` `network`, `detail`
   `cannot reach the server`;
 - an aborted request (the caller's `signal`) rejects with the browser's `AbortError` unchanged, not an `ApiError`,
@@ -672,10 +675,12 @@ API client
 - SH-31 A 404 with `error.json`'s body rejects with `ApiError` `status` 404, `code` `not-found`, `detail` "no drawing
   0123456789abcdef", `message` "no drawing 0123456789abcdef (not-found)". [unit]
 - SH-32 A 422 body with `errors` keeps them in `ApiError.errors`. [unit]
-- SH-33 A 502 with an HTML body rejects with `code` `http-502`, `detail` "the server answered 502". [unit]
+- SH-33 A 502 with an HTML body rejects with `code` `http-502`, `detail` "The server is not answering right now. Try
+  again in a minute."; so do 503, 504, 524 (the tunnel gave up on a hung backend) and 530 and the gate's `{"error": ...}` JSON; a 401 without the error body says
+  the access code has expired; a 418 HTML body keeps "the server answered 418". [unit]
 - SH-34 A fetch that rejects gives `ApiError` `status` 0, `code` `network`; an aborted request rejects with an
   `AbortError`, not an `ApiError`. [unit]
-- SH-35 Every function passes the caller's `signal` to `fetch`. [unit]
+- SH-35 The caller's `signal` aborts every function's request. [unit]
 
 Generated types
 
@@ -825,6 +830,10 @@ Vellum round (round 2)
   issues while the project is `running`, and the count comes once it reads `done`; a `failed` project gives null. In
   the header: the link's name "Documents, 2 issues to answer" (singular "1 issue"), the badge `aria-hidden`, none
   for 0 or null. [unit + component, mockApi]
+- SH-89 A JSON GET with no answer in 60 s (`GET_TIMEOUT_MS`, a frozen backend) is aborted and rejects with
+  `ApiError` `status` 0, `code` `timeout`, `detail` "The server is not answering right now. Try again in a minute.", so
+  the screen shows its error view instead of loading forever; POSTs and byte downloads are not timed. [unit, fake
+  timers]
 - SH-88 (orch) With `?pack=ch-zh` the badge ignores `issues_to_answer` and counts `needsYou` over
   `GET /api/projects/{pid}/issues?pack=ch-zh` (an open `fails_rule` issue counts), asked again on `issuesChanged`;
   without a pack the issues are not asked when `issues_to_answer` is set. [unit + component, mockApi]

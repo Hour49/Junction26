@@ -114,6 +114,21 @@ const NARROW = 600; // px of frame width under which badges show their number on
 const CROWD = 50; // more badges than this in a narrow frame: outlines only (carbon flag, VW-96)
 const STATE_ORDER: MarkView['state'][] = ['counted', 'added', 'rejected', 'excluded'];
 const inPage = (v: number) => v >= 0 && v <= 1;
+const TAG_STEP = 24; // px: a one-letter conflict tag's width (12 px glyph, padding, border) and a gap
+const TAG_HIGH = 20; // px: its height
+/** Two conflict tags at these corners would overlap: within a tag's size once the frame is measured
+ * (`W`, `H` in px), else within 2% of the page. */
+function tagsMeet(
+  a: number[] | null | undefined,
+  b: number[] | null | undefined,
+  W: number,
+  H: number,
+) {
+  if (!a || !b) return false;
+  const dx = Math.abs((a[0] ?? 0) - (b[0] ?? 0));
+  const dy = Math.abs((a[1] ?? 0) - (b[1] ?? 0));
+  return W > 0 && H > 0 ? dx * W < TAG_STEP && dy * H < TAG_HIGH : dx < 0.02 && dy < 0.02;
+}
 /** A box in page fractions: four numbers in 0..1, x0 <= x1, y0 <= y1. */
 const isBox = (b: number[] | null | undefined): b is Box =>
   b?.length === 4 &&
@@ -785,21 +800,26 @@ export function PageViewer({
               )}
             </svg>
           )}
-          {tags.map((r) => (
+          {tags.map((r, i) => {
             // shortcut: at the box's top-left corner, not its centre (viewer.md VW-19), so tag A
-            // does not cover the room's badge; the spec should follow.
-            <span
-              key={r.tag}
-              className="vw-tag"
-              aria-hidden="true"
-              style={{
-                left: `${((r.box?.[0] ?? 0) * 100).toFixed(1)}%`,
-                top: `${((r.box?.[1] ?? 0) * 100).toFixed(1)}%`,
-              }}
-            >
-              {r.tag}
-            </span>
-          ))}
+            // does not cover the room's badge; the spec should follow. A tag whose corner an
+            // earlier tag already covers moves right by a tag's width (K2).
+            const left = `${((r.box?.[0] ?? 0) * 100).toFixed(1)}%`;
+            const shift = tags.slice(0, i).filter((q) => tagsMeet(q.box, r.box, W, H)).length;
+            return (
+              <span
+                key={r.tag}
+                className="vw-tag"
+                aria-hidden="true"
+                style={{
+                  left: shift > 0 ? `calc(${left} + ${String(shift * TAG_STEP)}px)` : left,
+                  top: `${((r.box?.[1] ?? 0) * 100).toFixed(1)}%`,
+                }}
+              >
+                {r.tag}
+              </span>
+            );
+          })}
           {badged.map((m, i) => {
             const [x0, y0, x1, y1] = m.box;
             const spot = spots?.[i];

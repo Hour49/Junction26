@@ -63,7 +63,7 @@
       "drawing_id": "3b3ce7db34257f63",
       "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
-      "file_id": "f4",
+      "file_id": "f5",
       "floor": null,
       "page": 1,
       "box": null,
@@ -77,7 +77,7 @@
       "links": {
         "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f5/trace",
         "checks": null
       },
       "label": "How it was read",
@@ -95,7 +95,7 @@
       "drawing_id": "3b3ce7db34257f63",
       "drawing_name": "Plan image 1",
       "file": "scans/ground-floor.png",
-      "file_id": "f4",
+      "file_id": "f5",
       "floor": null,
       "page": null,
       "box": null,
@@ -109,7 +109,7 @@
       "links": {
         "drawing": "/api/drawings/3b3ce7db34257f63?project=5e0c1a2b3d4f",
         "takeoff": "/api/drawings/3b3ce7db34257f63/takeoff?project=5e0c1a2b3d4f",
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f4/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f5/trace",
         "checks": null
       },
       "label": "No answer",
@@ -127,7 +127,7 @@
       "drawing_id": "37f6819bd17d65d9",
       "drawing_name": "Plan photo 1",
       "file": "photos/plan-photo.jpg",
-      "file_id": "f6",
+      "file_id": "f7",
       "floor": null,
       "page": 1,
       "box": null,
@@ -141,7 +141,7 @@
       "links": {
         "drawing": "/api/drawings/37f6819bd17d65d9?project=5e0c1a2b3d4f",
         "takeoff": "/api/drawings/37f6819bd17d65d9/takeoff?project=5e0c1a2b3d4f",
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f6/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
         "checks": null
       },
       "label": "How it was read",
@@ -152,14 +152,14 @@
       "answer": null
     },
     {
-      "id": "set_aside-02a5f0314890",
+      "id": "set_aside-a24c489a64d0",
       "kind": "set_aside",
       "severity": "note",
       "state": "open",
       "drawing_id": null,
       "drawing_name": null,
       "file": "photos/site.jpg",
-      "file_id": "f7",
+      "file_id": "f8",
       "floor": null,
       "page": null,
       "box": null,
@@ -173,7 +173,7 @@
       "links": {
         "drawing": null,
         "takeoff": null,
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f7/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f8/trace",
         "checks": null
       },
       "label": "Set aside",
@@ -184,28 +184,28 @@
       "answer": null
     },
     {
-      "id": "set_aside-ac138023ff60",
+      "id": "set_aside-0d075884ecc7",
       "kind": "set_aside",
       "severity": "note",
       "state": "open",
       "drawing_id": null,
       "drawing_name": null,
       "file": "cad/detail.dxf",
-      "file_id": "f9",
+      "file_id": "f10",
       "floor": null,
       "page": null,
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "Set aside at ingest: no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on.",
+      "why": "Set aside at ingest: this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image.",
       "quantity": null,
       "question": null,
-      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+      "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
       "check": null,
       "links": {
         "drawing": null,
         "takeoff": null,
-        "trace": "/api/projects/5e0c1a2b3d4f/files/f9/trace",
+        "trace": "/api/projects/5e0c1a2b3d4f/files/f10/trace",
         "checks": null
       },
       "label": "Set aside",
