@@ -1,8 +1,10 @@
 """PIPELINE_TOOLS for the agent chat (board #222): each tool gives what its HTTP route gives, and
 a bad call is {"error": ...}, never an exception."""
 
+import io
 import json
 import logging
+import zipfile
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -89,7 +91,9 @@ def test_every_tool_is_an_openai_function_with_all_its_arguments_required() -> N
 def test_list_drawings_names_each_drawing_of_the_project(
     store: PipelineStore, project: dict[str, Any]
 ) -> None:
-    found = call(store, "list_drawings")
+    listed = call(store, "list_drawings")
+    found = listed["items"]  # the sample sets files aside: they come beside the drawings
+    assert listed["set_aside"] == project["skipped"] != []
     assert [d["drawing_id"] for d in found] == [d["drawing_id"] for d in project["drawings"]]
     assert [d["name"] for d in found] == [d["file"] for d in project["drawings"]]
     assert all(isinstance(d["pages"], int) for d in found)  # a model file has 0 pages
@@ -101,7 +105,7 @@ def test_list_drawings_says_what_the_pen_says_whether_an_edit_can_be_drawn(
 ) -> None:
     """Tudor R3-G10: on a scan the pen is off, yet the agent said "draw the area ... and ask me to
     propose it". The agent reads the same check as the pen (plan_tools.not_drawable)."""
-    found = {d["drawing_id"]: d for d in call(store, "list_drawings")}
+    found = {d["drawing_id"]: d for d in call(store, "list_drawings")["items"]}
     for drawing in project["drawings"]:
         listed = found[drawing["drawing_id"]]
         assert listed["editable"] is drawing["drawable"], drawing["file"]
@@ -469,3 +473,24 @@ def test_floor9178_walls_are_about_the_dxf_wall_layer() -> None:
     found = wall_fills(page, scale.m_per_unit)
     assert len(found) == 9
     assert sum(f.area_m2 or 0 for f in found) == pytest.approx(22.4, rel=0.06)  # DXF: 22.4 m²
+
+
+def test_list_drawings_also_lists_the_files_set_aside_with_their_reason(
+    checked: TestClient, plan_pdf: bytes
+) -> None:
+    """Live S1 (samples-live 2026-11-15): asked which files could not be read, the chat said none,
+    because list_drawings showed only drawings and a DWG set aside (export it as a PDF) is none."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("plan.pdf", plan_pdf)
+        archive.writestr("site/plan.dwg", b"AC1032" + b"\0" * 64)
+    started = checked.post("/api/projects", params={"name": "h.zip"}, content=buffer.getvalue())
+    project = checked.get(started.json()["url"]).json()
+    store = PipelineStore.of_app(checked.app, project["id"])
+    found = call(store, "list_drawings")
+    assert [d["drawing_id"] for d in found["items"]] == [
+        d["drawing_id"] for d in project["drawings"]
+    ]
+    dwg = next(f for f in project["files"] if f["path"] == "site/plan.dwg")
+    assert dwg["state"] == "set_aside" and dwg["reason"]
+    assert found["set_aside"] == [{"path": "site/plan.dwg", "reason": dwg["reason"]}]
