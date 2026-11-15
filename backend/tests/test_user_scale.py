@@ -209,13 +209,17 @@ def entries(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def take(
-    ingest: FakeIngest, message: str, selection: list[Selection] | None = None
+    ingest: FakeIngest,
+    message: str,
+    selection: list[Selection] | None = None,
+    names: dict[str, str] | None = None,
 ) -> tuple[str, dict[str, Scale]]:
     status: Any = type(
         "S", (), {"entries": [type("E", (), {"drawing_id": d})() for d in ingest.drawings]}
     )()
     kept: dict[str, Scale] = {}
-    said = take_scale(message, selection or [], ingest, status, {"d1": "Scan 1"}, kept.__setitem__)
+    named = names or {"d1": "Scan 1"}
+    said = take_scale(message, selection or [], ingest, status, named, kept.__setitem__)
     return said, kept
 
 
@@ -279,3 +283,80 @@ def test_a_scanned_pdf_takes_a_ratio_at_its_render_resolution(
     scan = FakeIngest({"d1": drawing()}, make_pdf((720, 360)), kind="pdf")  # 10 in wide, 1000 px
     _, kept = take(scan, "the scale is 1:100")
     assert kept["d1"].m_per_unit == pytest.approx(100 * 0.0254 / 100)  # 100 px to the inch
+
+
+# --- user-scale-2 (qa-a's demo walk, .agents/submission/demo-script.md "Broken" 1) -------------
+
+
+@pytest.mark.parametrize(
+    ("message", "room_name", "value"),
+    [
+        ("Room 301 is 18 m2", "Room 301", 18),
+        ("Soba 2 is 9.5 m2", "Soba 2", 9.5),
+        ("0.02 is 12 m2", "0.02", 12),
+        ("Room 3.01 is 4 m wide", "Room 3.01", 4),
+    ],
+)
+def test_a_room_named_with_digits_states_a_scale(
+    message: str, room_name: str, value: float
+) -> None:
+    given = parse_given(message)
+    assert given is not None and (given.room, given.value) == (room_name, value)
+
+
+def numbered() -> Drawing:
+    """A hotel plan whose rooms are numbers only (Plan photo 2)."""
+    rooms = (
+        room("r1", "other", (0.1, 0.1, 0.3, 0.5), label="301"),
+        room("r2", "other", (0.3, 0.1, 0.7, 0.5), label="302"),
+    )
+    return drawing().model_copy(update={"rooms": rooms})
+
+
+def test_a_room_by_its_number_is_found() -> None:
+    assert [r.id for r in rooms_named(numbered(), "Room 301")] == ["r1"]
+    assert [r.id for r in rooms_named(numbered(), "302")] == ["r2"]
+
+
+TWO = {"d1": "Plan image 5", "d2": "Plan photo 2"}
+
+
+def test_a_drawing_named_in_the_sentence_is_the_one_scaled(entries: None) -> None:
+    ingest = FakeIngest({"d1": drawing(), "d2": drawing()})  # a kitchen on both
+    said, kept = take(ingest, "The kitchen on Plan image 5 is 4 m wide", names=TWO)
+    assert list(kept) == ["d1"] and "Plan image 5" in said
+    _, kept = take(ingest, "the kitchen of plan photo 2 is 12 m2", names=TWO)
+    assert list(kept) == ["d2"]
+    said, kept = take(ingest, "The kitchen is 4 m wide", names=TWO)  # unnamed: two fit
+    assert kept == {} and "2 rooms fit" in said
+
+
+def test_a_ratio_for_a_named_drawing(entries: None) -> None:
+    ingest = FakeIngest({"d1": drawing(PT), "d2": drawing(PT)})
+    _, kept = take(ingest, "the scale of Plan image 5 is 1:100", names=TWO)
+    assert list(kept) == ["d1"] and kept["d1"].m_per_unit == pytest.approx(100 * 0.0254 / 72)
+    said, kept = take(ingest, "the scale is 1:100", names=TWO)
+    assert kept == {} and "several drawings" in said
+
+
+def test_room_301_on_the_hotel_photo(entries: None) -> None:
+    ingest = FakeIngest({"d1": drawing(), "d2": numbered()})
+    _, kept = take(ingest, "Room 301 is 18 m2", names=TWO)
+    assert list(kept) == ["d2"]
+    assert ScaledIngest(ingest, kept).drawing("d2").rooms[0].area_m2 == pytest.approx(18)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Is the study on Plan image 5 4.9 m wide?",
+        "The kitchen is 12 m2?",  # a statement asked back: a trailing "?" asks
+        "The kitchen on Plan image 5 is 4 m wide?",
+        "Is room 301 18 m2?",
+        "What is the area of room 301 on Plan photo 2?",
+        "the scale of Plan image 5 is 1:100 or 1:50",
+    ],
+)
+def test_questions_still_set_no_scale(entries: None, message: str) -> None:
+    ingest = FakeIngest({"d1": drawing(PT), "d2": numbered()})
+    assert take(ingest, message, names=TWO) == ("", {})

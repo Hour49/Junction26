@@ -42,7 +42,11 @@ def judge(
     how an image was normalised; `carbon`: what Gemini Carbon read of it (reading_flags);
     `unruled`: a drawn PDF read as an image (VECTOR_FALLBACK)."""
     if drawing.model_objects is not None and not drawing.pages:
-        found = count(len(drawing.model_objects), "model object")
+        found = (
+            count(len(drawing.model_objects), "model object")
+            if drawing.model_objects
+            else "no wall, door, window or room in the model"  # a services model (QA B4)
+        )
     else:
         tables = len(drawing.tables or ())
         schedules = f"{count(tables, 'schedule')}, " if tables else ""

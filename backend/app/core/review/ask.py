@@ -147,6 +147,12 @@ PLURALS = {"living": "living rooms"}
 SCHEDULE_KINDS = ("door", "window", "room")  # schedules a sheet may print, by what its rows are
 NO_SCALE = ("no_scale", "not_to_scale")
 ROOM_NUMBER = re.compile(r"-?U?\d+\.\d+")  # a room number the parser reads without quotes
+# A model file that lists no wall, door, window or room (a services model alone; #475 S1): it
+# says nothing about the building's plan, so a plan count is refused, not answered 0
+SERVICES_ONLY = (
+    "This file is a services model: it has no wall, door, window or room, so it can't count "
+    "them. Ask about its services (systems, pipes, ducts, terminals) instead."
+)
 TEXTS = {
     "unsupported-question": "This question isn't one I can turn into a count, area, length or "
     "volume. Try one of these instead.",
@@ -1236,6 +1242,8 @@ def _refusal(
         if isinstance(parsed, Unsupported) and (words := _unknown_subject(parsed.reason)):
             return "unsupported-question", words
         return "unsupported-question", TEXTS["unsupported-question"]
+    if not drawing.pages and drawing.model_objects == ():
+        return "not-in-drawing", SERVICES_ONLY
     if drawing.read == () and not drawing.model_objects:
         return "no-reader", TEXTS["no-reader"]
     if parsed.measure in ("area", "length") and drawing.scale.status in NO_SCALE:
