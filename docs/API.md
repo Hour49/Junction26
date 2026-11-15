@@ -4931,7 +4931,7 @@ many quantities are left to review and how many are signed off, and every confli
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
-      "quantities": 43
+      "quantities": 27
     }
   ],
   "conflicts": [
