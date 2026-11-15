@@ -4,6 +4,7 @@ import { drawing, project } from '../../api/fixtures';
 import { mockApi } from '../../test/mockApi';
 import { EditCard } from '../EditCard';
 import { DID, editTurn, proposal } from '../fixtures';
+import { sheetFocus } from './ServiceTabs';
 import { followed, heatingPicture, PIC, pictured, services, ventilation } from './fixtures';
 import {
   focusOf,
@@ -54,6 +55,36 @@ describe('services helpers', () => {
       expect(box?.[i]).toBeCloseTo(v);
     });
     expect(services.disciplines[0] && focusOf(services.disciplines[0], followed)).toBeNull();
+  });
+
+  it("a services picture is in focus on the edit's own outlines, not on every symbol read on the sheet", () => {
+    // R1 edits 10c: the plumbing picture's lane carries every symbol the reader found (562 on P-101), so the
+    // box of them all was nearly the whole sheet and the struck-out wall sat cut off at its right edge
+    const far = {
+      ref: 'H9',
+      global_id: '',
+      kind: 'radiator',
+      label: 'radiator',
+      line: [],
+      at: [0.9, 0.9] as [number, number],
+    };
+    const lane = {
+      ...heatingPicture,
+      marks: [...heatingPicture.marks, far],
+      picture: {
+        ...heatingPicture.picture,
+        marks: [
+          ...heatingPicture.picture.marks,
+          { ref: 'H9', line: [], at: [0.95, 0.92] as [number, number] },
+        ],
+      },
+    };
+    const box = sheetFocus(lane, lane.picture);
+    expect(box).not.toBeNull();
+    const [x0, y0, x1, y1] = box ?? [0, 0, 0, 0];
+    expect(x0 <= 0.45 && y0 <= 0.3 && x1 >= 0.46 && y1 >= 0.4).toBe(true); // the removed strip is in view
+    expect(x1).toBeLessThan(0.7); // the far symbol is not
+    expect(y1).toBeLessThan(0.7);
   });
 
   it('an action is placed at the middle of what it draws; a tally has no place', () => {
@@ -291,6 +322,53 @@ describe('a discipline picture with the edit drawn on it (AC-40..44)', () => {
     await waitFor(() => {
       expect(pageImage(container)?.getAttribute('src')).toContain(PIC);
     });
+  });
+
+  it('AC-45 All sheets: the plan and each picture side by side, the edit on each; Before clears every one', async () => {
+    const { container } = await pictureCard();
+    fireEvent.click(tab('All sheets'));
+    const panels = () => [...container.querySelectorAll<HTMLElement>('.ms-sync-panel')];
+    await waitFor(() => {
+      expect(panels().map((p) => p.querySelector('img')?.getAttribute('src') ?? '')).toEqual([
+        expect.stringContaining(DID),
+        expect.stringContaining(PIC),
+      ]);
+    });
+    expect(panels().map((p) => p.getAttribute('aria-label'))).toEqual([
+      'Plan, with the proposed change',
+      'Heating: heating/EG-heating.png, with the proposed change',
+    ]);
+    const [plan, heating] = panels();
+    expect(plan?.querySelectorAll('.ag-removed')).toHaveLength(1); // the plan's own overlay
+    expect(heating?.querySelector('.ag-strike')).toBeTruthy(); // the edit on the heating sheet
+    expect(heating?.querySelector<HTMLElement>('.ms-dot[title="radiator"]')?.textContent).toBe('!');
+    fireEvent.click(screen.getByRole('button', { name: 'Before' }));
+    expect(container.querySelector('.ms-sync .ag-removed')).toBeNull();
+    expect(container.querySelector('.ms-sync .ag-strike')).toBeNull();
+    // a panel opens its own tab
+    fireEvent.click(within(heating as HTMLElement).getByRole('button', { name: 'Open Heating' }));
+    await waitFor(() => {
+      expect(container.querySelectorAll('.ms-sync-panel')).toHaveLength(0);
+    });
+    expect(tab(/^Heating/).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('AC-45 no All sheets without a picture, nor once its only picture is refused', async () => {
+    await card();
+    expect(
+      within(screen.getByRole('group', { name: 'Discipline' })).queryByRole('button', {
+        name: 'All sheets',
+      }),
+    ).toBeNull();
+    cleanup();
+    await pictureCard();
+    fireEvent.click(tab(/Heating/));
+    fireEvent.click(await screen.findByRole('button', { name: 'Not this sheet' }));
+    expect(
+      within(screen.getByRole('group', { name: 'Discipline' })).queryByRole('button', {
+        name: 'All sheets',
+      }),
+    ).toBeNull();
   });
 
   it('AC-44 a lane without a picture is drawn over the plan as before', async () => {

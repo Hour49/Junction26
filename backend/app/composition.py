@@ -46,9 +46,13 @@ from app.adapters.decisions.g1main import G1MainReader
 from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtractor
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
+from app.adapters.discipline_pictures.gemini import GeminiPictureReader
+from app.adapters.discipline_pictures.glyphs import GlyphReader
 from app.adapters.discipline_pictures.lane import CODE as PICTURES_CODE
-from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets
+from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets, kept_in
 from app.adapters.discipline_pictures.legend import OcrLegend
+from app.adapters.discipline_pictures.runs_graph import GraphReader
+from app.adapters.discipline_pictures.template import TemplateReader
 from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
@@ -86,10 +90,12 @@ from app.adapters.raster_detector import OnnxDetector
 from app.adapters.raster_ocr.engine import RapidOcrEngine
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
 from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
+from app.adapters.raster_ocr.tiles import PrintedOcr
 from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.raster_scale.carbon_doors import CarbonDoorScale
+from app.adapters.raster_scale.label import LabelScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
@@ -105,6 +111,7 @@ from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.triage.sheet_kind import (
     ADVANCED_LONG_SIDE,
+    CONTRACTS,
     GeminiSheetKindClient,
     SheetKindClassifier,
     SheetKindReader,
@@ -279,13 +286,15 @@ def build_pipeline(
     kinds: Callable[[str], str | None] | None = None,
     advanced: Callable[[str], bool] | None = None,
     sheets: Callable[[str], SheetKind | None] | None = None,
+    rectified: Callable[[str], bool] | None = None,
 ) -> Pipeline:
     """`dataset` is the folder that the drawings' paths (`data/<source>/<name>`) are relative to.
     `kinds` gives the content kind ingest identified a file as, by its path; None: the content
     probe is asked (the CLI reads the dataset's files as they are). `advanced`: whether the
     sheet-kind step called a file advanced, by its path (CARBON_READER=advanced); None: none
     was. `sheets`: the sheet-kind step's reply for a file, by its path (DISCIPLINE_PICTURES
-    routes on its discipline); None: no file has one (the CLI)."""
+    routes on its discipline); None: no file has one (the CLI). `rectified`: whether the rectifier
+    straightened a file (LABEL_SCALE); None: none was (the CLI keeps no frame)."""
     files = DatasetFiles(dataset)
     unruled = _unruled(settings)
     as_image = _as_image(unruled)  # the PDFs the raster route reads: scans, and unruled ones
@@ -317,10 +326,16 @@ def build_pipeline(
                 settings,
                 _tables(
                     settings.tables,
-                    _printed(
+                    _labelled(
                         settings,
-                        _raster(settings, scans, decisions, kind_of, use_carbon, took),
-                        scans,
+                        _printed(
+                            settings,
+                            _raster(settings, scans, decisions, kind_of, use_carbon, took),
+                            scans,
+                            kind_of,
+                        ),
+                        kind_of,
+                        rectified or (lambda path: False),
                     ),
                     files,
                 ),
@@ -356,7 +371,7 @@ def _facts(settings: Settings, files: DrawingFiles) -> FactSource | None:
         cache = Path(settings.ifc_facts_cache) if settings.ifc_facts_cache else None
         sources.append(IfcFactSource(files, cache))
     if settings.discipline_pictures != "off":
-        sources.append(PictureSheets(files, settings.discipline_pictures_cache_dir))
+        sources.append(PictureSheets(files, _pictures_cache(settings)))
     return FirstSheet(sources) if sources else None
 
 
@@ -369,13 +384,40 @@ def _pictures(
     """DISCIPLINE_PICTURES: the picture lane beside the raster reader (lane.py); off: `inner`."""
     if settings.discipline_pictures == "off":
         return inner
+    legend = OcrLegend(files, _ocr())
+    symbols = check = None
+    if settings.discipline_pictures == "glyphs":
+        symbols = GlyphReader(files, legend.legend, settings.discipline_glyphs_model)
+    elif settings.discipline_pictures == "gemini":
+        key = settings.gemini_api_key.get_secret_value()
+        client = CarbonClient(
+            key,
+            settings.carbon_timeout_s,
+            budget=spend_guard(settings),
+            in_flight=settings.carbon_calls_in_flight,
+        )
+        replies = kept_in(settings.discipline_pictures_cache_dir, "gemini") / "replies"
+        symbols = GeminiPictureReader(files, client, replies)
+        check = TemplateReader(files, legend.legend)  # its agreement unholds a label (pic-det)
+    runs = None
+    if settings.discipline_runs == "graph":
+        runs = GraphReader(files, legend.legend, legend.scale)
     return PictureLane(
         inner,
         files,
         sheets or (lambda _path: None),
-        PictureSheets(files, settings.discipline_pictures_cache_dir),
-        OcrLegend(files, _ocr()),
+        PictureSheets(files, _pictures_cache(settings)),
+        legend,
+        symbols,
+        runs=runs,
+        check=check,
     )
+
+
+def _pictures_cache(settings: Settings) -> Path:
+    kept = kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
+    # another runs reader keeps its own sheets: switching never serves the other one's
+    return kept if settings.discipline_runs == "mask" else kept / f"runs-{settings.discipline_runs}"
 
 
 @cache
@@ -532,6 +574,18 @@ def _stored_kinds(store: DiskProjectStore, project_id: str) -> Callable[[str], s
     return kind_of
 
 
+def _stored_rectified(store: DiskProjectStore, project_id: str) -> Callable[[str], bool]:
+    """Whether the rectifier straightened a project's file (its frame, saved before the readers
+    run)."""
+
+    def rectified(path: str) -> bool:
+        status, _ = store.load_project(project_id)
+        file = next((file for file in status.files if file.path == path), None)
+        return file is not None and file.normalised is not None and file.normalised.rectified
+
+    return rectified
+
+
 def _probe(settings: Settings) -> ContentProbe:
     """Ingest's content probe; with DECISIONS_KIND, the Gemini sheet-kind signal on top."""
     if not settings.decisions_kind:
@@ -581,12 +635,14 @@ def _triage(settings: Settings) -> TriageSteps | None:
 
 def _sheet_kind_reader(settings: Settings) -> SheetKindReader:
     """The sheet-kind model of SHEET_KIND and of the evidence step: one cache, one guard."""
+    contract = CONTRACTS[settings.sheet_discipline]
     client = GeminiSheetKindClient(
         settings.gemini_api_key.get_secret_value(),
         settings.gemini_timeout_s,
         budget=spend_guard(settings),
+        contract=contract,
     )
-    return SheetKindReader(client, settings.sheet_kind_cache_dir)
+    return SheetKindReader(client, settings.sheet_kind_cache_dir, contract)
 
 
 def _describer(settings: Settings) -> Describer | None:
@@ -699,11 +755,21 @@ def build_answering(settings: Settings) -> Answering:
 
 
 def _chat_facts(settings: Settings) -> StoredFacts | None:
+    """The Ask's and the chat's fact sheets: the IFC store, then the picture lane's kept sheets,
+    as the batch pipeline has them (`_facts`)."""
     if not settings.ifc_facts:
         return None
-    if settings.ifc_facts_cache:
-        return StoredFacts(Path(settings.ifc_facts_cache))
-    return StoredFacts(settings.projects_dir.parent / "cache" / "facts")
+    pictures = (
+        None
+        if settings.discipline_pictures == "off"
+        else PictureSheets(None, _pictures_cache(settings)).sheet
+    )
+    folder = (
+        Path(settings.ifc_facts_cache)
+        if settings.ifc_facts_cache
+        else settings.projects_dir.parent / "cache" / "facts"
+    )
+    return StoredFacts(folder, pictures=pictures)
 
 
 def _scan_confidence(
@@ -858,6 +924,20 @@ def build_ingest(
         names["scale_carbon_doors"] = settings.scale_carbon_doors
     if settings.raster_printed_scale != "off":  # the same
         names["raster_printed_scale"] = settings.raster_printed_scale
+    if settings.printed_total_answers != "off":  # the same
+        names["printed_total_answers"] = settings.printed_total_answers
+    if settings.printed_ocr_check != "off" and settings.raster_printed_scale != "off":  # the same
+        names["printed_ocr_check"] = settings.printed_ocr_check
+    if settings.gross_net_check != "off" and settings.raster_printed_scale != "off":  # the same
+        names["gross_net_check"] = settings.gross_net_check
+    if settings.door_prior_boxes != "off":  # the same
+        names["door_prior_boxes"] = settings.door_prior_boxes
+    if settings.door_prior_units != "off":  # the same
+        names["door_prior_units"] = settings.door_prior_units
+    if settings.scale_signatures != "off":  # the same
+        names["scale_signatures"] = settings.scale_signatures
+    if settings.label_scale != "off":  # the same
+        names["label_scale"] = settings.label_scale
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -884,6 +964,8 @@ def build_ingest(
         names["carbon_reader"] = f"{rule}+storey:{READER_SHA[:12]}"
     if settings.discipline_pictures != "off":  # the same; with the lane's code version
         names["discipline_pictures"] = f"{settings.discipline_pictures}:{PICTURES_CODE}"
+        if settings.discipline_runs != "mask":  # named only when not the default
+            names["discipline_runs"] = settings.discipline_runs
     if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
         # (ladder acts only when answering), so they share one name and a switch reads nothing again
         names["carbon_levels"] = f"demote:{READER_SHA[:12]}"
@@ -899,6 +981,7 @@ def build_ingest(
             _stored_kinds(store, project_id),
             _stored_advanced(store, project_id),
             _stored_sheets(store, project_id),
+            _stored_rectified(store, project_id),
         ),
         reader_names=names,
         runner=ThreadRunner() if background else InlineRunner(),
@@ -1045,13 +1128,33 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
                     "RASTER_SCALE=priors estimates the scale itself: drop scale= from "
                     "RASTER_COMPONENTS, or set RASTER_SCALE=off"
                 )
-            return PriorScale(inner)
+            carbon = SOURCE if settings.door_prior_boxes == "on" else None  # Carbon's boxes
+            return PriorScale(inner, carbon)
 
 
-def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extractor:
+def _labelled(
+    settings: Settings,
+    inner: Extractor,
+    kind_of: Callable[[str], str | None],
+    rectified: Callable[[str], bool],
+) -> Extractor:
+    """LABEL_SCALE=on: the areas printed in room labels give a raster sheet's scale."""
+    match settings.label_scale:
+        case "off":
+            return inner
+        case "on" | "always":
+            return LabelScale(inner, kind_of, rectified, settings.label_scale == "always")
+
+
+def _printed(
+    settings: Settings,
+    inner: Extractor,
+    files: DrawingFiles,
+    kind_of: Callable[[str], str | None],
+) -> Extractor:
     """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/),
     read by gemini-4-carbon on the process's spend guard, cached with the Carbon reader's
-    replies (its page reply is shared)."""
+    replies (its page reply is shared). PRINTED_OCR_CHECK=on: PP-OCR reads its values again."""
     match settings.raster_printed_scale:
         case "off":
             return inner
@@ -1064,7 +1167,21 @@ def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extra
                 in_flight=settings.carbon_calls_in_flight,
             )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
-            return PrintedScale(inner, reader, files)
+            answers = settings.printed_total_answers == "on"
+            checker = PrintedOcr(_ocr(), files) if settings.printed_ocr_check == "on" else None
+            gross_net = settings.gross_net_check == "on"
+            door_units = settings.door_prior_units == "on"
+            return PrintedScale(  # kind: no camera dpi
+                inner,
+                reader,
+                files,
+                kind_of,
+                answers=answers,
+                checker=checker,
+                gross_net=gross_net,
+                door_units=door_units,
+                signatures=settings.scale_signatures,
+            )
 
 
 def _raster_component(

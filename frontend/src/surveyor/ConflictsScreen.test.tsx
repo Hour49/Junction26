@@ -216,6 +216,19 @@ describe('ConflictsList', () => {
     expect(cards()).toHaveLength(3);
   });
 
+  it('CF-4b nothing measured (QA R2-E1): no agree line', async () => {
+    const review = {
+      ...withConflicts([]),
+      drawings: projectReview.drawings.map((d) => ({ ...d, quantities: 0 })),
+    };
+    show({ [PATH.review]: review });
+    expect((await ready()).textContent).toBe('No conflicts found');
+    expect(
+      screen.getByText('Nothing was measured on these drawings, so there was nothing to compare.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Both methods agree wherever two of them measured.')).toBeNull();
+  });
+
   it('CF-4 no conflicts: agree line, no segments, no cards', async () => {
     const counts = vi.fn();
     const { container } = show({ [PATH.review]: withConflicts([]) }, undefined, counts);
@@ -340,6 +353,17 @@ describe('ConflictsList', () => {
     expect(within(c).getByRole('button', { name: 'Modify' })).toBeTruthy();
     expect(within(c).getByRole('button', { name: "Use the rule's value" })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+  });
+
+  it("R4-B11 no Use the rule's value when the value you kept is the rule's", async () => {
+    const rule = base.conflict.resolution?.value ?? NaN;
+    show({
+      [PATH.review]: withConflicts([{ ...base, settled: { value: rule, at: AT }, value: rule }]),
+    });
+    await ready();
+    const c = card(base.label);
+    expect(within(c).getByRole('button', { name: 'Modify' })).toBeTruthy();
+    expect(within(c).queryByRole('button', { name: "Use the rule's value" })).toBeNull();
   });
 
   it("CF-9 Use the rule's value sends unsettle at once and reloads the review", async () => {
@@ -674,13 +698,14 @@ describe('ConflictsList', () => {
   it('CF-19 the side panel links to the project (the conflicts are on Ingest) when there are conflicts', async () => {
     mockApi({ [PATH.review]: projectReview });
     render(<ProjectReviewSide projectId={pid} drawingId={did} />);
-    const link = await screen.findByRole('link', { name: 'Settle the conflicts' });
-    expect(link.getAttribute('href')).toBe(`#/p/${pid}`);
+    // the fixture's one conflict is decided by a rule: "See", landing on its card (R4-B9, R4-B5)
+    const link = await screen.findByRole('link', { name: 'See the conflicts' });
+    expect(link.getAttribute('href')?.split('?')[0]).toBe(`#/p/${pid}`);
     cleanup();
     mockApi({ [PATH.review]: withConflicts([]) });
     render(<ProjectReviewSide projectId={pid} drawingId={did} />);
     await screen.findByRole('list', { name: /Conflicts/ });
-    expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /the conflicts$/ })).toBeNull();
   });
 
   it('CF-20 none of the design mock values appear', async () => {

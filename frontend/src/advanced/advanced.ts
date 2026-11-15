@@ -1,12 +1,21 @@
 // Pure parts of the Advanced view (docs/specs/frontend/advanced-ingest.md). The step list and the stage-to-step
 // mapping are screen 2's (`STEPS`, `stepOf`, `activeStep` in src/ingest/ingest.ts), so both views agree.
-import type { DrawingView, FileStatus, FileTrace, ProjectView, Row, Takeoff } from '../api';
+import type {
+  DrawingView,
+  FileStatus,
+  FileTrace,
+  ProjectView,
+  Row,
+  StepTrace,
+  Takeoff,
+} from '../api';
 import {
   STAGE_LABEL,
   STEPS,
   activeStep,
   isFinished,
   kindLabel,
+  normalisedSteps,
   routeLabel,
   stepOf,
 } from '../ingest/ingest';
@@ -94,7 +103,7 @@ export const STEP_VIEW: readonly StepView[] = [
     heading: 'Indexing for questions',
     visual: 'files',
     explain:
-      "Once every file is through, each set-aside file is judged against the project, the files that are not plans are described or their text read, and everything goes into the project's search index for the chat.",
+      "Once every file is through, the files triage set aside are judged against the project (a file set aside for another reason, such as a failed read or a second copy, is not), the files that are not plans are described or their text read, and everything goes into the project's search index for the chat.",
   },
 ];
 
@@ -165,6 +174,9 @@ export function defaultStep(project: ProjectView): number {
 
 export interface LogLine {
   key: string;
+  /** The line's first word(s): the stage, "Index", or an index step's name. */
+  head: string;
+  /** The file the line is about; "" for a step of the project's index phase. */
   path: string;
   /** What the stage did: `output`, or `did` when empty; a cache line reads "Cached: <did>". */
   what: string;
@@ -173,42 +185,72 @@ export interface LogLine {
   cost: number;
 }
 
-/** Every trace entry of step `k` over the files, in file order then stage order; Index: each file's evidence. */
+/** One step of the project's index phase as a log line, "<label> <did>" (AD-125). */
+function indexStepLine(s: StepTrace, i: number): LogLine {
+  const failed = s.state === 'failed';
+  const what = failed ? '' : s.state === 'skipped' ? `skipped${s.did ? `: ${s.did}` : ''}` : s.did;
+  return {
+    key: `index-${String(i)}-${s.id}`,
+    head: s.label,
+    path: '',
+    what,
+    text: what ? `${s.label} ${what}` : s.label,
+    failure: failed ? s.did || 'no reason given' : null,
+    cost: s.cost_usd,
+  };
+}
+
+/**
+ * Every trace entry of step `k` over the files, in file order then stage order. Index: each file's evidence, then
+ * the steps of the project's index phase (`after`, `index_steps`) in their order, so the last line is the latest.
+ */
 export function stepLines(
   files: readonly FileStatus[],
   traces: ReadonlyMap<string, FileTrace>,
   k: number,
+  after: readonly StepTrace[] = [],
 ): LogLine[] {
   if (isIndex(k))
-    return files.flatMap(({ id, path, evidence }) =>
-      evidence
-        ? [
-            {
-              key: `${id}-index`,
-              path,
-              what: evidence.why,
-              text: `Index ${path} ${evidence.why}`,
-              failure: null,
-              cost: evidence.cost_usd,
-            },
-          ]
-        : [],
-    );
+    return [
+      ...files.flatMap(({ id, path, evidence }) =>
+        evidence
+          ? [
+              {
+                key: `${id}-index`,
+                head: 'Index',
+                path,
+                what: evidence.why,
+                text: `Index ${path} ${evidence.why}`,
+                failure: null,
+                cost: evidence.cost_usd,
+              },
+            ]
+          : [],
+      ),
+      ...after.map(indexStepLine),
+    ];
   return files.flatMap((file) =>
     (traces.get(file.id)?.stages ?? [])
       .filter((s) => stepOf(s.stage) === k)
       .map((s, i) => {
         // the output in words; an output that is just the file's own path says nothing, so `did` (AV-29)
-        const out = s.output === file.path ? '' : s.output;
+        // ... and without the stage's own name in front ("takeoff: 41 quantities"): the line's head says it (AD-129)
+        const named = `${s.stage}: `;
+        const raw = s.output === file.path ? '' : s.output;
+        const out = raw.toLowerCase().startsWith(named) ? raw.slice(named.length) : raw;
+        // a corrected image says so before its page size: the rectifier ran here (AD-130)
+        const fixed =
+          s.stage === 'normalise' && file.normalised ? normalisedSteps(file.normalised) : [];
         const said =
           s.stage === 'identify' && out
             ? kindLabel(out)
             : s.stage === 'route' && out
               ? routeLabel(out)
-              : out || s.did;
+              : [...fixed, out || s.did].filter(Boolean).join('; ');
         const what = shortHashes(s.stage === 'cache' ? `Cached: ${s.did}` : said);
         return {
           key: `${file.id}-${String(i)}-${s.stage}`,
+          head: STAGE_LABEL[s.stage],
           path: file.path,
           what,
           text: `${STAGE_LABEL[s.stage]} ${file.path} ${what}`,
@@ -246,6 +288,25 @@ export function planCounts(project: ProjectView): {
   };
 }
 
+/**
+ * Drawings the sheet-kind step called not a drawing at all (a screenshot): kept and read because the step only
+ * warns, but no drawing ready (QA R4-A9, API.md `not_a_drawing`, left out when false).
+ */
+export function notDrawings(project: Pick<ProjectView, 'drawings'>): number {
+  return project.drawings.filter((d) => d.not_a_drawing).length;
+}
+
+/**
+ * The file page's side of `not_a_drawing` (backend core/ingest/triage.py `not_a_drawing`): the sheet-kind step
+ * doubted the sheet and called it not a drawing, and nobody has had it read as a floor plan since.
+ */
+export function calledNotADrawing(file: Pick<FileStatus, 'triage'>): boolean {
+  const t = file.triage;
+  return (
+    !!t && !t.read_as_plan && t.sheet?.decision === 'doubt' && t.sheet.kind === 'not_a_drawing'
+  );
+}
+
 /** How many quantities the drawings have ready. */
 export function quantityCount(project: ProjectView): number {
   return drawingFiles(project).reduce((n, f) => n + Object.keys(f.takeoff ?? {}).length, 0);
@@ -271,6 +332,21 @@ export function fileName(project: ProjectView, drawingId: string): string {
   );
 }
 
+/** Two rows of one takeoff that are one measurement: same measure, both values, and the same marked places. */
+function sameMeasurement(a: Row, b: Row): boolean {
+  if (a === b) return true;
+  if (!a.marks.length) return false;
+  const facts = (r: Row) =>
+    JSON.stringify([
+      r.measure,
+      r.subject,
+      r.first?.value,
+      r.second?.value,
+      r.marks.map((m) => [m.page, m.box]),
+    ]);
+  return facts(a) === facts(b);
+}
+
 /**
  * Every quantity measured twice, disagreements first, then takeoff order; named by this project's files. A
  * conflict row not in `Takeoff.disputes` repeats another row's disagreement (a storey or a room's other name) and is
@@ -279,15 +355,23 @@ export function fileName(project: ProjectView, drawingId: string): string {
 export function pairsOf(takeoffs: readonly Takeoff[], project: ProjectView): Pair[] {
   const pairs = takeoffs.flatMap((t) => {
     const disputes = t.disputes as readonly string[] | undefined;
-    return t.quantities
-      .filter((row) => row.second != null)
-      .map((row) => ({
-        row,
-        file: fileName(project, t.drawing_id),
-        drawingId: t.drawing_id,
-        disputed: disputes ? disputes.includes(row.key) : row.status === 'conflict',
-      }))
-      .filter((p) => p.disputed || !disputes || p.row.conflict == null);
+    return (
+      t.quantities
+        .filter((row) => row.second != null)
+        .map((row) => ({
+          row,
+          file: fileName(project, t.drawing_id),
+          drawingId: t.drawing_id,
+          disputed: disputes ? disputes.includes(row.key) : row.status === 'conflict',
+        }))
+        .filter((p) => p.disputed || !disputes || p.row.conflict == null)
+        // one room under its number and its name (name=1.02, name=reduit) is one measurement: an agreeing row with
+        // the same marks and the same two values counts once, as the trace's "N measured twice" does (AD-131)
+        .filter(
+          (p, i, all) =>
+            p.disputed || all.findIndex((q) => !q.disputed && sameMeasurement(q.row, p.row)) === i,
+        )
+    );
   });
   return [...pairs.filter((p) => p.disputed), ...pairs.filter((p) => !p.disputed)];
 }

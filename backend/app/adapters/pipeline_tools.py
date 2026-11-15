@@ -15,7 +15,7 @@ routes' numbers:
     get_takeoff     GET  /api/drawings/{id}/takeoff?project={id}
     list_conflicts  GET  /api/projects/{id}/review          (its `conflicts`)
     list_issues     GET  /api/projects/{id}/issues
-    run_checks      GET  /api/projects/{id}/checks?pack=
+    run_checks      GET  /api/projects/{id}/checks?pack=    (fails first, passes last)
     get_plan_geometry  the drawing model's plans, rooms, openings and walls on one page
 
 The names are provisional (the chat side posts the final list); renaming is a change of `NAME`
@@ -25,6 +25,7 @@ guard as the route.
 
 import json
 import logging
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, cast
@@ -34,7 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.adapters.vector_pdf import swiss
 from app.adapters.vector_pdf.objects import read_page
 from app.adapters.vector_pdf.wall_fills import WallFill, wall_fills
-from app.api.checks import checks_of, find_pack
+from app.api.checks import ProjectChecks, checks_of, find_pack
 from app.api.deps import Ingest
 from app.api.issues import issues_of
 from app.api.project_ask import ProjectAnswer, ProjectAskRequest, project_ask
@@ -43,9 +44,11 @@ from app.api.takeoff import takeoff_rows
 from app.api.views import DrawingEntry, drawings_of
 from app.composition import Answering
 from app.core.checks.model import RulePack
-from app.core.drawing.model import Drawing
+from app.core.drawing.model import Drawing, Room
 from app.core.errors import DomainError
-from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.ingest.model import FileStatus, ProjectStatus, Triage
+from app.core.ingest.triage import sheet_flag
+from app.core.pipeline.rules import ROOM_NUMBERS
 from app.core.pipeline.user_scale import HINT as SCALE_HINT
 from app.core.review.ports import ReviewStore
 from app.settings import Settings
@@ -64,11 +67,16 @@ class PipelineStore:
     answering: Answering
     packs: tuple[RulePack, ...] = ()
     user_scale: bool = False  # USER_SCALE: a no-scale refusal says the user can give the scale
+    # plan_tools.not_drawable's memo of which pages have wall fills, the project list's own
+    # (app.state.drawable_fills), so list_drawings reads no PDF page the list has read
+    drawable_fills: dict[tuple[str, str | None, int, float], bool] | None = None
 
     @classmethod
     def of_app(cls, app: Any, project_id: str) -> "PipelineStore":
         """From a FastAPI app (`create_app()`'s state), for one project."""
         state = app.state
+        if getattr(state, "drawable_fills", None) is None:
+            state.drawable_fills = {}
         return cls(
             project_id,
             state.ingest,
@@ -76,6 +84,7 @@ class PipelineStore:
             state.settings,
             state.answering,
             state.rule_packs,
+            drawable_fills=state.drawable_fills,
         )
 
 
@@ -125,8 +134,11 @@ def _tool(name: str, description: str, model: type[_Args]) -> dict[str, Any]:
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_drawings",
-        "The drawings of the project: id, file name, kind, read state, page count and, for a "
-        "file that is not a floor plan, what triage thinks it shows and whether it belongs.",
+        "The drawings of the project: id, file name, kind, read state, page count, whether a "
+        "plan edit can be drawn on it (editable; not_editable says why not, e.g. a scan), what "
+        "kind of sheet triage says each picture looks like (with its printed title, sheet number "
+        "and whether it may not be a floor plan) and, for a file that is not a floor plan, what "
+        "triage thinks it shows and whether it belongs.",
         _NoArgs,
     ),
     (
@@ -158,8 +170,10 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     ),
     (
         "run_checks",
-        "Check the project's drawings against a building-code rule pack. Each rule result "
-        "names the clause it comes from. A pre-check, not a compliance certificate.",
+        "Check the project's drawings against a building-code rule pack: each rule with its "
+        "clause and its drawings and results counted by status, every failing and cannot-tell "
+        "result (and each drawing a rule could not check), then the passing results. A "
+        "pre-check, not a compliance certificate.",
         _ChecksArgs,
     ),
     (
@@ -249,7 +263,11 @@ def _list_drawings(store: PipelineStore, args: Any) -> list[dict[str, Any]]:
 
 
 def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) -> dict[str, Any]:
+    from app.adapters.plan_tools import not_drawable  # here: plan_tools imports this module
+
     triage = None if file is None else file.triage
+    # the pen's own check (R3-G10: the agent asked for an area drawn on a scan)
+    why = not_drawable(store, entry, store.drawable_fills)
     try:
         pages: int | None = len(store.ingest.drawing(entry.drawing_id).pages)
     except DomainError:
@@ -261,6 +279,8 @@ def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) 
         "route": entry.route,
         "state": entry.state,
         "pages": pages,
+        "editable": why is None,
+        **({"not_editable": why} if why else {}),
         "triage": None
         if triage is None
         else {
@@ -268,7 +288,26 @@ def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) 
             "subject": None if triage.description is None else triage.description.subject,
             "relevance": None if triage.relevance is None else triage.relevance.verdict,
             "verdict": triage.verdict,
+            "sheet": _sheet(triage),
         },
+    }
+
+
+def _sheet(triage: Triage) -> dict[str, Any] | None:
+    """What the sheet-kind step called the picture, so the chat can say what kind of drawing it
+    is: a doubted piping plan is read, so its class is floor_plan (R3-G4: "a raster floor
+    plan"). `flag`: the reading flag its answers carry (triage.sheet_flag)."""
+    sheet = triage.sheet
+    if sheet is None:
+        return None
+    return {
+        "looks_like": sheet.kind_words,
+        "decision": sheet.decision,
+        "title": sheet.title,
+        "sheet_number": sheet.sheet_number,
+        "printed_scale": sheet.printed_scale,
+        "seen": sheet.seen,
+        "flag": sheet_flag(triage),
     }
 
 
@@ -316,9 +355,58 @@ def _issues(store: PipelineStore, args: Any) -> list[BaseModel]:
     return list(found.issues)
 
 
-def _checks(store: PipelineStore, args: Any) -> BaseModel:
+def _checks(store: PipelineStore, args: Any) -> dict[str, Any]:
     pack = find_pack(store.packs, args.pack)  # NotFoundError names the pack
-    return checks_of(store.project_id, pack, store.ingest)
+    return _failures_first(checks_of(store.project_id, pack, store.ingest), pack.fail_means)
+
+
+def _failures_first(found: ProjectChecks, fail_means: str | None) -> dict[str, Any]:
+    """The route's checks as the chat reads them. The loop fits a long result by halving its
+    longest list, never a dict, so (R4-I5, review-621):
+    - `rules` is a dict by rule id: title, clause, and its drawings and results counted by
+      status (as big as the pack, not the project);
+    - `failures` and `cannot_tell` hold small entries (file, rule, subject, value and its why,
+      which says the limit; the pack's `fail_means`, the same after every fail, is said once);
+      a rule that could not run on a drawing at all ("no rooms were read") is a cannot-tell
+      entry of its own, with no subject;
+    - `passes`, entries of the same kind, comes last: as many as the rest or more, each as long,
+      it is the list a cut halves first. The drawing ids are list_drawings'."""
+    rules: dict[str, dict[str, Any]] = {}
+    listed: dict[str, list[dict[str, Any]]] = {"fail": [], "cannot_tell": [], "pass": []}
+    for drawing in found.drawings:
+        for rule in drawing.rules:
+            summary = rules.setdefault(rule.rule_id, {
+                "title": rule.title, "clause": rule.clause.model_dump(mode="json"),
+                "drawings": Counter[str](), "results": Counter[str](),
+            })  # fmt: skip
+            summary["drawings"][rule.status] += 1
+            at = {"file": drawing.file, "rule_id": rule.rule_id}
+            for result in rule.results:
+                summary["results"][result.status] += 1
+                said = result.why
+                if fail_means and said.endswith(fail_means):
+                    said = said.removesuffix(fail_means).rstrip()
+                listed[result.status].append(
+                    {**at, "subject": result.subject.label, "value": result.value, "why": said}
+                )
+            if rule.status == "cannot_tell" and all(r.status != rule.status for r in rule.results):
+                listed["cannot_tell"].append({**at, "why": rule.why})  # the rule could not run
+    return {
+        "project_id": found.project_id,
+        "pack": found.pack,
+        "note": found.note,
+        "status": found.status,
+        "fail_means": fail_means,
+        "rules": {rule_id: _counted(summary) for rule_id, summary in rules.items()},
+        "failures": listed["fail"],
+        "cannot_tell": listed["cannot_tell"],
+        "passes": listed["pass"],
+    }
+
+
+def _counted(summary: dict[str, Any]) -> dict[str, Any]:
+    """A rule's summary with its counters as plain dicts."""
+    return {**summary, "drawings": dict(summary["drawings"]), "results": dict(summary["results"])}
 
 
 def _geometry(store: PipelineStore, args: Any) -> dict[str, Any]:
@@ -440,8 +528,15 @@ def _item(element: Any) -> dict[str, Any]:
     return out
 
 
-def _room(room: Any) -> dict[str, Any]:
-    return _dump(room, "id", "type", "label", "box", "polygon", "area_m2", "outdoor")
+def _room(room: Room) -> dict[str, Any]:
+    """A room with its printed number when the reader keeps it apart from the label (the vector
+    reader's attrs), so rooms of one name are told apart ("Stanza" four times: R3-L3); a room
+    with none has no `number` key (review-617 M1)."""
+    out = _dump(room, "id", "type", "label", "box", "polygon", "area_m2", "outdoor")
+    number = next((v for key in ROOM_NUMBERS if isinstance(v := room.attrs.get(key), str)), None)
+    if number is not None:
+        out["number"] = number
+    return out
 
 
 Runner = Callable[[PipelineStore, Any], Any]

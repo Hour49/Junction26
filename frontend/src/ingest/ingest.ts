@@ -138,7 +138,11 @@ export const STEPS: readonly { name: string; hint: string; stages: readonly (Sta
     hint: 'one drawing model per drawing, with its marks',
     stages: ['write'],
   },
-  { name: 'Index', hint: 'every file made searchable for questions', stages: [] },
+  {
+    name: 'Index',
+    hint: 'judging what triage set aside, describing the rest, indexing it all for the chat',
+    stages: [],
+  },
 ];
 
 /** The step (1-8) a stage belongs to; no stage yet is step 1. No stage is in Index (9). */
@@ -186,12 +190,38 @@ export function elapsedMs(p: ProjectView, now: number): number | null {
   return p.started_at ? Math.max(0, now - Date.parse(p.started_at)) : null;
 }
 
+/** A wait for a free slot shorter than this is not worth a line under Elapsed. */
+export const QUEUE_SHOWN_MS = 2000;
+
+/**
+ * How long the project waited for a free slot before its run began (`created_at` to `started_at`; still queued:
+ * to `now`), which Elapsed (from `started_at`) leaves out (QA ingest R1: "1.1 s" after 65 s on the clock); null
+ * once nothing waits, or below `QUEUE_SHOWN_MS`.
+ */
+export function queueWaitMs(
+  p: Pick<ProjectView, 'state' | 'created_at' | 'started_at'>,
+  now: number,
+): number | null {
+  const created = Date.parse(p.created_at);
+  const start = p.started_at ? Date.parse(p.started_at) : p.state === 'queued' ? now : NaN;
+  const wait = start - created;
+  return wait >= QUEUE_SHOWN_MS ? wait : null;
+}
+
+/** A wait in plain words: "64 s", "3 min 5 s". */
+export function formatWait(ms: number): string {
+  const s = Math.round(ms / 1000);
+  return s < 120 ? `${String(s)} s` : `${String(Math.floor(s / 60))} min ${String(s % 60)} s`;
+}
+
 /** "1 file", "0 files", "2 files". */
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${String(n)} ${n === 1 ? one : many}`;
 }
 
 export function formatMs(ms: number): string {
+  // a real time too short to show in hundredths is not "0.00 ms" (trace's e2e, 2026-11-15); 0 stays 0
+  if (ms > 0 && ms < 0.01) return '<0.01 ms';
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
   return `${ms >= 10 ? ms.toFixed(1) : ms.toFixed(2)} ms`;
 }
@@ -230,4 +260,10 @@ export function sizeText(bytes: number): string {
 /** A part of `total` in `total`'s unit, without the unit: "0.5" of "2.0 MB", "15" of "29 KB". */
 export function amount(bytes: number, total: number): string {
   return total < MB ? String(Math.round(bytes / 1024)) : (bytes / MB).toFixed(1);
+}
+
+/** A name cut after each of its own separators (`_`, `-`, `.`, `/`), so a long name with no spaces wraps there
+ * and not inside a word (IN-121): "Bau_Haus.zip" → ["Bau_", "Haus.", "zip"]. Joined, the parts are the name. */
+export function nameParts(name: string): string[] {
+  return name.split(/(?<=[_\-./])/);
 }

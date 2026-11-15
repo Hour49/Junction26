@@ -22,6 +22,7 @@ from app.core.drawing.model import Page
 from app.core.errors import InvalidInputError
 from app.core.pipeline.model import DrawingFile, Sheet
 from app.core.pipeline.printed import printed_scale
+from app.core.pipeline.steps import timed
 from app.settings import Settings
 
 PAGE = Page(page=1, width=2000, height=1000, unit="px")
@@ -131,6 +132,14 @@ def test_replies_are_cached_and_the_page_reply_is_the_carbon_readers(tmp_path: P
     with Image.open(io.BytesIO(data)) as image:
         name = contract.cache_name("page", pixel_digest(image.convert("RGB")))
     assert (tmp_path / name).is_file()  # where CarbonReader looks for its page reply
+
+
+def test_a_reply_from_the_cache_is_counted_for_the_step(tmp_path: Path) -> None:
+    # detail's audit: a 34 ms "Printed scale and counts" step did not say its replies were cached
+    data = png()
+    _, asked = timed(lambda: CarbonPrinted(Model(), Files(data), tmp_path).read(FILE, SHEET))
+    _, again = timed(lambda: CarbonPrinted(Model(), Files(data), tmp_path).read(FILE, SHEET))
+    assert (asked.cached, again.cached) == (0, 3)  # page and bars (one on beside's thread), ticks
 
 
 def test_a_failed_call_is_a_note_not_an_error_and_is_not_cached(tmp_path: Path) -> None:

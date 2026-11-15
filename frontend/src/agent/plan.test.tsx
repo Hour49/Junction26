@@ -7,6 +7,7 @@ import { drawing, info, project } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
+import { KEPT_VERSION } from '../shell/kept';
 import { AgentChat } from './AgentChat';
 import { paneFocus, viewMarks } from './PlanPane';
 import { unionBox, viewOf, type ChatTurn, type View } from './agent';
@@ -77,7 +78,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function open(chat: unknown) {
+function open(chat: unknown, proj: typeof project = project) {
   vi.stubGlobal('matchMedia', (q: string) => ({
     get matches() {
       return q.includes('min-width') ? wide : false;
@@ -87,7 +88,7 @@ function open(chat: unknown) {
     },
     removeEventListener: vi.fn(),
   }));
-  const routes: Record<string, unknown> = { [`GET /api/projects/${PID}`]: project, [CHAT]: chat };
+  const routes: Record<string, unknown> = { [`GET /api/projects/${PID}`]: proj, [CHAT]: chat };
   for (const d of project.drawings) {
     routes[`GET /api/drawings/${d.drawing_id}`] = { ...drawing, id: d.drawing_id };
     routes[`GET /api/drawings/${d.drawing_id}/model`] = model;
@@ -222,6 +223,7 @@ describe('the plan beside the chat (wide window)', () => {
   it('a restored thread (back from the workspace) reopens its newest view', async () => {
     // answers-5 keeps the thread in sessionStorage; the older turn has no place, the newest has one
     const kept = {
+      v: KEPT_VERSION, // the current kept shape (R4-C13: another version is dropped)
       chatId: viewTurn.chat_id,
       rows: [
         { id: 1, message: 'Where is Bagno 1.01?', chips: [], status: 'done', turn: viewTurn },
@@ -379,12 +381,34 @@ describe('a narrow window: the plan as a sheet (chat-ux #9)', () => {
     expect(screen.queryByRole('complementary', { name: 'Plan' })).toBeNull();
   });
 
+  it('R4-F3 the sheet has its own pen ("Draw") beside Close, so drawing does not need the ask bar it covers', async () => {
+    wide = false;
+    // a drawn PDF can be drawn on (the pen is greyed out on scans, so the sheet has none there)
+    open(viewTurn, {
+      ...project,
+      drawings: project.drawings.map((d) => ({ ...d, drawable: d.route === 'vector' })),
+    });
+    await send('Where is Bagno 1.01?');
+    await screen.findByRole('link', { name: /^Source 1:/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Show the plan' }));
+    const sheet = dialog() as HTMLElement;
+    const pen = within(sheet).getByRole('button', { name: 'Draw' });
+    expect(pen.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(pen);
+    expect(pen.getAttribute('aria-pressed')).toBe('true');
+    expect(dialog()).toBe(sheet); // still open: the plan to draw on is in it
+    fireEvent.click(pen);
+    expect(pen.getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('a wide window has neither the button nor a Close', async () => {
     open(viewTurn);
     await send('Where is Bagno 1.01?');
     await within(pane()).findByText('Bagno 1.01 on the plan');
     expect(screen.queryByRole('button', { name: 'Show the plan' })).toBeNull();
     expect(within(pane()).queryByRole('button', { name: 'Close' })).toBeNull();
+    // the pen stays in the ask bar beside the pane, not twice
+    expect(within(pane()).queryByRole('button', { name: 'Draw' })).toBeNull();
   });
 });
 

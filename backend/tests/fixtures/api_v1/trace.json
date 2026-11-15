@@ -168,7 +168,8 @@
       "ms": 12.5,
       "output": "plans/flat-a.pdf",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "hash",
@@ -176,7 +177,8 @@
       "ms": 12.5,
       "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "identify",
@@ -184,7 +186,19 @@
       "ms": 12.5,
       "output": "drawn PDF",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "group",
@@ -192,7 +206,8 @@
       "ms": 12.5,
       "output": "2 files",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "route",
@@ -200,7 +215,8 @@
       "ms": 12.5,
       "output": "vector",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "normalise",
@@ -208,7 +224,19 @@
       "ms": 12.5,
       "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "pages",
+          "label": "Page size",
+          "did": "1 page, page 1 is 600 x 400 pt",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "extract",
@@ -216,7 +244,36 @@
       "ms": 12.5,
       "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "vector",
+          "label": "Drawn-PDF reader (Swiss plan rules)",
+          "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "door": 2,
+            "window": 2,
+            "toilet": 1,
+            "sink": 1,
+            "bathtub": 1,
+            "room": 5
+          }
+        },
+        {
+          "id": "tables",
+          "label": "Schedule tables (PDF)",
+          "did": "no ruled schedule on page 1",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "second_count",
@@ -224,7 +281,22 @@
       "ms": 12.5,
       "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "room_areas",
+          "label": "Room areas: printed vs measured",
+          "did": "5 quantities compared: 5 agree, 0 conflicts",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "agree": 5,
+            "conflict": 0
+          }
+        }
+      ]
     },
     {
       "stage": "takeoff",
@@ -232,7 +304,8 @@
       "ms": 12.5,
       "output": "takeoff: 141 quantities, 81 above zero",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "write",
@@ -240,7 +313,8 @@
       "ms": 12.5,
       "output": "141 quantities",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     }
   ],
   "second_count": {

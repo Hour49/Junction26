@@ -51,7 +51,9 @@ from.
 - With the building's plumbing, ventilation and heating models (IFC), Vellum follows every plan edit through them:
   the answer lists the pipes and ducts on a removed wall and the radiators or vents that would lose their
   connection. The chat can also say what feeds a radiator and propose moving, adding or removing one, drawn on
-  the storey before and after.
+  the storey before and after. A scan or photo of a heating, plumbing or ventilation sheet is read too: a Gemini
+  model reads its legend and symbols, and when the sheet's walls match the plan's, it is laid over the plan so an
+  edit shows on it. Answers from such a sheet are always Low.
 - A question the drawing's quantities do not cover can be answered from what an IFC model states (its fact
   sheet), marked Low because those answers are not measured yet. An IFC file also opens in a 3D view.
 
@@ -214,8 +216,10 @@ what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md). All numbers with their
 - A drawn PDF in a style the vector reader has no rules for is flagged and its questions are refused, as in the
   refusal above.
 - Plan edits need a drawn plan. A scan's walls are pixels, and the agent says so.
-- Building services are read from IFC models only. Pipes and radiators drawn on a scanned services plan are not
-  read: our readers for that missed too often on our bench to switch on.
+- Services drawn on a scan or photo are read by a Gemini model, and every answer from them is Low. On one held-out
+  building rendered from its models it found 92% of the symbols, but no real scanned services sheet has been
+  scored. A pipe run's length read from its line colours is an estimate: within 10% on 18 of 32 clean renders and
+  none of 32 scans.
 - Answers from an IFC model's fact sheet are not measured on any gold yet, so they are always Low.
 - The building-rule pre-check covers a few rules, in Finland and the Canton of Zürich only.
 - There is no login. The live demo sits behind a shared access code.

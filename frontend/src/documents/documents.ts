@@ -69,8 +69,9 @@ export function issueSource(
   };
 }
 
-/** A file row's reason (DOC-17, as the demo): only a set-aside file's, its trailing technical parenthetical cut. */
+/** A file row's reason (DOC-17): a set-aside or flagged file's (R4-B4: a flagged row says why), its trailing
+ * technical parenthetical cut. */
 export function shortReason(f: Pick<FileStatus, 'state' | 'reason'>): string | null {
-  if (f.state !== 'set_aside') return null;
+  if (f.state !== 'set_aside' && f.state !== 'flagged') return null;
   return f.reason.replace(/\s*\([^()]*\)\s*$/, '') || null;
 }

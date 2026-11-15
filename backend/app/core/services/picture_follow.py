@@ -13,14 +13,17 @@ of the same floor when both have a scale and at least three room names appear on
 two are laid over by the names' places in metres (a shift; the sheets' scales give the size).
 """
 
+import re
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 
 from shapely.geometry import LineString, Polygon, box
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
+from app.core.discipline import disciplines_named
 from app.core.ifc_facts import Discipline, FactSheet, Spot
 from app.core.model import Frozen
 from app.core.plan_edit.model import Item, Proposal
@@ -84,6 +87,58 @@ class Sheet(Frozen):
     name: str | None = None  # the upload's path, ZIP folders included
     sheet_number: str | None = None  # as the title block prints it (triage)
     disciplines: tuple[Discipline, ...] = ()  # the services lanes its picture marks
+    discipline: Discipline | None = None  # the one triage named (its title, number or reply)
+
+
+# A sheet number's discipline letter as sets print it: H-101 heating, P-101 plumbing, E-101
+# electrical, M-101 mechanical (heating or ventilation). E00/E01 (two digits) are levels.
+_LETTER_LANES: dict[str, frozenset[Discipline]] = {
+    "H": frozenset({"heating"}),
+    "P": frozenset({"plumbing"}),
+    "M": frozenset({"heating", "ventilation"}),
+    "E": frozenset({"electrical"}),
+}
+_LETTERED = re.compile(r"(?<![A-Za-z])([HPME])[-_ .]?(\d{3,4})\b")
+_YEAR = re.compile(r"19[5-9]\d|20[0-4]\d")  # "E2019" is a year, not a sheet number
+# Names for several services at once, which no one discipline word is: mechanical and HVAC are
+# heating and ventilation (US sets), LVI and HLS add plumbing (FI, DE), MEP and TGA are all four
+_GROUPS: tuple[tuple[re.Pattern[str], frozenset[Discipline]], ...] = (
+    (re.compile(r"\b(?:mechanical|hvac)\b", re.I), frozenset({"heating", "ventilation"})),
+    (re.compile(r"\b(?:lvi|hls)\b", re.I), frozenset({"heating", "ventilation", "plumbing"})),
+    (re.compile(r"\b(?:mep|tga|haustechnik)\b", re.I), frozenset(LANES)),
+)
+
+
+def named_lanes(sheet: Sheet) -> frozenset[Discipline]:
+    """The services lanes a sheet names itself, whatever its picture's marks say: the discipline
+    triage named, its sheet number's letter (H-101 heating), a discipline word or code in its file
+    name ("heating", "P-101"; strong words only, each one named) and a name for several
+    ("Mechanical", "HVAC", "LVI": each of them). Empty when it names none.
+    Architecture is not a lane: a services sheet triage could not name by its words is called
+    architecture by its kind, so it never refuses a lane here."""
+    named: set[Discipline] = set()
+    if sheet.discipline is not None and sheet.discipline in LANES:
+        named.add(sheet.discipline)
+    stem = PurePosixPath(sheet.name).stem if sheet.name else ""
+    for text in (sheet.sheet_number or "", stem):
+        for m in _LETTERED.finditer(text):
+            if not _YEAR.fullmatch(m.group(2)):
+                named |= _LETTER_LANES[m.group(1)]
+    words = stem.replace("_", " ")  # "\b" does not part "dh_hvac"
+    named |= {d for d in disciplines_named(words) if d in LANES}
+    for pattern, lanes in _GROUPS:
+        if pattern.search(words):
+            named |= lanes
+    return frozenset(named)
+
+
+def takes(sheet: Sheet, lane: Discipline) -> bool:
+    """Whether a lane may take this sheet's marks: the sheet names no lane, or names this one.
+    Another discipline's sheet is never in a lane, however well it lies over the plan (pic-sync
+    2026-11-15 04:46: the plumbing lane took H-101, the heating sheet, by its wall match at 0.9
+    over P-101's page-to-page match at 0.7)."""
+    named = named_lanes(sheet)
+    return not named or lane in named
 
 
 Place = Callable[[Point2], Point2]  # a services page's fractions -> the plan page's fractions
@@ -176,6 +231,11 @@ def picture_follow(
             continue
         place = (paired.to_plan or Affine()).apply
         for discipline, found in _things(sheet, facts, place, unit).items():
+            if paired.paired_by != "same_page" and not takes(sheet, discipline):
+                # a heating sheet's marks read as plumbing are not the floor's plumbing
+                why = f"{named_why(sheet)}: its {discipline} marks are not taken"
+                refused.setdefault(discipline, why)
+                continue
             things[discipline] += found
             sources[discipline].append(sheet.drawing_id)
             taken.setdefault(discipline, paired)
@@ -210,6 +270,12 @@ def picture_follow(
         disciplines=tuple(lanes),
         unknowns=UNKNOWNS if any(d.status == "checked" for d in lanes) else (),
     )
+
+
+def named_why(sheet: Sheet) -> str:
+    """ "H-101 E00 heating.png is a heating sheet by its name": why a lane does not take it."""
+    shown = PurePosixPath(sheet.name).name if sheet.name else sheet.drawing_id
+    return f"{shown} is a {' or '.join(sorted(named_lanes(sheet)))} sheet by its name"
 
 
 def _paired(plan: Sheet, sheet: Sheet) -> Pairing | str:

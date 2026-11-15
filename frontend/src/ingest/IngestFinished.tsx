@@ -5,6 +5,7 @@ import type { ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
 import { ConflictsList, type ConflictCounts } from '../surveyor/ConflictsScreen';
 import { plural } from './ingest';
+import { drawingTally, readDrawings } from './pipeline';
 import { TAP } from './ui';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,7 +18,7 @@ export type { ConflictCounts };
 /** The id of `ConflictsList`'s own section, to scroll to (never a `#` link: the router owns the hash). */
 export const CONFLICTS_ID = 'conflicts';
 
-const finished = (p: ProjectView) => p.state === 'done' && p.drawings.length > 0;
+const finished = (p: ProjectView) => p.state === 'done' && readDrawings(p).length > 0;
 
 /** "5 drawings ready. Conflicts are below. 2 issues in Documents need you." (IN-76) */
 export function DoneLine({
@@ -32,7 +33,8 @@ export function DoneLine({
   if (!finished(project)) return null;
   return (
     <p className="ingest-done-line m-0 text-[15px] text-text-2 [&_a]:font-semibold [&_a]:text-primary">
-      {`${plural(project.drawings.length, 'drawing')} ready.`}
+      {/* the tile's number (drawingTally): the same drawings, never a sheet called not a drawing */}
+      {`${plural(drawingTally(project).ready, 'drawing')} ready.`}
       {counts !== null && counts.total > 0 && (
         <>
           {' '}
@@ -105,7 +107,8 @@ export function ChatRow({
   if (!finished(project)) return null;
   // locked until the list has said nothing needs a person (IN-77)
   const locked = counts === null || counts.needsPerson > 0;
-  const first = project.drawings[0];
+  // the workspace opens on a drawing that was read, never a screenshot read only to warn (QA R4-A9)
+  const first = readDrawings(project)[0];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
       {locked ? (

@@ -344,7 +344,7 @@
       "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
@@ -519,6 +519,99 @@
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "raster": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "bim": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "ifc",
+        "label": "IFC model reader",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "cad": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "adeefbbcc17559fc",

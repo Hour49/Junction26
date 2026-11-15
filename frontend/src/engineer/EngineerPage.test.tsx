@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup as unmount, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   drawingLabel,
@@ -23,6 +23,7 @@ import {
 import { InfoProvider } from '../shell/info';
 import { TIPS } from '../shell/tips';
 import { mockApi, never } from '../test/mockApi';
+import { KEPT_VERSION } from '../shell/kept';
 import { EngineerPage } from './EngineerPage';
 import { formatScore } from './format';
 import {
@@ -46,6 +47,23 @@ import {
   projectOneDrawing,
   refusalWithMarkup,
 } from './testing';
+
+// EN-23: the score shows where the checks line names a second method (EN-93 hides it beside "one method").
+const scoredAgree = {
+  ...answerConfidence,
+  quantity: answerConfidence.quantity && {
+    ...answerConfidence.quantity,
+    status: 'agree' as const,
+    first: { method: 'plan_drawing', value: 2 },
+    second: { method: 'ifc_model', value: 2 },
+  },
+};
+
+/** A fresh page: unmounted, and no engineer thread kept in the tab (R3-L2). */
+function cleanup() {
+  unmount();
+  sessionStorage.clear();
+}
 
 const PROJECT = '5e0c1a2b3d4f';
 const DRAWING = drawing.id;
@@ -166,7 +184,7 @@ describe('drawing header and ask box', () => {
   it('EN-3 a 404 shows the error with detail, code and a link to the project', async () => {
     open({ [DRAWING_ROUTE]: { status: 404, body: error } });
     expect(await screen.findByText(/no drawing 0123456789abcdef/)).toBeTruthy();
-    expect(screen.getAllByText(/not-found/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/not-found/)).toHaveLength(0); // R2-C5: no raw code
     const back = screen.getByRole('link', { name: 'Back to the project' });
     expect(back.getAttribute('href')).toBe(`#/p/${PROJECT}`);
   });
@@ -329,6 +347,15 @@ describe('answers', () => {
     ).toBeTruthy();
   });
 
+  it("QA R3-A2 EN-93 one method, no second check: no second reader's score beside it", async () => {
+    expect(answerConfidence.confidence).not.toBeNull();
+    const t = await shown(answerConfidence);
+    expect(within(t).getByText('Measured by one method; no second check.')).toBeTruthy();
+    expect(within(t).queryByText(/Second reader's score/)).toBeNull();
+    const details = within(t).getByText('Details').closest('details') as HTMLElement;
+    expect(within(details).getByText('Signal: g1main')).toBeTruthy();
+  });
+
   it('EN-20 the viewer gets the proof legend: one colour per room label', async () => {
     const t = await shown(answerArea);
     const html = t.innerHTML;
@@ -337,10 +364,10 @@ describe('answers', () => {
   });
 
   it("QA R1 EN-23 the second reader's score, no signal name on the card, never a probability", async () => {
-    const conf = answerConfidence.confidence;
+    const conf = scoredAgree.confidence;
     expect(conf).not.toBeNull();
     const signal = conf?.signal ?? '';
-    const t = await shown(answerConfidence);
+    const t = await shown(scoredAgree);
     expect(
       within(t).getByText(
         `Second reader's score ${formatScore(conf?.score ?? NaN)} (not a probability)`,
@@ -452,7 +479,7 @@ describe('refusals and errors', () => {
     expect(
       await within(t).findByText('The question could not be answered: question too long'),
     ).toBeTruthy();
-    expect(within(t).getByText(/validation/)).toBeTruthy();
+    expect(within(t).queryByText(/validation/)).toBeNull(); // R3-L7: no raw 'code: …' line
     fireEvent.change(input(), { target: { value: 'x' } });
     expect(askButton().disabled).toBe(false);
     fireEvent.click(within(t).getByRole('button', { name: 'Try again' }));
@@ -490,6 +517,41 @@ describe('thread', () => {
     const articles = screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'));
     expect(articles).toEqual([answer.question, answerArea.question]);
     expect(screen.getByText('2 asked')).toBeTruthy();
+  });
+
+  it('R3-L2 the answered turns come back after a reload of the tab; the counter goes on', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer, answerArea) });
+    await typeAndAsk(answer.question);
+    await within(await turn(answer.question)).findByTestId('answer-value');
+    unmount(); // the reload: the page mounts again in the same tab, its storage kept
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerArea) });
+    expect(await within(await turn(answer.question)).findByTestId('answer-value')).toBeTruthy();
+    expect(screen.getByText('1 asked')).toBeTruthy();
+    await typeAndAsk(answerArea.question);
+    await within(await turn(answerArea.question)).findByTestId('answer-value');
+    const articles = screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'));
+    expect(articles).toEqual([answer.question, answerArea.question]);
+  });
+
+  it('R3-L2 a thread kept for another drawing or a bad stored value starts empty', async () => {
+    sessionStorage.setItem(`engineer-thread:${PROJECT}:other`, JSON.stringify([{ id: 1 }]));
+    sessionStorage.setItem(`engineer-thread:${PROJECT}:${DRAWING}`, '{not json');
+    open({ [DRAWING_ROUTE]: drawing });
+    expect(await screen.findByText('Ask a question about this drawing.')).toBeTruthy();
+    expect(screen.getByText('0 asked')).toBeTruthy();
+  });
+
+  it('R4-C13 a thread kept by an older build (no version, or a turn missing what the card reads) is dropped, not a blank page', async () => {
+    const key = `engineer-thread:${PROJECT}:${DRAWING}`;
+    const old = [{ id: 1, status: 'done', question: answer.question, answer: { answer: 2 } }];
+    for (const value of [old, [{ ...old[0], answer }], { v: KEPT_VERSION, turns: old }]) {
+      sessionStorage.setItem(key, JSON.stringify(value));
+      open({ [DRAWING_ROUTE]: drawing });
+      expect(await screen.findByText('Ask a question about this drawing.')).toBeTruthy();
+      expect(screen.getByText('0 asked')).toBeTruthy();
+      expect(sessionStorage.getItem(key)).toBeNull(); // dropped, so the next reload starts clean too
+      unmount();
+    }
   });
 
   it('EN-47 each turn is an article named by its question', async () => {
@@ -547,6 +609,22 @@ describe('thread', () => {
     expect(row.closest('article')).toBeNull();
     expect(screen.queryByText('Suggested questions')).toBeNull();
     expect(document.querySelector('details:not(.en-details)')).toBeNull();
+  });
+});
+
+describe('EN-92 a thread of refusals keeps the drawing in view', () => {
+  it('shows the page after a refusal, and only the answer card once a question is answered', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused, answer) });
+    const empty = () => screen.queryByRole('figure', { name: 'Drawing' });
+    expect(await screen.findByRole('figure', { name: 'Drawing' })).toBeTruthy();
+    await typeAndAsk(answerRefused.question);
+    const t = await turn(answerRefused.question);
+    await within(t).findByText("I can't answer that from this drawing.");
+    // QA r2 R2-A2: a judge whose first question is refused still sees the sheet
+    expect(empty()).toBeTruthy();
+    fireEvent.click(within(t).getByRole('button', { name: answer.question }));
+    await within(await turn(answer.question)).findByTestId('answer-value');
+    expect(document.querySelector('.en-card--empty')).toBeNull();
   });
 });
 
@@ -1254,6 +1332,7 @@ describe('judge path', () => {
   it('EN-90 a partial room total has a tag beside its value with the counts', async () => {
     const t = await shownTurn({
       ...answer,
+      unit: 'm2', // a room total sums its rooms (a room count says "counts": format.test.ts)
       partial: true,
       rooms_counted: 7,
       rooms_missing: ['Sauna', 'WC 2'],
@@ -1325,7 +1404,7 @@ describe('hover tips on the engineer page (docs/ui-tooltips.md)', () => {
   });
 
   it('the checks, second reader score and counting rule explain themselves', async () => {
-    const t = await shownTurn(answerConfidence);
+    const t = await shownTurn(scoredAgree);
     await tipOf(within(t).getByText('Checks'), TIPS.checks);
     await tipOf(within(t).getByText(/^Second reader's score/), TIPS.secondScore);
     await tipOf(within(t).getByText(/^Counting rule:/), TIPS.rule);

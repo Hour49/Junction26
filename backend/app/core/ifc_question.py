@@ -36,7 +36,10 @@ _ENTITIES: tuple[tuple[str, str], ...] = (
     ("light_fixture", r"light(?:ing)?\s*fixtures?|luminaires?|lights?|lamps?"),
     ("switch", r"(?:light\s*)?switch(?:es)?"),
     ("outlet", r"outlets?|receptacles?|sockets?"),
-    ("sanitary_terminal", r"sanitary|plumbing\s*fixtures?|toilets?|wcs?|basins?|sinks?|lavator\w*"),
+    (
+        "sanitary_terminal",
+        r"sanitary|plumbing\s*fixtures?|toilets?|wcs?|urinals?|(?:wash)?basins?|sinks?|lavator\w*",
+    ),
     ("valve", r"valves?"),
     ("pump", r"pumps?"),
     ("fan", r"fans?"),
@@ -164,6 +167,17 @@ _STOREY = re.compile(
     r"|og\s*\d+|eg\b)",
     re.I,
 )
+# Two storeys a height is between: "between the ground floor and first floor".
+_LEVEL = (
+    r"(?:(?:level|floor|storey|story)\s+\d+|\d+(?:st|nd|rd|th)?"
+    r"|ground|basement|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth"
+    r"|eleventh|twelfth|top|roof)(?:\s+(?:floor|level|storey|story))?"
+)
+_BETWEEN = re.compile(
+    rf"\bbetween\s+(?:the\s+)?(?P<a>{_LEVEL})\s+and\s+(?:the\s+)?(?P<b>{_LEVEL})\b", re.I
+)
+# An IFC GlobalId: 22 characters of its base-64 alphabet, mixed case and a digit in practice.
+_GUID = re.compile(r"(?<![\w$])[0-9A-Za-z_$]{22}(?![\w$])")
 _WORD = re.compile(r"[^\W_]+(?:[-'][^\W_]+)*")
 _STOP = frozenset(
     """a an and any are as at be by can could do does each for from give have how i in include
@@ -196,6 +210,8 @@ class FactQuery(Frozen):
     discipline: Discipline | None = None
     asked: str = ""  # the question's text, for the answer to name what it could not find
     named: tuple[str, ...] = ()  # the words the entity was read from: "receptacles"
+    guid: str | None = None  # an element's GlobalId the question names
+    between: tuple[str, str] | None = None  # two storeys as the question words them
     yes_no: bool = False  # "Are the interior walls load bearing?"
     derived: bool = False  # asks for an estimate or a judgement the model does not store
 
@@ -222,6 +238,10 @@ def parse_ifc_question(text: str) -> FactQuery | None:
         # "Can you provide ..." is a request, not a yes/no question
         yes_no=re.match(r"(?:are|is|does|do|has|have|can)\b(?!\s+you\b)", lower) is not None,
         derived=_DERIVED.search(said) is not None,
+        guid=_guid(said),
+        between=None
+        if (pair := _BETWEEN.search(said)) is None
+        else (pair["a"].lower(), pair["b"].lower()),
     )
     if _UNAVAILABLE.search(said):
         return base.model_copy(update={"aggregate": "unavailable"})
@@ -281,12 +301,25 @@ def _entity(text: str) -> str | None:
     return None
 
 
+def _guid(text: str) -> str | None:
+    return next(
+        (
+            word
+            for word in _GUID.findall(text)
+            if re.search(r"\d", word) and re.search(r"[a-z]", word) and re.search(r"[A-Z]", word)
+        ),
+        None,
+    )
+
+
 def _subject_words(text: str, entity: str) -> tuple[str, ...]:
     """The words left once the rules' own words are taken out: what names a subject on the
     sheet ("kitchen", "meeting", "concrete")."""
     measures = [words for name, words in _MEASURES if name != "material" or entity != "material"]
     patterns = [*measures, *(words for _, words in (*_PARTS, *_BY, *_AGGREGATES))]
     patterns.append(r"spaces?|rooms?|units?|areas?|zones?")  # a kind of room stays: "offices"
+    if entity == "space":
+        patterns.append(r"ceilings?")  # its height is the room's; a ceiling names no room
     patterns += [words for name, words in _ENTITIES if name == entity]
     for pattern in patterns:
         text = re.sub(rf"\b(?:{pattern})\w*", " ", text, flags=re.I)

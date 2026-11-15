@@ -247,8 +247,23 @@ def test_a_sheet_without_a_schedule_keeps_the_inner_result() -> None:
     pdf = sheet_pdf.pdf()
     source, sheet = source_and_sheet(pdf)
     got = PdfTables(Inner(), Files({source.path: pdf})).extract(source, sheet)
-    assert got == Inner().extract(source, sheet)
+    # the reading is the inner one; the schedule read is a step of it (decision 0018)
+    assert got.model_copy(update={"steps": ()}) == Inner().extract(source, sheet)
     assert got.tables is None
+    assert [(step.id, step.did, step.found) for step in got.steps] == [
+        ("tables", "no ruled schedule on page 1", {})
+    ]
+
+
+def test_the_schedule_read_is_a_step_after_the_inner_reader() -> None:
+    pdf = schedules_pdf()
+    source, sheet = source_and_sheet(pdf)
+    got = PdfTables(Inner(), Files({source.path: pdf})).extract(source, sheet)
+    (step,) = got.steps
+    assert (step.id, step.label, step.state) == ("tables", "Schedule tables (PDF)", "done")
+    assert step.found == {"schedule": len(got.tables or ())} and step.found["schedule"] > 0
+    assert step.did.startswith(f"{step.found['schedule']} schedule")
+    assert step.at_ms >= 0 and step.ms > 0
 
 
 def test_a_sheet_of_another_shape_or_kind_is_not_read() -> None:

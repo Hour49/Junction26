@@ -56,9 +56,16 @@ export function Tip({ text, children, wrap = false, side = 'bottom', className }
     };
   }, [open]);
 
+  const locked =
+    React.isValidElement<{ disabled?: boolean }>(children) && children.props.disabled === true;
   const trigger = wrap ? (
     <span
-      tabIndex={0}
+      // only a locked control's wrapper is a Tab stop (R2-D6: with a role and a name, the tip says why it is
+      // locked); a label, number or badge is not (R2-D3): hover and tap show its tip, a screen reader reads it as
+      // the description, and tabIndex -1 keeps it focusable for the code that opens a tip by focus
+      {...(locked
+        ? { tabIndex: 0, role: 'group', 'aria-label': text }
+        : { tabIndex: -1, 'aria-description': text })}
       className={cn('inline-flex rounded-md [&>*]:pointer-events-none', className)}
     >
       {children}

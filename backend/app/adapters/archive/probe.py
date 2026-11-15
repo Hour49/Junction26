@@ -73,6 +73,7 @@ import pypdfium2
 from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 from pypdfium2 import raw
 
+from app.adapters.archive.raster import too_large
 from app.adapters.eight_bit import eight_bit, on_white
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.ingest.model import ContentKind, LaterPage, Probed
@@ -144,7 +145,7 @@ def _pdf(data: bytes) -> Probed:
 
 class _PageNotLoadedError(Exception):
     def __init__(self, number: int, error: pypdfium2.PdfiumError) -> None:
-        super().__init__(f"page {number} does not load ({error})")
+        super().__init__(f"page {number} does not load")  # not pdfium's text (QA R2-C2)
 
 
 def _pdf_unlocked(data: bytes) -> Probed:
@@ -153,7 +154,8 @@ def _pdf_unlocked(data: bytes) -> Probed:
     except pypdfium2.PdfiumError as error:
         if "password" in str(error).lower():
             return Probed(kind="pdf_encrypted", did="an encrypted PDF that no empty password opens")
-        return Probed(kind="unknown", did=f"a PDF that cannot be opened: {error}")
+        # The reason a user reads, not pdfium's "Data format error" (QA R2-C2)
+        return Probed(kind="unknown", did="a damaged or cut-off PDF that cannot be opened")
     try:
         if len(document) == 0:
             return Probed(kind="unknown", did="a PDF with no pages")
@@ -292,6 +294,8 @@ def _image(data: bytes, image_format: str) -> Probed:
                 camera = ""
             image.draft("RGB", (THUMB, THUMB))  # JPEG: decode at a fraction of the size
             thumb = on_white(eight_bit(image)).convert("RGB")
+    except Image.DecompressionBombError as error:
+        return Probed(kind="unknown", did=too_large(error))
     except (UnidentifiedImageError, OSError) as error:
         return Probed(kind="unknown", did=f"an image that cannot be decoded: {error}")
     name = image_format.upper()
@@ -440,5 +444,5 @@ def _other(data: bytes) -> Probed:
         return Probed(kind="unknown", did="binary content in no format we read")
     control = sum(ord(char) < 32 and char not in "\t\r\n\f" for char in text)
     if text and control <= len(text) / 100:
-        return Probed(kind="text", did=f"plain text, {len(data)} bytes")
+        return Probed(kind="text", did=f"plain text, {counted(len(data), 'byte')}")
     return Probed(kind="unknown", did="binary content in no format we read")

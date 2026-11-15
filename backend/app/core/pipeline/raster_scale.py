@@ -6,7 +6,10 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
 
 - Door prior: a door leaf is DOOR_M metres; the scale is DOOR_M over the median long side (px) of
   the detected door boxes. DOOR_M is fitted on val (376 CubiCasa dev sheets, region:C-yolo26s-1536's
-  ONNX doors at score >= 0.5): median 5.6% off the gold scale.
+  ONNX doors at score >= 0.5): median 5.6% off the gold scale. It is the detector's leaf box on
+  Finnish homes: DOOR_PRIOR_BOXES=on gives Carbon's door boxes CARBON_DOOR_M, and
+  DOOR_PRIOR_UNITS=on an imperial sheet a 3'-0" leaf, 0.914 m (ADA 404.2.3; the standard, not a
+  fit), both in door_prior.py with where their numbers came from.
 - The printed uncertainty depends on how many doors the median rests on: SPREAD_FEW below
   FEW_DOORS, else SPREAD_MANY, each the 68% quantile of the scale error, fitted on one half of val
   and checked on the other, both ways, then averaged (prototypes/areas/calibrate.py). One
@@ -33,10 +36,12 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
   room's printed label, not the room ("LOBBY 0.18 m²" on a 7.4 m² floor). A box under MIN_BOX_M2
   at the sheet's scale (a door leaf's footprint) is smaller than any room; and when the box rooms
   of a page (MIN_COVER_ROOMS or more) cover under MIN_COVER of the box around them all, they box
-  scattered labels. The room stays, its area unknown, the reason in a note; never a smaller
-  number. Always on for a raster sheet with a scale (no setting). The thresholds are guards, not
-  fitted values: on golden v2 the first version refused 5 of 873 box rooms, 0 of them right
-  (eu-big's fit, #14 c6883029882); golden v2 has no scanned PDF with gold room areas.
+  scattered labels; and a box that holds NESTED_ROOMS or more other room boxes boxes a group (a
+  wing row over its rooms) or a room wrapped around them, not one room. The room stays, its area
+  unknown, the reason in a note; never a smaller number. Always on for a raster sheet with a
+  scale (no setting). The thresholds are guards, not fitted values: on golden v2 the first
+  version refused 5 of 873 box rooms, 0 of them right (eu-big's fit, #14 c6883029882); golden
+  v2 has no scanned PDF with gold room areas.
   scripts/fit_label_boxes.py sweeps them per half on cached replies.
 """
 
@@ -81,6 +86,13 @@ MIN_BOX_M2 = 0.5
 # separate blocks about 25%.
 MIN_COVER = 0.1
 MIN_COVER_ROOMS = 3  # fewer boxes on a page say nothing about coverage
+# A box holding this many other room boxes (each at least NESTED_SHARE inside it) boxes a group
+# (a wing row, a flat) or a room wrapped around others (an L-shaped corridor), not one room's
+# outline (area-root, T2: a wing row's box over its 14 dorms counted 605 m² twice). One box
+# inside is a closet in its room and stays. A guard, not a fitted value: on the golden v2 run's
+# CubiCasa readings 8 of 1,034 box rooms hold two or more, none within 50% of a gold room.
+NESTED_ROOMS = 2
+NESTED_SHARE = 0.9
 REFUSED_NOTE = "room area: "  # how the note on a room the box does not measure starts
 # The attr a refused room carries (its reason): a whole-sheet total leaves it out, marked partial
 AREA_REFUSED = "area_refused"
@@ -201,8 +213,9 @@ def refused_boxes(
     """The rooms (by id) whose area would come from a box that cannot be the room, each with the
     reason: on a page whose box rooms (no polygon; at least MIN_COVER_ROOMS) cover under
     `min_cover` of the box around them all, every one that has no area yet; else a box under
-    `min_box_m2` at `scale`. Only rooms the box would measure are refused: no polygon, no area
-    yet. Always applied on a raster sheet with a scale (no setting)."""
+    `min_box_m2` at `scale`, or one holding NESTED_ROOMS or more of the page's other room boxes.
+    Only rooms the box would measure are refused: no polygon, no area yet. Always applied on a
+    raster sheet with a scale (no setting)."""
     if scale.m_per_unit is None:
         return {}
     by_page = {page.page: page for page in pages}
@@ -227,7 +240,24 @@ def refused_boxes(
                     f"its box is {width:.2f} x {height:.2f} m ({width * height:.2f} m²), smaller "
                     f"than any room (a door leaf's footprint, {min_box_m2:g} m²)"
                 )
+                continue
+            held = sum(
+                _inside(other.box, room.box) >= NESTED_SHARE for other in boxes if other is not room
+            )
+            if held >= NESTED_ROOMS:
+                refused[room.id] = (
+                    f"its box holds {held} other rooms' boxes (a wing, a group, or a room wrapped "
+                    "around them), so it is not one room's outline"
+                )
     return refused
+
+
+def _inside(inner: Box, outer: Box) -> float:
+    """The share of `inner`'s area inside `outer`; 0.0 for an empty `inner`."""
+    width = min(inner[2], outer[2]) - max(inner[0], outer[0])
+    height = min(inner[3], outer[3]) - max(inner[1], outer[1])
+    area = (inner[2] - inner[0]) * (inner[3] - inner[1])
+    return max(0.0, width) * max(0.0, height) / area if area > 0 else 0.0
 
 
 def _cover(boxes: Sequence[Box]) -> float:
@@ -298,6 +328,19 @@ def label_area_checks(
     return found, notes
 
 
+def outline_m2(room: Room, page: Page, m_per_unit: float) -> float | None:
+    """A room's outline area at `m_per_unit`: its polygon, else its box over BOX_RATIO; None for
+    a box under MIN_BOX_M2, which boxes a label, not the room (as `label_area_checks`)."""
+    x0, y0, x1, y1 = room.box
+    if (
+        room.polygon is None
+        and (x1 - x0) * page.width * (y1 - y0) * page.height * m_per_unit**2 < MIN_BOX_M2
+    ):
+        return None
+    share = _shoelace(room.polygon) if room.polygon else (x1 - x0) * (y1 - y0) / BOX_RATIO
+    return share * page.width * page.height * m_per_unit**2
+
+
 def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
     pairs = zip(polygon, [*polygon[1:], polygon[0]], strict=True)
     return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in pairs)) / 2
@@ -313,15 +356,18 @@ CARBON_DOOR_M = 1.069  # m
 CARBON_DOORS = "doors the Carbon reader found"  # in the source of every scale made from them
 
 
-def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
-    """The scale from the door prior over Carbon's door boxes `sides`; None without a door. The
-    band is SPREAD_FEW however many doors (the widest; the bands were fitted on the detector's)."""
+def carbon_door_scale(
+    sides: Sequence[float], why: str = "the detector found no door it is sure of"
+) -> Scale | None:
+    """The scale from the door prior over Carbon's door boxes `sides`, `why` in its source; None
+    without a door. The band is SPREAD_FEW however many doors (the widest; the bands were fitted
+    on the detector's)."""
     if not sides:
         return None
     return Scale(
         status="estimated",
         m_per_unit=CARBON_DOOR_M / statistics.median(sides),
         source=f"a door is about {CARBON_DOOR_M} m wide; median of {len(sides)} {CARBON_DOORS} "
-        "(the detector found no door it is sure of)",
+        f"({why})",
         uncertainty=SPREAD_FEW,
     )

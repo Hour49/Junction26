@@ -20,7 +20,7 @@ import { DoubleCheck } from '../doublecheck/DoubleCheck';
 import { ResolverLines } from './Resolver';
 import { routeHref } from '../shell/route';
 import { TIPS } from '../shell/tips';
-import { ChecksPanel } from './ChecksPanel';
+import { ChecksPanel, oneMethod } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
 import {
   estimateLine,
@@ -561,7 +561,8 @@ function Answer(props: {
               <ChecksPanel row={row} />
             </div>
           )}
-          {score && (
+          {/* EN-93: beside "one method; no second check" a score reads as a contradiction. */}
+          {score && !(row && oneMethod(row)) && (
             <Tip text={TIPS.secondScore} wrap>
               <p className="en-score">
                 Second reader's score {formatScore(score.score)} (not a probability)
@@ -614,11 +615,10 @@ function Answer(props: {
 }
 
 function ErrorTurn({ error, onRetry }: { error: unknown; onRetry: () => void }) {
-  const { detail, code } = errorText(error);
+  const { detail } = errorText(error);
   return (
     <div className="v-card en-error" role="alert">
       <p>The question could not be answered: {detail}</p>
-      <p className="en-small">code: {code}</p>
       <button type="button" className="en-chip v-press" onClick={onRetry}>
         Try again
       </button>

@@ -23,6 +23,17 @@ import {
 } from './services';
 
 const pct = (v: number) => `${String(v * 100)}%`;
+const ALL = ' all'; // the All sheets view's tab name: no discipline is spelled so
+
+/** AC-45: one lane's sheet in the All sheets view: where it is, what to zoom to, what to draw on it. */
+export interface SyncSheet {
+  discipline: string;
+  name: string;
+  sheet: { drawing_id: string; page: number };
+  focus: Box | null;
+  layer: ReactNode;
+  open: () => void;
+}
 
 /** The discipline's runs and terminals near the edit, over the page (page fractions). Before: as they are.
  * After: each mark in the status of the action that names it, re-seated terminals at their new place, proposed
@@ -150,16 +161,16 @@ function SheetEdit({ pic }: { pic: LanePicture }) {
   );
 }
 
-/** The part of the sheet to look at: the lane's focus there, else the edit's outlines plus a margin. */
-function sheetFocus(lane: Lane, pic: LanePicture): Box | null {
-  const edit = {
-    removed: pic.removed.map((polygon) => ({ polygon })),
-    added: pic.added.map((polygon) => ({ polygon })),
-  };
-  const box = focusOf(onSheet(lane, pic), edit);
-  if (box) return box;
+/** The part of the sheet to look at: the edit's own outlines there plus a margin, else (no outline on the
+ * sheet) the lane's focus. Not every mark's: a picture's lane carries every symbol its reader found on the sheet
+ * (562 on DigitalHub's P-101), and their box was nearly the whole sheet, the struck-out wall cut off at its edge
+ * (R1 edits 10c). What sits on the wall is inside the margin. */
+export function sheetFocus(lane: Lane, pic: LanePicture): Box | null {
   const pts = [...pic.removed, ...pic.added].flat();
-  if (pts.length === 0) return null;
+  if (pts.length === 0) {
+    const edit = { removed: [], added: [] };
+    return focusOf(onSheet(lane, pic), edit);
+  }
   const xs = pts.map((q) => q[0]);
   const ys = pts.map((q) => q[1]);
   const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
@@ -289,6 +300,9 @@ export function useServiceTabs(
   focus: Box | null;
   /** AC-40: the open lane's own services sheet, drawn instead of the plan; null: the plan. */
   sheet: { drawing_id: string; page: number } | null;
+  /** AC-45: All sheets: each lane's picture with the edit on it, for the card to show beside the plan; null: one
+   * view (the card's plan box). */
+  sync: SyncSheet[] | null;
 } | null {
   const [name, setName] = useState<string | null>(null);
   const [pickedId, setPickedId] = useState<string | null>(null);
@@ -296,7 +310,13 @@ export function useServiceTabs(
   const [refused, setRefused] = useState<ReadonlySet<string>>(new Set());
   const services = p.services;
   if (!services) return null;
-  const lane = services.disciplines.find((l) => l.discipline === name) ?? null;
+  // AC-45: the lanes with a picture of their own the user has not refused, for All sheets
+  const pictured = services.disciplines.flatMap((l) => {
+    const own = refused.has(l.discipline) ? null : pictureOf(l);
+    return own ? [{ lane: l, pic: own }] : [];
+  });
+  const all = name === ALL && pictured.length > 0;
+  const lane = all ? null : (services.disciplines.find((l) => l.discipline === name) ?? null);
   const picked = lane?.actions.find((a) => a.id === pickedId) ?? null;
   const said = lane !== null && refused.has(lane.discipline);
   const pic = lane && !said ? pictureOf(lane) : null;
@@ -316,13 +336,24 @@ export function useServiceTabs(
       <div className="v-segmented ms-tabs" role="group" aria-label="Discipline">
         <button
           type="button"
-          aria-pressed={lane === null}
+          aria-pressed={lane === null && !all}
           onClick={() => {
             open(null);
           }}
         >
           Plan
         </button>
+        {pictured.length > 0 && (
+          <button
+            type="button"
+            aria-pressed={all}
+            onClick={() => {
+              open(ALL);
+            }}
+          >
+            All sheets
+          </button>
+        )}
         {services.disciplines.map((l) => {
           const off = refused.has(l.discipline);
           const note = off ? 'not checked' : tabNote(l);
@@ -347,6 +378,23 @@ export function useServiceTabs(
       </div>
     ),
     sheet: pic && { drawing_id: pic.drawing_id, page: pic.page },
+    sync: all
+      ? pictured.map(({ lane: l, pic: own }) => ({
+          discipline: l.discipline,
+          name: laneName(l),
+          sheet: { drawing_id: own.drawing_id, page: own.page },
+          focus: sheetFocus(l, own),
+          layer: (
+            <>
+              {after && <SheetEdit pic={own} />}
+              <Layer lane={onSheet(l, own)} after={after} picked={null} />
+            </>
+          ),
+          open: () => {
+            open(l.discipline);
+          },
+        }))
+      : null,
     head: lane && (pic || said) && (
       <p className="ms-pairing">
         {pic ? (

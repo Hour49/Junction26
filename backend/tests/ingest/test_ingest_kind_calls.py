@@ -6,6 +6,7 @@ reader; no timing decides a result (a wait has a deadlock guard only)."""
 import io
 import threading
 import zipfile
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,7 @@ import app.core.ingest.service as service
 from app.adapters.archive import FileProbe
 from app.adapters.decisions_kind import KINDS, KindSignal, KindUnavailable
 from app.adapters.decisions_kind.probe import KindProbe
-from app.core.ingest.model import FileTrace
+from app.core.ingest.model import FileTrace, StageTrace
 from scripts.make_sample_archive import build_archive
 
 LIMIT = 4  # signal calls in flight at most (the brief: as serve's client)
@@ -141,6 +142,13 @@ def test_at_most_four_signal_calls_are_in_flight_and_four_are_reached(
     assert [t.file.path for t in traces] == list(DRAWINGS)
 
 
+def untimed(stages: Sequence[StageTrace]) -> list[object]:
+    return [
+        (stage.model_copy(update={"steps": ()}), [(s.id, s.did, s.state) for s in stage.steps])
+        for stage in stages
+    ]
+
+
 def test_results_finished_out_of_order_are_applied_in_upload_order(
     make_service: MakeService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -152,7 +160,8 @@ def test_results_finished_out_of_order_are_applied_in_upload_order(
 
     def shown(traces: list[FileTrace]) -> list[object]:
         return [
-            (t.file.id, t.file.path, t.file.kind, t.file.state, t.file.reason, t.stages)
+            # the stages and what ran inside them; a step's timing differs from run to run
+            (t.file.id, t.file.path, t.file.kind, t.file.state, t.file.reason, *untimed(t.stages))
             for t in traces
         ]
 

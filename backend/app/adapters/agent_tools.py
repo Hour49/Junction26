@@ -32,6 +32,10 @@ Runner = Callable[[str, str], str]  # (tool name, arguments JSON) -> result JSON
 # answers "room 1.01" (QA smoke-1; the parser is app/core/answering's, so worked around here)
 ROOM_NUMBER = re.compile(r"\b([^\W\d_]+)\s+(\d+\.\d{2})\b(?!\s*(?:m\b|m2|m²|cm|mm|%))")
 ROOMS_LISTED = 12
+FOUND_COVERS = (
+    "only the rooms a reader found on the drawings and read a label for: rooms it missed, or "
+    "found without a label, are not in it, so this is no count of them all"
+)
 FIND_TOOLS: list[Json] = [
     {
         "type": "function",
@@ -43,7 +47,8 @@ FIND_TOOLS: list[Json] = [
                 "`not_searched`: the drawings with no rooms to search (a building model, a "
                 "drawing not read). Use it when ask_drawings refuses a question that names a "
                 "room: offer the printed labels as options, or read the one room with "
-                "get_plan_geometry."
+                "get_plan_geometry. Only the rooms a reader found and read a label for, never a "
+                "count of all such rooms."
             ),
             "parameters": {
                 "type": "object",
@@ -171,6 +176,7 @@ def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
     if not words:
         return _error("give the room's words as printed, e.g. 'office' or 'open office 102'")
     found: list[Json] = []
+    read = unlabelled = 0
     # the drawings with no room to search: an answer built on this list can't call it complete
     # (demo walk r13: "Which drawings show a kitchen?" named 2 drawings of 9 as all of them)
     not_searched: list[Json] = []
@@ -182,23 +188,42 @@ def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
             continue
         if not rooms:
             not_searched.append({"name": entry.name, "why": "no rooms were read on it"})
+        read += len(rooms)
+        unlabelled += sum(not room.label for room in rooms)
         for room in rooms:
             printed = _printed(room.label, room.attrs.get("number"))
-            # a room's type counts as its words: Drawn plan 1 prints its kitchens as "0.03"
-            if printed and words <= {*TOKEN.findall(printed.lower()), *_type_words(room.type)}:
+            # a room's type counts as its words: Drawn plan 1 prints its kitchens as "0.03",
+            # flat-b its bedrooms as "Zimmer" (R4)
+            if printed and _holds(printed, words, room.type):
                 place = {"drawing_id": entry.drawing_id, "page": room.page, "box": list(room.box)}
                 found.append({"room": room.id, "label": printed, "name": entry.name, **place})
-    scope: Json = {"not_searched": not_searched} if not_searched else {}
+    # what the list covers: a partial raster reading lists 2 of 8 classrooms (R4-A14)
+    covers: Json = {"rooms_read": read, "unlabelled": unlabelled, "counts": FOUND_COVERS}
+    if not_searched:
+        covers["not_searched"] = not_searched
     if not found:
         reason = f"no room on the drawings is labelled or typed {' '.join(sorted(words))}"
-        return json.dumps({"status": "unknown", "reason": reason, **scope}, ensure_ascii=False)
-    out: Json = {"status": "ok", "count": len(found), "rooms": found[:ROOMS_LISTED], **scope}
+        return json.dumps({"status": "unknown", "reason": reason, **covers}, ensure_ascii=False)
+    out: Json = {"status": "ok", "count": len(found), **covers, "rooms": found[:ROOMS_LISTED]}
     return json.dumps(out, ensure_ascii=False)
 
 
-def _type_words(kind: str) -> set[str]:
-    """A room type as words a query may use: "kitchen" and "kitchens"; "other" says nothing."""
-    return set() if kind == "other" else {kind, f"{kind}s"}
+def _holds(printed: str, words: set[str], kind: str = "other") -> bool:
+    """Whether the printed label, or the room's type, holds every word, a plural as its singular
+    and back ("classrooms" finds Secondary Classroom: R4-A14; "bedrooms" finds a Zimmer typed
+    bedroom); the type "other" says nothing."""
+    tokens = {form for token in TOKEN.findall(printed.lower()) for form in _forms(token)}
+    if kind != "other":
+        tokens.add(kind)
+    return all(_forms(word) & tokens for word in words)
+
+
+def _forms(word: str) -> set[str]:
+    """`word` and, when it may be an English plural, its singulars: offices -> office (and
+    offic), classes -> class; not a word ending in ss (class, glass) or of three letters."""
+    if len(word) <= 3 or not word.endswith("s") or word.endswith("ss"):
+        return {word}
+    return {word, word[:-1], *([word[:-2]] if word.endswith("es") else [])}
 
 
 def _printed(label: str | None, number: Any) -> str | None:

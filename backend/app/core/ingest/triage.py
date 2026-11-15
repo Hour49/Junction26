@@ -22,13 +22,17 @@ from app.core.ingest.model import (
     ProjectContext,
     ReadAsPlan,
     Relevance,
+    Sheet,
     Triage,
     TriageClass,
     Unavailable,
 )
 from app.core.ingest.ports import Classifier, Describer, RelevanceJudge
 from app.core.pipeline.model import FileKind
+from app.core.wording import kind_words
 
+# The triaged kinds the probe calls a drawing (it calls a `photo` not one)
+DRAWN_KINDS: frozenset[ContentKind] = TRIAGED_KINDS - {"photo"}
 CLASS_WORDS: dict[TriageClass, str] = {
     "floor_plan": "a floor plan",
     "other_drawing": "another kind of drawing (an elevation, section, site plan, detail or cover)",
@@ -36,7 +40,10 @@ CLASS_WORDS: dict[TriageClass, str] = {
 }
 NO_PLAN = "no floor plan in the project to compare with"
 # Triage.note: why `description` or `relevance` is null, in plain words (decision 0010)
-NOTE_PLAN = "a floor plan: it is read, so it is not described or judged"
+# Triage's own step only: the evidence index may still describe the file, by its own sheet-kind
+# call (EVIDENCE_SCOPE, app/core/evidence), so the note never says it is not described (detail's
+# audit: site.jpg read anyway, then described for the index under "it is not described")
+NOTE_PLAN = "read as a floor plan, so triage does not describe or judge it"
 NOTE_NO_DESCRIBER = "not described: no description model is set up, so it is not judged"
 # the same file once a judge that reads no description judged it
 NOTE_NO_DESCRIBER_JUDGED = "not described: no description model is set up"
@@ -157,7 +164,8 @@ def triaged(
     classified = steps.classifier.classify(data, probed)
     if isinstance(classified, Unavailable):
         return Triaged(None, f"triage not available: {classified.note}; read as today")
-    said = f"triage: {_how(classified.class_, classified.p_plan, classified.method)}"
+    how = _how(classified.class_, classified.p_plan, classified.method, classified.sheet)
+    said = f"triage: {how}"
     description: Description | None = None
     if classified.class_ == "floor_plan":
         note = NOTE_PLAN
@@ -169,7 +177,7 @@ def triaged(
             note = f"not described: {found.note}"
         else:
             description, note = found, NOTE_RUNNING
-            said += f"; described as {found.subject} ({found.model})"
+            said += f"; described as {found.subject}"  # the model id is `description.model`
     if description is None and note != NOTE_PLAN:
         said += f"; {note}"
     triage = Triage.model_validate(
@@ -214,17 +222,26 @@ def plan_kind(kind: ContentKind | None, file_format: FileKind | None) -> Content
 def kind_after(probed: Probed, triage: Triage | None, file_format: FileKind | None) -> Probed:
     """The probe's kind once triage has spoken. With triage on, the classifier alone decides
     plan or not: an image it calls a floor plan is read as one even where the probe (or the kind
-    signal's not-a-drawing rule) said otherwise."""
-    if triage is None or triage.class_ != "floor_plan":
+    signal's not-a-drawing rule) said otherwise. Where the two disagree, `did` says the probe's
+    line was its guess and what triage made of it, so the identify stage's line ends on the
+    outcome (QA R4-A10: "a photo, not of a drawing", then output "photo of a drawing")."""
+    if triage is None:
         return probed
-    said = f"{probed.did}; triage calls it a floor plan, so it is read as one"
+    if triage.class_ == "not_drawing" and probed.kind in DRAWN_KINDS:
+        said = f"the probe guessed {probed.did}; triage calls it not a drawing, so it is not read"
+        return probed.model_copy(update={"did": said})
+    if triage.class_ != "floor_plan":
+        return probed
     if probed.kind == "photo":
-        return Probed(kind="photo_plan", did=said)
-    if probed.kind == "unknown" and file_format == "png":
-        return Probed(kind="png_plan", did=said)
-    if probed.kind == "unknown" and file_format == "jpeg":
-        return Probed(kind="jpeg_plan", did=said)
-    return probed
+        kind: ContentKind = "photo_plan"
+    elif probed.kind == "unknown" and file_format == "png":
+        kind = "png_plan"
+    elif probed.kind == "unknown" and file_format == "jpeg":
+        kind = "jpeg_plan"
+    else:
+        return probed
+    said = f"the probe guessed {probed.did}; triage calls it a floor plan, so it is read as a "
+    return Probed(kind=kind, did=said + kind_words(kind))
 
 
 def set_aside_reason(triage: Triage) -> str:
@@ -261,11 +278,41 @@ def sheet_flag(triage: Triage | None) -> str | None:
     """The reading flag for a sheet the sheet-kind step doubted and called a non-plan kind (a
     warn-only set-aside, SHEET_KIND_SET_ASIDE=false): the drawing is flagged at upload like a
     Carbon-alone read, so none of its answers is certified and each is Low (orchestrator,
-    2026-11-14). None otherwise, and once a person had it read as a floor plan."""
+    2026-11-14). None otherwise, and once a person had it read as a floor plan. A sheet the step
+    called not a drawing says so, not "it looks like not a drawing" (R1 ingest QA)."""
     if triage is None or triage.read_as_plan is not None or not doubted_not_plan(triage):
         return None
     assert triage.sheet is not None  # doubted_not_plan
+    if triage.sheet.kind == "not_a_drawing":
+        return "the sheet may not be a drawing at all"
     return f"the sheet may not be a floor plan: it looks like {triage.sheet.kind_words}"
+
+
+def not_a_drawing(triage: Triage | None) -> bool:
+    """The sheet-kind step called the sheet not a drawing at all (a screenshot, a photo of a
+    room) and it was read only because the step warns instead of setting aside
+    (SHEET_KIND_SET_ASIDE=false, sheet_flag): its drawing is kept, flagged, but is no drawing a
+    screen counts as ready (QA R4-A9). False once a person had it read as a floor plan."""
+    if sheet_flag(triage) is None or triage is None or triage.sheet is None:
+        return False
+    return triage.sheet.kind == "not_a_drawing"
+
+
+# Over this the step is sure enough that a services sheet's symbols are not doors or fixtures
+# (review-596: 0 of 327 real plans in 892 labelled cached replies; T3 is 0.98)
+SURE_SERVICES = 0.9
+
+
+def symbols_refused(triage: Triage | None) -> str | None:
+    """sheet_flag's flag when the step called the doubted sheet a services (MEP) plan at a
+    confidence over SURE_SERVICES: its door, window and fixture counts are refused (R3-C3: T3, a
+    piping plan, answered "6 toilets" from 1 WC and 5 tanks). None otherwise: every other doubted
+    kind stays warn-only, answered Low with the flag (orchestrator, 2026-11-15 04:39)."""
+    flag = sheet_flag(triage)
+    if flag is None or triage is None or triage.sheet is None:
+        return None
+    sure = triage.sheet.kind == "mep_plan" and triage.sheet.confidence > SURE_SERVICES
+    return flag if sure else None
 
 
 def doubted_not_plan(triage: Triage) -> bool:
@@ -275,8 +322,19 @@ def doubted_not_plan(triage: Triage) -> bool:
     return sheet is not None and sheet.decision == "doubt" and sheet.kind not in SHEET_PLAN_KINDS
 
 
-def _how(found: TriageClass, p_plan: float, method: str) -> str:
-    return f"{CLASS_WORDS[found]} (P(plan) {p_plan:.2f}, {method})"
+def _how(found: TriageClass, p_plan: float, method: str, sheet: Sheet | None = None) -> str:
+    """Triage's call in words. A sheet the sheet kind doubts is read as a plan and flagged, so it
+    is not headlined "a floor plan": the line says what decided it (detail's audit: site.jpg,
+    "a floor plan (P(plan) 0.00, ...)" for a sheet the model called not a drawing)."""
+    words = CLASS_WORDS[found]
+    if found == "floor_plan" and sheet is not None and sheet.decision == "doubt":
+        why = (
+            "the sheet kind is unsure"
+            if sheet.kind == "architectural_floor_plan"
+            else f"the sheet kind calls it {sheet.kind_words}"
+        )
+        words = f"read as a floor plan, but flagged: {why}"
+    return f"{words} (P(plan) {p_plan:.2f}, {method})"
 
 
 def called_not_plan(file: FileStatus) -> bool:

@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { useState } from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, type Screens } from './App';
 import type { Issue } from './api';
 import {
@@ -13,7 +13,7 @@ import {
   rulePackFi,
 } from './api/fixtures';
 import { issuesChanged } from './shell/issueCount';
-import { InfoProvider, useInfo } from './shell/info';
+import { INFO_RETRY_MS, InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
 import { stubResizeObserver } from './test/resizeObserver';
@@ -121,6 +121,25 @@ describe('shell', () => {
     expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
     go(`#/p/${P}/d/${D}/surveyor?q=${encodeURIComponent('area:room|name=küche')}`);
     expect(screen.getByText(`surveyor ${D} area:room|name=küche`)).toBeTruthy();
+    await screen.findByText(OFFLINE);
+  });
+
+  it('R2-D3 the first Tab stop is "Skip to content", which moves focus to the screen', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    const skip = screen.getByRole('button', { name: 'Skip to content' });
+    const first = document.querySelector('a[href], button, input, [tabindex]:not([tabindex="-1"])');
+    expect(first).toBe(skip);
+    fireEvent.click(skip);
+    expect(document.activeElement).toBe(document.getElementById('main'));
+    await screen.findByText(OFFLINE);
+  });
+
+  it('R2-D5 the not-found link is a 44 px tap target', async () => {
+    window.location.hash = '#/nope';
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    expect(screen.getByRole('link', { name: 'Go to the start' }).className).toMatch(/\bmin-h-11\b/);
     await screen.findByText(OFFLINE);
   });
 
@@ -499,12 +518,35 @@ describe('shell', () => {
     });
     render(<App screens={stubs} />);
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain(
-      'The server did not answer: no drawing 0123456789abcdef (not-found)',
-    );
+    expect(alert.textContent).toContain('The server did not answer: no drawing 0123456789abcdef');
+    expect(alert.textContent).not.toContain('not-found'); // R2-C5
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await screen.findByText(OFFLINE);
     expect(api.calls.filter((c) => c.url === '/api/info')).toHaveLength(2);
+  });
+
+  it('SH-20b after an info error it asks again by itself, and the strip clears once the server answers', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let first = true;
+      const api = mockApi({
+        'GET /api/info': () => {
+          const answer = first ? reply(500, errorBody) : info;
+          first = false;
+          return answer;
+        },
+        'GET /api/projects': projectList,
+        ...noIssues,
+      });
+      render(<App screens={stubs} />);
+      await screen.findByRole('alert');
+      await act(() => vi.advanceTimersByTimeAsync(INFO_RETRY_MS));
+      await screen.findByText(OFFLINE);
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(api.calls.filter((c) => c.url === '/api/info')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('SH-21 useInfo gives the limits once loaded, null before', async () => {

@@ -40,7 +40,7 @@ from app.core.ingest.model import (
     Triage,
     Unavailable,
 )
-from app.core.ingest.triage import set_aside_reason, sheet_doubt, sheet_flag
+from app.core.ingest.triage import set_aside_reason, sheet_doubt, sheet_flag, symbols_refused
 from app.core.spend import SpendGuard
 from app.settings import Settings
 
@@ -168,6 +168,23 @@ def test_the_same_reply_on_a_scan_is_still_warned(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("kind", "flag"),
+    [
+        ("not_a_drawing", "the sheet may not be a drawing at all"),
+        ("elevation", "the sheet may not be a floor plan: it looks like an elevation"),
+        ("other", "the sheet may not be a floor plan: it looks like another kind of drawing"),
+    ],
+)
+def test_the_flag_reads_right_for_every_kind(tmp_path: Path, kind: str, flag: str) -> None:
+    """R1 ingest QA (w18:p1, 2026-11-15): a screenshot was flagged "the sheet may not be a floor
+    plan: it looks like not a drawing", broken English. A sheet that is not a drawing at all says
+    so; every other kind says what it looks like."""
+    triage = warn_only(tmp_path, form(kind, False, False, 0.95), PNG_PROBED)
+    assert triage.sheet is not None and triage.sheet.decision == "doubt"
+    assert sheet_flag(triage) == flag
+
+
+@pytest.mark.parametrize(
     "found",
     [
         form("not_a_drawing", False, False, 0.95),  # a photo of a room, sure
@@ -181,6 +198,30 @@ def test_a_camera_photo_of_a_non_plan_is_still_warned(
     triage = warn_only(tmp_path, found, PHOTO_PROBED)
     assert triage.sheet is not None and triage.sheet.decision == "doubt"
     assert sheet_flag(triage) is not None
+
+
+@pytest.mark.parametrize(
+    ("found", "refused"),
+    [
+        (PIPING, True),  # T3: mep_plan at 0.98
+        (form("mep_plan", False, True, 0.9), False),  # at 0.9, not over it
+        (FIRE_EXIT_PLAN, False),  # an evacuation plan the model calls mep_plan at 0.65
+        (form("structural_plan", False, False, 0.98), False),
+        (form("site_plan_or_map", False, False, 0.95), False),
+        (form("roof_or_ceiling_plan", False, False, 0.97), False),
+    ],
+)
+def test_only_a_sure_mep_plan_refuses_its_symbol_counts(
+    tmp_path: Path, found: dict[str, Any], refused: bool
+) -> None:
+    """R3-C3, narrowed after review-596 (orchestrator 04:39): refusing door and fixture counts on
+    every doubted non-plan kind hit 30 of 327 real plans (evacuation plans, directories, a ceiling
+    plan); mep_plan over 0.9 hit none and still catches T3 at 0.98. Every other doubt keeps
+    warn-only (answered, Low, with the flag)."""
+    triage = warn_only(tmp_path, found, PNG_PROBED)
+    assert sheet_flag(triage) is not None  # each is a flagged doubt
+    assert (symbols_refused(triage) == sheet_flag(triage)) is refused
+    assert (symbols_refused(triage) is None) is not refused
 
 
 def test_a_camera_photo_is_still_set_aside_at_the_cut(tmp_path: Path) -> None:
@@ -209,7 +250,7 @@ def test_an_mep_plan_is_set_aside_with_its_kind_title_and_number_and_no_register
     assert (found.class_, found.register_, model.calls) == ("other_drawing", None, 1)
     assert found.p_plan == pytest.approx(0.02)  # 1 - confidence: the model says no plan
     assert found.cost_usd == pytest.approx(0.0128)
-    assert found.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
+    assert found.method == "Gemini sheet kind"  # no model id or prompt version on screen
     assert found.sheet is not None
     assert (found.sheet.decision, found.sheet.title, found.sheet.sheet_number) == (
         "set_aside",
@@ -242,7 +283,7 @@ def test_a_doubt_is_read_keeps_the_inner_register_and_its_answers_say_so(tmp_pat
     )
     assert isinstance(found, Classified)
     assert (found.class_, found.register_) == ("floor_plan", register)
-    assert found.method == "fake classifier; Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
+    assert found.method == "fake classifier; Gemini sheet kind"
     triage = triage_of(found)
     assert sheet_doubt(triage) is None  # a non-plan kind: flagged instead, with its kind
     assert sheet_flag(triage) == (
@@ -312,7 +353,8 @@ def test_a_cached_reply_makes_no_call_and_costs_nothing(tmp_path: Path) -> None:
     again = classifier(tmp_path, model).classify(image, PNG_PROBED)
     assert isinstance(first, Classified) and isinstance(again, Classified)
     assert (model.calls, again.cost_usd, again.class_) == (1, 0.0, "other_drawing")
-    assert again.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-2, cached)"
+    assert again.method == "Gemini sheet kind (cached reply)"
+    assert again.sheet is not None and again.sheet.model == "gemini-4-carbon"  # kept as data
     cached.write_text("{")  # a cache file that does not parse is a miss
     classifier(tmp_path, model).classify(image, PNG_PROBED)
     assert model.calls == 2

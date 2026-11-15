@@ -54,9 +54,20 @@ ProviderName = Literal["gemini", "eu"]
 RasterScaleName = Literal["off", "priors"]
 # on: a sheet whose detector found no door takes the door estimate from Carbon's door boxes
 ScaleCarbonDoorsName = Literal["off", "on"]
+LabelScaleName = Literal["off", "on", "always"]
 # off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
 # its estimated scale and check its counts (app/adapters/printed_scale/)
 RasterPrintedScaleName = Literal["off", "carbon"]
+# on: a printed count of exactly the subject and floor an entry counts is the answer
+# (app/core/pipeline/printed_answer.py); off: it is only a second value, no rule decides
+PrintedTotalAnswersName = Literal["off", "on"]
+# on: an OCR engine reads the printed digits again (app/core/pipeline/printed_ocr.py)
+PrintedOcrCheckName = Literal["off", "on"]
+# on: a printed gross floor area against the rooms found summed (with RASTER_PRINTED_SCALE)
+GrossNetCheckName = Literal["off", "on"]
+# off, or on: DOOR_PRIOR_UNITS, DOOR_PRIOR_BOXES (app/core/pipeline/door_prior.py)
+DoorPriorName = Literal["off", "on"]
+ScaleSignaturesName = Literal["off", "bar", "on"]
 RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # raster: a drawn PDF the vector reader has no sheet style for goes to the raster route
 VectorFallbackName = Literal["off", "raster"]
@@ -111,11 +122,46 @@ class Settings(BaseSettings):
     # its source saying so; its door width is not fitted on Carbon's boxes yet
     # (app/adapters/raster_scale/carbon_doors.py)
     scale_carbon_doors: ScaleCarbonDoorsName = "off"
+    # on: a raster sheet whose scale is the door estimate or none takes the scale the areas printed
+    # in 3 or more room labels give (a rectified photo or a scan; an unrectified photo is left as
+    # it is): with no scale always, next to the door estimate when their bands do not overlap, the
+    # estimate kept as a conflict value; always: it replaces the door estimate whenever it is made
+    # (app/core/pipeline/label_scale.py)
+    label_scale: LabelScaleName = "off"
     # carbon: the printed scale (a bar, or a ratio at a resolution the file states) replaces the
     # estimate, kept as a conflict value, and printed counts are checked against the read ones.
     # Off by default; carbon asks gemini-4-carbon (GEMINI_API_KEY, the spend guard, cached in
     # CARBON_CACHE_DIR: the page reply is the Carbon reader's): about 0.015 USD a sheet
     raster_printed_scale: RasterPrintedScaleName = "off"
+    # on: with RASTER_PRINTED_SCALE, a count the sheet prints for exactly what an entry counts
+    # (same subject, the sheet's one floor, one value: "SECOND FLOOR = 48 DORMS" on a second-floor
+    # plan) is reported, the count read stays as the conflict's other value. off: no rule decides
+    printed_total_answers: PrintedTotalAnswersName = "off"
+    # on (with RASTER_PRINTED_SCALE=carbon): PP-OCR (rapidocr, local, CPU) reads again the printed
+    # facts' boxes, and the whole sheet for the scale text when it has at most 40 MP; a value OCR
+    # reads differently gets a note and, for a count, a second value with OCR's reading, and a
+    # scale text it reads differently is not used (app/adapters/raster_ocr/tiles.py). off: today's
+    printed_ocr_check: PrintedOcrCheckName = "off"
+    # on (needs RASTER_PRINTED_SCALE=carbon, no extra call): a gross floor area the sheet prints
+    # ("TOTAL SECOND FLOOR = 26,562 SF") is checked against the indoor rooms found summed; a net/
+    # gross ratio outside 0.60-1.02 puts both on the indoor area answer, held for a person
+    # (app/core/pipeline/gross_net.py)
+    gross_net_check: GrossNetCheckName = "off"
+    # on: with RASTER_PRINTED_SCALE=carbon, a sheet whose printed text is imperial (an imperial
+    # scale, feet-inch dimensions, SF or ft) gets its door estimate at a 0.914 m (3'-0") leaf, not
+    # the CubiCasa-fitted 0.794 m, and its rooms measured again (app/core/pipeline/door_prior.py)
+    door_prior_units: DoorPriorName = "off"
+    # on: with RASTER_SCALE=priors, a sheet whose counted doors are all Carbon's own boxes (none
+    # snapped onto a detector door) gets its door estimate at Carbon's
+    # box width CARBON_DOOR_M (1.069 m) instead of the detector's DOOR_M
+    # (app/core/pipeline/door_prior.py)
+    door_prior_boxes: DoorPriorName = "off"
+    # bar (with RASTER_PRINTED_SCALE): a measured bar and the ratio printed beside it a known slip
+    # apart (4/3, sqrt 2, 3/2, 2, ARCH D on 11x17: app/core/pipeline/scale_signatures.py) keep the
+    # bar, with a note naming the cause and the ratio as a conflict value. on: also a ratio against
+    # the door estimate (no bar), decided by the rooms' printed areas, else its areas are held
+    # (measured 2026-11-15: no better than chance against Carbon's doors; not for the demo)
+    scale_signatures: ScaleSignaturesName = "off"
     # auto: a raster page whose long side is over 4000 px is read by every detector source of
     # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
     # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.
@@ -210,9 +256,18 @@ class Settings(BaseSettings):
     ifc_facts_cache: str = ""
     # A scanned services or structural plan (triage's Sheet.discipline) read into a fact sheet at
     # ingest by local readers, no model call (app/adapters/discipline_pictures/lane.py; spec
-    # discipline-pictures.md): "template" = OCR legend + template symbols + mask runs. Off: ingest
-    # is unchanged. The sheets are kept in the cache folder by the page file's content
-    discipline_pictures: Literal["off", "template"] = "off"
+    # discipline-pictures.md): "template" = OCR legend + template symbols + mask runs; "glyphs" =
+    # the same with the trained glyph detector in DISCIPLINE_GLYPHS_MODEL for the symbols
+    # (glyphs.py); "gemini" = one Carbon call per page reads the legend and the symbols (gemini.py,
+    # GEMINI_API_KEY, on the spend guard), mask runs as template. Off: ingest is unchanged. The
+    # sheets are kept in the cache folder by the page file's content
+    discipline_pictures: Literal["off", "template", "glyphs", "gemini"] = "off"
+    # The picture lane's runs reader: "mask" = each coloured piece is a run (mask.py); "graph" =
+    # each legend line style thinned into a line graph, gaps bridged, a run per connected network
+    # (runs_graph.py; DigitalHub held out 33/64 vs mask 22/64 within 10%, .agents/exp/pics-runs.md).
+    # Its sheets are kept in their own folder
+    discipline_runs: Literal["mask", "graph"] = "mask"
+    discipline_glyphs_model: Path = Path("../data/models/pic-glyphs")
     discipline_pictures_cache_dir: Path = Path("../data/cache/discipline-pictures")
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none
@@ -323,6 +378,12 @@ class Settings(BaseSettings):
     # set-aside gate failed, 7 of 227 plans): a sheet it would set aside is read and flagged with
     # the kind it looks like, so its answers are never certified and are Low (orchestrator)
     sheet_kind_set_aside: bool = True
+    # Where Sheet.discipline comes from (.agents/exp/pics-pic-cls.md): rules = the title and sheet
+    # number words (discipline_from_sheet; the sheet-kind-2 prompt, replies and cache as before);
+    # gemini = the sheet-kind reply's own discipline field (prompt sheet-kind-3, one call still),
+    # None when the title or number names another one. gemini re-pays one reply per cached sheet.
+    # Off in the demo until Bogdan turns it on with DISCIPLINE_PICTURES (orchestrator, 2026-11-15)
+    sheet_discipline: Literal["rules", "gemini"] = "rules"
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

@@ -44,6 +44,7 @@ METHODS = {
     "printed_label": "the printed room areas",
     "polygon_x_scale": "the room outlines at the sheet's scale",
     "printed_total": "the total printed on the sheet",
+    "summed_rooms": "the summed rooms",
 }
 
 COUNTS: frozenset[ConflictQuantity] = frozenset({"room_count", "element_count", "storey_count"})
@@ -85,6 +86,14 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
     ),
     ("scale", frozenset({"scale_text", "detector"})): Rule(
         "scale_text", "the printed scale over the scale estimated from the doors"
+    ),
+    # SCALE_SIGNATURES: a ratio a known slip off its bar is shown beside the bar and the doors
+    ("scale", frozenset({"scale_text", "scale_bar", "detector"})): Rule(
+        "scale_bar", "the measured scale bar over the scale text and the doors' estimate"
+    ),
+    ("scale", frozenset({"printed_label", "detector"})): Rule(
+        "printed_label",
+        "the areas printed in the room labels over the scale estimated from the doors",
     ),
     ("element_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
         "plan_drawing", "count what the sheet draws"
@@ -183,8 +192,11 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
     are in the order of `second`, with ids c1, c2..."""
     firsts = {(one.quantity, one.subject): one.value for one in first}
     groups: dict[tuple[ConflictQuantity, Subject], list[MeasuredValue]] = {}
+    notes: dict[tuple[ConflictQuantity, Subject], str] = {}
     for again in second:
         key = (again.quantity, again.subject)
+        if again.note is not None:
+            notes.setdefault(key, again.note)
         values = groups.setdefault(key, [firsts[key]] if key in firsts else [])
         if any(value.method == again.value.method for value in values):
             raise ValueError(
@@ -210,6 +222,7 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
                 tolerance=tolerance,
                 values=tuple(values),
                 resolution=_resolution(quantity, subject, values, apart),
+                note=notes.get((quantity, subject)),
             )
         )
     return entries
@@ -223,8 +236,10 @@ def _resolution(
     rule = RULES.get((quantity, frozenset(value.method for value in values)))
     if quantity == "scale" and any(value.method == "detector" for value in values):
         numbers = [value.value for value in values]
-        if far_apart(min(numbers), max(numbers)) and (rule is None or rule.prefer != "scale_bar"):
-            rule = None  # a measured bar keeps its rule (printed.py); a ratio does not
+        if far_apart(min(numbers), max(numbers)) and (
+            rule is None or rule.prefer not in ("scale_bar", "printed_label")
+        ):  # a measured bar keeps its rule (printed.py), as the label scale (label_scale.py:
+            rule = None  # 3+ rooms, misreads dropped, the sheet's scale); a ratio does not
     if rule is None:
         read, others = values[0].value, [value.value for value in values[1:]]
         if (

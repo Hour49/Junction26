@@ -16,6 +16,8 @@ interface Props {
   name: string;
   onName: (name: string) => void;
   addMode: boolean;
+  /** false on a drawing with no page to click on (a building model, R4-B13) */
+  canAdd: boolean;
   onToggleAdd: () => void;
   selectedMark: string | null;
   highlightedMark: string | null;
@@ -88,7 +90,9 @@ export function QuantityDetail(props: Props) {
           <p>
             {conflict.resolution
               ? `Kept by rule: ${conflict.resolution.rule} → ${fmt(conflict.resolution.value)}`
-              : 'No rule decides. Settle a value before signing off.'}
+              : row.settled
+                ? 'No rule decides: you settled it.'
+                : 'No rule decides. Settle a value before signing off.'}
           </p>
           {conflict.note && <p>{conflict.note}</p>}
           {conflict.derived && <p>{conflict.derived}</p>}
@@ -161,7 +165,7 @@ export function QuantityDetail(props: Props) {
         }}
       />
       <div className="sv-tools">
-        {row.unit === 'count' && (
+        {row.unit === 'count' && props.canAdd && (
           <Button
             variant="secondary"
             className={DETAIL}
@@ -239,11 +243,7 @@ export function QuantityDetail(props: Props) {
         </p>
       )}
       {saving && <p role="status">Saving…</p>}
-      {err && (
-        <div role="alert">
-          {err.detail} (code: {err.code})
-        </div>
-      )}
+      {err && <div role="alert">{err.detail}</div>}
     </section>
   );
 }

@@ -85,6 +85,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action, a `note` on an edit other than `settle`, an empty `note` or one over 280 characters) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
+| A sign-off whose `expected_value` or `expected_unit` is no longer the quantity's (the current value in `errors`) | 409 `value-changed` |
 | Upload over 200 MB | 413 `too-large` |
 | A file added to a project (`POST …/files`) that is not a png or jpeg | 415 `unsupported` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
@@ -356,8 +357,9 @@ over its drawings (the review queue). `conflicts_open`: the conflicts a person s
 with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
 decided ("settled by a rule") or a person settled is not open. A room's several names count once.
 `issues_open`: the issues in state `open` in `GET /api/projects/{id}/issues` without a pack; null until `done`.
-`issues_to_answer`: of those, the ones that wait for a person's answer: not a `note` and no `answer` yet (an answer
-does not change an issue's `state`); null until `done`.
+`issues_to_answer`: of those, the ones that wait for a person's answer on Documents: not a `note`, no `answer` yet
+(an answer does not change an issue's `state`), and a `conflict` only when it has `resolved` (one without is settled
+on Ingest, not listed on Documents); the client's `needsYou` counts the same; null until `done`.
 `not_plans`: as in `GET /api/projects/{id}` (file triage); left out when the project was ingested with triage off.
 
 <!-- fixture: project_list.json -->
@@ -732,7 +734,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
@@ -907,6 +909,99 @@ Ingest's project status, plus `drawings`:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "raster": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "bim": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "ifc",
+        "label": "IFC model reader",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "cad": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "adeefbbcc17559fc",
@@ -1058,10 +1153,27 @@ Ingest's project status, plus `drawings`:
   runs, a number can still move (a drawing read before an earlier file is counted first). `credit` on each
   drawing: the licence credit of `file`, the same as `GET /api/drawings/{id}` gives (a page has the credit of the
   PDF it was split from), or null for a file that is not from the dataset, the Commons photos or the sample.
+- `not_a_drawing` on a drawing (additive, QA R4-A9; left out when false): `true` when the sheet-kind step called
+  its sheet not a drawing at all (a screenshot, a photo of a room) and it was read only because the step warns
+  instead of setting aside (`SHEET_KIND_SET_ASIDE=false`: the file is `flagged`). The drawing stays, so a person
+  can still have it read as a floor plan (that clears it), but a screen does not count it as a drawing ready. A
+  sheet doubted as another kind of drawing (a piping plan, an elevation) is a drawing: no field.
 - `stage`: the stage a running file is in, or the last one it finished, so the ingest screen needs no trace
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
   0), 0.0 with no paid reader, which is the point to show. `normalised` on an image file: as on the drawing's page.
+- `step` and `step_id` on a running file (decision 0018, additive): the label and the `id` of the step running
+  now ("Room reader (Gemini)", `rooms`; the step that started last when several run at once); left out when none
+  is. `phase` on the project while it runs: `files` (reading the files) or `index` (the last phase:
+  judging relevance, describing, the evidence index); null otherwise. `index_steps`: what ran in that last phase,
+  as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs. Each step shows as it starts
+  (`state` `running`) and is replaced by the step that ended; the evidence index's step is added once it ends.
+- `ran` on the project (decision 0018, additive; left out while empty): per route (`raster`, `vector`, `bim`,
+  `cad`), each step `id` that ran on that route's finished files, in first-seen order, as `{id, label, done,
+  skipped, failed}` (the number of files it ended on in each state; a file counts once per id, as `failed` if
+  the step failed anywhere in it, else `done`, else `skipped`). It grows as each file finishes and is final when
+  the project is done; a file read again replaces its own count. A screen ticks the readers that ran (`done` or
+  `failed` > 0) and dims the ones that did not, by id. A reused file counts the steps of the ingest it reuses.
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
   `set_aside`: no screen polls it for ever.
 
@@ -1115,6 +1227,8 @@ after a restart cut that run off:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": "files",
+  "index_steps": [],
   "drawings": [],
   "skipped": [],
   "expected_drawings": null,
@@ -1171,6 +1285,8 @@ after a restart cut that run off:
   "error": "the server restarted during ingest",
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": "files",
+  "index_steps": [],
   "drawings": [],
   "skipped": [
     {
@@ -1245,7 +1361,8 @@ the `identify` stage's line.
   (the default; `false` makes such a sheet a `doubt` instead: read and flagged, below), the file is set
   aside with the reason "not a floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it;
   `doubt`: it is read; with a non-plan kind, in either mode (an unsure one with `SHEET_KIND_SET_ASIDE=true` too), the
-  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; "), none of
+  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; ", or
+  "the sheet may not be a drawing at all; " for `not_a_drawing`), none of
   its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
   issue; the flag follows the project's triage, also when the reading is reused from the cache (a partial reading is
   never reused, #439), and `POST …/triage` drops it; with a plan kind every answer with a value ends its
@@ -1667,6 +1784,79 @@ photo of an elevation sheet with its register, showing a building that matches n
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [
+    {
+      "id": "judge",
+      "label": "Relevance judge",
+      "did": "4 files judged: 1 related, 2 unrelated, 1 unsure",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {
+        "related": 1,
+        "unrelated": 2,
+        "unsure": 1
+      }
+    },
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "classifier",
+        "label": "Triage: is it a floor plan?",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "6a47e9a1c33db404",
@@ -1775,7 +1965,7 @@ before, and is also described.
   included), `not described: ...` (`no description model is set up` without `TRIAGE_DESCRIBER`), `the evidence
   step failed: ...`, `searched by its own text: 3 pages, 2140 characters` (`, cut at 200,000 characters`; for a
   PDF whose drawing is not a source, `; its drawing is not a source (...)`), `listed by name only: <why>`, `a CAD
-  file: no kind decision for it yet` (DXF, SVG), `no text to index: no page holds text`.
+  drawing: the evidence index does not read DXF or SVG files`, `no text to index: no page holds text`.
 - `sheet`: the kind reply, the same object as `triage.sheet`; null when not asked. `description`: the same
   object as `triage.description` when indexed; for `text` and `listed` it is made by rule, no model: `subject` the
   file name in words, `text` the first 300 characters (or the "not read" sentence), `model` `no model: ...`.
@@ -2257,7 +2447,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "plans/flat-a.pdf",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "hash",
@@ -2265,7 +2456,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "identify",
@@ -2273,7 +2465,19 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "drawn PDF",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "probe",
+          "label": "Content probe",
+          "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "group",
@@ -2281,7 +2485,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "2 files",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "route",
@@ -2289,7 +2494,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "vector",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "normalise",
@@ -2297,7 +2503,19 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "pages",
+          "label": "Page size",
+          "did": "1 page, page 1 is 600 x 400 pt",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "extract",
@@ -2305,7 +2523,36 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "vector",
+          "label": "Drawn-PDF reader (Swiss plan rules)",
+          "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "door": 2,
+            "window": 2,
+            "toilet": 1,
+            "sink": 1,
+            "bathtub": 1,
+            "room": 5
+          }
+        },
+        {
+          "id": "tables",
+          "label": "Schedule tables (PDF)",
+          "did": "no ruled schedule on page 1",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "second_count",
@@ -2313,7 +2560,22 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": [
+        {
+          "id": "room_areas",
+          "label": "Room areas: printed vs measured",
+          "did": "5 quantities compared: 5 agree, 0 conflicts",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "agree": 5,
+            "conflict": 0
+          }
+        }
+      ]
     },
     {
       "stage": "takeoff",
@@ -2321,7 +2583,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "takeoff: 141 quantities, 81 above zero",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "write",
@@ -2329,7 +2592,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "141 quantities",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     }
   ],
   "second_count": {
@@ -2346,6 +2610,24 @@ that is not an evidence id. `description.detail` is a model's description no per
   (`write`, or `route` for a file set aside there), so the ingest screen counts it as on the first run.
 - `did`: one readable line of what the stage did; `output`: what it produced; `ms`: its time.
 - `failure`: set when the stage failed; the file then ends `set_aside` with this as its reason.
+- `steps` (decision 0018, additive): what ran inside the stage, in start order; `[]` where nothing is broken down
+  yet. Each step: `id` (a stable machine id, below), `label` (plain words to show: "Symbol detector, 8 views"),
+  `did` (one line of what it found, or the error when it failed), `at_ms` (when it began, ms after its stage
+  began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`; `running` for a step of `index_steps` that has started and not ended) and
+  `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
+  (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
+  (normalise); `local_slot` (the wait for the one local reading slot, `INGEST_LOCAL_IN_FLIGHT`, before the
+  readers' steps; only when it waited 10 ms or more), `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the
+  Carbon reader, whole sheet or things drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `prior_scale` (the scale
+  estimated from door sizes, `skipped` when not made), `double_check`, `plans`,
+  `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
+  `room_areas`, `schedule_tags`, `second_count:<quantity>` (any other comparison) (second_count: `found` is
+  `{"agree": n, "conflict": m}`); `judge`,
+  `describe`, `evidence` (the project's `index_steps`). An id is unique in its stage: a double-check reader's is
+  `double_check:<reader name>` (`double_check:l1`), a raster source's own steps are `<its id>/<inner id>` and
+  follow it (`arbiter/base`, `arbiter/second`, `arbiter/pick`: the count arbiter's reads and its pick), and an id
+  met again in a stage is numbered (`detector`, `detector-2`). A step that is not timed on its own (a comparison,
+  the EXIF turn) has `ms` 0. A new id may be added; a screen shows `label` and need not know the id.
 
 A file set aside at a stage that failed (a zip entry that would be written outside the project folder): the
 stage carries `failure`, and later stages are not run:
@@ -2380,7 +2662,8 @@ stage carries `failure`, and later stages are not run:
       "ms": 12.5,
       "output": "",
       "failure": "unsafe path: it could be written outside the project folder",
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     }
   ],
   "second_count": null
@@ -2567,7 +2850,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-a.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -2575,7 +2859,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -2583,7 +2868,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 142 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -2591,7 +2888,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 files",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -2599,7 +2897,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -2607,7 +2906,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -2615,7 +2926,36 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -2623,7 +2963,22 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 5 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 5,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -2631,7 +2986,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -2639,7 +2995,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -2826,7 +3183,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-a.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -2834,7 +3192,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -2842,7 +3201,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x800 px, 93% white, 99% paper, 0.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -2850,7 +3221,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 files",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -2858,7 +3230,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -2866,7 +3239,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 800 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 800 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -2874,7 +3259,36 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -2882,7 +3296,22 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 5 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 5,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -2890,7 +3319,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -2898,7 +3328,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -2915,7 +3346,7 @@ upload lists the files, instead of one request per file.
         "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
         "kind": "pdf_vector",
         "state": "flagged",
-        "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+        "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
         "group": "plans/flat-b",
         "route": "vector",
         "source": "plans/flat-b.pdf",
@@ -3076,7 +3507,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-b.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3084,7 +3516,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3092,7 +3525,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 18 paths, 0 images, 141 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3100,7 +3545,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3108,7 +3554,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3116,7 +3563,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3124,7 +3583,36 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -3132,7 +3620,22 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5 quantities measured twice, 1 conflict",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "5 quantities compared: 4 agree, 1 conflict",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 4,
+                "conflict": 1
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3140,7 +3643,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3148,7 +3652,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -3278,7 +3783,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-c.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3286,7 +3792,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1dd9419ba7b69b19337fc8690777766fcdd22301df5fb46ff3f70056dec57b0c",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3294,7 +3801,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawn PDF (page 1 of 1: 13 paths, 0 images, 80 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3302,7 +3821,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3310,7 +3830,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3318,7 +3839,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 600 x 400 pt",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3326,7 +3859,33 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 elements, 3 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "3 rooms, 1 door, 1 window; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 1,
+                "window": 1,
+                "room": 3
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -3334,7 +3893,22 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "room_areas",
+              "label": "Room areas: printed vs measured",
+              "did": "2 quantities compared: 2 agree, 0 conflicts",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "agree": 2,
+                "conflict": 0
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
@@ -3342,7 +3916,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 93 quantities, 43 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3350,7 +3925,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "93 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -3395,7 +3971,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "scans/ground-floor.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3403,7 +3980,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3411,7 +3989,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3419,7 +4009,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3427,7 +4018,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3435,7 +4027,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 850 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3443,7 +4047,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3451,7 +4056,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3459,7 +4065,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3467,7 +4074,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3509,7 +4117,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "scans/ground-floor-copy.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3517,7 +4126,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3525,7 +4135,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a drawing as a PNG (1200x850 px, 95% white, 96% paper, 4.0% ink)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3533,7 +4155,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3541,7 +4164,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "cache",
@@ -3549,7 +4173,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "flagged",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3557,7 +4182,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1200 x 850 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3565,7 +4202,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3573,7 +4211,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3581,7 +4220,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3589,7 +4229,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3631,7 +4272,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photos/plan-photo.jpg",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3639,7 +4281,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3647,7 +4290,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photo of a drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a photo of a drawing (1600x1200 px, 47% white, 49% paper, 1.1% ink (2.2% on the paper), camera EXIF (SyntheticPhone Model 1))",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3655,7 +4310,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3663,7 +4319,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3671,7 +4328,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1600 x 1200 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "pages",
+              "label": "Page size",
+              "did": "1 page, page 1 is 1600 x 1200 px",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "extract",
@@ -3679,7 +4348,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3687,7 +4357,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3695,7 +4366,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3703,7 +4375,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3736,7 +4409,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photos/site.jpg",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3744,7 +4418,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3752,7 +4427,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photo",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a photo, not of a drawing (1600x1200 px, 15% white, 25% paper, 0.0% ink (0.0% on the paper), camera EXIF (SyntheticPhone Model 1))",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -3803,6 +4490,50 @@ upload lists the files, instead of one request per file.
           "railing|storey=ground floor": 0,
           "railing|storey=ground floor|model": 0,
           "room": 2,
+          "room:balcony": 0,
+          "room:balcony|model": 0,
+          "room:balcony|storey=ground floor": 0,
+          "room:balcony|storey=ground floor|model": 0,
+          "room:bathroom": 0,
+          "room:bathroom|model": 0,
+          "room:bathroom|storey=ground floor": 0,
+          "room:bathroom|storey=ground floor|model": 0,
+          "room:bedroom": 0,
+          "room:bedroom|model": 0,
+          "room:bedroom|storey=ground floor": 0,
+          "room:bedroom|storey=ground floor|model": 0,
+          "room:hall": 0,
+          "room:hall|model": 0,
+          "room:hall|storey=ground floor": 0,
+          "room:hall|storey=ground floor|model": 0,
+          "room:kitchen": 1,
+          "room:kitchen|model": 1,
+          "room:kitchen|storey=ground floor": 1,
+          "room:kitchen|storey=ground floor|model": 1,
+          "room:living": 1,
+          "room:living|model": 1,
+          "room:living|storey=ground floor": 1,
+          "room:living|storey=ground floor|model": 1,
+          "room:outdoor": 0,
+          "room:outdoor|model": 0,
+          "room:outdoor|storey=ground floor": 0,
+          "room:outdoor|storey=ground floor|model": 0,
+          "room:sauna": 0,
+          "room:sauna|model": 0,
+          "room:sauna|storey=ground floor": 0,
+          "room:sauna|storey=ground floor|model": 0,
+          "room:shaft": 0,
+          "room:shaft|model": 0,
+          "room:shaft|storey=ground floor": 0,
+          "room:shaft|storey=ground floor|model": 0,
+          "room:storage": 0,
+          "room:storage|model": 0,
+          "room:storage|storey=ground floor": 0,
+          "room:storage|storey=ground floor|model": 0,
+          "room:wc": 0,
+          "room:wc|model": 0,
+          "room:wc|storey=ground floor": 0,
+          "room:wc|storey=ground floor|model": 0,
           "room|model": 2,
           "room|storey=ground floor": 2,
           "room|storey=ground floor|model": 2,
@@ -3837,7 +4568,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "model/house.ifc",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3845,7 +4577,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "951a9027130b1b3a7a86e1c1b1292a582fb01c988a189f406078ed8b7cac0047",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3853,7 +4586,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "IFC model",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "first bytes: an IFC building model (STEP)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3861,7 +4606,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3869,7 +4615,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "bim",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3877,7 +4624,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "no page, a building model",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -3885,23 +4633,43 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "12 model objects",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "ifc",
+              "label": "IFC model reader",
+              "did": "12 model objects: 4 walls, 3 windows, 2 doors, 2 spaces, 1 slab",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 3,
+                "wall": 4,
+                "slab": 1,
+                "space": 2
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",
-          "did": "takeoff: 51 quantities, 35 above zero",
+          "did": "takeoff: 95 quantities, 43 above zero",
           "ms": 12.5,
-          "output": "takeoff: 51 quantities, 35 above zero",
+          "output": "takeoff: 95 quantities, 43 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
           "did": "drawing model 1db9bcf1e67e27a3 stored",
           "ms": 12.5,
-          "output": "51 quantities",
+          "output": "95 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3934,7 +4702,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "cad/detail.dxf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3942,7 +4711,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3950,7 +4720,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "DXF drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "first bytes: a DXF drawing",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "group",
@@ -3958,7 +4740,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3966,7 +4749,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "cad",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3999,7 +4783,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "docs/specification.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -4007,7 +4792,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "91af270215243f7925863c27187149ec275efe789e6ed277a3a9da77ad86d692",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -4015,7 +4801,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "text PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "a text document, not a drawing (page 1 of 1: 0 paths, 0 images, 4498 characters)",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -4048,7 +4846,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "docs/notes.txt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -4056,7 +4855,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "ca6138f02cfafd870094f2e8ef9a15f39c6c8925025613a0c6465ae21f2e7a20",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -4064,7 +4864,19 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "text file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": [
+            {
+              "id": "probe",
+              "label": "Content probe",
+              "did": "plain text, 80 bytes",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         }
       ],
       "second_count": null
@@ -4157,7 +4969,7 @@ many quantities are left to review and how many are signed off, and every confli
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
-      "quantities": 35
+      "quantities": 27
     }
   ],
   "conflicts": [
@@ -4319,7 +5131,7 @@ tell, and an uncertain answer with the model's check:
       "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
       "group": "flat-b",
       "route": "vector",
       "source": "flat-b.pdf",
@@ -4491,6 +5303,58 @@ tell, and an uncertain answer with the model's check:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -4995,10 +5859,10 @@ tell, and an uncertain answer with the model's check:
         ],
         "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
         "readers": {
-          "answer": "door, score 0.41",
-          "L one view": "nothing",
-          "M one view": "nothing",
-          "seg": "door, score 0.62"
+          "answer": "door",
+          "reader 1": "nothing",
+          "reader 2": "nothing",
+          "reader 3": "door"
         }
       },
       {
@@ -5013,9 +5877,9 @@ tell, and an uncertain answer with the model's check:
         "why": "Not counted, but 2 of the 3 other readers see a door here.",
         "readers": {
           "answer": "nothing",
-          "L one view": "door, score 0.55",
-          "M one view": "door, score 0.48",
-          "seg": "nothing"
+          "reader 1": "door",
+          "reader 2": "door",
+          "reader 3": "nothing"
         }
       }
     ]
@@ -5464,7 +6328,7 @@ that leaves the list (a refused question answered later) takes its answer with i
 - A failed code check's issue needs its `pack`, as the list does.
 - Errors: an unknown project, pack or issue is 404; a project that is not `done` is 409 `not-allowed`; a body with
   no `text` or `by`, an empty one, or `undo` with either is 422 `validation`.
-- The project's `issues_to_answer` drops by one when an open issue that is not a note gets its first answer.
+- The project's `issues_to_answer` drops by one when an open issue it counts gets its first answer.
 
 <!-- fixture: issue_answer_request.json -->
 ```json
@@ -6211,8 +7075,9 @@ so every client shows the same one: show `level` as the pill and `text` with it,
   - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
     route with no level). Low.
   - `carbon` (`CARBON_LEVELS=demote` or `ladder`): Gemini Carbon read the raster sheet beside the reader. A Medium
-    answer it counted differently is low; with `ladder`, one it counted the same is high ("checked by Carbon: two
-    readers agree"). When Carbon could not check the sheet, the level stays as it was and `text` says so.
+    answer it counted differently is low; with `ladder`, one it counted the same is high ("two readers agree: a
+    second AI reader counted the same here"). When Carbon could not check the sheet, the level stays as it was and
+    `text` says so.
 - `text`: one plain sentence to show with the pill. For `certified` and `score` it quotes the validation counts of
   that level from the policy file, e.g. `Medium confidence: on our validation plans, 91% of the answers rated this
   way were exact (1084 of 1185). Please double-check it.`; for `route`, the route's reference counts.
@@ -6675,10 +7540,10 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
         ],
         "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
         "readers": {
-          "answer": "door, score 0.41",
-          "L one view": "nothing",
-          "M one view": "nothing",
-          "seg": "door, score 0.62"
+          "answer": "door",
+          "reader 1": "nothing",
+          "reader 2": "nothing",
+          "reader 3": "door"
         }
       },
       {
@@ -6693,9 +7558,9 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
         "why": "Not counted, but 2 of the 3 other readers see a door here.",
         "readers": {
           "answer": "nothing",
-          "L one view": "door, score 0.55",
-          "M one view": "door, score 0.48",
-          "seg": "nothing"
+          "reader 1": "door",
+          "reader 2": "door",
+          "reader 3": "nothing"
         }
       }
     ]
@@ -7590,7 +8455,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in"
     },
     "estimate": null,
     "first": null,
@@ -8843,7 +9708,7 @@ still come from this turn's tool results).
 
 `next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
 message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
-results, never from the model's text, in this order: "Show them on the plan" (`message` "Show me where they are")
+results, never from the model's text, in this order: "Show me where they are" (its `message` the same, QA R4-E8)
 when the answer has more marks than the view shows; "Are you sure?" when an answer is rated Medium or Low or has
 disputed marks, not after a review; "How big is <label>?" when the answer names a room `find_rooms` returned without
 an area. `next` is `[]` on a turn with `options` and on every other kind.
@@ -8854,7 +9719,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   "chat_id": "c4a7c0000001",
   "turn": 1,
   "kind": "answer",
-  "text": "The answer is below [1][2][3].",
+  "text": "Drawn plan 1: 2 [1]; Drawn plan 2: 2 [2]; Drawn plan 3: 1 [3]; Building model 1: 2.",
   "evidence": [
     {
       "n": 1,
@@ -9819,7 +10684,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   },
   "next": [
     {
-      "label": "Show them on the plan",
+      "label": "Show me where they are",
       "message": "Show me where they are"
     }
   ]
@@ -10234,7 +11099,7 @@ budget, the same call a third time) ends a turn the same way.
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",
@@ -10319,7 +11184,7 @@ budget, the same call a third time) ends a turn the same way.
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",
@@ -11151,7 +12016,7 @@ any project, which no project shows. A project that does not hold the drawing is
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in"
       },
       "estimate": null,
       "first": null,
@@ -11368,6 +12233,28 @@ sign-off.
 `"settle": true` (optional) first keeps the quantity's current value as its settled value, then signs it off, for a
 "Looks right" button: a conflict no rule decides is signed in one call, with no `needs_person` 409. The 409 for a
 signed-off quantity is the same; `settle` together with `undo` is 422 `invalid`.
+
+`"expected_value"` and `"expected_unit"` (optional, R4-B10): the value and unit the client showed when the person
+signed (the row's `value` and `unit` as the last takeoff gave them). When the quantity's value or unit is now another
+one (someone settled or edited it since), nothing is signed: 409 `value-changed`, the current value and unit in
+`errors`. Left out, the value in use is signed, as before.
+
+```json
+{
+  "quantity": "door",
+  "by": "Ana",
+  "expected_value": 2,
+  "expected_unit": "count"
+}
+```
+
+```json
+{
+  "detail": "door count is now 3 count, not the 2 count shown: nothing was signed. Look at it again before you sign it off.",
+  "code": "value-changed",
+  "errors": [{"loc": ["body", "expected_value"], "current_value": 3, "unit": "count"}]
+}
+```
 
 <!-- fixture: signoff_settle_request.json -->
 ```json
@@ -12262,6 +13149,23 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018): step id `local_slot` in extract, the wait for the local reading slot
+  (`INGEST_LOCAL_IN_FLIGHT`) before the readers' steps (`did`: "waited 2.9 s: the local readers read one sheet at a
+  time"; only when the wait was 10 ms or more). Reporting only: the lock and the reading do not change.
+- 2026-11-15, additive (decision 0018): step id `prior_scale` in extract under `RASTER_SCALE=priors`, the scale
+  estimated from door sizes (`did`: the scale, or why none; `skipped` when not made). Reporting only: no reading
+  changes.
+- 2026-11-15, additive (QA R4-A9, decision 0010 amendment): `DrawingEntry.not_a_drawing` (left out when false):
+  the sheet-kind step called the sheet not a drawing and it was read only under warn-only.
+- 2026-11-15, additive (decision 0018): `ProjectStatus.ran` (left out while empty): per route, the steps that ran
+  on this upload's finished files with file counts (`RanStep`: `id`, `label`, `done`, `skipped`, `failed`). Step
+  ids are stable: the Carbon check is `carbon_check` (was `carbon`, or `carbon-2` beside the Carbon reader), an
+  unnamed comparison `second_count:<quantity>` (was `second_count`). Fixtures regenerated.
+- 2026-11-15, additive (decision 0018): `StepTrace.state` gains `running`; `ProjectStatus.index_steps` fills while the
+  last phase runs (a running step, then the step that ended).
+- 2026-11-15, additive (decision 0018, ingest trace steps): `StageTrace.steps` (a `StepTrace` list: `id`, `label`,
+  `did`, `at_ms`, `ms`, `cost_usd`, `state`, `found`), `FileStatus.step` (left out when none), `FileStatus.step_id`, `ProjectStatus.phase`
+  and `ProjectStatus.index_steps`. Old clients ignore them; fixtures regenerated.
 - 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
   reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and
   has no scale bar (#282); a scale bar needs one unit, metres or feet (#301). `VECTOR_FALLBACK=raster` (default

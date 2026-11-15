@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from conftest import plan_png
 from fastapi.testclient import TestClient
+from test_api_issues import waits_for_you
 from test_vector_pdf import swiss_sheet
 from triage_fakes import FakeClassifier, FakeDescriber, WordJudge, steps
 
@@ -79,6 +80,20 @@ def issues(client: TestClient, project_id: str) -> list[dict[str, Any]]:
 def call(client: TestClient, found: dict[str, Any], path: str, body: dict[str, Any]) -> Any:
     url = f"/api/projects/{found['id']}/files/{file_id(found, path)}/relevance"
     return client.post(url, json=body)
+
+
+def test_an_answer_lowers_issues_to_answer_and_the_issue_stays_open(triaged: TestClient) -> None:
+    found = project(triaged, {"section.png": DRAWING, "score.png": SCORE})  # no plan: unsure
+    first = issues(triaged, found["id"])
+    assert all(waits_for_you(issue) for issue in first)
+    counts = ("issues_open", "issues_to_answer")
+    assert [found[key] for key in counts] == [2, 2]
+    said = {"text": "Check it on site", "by": "Ana"}
+    url = f"/api/projects/{found['id']}/issues/{first[0]['id']}/answer"
+    assert triaged.post(url, json=said).status_code == 200
+    after = triaged.get(f"/api/projects/{found['id']}").json()
+    (listed_after,) = triaged.get("/api/projects").json()["projects"]
+    assert [after[key] for key in counts] == [listed_after[key] for key in counts] == [2, 1]
 
 
 def test_a_triaged_file_shows_its_class_description_verdict_and_the_project_counts_non_plans(

@@ -9,7 +9,9 @@ is joined to the element or room it marks by page and box, for its label, id and
 recount is the ingest value minus the rejected marks' values plus the added and counted-in ones',
 so a count without marks behind it (a model's object count) still recounts. A sum with a mark of
 unknown value cannot be recounted, so only `settle` changes it. A settled value holds until the
-next mark edit. An edit changes its own quantity only.
+next mark edit. An edit changes its own quantity only, with one exception as the rows show it:
+an item rejected on a sheet-wide count is rejected on every count of its class that shows it
+(`with_rejected_items`, R4-B2).
 
 Two rules keep a demo honest: a signed-off quantity is not edited until the sign-off is undone,
 and a conflict no rule decides is settled by a person before it can be signed off.
@@ -46,6 +48,17 @@ Item = tuple[str | None, str | None, Polygon | None, float | None]
 
 class NotAllowedError(DomainError):
     """An edit the review's state forbids now (a signed-off quantity, an unsettled conflict)."""
+
+
+class ValueChangedError(NotAllowedError):
+    """A sign-off of a value that is no longer the quantity's (R4-B10): `errors` gives the
+    current value and unit, so the client can show it."""
+
+    def __init__(self, detail: str, current: float, unit: str) -> None:
+        super().__init__(detail)
+        self.errors: list[dict[str, object]] = [
+            {"loc": ["body", "expected_value"], "current_value": current, "unit": unit}
+        ]
 
 
 def parse_key(key: str) -> tuple[Measure, str, Scope]:
@@ -443,6 +456,37 @@ def storey_twins(found: Mapping[str, Quantity] | Mapping[str, Row]) -> dict[str,
     return twins
 
 
+def model_twins(found: Mapping[str, Quantity]) -> dict[str, str]:
+    """Each whole-model row ("door|model") that is its plain row ("door") under another key, with
+    the plain row's key: a building model asked on its own (an .ifc, no page) is keyed both ways
+    so a plain question resolves on it (takeoff._add_model), and the takeoff lists it once, on the
+    plain row, which takes its edits and sign-off (R4-B14). A model row that differs from its
+    plain row in anything (a sheet's drawn count) is its own row."""
+    twins: dict[str, str] = {}
+    for key, item in found.items():
+        measure, subject, scope = parse_key(key)
+        if not scope.model:
+            continue
+        plain = quantity_key(
+            measure, subject, **scope.model_copy(update={"model": False}).model_dump()
+        )
+        other = found.get(plain)
+        if other is not None and item.model_copy(update={"key": plain}) == other:
+            twins[key] = plain
+    return twins
+
+
+def takeoff_twins(found: Mapping[str, Quantity]) -> dict[str, str]:
+    """Each row whose edits and sign-off are another row's (`storey_twins`, `model_twins`), with
+    the key of the row that finally stands for it."""
+    twins = {**model_twins(found), **storey_twins(found)}
+    for key, target in list(twins.items()):
+        while target in twins:
+            target = twins[target]
+        twins[key] = target
+    return twins
+
+
 def with_twins(state: ReviewState, twins: Mapping[str, str]) -> ReviewState:
     """The state with each storey twin (`storey_twins`) taking its sheet row's edits, settled
     value and sign-off: the review lists the disagreement once, on the sheet's row, and what is
@@ -465,10 +509,46 @@ def with_twins(state: ReviewState, twins: Mapping[str, str]) -> ReviewState:
     )
 
 
+def with_rejected_items(state: ReviewState, quantities: Mapping[str, Quantity]) -> ReviewState:
+    """The state as the rows show it: an item rejected on a sheet-wide count (no room, label,
+    apartment or storey: "door") is rejected on every count of its class that shows it ("door|
+    name=kitchen", "door+window"), so no room counts a door the surveyor said is no door (R4-B2).
+    A rejection on a narrower row stays there: a door between two rooms is both rooms', and "not
+    this room's" is not "not a door". Derived for the rows shown, never stored."""
+    gone: dict[tuple[int, Box], set[str]] = {}  # an item -> the classes it is not
+    for key, ids in state.rejected.items():
+        found = quantities.get(key)
+        if found is None or found.unit != "count":
+            continue
+        _, subject, scope = parse_key(key)
+        if scope != Scope():
+            continue
+        for mark_id in ids:
+            if _numbered(mark_id, "m", len(found.marks)):
+                mark = found.marks[int(mark_id[1:]) - 1]
+                gone.setdefault((mark.page, mark.box), set()).update(subject.split("+"))
+    if not gone:
+        return state
+    rejected = dict(state.rejected)
+    for key, found in quantities.items():
+        if found.unit != "count":
+            continue
+        classes = set(parse_key(key)[1].split("+"))
+        also = [
+            f"m{at}"
+            for at, mark in enumerate(found.marks, start=1)
+            if classes & gone.get((mark.page, mark.box), set())
+        ]
+        if also:
+            rejected[key] = tuple(dict.fromkeys((*rejected.get(key, ()), *also)))
+    return state.model_copy(update={"rejected": rejected})
+
+
 def sheet_row(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:
     """The quantity an edit or sign-off of `key` is made on: a storey twin's sheet row
-    (`storey_twins`), so one disagreement has one decision; else `key`'s own."""
-    return quantity_of(quantities, storey_twins(quantities).get(key or "", key))
+    (`storey_twins`), so one disagreement has one decision, or a model file's plain row
+    (`model_twins`); else `key`'s own."""
+    return quantity_of(quantities, takeoff_twins(quantities).get(key or "", key))
 
 
 def quantity_of(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:
@@ -555,23 +635,69 @@ def apply(
     )
 
 
-def sign(state: ReviewState, quantity: Quantity, drawing: Drawing, by: str, at: str) -> ReviewState:
-    """Signs off the quantity's current value; a conflict no rule decides is settled first."""
-    if needs_person(quantity, state):
+def apply_on_takeoff(
+    state: ReviewState,
+    edit: Edit,
+    quantity: Quantity,
+    drawing: Drawing,
+    at: str,
+    quantities: Mapping[str, Quantity],
+) -> ReviewState:
+    """`apply`, refused when it would change another row a person decided: a mark rejected or
+    restored on a sheet-wide row changes the rows that show the same item (`with_rejected_items`),
+    and a row signed off or settled is not changed under that decision (review-640: a room's door
+    row signed at 2 showed 1 under its sign-off). Undo the sign-off or unsettle that row first."""
+    after = apply(state, edit, quantity, drawing, at)
+    before, shown = with_rejected_items(state, quantities), with_rejected_items(after, quantities)
+    for key in sorted(quantities):
+        if key == quantity.key or before.rejected.get(key) == shown.rejected.get(key):
+            continue
+        if (signed := state.signed.get(key)) is not None:
+            raise NotAllowedError(
+                f"{key} is signed off by {signed.by}, and this edit would change it; undo that "
+                "sign-off first"
+            )
+        if key in state.settled:
+            raise NotAllowedError(
+                f"{key} has a settled value, and this edit would change its marks; unsettle it "
+                "first"
+            )
+    return after
+
+
+def sign(
+    state: ReviewState,
+    quantity: Quantity,
+    drawing: Drawing,
+    by: str,
+    at: str,
+    shown: ReviewState | None = None,
+) -> ReviewState:
+    """Signs off the quantity's current value; a conflict no rule decides is settled first.
+    `shown`: the state as the rows show it (`with_rejected_items`), whose value is signed; the
+    stored state gets only the sign-off."""
+    seen = state if shown is None else shown
+    if needs_person(quantity, seen):
         raise NotAllowedError(
             f"{quantity.key}: the methods disagree and no rule decides; settle it before signing"
         )
-    value = current_value(quantity, mark_views(quantity, drawing, state), state)
+    value = current_value(quantity, mark_views(quantity, drawing, seen), seen)
     signed = {**state.signed, quantity.key: SignOff(by=by, at=at, value=value)}
     return state.model_copy(update={"signed": signed})
 
 
 def settle_and_sign(
-    state: ReviewState, quantity: Quantity, drawing: Drawing, by: str, at: str
+    state: ReviewState,
+    quantity: Quantity,
+    drawing: Drawing,
+    by: str,
+    at: str,
+    shown: ReviewState | None = None,
 ) -> ReviewState:
     """Keeps the quantity's current value as its settled value, then signs it off: one step for
-    "looks right". A signed-off quantity is refused as for any edit."""
-    value = current_value(quantity, mark_views(quantity, drawing, state), state)
+    "looks right". A signed-off quantity is refused as for any edit. `shown` as for `sign`."""
+    seen = state if shown is None else shown
+    value = current_value(quantity, mark_views(quantity, drawing, seen), seen)
     edit = Edit(quantity=quantity.key, action="settle", value=value)
     return sign(apply(state, edit, quantity, drawing, at), quantity, drawing, by, at)
 

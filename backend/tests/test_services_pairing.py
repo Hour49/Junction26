@@ -133,7 +133,7 @@ def test_floor_words_of_several_languages() -> None:
     cases = {
         "EG": "0", "Erdgeschoss": "0", "Ground floor": "0", "1. OG": "1", "OG1": "1",
         "Level 02": "2", "2nd floor": "2", "3F": "3", "2. krs": "2", "KRS1": "1", "Kellari": "-1",
-        "B1": "-1", "ullakko": "roof",
+        "B1": "-1", "ullakko": "attic",
         "plan-02-e00-okrd": "0", "E01_OKRD": "1", "B01": "-1", "A-101 plan.pdf": None,
     }  # fmt: skip
     for words, key in cases.items():
@@ -157,6 +157,7 @@ WALLS_M = (
     ((4, 0), (4, 8)), ((4, 5), (10, 5)), ((7, 5), (7, 8)), ((0, 3), (2, 3)),
 )  # fmt: skip
 PAGE_PX = (500.0, 600.0)
+WHOLE = (0.0, 0.0, 500.0, 600.0)  # the whole page as the sheet-walls reader's crop
 
 
 def on_sheet(p: tuple[float, float]) -> tuple[float, float]:
@@ -178,7 +179,7 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
     plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
     picture = sheet(name="scan.png", rooms=(), size_m=None)
     drawn = segments((on_sheet(a), on_sheet(b)) for a, b in WALLS_M)
-    walls = by_walls(segments(WALLS_M), lambda _: (drawn, PAGE_PX))
+    walls = by_walls(segments(WALLS_M), lambda _: ([(WHOLE, drawn)], PAGE_PX))
     laid = walls(plan, picture)
     assert not isinstance(laid, str), laid
     to_plan, how = laid
@@ -201,6 +202,127 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
     assert found == ("the services picture has no scale; no wall lines were read on the sheet")
 
 
+# WALLS_M with a few more rooms: 8 lines are too few for a crop's own frame (another quarter
+# turn reaches 80% there, inside register's margin)
+RICH = (
+    *WALLS_M,
+    ((1, 6), (3, 6)), ((8, 1), (8, 3)), ((2, 0), (2, 1.5)), ((5.5, 6.5), (6.5, 6.5)),
+    ((4, 2), (6, 2)), ((8.5, 5), (8.5, 6.5)),
+)  # fmt: skip
+
+
+def cropped(origin: tuple[float, float], lines: list[Segment]) -> list[Segment]:
+    """Lines in a crop's own pixels: the page's less the crop's corner."""
+    ox, oy = origin
+    return [Segment(a=(s.a[0] - ox, s.a[1] - oy), b=(s.b[0] - ox, s.b[1] - oy)) for s in lines]
+
+
+def lands(to_plan: Affine, p: tuple[float, float]) -> bool:
+    x, y = on_sheet(p)
+    fx, fy = to_plan.apply((x / PAGE_PX[0], y / PAGE_PX[1]))
+    return abs(fx - p[0] / 12) < 0.005 and abs(fy - p[1] / 10) < 0.005
+
+
+def test_a_crop_is_laid_with_its_corner_added_back() -> None:
+    """The plan-view finder's crop (the plan without the sheet's legend): its lines are in the
+    crop's pixels, the map is the page's."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))  # a bar that agrees
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    walls = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    to_plan, _ = laid_with(walls, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+
+
+def test_two_crops_that_lay_the_sheet_two_ways_are_refused_unless_one_clearly_wins() -> None:
+    """Twin views (DigitalHub E01's two wings): two crops each fit somewhere; when neither fits
+    clearly better (MARGIN of the wall lines) the lay is a guess and refused."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))  # a bar that agrees
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    right, twin = (40.0, 30.0, 480.0, 580.0), (240.0, 30.0, 500.0, 600.0)  # same lines, other place
+    both = by_walls(
+        segments(RICH),
+        lambda _: (
+            [(right, cropped(right[:2], drawn)), (twin, cropped(right[:2], drawn))],
+            PAGE_PX,
+        ),
+    )
+    refused = both(plan, picture)
+    assert isinstance(refused, str) and "two ways" in refused, refused
+    few = cropped(right[:2], drawn)[:6]  # the twin matches 6 lines, the right crop 8
+    clear = by_walls(
+        segments(RICH),
+        lambda _: ([(twin, few), (right, cropped(right[:2], drawn))], PAGE_PX),
+    )
+    to_plan, _ = laid_with(clear, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+
+
+def test_a_crop_laid_off_the_sheets_own_scale_is_refused() -> None:
+    """A crop has no page to fill (the cover check sees only the crop): bench photo B01 laid a
+    crop 15% off its scale. With a scale bar a crop more than SCALE_SLACK off is refused; the
+    whole page keeps naming it (above)."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    walls = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    agrees = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))
+    laid_with(walls, plan, agrees)
+    off = walls(plan, sheet(name="scan.png", rooms=(), size_m=(12.0, 14.4)))
+    assert isinstance(off, str) and "its scale says 24.0 mm a pixel" in off, off
+
+
+def test_a_part_of_a_sheet_with_no_scale_is_laid_only_with_the_whole_page_agreeing() -> None:
+    """Review #580 SHOULD 2: a cut-out part has no page to fill (register's cover check sees the
+    part only). With a scale bar its scale is checked against the bar; without one the whole
+    page's own lay is the only check: the part is laid when the whole page lays within
+    SCALE_SLACK of its scale, else refused (the bench's one wrong part was 15% off)."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    alone = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    refused = alone(plan, picture)
+    assert isinstance(refused, str) and "no scale" in refused, refused
+    page = by_walls(
+        segments(RICH),
+        lambda _: ([(WHOLE, drawn), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    to_plan, _ = laid_with(page, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+    big = [Segment(a=(s.a[0] * 1.2, s.a[1] * 1.2), b=(s.b[0] * 1.2, s.b[1] * 1.2)) for s in drawn]
+    off = by_walls(  # the whole page lays at another scale than the part: one of them is wrong
+        segments(RICH),
+        lambda _: ([(WHOLE, big), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    got = off(plan, picture)
+    assert isinstance(got, str), got
+
+
+def test_a_part_whose_whole_page_lays_at_another_scale_is_refused() -> None:
+    """Review #590 MUST: the part clearly wins the wall lines (14 against the page's 8, past
+    CROPS_MARGIN, so the twin-view rule lets it through), but the whole page lays 10% larger:
+    without a scale bar one of the two sizes is wrong, so neither is laid."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    middle = (PAGE_PX[0] / 2, PAGE_PX[1] / 2)
+
+    def larger(p: tuple[float, float]) -> tuple[float, float]:
+        return (middle[0] + 1.1 * (p[0] - middle[0]), middle[1] + 1.1 * (p[1] - middle[1]))
+
+    page = [Segment(a=larger(on_sheet(a)), b=larger(on_sheet(b))) for a, b in WALLS_M]
+    box = (40.0, 30.0, 480.0, 580.0)
+    both = by_walls(
+        segments(RICH),
+        lambda _: ([(WHOLE, page), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    got = both(plan, picture)
+    assert isinstance(got, str) and "its whole page at" in got, got
+
+
 def test_the_plans_wall_lines_are_centre_lines() -> None:
     w, h = 12.0, 10.0
 
@@ -219,3 +341,244 @@ def test_the_plans_wall_lines_are_centre_lines() -> None:
         frozenset(((0.2, 0.1), (9.8, 0.1))), frozenset(((9.9, 0.2), (9.9, 7.8))),
         frozenset(((0.2, 7.9), (9.8, 7.9))), frozenset(((0.1, 0.2), (0.1, 7.8))),
     }  # fmt: skip
+
+
+# --- review-495: a wrong floor is refused, not paired with a confident reason (SFP-21..25) -----
+
+
+def test_floor_words_that_differ_refuse_even_when_one_is_shared() -> None:
+    # the set's building folder "B1" is on both; the floors are 1 and 2 (review-495 M1)
+    plan = PLAN.model_copy(update={"name": "B1/A-101 Floor 1 plan.pdf"})
+    found = one(plan, sheet(name="B1/H-102 Floor 2 heating.png"))
+    assert found == "another floor: 'Floor 2' against 'Floor 1'"
+    no_rooms = sheet(name="B1/H-102 Floor 2 heating.png", rooms=(), size_m=(10.0, 10.0))
+    found = one(plan.model_copy(update={"rooms": ()}), no_rooms)
+    assert found == "another floor: 'Floor 2' against 'Floor 1'"
+    # a floor word one sheet names and the other doesn't is no disagreement
+    found = one(plan, sheet(name="B1/H-101 heating.png", storey="Floor 1"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_an_electrical_sheet_number_is_not_a_level_code() -> None:
+    # E01 is the first electrical sheet, not level 1 (review-495 M2); E00/E01 levels still read
+    found = one(PLAN, sheet(name="E01 Elektro.png", disciplines=("electrical",)))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    found = one(PLAN, sheet(name="set/E01 heating.png", sheet_number="E01"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    found = one(PLAN, sheet(name="digitalhub_plan-02-e00-okrd heating.png"))
+    assert found == "another floor: 'e00' against 'Floor 1'"
+    found = one(PLAN, sheet(name="heating.png", storey="E01_OKRD"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_two_floors_that_fit_alike_and_name_no_floor_are_both_refused() -> None:
+    # a plan with no floor hint; two heating sheets print the same room names (review-495 M3)
+    plain = PLAN.model_copy(update={"name": "plan.pdf"})
+    found = pair(plain, [sheet("d2", name="heating-a.png"), sheet("d3", name="heating-b.png")])
+    said = (
+        "2 heating pictures fit this plan alike and none names its floor "
+        "(heating-a.png, heating-b.png): which one is this floor is not known"
+    )
+    assert found == [said, said]
+    # one that names the plan's floor still wins over one laid by geometry alone
+    named = pair(PLAN, [sheet("d3", name="heating-b.png"), sheet("d2")])
+    assert isinstance(named[1], Pairing) and named[1].paired_by == "metadata"
+
+
+def test_a_floor_word_in_a_folder_is_not_the_sheet_s_floor() -> None:
+    # the set's folder "B1" names no sheet's floor: a heating sheet naming none is no "same floor"
+    # (review-558 M1)
+    plan = PLAN.model_copy(update={"name": "B1/A-101 Floor 1 plan.pdf"})
+    found = one(plan, sheet(name="B1/H-heating.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    no_rooms = sheet(name="B1/H-heating.png", rooms=(), size_m=(10.0, 10.0))
+    found = one(plan.model_copy(update={"rooms": ()}), no_rooms)
+    assert found == "only 0 room names appear on both sheets (3 are needed)"
+
+
+def test_floor_words_in_folders_refuse_when_they_differ() -> None:
+    # folders name floors too: differing ones refuse, as on main; equal ones agree on nothing
+    # (review-558 at fa1c7a31)
+    plan = PLAN.model_copy(update={"name": "Projekt/OG 1/Grundriss.pdf"})
+    assert one(plan, sheet(name="Projekt/EG/Heizung.png")) == "another floor: 'EG' against 'OG 1'"
+    found = one(plan, sheet(name="Projekt/OG 1/Heizung.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+
+
+def test_a_level_code_inside_an_electrical_sheet_s_name_is_its_level() -> None:
+    # a DigitalHub electrical export names its level inside the name like the others (review-558 M2)
+    plan = PLAN.model_copy(update={"name": "dh_arc_plan-02-e00-okrd.pdf"})
+    found = one(plan, sheet(name="dh_elt_plan-03-e01-okrd.png", disciplines=("electrical",)))
+    assert found == "another floor: 'e01' against 'e00'"
+
+
+def test_discipline_folders_are_one_set() -> None:
+    # review-495 S1: folders by discipline are one delivery, not two sets
+    plan = PLAN.model_copy(update={"name": "Architektur/A-101 Floor 1 plan.pdf"})
+    found = one(plan, sheet(name="Heizung/H-101 Floor 1 heating.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+    found = one(PLAN.model_copy(update={"name": "ARK/plan.pdf"}), sheet(name="LVI/heating.png"))
+    assert isinstance(found, Pairing)
+
+
+def test_sheets_drawn_years_apart_still_pair() -> None:
+    # a real set's services sheets are often redrawn years after the plan (USCG building 110: as
+    # built 1965, heating 1958, electrical 1981, one basement), so years refuse nothing
+    plan = PLAN.model_copy(update={"name": "Building 110 Basement Plan As Built, 1965.png"})
+    found = one(plan, sheet(name="Building 110 Basement Plan Heating, May 26, 1958.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_written_floor_ordinals_name_a_floor() -> None:
+    # "Second Floor" is floor 2 (the USCG sheets): another floor is refused, not laid by geometry
+    plan = PLAN.model_copy(update={"name": "Building 407 Second Floor Plan.png"})
+    found = one(plan, sheet(name="Building 407 Heating Layout First Floor Plan.png"))
+    assert found == "another floor: 'First Floor' against 'Second Floor'"
+    found = one(plan, sheet(name="Building 407 Heating Layout Second Floor Plan.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_a_project_year_is_not_a_sheet_number() -> None:
+    # review-495 N1: "KOY_2019" on both files is the project, not floor 2019 of each
+    plan = PLAN.model_copy(update={"name": "KOY_2019 plan.pdf", "rooms": ()})
+    found = one(plan, sheet(name="KOY_2019 heating.png", rooms=(), size_m=(10.0, 10.0)))
+    assert found == "only 0 room names appear on both sheets (3 are needed)"
+
+
+# --- the confirmation run's 10 wrong pairings (pics-answer 2026-11-15, USCG Governors Island) ----
+
+
+def named(plan: str, candidate: str, **change: object) -> Pairing | str:
+    """A plan and one heating sheet named by their titles, no folders, laid over by room names."""
+    return one(
+        PLAN.model_copy(update={"name": plan}),
+        sheet().model_copy(update={"name": candidate} | change),
+    )
+
+
+def test_a_floor_the_name_says_but_pairing_cannot_read_refuses_instead_of_geometry() -> None:
+    # refusal side: "Upper Floors" names floors no rule reads; geometry alone must not pick it
+    found = named("Building 7 Upper Floors Plan.png", "Building 7 Heating First Floor Plan.png")
+    assert found == "the plan names a floor that is not read ('Upper Floors'): no floor to pair on"
+    found = named("Building 7 Plan.png", "Building 7 Heating Typical Floor Plan.png")
+    said = "the services picture names a floor that is not read ('Typical Floor')"
+    assert found == said + ": no floor to pair on"
+    # "Floor Plan" alone names no floor: geometry as before
+    found = named("Building 7 Floor Plan.png", "Building 7 Heating Floor Plan.png")
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+
+
+def test_floor_lists_ranges_and_plurals_are_read() -> None:
+    from app.core.services.pairing import _floors  # pyright: ignore[reportPrivateUsage]
+
+    cases = {
+        "Second Thru Seventh Floors": ["2", "3", "4", "5", "6", "7"],
+        "First and Second Floors Plans": ["1", "2"],
+        "Basement, First and Second Floor": ["-1", "1", "2"],
+        "First, Second, and Third Floor Plans": ["1", "2", "3"],
+        "Second and Attic Floor": ["2", "attic"],
+        "2nd floor": ["2"],
+        "Floors 2-4": ["2", "3", "4"],
+    }
+    for words, keys in cases.items():
+        found = _floors(Sheet(drawing_id="d", page=1, name=words + ".png"))
+        assert sorted(found) == sorted(keys), words
+
+
+def test_the_confirmation_runs_wrong_pairings_are_refused() -> None:
+    # building 855: a plan of floors 2-7 against the first floor electrical and the roof plumbing
+    plan = "Capehart Apartment Building 855 New Work Plan - Second Thru Seventh Floors.png"
+    first = "Building 855 Capehart Apartment First Floor Plan - Electrical.png"
+    found = named(plan, first, disciplines=("electrical",))
+    assert isinstance(found, str) and found.startswith("another floor")
+    found = named(plan, "Renovation of Capehart Apartment Building 855 Roof Plan Plumbing.png",
+                  disciplines=("plumbing",))  # fmt: skip
+    assert isinstance(found, str) and found.startswith("another floor")
+    # building 928: a roof plan against first and second floor HVAC
+    found = named(
+        "Building 928 Architectural Equipment, Roof Plans - Shop Building, June 20, 1984.png",
+        "Building 928 Heating, Ventilation, Air Conditioning First and Second Floors Plans Shop "
+        "Building, June 20, 1984.png",
+    )
+    assert isinstance(found, str) and found.startswith("another floor")
+    # building 333: an attic is not the roof
+    found = named(
+        "Building 333 Exterior Rehabilitation Projects Architectural Roof Plan, July 2, 1991.png",
+        "Building 333 Electrical Attic Space Power and Lighting Plan.png",
+        disciplines=("electrical",),
+    )
+    assert found == "another floor: 'Attic' against 'Roof'"
+
+
+# --- a sheet's own discipline (pic-sync 2026-11-15 04:46) ---------------------------------------
+# The plumbing lane took H-101, the heating sheet whose picture read as plumbing, because its wall
+# match (0.9) beat P-101's page-to-page match (0.7): pairing never compared discipline.
+
+H101 = "set/H-101 Floor 1 heating.png"
+P101 = "set/P-101 Floor 1 plumbing.png"
+
+
+def test_the_plumbing_lane_takes_p101_not_a_better_laid_heating_sheet() -> None:
+    heating_sheet = sheet("d2", name=H101, disciplines=("plumbing",))  # laid by rooms: 0.9
+    plumbing = sheet("d3", name=P101, disciplines=("plumbing",), rooms=(), size_m=(10.0, 10.0))
+    h, p = pair(PLAN, [heating_sheet, plumbing])
+    assert isinstance(p, Pairing) and p.score == 0.7, p  # page to page
+    assert "also offered" not in p.reason
+    assert h == "H-101 Floor 1 heating.png is a heating sheet by its name, not plumbing"
+
+
+def test_a_heating_sheet_alone_in_the_plumbing_lane_is_refused() -> None:
+    found = one(PLAN, sheet(name=H101, disciplines=("plumbing",)))
+    assert found == "H-101 Floor 1 heating.png is a heating sheet by its name, not plumbing"
+
+
+def test_a_sheets_discipline_from_its_number_letter_triage_or_file_name() -> None:
+    scan = {"name": "set/scan Floor 1.png", "disciplines": ("plumbing",)}
+    assert isinstance(one(PLAN, sheet(**scan)), Pairing)  # names none: today's ranking
+    for named in (
+        {"sheet_number": "H-101"},
+        {"discipline": "heating"},
+        {"name": "set/Heizung 1.png"},
+    ):
+        assert isinstance(one(PLAN, sheet(**(scan | named))), str), named
+    assert isinstance(one(PLAN, sheet(**scan, discipline="plumbing")), Pairing)
+    # M: mechanical, heating or ventilation
+    mech = sheet(name="set/M-101 Floor 1.png", disciplines=("heating",))
+    assert isinstance(one(PLAN, mech), Pairing)
+    assert isinstance(one(PLAN, mech.model_copy(update={"disciplines": ("electrical",)})), str)
+    # architecture is no lane: a services sheet triage called a floor plan by its kind is kept
+    assert isinstance(one(PLAN, sheet(**scan, discipline="architecture")), Pairing)
+
+
+def test_a_sheet_marking_two_lanes_is_kept_only_in_the_one_it_names() -> None:
+    both = sheet("d2", name=H101, disciplines=("heating", "plumbing"))
+    plumbing = sheet("d3", name=P101, disciplines=("plumbing",), rooms=(), size_m=(10.0, 10.0))
+    h, p = pair(PLAN, [both, plumbing])
+    assert isinstance(h, Pairing) and isinstance(p, Pairing)
+    assert "also offered" not in h.reason and "also offered" not in p.reason
+
+
+def test_a_mechanical_name_is_heating_or_ventilation_besides_the_disciplines_it_lists() -> None:
+    """USCG sets: "Mechanical and Electrical Second Floor Plan" names HVAC as mechanical, a word
+    that is no one discipline; an HVAC, LVI or HLS name lists several. Each keeps all it names."""
+    for name, lane in (
+        ("Building 108 Mechanical and Electrical First Floor Plan.png", "heating"),
+        ("Building 108 Mechanical and Electrical First Floor Plan.png", "ventilation"),
+        ("Building 125 HVAC and Electrical First Floor Plan.png", "ventilation"),
+        ("LVI Floor 1.png", "plumbing"),
+        ("HLS Floor 1.png", "heating"),
+    ):
+        assert isinstance(one(PLAN, sheet(name=name, disciplines=(lane,))), Pairing), (name, lane)
+    found = one(
+        PLAN, sheet(name="Building 125 HVAC First Floor Plan.png", disciplines=("plumbing",))
+    )
+    assert isinstance(found, str)
+
+
+def test_a_name_listing_several_disciplines_keeps_each() -> None:
+    """USCG Building 550: "... Demolition Plan - West Electrical, Mechanical, Plumbing, System"
+    is a plumbing sheet too; read as mechanical only it left the plumbing lane, and a tie of 14
+    alike pictures (refused) became one picture of another floor, paired by geometry."""
+    name = "Building 550 First Floor Demolition Plan - West Electrical, Mechanical, Plumbing.png"
+    for lane in ("plumbing", "electrical", "heating"):
+        assert isinstance(one(PLAN, sheet(name=name, disciplines=(lane,))), Pairing), lane

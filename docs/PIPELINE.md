@@ -1,7 +1,10 @@
 # Pipeline (Stoa challenge)
 
 Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening; the golden paragraph, rows 1-2 and 5 and §4-§6 (demo config, parallel ingest, memory, drawable sheets, services) checked 2026-11-15 01:30 against main 3d0dc59, row 1-2 and §4 again at 02:15 against b8c9d8e4 (#414, #425, #434, #443), §4-§6 at 02:50 against 992d98b1 (#422, #464), §4 at 02:45 against 98588dcc (#480, #486), rows 7 and §6 at 02:50 against f54bbce2 (#455, #475), §4 and §6 at
-03:10 against 1c20bc31 (#439, #490, #495, #503, #506, #511, #512, #515). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
+03:10 against 1c20bc31 (#439, #490, #495, #503, #506, #511, #512, #515), §4 and §6 at 03:15 against d004a67e
+(#491, #498, #499, #517), rows 3-4 and 7, §4 at 04:10 against 1b2f5ba1 (#527, #555, #557, #562), §4 and §6 at 04:35
+against f5a58f54 (#538, #551, #554, #558, #575, #580), rows 3-4 and 7, §2, §4 and §6 at 06:00 against ca404d42 (#588,
+#590, #596, #597, #598, #600, #603, #612, #614, #618, #619, #622, #652). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
 methods). The per-plan output, the drawing model, becomes decision record 0004.
 
 ## 1. Ingestion: from files to one drawing model per plan
@@ -69,12 +72,12 @@ series".
 | Stage | Writes | Requirement | Today | Next |
 | --- | --- | --- | --- | --- |
 | 1-2 Unpack, hash | file inventory with sha256 | I1, I2 | `ZipUnpacker` (`adapters/archive/unpack.py`) unpacks a zip safely: at most 5,000 entries, 600 MB per file, 2 GB in all, 200x expansion per entry over 1 MB (a zip bomb), one nested zip level; what it skips is listed with the reason. A zip name without the UTF-8 flag is read as UTF-8 when it decodes as such (#434). Each TIFF page (up to 50) and each WebP becomes an 8-bit PNG sheet (`x.png`, `x#p2.png`; 1-bit stays grey, 16-bit is scaled, 150 Mpx cap; #425), and an image with transparency is shown and checked on white (#434). A second file at a path already taken is set aside at a free name (#443). Size and sha256 per file. What a group ended as is stored by content (the files' and the group's sha256 plus the readers), so the same group uploaded again is reused unless the run is fresh | |
-| 3-4 Identify, group | drawing groups, set-aside list with reasons | I3 | module: format from the first bytes; group = same folder and name. The sheet-kind step (`SHEET_KIND=carbon`, off by default) also puts a sheet's discipline (architecture, structural, plumbing, heating, ventilation, electrical, fire, site, other) on the file, from the sheet kind, title and number: a display hint, nothing reads it yet (#311) | tell non-drawings apart; IFC model with its sheets |
+| 3-4 Identify, group | drawing groups, set-aside list with reasons | I3 | module: format from the first bytes; group = same folder and name. The sheet-kind step (`SHEET_KIND=carbon`, off by default) also puts a sheet's discipline (architecture, structural, plumbing, heating, ventilation, electrical, fire, site, other) on the file, from the sheet kind, title and number (#311); the services picture lane reads it (`DISCIPLINE_PICTURES`, on in the demo). With `SHEET_DISCIPLINE=gemini` (default `rules`, on in the demo since #598; #562) the sheet-kind reply names the discipline from what is drawn, for a services sheet whose title names no service. A sheet the step calls a services plan (`mep_plan`) with confidence over 0.9 gets no door, window or fixture counts: they are refused with the flag's words, and room counts are still answered, flagged; "Read it as a floor plan" clears it (#596) | tell non-drawings apart; IFC model with its sheets |
 | 5 Route | the chosen source per drawing | I4 | module: richest format wins (bim, cad, vector, raster). A scanned PDF goes to the raster route: `ScanImages` renders its page 1 once, at 150 px per inch (fewer when the page would pass the pixel cap), and every raster reader shares that render (#280). The renders are kept by content hash, the last 8 files; a render holds up only readers of its own page, and answers share it (#295). The render states its resolution, so a printed ratio on a scan can become the sheet's scale, if its resolution passes the trust check (§2; #300, #340), when `RASTER_PRINTED_SCALE=carbon` is on (default `off`; on in the demo config). A printed scale more than 2x from the door estimate is left to a person: a bar still wins, a ratio does not (§2). `VECTOR_FALLBACK=raster` (default `off`) sends a drawn PDF that matches no sheet style the same way, flagged, never certified (#283). Stages 4-10 run per drawing group, several groups at once when `INGEST_GROUPS_IN_FLIGHT` is above 1 (§5) | scanned PDF vs drawn PDF by the page itself, not the file |
 | 6 Normalise | page renderings, rotation, plans per sheet, scale and its source | I5, I6, I7 | module: pages as the file gives them. The scale is read by the vector extractor in stage 7, not here | rotation, rendering, plan split |
-| 7 Extract: vector | rooms, openings, fixtures, apartments | I8 | `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`, default): reads page 1 of a drawn PDF, and the PNG of the same sheet, in two styles: swiss_dwellings plans (element F1 100%, rooms and areas 100%) and sheets IfcConvert drew from an IFC model (rooms and areas 100%, element F1 80.4%). Reads the scale from text and bar. Printed scales: metric `1:N` is read per line of page text and imperial (`1/4" = 1'-0"`) per text object. A ratio next to a slope word ("1:12 RAMP SLOPE", "1:10 MAX") is not a scale. A sheet that prints several different scales and has no scale bar gets none, with a note; a bar still gives the scale (#282). A bar counts only when its labels carry one unit, metres or feet; a view callout with a number is not a bar (#301). It says which classes it looked for (`read`), so an unread class gets no count. On an IFC-style sheet every cut solid (walls, columns, other building parts) is listed as a wall, and a door is put together from its frame and swing shapes, so a door drawn edge-on is missed: the wall and door counts of such a sheet are estimates with the reason, Low, with a check asked (#455; Molio plan 08 alone: 64 walls against the model's 26, 17 doors against 18). Its windows stay as they were | columns, stairs, railings, slabs and beams on IFC-style sheets; other styles (only their scale is read); pages after the first; SVG |
-| 7 Extract: raster | room labels (OCR), symbols (detector), plans | I8 | `hello` (default), reads nothing: CubiCasa element F1 0%, and its questions are refused or get the dev prior. `EXTRACTOR_RASTER=composite` reads a sheet with the components `RASTER_COMPONENTS` names (detector, room readers, `carbon`). `CARBON_READER=large` (default `off`; on in the demo config): on an image over 4,000 px, or a smaller page where the shipped reader found fewer than 3 things (#293), Carbon counts the things drawn (its doors, windows and fixtures replace the shipped reader's) and the shipped reader keeps the rooms. On a big sheet the two reads run at the same time (#306); the few-things case runs after the shipped read. Carbon's door boxes snap to the detector's door opening where one lies inside (#310). `RASTER_PRINTED_SCALE=carbon` (default `off`; on in the demo config) reads the printed scale beside the reader (§2). CubiCasa gold from the SVGs (4,787 files); detector training on dev boxes allowed (0003) | detector and OCR adapter |
-| 7 Extract: BIM | IFC elements with GlobalIds, placed on the sheet | I8 | `IfcModelExtractor` (`EXTRACTOR_BIM=ifc`, default): reads the IFC model with ifcopenshell ([0006](decisions/0006-lgpl-dependencies.md)) and lists every object, drawn or not, in `model_objects` (format amendment 0004, PR #55). A space's area is the footprint of its solid. An `.ifc` path gets a page-less drawing, also a services model that lists none of the plan's classes (`model_objects: []`, 0004's amendment of 2026-11-15; #475). Golden ifc_models Part 1 1630/1630, Part 2 466/466. Dev batch ifc_models: area 1918/1918, length 40/40, volume 86/86, count 415/426 (11 fixture counts have no class). Memory: +1 GB on the dev batch, because ifcopenshell keeps parsed files | IFC gold sheets are still built from SVG shape plus IFC data; no placing of model objects on a sheet |
+| 7 Extract: vector | rooms, openings, fixtures, apartments | I8 | `PdfVectorExtractor` (`EXTRACTOR_VECTOR=pdf`, default): reads page 1 of a drawn PDF, and the PNG of the same sheet, in two styles: swiss_dwellings plans (element F1 100%, rooms and areas 100%) and sheets IfcConvert drew from an IFC model (rooms and areas 100%, element F1 80.4%). Reads the scale from text and bar. Printed scales: metric `1:N` is read per line of page text and imperial (`1/4" = 1'-0"`, also with a fraction glyph, primes or `IN.`/`FT.`; #612) per text object. A ratio next to a slope word ("1:12 RAMP SLOPE", "1:10 MAX") is not a scale. A sheet that prints several different scales and has no scale bar gets none, with a note; a bar still gives the scale (#282). A bar counts only when its labels carry one unit, metres or feet; a view callout with a number is not a bar (#301). It says which classes it looked for (`read`), so an unread class gets no count. On an IFC-style sheet every cut solid (walls, columns, other building parts) is listed as a wall, and a door is put together from its frame and swing shapes, so a door drawn edge-on is missed: the wall and door counts of such a sheet are estimates with the reason, Low, with a check asked (#455; Molio plan 08 alone: 64 walls against the model's 26, 17 doors against 18). Its windows stay as they were | columns, stairs, railings, slabs and beams on IFC-style sheets; other styles (only their scale is read); pages after the first; SVG |
+| 7 Extract: raster | room labels (OCR), symbols (detector), plans | I8 | `hello` (default), reads nothing: CubiCasa element F1 0%, and its questions are refused or get the dev prior. `EXTRACTOR_RASTER=composite` reads a sheet with the components `RASTER_COMPONENTS` names (detector, room readers, `carbon`). `CARBON_READER=large` (default `off`; on in the demo config): on an image over 4,000 px, or a smaller page where the shipped reader found fewer than 3 things (#293), Carbon counts the things drawn (its doors, windows and fixtures replace the shipped reader's) and the shipped reader keeps the rooms. On a big sheet the two reads run at the same time (#306); the few-things case runs after the shipped read. Carbon's door boxes snap to the detector's door opening where one lies inside (#310). `RASTER_PRINTED_SCALE=carbon` (default `off`; on in the demo config) reads the printed scale beside the reader (§2). A room box that holds 2 or more of the page's other room boxes (each at least 90% inside it) gets no area, so a wing boxed over its rooms is not counted twice; the sheet's area total leaves it out and is marked partial (#622). A room count read off a picture is partial too: it goes out Low and says it counts only the rooms found, naming room numbers it skipped (#600). CubiCasa gold from the SVGs (4,787 files); detector training on dev boxes allowed (0003) | detector and OCR adapter |
+| 7 Extract: BIM | IFC elements with GlobalIds, placed on the sheet | I8 | `IfcModelExtractor` (`EXTRACTOR_BIM=ifc`, default): reads the IFC model with ifcopenshell ([0006](decisions/0006-lgpl-dependencies.md)) and lists every object, drawn or not, in `model_objects` (format amendment 0004, PR #55). A space's area is the footprint of its solid. An `.ifc` path gets a page-less drawing, also a services model that lists none of the plan's classes (`model_objects: []`, 0004's amendment of 2026-11-15; #475). A model file asked on its own counts its spaces by room type (bedrooms, kitchens and so on), read from their names with the word table drawn IFC sheets use (#527, #555). Golden ifc_models Part 1 1630/1630, Part 2 466/466. Dev batch ifc_models: area 1918/1918, length 40/40, volume 86/86, count 415/426 (11 fixture counts have no class). Memory: +1 GB on the dev batch, because ifcopenshell keeps parsed files | IFC gold sheets are still built from SVG shape plus IFC data; no placing of model objects on a sheet |
 | 7 Extract: CAD, tables | DXF elements; schedule rows | I8 | DXF read for the swiss gold only. `TABLES=pdf` (default) reads the ruled schedules printed on a drawn PDF sheet, on the vector route; its scores are in GOLDEN.md "Schedules". The 0/9, 3/39 and 0/16 this row once gave for opening_design schedule questions are from before that reader | schedules on scans and photos; DXF only if Stoa gives it |
 | 8 Second count | the second value and the contested marks | I10 | `SECOND_COUNTER=ifc` (default) compares the sheet's counts against the IFC model's: the 14 golden conflicts are found, with 0 of 102 false alarms. `PdfSecondCounter` (`SECOND_COUNTER=pdf`) brings the scale text and the scale bar, and on swiss plans the printed area of each room. Stage 8 pairs them with the extraction's own values and applies the §2 rules: the bar wins over the text, the printed label wins over the outline area. On golden v2: 0 false alarms on the 102 agree entries. No dev sheet has a real scale or room-area conflict, so those two paths are tested on synthetic sheets only | detector vs parser; printed total vs summed rooms |
 | 9 Rules | rule ids per quantity | I9 | one rule, `each-once`. Answering adds a few rules of its own (refuse a class that was not read; a room-area sum is an estimate when one of its rooms is). The dataset's rules are known and validated against the gold (§3) | encode them as `CountingRule`s |
@@ -99,18 +102,36 @@ schedule or a detector.
 | --- | --- | --- | --- | --- |
 | room area | `printed_label` | `polygon_x_scale` | 2% | trust the printed label; a bigger gap means the scale or the polygon is wrong |
 | floor or apartment area | `printed_total` | `summed_rooms` | 2% | report the printed total; show the room list |
+| floor area (raster, gross printed) | `summed_rooms` (indoor rooms, net) | `printed_total` (gross) | net/gross 0.60-1.02 | no rule: inside the band only a note; outside it both values on the indoor area answer, held for a person; a net question never gets the gross number (`GROSS_NET_CHECK`) |
 | scale | `scale_text` | `scale_bar` or `dimension_lines` | 2% | measured value over text; text found next to a detail drawing is ignored (see below) |
 | scale (raster) | `detector` (door estimate) | `scale_bar` or `scale_text` | 10% | the printed scale; the estimate stays as the other value (`RASTER_PRINTED_SCALE`); over 2x apart only a bar wins, and flags the areas |
-| element or room count (raster) | the reader's (`detector`...) | `printed_total` | 0 | no rule: show both; a printed "48 DORMS" never replaces the count (`RASTER_PRINTED_SCALE`) |
+| scale (raster) | `detector` (door estimate) | `printed_label` (room-label areas) | 10% | the label scale (`printed_label`), also over 2x apart (3+ rooms, misreads dropped); it replaces the estimate with `LABEL_SCALE=on` when the bands do not overlap, with `always` whenever made (§ below) |
+| element or room count (raster) | the reader's (`detector`...) | `printed_total` | 0 | no rule: show both (`RASTER_PRINTED_SCALE`). With `PRINTED_TOTAL_ANSWERS=on` (default `off`), a printed count of exactly the entry's subject, of the floor the sheet shows, with one value ("SECOND FLOOR = 48 DORMS" on a second-floor plan) is reported; the count read stays as the other value and the entry stays a conflict |
 | room count | `plan_drawing` | `ifc_model` | 0 | keep spaces of the sheet's storey (foreign spaces are greyed) |
 | element count | `plan_drawing` | `ifc_model` | 0 | count what the sheet draws of its storey; an element of another storey seen through the cut is left out, listed with why (the sheet's count is its storey's, so the plain question carries the conflict too) |
 | element count | `plan_drawing` | `schedule` | 0 | no rule: show both |
 | element count | `detector` | `parser` | 0 | no rule yet; the parser wins on vector sheets, the detector is the only source on raster |
 
+Label scale (2026-11-15, accuracy round task 4, `LABEL_SCALE=off|on|always`, default off;
+`app/core/pipeline/label_scale.py`, `app/adapters/raster_scale/label.py`): a raster sheet whose scale is the door
+estimate or none, and that is not a camera photo the rectifier left as it was, takes its scale from the areas printed
+in its room labels ("KH 9.7 m²"): per room sqrt(label m² / outline px²), the outline its polygon, else its box over
+`BOX_RATIO`; at least 3 rooms (as #620's sheet-wide check); the median, a room more than half of log `LABEL_RANGE` off
+it (a lost decimal comma) and a label-sized box left out; band = the median's standard error from the rooms' robust
+spread, at least 7.9% (floorplan2bim with recognised rooms). A scale bar or a trusted printed ratio (`scaled`) is
+never replaced. With no scale the label scale is used; next to a door estimate `on` replaces it only when the two
+bands do not overlap, `always` whenever it is made; the estimate stays the other value of a `scale` conflict. The
+sheet-wide label check (`takeoff.label_disputed`, #620) is skipped on a label scale (the labels agree with a scale
+made from them); the per-room label checks stay. Measured (`scripts/label_scale_bench.py`, cached Carbon replies of
+10 Swiss dev scans that print room areas, known scale): label scale 1.9% median off, 10/10 inside its band; the
+Carbon door estimate 4.1%, 9/10; `on` changed none of them, `always` all 10. T1-T4 (QA round 3): no change (T1-T3
+have a measured bar, T4 prints no room areas). Golden v2 not run (not on that machine).
+
 Raster printed scale and facts (2026-11-14, r8 AY, `RASTER_PRINTED_SCALE=off|carbon`, default off;
 `app/core/pipeline/printed.py`): the scale is metres per page unit. A scale bar gives it (its labelled length over
 its drawn length on the page). A printed ratio gives it from the paper size, but only when the file's stated
-resolution passes the trust check (PNG pHYs or JPEG density, 100-1200 dpi, the same both ways, not 72 or 96). On an
+resolution passes the trust check (PNG pHYs or JPEG density, 100-1200 dpi, the same both ways, not 72 or 96, and
+not on a camera photo, whose EXIF resolution says nothing about the paper; #597). On an
 image the paper size is that resolution. On a scanned PDF the page is in points, 72 to the inch, and the render's
 resolution only lets the ratio through (#340): the render is 150 px per inch, scaled down to the 16 MP cap, so a
 page over about 1,600 sq in (ARCH E, 36 x 48 in, and up) renders below 100 px per inch and gets no printed ratio.
@@ -122,9 +143,49 @@ Finnish flat type read as a room count (4H+K, 3h+k+s: the flat's type, not the r
 the notes (2026-11-14). A sheet's total room count read more than 2x the other count (all above 0, no rule) means the other counts
 something else: the reading is kept, both values stay on the entry, no person is asked. Within 2x, with a 0, with
 more printed than read (the reader may have missed rooms), for one room type's count (120 bedrooms vs 48 DORMS) or for
-an element count, a person decides. `carbon`
+an element count, a person decides, unless `PRINTED_TOTAL_ANSWERS=on` (default `off`; 2026-11-15, QA R4-D1,
+`app/core/pipeline/printed_answer.py`): then a printed count that matches the entry exactly is the answer, with the
+rule "printed on the sheet: <text> (<n> drawn)". Exactly: the same element class, room type or all rooms (Carbon's
+mapping: DORMS is `room:bedroom`); a sheet showing one floor; when any printed count of the subject names a floor,
+only those naming the sheet's floor (not another floor's, not the building's TOTAL), else a sheet-wide one; not one
+wing or block; and every count left printing the same number. Anything less, or an entry another rule already
+decided (the 2x rule above), keeps the behaviour above. `carbon`
 reads them with the Carbon client (page call shared with `CARBON_READER`, a bars call, one full-resolution call per
 bar), on the process's spend guard.
+
+OCR check of the printed digits (2026-11-15, accuracy task 7, `PRINTED_OCR_CHECK=off|on`, default off, only with
+`RASTER_PRINTED_SCALE=carbon`; `app/core/pipeline/printed_ocr.py`, `app/adapters/raster_ocr/tiles.py`): PP-OCR
+(rapidocr, local, CPU) reads again the places of the digits Carbon read. A printed fact: its box, padded 0.4% of the
+page, overlapping boxes read as one, cut at full resolution, enlarged to 48 px when lower, read in 1600 px tiles with
+5% overlap, ruling lines of 100 px or more removed first, each text box read upright and at 180 degrees (a short box
+also at 90 and 270). The scale text has no box: the whole sheet is read for it, only on a sheet of at most 40 MP
+(T1's 139 MP took too long). Per value: confirmed (OCR reads Carbon's number there, either reading of a separator),
+disagrees (OCR reads another number with the same count of digits there; for the scale text, exactly one other scale
+of the same family on the whole sheet), not found (nothing changes). A disagreement keeps the value from deciding
+silently: a printed count gets a third value with OCR's reading (method `annotation`, no rule), an area a note, and
+the scale text is not used (the estimate stays). The step's trace counts the three outcomes; with no disagreement
+the reading is unchanged.
+
+Gross against net (2026-11-15, accuracy task 6, `GROSS_NET_CHECK=off|on`, default off, needs
+`RASTER_PRINTED_SCALE=carbon`, no extra call; `app/core/pipeline/gross_net.py`): US area tables print gross floor
+areas (BOMA Z65.3 / ASTM E1836: to the outside face of the exterior walls); the rooms found are net. The gross is the
+largest printed fact in m² (a printed ft² arrives converted) whose subject is `floor_area` or whose text says TOTAL
+or GROSS; the net is the indoor rooms as the takeoff sums them. Net/gross inside 0.60-1.02 (offices 0.60-0.82, a K-8
+school 0.71, our net includes corridors; the top is 1.0 plus 2% rounding) adds only a note. Outside it the sheet gets
+a `floor_area` conflict (`summed_rooms` then `printed_total`, the note saying which is gross), attached to the
+indoor and all-rooms area totals whose value is the net: the answer keeps the net, shows the gross and abstains. On
+T2 (us_daf dorm p003, TOTAL SECOND FLOOR = 26,562 SF) the 40 rooms found sum to 41% of it.
+
+Scale signatures (2026-11-15, accuracy task 2, `SCALE_SIGNATURES=off|bar|on`, default off;
+`app/core/pipeline/scale_signatures.py`): inside 2x, two scales whose quotient is within 2.5% of a known slip
+(4/3 neighbouring scales, sqrt 2 an A-series sheet one size down, 3/2, 2 a half-size print, 36/17 or 24/11 ARCH D on
+11x17, either way) are not a few percent of reading error. `bar`: a measured bar and the ratio printed beside it (at
+a trusted resolution) a slip apart keep the bar, with a note naming the cause, and the ratio becomes a third value of
+the sheet's `scale` entry, decided for the bar (no person asked; numbers unchanged). `on`: also a ratio against the
+door estimate with no bar: the rooms' printed areas pick the one they agree with (median within 10%, at least 3
+rooms), else the ratio stays and every area and length is held, naming both (`takeoff.disputed_scale`). Against
+Carbon's door estimate that branch fired on 7 of 28 scan reads whose ratio was right and on 0-7 of 28 with a slipped
+one, so it is no better than chance and stays out of the demo. Without a slip nothing changes.
 
 How a conflict shows in the answer (answer_v1.1, [0002](decisions/0002-answer-format.md)): `answer` holds the
 resolved value, `conflicts` lists every measured value with its method, file, page and box (page and box are null
@@ -217,7 +278,7 @@ before those holds, and why each was or was not real, are in decision 0009.
 
 Every reader beyond the five defaults above is off until a setting turns it on; `backend/.env.example` has one
 commented line per setting. The live demo runs with the settings `tools/qa-env.sh config` prints (checked
-2026-11-15 on main 1c20bc31):
+2026-11-15 on main ca404d42):
 
 | In the demo | Default | What it turns on |
 | --- | --- | --- |
@@ -225,6 +286,7 @@ commented line per setting. The live demo runs with the settings `tools/qa-env.s
 | `RECTIFIER=r3` | `none` | A camera photo of a plan is flattened before it is read |
 | `RASTER_SCALE=priors` | `off` | A scan that prints no scale gets one estimated from its doors; its areas are labelled estimates with a band |
 | `RASTER_PRINTED_SCALE=carbon` | `off` | A measured printed scale (a bar, or a ratio at a resolution the file states) replaces the estimate (§2) |
+| `PRINTED_OCR_CHECK=on` | `off` | PP-OCR reads Carbon's printed digits again; a value it reads differently does not decide silently (§2) |
 | `CARBON_READER=large` | `off` | Carbon counts what is drawn on an image over 4,000 px, or on a page where the shipped reader found fewer than 3 things; flagged, never certified |
 | `CARBON_LEVELS=ladder` | `off` | Carbon reads every raster drawing: a Medium answer it disagrees with drops to Low, one it agrees with rises to High |
 | `DECISIONS_CONFIDENCE`, `DECISIONS_KIND`, `GATE_POLICY`, `ANSWER_POLICY`, `CHECK_POLICY`, `DOUBLE_CHECK_READERS`, `LOCAL_GATES` | off or empty | The confidence levels and the double-check, from policy files frozen in `eval/results/` (fitted on val, certified once on test) |
@@ -236,6 +298,8 @@ commented line per setting. The live demo runs with the settings `tools/qa-env.s
 | `MODEL_3D=true` | `false` | The 3D view of an IFC file (`GET .../files/{file_id}/model.glb`), converted alone in a child process held to 1,500 MB and 120 CPU seconds; `app.cli glb` converts ahead |
 | `TRIAGE_DESCRIBER=carbon`, `TRIAGE_JUDGE=rules`, `EVIDENCE_SCOPE=all_non_plan` | `off`, `off`, `set_aside` | A set-aside image is described by Carbon for the evidence index (about 0.005 USD an image), rules judge whether a set-aside file belongs to the project, and the index holds every non-plan file and PDF page (decision 0012) |
 | `SERVICES_FOLLOW=on` | `off` | A project's plumbing, ventilation and heating models are followed through every plan edit, and the chat gets the services tools (§6) |
+| `SHEET_DISCIPLINE=gemini` | `rules` | The sheet-kind reply also names each sheet's discipline from what is drawn: 65 of 70 services and structural sheets right, against 36 of 70 for the rules, and no triage change on the demo files (#562, #598). Turning it on pays one more sheet-kind reply per sheet already cached |
+| `DISCIPLINE_PICTURES=gemini` | `off` | A sheet that triage names a services or structural sheet (a scan, a photo, or a drawn PDF's render beside its paths) is read for its legend, symbols and coloured runs into a fact sheet; its answers are Low and ask for a double-check, and it can follow a plan edit (§6). One Carbon call a page, about 0.03 USD, cached by content. On a held-out rendered building (DigitalHub, 36 pages): P 0.95, R 0.92, counts within 10% 46 of 54 (#579; the other readers below) |
 | `INGEST_GROUPS_IN_FLIGHT=10`, `INGEST_LOCAL_IN_FLIGHT=1` | `1`, `1` | Up to 10 drawing groups are read at once, with one local image reading at a time (§5) |
 | `CARBON_CALLS_IN_FLIGHT=48`, `CARBON_READ_WORKERS=12` | `8`, `4` | Up to 48 Carbon calls in flight in the process, 12 of them for one sheet's tiles; calls already in flight can go past `GEMINI_BUDGET_USD` |
 | `USER_SCALE=true` | `false` | In the agent chat, a user can give the scale of a drawing that has none ("the scale is 1:100", "the kitchen is 12 m2", "Room 301 is 18 m2"). That chat's areas and lengths on the drawing are then measured with it and answered Low, "using the scale you gave", never sure. A ratio is refused on an image that states no resolution (#432, #480, #496; on since #512) |
@@ -245,8 +309,13 @@ Off in the demo on purpose, with what was measured:
 
 | Setting | Why it stays off |
 | --- | --- |
+| `SCALE_SIGNATURES` | New 2026-11-15 (§2). `bar` changes no number (the bar already wins) and is proposed for the demo once a golden run with it on shows no change; `on` also holds a ratio against the door estimate, which on 28 scan reads flagged 7 right ratios and caught 0-7 slipped ones: no better than chance |
 | `SCALE_CARBON_DOORS` | Meant for a scan whose detector found no door: the area scale would come from Carbon's door boxes (door width `CARBON_DOOR_M` 1.069 m, fitted on one half of a set of rendered scans with a known scale; 11 of 11 sheets of the other half inside the band; #401). On a fresh set of 68 questions about public scans nobody on the team had used (truths by eye, hashed before any run), main 030abbb with it off gave 36 right, 12 wrong, 20 refused; with it on 37, 14, 17. All three changes were on one sheet with a hand-written 1/4" scale the reader did not read: the kitchen came out 16 m² against 9.8 and the house 149 m² against 100, both outside the ±16% band the answer printed (the third change was a right answer). A wrong number whose stated band does not hold is worse than a refusal, so it stays off. #417 now gives no door scale when a printed scale was seen but not read; that has not been measured with the setting on. On golden v2 the setting changes nothing (Carbon reads elements only on images over 4,000 px) |
-| `DISCIPLINE_PICTURES` (`off` or `template`; #414) | With `template`, a scan that triage names a services or structural sheet is read by local readers only (legend, symbols, coloured runs) into a fact sheet whose answers are Low, decision 0015. Tudor's per-class bench on pictures rendered from the services models (#281): counts within ±10% 49% of the time on clean renders, 37% on scans, 35% at 100 dpi and 36% on photos; on scans precision falls to 0.05-0.2; 8% of run lengths within 10%. Run end to end on #414 with the readers on (10 bench pictures), nothing reached a user. #486 made the readers work end to end and cleans each page before reading it (a median filter on salt-and-pepper pages, flattening, deskew up to ±2°). On the tune half of noisy 150 dpi pictures, with the legend boxes given, precision went from 0.58, 0.56 and 0.17 to 0.97, 0.92 and 1.00 (air terminals, other symbols, lights), at recall 0.87, 0.73 and 0.93. #486 reports only the tune half, and in real use nobody gives the legend boxes, so it stays off until a bench passes. Since #490, #495, #511 and #515 a services picture is paired with the plan's floor (by its words first, then by its walls), with the reason, and laid over the plan for the services follow-up; #500's pairing check on DigitalHub refused all 8 pairs (0 wrong), before #495 read the floor codes, and was not run again |
+| `DISCIPLINE_PICTURES=template` or `glyphs` (#414, #579; the demo uses `gemini`, above) | With `template`, a scan that triage names a services or structural sheet is read by local readers only (legend, symbols, coloured runs) into a fact sheet whose answers are Low, decision 0015. Tudor's per-class bench on pictures rendered from the services models (#281): counts within ±10% 49% of the time on clean renders, 37% on scans, 35% at 100 dpi and 36% on photos; on scans precision falls to 0.05-0.2; 8% of run lengths within 10%. Run end to end on #414 with the readers on (10 bench pictures), nothing reached a user. #486 made the readers work end to end and cleans each page before reading it (a median filter on salt-and-pepper pages, flattening, deskew up to ±2°). On the tune half of noisy 150 dpi pictures, with the legend boxes given, precision went from 0.58, 0.56 and 0.17 to 0.97, 0.92 and 1.00 (air terminals, other symbols, lights), at recall 0.87, 0.73 and 0.93. #486 reports only the tune half, and in real use nobody gives the legend boxes, so it stays off until a bench passes. Pairing a picture with the plan's floor and laying it over are in §6, with what they measured; the DINO symbol check, not called yet, now confirms only air terminals (#551). `gemini` (one Carbon call per page reads the legend and the symbols, $0.030 a page, replies cached) and `glyphs` (a trained glyph detector on the CPU) were measured (#579) on a held-out rendered building (DigitalHub, 36 pages, trained on the clinic only): gemini P 0.95 R 0.92, counts within 10% 46 of 54; glyphs P 0.92 R 0.38 with the OCR legend, 0.96/0.82 with the true legend boxes; template P 0.07 R 0.29. So the demo uses `gemini`; `template` only double-checks its counts there (§6) |
+| `DISCIPLINE_RUNS=graph` (default `mask`; #603) | The pictures' run lengths from a line graph per legend line style (thinned, gaps up to 1.0 m bridged, a run per connected network) instead of one piece per coloured strip. On held-out DigitalHub renders with the true legend boxes and scale it was within 10% on 33 of 64 clean and photo runs, against 22 of 64 for `mask`, a narrow pass of its pre-registered line (32 needed); grey scans 0 of 32 for both. The default was left at `mask` (#652). Its elbow and tee joins stay off: at 1.0 m they reached pair precision 0.73 and recall 0.19, under the pre-registered 0.9 and 0.5 |
+| `PRINTED_TOTAL_ANSWERS` | New 2026-11-15 (QA R4-D1, a policy change on the raster route): an exactly matching printed count becomes the answer (§2). T2 (us_daf dorm p003, replayed from the round-4 drawing model and Carbon reply): 40 bedrooms read, 48 printed for its floor; off answers 40, on 48 with the 40 kept on the entry. Of the 49 Carbon page replies cached on the test machine only T2 prints a room or element count. Golden v2 not run with it (not on that machine) |
+| `DOOR_PRIOR_BOXES` (`off`/`on`, 2026-11-15) | New, proposed for the demo: where the composite reads the doors with Carbon (no detector weights), `PriorScale` divided Carbon's door boxes (with the swing) by the detector's leaf width `DOOR_M` 0.794 m; on, it takes `CARBON_DOOR_M` 1.069 m, fitted on Carbon's boxes (`app/core/pipeline/door_prior.py`). Door estimate over a hand reference (round-4 QA env, `.agents/research/accuracy/t2-scale.md`): T1 UK school (metric) 0.748 to 1.007, T2 US dorm 0.706 to 0.951, T3 US piping 0.661 to 0.890, all three now inside the printed ±15.8%. Only boxes Carbon drew itself count as Carbon's: a Carbon door snapped onto a detector door (#310; most doors of a big sheet in the demo, with `CARBON_READER=large`) has the detector's box, and one such door keeps the sheet at `DOOR_M`. A sheet that prints a scale nobody could read loses a Carbon-door estimate (`CARBON_DOORS_REFUSED`), as for `SCALE_CARBON_DOORS`. Golden v2 not run (not on the machine it was built on) |
+| `DOOR_PRIOR_UNITS` (`off`/`on`, 2026-11-15) | On an imperial sheet (an imperial scale, feet-inch dimensions, SF or ft in its printed text) the detector's door estimate takes a 3'-0" leaf, 0.914 m (ADA 404.2.3; the standard, not a fit), and its rooms are measured again. Stays off: unmeasured on the detector's leaf boxes (no US scan with a reference read by the detector), and on Carbon's boxes US sheets show no unit effect (implied widths 0.88-1.20 m, median 1.06, against 1.06 on 28 Swiss scans and the UK T1). The predicate flags 16 of 17 US sheets and 0 of 44 metric ones in the cached Carbon page reads. It never touches a Carbon-door estimate |
 | `RASTER_TILES` | Large sheets took 77 to 95 s longer each in the all-on run, and its CubiCasa criterion failed (#381) |
 | `VECTOR_FALLBACK` | Failed its pre-registered check (#381) |
 | `RESOLVER=carbon` | The pilot was inconclusive, and its cost is paid inline on every answer (#381) |
@@ -317,7 +386,8 @@ or runs out of memory is not started again until the backend restarts. From that
   connections, loose equipment, no stated flow). Facts from the stored model equal the IFC fact sheet: 669 of 669
   and 718 of 718 on the two bench buildings (#357).
 - The chat's services tools (#397): list the services, ask one of the graph operations, and propose to move, add,
-  remove or resize a radiator or air terminal. The tools take ids only, so the model never writes a coordinate; a
+  remove or resize a radiator or air terminal. The list counts by type and by room, in full even when its items are
+  cut, and a room can be named instead of given by id (#491, #517). The tools take ids only, so the model never writes a coordinate; a
   move is rerouted along the room's walls and checked again on a copy, and a failed check refuses. A proposal is
   accepted or rejected by a person, and the edit card draws the storey before and after. A services IFC that was set
   aside at upload is still offered (#413).
@@ -325,3 +395,42 @@ or runs out of memory is not started again until the backend restarts. From that
   (on the removed wall, inside it, through it) and against the model's port graph, per system, for terminals that
   lose their connection. No model call; the result rides on the proposal. It needs the edited sheet on the IFC
   route with its wall geometry (KNOWN K6).
+
+Services pictures (`DISCIPLINE_PICTURES=gemini` in the demo since #598; specs
+`docs/specs/backend/discipline-pictures.md` and `services-follow.md`). A services picture (a scan or photo of a
+heating, plumbing or ventilation sheet) is read into a fact sheet, and it can follow a plan edit like a services
+model: it is paired with the plan's floor, laid over the plan, and the edit card's discipline tab shows it with the
+edit drawn on it (#490, #499). With a picture in more than one lane, "All sheets" shows the plan and each picture side
+by side, each with the edit drawn on it (#565). A project read before the setting went on has no pictures. Uploading
+its files again reads them, because a stored reading is reused only when the same readers made it.
+
+- Reading (#579, #588, #614, #619): Gemini reads the legend and the symbols, and the local template reader reads the
+  same page as a check; a label both readers agree on is not held, the rest are. Every picture answer stays Low and
+  asks for a double-check. On the held-out DigitalHub bench, the agreed counts were right 20 of 21 times and 96% of
+  the wrong ones were held, but only 13% of the labels were agreed, so most stay held (#588). A legend label that
+  names no discipline (a valve, a pipe, a pump) takes the sheet's discipline, so a heating plan's valves are heating
+  valves even when Gemini misspells the label (#619).
+- Run lengths (#652): a question that names a system ("How long is the rainwater pipe run?") gets that system's
+  length, not the sheet's total, and "per system" lists each one, then the total. When the sheet has no run of the
+  named system, the answer says so and lists the systems it has. Every length a colour reader measured carries a fixed sentence with that reader's held-out
+  numbers (the default `mask`: within 10% on 18, 4 and 0 of 32 clean, photo and scanned runs), since a length read
+  from line colours is an estimate.
+- Pairing by words first (#495, #558, #575): floor words, level codes and listed or ranged floors in titles and file
+  names; another floor or another set is refused with the reason, and so is a floor name no rule reads. A sheet that
+  names its discipline (triage's discipline, an H/P/E/M sheet number, a discipline word in its file name) is paired
+  only in that lane: "H-101 Floor 1 heating.png is a heating sheet by its name, not plumbing" (#618). Measured on
+  the USCG Governors Island sheets on Wikimedia Commons, 4,610 unseen units with the line "0 wrong" written first:
+  #558 gave 603 right and 10 wrong (main before it: 371 right, 602 wrong), so the line failed. #575 fixed those
+  causes and gives 630 right, 0 wrong on the same units, but that is after the fact; its pre-registered confirmation
+  on other Commons sheets found only 6 units (10 needed) and is inconclusive (2 right, 0 wrong, 4 refused on both
+  arms).
+- Laying over by walls (#580, with the register of #538 and #554 and the plan-view finder of #557): each plan view
+  of the picture is laid over the plan by its wall lines; two parts that lay it two ways with no clear winner, or a
+  part more than 5% off the sheet's own scale, are refused. On the DigitalHub bench (#580): same floor 3 right, 0
+  wrong, 33 refused (the bench's plan side has no outer walls); other floor 0 wrong of 72. On a sheet with no scale, a
+  part of the page is laid only when the whole page lays too and their scales agree within 5% (#590). A picture's wall parts
+  are read once per file, page and reader version and kept (256 per process); the register runs on every proposal.
+  Measured on 36 DigitalHub renders: the first proposal takes a median 0.45 s a picture, later ones 0.16 s (max
+  0.74), about 0.65 s for a storey of 4 pictures. End to end in a browser (#565, Gemini reader, a zip built from the
+  DigitalHub models): a removed wall paired the heating picture with H-101 (29 of 47 walls matched) and the plumbing
+  picture with P-101 (30 of 53), drew the edit on both, and left the other floor's heating sheet out.

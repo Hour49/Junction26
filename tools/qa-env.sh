@@ -64,6 +64,8 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   CARBON_READ_WORKERS=12  # one read's tile calls at once (at most 20); at 2 local slots 24 peaked at 9.4 GB, 12 at 7.3 (review-422)
   MALLOC_ARENA_MAX=2  # glibc arenas: peak 9.6 -> 6.7 GB on the same replay, and no slower (33.1 vs 36.5 s)
   IFC_FACTS_CACHE=../data/cache/facts  # all-on-2: fact sheets stored where the deploy's precompute_facts writes them (the env's data/cache/facts), so no IFC question starts a build
+  SHEET_DISCIPLINE=gemini  # demo/discipline-on (Bogdan, 2026-11-15 04:30, #562): Carbon names each sheet's discipline, 65/70 right vs 36/70 for rules on services/structural, 0 triage changes on the demo files
+  DISCIPLINE_PICTURES=gemini  # demo/discipline-on (Bogdan, 2026-11-15 04:30, #579): Gemini reads a sheet's symbols and legend, held-out P .95 R .92, counts within 10% 46/54, about 0.03 USD a page
   USER_SCALE=true)  # all-on-2: the agent chat takes a scale from its user for a drawing without one (#432: never sure, the proof names the source)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G

@@ -231,10 +231,25 @@ def test_rejecting_and_adding_marks_recounts_and_the_engineer_sees_it(
     assert door["value"] == 3
 
 
-def test_an_edit_changes_its_own_quantity_only(client: TestClient, drawing_id: str) -> None:
+def test_an_item_rejected_on_its_sheet_row_drops_out_of_every_count_that_shows_it(
+    client: TestClient, drawing_id: str
+) -> None:
+    """R4-B2 (was "an edit changes its own quantity only"): a shower the surveyor rejected is no
+    shower, so the shower+bathtub sum no longer counts it either; the sum's own row says so."""
     takeoff = review(client, drawing_id, quantity="shower", action="reject", mark="m1")
     assert row(takeoff, "shower")["value"] == 0
-    assert row(takeoff, "shower+bathtub")["value"] == 2
+    both = row(takeoff, "shower+bathtub")
+    assert both["value"] == 1
+    assert [mark["state"] for mark in both["marks"]].count("rejected") == 1
+
+
+def test_an_item_rejected_on_a_sheet_wide_sum_is_no_item_of_its_classes(
+    client: TestClient, drawing_id: str
+) -> None:
+    """The sum is sheet-wide too: its rejected mark is neither a shower nor a bathtub."""
+    takeoff = review(client, drawing_id, quantity="shower+bathtub", action="reject", mark="m1")
+    assert row(takeoff, "shower+bathtub")["value"] == 1
+    assert row(takeoff, "shower")["value"] + row(takeoff, "bathtub")["value"] == 1
 
 
 def test_leaving_a_room_out_of_an_area_subtracts_its_area(

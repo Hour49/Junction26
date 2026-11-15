@@ -35,6 +35,7 @@ from app.core.review.review import (
     sheet_row,
     sign,
     storey_twins,
+    takeoff_twins,
     with_twins,
 )
 
@@ -259,10 +260,10 @@ def test_which_room_is_the_largest_builds_the_drawing_s_takeoff_once(
 
     def twins(found: dict[str, Quantity]) -> dict[str, str]:
         twinned.append(len(found))
-        return storey_twins(found)
+        return takeoff_twins(found)
 
     monkeypatch.setattr(asking, "known_quantities", counted)
-    monkeypatch.setattr(asking, "storey_twins", twins)
+    monkeypatch.setattr(asking, "takeoff_twins", twins)
     kitchen = Room(id="r1", type="kitchen", label="Küche", page=1, box=BOX_A, area_m2=22.4)
     bath = Room(id="r2", type="bathroom", label="Bad", page=1, box=BOX_B, area_m2=5.0)
     found = asked("Which room is the largest?", scaled(kitchen, bath))
@@ -616,6 +617,7 @@ def asked_flagged(
     *,
     raster: bool = False,
     no_reader: bool = False,
+    no_symbols: str | None = None,
 ) -> Asked:
     return ask(
         text,
@@ -627,6 +629,7 @@ def asked_flagged(
         flags=flags,
         raster=raster,
         no_reader=no_reader,
+        no_symbols=no_symbols,
     )
 
 
@@ -711,6 +714,60 @@ def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
         assert found.answer.estimate is True
     plain = asked_flagged("How many doors are there?", drawing, ())
     assert plain.row is not None and plain.row.status == "single" and plain.row.estimate is None
+
+
+# triage.sheet_flag on T3 (USACE M-101A piping plan): what asked_on adds to the page's flags
+SERVICES_FLAG = (
+    "the sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+    "electrical plan"
+)
+
+
+def test_a_sheet_triage_is_sure_is_a_services_plan_refuses_door_and_fixture_counts() -> None:
+    """R3-C3/B7 (Tudor's QA round 3): T3, a piping plan the sheet-kind step flagged, answered
+    "6 toilets" (1 WC + 5 marks on filter-separator tanks) with only an estimate note. When
+    triage is sure it is a services plan (`no_symbols`: triage.symbols_refused), a symbol is not a
+    door or a fixture, so those counts are refused with the flag's words; rooms are still
+    answered, flagged. Any other flag, the sheet flag too, keeps the count, flagged (review-596:
+    refusing on every doubted kind hit 30 of 327 real plans)."""
+    toilets = tuple(Element(id=f"e{at}", class_="toilet", page=1, box=BOX_A) for at in range(1, 7))
+    door = Element(id="d1", class_="door", page=1, box=BOX_B)
+    drawing = photo(
+        Room(id="r1", type="bathroom", page=1, box=BOX_B), elements=(*toilets, door)
+    ).model_copy(update={"read": ("door", "window", "toilet", "sink", "room")})
+    for text in (
+        "How many toilets are there?",
+        "How many doors are there?",
+        "How many sinks are there?",
+        "How many windows are there?",
+    ):
+        for flags in ((SERVICES_FLAG,), (PHOTO_FLAG, SERVICES_FLAG)):
+            found = asked_flagged(text, drawing, flags, raster=True, no_symbols=SERVICES_FLAG)
+            assert found.row is None and found.refusal is not None, (text, flags)
+            assert found.refusal.code == "not-in-drawing", (text, flags)
+            assert found.refusal.text == (
+                "The sheet may not be a floor plan: it looks like a piping, plumbing, "
+                "ventilation or electrical plan, so its symbols are not counted as doors, "
+                'windows or fixtures. If it is a floor plan, use "Read it as a floor plan" on '
+                "its file."
+            ), (text, flags)
+    rooms = asked_flagged(
+        "How many bathrooms are there?", drawing, (SERVICES_FLAG,), raster=True,
+        no_symbols=SERVICES_FLAG,
+    )  # fmt: skip
+    assert rooms.refusal is None and rooms.answer.answer == 1
+    assert rooms.row is not None and rooms.row.estimate is not None
+    assert SERVICES_FLAG in rooms.row.estimate
+    # The sheet flag alone (a doubted evacuation plan, a map): the count, flagged
+    warned = asked_flagged("How many toilets are there?", drawing, (SERVICES_FLAG,), raster=True)
+    assert warned.refusal is None and warned.answer.answer == 6
+    assert warned.row is not None and warned.row.estimate is not None
+    assert SERVICES_FLAG in warned.row.estimate
+    # Another flag (a photo) keeps its counts, flagged; no flag (read as a plan): plain counts
+    photo_only = asked_flagged("How many toilets are there?", drawing, (PHOTO_FLAG,), raster=True)
+    assert photo_only.refusal is None and photo_only.answer.answer == 6
+    plain = asked_flagged("How many toilets are there?", drawing, (), raster=True)
+    assert plain.refusal is None and plain.answer.answer == 6
 
 
 def test_a_printed_label_with_digits_names_its_room_only_as_printed() -> None:
@@ -1193,6 +1250,133 @@ def test_a_model_space_of_no_area_is_left_out_of_the_ranking_and_named() -> None
     assert asked("Which room is the largest?", alone).refusal is not None
 
 
+def test_a_model_file_counts_its_spaces_of_a_room_type() -> None:
+    """qa-a, 2026-11-15: on the vitoria .ifc alone (spaces "4IZQ-HAB1", "4IZQ-COC"...) "How many
+    bedrooms?" gave no count, so "Which plan has the most bedrooms?" lost to a drawn plan's 7. A
+    model file counts its spaces of each room type (`attrs["room_type"]`, set by the IFC reader)
+    on the rows a sheet's rooms use, for the whole model and each storey."""
+
+    def typed(at: str, storey: str, name: str, kind: str | None) -> dict:
+        found = space(at, storey, name, None, 10.0)
+        return {**found, "attrs": {"room_type": kind}} if kind else found
+
+    drawing = model_file(
+        typed("m1", "P1", "1IZQ-HAB1", "bedroom"),
+        typed("m2", "P1", "1IZQ-HAB2", "bedroom"),
+        typed("m3", "P2", "2IZQ-HAB1", "bedroom"),
+        typed("m4", "P1", "1IZQ-COC", "kitchen"),
+        typed("m5", "P1", "1RELLANO", None),
+    )
+    assert asked("How many bedrooms are there?", drawing).answer.answer == 3
+    assert asked("How many kitchens are there?", drawing).answer.answer == 1
+    assert asked("How many bedrooms are there in the building model?", drawing).answer.answer == 3
+    assert asked("How many bedrooms are on 'P2'?", drawing).answer.answer == 1
+    assert asked("How many rooms are there?", drawing).answer.answer == 5  # unchanged
+
+
+BIM_POLICY = CheckPolicy(
+    thresholds={},
+    routes=frozenset({"bim"}),
+    route_levels={"bim": "high"},
+    route_counts={"bim": Counts(units=372, exact=372)},
+    counts={"high": Counts(units=10, exact=10), "medium": Counts(units=10, exact=9),
+            "low": Counts(units=10, exact=5)},
+)  # fmt: skip
+
+
+def test_a_room_type_count_from_a_model_s_space_names_is_never_sure() -> None:
+    """review-527 M1: the bim route is certified (High) on IFC sheets, and the typed-space counts
+    of a model file rode on it, though the type is a word table's guess at the space's name
+    (the clinic's "FUNDUS CAMERA ROOM" is a bedroom by "camera"). They are Low, unrated, and ask;
+    the room count stays as the model gives it."""
+    drawing = model_file(
+        {**space("m1", "L1", "A202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
+        {**space("m2", "L1", "B202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
+    )
+
+    def on_bim(text: str) -> Asked:
+        return ask(text, drawing, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
+                   state=ReviewState(), check=BIM_POLICY, route="bim")  # fmt: skip
+
+    bedrooms = on_bim("How many bedrooms are there?")
+    assert bedrooms.answer.answer == 2
+    assert bedrooms.answer.sure is False
+    assert bedrooms.level is not None
+    assert (bedrooms.level.level, bedrooms.level.basis) == ("low", "unrated")
+    assert bedrooms.check is not None  # Low always asks
+    rooms = on_bim("How many rooms are there?")
+    assert rooms.answer.sure is True and rooms.level is not None and rooms.level.level == "high"
+
+
+def test_a_model_space_listed_twice_is_one_room_of_its_type() -> None:
+    """review-527: duplex-m-rooms-and-spaces lists each room twice (same number, name and storey),
+    so its bedrooms came out 8 for 4. A space whose number, name and storey repeat another's is
+    counted once by type, a "<name> MEP Space" copy not at all; spaces that only share a name are
+    not twins."""
+    twin = {"attrs": {"room_type": "bedroom"}}
+    drawing = model_file(
+        {**space("m1", "L2", "A202", "Bedroom 1", 12.0), **twin},
+        {**space("m2", "L2", "A202", "Bedroom 1", 12.0), **twin},
+        {**space("m3", "L2", "A203", "Bedroom 2", 11.0), **twin},
+        {**space("m4", "L2", "B203", "Bedroom 2", 11.0), **twin},
+        # duplex-mep: the room again as its services copy
+        {**space("m5", "L2", "A203-M", "Bedroom 2 MEP Space", 11.0), **twin},
+    )
+    assert asked("How many bedrooms are there?", drawing).answer.answer == 3
+
+
+def test_a_room_type_no_space_has_is_0_when_every_space_is_typed() -> None:
+    """R4-C4 (Tudor): "How many bathrooms?" on a model whose spaces are all typed by their names,
+    none a bathroom, was refused ("doesn't give the room bathroom count"): the takeoff wrote
+    rows only for the types present. 0, Low like every typed count, and the rule says when."""
+    typed = model_file(
+        {**space("m1", "Level 1", "A202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
+        {**space("m2", "Level 1", "A203", "Kitchen", 8.0), "attrs": {"room_type": "kitchen"}},
+        space("m3", "Level 1", "A203-M", "Kitchen MEP Space", 8.0),  # a services copy: not a room
+        {**space("m4", "Level 2", "B202", "Bedroom 2", 11.0), "attrs": {"room_type": "bedroom"}},
+    )
+    bathrooms = ask("How many bathrooms are there?", typed, parser=TemplateParser(),
+                    clock=lambda: 0.0, prior=NoPrior(), state=ReviewState(), check=BIM_POLICY,
+                    route="bim")  # fmt: skip
+    assert bathrooms.refusal is None and bathrooms.answer.answer == 0
+    assert bathrooms.answer.sure is False
+    assert bathrooms.level is not None and bathrooms.level.level == "low"
+    assert bathrooms.row is not None and "no space is typed" in bathrooms.row.rule.text
+    assert asked("How many bathrooms are there on Level 1?", typed).answer.answer == 0
+    assert asked("How many bedrooms are there on Level 1?", typed).answer.answer == 1  # the storey
+    assert asked("How many bedrooms are there?", typed).answer.answer == 2  # unchanged
+
+
+def test_a_wc_is_not_0_bathrooms_nor_a_bathroom_0_wcs() -> None:
+    """review-663 M1: people and the dataset ("bathrooms/toilets: 12") read a WC and a bathroom
+    as one kind of room, so a fully typed model with a WC is not "0 bathrooms": refused, as
+    before."""
+    with_wc = model_file(
+        {**space("m1", "Level 1", "A101", "WC", 2.0), "attrs": {"room_type": "wc"}},
+        {**space("m2", "Level 1", "A102", "Kitchen", 8.0), "attrs": {"room_type": "kitchen"}},
+    )
+    for text in ("How many bathrooms are there?", "Is there a bathroom?"):
+        found = asked(text, with_wc)
+        assert found.answer.answer is None and found.refusal is not None, text
+    assert asked("How many bedrooms are there?", with_wc).answer.answer == 0  # other types: 0
+    with_bath = model_file(
+        {**space("m1", "Level 1", "A101", "Bathroom", 5.0), "attrs": {"room_type": "bathroom"}},
+    )
+    assert asked("How many bathrooms are there?", with_bath).answer.answer == 1
+    assert asked("How many bedrooms are there?", with_bath).answer.answer == 0
+
+
+def test_a_room_type_count_stays_refused_when_a_space_is_not_typed() -> None:
+    """R4-C4: a space whose name says no room type ("Void", "Raum 12") could be the bathroom, so
+    0 would be a guess: refused as before."""
+    partly = model_file(
+        {**space("m1", "L1", "A202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
+        space("m2", "L1", "A204", "Raum 12", 6.0),
+    )
+    bathrooms = asked("How many bathrooms are there?", partly)
+    assert bathrooms.answer.answer is None and bathrooms.refusal is not None
+
+
 def test_which_of_two_spaces_of_a_model_file_is_larger() -> None:
     """After #479: "Which is larger, the Living Room (B102) or the Kitchen?" on the duplex .ifc
     alone was refused ("the area of ... isn't known"): the two-room form asked only the rooms a
@@ -1342,9 +1526,30 @@ def test_a_plain_noun_that_is_a_printed_label_points_at_the_label_count() -> Non
         assert got.refusal.text.endswith(f'ask "{pointed}"'), question
         assert asked(pointed, drawing).answer.answer == value, question
     classrooms = asked("How many classrooms are there?", drawing).refusal
-    assert classrooms is not None and "no room on this drawing is printed classrooms" in (
-        classrooms.text
-    )
+    assert classrooms is not None and "no room on this drawing is printed" not in classrooms.text
+    assert "CLASSROOM 104 (1)" in classrooms.text  # R3-A4: named, not denied
+
+
+def test_a_noun_printed_inside_labels_is_refused_with_those_labels_not_denied() -> None:
+    """R3-A4 (Tudor's QA round 3, T1 DfE special school): "How many classrooms?" said "no room on
+    this drawing is printed classrooms" while listing "Secondary Classroom" among the rooms. The
+    noun is still not counted from labels (vocab-nouns line 3), but the refusal names each label
+    that holds it, with its count, and the question that counts it."""
+    drawing = scaled(
+        *(labelled(n, "Secondary Classroom") for n in range(1, 7)),
+        labelled(7, "Secondary Classroom (Severe Needs)"),
+        labelled(8, "Secondary Classroom (Severe Needs)"),
+        labelled(9, "Group Room"), labelled(10, "Classroomette"),
+    )  # fmt: skip
+    got = asked("How many classrooms are there?", drawing)
+    assert got.answer.answer is None and got.refusal is not None
+    text = got.refusal.text
+    assert "no room on this drawing is printed" not in text, text
+    assert "Secondary Classroom (6)" in text and "Secondary Classroom (Severe Needs) (2)" in text
+    assert "Group Room" not in text and "Classroomette" not in text, text
+    pointed = "How many rooms labelled 'Secondary Classroom' are there?"
+    assert f'"{pointed}"' in text, text
+    assert asked(pointed, drawing).answer.answer == 6
 
 
 def test_a_noun_no_room_is_printed_with_is_refused_by_name() -> None:
@@ -1434,6 +1639,73 @@ def test_a_low_answer_with_or_without_a_partial_total_is_asked() -> None:
         assert (got.partial is not None) is partial, text
 
 
+def test_a_printed_name_holding_a_type_word_names_that_room_whatever_its_type() -> None:
+    """R3-A5 (Tudor's QA round 3, T1): "the area of the Multi-Purpose Hall" was refused as "11
+    rooms on this drawing are of the type hall" though one room is printed Multi-Purpose Hall
+    (typed other by the reader). The bare type word with no such name still refuses."""
+    hall = Room(id="r1", type="other", label="Multi-Purpose Hall", page=1, box=BOX_A,
+                area_m2=152.4)  # fmt: skip
+    corridors = [Room(id=f"r{n}", type="hall", label=name, page=1, box=BOX_B, area_m2=float(n))
+                 for n, name in ((2, "Corridor"), (3, "Corridor"), (4, "Lobby"))]  # fmt: skip
+    drawing = scaled(hall, *corridors)
+    found = asked("What is the area of the Multi-Purpose Hall?", drawing)
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == 152.4
+    assert asked("What is the area of the multi-purpose hall?", drawing).answer.answer == 152.4
+    assert asked("What is the area of the hall?", drawing).refusal is not None
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What is the area of the Multi-Purpose Hall?",
+        "What is the area of the Sports Hall?",
+        "What is the area of the hall?",
+    ],
+)
+def test_a_room_printed_only_the_type_word_answers_no_longer_name(question: str) -> None:
+    """review-595 MUST (qa-a): with one room printed just "Hall" (typed other) among rooms typed
+    hall, "the Multi-Purpose Hall" and "the Sports Hall" found "Hall" inside them and answered
+    its 100 m². A printed name of the type's own words keeps main's rule: it names a room only
+    among the rooms of that type; "the hall" stays refused (decided)."""
+    printed = Room(id="r1", type="other", label="Hall", page=1, box=BOX_A, area_m2=100.0)
+    corridors = [Room(id=f"r{n}", type="hall", label="Corridor", page=1, box=BOX_B,
+                      area_m2=float(n)) for n in (2, 3)]  # fmt: skip
+    found = asked(question, scaled(printed, *corridors))
+    assert found.refusal is not None and found.answer.answer != 100.0, found.answer
+
+
+def test_a_printed_name_with_more_than_the_type_word_answers_among_any_type() -> None:
+    """review-595: "Sports Hall" printed on a room typed other still answers "the Sports Hall"."""
+    sports = Room(id="r1", type="other", label="Sports Hall", page=1, box=BOX_A, area_m2=288.0)
+    corridors = [Room(id=f"r{n}", type="hall", label="Corridor", page=1, box=BOX_B,
+                      area_m2=float(n)) for n in (2, 3)]  # fmt: skip
+    found = asked("What is the area of the Sports Hall?", scaled(sports, *corridors))
+    assert found.refusal is None and found.answer.answer == 288.0, found.refusal
+
+
+@pytest.mark.parametrize("word", ["largest", "smallest"])
+def test_the_largest_room_refusal_names_the_unmeasured_room_not_a_missing_name(word: str) -> None:
+    """R3-G6 (Tudor's QA round 3, T1): one of the rooms printed "Group Room" had no area (its box
+    refused), so none of the Group Rooms could be compared, and the refusal said they "have no
+    name or number to ask their area by". It names the room with no area and why, and says the
+    largest (or the smallest, as asked: review-595) of the rooms printed that way isn't known."""
+    groups = [labelled(n, "Group Room", area=12.0 + n) for n in range(1, 4)]
+    unmeasured = labelled(4, "Group Room", area=None)
+    hall = labelled(5, "Multi-Purpose Hall", area=150.0)
+    library = labelled(6, "Library", area=27.5)
+    drawing = scaled(*groups, unmeasured, hall, library).model_copy(
+        update={"notes": ("room area: r4 not measured, its box is 0.40 x 0.50 m (0.20 m²)",)}
+    )
+    found = asked(f"Which room is the {word}?", drawing)
+    assert found.refusal is not None, found.answer
+    text = found.refusal.text
+    assert "no name or number" not in text, text
+    assert "1 of its rooms (Group Room) has no area measured" in text, text
+    assert "its box is 0.40 x 0.50 m" in text, text
+    assert f"the {word} of the 4 rooms printed Group Room isn't known" in text, text
+
+
 def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
     """judge-fresh §10 (r11): "the living room" was refused because the dining room is typed
     living too, though only one room is printed LIVING ROOM. Two rooms printed so, or none,
@@ -1455,3 +1727,42 @@ def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
     unlabelled = dining.model_copy(update={"label": None})
     plain = living.model_copy(update={"label": None})
     assert asked("What is the area of the living room?", scaled(plain, unlabelled)).refusal
+
+
+def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> None:
+    """Tudor's QA round 3 R3-G3/R3-G2: on a scan the room count led with the reader's total (36
+    rooms where 100+ are drawn, room numbers 1, 4, 20, 28 missing; 28 where the sheet prints 48)
+    as if it were all of them. A count of rooms a reader picked off a picture is partial, as the
+    area total over the same rooms already was: Low, in words that say what it counts and which
+    room numbers between the ones found were not read."""
+    rooms = tuple(
+        Room(id=f"r{n}", type="other", label="DORM", page=1, box=BOX_A if n % 2 else BOX_B,
+             attrs={"number": str(n), "reader": "gemini"})
+        for n in (2, 3, 5, 6, 7, 8, 9, 10)
+    )  # fmt: skip
+    drawing = Drawing(
+        file="scan.png", pages=(PAGE,), scale=Scale(status="estimated", m_per_unit=0.05),
+        rooms=rooms, elements=(Element(id="e1", class_="door", page=1, box=BOX_A),),
+    )  # fmt: skip
+    got = ask(
+        "How many rooms are there?", drawing, parser=TemplateParser(), clock=lambda: 0.0,
+        prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=True, route="raster",
+    )  # fmt: skip
+    assert got.answer.answer == 8 and got.answer.sure is False
+    assert got.partial is not None and got.level is not None and got.level.level == "low"
+    said = (
+        "These are the 8 rooms the reader found; rooms it missed are not counted. "
+        "Room numbers it did not find between them: 1 and 4."
+    )
+    assert said in got.level.text
+    assert got.check is not None and said in got.check.reason
+    # rooms drawn on a vector sheet are all of them: no partial, as before
+    drawn = drawing.model_copy(
+        update={"rooms": tuple(r.model_copy(update={"attrs": {"number": r.attrs["number"]}})
+                               for r in rooms)}
+    )  # fmt: skip
+    got = ask(
+        "How many rooms are there?", drawn, parser=TemplateParser(), clock=lambda: 0.0,
+        prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=False, route="vector",
+    )  # fmt: skip
+    assert got.partial is None

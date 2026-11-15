@@ -87,6 +87,34 @@ class Measurement(Frozen):
     quantity: ConflictQuantity
     subject: Subject
     value: MeasuredValue
+    note: str | None = None  # why the values differ, for the entry (`Conflict.note`)
+
+
+StepState = Literal["running", "done", "failed", "skipped"]  # running: a live step
+
+
+class StepTrace(Frozen):
+    """One thing that ran inside a stage (a reader, a check, a model call), or in the project's
+    last phase (decision 0018). Readers that run at the same time have overlapping
+    [at_ms, at_ms + ms) spans."""
+
+    id: str  # stable machine id of what ran: "detector", "carbon", "vector", ... (docs/API.md)
+    label: str  # plain words for the screen: "Symbol detector, 8 views"
+    did: str = ""  # one readable line of what it found, or the error when it failed
+    at_ms: float = Field(default=0, ge=0)  # when it began, ms after its stage (or phase) began
+    ms: float = Field(default=0, ge=0)  # how long it ran
+    cost_usd: float = Field(default=0.0, ge=0)
+    state: StepState = "done"
+    found: dict[str, int] = Field(default_factory=dict[str, int])  # counts by class
+
+
+class PrintedAnswer(Frozen):
+    """A count the sheet prints for exactly what a stage-8 entry counts: its subject, the floor
+    the sheet shows, one value (PRINTED_TOTAL_ANSWERS, app/core/pipeline/printed_answer.py). The
+    entry reports it; `text` is as printed."""
+
+    measurement: Measurement
+    text: str
 
 
 class Extracted(Frozen):
@@ -111,7 +139,12 @@ class Extracted(Frozen):
     # What the sheet prints about this reading (its scale, its printed counts), measured against
     # it at stage 8 next to the second counter's values (app/core/pipeline/printed.py)
     printed: tuple[Measurement, ...] = ()
+    # Which of those printed counts the entry reports (PRINTED_TOTAL_ANSWERS); () when off
+    printed_answers: tuple[PrintedAnswer, ...] = ()
     notes: tuple[str, ...] = ()
+    # What ran to read it (decision 0018), `at_ms` after this extract call began; the trace's
+    # extract stage shows them. Nothing else reads them, so answers never depend on them.
+    steps: tuple[StepTrace, ...] = ()
 
 
 class CountingRule(Frozen):

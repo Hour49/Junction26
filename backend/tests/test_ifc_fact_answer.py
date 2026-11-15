@@ -268,6 +268,10 @@ def test_the_adapter_builds_a_sheet_once_and_keeps_it_on_disk(tmp_path: Path) ->
     again = IfcFactSource(files, tmp_path).facts(FILE)  # from the JSON, not the IFC
     assert again == sheet
     assert IfcFactSource(files).facts("data/x/plan.pdf") is None
+    # each space's room type from its names, the drawing path's room words (big QA R1 E6)
+    assert [(f.subject, f.value) for f in sheet.facts if f.topic == "space.room_type"] == [
+        ("1", "hall")
+    ]
     assert [p.suffix for p in tmp_path.iterdir()] == [".json"]  # written whole, no temp left
 
 
@@ -353,9 +357,45 @@ def test_elements_in_a_space_the_question_names() -> None:
 
 
 def test_a_ceiling_height_is_the_rooms_height() -> None:
+    """Tudor R4-H1: a named room's height leads, with no count or area (orchestrator 05:03)."""
+    said = text("What is the ceiling height in room 002?")
+    assert said == "Height of Bedroom (Space 002): 2.60 m"
+    assert text("What is the height of the ceiling in room 002?") == said
+
+
+def test_a_room_asked_its_area_and_height_keeps_both() -> None:
+    """Tudor's sweep on #628: the height-only path took a question that asks the area too."""
     assert "Bedroom (Space 002): 14.00 m², height 2.60 m" in text(
-        "What is the ceiling height in room 002?"
+        "What is the area and height of room 002?"
     )
+
+
+def test_a_room_whose_height_the_file_does_not_state_is_refused_in_words() -> None:
+    said = text("What is the height of the ceiling in room 001?")
+    assert said == "The file states no height for Kitchen (Space 001) (not available)."
+
+
+def test_a_room_cut_by_its_roof_gets_its_uncut_top_and_that_its_height_varies() -> None:
+    """pic-reg M1 on #628: never a single uncut height for a clipped room."""
+    attic = FactSheet(model="house", disciplines=["architecture"], facts=[
+        fact("space.long_name", "301", "Attic", None, storey="Roof"),
+        fact("space.height_up_to", "301", 2.581, "m", storey="Roof"),
+    ])  # fmt: skip
+    query = parse_ifc_question("What is the ceiling height in room 301?")
+    assert query is not None
+    assert fact_text(query, attic) == (
+        "Attic (Space 301): up to 2.58 m; its shape is cut (a sloped or clipped ceiling), so its"
+        " height varies"
+    )
+
+
+def test_the_heights_of_rooms_named_by_their_use_are_listed() -> None:
+    said = text("What is the ceiling height of the bedrooms?")
+    assert said.splitlines() == [
+        "Heights of the 2 spaces named 'bedrooms':",
+        "- Bedroom (Space 002): 2.60 m",
+        "- Bedroom (Space 101): the file states no height (not available)",
+    ]
 
 
 def test_foundations_get_the_sheets_foundation_totals() -> None:
@@ -683,7 +723,195 @@ def test_a_fixture_kind_the_question_names_leads_with_its_type_count() -> None:
     assert said("How many toilets are there?").startswith(
         "Toilets by the file's type: WCSEAT 4 (of 16 sanitary fixtures)"
     )
+    # R4-C3: a washbasin is a sink too; "the file does not mark which are sinks" was false here
     assert said("How many sinks are there?").startswith(
-        "The file does not mark which sanitary fixtures are sinks (not available)."
+        "Sinks by the file's type: WASHHANDBASIN 12 (of 16 sanitary fixtures)"
     )
     assert said("How many sanitary fixtures are there?").startswith("Total sanitary fixtures: 16")
+    no_basin = FactSheet(model="services", disciplines=["plumbing"], facts=[
+        fact("sanitary_terminal.count", "all", 4, "count"),
+        fact("sanitary_terminal.count_by_predefined_type", "WCSEAT", 4, "count"),
+    ])  # fmt: skip
+    query = parse_ifc_question("How many sinks are there?")
+    assert query is not None
+    assert (fact_text(query, no_basin) or "").startswith(
+        "The file does not mark which sanitary fixtures are sinks (not available)."
+    )
+
+
+GUIDS = FactSheet(
+    model="duplex",
+    disciplines=["architecture"],
+    facts=[
+        fact("door.count", "all", 2, "count"),
+        fact("wall.count", "all", 57, "count"),  # walls: no one-by-one facts, so no GUIDs
+        fact(
+            "door.global_id",
+            "Single-Flush:1250 x 2010:146596",
+            "1hOSvn6df7F8_7GcBWlRGQ",
+            None,
+            "L1",
+        ),
+        fact("door.width", "Single-Flush:1250 x 2010:146596", 1.25, "m", "L1"),
+        fact("door.height", "Single-Flush:1250 x 2010:146596", 2.01, "m", "L1"),
+        fact(
+            "door.global_id",
+            "Single-Flush:0762 x 2032:150173",
+            "2aB3cD4eF5gH6iJ7kL8mN9",
+            None,
+            "L1",
+        ),
+        fact("door.width", "Single-Flush:0762 x 2032:150173", 0.762, "m", "L1"),
+        fact("window.count", "all", 1, "count"),
+        fact("window.global_id", "W:1000 x 1735:9", "0otfaO0qPDAhynjJ6DmgH8", None, "L1"),
+        fact("window.width", "W:1000 x 1735:9", 1.0, "m", "L1"),
+        fact("window.height", "W:1000 x 1735:9", 1.735, "m", "L1"),
+    ],
+)
+
+
+def guid_text(question: str) -> str:
+    query = parse_ifc_question(question)
+    assert query is not None
+    return fact_text(query, GUIDS) or ""
+
+
+def test_an_elements_measure_by_its_guid() -> None:
+    """Tudor R4-H2: "width of the door <GUID>" answered "Total doors: 14"."""
+    said = guid_text("What is the width of the door 1hOSvn6df7F8_7GcBWlRGQ ?")
+    assert (
+        said
+        == "Door Single-Flush:1250 x 2010:146596 (GlobalId 1hOSvn6df7F8_7GcBWlRGQ): width 1.25 m"
+    )
+    said = guid_text("What are the dimensions of the window with guid 0otfaO0qPDAhynjJ6DmgH8?")
+    assert said == (
+        "Window W:1000 x 1735:9 (GlobalId 0otfaO0qPDAhynjJ6DmgH8): width 1.00 m, height 1.74 m"
+    )
+
+
+def test_a_guid_the_file_lacks_or_a_measure_it_does_not_state_is_said() -> None:
+    said = guid_text("What is the width of the door 9zzzzzzzzzzzzzzzzzzzZZ?")
+    assert said == "No door in this file has GlobalId 9zzzzzzzzzzzzzzzzzzzZZ (not available)."
+    said = guid_text("What is the height of the door 2aB3cD4eF5gH6iJ7kL8mN9?")
+    assert said == (
+        "Door Single-Flush:0762 x 2032:150173 (GlobalId 2aB3cD4eF5gH6iJ7kL8mN9): the file states"
+        " no height for it (not available)."
+    )
+
+
+DUPLEX_LEVELS = FactSheet(
+    model="duplex",
+    disciplines=["architecture"],
+    facts=[
+        fact("storey.elevation", "T/FDN", -1.25, "m", "T/FDN"),
+        fact("storey.elevation", "Level 1", 0.0, "m", "Level 1"),
+        fact("storey.elevation", "Level 2", 3.1, "m", "Level 2"),
+        fact("storey.elevation", "Roof", 6.0, "m", "Roof"),
+        fact("storey.height", "T/FDN", 1.25, "m", "T/FDN"),
+        fact("storey.height", "Level 1", 3.1, "m", "Level 1"),
+        fact("storey.height", "Level 2", 2.9, "m", "Level 2"),
+    ],
+)
+
+
+def level_text(question: str) -> str:
+    query = parse_ifc_question(question)
+    assert query is not None
+    return fact_text(query, DUPLEX_LEVELS) or ""
+
+
+def test_a_floor_to_floor_height_between_two_storeys() -> None:
+    """Tudor R4-H2: answered "4 storeys" and a list; truth 3.1 m (ground = Level 1, at 0 m)."""
+    said = level_text("What is the floor-to-floor height between the ground floor and first floor?")
+    assert said == "Floor-to-floor height from Level 1 to Level 2: 3.10 m"
+    said = level_text("What is the floor to floor height between the first and the second floor?")
+    assert said == "Floor-to-floor height from Level 1 to Level 2: 3.10 m"  # named: Level 1, 2
+
+
+def test_storeys_apart_or_missing_are_given_as_stated() -> None:
+    said = level_text(
+        "What is the floor-to-floor height between the ground floor and second floor?"
+    )
+    assert said.splitlines() == [
+        "Level 1 and Level 2 (Roof) are not one storey apart; the file states:",
+        "- Level 1: elevation 0 mm (0.00 m), floor-to-floor height 3.10 m",
+        "- Level 2: elevation 3.10 m, floor-to-floor height 2.90 m",
+        "- Level 2 (Roof): elevation 6.00 m",
+    ]
+    said = level_text("What is the floor-to-floor height between the ground floor and tenth floor?")
+    assert said.startswith("No storey 'tenth floor' in this file; it has 4 storeys:")
+
+
+def test_a_guid_of_a_class_not_listed_one_by_one_is_not_called_missing() -> None:
+    """pic-reg M2 on #628: 'No wall in this file has GlobalId X' was false (walls have no GUID
+    facts); the same for a space (S1), which got the all-spaces total."""
+    said = guid_text("What is the length of the wall 2O2Fr$t4X7Zf8NOew3FKau?")
+    assert said == (
+        "This file's facts do not list walls one by one, so a wall cannot be found by its GlobalId"
+        " here (not available)."
+    )
+    said = text("What is the area of the space 0BTBFw6f90Nfh9rP1dlXrb?")
+    assert said == (
+        "This file's facts do not list spaces by GlobalId, so a space cannot be found by it here"
+        " (not available)."
+    )
+
+
+# The demo IFC's P1 (bimspeed-vitoria): spaces numbered by Name, their room in LongName ("BAÑ" a
+# bathroom); the reader types each space by the drawing path's room words (space.room_type)
+ROOMS = FactSheet(
+    model="rooms_arc",
+    disciplines=["architecture"],
+    facts=[
+        fact("storey.elevation", "P0", 0.0, "m", storey="P0"),
+        fact("storey.elevation", "P1", 4.4, "m", storey="P1"),
+        fact("storey.elevation", "P2", 7.4, "m", storey="P2"),
+        fact("space.long_name", "01.19", "1IZQ-BAÑ", None, storey="P1"),
+        fact("space.long_name", "01.28", "1DER-BAÑ", None, storey="P1"),
+        fact("space.long_name", "01.20", "1IZQ-COC", None, storey="P1"),
+        fact("space.long_name", "01.36", "2IZQ-BAÑ", None, storey="P2"),
+        fact("space.room_type", "01.19", "bathroom", None, storey="P1"),
+        fact("space.room_type", "01.28", "bathroom", None, storey="P1"),
+        fact("space.room_type", "01.20", "kitchen", None, storey="P1"),
+        fact("space.room_type", "01.36", "bathroom", None, storey="P2"),
+        fact("space.count", "all", 3, "count", storey="P1"),
+    ],
+)
+
+
+def test_a_room_word_counts_the_spaces_of_that_room_type_on_a_storey() -> None:
+    """Big QA R1 E6: "How many bathrooms are there on Level 1?" on the demo IFC said "No space
+    in this file is named 'bathrooms'": the words met the spaces' names only, and no name says
+    "bathroom" ("1IZQ-BAÑ"). The room words type them as the drawing path does."""
+    query = parse_ifc_question("How many bathrooms are there on Level 1?")
+    assert query is not None
+    said = fact_text(query, ROOMS)
+    assert said is not None and "is named 'bathrooms'" not in said, said
+    assert said.splitlines()[0].endswith(": 2 spaces"), said
+    assert "1IZQ-BAÑ" in said and "1DER-BAÑ" in said and "COC" not in said and "2IZQ" not in said
+
+
+def test_toilets_with_no_fixture_in_the_file_are_its_wc_rooms_never_a_wall_type() -> None:
+    """Big QA R1 E10: digital_hub "How many toilets are there?" answered "Basiswand:GK 75 -
+    Toilettentrennwand (wall type): 16": no sanitary terminal in the file, so the word was looked
+    up among type names and met the toilet partition walls. Its 8 WC rooms are the toilets."""
+    sheet = FactSheet(
+        model="hub_arc",
+        disciplines=["architecture"],
+        facts=[
+            fact("storey.elevation", "E00", 0.0, "m", storey="E00"),
+            fact("space.long_name", "1-15", "WC Damen West - EG", None, storey="E00"),
+            fact("space.long_name", "1-16", "WC Herren West - EG", None, storey="E00"),
+            fact("space.long_name", "1-4", "Gruppenbüro 1", None, storey="E00"),
+            fact("space.room_type", "1-15", "wc", None, storey="E00"),
+            fact("space.room_type", "1-16", "wc", None, storey="E00"),
+            fact("wall.count", "all", 40, "count"),
+            fact("wall_type.count", "Basiswand:GK 75 - Toilettentrennwand", 16, "count"),
+        ],
+    )
+    query = parse_ifc_question("How many toilets are there?")
+    assert query is not None
+    said = fact_text(query, sheet)
+    assert said is not None and "Toilettentrennwand" not in said, said
+    assert said.splitlines()[0].endswith(": 2 spaces"), said
+    assert "WC Damen West" in said and "Gruppenbüro" not in said

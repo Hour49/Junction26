@@ -38,9 +38,15 @@ Non-goals (v1):
 ## Inputs
 
 A page reaches this lane when triage says so:
-- `Sheet.discipline` (`app/core/ingest/model.py`, from `discipline_from_sheet`) is one of `plumbing`, `heating`,
-  `ventilation`, `electrical`, `fire` or `structural`, which it is only by a strong title word or a sheet code
-  (`discipline.py`; weak words such as "pump" or "post" never override the kind);
+- `Sheet.discipline` (`app/core/ingest/model.py`) is one of `plumbing`, `heating`, `ventilation`, `electrical`,
+  `fire` or `structural`. By default (`SHEET_DISCIPLINE=rules`) only by a strong title word or a sheet code
+  (`discipline_from_sheet`). With `SHEET_DISCIPLINE=gemini` (prompt sheet-kind-3, 2026-11-15, off in the demo)
+  it is the sheet-kind reply's own `discipline` field,
+  judged from what is drawn, cross-checked by `sheet_discipline` (`discipline.py`): a title or sheet number that
+  names other disciplines by a strong word or a code makes it None (unsure, not routed); weak words such as
+  "pump" or "piping" and service rooms never veto. Measured (.agents/exp/pics-pic-cls.md, dev only): right on
+  65/70 rendered and real services/structural sheets vs 36/70 by the title rules; 1/60 fresh dev floor plans
+  called non-architecture (a real ventilation drawing on audit);
 - `Sheet.kind == "mep_plan"` alone does **not** route: an `mep_plan` whose title names no service (discipline None)
   is not routed. Measured on the labelled set: the sheet-kind model calls 4 of 22 labelled floor plans
   (evacuation-plan photos) `mep_plan`, so routing on the kind would send floor plans to this lane;
@@ -51,6 +57,12 @@ instead (AC-20): `discipline_from_sheet("mep_plan", <file stem>, None)`, so only
 the service ("H-101 Floor 1 heating.png"); a weak word ("pipe layout 7.png") or none leaves the file as it was. A
 reply always wins, even one with no discipline. Each fact read this way says so in its `source`, after its readers
 (`picture:template+mask:discipline-from-file-name`), and stays Low like every picture fact.
+
+The page's discipline (the reply's, else the file name's) is also each fact's discipline when its legend label names
+none (AC-21): a valve, pipe or pump label, a label with no kind, a line style that names no system. A group heading or
+label that names a discipline by a strong word ("Cold water", "Hydronic Supply") still wins; a weak word ("Ventil",
+"valve") does not. Without it, a heating plan's "Absperrventil" and Gemini's misspelt "HeizkAcrper Plan Ventil" were
+plumbing valves.
 
 The page is one of:
 
@@ -117,6 +129,7 @@ decision 0011.
 | symbols, reader B (`template`) | local, no model call: each legend symbol's crop is matched over the page (normalised cross-correlation at 0°/90°/180°/270° and three scales around the legend's). Peaks above the threshold become boxes, after non-maximum suppression. | numpy + PIL (installed); no new dependency |
 | symbols, vector PDF (`paths`) | identical path groups (same commands up to translation and rotation, same stroke) repeated on page 1 are one symbol. A group whose shape equals a legend symbol's paths takes its label. | `vector_pdf/objects.py` |
 | runs (`mask`) | for each legend *line* entry with a colour or dash pattern of its own: a mask of that style → skeleton → length in px × m/px; the size labels printed along the run (VLM tile reply) split it per size. | printed scale above |
+| runs (`graph`, DISCIPLINE_RUNS=graph; default `mask`) | per legend line colour: mask (and the colour's chroma) → dashes closed → Zhang-Suen thinning → line graph (`app/core/picture_graph.py`: nodes at ends and junctions, edges as px polylines) → gaps bridged between two ends of one style facing each other, up to 1.0 m of building → a run per connected network (`runs_graph.py`). DigitalHub held out (truth legend boxes and scale): 33/64 clean+photo units within 10% vs mask 22/64; grey scans 0 for both (.agents pics-runs, 2026-11-15). Its sheets are kept in `<cache>/runs-graph`. | printed scale above |
 | runs, vector PDF (`paths`) | the length of the paths drawn in the legend line's stroke (colour, width, dash), in PDF points × m/pt. | `vector_pdf/scale.py` |
 
 What each reader looked for is in its `read` (legend labels). A label that is not in `read` stays unknown. This is
@@ -210,7 +223,8 @@ class PictureReader(Protocol):
 
 | Setting | Values | Default |
 | --- | --- | --- |
-| `DISCIPLINE_PICTURES` | `off`, `template`; later `vlm`, `vlm+template` | `off` (the lane writes nothing; triage is unchanged) |
+| `DISCIPLINE_PICTURES` | `off`, `template`, `glyphs`, `gemini` | `off` (the lane writes nothing; triage is unchanged) |
+| `DISCIPLINE_GLYPHS_MODEL` | a folder with `model.onnx` (never committed) | `../data/models/pic-glyphs` |
 | `DISCIPLINE_PICTURES_CACHE_DIR` | a folder | `../data/cache/discipline-pictures` |
 | `DISCIPLINE_PICTURES_PROVIDER` | `gemini`, `eu` (openvlm) | `gemini` |
 | `DISCIPLINE_PICTURES_MAX_USD` | USD per page | `0.15` |
@@ -228,6 +242,25 @@ label, so every fact is held: Low, never sure. Facts are written sheet-wide (no 
 title's storey and each system's copies, so the fact answers (`answering/facts.py`) find them. A class the legend
 does not list is refused ("not read on this picture"), not 0. Not wired yet: vector PDFs (triage gives them no
 `Sheet`), the product's ask (it reads no fact sheet; only `Pipeline.answer_questions` does), the VLM readers.
+
+Built (2026-11-15, pic-det): two more symbol readers, each with its own sheet folder (`lane.kept_in`).
+`DISCIPLINE_PICTURES=gemini` (`gemini.py`, reader `vlm`): one Carbon call per page reads the legend's rows and every
+plan occurrence's box; replies cached by page sha256 + `VERSION` + prompt hash + model (a reply with no legend is not
+kept); a failed call or a reply that is not the asked JSON raises, so the lane keeps no sheet (and keeps the one it
+had). `DISCIPLINE_PICTURES=glyphs` (`glyphs.py`):
+a YOLO26 S glyph-style detector (72 classes: shape x fill x printed number) on 1024 px tiles, the legend binding
+style -> label. Measured on a held-out rendered building (rwth-digitalhub v2, 36 pages, 1,155 symbols; trained or
+tuned on bsc-clinic only; IoU 0.5):
+
+| reader | P | R | counts within 10% | valves P/R | cost/page |
+| --- | --- | --- | --- | --- | --- |
+| template, OCR legend | 0.07 | 0.29 | 8/54 | 0.04/0.06 | 0 |
+| glyphs, OCR legend | 0.92 | 0.38 | 9/54 | 0.80/0.24 | 0 (1.5 s CPU) |
+| glyphs, true legend boxes (bound) | 0.96 | 0.82 | 27/54 | 0.83/0.29 | 0 |
+| gemini (reads its own legend) | 0.95 | 0.92 | 46/54 | 0.80/0.68 | $0.030 |
+
+The OCR legend reader is what sinks both local readers on scans (template 0.01/0.01, glyphs 0.77/0.06 there).
+One synthetic building, legend always printed: not a pass on real sheets, so the facts stay Low.
 
 ## Cost per page
 
@@ -337,6 +370,9 @@ Core (P1):
 - **AC-1** `kind_of`: "Radiator", "Heizkörper", "lämpöpatteri" → `("space_heater", "heating")`; "Supply air
   diffuser" → `("air_terminal", "ventilation")`; "Socket outlet 2x" → `("outlet", "electrical")`; "Valve" with group
   "Heating" → `("valve", "heating")`, with group "Cold water" → `("valve", "plumbing")`; "Logo" → None.
+- **AC-21** `kind_of(label, group, sheet)`: on a heating sheet "Absperrventil allgemein" and "HeizkAcrper Plan Ventil
+  Unten:Rechts" → heating; on a plumbing sheet "Valve" → plumbing; "Valve" with group "Cold water" on a heating sheet →
+  plumbing; no sheet → as AC-1. `line_kind_of("H_Transport_VL_", None, "heating")` → `("pipe_segment", "heating")`.
 - **AC-2** `double_check` on two readings of label L, 10 spots each, 9 within `near` of each other: L agreed; the 1
   + 1 unmatched spots are the disputed places, each with both readers' sentences; at most 5 disputed, strongest
   (highest-scoring reader A spot) first.

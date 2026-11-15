@@ -52,7 +52,7 @@ one line per route:
 | 6 | Second count | `second_count` | Counting a second way | `CheckPairs` | "Quantities that can be measured a second way are measured again by an independent method. When the two disagree, it goes to you as a conflict." |
 | 7 | Takeoff | `takeoff` | Working out the quantities | `ReadyList` | "The counting rules are applied and every quantity of the plan is computed in advance, with the marks it comes from, so questions are answered from it straight away." |
 | 8 | Store | `write` | Storing the drawing model | `PlanMarks` | "One drawing model per plan is stored, with the marks that show where each quantity comes from." |
-| 9 | Index | none (the project's last phase) | Indexing for questions | `FileStrip` | "Once every file is through, each set-aside file is judged against the project, the files that are not plans are described or their text read, and everything goes into the project's search index for the chat." |
+| 9 | Index | none (the project's last phase) | Indexing for questions | `FileStrip` | "Once every file is through, the files triage set aside are judged against the project (a file set aside for another reason, such as a failed read or a second copy, is not), the files that are not plans are described or their text read, and everything goes into the project's search index for the chat." |
 
 Per-route lines (`STEP_VIEW[k].routes`), shown under the explanation as a list, "**<routeLabel>:** <line>", only for routes
 some file of the project is on (`files[].route`), in the order BIM model, CAD, drawn PDF, image:
@@ -403,6 +403,144 @@ Pipeline steps v4 (ingest.md "Pipeline steps v4")
   [unit + component]
 - AV-48: The rail is 9 columns wide at 1440 px and 3 × 3 at 390 px, with no horizontal scroll and no step name
   broken inside a word (`overflow-wrap: normal`). [e2e screenshot]
+- AV-49: The Index explanation says only the files triage set aside are judged, and that a file set aside for
+  another reason (a failed read, a second copy) is not; it never says "each set-aside file" is judged (the
+  backend's `to_judge` takes only files with a triage verdict other than floor plan, #680). [unit]
+
+## Trace view v5 (ingest UI track, 2026-11-15, worker detail for w18:p3C)
+
+Bogdan (2026-11-15 03:20): "I want the ingestion pipeline to look much better, and then to be more representative of
+the operations we are doing right now in the actual pipeline." Two views read the trace as time and decisions: the
+Advanced view starts with every file by its stages, and a file's page (`#/p/<id>/f/<fid>`) shows its decisions and
+its stages on one time axis, with the steps that ran inside each stage (contract `StageTrace.steps`,
+`docs/decisions/0018-ingest-trace-steps.md`). Files: `src/advanced/trace.ts` (pure), `TraceTimeline.tsx`
+(`TraceTimeline`, `Decisions`, `StepList`), `FileMatrix.tsx`, `trace.css`; `FileTraceScreen.tsx` uses them.
+
+- **Time axis.** Stages of one file run one after another, so a stage starts where the ones before it ended
+  (`stageSpans`); no `StageTrace.at` is needed. Steps sit on their stage's axis at `at_ms`, `ms`: readers that ran
+  together overlap, and the stage says "N steps inside <stage>, up to K side by side" (`sideBySide`, skipped steps
+  not counted). An older server sends no `steps`: the stage shows as before, with no step list.
+- **Decisions**, in pipeline order, each with where it happened: what the file is (triage class, plan chance,
+  method, the sheet reader's kind and decision; without triage the identify line), the route with its group, the
+  file it is read from and a cache hit, the second count (agree, or the conflicts with both values from the
+  drawing's takeoff, asked once and only when `second_count.conflicts > 0`), and the outcome with its reasons
+  (`reason` split on "; ") and a failed stage. Icon and word, colour only adds.
+- **Files by stage** (top of Advanced, above the rail): one row per file with its path (link to its trace), state,
+  route, a bar of its stages merged by phase (open and route, normalise, read the plan, second count, takeoff and
+  store) whose length is its time against the slowest file, the longest stage, total time, rooms/doors/windows
+  found, cost, a failed stage, and the reason on its own line when it found nothing. A running file says "Now:
+  <FileStatus.step>". The last phase's `index_steps` are listed under the files.
+
+Acceptance criteria
+
+- AD-100: The file page shows its stages open (no `<details>`) under "How it was read: N stages" in a region
+  "Stages", each on the time axis; replaces IN-83's fold for the stages (the takeoff fold stays). [component
+  `FileTraceScreen.test.tsx`; e2e `ingest-detail.spec.ts`]
+- AD-101: `stageSpans` places each stage after the ones before it, as fractions of the file's time; no time gives no
+  span. [unit `trace.test.ts`]
+- AD-102: `stepSpans` places steps by `at_ms`/`ms` on the stage axis (stretched to the latest step end, never past
+  100 %); `sideBySide` counts the most steps running at once, back-to-back and skipped ones not overlapping.
+  [unit]
+- AD-103: Each step shows its label, `did` (else its `found` counts, largest first), time, cost; failed and
+  skipped steps carry an icon with the word; skipped draws no bar. [component `FileMatrix.test.tsx`; e2e with
+  contract-shaped steps added to the real response]
+- AD-104: A stage without `steps` (older server) or with none draws no step list. [unit, component]
+- AD-105: A drawn PDF's decisions: identified as, route with group, both counts agree, ready with its reason.
+  [unit]
+- AD-106: Triage words (class, plan chance, sheet kind and decision), read-from and cache lines, a conflict with
+  both values, flagged reasons one per line, a failed stage; the region "Decisions" lists them in order Identify,
+  Route, Second count, Outcome. [unit, component, e2e plans/flat-b.pdf]
+- AD-107: The conflict values come from one takeoff request, only when the second count disagreed; `disputes`
+  limits them (older servers: every `conflict` row). [component call log, unit]
+- AD-110: Files by stage lists every file, each linking to `#/p/<id>/f/<fid>`, with route words, state, time and
+  what it found; the bar's accessible name lists every stage with its time. [component, e2e]
+- AD-111: A failed stage is said on its row ("✕ Extract failed: …"); a running file says "Now: <step>" and its last
+  segment pulses (not under reduced motion). [component]
+- AD-112: Bars compare files (the slowest full width, the others their share, at least 4 %); neighbouring stages of
+  one phase are one segment, a failure marks its run. [component, unit `phaseRuns`]
+- AD-113: The project's `index_steps` are listed under the files ("After the files, now: …" while `phase` is
+  `index`); a project with no files shows nothing. [component]
+- AD-114: Paths, step labels and `did` render as text. [component]
+- AD-115: A file that found nothing gives its reason on a full-width line; at 390 px the rows stack and nothing
+  scrolls sideways. [component; e2e screenshots at 1440 and 390]
+- AD-116: `trace.css` uses only `--v-*` colours; a segment takes its phase's colour, and the five phases have five
+  fills apart in hue and lightness (grey `--v-line`, outlined pale `--v-accent-soft`, green `--v-accent`, amber
+  `--v-warn-mark`, blue `--v-3d-moved`; review of #546: read and store were two dark greens); the bar also says its
+  stages in words and a failure in text. Under reduced motion the bars do not grow and nothing pulses. [unit on
+  the CSS text; e2e `animationName` under `reducedMotion: 'reduce'`]
+- AD-117 (review of #546): A stage's output shows only when it adds to its did line: not when the did contains it,
+  when it is the route of a "<route> route" did, or when it is the full hash the did starts ("sha256 dd2c…").
+  [unit `repeats`; component IN-33]
+- AD-118 (review of #546): A file's reason reads as plain lines, never two brackets in a row: reasons joined by
+  "; " are one line each, and a trailing bracketed summary with a comma ("(7 elements, 5 rooms, …)") becomes
+  "Found: …". The text is the backend's (`FileStatus.reason`); the frontend only splits it. [unit `reasonLines`]
+- AD-119 (review of #546): A file read with its group's other file (`source` differs from `path`) says "read with
+  <source>" in its matrix row, "Read with <source>" as its route decision, and "read with <source> (<route>)" as
+  its Route fact, never the route alone as if it were read itself. [unit, component]
+- AD-120 (review of #546): The file page's last card, "What it ends as", gives the takeoff's plain class counts
+  above zero (zeros left out before the 8 are taken; rooms, doors, windows first, at most 8) and "See these on the drawing" (its engineer workspace); the full
+  list stays folded under "What it ends as: N quantities". [unit `keyCounts`; component]
+- AD-121 (real traces, 2026-11-15): A stage's steps are cut where none was running. Steps whose times overlap are one
+  run under a note "Side by side, <from> to <to>: N steps[, up to M at once]", each drawn on the run's own axis (its
+  first start to its last end), so the overlap shows even in the last tenth of a 21 s stage; a lone step keeps the
+  stage axis. A stretch with no step running of at least 1 s and a tenth of the stage is its own note: "The first
+  step began at <t>" before the first step, else "No step ran from <a> to <b>"; no reason is given for the wait (the
+  data names none). Notes are `role="presentation"`, so the steps stay the list's only items. [unit `stepRows`;
+  component `FileMatrix.test.tsx`; screenshots of the four real traces at 1440 and 390]
+- AD-122 (real traces, 2026-11-15): The file page's Cost fact shows only a cost above zero; a file with no paid call
+  has no Cost row (was "$0.00" on every file, IN-32), and an odd last fact spans the grid row. [component
+  `FileTraceScreen.test.tsx`]
+- AD-123 (QA R2-A1, 2026-11-15): Extract's **Drawings ready** counts only finished drawings something was read off:
+  a drawing whose route's reader in `project.readers` is `hello` is not ready (the same rule as the Simple view's
+  IN-116). On `project.json` (raster = hello) it reads "4 / 6", was "6 / 6" (AV-17's test changed with it).
+  [component `AdvancedIngest.test.tsx`]
+- AD-124 (real-data screenshots, 2026-11-15): A long path in the file matrix (the file's link and "read with <file>")
+  keeps its file name whole and lets the muted folder give way first, as the Simple view's IN-113 (`splitPath` from
+  `RouteLanes.tsx`); the link's name and title stay the full path, and the file column is as wide as the longest
+  path, at most 45 % of the row. The Index step's "Questions ready to ask" lists
+  only the drawings with questions, then one line for the rest ("12 drawings have none yet"); it was one row per
+  drawing, 12 of 13 real ones reading "0 questions ready to ask". [component `FileMatrix.test.tsx`,
+  `AdvancedIngest.test.tsx`; screenshots at 1440 and 390]
+- AD-125 (real steps of #535, 2026-11-15): Identify, Normalise and Second count now send steps. A step's did line that
+  the stage's own did already says (the whole line, or a part of it at its start or after "; " / ": ") is not shown
+  again; the step keeps its name and time. A done step with 0 ms exactly was not timed (the second count's checks):
+  no time, no bar. A check step whose `found.conflict` is above zero gets the "!" mark ("found a conflict"). The
+  Index step's log lists each file's evidence, then the project's `index_steps` ("<label> <did>", a failed one
+  marked), so its live line is the latest index step. A path in the Advanced panel's running text (live line, log,
+  "Questions ready to ask", the Unpack file cards) is the muted folder with a break allowed after each "/", then
+  the file name as one box: whole on its line when it fits, else broken after a "_" or "-" of its own, never
+  mid-token. [unit `trace.test.ts`; component `FileMatrix.test.tsx`, `AdvancedIngest.test.tsx`; e2e
+  `ingest-detail.spec.ts`; screenshots at 1440 and 390]
+- AD-126 (orchestrator, 2026-11-15): A path in the Advanced panel's running text (AD-125) breaks only after its own
+  separators, the folder's and the name's alike, with `nameParts` from `ingest.ts` (IN-121: after "_", "-", "." and
+  "/"), and carries the full path as its title. [component `AdvancedIngest.test.tsx`; screenshots at 1440 and 390]
+- AD-127 (QA R4-A9, 2026-11-15): A drawing with `not_a_drawing: true` (the sheet-kind step called it not a drawing
+  at all; it was read only because the step warns, and its file is flagged) is shown as what the pipeline did: kept
+  and read, never ready. Takeoff's **Drawings** stays the raw total, with "N not a drawing" under it; its row in
+  "Questions ready to ask" keeps its questions, gets a muted "not a drawing" tag and no ready dot. The Extract
+  picker reads "<file> · not a drawing" and the picked drawing carries the tag. The file page says "The sheet-kind
+  step called this not a drawing: it was read, but it is not counted as a drawing ready." under the flag reason
+  (from the file's triage, as the backend's `not_a_drawing`: a doubted `not_a_drawing` sheet nobody had read as a
+  floor plan). Drawings ready leaves it out through `readDrawings` (IN-126). [component `AdvancedIngest.test.tsx`,
+  `FileTraceScreen.test.tsx`; screenshots at 1440 and 390]
+- AD-128 (trace's real-data e2e, 2026-11-15): A measured stage or step time under 0.01 ms reads "<0.01 ms" (it read
+  "0.00 ms" on the hash, group and route stages, which looks like a fake time), as a cost under a cent reads
+  "<$0.01". A stage at 0 ms exactly was not timed (an IFC model's normalise is a trace line, not a measurement) and
+  shows no time, as an untimed step (AD-125); the file matrix's bar names it without a time. [unit `trace.test.ts`;
+  component `FileTraceScreen.test.tsx`]
+- AD-129 (detail audit of the real demo run, 2026-11-15): A log line drops a stage output's leading "<stage>: "
+  (the takeoff's "takeoff: 41 quantities, 25 above zero"): the line's head already names the stage. [unit
+  `advanced.test.ts`]
+- AD-130 (detail audit): Normalise's log line of a corrected image says what was corrected before its page size
+  ("perspective corrected (paper edges); 1 page, …", from `FileStatus.normalised`, as the file page's "After
+  normalisation"): the photo rectifier ran there, and the page size alone hid it. [unit `advanced.test.ts`]
+- AD-131 (detail audit): Second count counts a measurement once. The takeoff lists a room's area under its number
+  and its name (`name=1.02`, `name=reduit`); agreeing rows of one takeoff with the same measure, both values and
+  the same marked places are one pair (the demo run showed "Measured twice 23, Agree 22" where the traces say 12
+  and 11). Disputed rows follow AV-34 as before. [unit `advanced.test.ts`, component `AdvancedIngest.test.tsx`]
+- AD-132 (detail audit): On the file page, Identify's decision for a sheet the sheet-kind step called not a drawing
+  (AD-127's rule) is titled "Not a drawing, read anyway" in the warning tone, not "A floor plan" (the triage class
+  stays floor_plan because the sheet is read; its plan chance is 0 %). [unit `trace.test.ts`]
 
 ## Not in the API
 

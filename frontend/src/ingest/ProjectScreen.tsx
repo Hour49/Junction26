@@ -1,11 +1,21 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useState, type ReactNode } from 'react';
 import { errorText, formatTime, getProject, type FileStatus, type ProjectView } from '../api';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { parseRoute, useHash } from '../shell/route';
-import { PROJECT_STATE_LABEL, STATE_LABEL, keepPolling, sizeText, uploadedKey } from './ingest';
+import {
+  PROJECT_STATE_LABEL,
+  STATE_LABEL,
+  isLive,
+  keepPolling,
+  nameParts,
+  plural,
+  sizeText,
+  uploadedKey,
+} from './ingest';
 import { ChatRow, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
+import { readDrawings, unread } from './pipeline';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
 import { MUTED, PAGE, PANEL, TAP } from './ui';
@@ -99,33 +109,87 @@ export function TitleRow({
           )}
           {eyebrow}
         </p>
-        <h1 className="v-title mt-1! [overflow-wrap:anywhere]">{title}</h1>
+        {/* a long upload or file name shows 3 lines at most; the heading's name and its title stay whole (IN-114).
+            It wraps after its own separators first; `anywhere` only for a part too long for a line (IN-121) */}
+        <h1 className="v-title mt-1! line-clamp-3 [overflow-wrap:anywhere]" title={title}>
+          {nameParts(title).map((part, i) => (
+            <Fragment key={`${String(i)}:${part}`}>
+              {i > 0 && <wbr />}
+              {part}
+            </Fragment>
+          ))}
+        </h1>
       </div>
       {children}
     </header>
   );
 }
 
-/** A done project with no drawings: every file and skipped entry with why it was not read (IN-72). */
+/** A reason this many entries or more share is one row with a few example paths (IN-128, QA R4-G4). */
+const GROUP_AT = 4;
+const EXAMPLES = 3;
+/** Rows the "Nothing read" card lists; the entries past them are counted, with the link to Documents. */
+export const NOTHING_ROWS = 12;
+
+type WhyRow = { reason: string | null; paths: string[] };
+
+/** Each entry its own row, but a reason shared by `GROUP_AT` or more entries one row for all of them. */
+export function whyRows(why: readonly { path: string; reason?: string | null }[]): WhyRow[] {
+  const byReason = new Map<string, string[]>();
+  for (const w of why) {
+    const paths = byReason.get(w.reason ?? '');
+    if (paths) paths.push(w.path);
+    else byReason.set(w.reason ?? '', [w.path]);
+  }
+  return [...byReason].flatMap(([reason, paths]) =>
+    paths.length >= GROUP_AT
+      ? [{ reason: reason || null, paths }]
+      : paths.map((p) => ({ reason: reason || null, paths: [p] })),
+  );
+}
+
+/** A done project with no drawing ready: every file and skipped entry with why it was not read (IN-72), entries with
+ * the same reason grouped and the rows capped (IN-128). */
 function NothingRead({ projectId, project }: { projectId: string; project: ProjectView }) {
   const paths = new Set(project.files.map((f) => f.path));
   const why = [
     ...project.files.map((f) => ({ path: f.path, reason: f.reason })),
     ...project.skipped.filter((s) => !paths.has(s.path)),
   ];
+  const rows = whyRows(why);
+  const shown = rows.slice(0, NOTHING_ROWS);
+  const more = rows.slice(NOTHING_ROWS).reduce((n, r) => n + r.paths.length, 0);
   return (
     <Card role="region" aria-label="Nothing read" className={cn(PANEL, 'grid gap-4')}>
-      <h2 className="v-h2">Nothing could be read from this upload</h2>
+      <h2 className="v-h2">
+        {/* files were read but none is a drawing (only sheets called not a drawing): said so, not "nothing could be
+        read" over rows saying what was read (QA ingest R1) */}
+        {project.drawings.some((d) => !unread(d, project.readers))
+          ? 'No drawing found in this upload'
+          : 'Nothing could be read from this upload'}
+      </h2>
+      {why.length === 0 && <p>There were no files in it.</p>}
       {why.length > 0 && (
         <ul className="grid gap-3">
-          {why.map((w) => (
-            <li key={w.path} className="grid gap-1 [overflow-wrap:anywhere]">
-              <b>{w.path}</b>
-              {w.reason && <span className={MUTED}>{w.reason}</span>}
-            </li>
-          ))}
+          {shown.map((w) =>
+            w.paths.length === 1 ? (
+              <li key={w.paths[0]} className="grid gap-1 [overflow-wrap:anywhere]">
+                <b>{w.paths[0]}</b>
+                {w.reason && <span className={MUTED}>{w.reason}</span>}
+              </li>
+            ) : (
+              <li key={`group:${w.reason ?? ''}`} className="grid gap-1 [overflow-wrap:anywhere]">
+                <b>{plural(w.paths.length, 'file')}</b>
+                {w.reason && <span className={MUTED}>{w.reason}</span>}
+                <span className={MUTED}>
+                  {`For example: ${w.paths.slice(0, EXAMPLES).join(', ')}`}
+                </span>
+              </li>
+            ),
+          )}
         </ul>
       )}
+      {more > 0 && <p>{`And ${plural(more, 'more file')}.`}</p>}
       {project.files.some((f) => f.kind === 'dxf' && f.state === 'set_aside') && (
         // with no drawing at all, a DXF was set aside for want of a page to place it on
         <p>
@@ -146,6 +210,13 @@ function uploaded(projectId: string): { name: string; bytes: number } | null {
   } catch {
     return null;
   }
+}
+
+/** A long name cut in the middle, so its start and its extension both show (IN-114). */
+export function shortName(name: string, max = 60): string {
+  if (name.length <= max) return name;
+  const tail = Math.floor(max / 3);
+  return `${name.slice(0, max - tail - 1)}…${name.slice(-tail)}`;
 }
 
 /** Route `#/p/<project_id>`: the ingest followed live (Simple), or step by step (`?view=advanced`). */
@@ -171,8 +242,9 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   }
 
   const base = `#/p/${projectId}`;
-  // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7).
-  const nothingRead = project.state === 'done' && project.drawings.length === 0;
+  // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7); so does one whose
+  // drawings were all on a route with no reader (IN-116)
+  const nothingRead = project.state === 'done' && readDrawings(project).length === 0;
   return (
     <div className={cn('v-page v-page--narrow', PAGE)}>
       <TitleRow
@@ -194,10 +266,16 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
       </TitleRow>
       {sent && (
         <p role="status" aria-label="Upload received" className="text-text-2">
-          {`Uploaded: ${sent.name}, ${sizeText(sent.bytes)}, received by the server. `}
+          Uploaded: <span title={sent.name}>{shortName(sent.name)}</span>
+          {`, ${sizeText(sent.bytes)}, received by the server. `}
           {project.files.length > 0
             ? `${String(project.files.length)} ${project.files.length === 1 ? 'file' : 'files'} found.`
-            : 'Unpacking…'}
+            : // finished with no files (an empty zip): said plainly, not "Unpacking…" (IN-115)
+              isLive(project)
+              ? 'Unpacking…'
+              : project.state === 'done'
+                ? 'No files found in it.'
+                : 'Nothing was unpacked.'}
         </p>
       )}
       {project.state === 'failed' && project.error && (
@@ -228,6 +306,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
           <ProgressCard
             project={project}
             now={at}
+            conflicts={counts}
             actions={<ChatRow projectId={projectId} project={project} counts={counts} />}
             footer={<DoneLine projectId={projectId} project={project} counts={counts} />}
           />

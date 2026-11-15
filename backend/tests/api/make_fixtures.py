@@ -72,7 +72,7 @@ from app.settings import Settings  # noqa: E402
 PROJECT_ID = "5e0c1a2b3d4f"
 CREATED_AT = "2026-11-14T08:00:00+00:00"
 EDITED_AT = "2026-11-14T08:05:00Z"
-DURATIONS = {"ms": 12.5, "latency_s": 0.002}
+DURATIONS = {"ms": 12.5, "latency_s": 0.002, "at_ms": 2.5}
 PHOTO_SIZE = 2000  # file_added.json: the added photo's size, the same on every platform
 FIXTURES = BACKEND / "tests" / "fixtures" / "api_v1"
 DOC = BACKEND.parent / "docs" / "API.md"
@@ -475,12 +475,12 @@ def example_disputes(drawing: Drawing, row: Row) -> Found:
         return Found(places=(
             Place(item_id="e2", page=1, box=(0.6, 0.1, 0.65, 0.2),
                   why="Counted as a door, but 2 of the 3 other readers see nothing here.",
-                  readers={"answer": "door, score 0.41", "L one view": None,
-                           "M one view": None, "seg": "door, score 0.62"}),
+                  readers={"answer": "door", "reader 1": None,
+                           "reader 2": None, "reader 3": "door"}),
             Place(item_id=None, page=1, box=(0.3, 0.85, 0.36, 0.9),
                   why="Not counted, but 2 of the 3 other readers see a door here.",
-                  readers={"answer": None, "L one view": "door, score 0.55",
-                           "M one view": "door, score 0.48", "seg": None}),
+                  readers={"answer": None, "reader 1": "door",
+                           "reader 2": "door", "reader 3": None}),
         ))  # fmt: skip
     return Found(places=(
         Place(item_id="r2", page=1, box=(0.55, 0.1, 0.9, 0.9),

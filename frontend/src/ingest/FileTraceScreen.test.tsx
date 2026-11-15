@@ -1,11 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { drawing, error, trace } from '../api/fixtures';
+import { drawing, error, takeoff, trace } from '../api/fixtures';
 import type { FileTrace } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
 import { formatMs, kindLabel, normalisedSteps, routeLabel } from './ingest';
-import { flush, must, traceVariants } from './testing';
+import { flush, must, sheet, traceVariants, triaged } from './testing';
 
 const PID = trace.project_id;
 const FID = trace.file.id;
@@ -47,7 +47,6 @@ describe('FileTraceScreen', () => {
       routeLabel(f.route), // IN-83: "drawn PDF route", not "vector"
       must(f.source),
       must(f.group),
-      '$0.00',
     ])
       expect(text).toContain(s);
     expect(text).toContain('ready');
@@ -63,20 +62,32 @@ describe('FileTraceScreen', () => {
     expect(must(route).nextElementSibling?.textContent).toBe(routeLabel(f.route));
   });
 
-  it('IN-33 every stage in order with label, did, ms; output only when it adds something', async () => {
+  it('IN-33 AD-117 every stage in order with label, did, ms; output only when it adds something', async () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    const items = [...document.querySelectorAll('.ingest-trace li')];
+    // the stage rows only: each stage's steps are list items nested inside its row
+    const items = [...document.querySelectorAll('.ingest-trace > li')];
     expect(items).toHaveLength(trace.stages.length);
     trace.stages.forEach((s, i) => {
       const item = must(items[i]);
       expect(item.textContent).toContain(s.did);
       expect(item.textContent).toContain(formatMs(s.ms));
-      expect(item.querySelector('.output')?.textContent ?? null).toBe(
-        s.output && s.output !== s.did ? s.output : null,
-      );
     });
+    // only Unpack's path, Group's file count and Store's quantities add to their did line (review of #546)
+    const outputs = items.map((li) => li.querySelector('.output')?.textContent ?? null);
+    expect(outputs).toEqual([
+      'plans/flat-a.pdf',
+      null,
+      null,
+      '2 files',
+      null,
+      null,
+      null,
+      null,
+      null,
+      '141 quantities',
+    ]);
     expect(must(items[0]).querySelector('b')?.textContent).toBe('Unpack');
     expect(must(items.at(-1)).querySelector('b')?.textContent).toBe('Store');
   });
@@ -95,7 +106,7 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(error.code, { exact: false })).toBeNull(); // R2-C5: no raw code
     expect(screen.getByRole('link', { name: 'Back to Documents' }).getAttribute('href')).toBe(
       `#/p/${PID}/documents`,
     );
@@ -233,15 +244,166 @@ describe('FileTraceScreen', () => {
     expect(api.calls.some((c) => c.url.startsWith('/api/drawings/'))).toBe(false);
   });
 
-  it('IN-83 the stages are folded in a closed <details> "How it was read: N stages"', async () => {
+  it('AD-100 the stages are open on a time axis under "How it was read: N stages" (was folded, IN-83)', async () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    const fold = must(
-      screen.getByText(`How it was read: ${String(trace.stages.length)} stages`).closest('details'),
+    const region = screen.getByRole('region', { name: 'Stages' });
+    expect(region.querySelector('details')).toBeNull();
+    expect(
+      within(region).getByRole('heading', {
+        name: `How it was read: ${String(trace.stages.length)} stages`,
+      }),
+    ).toBeTruthy();
+    expect(region.querySelectorAll('.ingest-trace > li')).toHaveLength(trace.stages.length);
+    // equal times: the third stage starts at 2/10 of the axis and is 1/10 long
+    const span = must(region.querySelectorAll<HTMLElement>('.tl-span')[2]);
+    expect(span.style.getPropertyValue('--l')).toBe('20.00%');
+    expect(span.style.getPropertyValue('--w')).toBe('10.00%');
+  });
+
+  it('AD-106 the decisions sit in their own region, in pipeline order', async () => {
+    mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const items = within(screen.getByRole('region', { name: 'Decisions' })).getAllByRole(
+      'listitem',
     );
-    expect(fold.open).toBe(false);
-    expect(fold.querySelectorAll('.ingest-trace > li')).toHaveLength(trace.stages.length);
+    expect(items.map((li) => li.querySelector('.tl-where')?.textContent)).toEqual([
+      'Identify',
+      'Route',
+      'Second count',
+      'Outcome',
+    ]);
+    expect(must(items[3]).textContent).toContain('Ready to ask');
+  });
+
+  it('AD-107 a file whose counts disagree shows both values; one takeoff request, none when they agree', async () => {
+    const conflicted = { ...trace, second_count: { measured: 5, conflicts: 1 } };
+    const TAKEOFF = `GET /api/drawings/${must(trace.file.drawing_id)}/takeoff`;
+    const api = mockApi({ [GET]: conflicted, [TAKEOFF]: takeoff });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    await flush(); // the takeoff is asked once the trace is in
+    const region = screen.getByRole('region', { name: 'Decisions' });
+    expect(region.textContent).toContain('1 conflict between the counts');
+    expect(region.textContent).toContain('22.40 m² on the drawing, 30.00 m² the second way');
+    expect(api.calls.filter((c) => c.url.includes('/takeoff'))).toHaveLength(1);
+    cleanup();
+    const quiet = mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(quiet.calls.some((c) => c.url.includes('/takeoff'))).toBe(false);
+  });
+
+  it('AD-120 the end card gives the key counts and a way to the drawing; the full list stays folded', async () => {
+    mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const card = screen.getByRole('region', { name: 'What it ends as' });
+    const counts = within(card).getByRole('list', { name: 'Key counts' });
+    expect(
+      within(counts)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent)
+        .slice(0, 3),
+    ).toEqual(['5 rooms', '2 doors', '2 windows']);
+    expect(
+      within(card).getByRole('link', { name: 'See these on the drawing' }).getAttribute('href'),
+    ).toBe(`#/p/${PID}/d/${must(trace.file.drawing_id)}/engineer`);
+    expect(must(card.querySelector('details')).open).toBe(false);
+  });
+
+  it('AD-122 the Cost fact shows only a cost above zero (was "$0.00" on every file, IN-32)', async () => {
+    const fact = (label: string) =>
+      [...document.querySelectorAll('.ingest-facts dt')].find((d) => d.textContent === label);
+    mockApi({ [GET]: { ...trace, file: { ...trace.file, cost_usd: 0 } } });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(fact('Time')).toBeTruthy();
+    expect(fact('Cost')).toBeUndefined();
+    expect(document.body.textContent).not.toContain('$0.00');
+    cleanup();
+    mockApi({ [GET]: { ...trace, file: { ...trace.file, cost_usd: 0.031 } } });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(must(fact('Cost')).nextElementSibling?.textContent).toBe('$0.03');
+  });
+
+  it('AD-127 (QA R4-A9) a file the sheet-kind step called not a drawing says it is no drawing ready', async () => {
+    const line = 'The sheet-kind step called this not a drawing';
+    const triage = must(triaged.files[1]?.triage);
+    const file = (kind: typeof sheet.kind, readAsPlan: unknown = null) => ({
+      ...trace.file,
+      state: 'flagged' as const,
+      triage: {
+        ...triage,
+        class: 'floor_plan' as const,
+        read_as_plan: readAsPlan as typeof triage.read_as_plan,
+        sheet: { ...sheet, decision: 'doubt' as const, kind, kind_words: 'not a drawing' },
+      },
+    });
+    const showFile = async (f: FileTrace['file']) => {
+      cleanup();
+      mockApi({ [GET]: { ...trace, file: f } });
+      render(<FileTraceScreen projectId={PID} fileId={FID} />);
+      await flush();
+      return document.body.textContent;
+    };
+    expect(await showFile(file('not_a_drawing'))).toContain(
+      `${line}: it was read, but it is not counted as a drawing ready.`,
+    );
+    // a doubted kind of drawing (an elevation) is a drawing; a person's "read as a floor plan" clears it
+    expect(await showFile(file('elevation'))).not.toContain(line);
+    expect(
+      await showFile(file('not_a_drawing', { by: 'Ana', at: '2026-11-15T03:00:00Z' })),
+    ).not.toContain(line);
+    expect(await showFile(trace.file)).not.toContain(line);
+  });
+
+  it('AD-128 a stage under 0.01 ms reads "<0.01 ms"; a stage at 0 ms (not timed) shows no time', async () => {
+    // the demo sample's IFC model (real trace, 2026-11-15): hash, group and route took almost nothing; its
+    // normalise stage is a line with no timing (0 exactly)
+    const ms: Record<string, number> = {
+      hash: 0.019195984350517392,
+      group: 0.0031060189940035343,
+      route: 0.004208006430417299,
+      normalise: 0,
+    };
+    mockApi({
+      [GET]: { ...trace, stages: trace.stages.map((s) => ({ ...s, ms: ms[s.stage] ?? s.ms })) },
+    });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const time = (label: string) =>
+      must(
+        [...document.querySelectorAll('.tl-stage')].find(
+          (li) => li.querySelector('.tl-head b')?.textContent === label,
+        ),
+      ).querySelector('.tl-head .tl-ms')?.textContent;
+    expect(time('Hash')).toBe('0.02 ms');
+    expect(time('Group')).toBe('<0.01 ms');
+    expect(time('Route')).toBe('<0.01 ms');
+    expect(time('Normalise')).toBeUndefined();
+    expect(time('Extract')).toBe('12.5 ms');
+    expect(must(document.querySelector('.ingest-trace')).textContent).not.toContain('0.00 ms');
+  });
+
+  it('AD-119 a file read with its group: the Route fact names the file it was read with', async () => {
+    mockApi({
+      [GET]: {
+        ...trace,
+        file: { ...trace.file, path: 'plans/flat-a.png', source: 'plans/flat-a.pdf' },
+      },
+    });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const route = [...document.querySelectorAll('.ingest-facts dt')].find(
+      (d) => d.textContent === 'Route',
+    );
+    expect(must(route).nextElementSibling?.textContent).toBe(
+      'read with plans/flat-a.pdf (drawn PDF route)',
+    );
   });
 
   it('R1-1-1 a takeoff of one quantity reads "What it ends as: 1 quantity"', async () => {

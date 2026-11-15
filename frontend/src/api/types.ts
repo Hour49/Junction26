@@ -18,6 +18,8 @@ export type ProjectTrace = Schemas['ProjectTrace'];
 export type ProjectQuestions = Schemas['ProjectQuestions'];
 export type AskedQuestion = Schemas['AskedQuestion'];
 export type StageTrace = Schemas['StageTrace'];
+/** One thing that ran inside a stage or the project's last phase (decision 0018). */
+export type StepTrace = Schemas['StepTrace'];
 export type ProjectReview = Schemas['ProjectReview'];
 export type DrawingReview = Schemas['DrawingReview'];
 export type ConflictEntry = Schemas['ConflictEntry'];

@@ -4,6 +4,7 @@ screen replaces its state instead of merging one row."""
 
 import csv
 import io
+import math
 import re
 from pathlib import PurePosixPath
 from typing import Annotated, Any
@@ -25,11 +26,13 @@ from app.api.views import View
 from app.core.errors import InvalidInputError
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import RULES
-from app.core.review.model import Edit, Row
+from app.core.review.model import Edit, ReviewState, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.review import (
-    apply,
+    ValueChangedError,
+    apply_on_takeoff,
     disputes,
+    model_twins,
     reset,
     review_queue,
     room_names_of,
@@ -37,8 +40,9 @@ from app.core.review.review import (
     settle_and_sign,
     sheet_row,
     sign,
-    storey_twins,
+    takeoff_twins,
     unsign,
+    with_rejected_items,
     with_twins,
 )
 
@@ -81,6 +85,11 @@ class SignOffRequest(View):
     # No default in the schema, so a generated client type keeps `settle` optional and the
     # bodies written before it still type-check
     settle: bool = Field(default=False, json_schema_extra=lambda field: _no_default(field))
+    # The value (and unit) the client showed when the person signed (R4-B10): a quantity whose
+    # value is now another one is not signed (409 value-changed, the current value in `errors`).
+    # Left out: the value in use is signed, as before
+    expected_value: float | None = None
+    expected_unit: str | None = Field(default=None, min_length=1)
 
 
 def takeoff_rows(
@@ -100,9 +109,13 @@ def takeoff_rows(
         named = as_uploaded(ingest, ingest.drawing_info(drawing_id), project)
         file, project = named.path, named.project_id
     quantities = known_quantities(drawing)
-    state = with_twins(reviews.get(project, drawing_id), storey_twins(quantities))
+    twins = takeoff_twins(quantities)
+    state = with_twins(reviews.get(project, drawing_id), twins)
+    state = with_rejected_items(state, quantities)  # a rejected door is no room's (R4-B2)
     names = room_names_of(drawing)  # once for the drawing, not per row
-    rows = [row(found, drawing, state, RULES, names) for found in quantities.values()]
+    hidden = model_twins(quantities)  # a model file's row under its plain key (R4-B14)
+    shown = [found for key, found in quantities.items() if key not in hidden]
+    rows = [row(found, drawing, state, RULES, names) for found in shown]
     if not zeros:
         rows = [found for found in rows if found.value != 0 or found.status != "single"]
     return Takeoff(
@@ -139,9 +152,14 @@ def review(
         reviews.update(owner, drawing_id, lambda state: reset(state, None))
     else:
         drawing = ingest.drawing(drawing_id)
-        found = sheet_row(known_quantities(drawing), edit.quantity)
+        quantities = known_quantities(drawing)
+        found = sheet_row(quantities, edit.quantity)
         at = now()
-        reviews.update(owner, drawing_id, lambda state: apply(state, edit, found, drawing, at))
+
+        def edited(state: ReviewState) -> ReviewState:  # never under another row's sign-off
+            return apply_on_takeoff(state, edit, found, drawing, at, quantities)
+
+        reviews.update(owner, drawing_id, edited)
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 
@@ -158,14 +176,39 @@ def signoff(
         raise InvalidInputError("settle goes with a sign-off, not with undo")
     owner = project_of(ingest, drawing_id, project)
     drawing = ingest.drawing(drawing_id)
-    found = sheet_row(known_quantities(drawing), body.quantity)
+    quantities = known_quantities(drawing)
+    found = sheet_row(quantities, body.quantity)
     if body.undo:
         reviews.update(owner, drawing_id, lambda state: unsign(state, found.key))
     else:
         at = now()
         signing = settle_and_sign if body.settle else sign
-        reviews.update(owner, drawing_id, lambda state: signing(state, found, drawing, body.by, at))
+        twins = takeoff_twins(quantities)
+
+        def signed(state: ReviewState) -> ReviewState:
+            # the row as the takeoff shows it: twins' edits, and an item rejected on its sheet row
+            # no room's (R4-B2); checked against what the client showed (R4-B10), then signed
+            shown = with_rejected_items(with_twins(state, twins), quantities)
+            if body.expected_value is not None or body.expected_unit is not None:
+                _still_shown(row(found, drawing, shown, RULES), body)
+            return signing(state, found, drawing, body.by, at, shown=shown)
+
+        reviews.update(owner, drawing_id, signed)
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
+
+
+def _still_shown(current: Row, body: SignOffRequest) -> None:
+    """Raises ValueChangedError when the row's value or unit is not the one the client showed."""
+    value = body.expected_value if body.expected_value is not None else current.value
+    unit = body.expected_unit or current.unit
+    if math.isclose(current.value, value, rel_tol=1e-9, abs_tol=1e-9) and unit == current.unit:
+        return
+    raise ValueChangedError(
+        f"{current.label} is now {current.value:g} {current.unit}, not the {value:g} {unit} "
+        "shown: nothing was signed. Look at it again before you sign it off.",
+        current.value,
+        current.unit,
+    )
 
 
 @router.get(

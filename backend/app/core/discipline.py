@@ -344,6 +344,13 @@ def discipline_from_question(text: str) -> Discipline | None:
     return _discipline(text, codes=False)
 
 
+def discipline_named_in(text: str) -> Discipline | None:
+    """The one discipline `text` names by a strong word ("Heizung", "cold water"), weak words
+    ("valve", "Ventil") left out; None when it names several or none."""
+    strong = _strong_in(text, codes=False)
+    return strong.pop() if len(strong) == 1 else None
+
+
 def discipline_from_title(text: str) -> Discipline | None:
     """A 2D sheet's discipline from its title-block text (title, sheet number, drawing list
     line); None when unsure. Also reads sheet codes (A-101, S-201, ARK, RAK, SÄH, IV-)."""
@@ -381,6 +388,26 @@ def discipline_from_sheet(
     if named not in (None, "architecture"):
         return named
     return _KIND_DISCIPLINE.get(kind) or named
+
+
+def disciplines_named(text: str) -> set[Discipline]:
+    """Every discipline a sheet's title or file name names by a strong word or code, as
+    `discipline_from_sheet` reads them: "Electrical, Mechanical, Plumbing" names electrical and
+    plumbing ("mechanical" is no one discipline); a service named only as a room names none."""
+    return _strong_in(_SERVICE_ROOM.sub(" ", text), codes=True)
+
+
+def sheet_discipline(
+    said: Discipline, title: str | None, sheet_number: str | None
+) -> Discipline | None:
+    """A 2D sheet's discipline: the one the sheet-kind model said from what is drawn, cross-checked
+    against the title and number. When they name disciplines by a strong word or a code (as
+    `discipline_from_sheet` reads them: "HEATING PLAN", "S-201", not "PIPING" or "ELECTRICAL ROOM")
+    and the model's is not among them, the sheet's discipline is not known: None, which nothing
+    routes."""
+    text = " ".join(part for part in (title, sheet_number) if part)
+    named = _strong_in(_SERVICE_ROOM.sub(" ", text), codes=True)
+    return said if not named or said in named else None
 
 
 # A service named only as a room ("ELECTRICAL ROOM", "Sähköhuone", "Heizraum") is a room on the

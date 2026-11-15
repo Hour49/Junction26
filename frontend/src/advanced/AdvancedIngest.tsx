@@ -2,12 +2,14 @@ import { useEffect, useState, type JSX } from 'react';
 import type { FileStatus, ProjectView } from '../api';
 import { DoneLine, IngestFinished, type ConflictCounts } from '../ingest/IngestFinished';
 import { STEPS, formatCost, formatMs, formatSize, isFinished, stepOf } from '../ingest/ingest';
+import { readDrawings } from '../ingest/pipeline';
 import {
   STATUS_WORD,
   STEP_VIEW,
   currentStep,
   defaultStep,
   elapsedMs,
+  notDrawings,
   pairsOf,
   planCounts,
   quantityCount,
@@ -15,15 +17,19 @@ import {
   stepLines,
   stepStatus,
 } from './advanced';
+import { stepsAfter } from './trace';
 import { useDrawingData } from './useDrawingData';
 import { useProjectTrace } from './useProjectTrace';
-import { CheckPairs, FileStrip, PlanMarks, ReadyList, RouteLanes } from './visuals';
+import { CheckPairs, FileStrip, PathText, PlanMarks, ReadyList, RouteLanes } from './visuals';
+import { FileMatrix } from './FileMatrix';
 import './advanced.css';
 import { Button } from '@/components/ui/button';
 
 interface Stat {
   label: string;
   value: string;
+  /** A muted line under the value. */
+  note?: string;
 }
 
 const STEP_VIEW_FIRST = { heading: '', visual: 'files', explain: '' } as const;
@@ -68,7 +74,7 @@ export function AdvancedIngest({
 
   const working: FileStatus | null =
     project.files.find((f) => !isFinished(f) && stepOf(f.stage ?? null) === step) ?? null;
-  const lines = stepLines(project.files, traces, step);
+  const lines = stepLines(project.files, traces, step, stepsAfter(project));
   const perRoute = routeLines(view, project);
   const status = stepStatus(project, step).status;
   const takeoffs = [...data.takeoffs.values()];
@@ -109,7 +115,8 @@ export function AdvancedIngest({
       case 'plan': {
         const c = planCounts(project);
         const expected = project.expected_drawings;
-        const ready = project.drawings.filter((d) => isFinished(d)).length;
+        // a drawing on a route whose reader is `hello` was not read: not ready (AD-123, as Simple's IN-116)
+        const ready = readDrawings(project).filter((d) => isFinished(d)).length;
         return [
           { label: 'Rooms', value: dash(c.room) },
           { label: 'Doors', value: dash(c.door) },
@@ -136,13 +143,20 @@ export function AdvancedIngest({
           },
         ];
       }
-      case 'ready':
+      case 'ready': {
+        // every drawing kept, as the pipeline did; the ones called not a drawing say so (QA R4-A9)
+        const notDrawing = notDrawings(project);
         return [
           elapsed(),
-          { label: 'Drawings', value: String(project.drawings.length) },
+          {
+            label: 'Drawings',
+            value: String(project.drawings.length),
+            note: notDrawing ? `${String(notDrawing)} not a drawing` : undefined,
+          },
           { label: 'Questions ready', value: String(quantityCount(project)) },
           { label: 'Cost', value: formatCost(project.cost_usd) },
         ];
+      }
     }
   };
 
@@ -182,12 +196,20 @@ export function AdvancedIngest({
   const live = lines.at(-1);
   // Unpack's headline is the file and its size; a hash belongs in the mono log only (AV-33).
   const liveFile = step === 1 ? project.files.find((f) => f.path === live?.path) : undefined;
-  const liveText = !live
-    ? 'Nothing yet.'
-    : `${live.path}: ${liveFile ? formatSize(liveFile.size) : live.what}`;
+  // the file's path as running text: a line breaks after a "/", never inside the file's name (AD-125)
+  const liveText = !live ? (
+    'Nothing yet.'
+  ) : live.path ? (
+    <>
+      <PathText path={live.path} end=":" /> {liveFile ? formatSize(liveFile.size) : live.what}
+    </>
+  ) : (
+    `${live.head}: ${live.what || `failed: ${live.failure ?? ''}`}`
+  );
 
   return (
     <div className="adv">
+      <FileMatrix projectId={projectId} project={project} traces={traces} />
       <nav aria-label="Steps" className="adv-rail">
         {STEPS.map((s, i) => {
           const k = i + 1;
@@ -244,12 +266,18 @@ export function AdvancedIngest({
               {step === 1 &&
                 project.skipped.map((s) => (
                   <li key={`skip-${s.path}`}>
-                    Skip {s.path} {s.reason}
+                    Skip <PathText path={s.path} /> {s.reason}
                   </li>
                 ))}
               {lines.map((l) => (
                 <li key={l.key} className={l.failure ? 'failed' : undefined}>
-                  {l.text}
+                  {l.path ? (
+                    <>
+                      {l.head} <PathText path={l.path} /> {l.what}
+                    </>
+                  ) : (
+                    l.text
+                  )}
                   {l.cost > 0 && ` · ${formatCost(l.cost)}`}
                   {l.failure && (
                     <>
@@ -281,7 +309,10 @@ export function AdvancedIngest({
           {stats().map((s) => (
             <div key={s.label}>
               <dt>{s.label}</dt>
-              <dd>{s.value}</dd>
+              <dd>
+                {s.value}
+                {s.note && <small className="adv-stat-note">{s.note}</small>}
+              </dd>
             </div>
           ))}
         </dl>

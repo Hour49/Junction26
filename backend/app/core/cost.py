@@ -41,27 +41,48 @@ def faults_since(before: int) -> int:
     return faults() - before
 
 
-class Carry:
-    """What a call run on another thread paid and saw fail, to hand back to the calling thread.
+def hit(count: int = 1) -> None:
+    """A model reply read from a cache instead of asked: counted per thread like the dollars, so
+    a step can say its reply was cached, and that its time is the cache read, not the model's
+    (detail's audit: Gemini Carbon steps of 15-34 ms that did not say so)."""
+    _local.hits = hits() + count
 
-    `run(call)` on the worker thread records the dollars and failed calls of `call` (also when it
-    raises); `hand_back()` on the caller adds them to the caller's own counts, so the stage that
-    asked sees them (`beside`, and any helper that runs a read on a thread of its own)."""
+
+def hits() -> int:
+    """How many replies came from a cache on this thread so far: `hits_since`'s argument."""
+    return getattr(_local, "hits", 0)
+
+
+def hits_since(before: int) -> int:
+    return hits() - before
+
+
+class Carry:
+    """What a call run on another thread paid, saw fail and read from a cache, to hand back to
+    the calling thread.
+
+    `run(call)` on the worker thread records the dollars, failed calls and cache hits of `call`
+    (also when it raises); `hand_back()` on the caller adds them to the caller's own counts, so
+    the stage that asked sees them (`beside`, and any helper that runs a read on a thread of its
+    own)."""
 
     def __init__(self) -> None:
         self.usd = 0.0
         self.failed = 0
+        self.hits = 0
 
     def run[T](self, call: "Callable[[], T]") -> T:
-        before, faulted = mark(), faults()
+        before, faulted, cached = mark(), faults(), hits()
         try:
             return call()
         finally:
             self.usd, self.failed = since(before), faults_since(faulted)
+            self.hits = hits_since(cached)
 
     def hand_back(self) -> None:
         charge(self.usd)
         fail(self.failed)
+        hit(self.hits)
 
 
 def since(before: int) -> float:

@@ -1,5 +1,5 @@
 // The conflicts screen's pure parts (docs/specs/frontend/conflicts.md "Field map").
-import { pickInUse, resolverName, type ConflictEntry } from '../api';
+import { isCountUnit, pickInUse, resolverName, type ConflictEntry } from '../api';
 
 export type CardState = 'open' | 'rule' | 'picked' | 'yours';
 
@@ -29,8 +29,12 @@ export function conflictCount(k: number): string {
   return `${String(k)} conflict${k === 1 ? '' : 's'} found`;
 }
 
-export function subLine(conflicts: ConflictEntry[]): string {
-  if (conflicts.length === 0) return 'Both methods agree wherever two of them measured.';
+/** `measured`: quantities read on the project's drawings; 0 means nothing was read, so nothing agreed (QA R2-E1). */
+export function subLine(conflicts: ConflictEntry[], measured?: number): string {
+  if (conflicts.length === 0)
+    return measured === 0
+      ? 'Nothing was measured on these drawings, so there was nothing to compare.'
+      : 'Both methods agree wherever two of them measured.';
   const n = (s: ReturnType<typeof cardState>) => conflicts.filter((c) => cardState(c) === s).length;
   const [r, k, y, p] = [n('rule'), n('picked'), n('yours'), n('open')];
   const by = conflicts.find((c) => cardState(c) === 'picked')?.resolved?.by ?? 'carbon';
@@ -75,7 +79,8 @@ export function parseAnswer(text: string, unit: string | null): Answer | string 
   const bare = t.replace(/\s*(m²|m2|m³|m3|m)$/i, '').replace(',', '.');
   if (!/^\d+(\.\d+)?$|^\.\d+$/.test(bare)) return { note: t };
   const n = Number(bare);
-  if (unit === 'count') return Number.isInteger(n) ? { value: n } : 'Type a whole number, like 12.';
+  if (isCountUnit(unit))
+    return Number.isInteger(n) ? { value: n } : 'Type a whole number, like 12.';
   return n > 0 ? { value: n } : 'Type a number above 0, or a few words.';
 }
 

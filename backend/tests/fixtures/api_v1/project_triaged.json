@@ -386,6 +386,79 @@
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [
+    {
+      "id": "judge",
+      "label": "Relevance judge",
+      "did": "4 files judged: 1 related, 2 unrelated, 1 unsure",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {
+        "related": 1,
+        "unrelated": 2,
+        "unsure": 1
+      }
+    },
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "classifier",
+        "label": "Triage: is it a floor plan?",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "6a47e9a1c33db404",

@@ -1,15 +1,15 @@
-import { useCallback } from 'react';
-import { getTrace, type FileTrace } from '../api';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import { getTakeoff, getTrace, type FileTrace } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import {
-  STAGE_LABEL,
   formatCost,
   kindLabel,
   routeLabel,
   formatMs,
   formatSize,
   isFinished,
+  nameParts,
   plural,
 } from './ingest';
 import { BeforeAfter } from './BeforeAfter';
@@ -17,12 +17,14 @@ import { StaleNote, StateBadge, TitleRow } from './ProjectScreen';
 import { TriageCard } from './TriageCard';
 import { usePoll } from './usePoll';
 import { ModelCard } from '../model3d/ModelView';
-import { MUTED, PAGE, PANEL, SUMMARY, TAP } from './ui';
+import { PAGE, PANEL, SUMMARY, TAP } from './ui';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Tip } from '@/components/ui/tip';
-import { INGEST_TIPS, STAGE_TIPS } from '../shell/tips-ingest';
+import { INGEST_TIPS } from '../shell/tips-ingest';
+import { Decisions, TraceTimeline } from '../advanced/TraceTimeline';
+import { disagreements, keyCounts, readWith, type Disagreement } from '../advanced/trace';
+import { calledNotADrawing } from '../advanced/advanced';
 
 /** The file page as the demo's (files.js traceScreen): mono 28 px path (22 px on a phone), hairline facts (IN-83). */
 const FILE_PAGE = cn(
@@ -30,13 +32,48 @@ const FILE_PAGE = cn(
   PAGE,
   '[&_h1]:font-mono! [&_h1]:text-[28px]! [&_h1]:leading-[1.2]! max-[720px]:[&_h1]:text-[22px]!',
 );
-/** The hairline grid: 1 px gaps on the fill colour. */
+/** The hairline grid: 1 px gaps on the fill colour; an odd last fact spans the row, so no empty cell shows. It spans
+ * the explicit columns only (`col-span-full`): a `col-span-2` in the phone's one column made an implicit `auto` column
+ * that a long path widened, squeezing the real one to a letter per line (QA ifc-r1 row 20). */
 const FACTS = cn(
   PANEL,
-  'ingest-facts m-0 grid grid-cols-2 gap-px overflow-hidden bg-muted p-0 max-[720px]:grid-cols-1 max-[720px]:p-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-0.5 [&>div]:bg-card [&>div]:px-5 [&>div]:py-3.5 [&_dt]:text-xs [&_dt]:font-medium [&_dt]:text-muted-foreground [&_dd]:m-0 [&_dd]:text-[15px] [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere]',
+  'ingest-facts m-0 grid grid-cols-2 gap-px overflow-hidden bg-muted p-0 [&>div:last-child:nth-child(odd)]:col-span-full max-[720px]:grid-cols-1 max-[720px]:p-0 [&>div]:flex [&>div]:min-w-0 [&>div]:flex-col [&>div]:gap-0.5 [&>div]:bg-card [&>div]:px-5 [&>div]:py-3.5 [&_dt]:text-xs [&_dt]:font-medium [&_dt]:text-muted-foreground [&_dd]:m-0 [&_dd]:text-[15px] [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere]',
 );
 
 const live = (t: FileTrace) => !isFinished(t.file);
+
+/** The facts that hold a path: a line may break after each of its separators (`nameParts`, IN-121). */
+const PATH_FACTS = new Set(['Read from', 'Group']);
+
+function withBreaks(text: string) {
+  return nameParts(text).map((p, i) => (
+    <Fragment key={String(i)}>
+      {i > 0 && <wbr />}
+      {p}
+    </Fragment>
+  ));
+}
+
+/** The values of the file's conflicts (AD-107): its drawing's takeoff, once, only when the second count disagreed. */
+function useConflicts(projectId: string, trace: FileTrace | null): Disagreement[] | null {
+  const drawingId = trace?.file.drawing_id ?? null;
+  const conflicts = trace?.second_count?.conflicts ?? 0;
+  const [rows, setRows] = useState<Disagreement[] | null>(null);
+  useEffect(() => {
+    if (!drawingId || conflicts === 0) return;
+    const controller = new AbortController();
+    getTakeoff(drawingId, { project: projectId, signal: controller.signal }).then(
+      (t) => {
+        setRows(disagreements(t));
+      },
+      () => undefined, // the counts stay; the values are an extra
+    );
+    return () => {
+      controller.abort();
+    };
+  }, [projectId, drawingId, conflicts]);
+  return rows;
+}
 
 /** Route `#/p/<project_id>/f/<file_id>`: one file through every stage. */
 export function FileTraceScreen({ projectId, fileId }: { projectId: string; fileId: string }) {
@@ -45,6 +82,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
     [projectId, fileId],
   );
   const { data: trace, error, failedAt, retry, set } = usePoll(load, live);
+  const conflicts = useConflicts(projectId, trace);
   const back = (
     // the file rows are on Documents now (ingest.md v3, IN-79)
     <a
@@ -70,15 +108,24 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
 
   const { file, stages } = trace;
   const takeoff = Object.entries(file.takeoff ?? {});
+  const counts = keyCounts(file.takeoff);
   const facts: [string, string | null | undefined][] = [
     ['Kind', kindLabel(file.kind)],
     ['Size', formatSize(file.size)],
-    ['Route', file.route ? routeLabel(file.route) : null],
+    [
+      'Route',
+      file.route
+        ? readWith(file)
+          ? `read with ${readWith(file) ?? ''} (${routeLabel(file.route)})`
+          : routeLabel(file.route)
+        : null,
+    ],
     ['Read from', file.source],
     ['Group', file.group],
     ['sha256', file.sha256?.slice(0, 12)],
     ['Time', formatMs(file.ms)],
-    ['Cost', formatCost(file.cost_usd)],
+    // no paid call, no line (AD-122): "$0.00" is not a fact worth a row
+    ['Cost', file.cost_usd > 0 ? formatCost(file.cost_usd) : null],
   ];
   return (
     <div className={FILE_PAGE}>
@@ -94,6 +141,13 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
         )}
       </TitleRow>
       {file.reason && <p>{file.reason}</p>}
+      {file.drawing_id && calledNotADrawing(file) && (
+        // QA R4-A9: read only because the sheet-kind step warns; no drawing ready (API.md `not_a_drawing`)
+        <p className="text-muted-foreground">
+          The sheet-kind step called this not a drawing: it was read, but it is not counted as a
+          drawing ready.
+        </p>
+      )}
       {file.reused && (
         <p>
           <Tip text={INGEST_TIPS.reused} wrap>
@@ -106,7 +160,9 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           value ? (
             <div key={label}>
               <dt>{label}</dt>
-              <dd title={label === 'sha256' ? (file.sha256 ?? undefined) : undefined}>{value}</dd>
+              <dd title={label === 'sha256' ? (file.sha256 ?? undefined) : undefined}>
+                {PATH_FACTS.has(label) ? withBreaks(value) : value}
+              </dd>
             </div>
           ) : null,
         )}
@@ -120,6 +176,8 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           if (!isFinished(next)) retry(); // read again as a plan: follow it until it is finished
         }}
       />
+      <Decisions trace={trace} conflicts={conflicts} />
+      <TraceTimeline stages={stages} />
       {file.normalised && file.drawing_id && (
         <BeforeAfter
           projectId={projectId}
@@ -129,73 +187,36 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           normalised={file.normalised}
         />
       )}
-      <Card role="region" aria-label="Stages" className={cn(PANEL, 'block')}>
-        {stages.length === 0 ? (
-          <p>No stages yet.</p>
-        ) : (
-          // folded: the demo's file page shows no stages, and nothing is lost (IN-83)
-          <details>
-            <Tip text={INGEST_TIPS.stages}>
-              <summary className={cn(SUMMARY, 'font-semibold')}>
-                How it was read: {plural(stages.length, 'stage')}
+      {takeoff.length > 0 && (
+        <section aria-label="What it ends as" className={cn(PANEL, 'tl-ends block')}>
+          <details className="ingest-takeoff">
+            <Tip text={INGEST_TIPS.endsAs}>
+              <summary className={SUMMARY}>
+                What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}
               </summary>
             </Tip>
-            <ol className="ingest-trace">
-              {stages.map((s, i) => (
-                <li
-                  key={String(i)}
-                  className={cn(
-                    'grid grid-cols-[28px_1fr_auto] items-center gap-x-3 gap-y-0.5 py-3 [&+li]:border-t [&+li]:border-border [&>p]:col-[2/-1]',
-                    s.failure && 'failed',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'grid size-6 place-items-center rounded-full text-[13px] text-card',
-                      s.failure ? 'bg-danger' : 'bg-primary',
-                    )}
-                    role="img"
-                    aria-label={s.failure ? 'failed' : 'done'}
-                  >
-                    {s.failure ? '✕' : '✓'}
-                  </span>
-                  <Tip text={STAGE_TIPS[s.stage]} wrap className="justify-self-start">
-                    <b>{STAGE_LABEL[s.stage]}</b>
-                  </Tip>
-                  <span className={MUTED}>{formatMs(s.ms)}</span>
-                  <p>{s.stage === 'cache' ? `Cached: ${s.did}` : s.did}</p>
-                  {s.stage === 'cache' && (
-                    <p className={cn('output', MUTED)}>
-                      the stages below are from the first ingest of this content
-                    </p>
-                  )}
-                  {s.output && s.output !== s.did && (
-                    <p className={cn('output', MUTED)}>{s.output}</p>
-                  )}
-                  {s.cost_usd > 0 && <p>Cost: {formatCost(s.cost_usd)}</p>}
-                  {s.failure && <p className="font-semibold text-danger">Failed: {s.failure}</p>}
-                </li>
+            <dl className="mt-2 mb-0 grid grid-cols-[minmax(0,1fr)_auto] [&>div]:contents">
+              {takeoff.map(([key, value]) => (
+                <div key={key}>
+                  <dt className="[overflow-wrap:anywhere]">{key}</dt>
+                  <dd className="m-0 text-right">{value}</dd>
+                </div>
               ))}
-            </ol>
+            </dl>
           </details>
-        )}
-      </Card>
-      {takeoff.length > 0 && (
-        <details className={cn(PANEL, 'ingest-takeoff block')}>
-          <Tip text={INGEST_TIPS.endsAs}>
-            <summary className={SUMMARY}>
-              What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}
-            </summary>
-          </Tip>
-          <dl className="mt-2 mb-0 grid grid-cols-[minmax(0,1fr)_auto] [&>div]:contents">
-            {takeoff.map(([key, value]) => (
-              <div key={key}>
-                <dt className="[overflow-wrap:anywhere]">{key}</dt>
-                <dd className="m-0 text-right">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </details>
+          {counts.length > 0 && (
+            <ul className="tl-counts" aria-label="Key counts">
+              {counts.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          )}
+          {file.drawing_id && (
+            <a className="tl-link" href={`#/p/${projectId}/d/${file.drawing_id}/engineer`}>
+              See these on the drawing
+            </a>
+          )}
+        </section>
       )}
     </div>
   );

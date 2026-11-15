@@ -5,10 +5,14 @@ import type { StageTrace } from '../api';
 import {
   STAGE_LABEL,
   amount,
+  nameParts,
   sizeText,
   STEPS,
   activeStep,
   elapsedMs,
+  formatWait,
+  queueWaitMs,
+  QUEUE_SHOWN_MS,
   formatCost,
   formatMs,
   formatSize,
@@ -109,6 +113,24 @@ describe('ingest.ts', () => {
     expect(percentDone([])).toBe(0);
   });
 
+  it('IN-132 queueWaitMs: created_at to started_at (queued: to now), null under 2 s; formatWait in plain words', () => {
+    const p = (created: string, started: string | null, state: 'queued' | 'running' | 'done') => ({
+      created_at: created,
+      started_at: started,
+      state,
+    });
+    const t0 = '2026-11-15T03:00:00Z';
+    expect(queueWaitMs(p(t0, '2026-11-15T03:01:04Z', 'done'), 0)).toBe(64_000);
+    expect(queueWaitMs(p(t0, '2026-11-15T03:00:01.900Z', 'done'), 0)).toBeNull();
+    expect(queueWaitMs(p(t0, '2026-11-15T03:00:02Z', 'running'), 0)).toBe(QUEUE_SHOWN_MS);
+    expect(queueWaitMs(p(t0, null, 'queued'), Date.parse(t0) + 12_000)).toBe(12_000);
+    // no start and not queued (a restart lost it): unknown, not a wait up to now
+    expect(queueWaitMs(p(t0, null, 'done'), Date.parse(t0) + 12_000)).toBeNull();
+    expect(formatWait(64_000)).toBe('64 s');
+    expect(formatWait(119_400)).toBe('119 s');
+    expect(formatWait(185_000)).toBe('3 min 5 s');
+  });
+
   it('IN-61 elapsedMs: ms once ended, now - started_at while live (never below 0), null before it starts', () => {
     const started = Date.parse(must(projectRunning.started_at));
     expect(elapsedMs(project, started + 99_000)).toBe(project.ms);
@@ -200,6 +222,9 @@ describe('ingest.ts', () => {
     expect(formatMs(0.6838)).toBe('0.68 ms');
     expect(formatMs(12.5)).toBe('12.5 ms');
     expect(formatMs(1234)).toBe('1.2 s');
+    expect(formatMs(0.0042)).toBe('<0.01 ms');
+    expect(formatMs(0)).toBe('0.00 ms');
+    expect(formatMs(0.01)).toBe('0.01 ms');
     expect(formatCost(0)).toBe('$0.00');
     expect(formatCost(0.004)).toBe('<$0.01');
     expect(formatCost(0.123)).toBe('$0.12');
@@ -223,4 +248,19 @@ it('IN-89 sizes: KB under 1 MB (never 0 KB for a total), MB with one decimal abo
   expect(amount(15_000, 30_000)).toBe('15');
   expect(amount(0, 30_000)).toBe('0');
   expect(amount(2 ** 19, 2 ** 21)).toBe('0.5');
+});
+
+it('IN-121 nameParts: a name breaks after its own separators, the parts joined are the name', () => {
+  const name = 'Bauprojekt_Mehrfamilienhaus_Zuerich-Nord_2026.zip';
+  expect(nameParts(name)).toEqual([
+    'Bauprojekt_',
+    'Mehrfamilienhaus_',
+    'Zuerich-',
+    'Nord_',
+    '2026.',
+    'zip',
+  ]);
+  expect(nameParts('plans/A-101.pdf')).toEqual(['plans/', 'A-', '101.', 'pdf']);
+  expect(nameParts('Grundriss')).toEqual(['Grundriss']);
+  expect(nameParts('a__b').join('')).toBe('a__b');
 });

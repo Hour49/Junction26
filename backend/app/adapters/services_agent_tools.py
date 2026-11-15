@@ -2,7 +2,7 @@
 0017), in decision 0013's tool form: OpenAI function-calling JSON in `SERVICES_TOOLS`, and
 `run_services_tool(store, name, arguments)` that returns JSON text and never raises.
 
-    list_services           storeys, systems, terminals and equipment; a room's walls
+    list_services           storeys, systems, terminals and equipment (valves by kind); walls
     ask_services            one graph operation of ops.py (what feeds, what is cut off, ...)
     propose_move_terminal   a terminal onto another wall of its room, rerouted (edit.py)
     propose_add_terminal    a copy of a terminal's type onto a wall
@@ -68,7 +68,7 @@ NOT_READ = (
     "ducts and cables cannot be followed"
 )
 MAX_ITEMS = 60
-MAX_GROUPS = 30  # of by_type and by_room before a result is cut to LIMIT
+MAX_GROUPS = 30  # of each by_ count before a result is cut to LIMIT
 NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
 )
@@ -77,6 +77,7 @@ BUILDING = "being built from its file now, which takes a minute or a few; ask ag
 # German exports name heating systems H_* (Heizung) or Heiz-/Wärme-: words facts_mep's table lacks
 HEATING_MARKS = ("heiz", "wärme", "waerme")
 WALL_COVER_M = 0.3  # a wall is on a room side when it covers this much of it (edit.py's rule)
+CONTROLLERS = "flow_controller"  # valves, dampers: listed only when a kind asks for them
 MOUNTED_M = 0.5  # a terminal this close to a room side is mounted on its wall
 
 Op = Literal[
@@ -320,16 +321,22 @@ class _ListArgs(_Args):
     drawing_id: str | None = Field(
         default=None,
         max_length=64,
-        description="the services model's drawing (default: the only one)",
+        description="the services model's drawing (default: all)",
     )
     storey: str | None = Field(default=None, max_length=60, description="storey id (L1...) or name")
     system: str | None = Field(default=None, max_length=120, description="a system's name")
     room_id: str | None = Field(
         default=None,
         max_length=80,
-        description="a room: its id (SR...) or its name, e.g. 1-3 Küche",
+        description="its id (SR...) or name, e.g. 1-3 Küche",
     )
-    kind: str | None = Field(default=None, max_length=60, description="e.g. space_heater")
+    kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
+    predefined: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=80,
+        description="by_predefined key(s) a,b or untyped",
+    )
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
     )
@@ -370,26 +377,26 @@ class _ResizeArgs(_DrawingArgs):
     size: str = Field(min_length=1, max_length=30, description="a size its system has, e.g. DN20")
 
 
-_CHANGES = " Changes nothing: the person accepts or rejects the proposal."
+_CHANGES = " Changes nothing until accepted."
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
         "Pipes, ducts, cables: storeys, systems, connectivity, terminals and equipment "
-        "(ids E...) with room; count = all matches (items may be cut), state it; by_type, "
-        "by_room count all matches: answer breakdowns from them. room_id (id or name): its "
-        "walls (SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
+        "(ids E...) with room. count, by_kind, by_predefined (IFC type), by_type, by_room: all "
+        "matches (items may be cut); state totals and breakdowns from them. room_id: its walls "
+        "(SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
     (
         "ask_services",
-        "One question about the network: what feeds an element, what it serves, what is cut "
-        "off when it closes, run lengths, open ends, ...",
+        "What feeds an element, what it serves, what is cut off when it closes, run lengths, "
+        "open ends, ...",
         _AskArgs,
     ),
     (
         "propose_move_terminal",
-        "Propose moving a terminal (radiator, air terminal) to another wall of its room "
-        "(wall_id, or the user's selection_id), its pipes rerouted along the walls." + _CHANGES,
+        "Propose moving a terminal (radiator, basin; not a frame) to another wall of its room "
+        "(wall_id or selection_id), pipes rerouted along walls." + _CHANGES,
         _MoveArgs,
     ),
     (
@@ -440,16 +447,51 @@ def run_services_tool(store: ServicesToolStore, name: str, arguments: str | dict
 
 
 def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
-    if args.drawing_id is None:  # the project's only model: a set-aside IFC is in no drawing list
-        have = list(store.models)
-        if not have:
-            raise ToolError(f"{NOT_READ}{store.building_note()}")
-        if len(have) != 1:
-            raise ToolError(
-                f"name the drawing_id; the project's services models: {', '.join(have)}"
-                f"{store.building_note()}"
-            )
-        args = args.model_copy(update={"drawing_id": have[0]})
+    if args.drawing_id is not None:
+        return _list_one(store, args, LIMIT)
+    have = list(store.models)  # a set-aside IFC is in no drawing list: models, not drawings
+    if not have:
+        raise ToolError(f"{NOT_READ}{store.building_note()}")
+    if len(have) == 1:
+        return _list_one(store, args.model_copy(update={"drawing_id": have[0]}), LIMIT)
+    return _every_model(store, args, have)
+
+
+SKIPPED_CHARS = 160  # of a skipped model's reason
+
+
+def _every_model(store: ServicesToolStore, args: Any, have: list[str]) -> dict[str, Any]:
+    """No drawing named and several services models: each one listed, within one result's limit,
+    so the first call is not an error the model must recover from (live 2026-11-15: every
+    services turn began with "name the drawing_id"). A model that fits its equal share keeps its
+    whole list; the rest share what is left. A model the filter does not apply to (a room or IFC
+    type it lacks) is skipped with its reason; when every one is, the error."""
+    budget = LIMIT - 120 - len(have) * (SKIPPED_CHARS + 60)
+    found: dict[str, dict[str, Any]] = {}
+    skipped: list[dict[str, str]] = []
+    for drawing_id in have:
+        try:
+            found[drawing_id] = _list_one(store, _on(args, drawing_id), LIMIT)
+        except ToolError as error:
+            skipped.append({"drawing_id": drawing_id, "reason": str(error)[:SKIPPED_CHARS]})
+    if not found:
+        why = "; ".join(f"{s['drawing_id']}: {s['reason']}" for s in skipped)
+        raise ToolError(f"no services model has it ({why})")
+    size = {d: len(json.dumps(m, ensure_ascii=False)) for d, m in found.items()}
+    small = {d for d in found if size[d] <= budget // len(found)}
+    if big := [d for d in found if d not in small]:
+        share = (budget - sum(size[d] for d in small)) // len(big)
+        found |= {d: _list_one(store, _on(args, d), share) for d in big}
+    models = list(found.values())
+    return {"count": sum(m["count"] for m in models), "models": models, "skipped": skipped}
+
+
+def _on(args: Any, drawing_id: str) -> Any:
+    return args.model_copy(update={"drawing_id": drawing_id})
+
+
+def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]:
+    """One services model's list, cut to `limit` characters."""
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
     storey = _storey_of(model, args.storey) if args.storey else None
@@ -472,15 +514,34 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     if room is not None:
         found |= _walls(model, room)
     names = {r.id: r.name for r in model.rooms}
+    listable = [e for e in model.elements if _listable(e)]
+    if args.kind is not None and not any(args.kind in (e.kind, e.group) for e in listable):
+        kinds = sorted({e.kind for e in listable})  # R1 services row 7: not a confident 0
+        raise ToolError(f"no element of kind {args.kind!r} in this model; its kinds: "
+                        f"{', '.join(kinds) or 'none'}")  # fmt: skip
+    listed = [e for e in listable if e.group != CONTROLLERS or args.kind is not None]
     matched = [
         e
-        for e in model.elements
-        if (e.group == "flow_terminal" or _equipment(e))
-        and (storey is None or e.storey == storey.id)
+        for e in listed
+        if (storey is None or e.storey == storey.id)
         and (args.system is None or args.system in e.systems)
         and (room is None or e.room == room.id)
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
+    if args.predefined is not None:  # R5: a WC, a basin and its frame are one IFC class
+        wanted = {key.strip().upper() for key in args.predefined.split(",")}  # "SINK,WASHHANDBASIN"
+        types = {
+            e.predefined or "untyped"
+            for e in listed
+            if args.kind is None or args.kind in (e.kind, e.group)
+        }
+        if not wanted & {t.upper() for t in types}:  # #559 S1: not a confident 0 for a typo
+            raise ToolError(
+                f"no {args.kind or 'terminal'} has the IFC type {args.predefined!r}; "
+                f"its types: {', '.join(sorted(types))}"
+            )
+        found["untyped"] = sum(e.predefined is None for e in matched)
+        matched = [e for e in matched if (e.predefined or "untyped").upper() in wanted]
     items = [
         {
             "id": e.id,
@@ -496,13 +557,16 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     ]
     found["count"] = len(items)
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
-    types = Counter(e.type for e in matched)
+    kinds, types = Counter(e.kind for e in matched), Counter(e.type for e in matched)
+    predefined = Counter(e.predefined or "untyped" for e in matched)
     rooms = Counter(f"{e.room} {names.get(e.room, '')}".strip() if e.room else "no room"
                     for e in matched)  # fmt: skip
     top = MAX_GROUPS
     while True:  # the groups count every match: items go first, then the smallest groups
-        found["by_type"], found["by_room"] = _groups(types, top), _groups(rooms, top)
-        short = len(json.dumps(found, ensure_ascii=False)) <= LIMIT
+        found["by_kind"], found["by_type"] = _groups(kinds, top), _groups(types, top)
+        found["by_predefined"] = _groups(predefined, top)
+        found["by_room"] = _groups(rooms, top)
+        short = len(json.dumps(found, ensure_ascii=False)) <= limit
         if short or (top == 1 and not found["items"]):
             break
         if found["items"]:
@@ -711,6 +775,13 @@ def _room_named(model: ServicesModel, named: str) -> Room:
 
 def _room_words(text: str) -> list[str]:
     return [w for w in re.findall(r"\w+", text.casefold()) if w != "the"]
+
+
+def _listable(e: Element) -> bool:
+    """What list_services lists: terminals and equipment, and flow controllers (valves, dampers)
+    when a kind asks for them (R1 services row 7; review-699: an unfiltered list stays terminals
+    and equipment, as the tool says); not the pipes, ducts and fittings between them."""
+    return e.group in ("flow_terminal", CONTROLLERS) or _equipment(e)
 
 
 def _equipment(e: Element) -> bool:

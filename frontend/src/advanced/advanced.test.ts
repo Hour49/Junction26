@@ -31,6 +31,15 @@ describe('advanced.ts', () => {
     }
   });
 
+  it('AV-49 Index says only the files triage set aside are judged, not every set-aside file', () => {
+    const index = must(STEP_VIEW[8]);
+    expect(index.heading).toBe('Indexing for questions');
+    expect(index.explain).toContain(
+      'the files triage set aside are judged against the project (a file set aside for another reason, such as a failed read or a second copy, is not)',
+    );
+    for (const v of STEP_VIEW) expect(v.explain).not.toMatch(/each set-aside file/i);
+  });
+
   it('AV-3 a done project: every step done', () => {
     expect(statuses(project)).toEqual(Array(9).fill('done'));
   });
@@ -122,6 +131,7 @@ describe('advanced.ts', () => {
     expect(stepLines(files, new Map(), index)).toEqual([
       {
         key: `${must(files[0]).id}-index`,
+        head: 'Index',
         path: must(files[0]).path,
         what: why,
         text: `Index ${must(files[0]).path} ${why}`,
@@ -154,7 +164,15 @@ describe('advanced.ts', () => {
     const cached: FileTrace = {
       ...trace,
       stages: [
-        { stage: 'cache', did: 'ingested before', ms: 0, output: '', failure: null, cost_usd: 0 },
+        {
+          stage: 'cache',
+          did: 'ingested before',
+          ms: 0,
+          output: '',
+          failure: null,
+          cost_usd: 0,
+          steps: [],
+        },
       ],
     };
     expect(stepLines([trace.file], new Map([[trace.file.id, cached]]), 3)[0]?.text).toBe(
@@ -173,6 +191,7 @@ describe('advanced.ts', () => {
           output: 'a.pdf',
           failure: null,
           cost_usd: 0,
+          steps: [],
         },
         {
           stage: 'identify',
@@ -181,6 +200,7 @@ describe('advanced.ts', () => {
           output: 'pdf_vector',
           failure: null,
           cost_usd: 0,
+          steps: [],
         },
         {
           stage: 'route',
@@ -189,6 +209,7 @@ describe('advanced.ts', () => {
           output: 'vector',
           failure: null,
           cost_usd: 0,
+          steps: [],
         },
       ],
       file: { ...trace.file, path: 'a.pdf' },
@@ -198,6 +219,68 @@ describe('advanced.ts', () => {
     expect(text(1)).toEqual(['Unpack a.pdf path checked, 9 bytes']);
     expect(text(2)).toEqual(['Identify a.pdf PDF vector']);
     expect(text(3)).toEqual(['Route a.pdf drawn PDF route']);
+  });
+
+  // the real demo run (trace's e2e, project 117d844b5e60): the takeoff stage's output starts with its own name, and
+  // a rectified photo's output gives only its page size
+  const stageOf = (stage: 'normalise' | 'takeoff', did: string, output: string) => ({
+    stage,
+    did,
+    ms: 1,
+    output,
+    failure: null,
+    cost_usd: 0,
+    steps: [],
+  });
+
+  it('AD-129 stepLines: a stage output that starts with the stage name does not say it twice', () => {
+    const own: FileTrace = {
+      ...trace,
+      stages: [
+        stageOf(
+          'takeoff',
+          'rules: each-once; takeoff: 141 quantities, 81 above zero',
+          'takeoff: 141 quantities, 81 above zero',
+        ),
+      ],
+    };
+    expect(stepLines([own.file], new Map([[own.file.id, own]]), 7)[0]?.text).toBe(
+      `Takeoff ${own.file.path} 141 quantities, 81 above zero`,
+    );
+  });
+
+  it('AD-130 stepLines: Normalise says a photo was perspective corrected, not only its page size', () => {
+    const photo: FileTrace = {
+      ...trace,
+      file: {
+        ...trace.file,
+        path: 'photos/plan-photo.jpg',
+        normalised: {
+          exif: null,
+          rotated: 0,
+          deskew_deg: 0,
+          rectified: true,
+          quad: null,
+          width: 1241,
+          height: 853,
+          rectifier: 'paper edges',
+        },
+      },
+      stages: [
+        stageOf(
+          'normalise',
+          'rectified by paper edges: paper corners at (0.16, 0.18), (0.83, 0.13), (0.89, 0.84), (0.11, 0.88): 1241x853 px; 1 page, page 1 is 1241 x 853 px',
+          '1 page, page 1 is 1241 x 853 px',
+        ),
+      ],
+    };
+    const line = (f: FileTrace) => stepLines([f.file], new Map([[f.file.id, f]]), 4)[0]?.text;
+    expect(line(photo)).toBe(
+      'Normalise photos/plan-photo.jpg perspective corrected (paper edges); 1 page, page 1 is 1241 x 853 px',
+    );
+    // nothing corrected: the page size alone, as before
+    const flat = { ...photo, file: { ...photo.file, normalised: null } };
+    expect(line(flat)).toBe('Normalise photos/plan-photo.jpg 1 page, page 1 is 1241 x 853 px');
   });
 
   it('AV-17 planCounts sums room, door, window over drawings only; a key no drawing has is null', () => {
@@ -239,6 +322,43 @@ describe('advanced.ts', () => {
     // an older backend sends no disputes: every conflict row counts, as before
     const old = { ...t, disputes: undefined } as unknown as Takeoff;
     expect(pairsOf([old], project).filter((p) => p.disputed)).toHaveLength(2);
+  });
+
+  it('AD-131 pairsOf counts a room measured twice once, though the takeoff lists it by number and by name', () => {
+    // the real demo run: plans/flat-a.pdf lists each room's area as name=1.02 and name=reduit, the same marks and
+    // the same two values; its trace says 5 quantities measured twice, not 10
+    const real = must(takeoff.quantities.find((r) => r.status === 'conflict'));
+    const room = {
+      ...real,
+      key: 'area:room|name=1.02',
+      label: 'area of room (name Reduit · 1.02)',
+      status: 'agree' as const,
+      first: { method: 'polygon_x_scale', value: 2.489 },
+      second: { method: 'printed_label', value: 2.49 },
+      conflict: null,
+      marks: [
+        {
+          ...must(real.marks[0]),
+          page: 1,
+          box: [0.25, 0.2, 0.33, 0.3] as [number, number, number, number],
+        },
+      ],
+    };
+    const byName = { ...room, key: 'area:room|name=reduit', label: 'area of room (name Reduit)' };
+    // another room with the same area but its own marks is its own pair
+    const other = {
+      ...room,
+      key: 'area:room|name=1.03',
+      marks: [
+        {
+          ...must(real.marks[0]),
+          page: 1,
+          box: [0.5, 0.1, 0.6, 0.3] as [number, number, number, number],
+        },
+      ],
+    };
+    const t: Takeoff = { ...takeoff, quantities: [room, byName, other], disputes: [] };
+    expect(pairsOf([t], project).map((p) => p.row.key)).toEqual([room.key, other.key]);
   });
 
   it("pairsOf names the drawing by THIS project's file, not the shared drawing's first upload", () => {

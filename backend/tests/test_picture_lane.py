@@ -274,7 +274,7 @@ def test_a_scanned_heating_plan_answers_counts_and_lengths_low_with_marks(
     assert len(radiators.evidence) == 6 and radiators.evidence[0].file == "heating.png"
     assert "confidence is Low" in (radiators.explanation or "")
     said = str(metres.answer)
-    length = float(said.split("Total length: ")[1].split(" m")[0])
+    length = float(said.split("HEATING: ")[1].split(" m")[0])  # the system the question names
     assert abs(length - 5.0) <= 0.15, said  # AC-12's 3%
     assert metres.sure is False and len(metres.evidence) == 1  # the run's one piece
     assert "DN20" in str(dn20.answer), dn20
@@ -407,3 +407,31 @@ def test_an_ifc_fact_sheet_is_the_json_it_was() -> None:
     said = sheet.model_dump_json()
     assert set(json.loads(said)) == {"model", "disciplines", "facts"}
     assert FactSheet.model_validate_json(said).model_dump_json() == said
+
+
+def test_glyphs_reads_symbols_with_the_glyph_detector_and_keeps_its_own_sheets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app import composition
+    from app.adapters.discipline_pictures.glyphs import GlyphReader
+
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="glyphs",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    lane = composition._pictures(settings, object(), object(), None)  # type: ignore[arg-type]
+    assert isinstance(lane, PictureLane) and isinstance(lane._template, GlyphReader)
+    assert lane._sheets.path("0" * 64).parent == tmp_path / "facts" / "glyphs"
+
+
+def test_gemini_reads_symbols_with_one_carbon_call_and_keeps_its_own_sheets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app import composition
+    from app.adapters.discipline_pictures.gemini import GeminiPictureReader
+    from app.adapters.discipline_pictures.template import TemplateReader
+
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="gemini", gemini_api_key="k",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    lane = composition._pictures(settings, object(), object(), None)  # type: ignore[arg-type]
+    assert isinstance(lane, PictureLane) and isinstance(lane._template, GeminiPictureReader)
+    assert isinstance(lane._check, TemplateReader)  # its agreement unholds a label
+    assert lane._sheets.path("0" * 64).parent == tmp_path / "facts" / "gemini"

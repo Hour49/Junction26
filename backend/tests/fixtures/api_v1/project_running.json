@@ -43,6 +43,8 @@
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": "files",
+  "index_steps": [],
   "drawings": [],
   "skipped": [],
   "expected_drawings": null,

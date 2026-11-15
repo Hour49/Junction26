@@ -5,8 +5,8 @@ import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ConflictsList } from '../surveyor/ConflictsScreen';
-import { formatMs } from './ingest';
-import { ProjectScreen } from './ProjectScreen';
+import { formatMs, nameParts } from './ingest';
+import { NOTHING_ROWS, ProjectScreen, whyRows } from './ProjectScreen';
 import { flush, must, triaged, variants } from './testing';
 
 vi.mock('../advanced/AdvancedIngest', () => ({
@@ -79,18 +79,40 @@ describe('ProjectScreen', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Ready' })).toBeTruthy();
     expect(screen.getByRole('img', { name: '100 percent done' })).toBeTruthy();
     expect(stat('Files through')).toBe('3 / 3');
-    expect(stat('Drawings ready')).toMatch(
-      new RegExp(`^${String(project.drawings.length)}( / \\d+)?$`),
-    );
+    // project.json's 2 raster drawings are on `raster: hello`: not read, so 4 of its 6 are ready (IN-116)
+    expect(stat('Drawings ready')).toBe('4 / 6');
     // IN-86: the demo's 4th stat; project.json has no set-aside file
     expect(stat('Set aside')).toBe('0');
-    expect(
-      [...document.querySelectorAll('.ingest-stats dt')].map((d) => d.textContent),
-    ).not.toContain('Cost');
+    // IN-108 (v5, brief ingest-ui 2026-11-15): Cost is back beside Set aside, with the other live totals
+    expect(stat('Cost')).toBe('$0.00');
     // IN-85: the Simple/Advanced segment on its own row under the h1
     expect(must(document.querySelector('.ingest-head')).className).toContain(
       'flex-col items-start',
     ); // ingest-head--stack
+  });
+
+  it('IN-114 (QA R2-C3) a 255-character name: the h1 shows 3 lines at most, its name and title stay whole', async () => {
+    const name = `${'Bauprojekt_Sanierung_Mehrfamilienhaus_'.repeat(6)}x`.slice(0, 251) + '.zip';
+    mockApi({ [GET]: { ...project, name } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const h1 = screen.getByRole('heading', { level: 1, name });
+    expect(h1.getAttribute('title')).toBe(name);
+    expect(h1.className).toContain('line-clamp-3');
+    // IN-121: a break opportunity after each of its separators, so it wraps there before inside a word
+    expect(h1.querySelectorAll('wbr')).toHaveLength(nameParts(name).length - 1);
+    expect(must(h1.querySelector('wbr')).previousSibling?.textContent).toBe('Bauprojekt_');
+    cleanup();
+    // the upload line cuts it in the middle, the extension kept; its title is the whole name
+    sessionStorage.setItem(`uploaded:${ID}`, JSON.stringify({ name, bytes: 2048 }));
+    mockApi({ [GET]: { ...project, name } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const cut = must(screen.getByRole('status', { name: 'Upload received' }).querySelector('span'));
+    expect(cut.textContent).toBe(`${name.slice(0, 39)}…${name.slice(-20)}`);
+    expect(cut.textContent).toHaveLength(60);
+    expect(cut.getAttribute('title')).toBe(name);
+    sessionStorage.clear();
   });
 
   it('IN-86 Set aside counts the files set aside', async () => {
@@ -146,7 +168,7 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(error.code, { exact: false })).toBeNull(); // R2-C5: no raw code (shared ErrorView)
     expect(screen.getByRole('link', { name: 'Back to workspaces' }).getAttribute('href')).toBe(
       '#/workspaces',
     );
@@ -160,7 +182,7 @@ describe('ProjectScreen', () => {
     );
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(screen.getByText('network', { exact: false })).toBeTruthy();
+    expect(screen.getByText('cannot reach the server', { exact: false })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     await flush();
     expect(screen.getByRole('heading', { name: project.name })).toBeTruthy();
@@ -180,6 +202,111 @@ describe('ProjectScreen', () => {
     expect(panel.textContent).toContain(
       'A DXF is read with the PDF or PNG of the same name: put both in one .zip and upload that.',
     );
+  });
+
+  it('IN-116 (QA R2-A1) done, its only drawing on a route with no reader: the Nothing-read card, not "Ready"', async () => {
+    const f = must(project.files[0]);
+    const why =
+      'not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet)';
+    const drawing = must(project.drawings.find((d) => d.route === 'raster'));
+    mockApi({
+      [GET]: {
+        ...project,
+        readers: { ...project.readers, raster: 'hello' },
+        expected_drawings: 1,
+        files: [
+          {
+            ...f,
+            path: 'plan.png',
+            kind: 'png_plan',
+            route: 'raster',
+            state: 'flagged',
+            reason: why,
+          },
+        ],
+        drawings: [{ ...drawing, file: 'plan.png' }],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(panel.textContent).toContain(why);
+    // IN-130: nothing was read off it, so nothing could be read
+    expect(within(panel).getByRole('heading', { level: 2 }).textContent).toBe(
+      'Nothing could be read from this upload',
+    );
+    expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
+    expect(screen.queryByRole('img', { name: '100 percent done' })).toBeNull();
+    expect(screen.queryByText(/drawings? ready/)).toBeNull();
+  });
+
+  it('IN-126 (QA R4-A9) done, its only drawing a screenshot read only to warn: the Nothing-read card, no chat or workspace', async () => {
+    const f = must(project.files[0]);
+    const why = 'This looks like a screenshot of a web page, not a building drawing.';
+    const drawing = must(project.drawings.find((d) => d.route === 'vector'));
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 1,
+        files: [{ ...f, path: 'page.png', state: 'flagged', reason: why }],
+        drawings: [{ ...drawing, file: 'page.png', not_a_drawing: true }],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(panel.textContent).toContain(why); // the backend's flag reason says why
+    // IN-130 (QA ingest R1-1): it was read, it just is not a drawing; not "Nothing could be read"
+    expect(within(panel).getByRole('heading', { level: 2 }).textContent).toBe(
+      'No drawing found in this upload',
+    );
+    expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
+    expect(screen.queryByText(/drawings? ready/)).toBeNull();
+    expect(screen.queryByText('Start a new chat')).toBeNull();
+    expect(screen.queryByText('Open the workspace')).toBeNull();
+  });
+
+  it('IN-126 (QA R4-A9) a screenshot beside a real drawing: 1 ready, and the workspace opens on the real one', async () => {
+    const [f1, f2] = [must(project.files[0]), must(project.files[1])];
+    const [real, shot] = project.drawings.filter((d) => d.route === 'vector');
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 2,
+        files: [f1, { ...f2, state: 'flagged' }],
+        // the screenshot first: the workspace link must still skip it
+        drawings: [{ ...must(shot), not_a_drawing: true }, must(real)],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    // IN-131: the screenshot is out of the total too, not one drawing short (changed on purpose from "1 / 2")
+    expect(stat('Drawings ready')).toBe('1 / 1');
+    const card = screen.getByRole('region', { name: 'Progress' });
+    expect(card.textContent).toContain('1 drawing ready.');
+    act(() => {
+      must(must(vi.mocked(ConflictsList).mock.lastCall)[0].onCounts)({ total: 0, needsPerson: 0 });
+    });
+    expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
+      `#/p/${ID}/d/${must(real).drawing_id}/engineer`,
+    );
+  });
+
+  it('IN-108 (QA R4-E6) the Conflicts tile counts what the list under it counts', async () => {
+    // the server's own count said 0 while the list read "1 conflict found · 1 settled by a rule"
+    mockApi({ [GET]: { ...project, conflicts_open: 0 } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Conflicts')).toBe('—'); // the list has not loaded yet
+    const onCounts = must(must(vi.mocked(ConflictsList).mock.lastCall)[0].onCounts);
+    act(() => {
+      onCounts({ total: 1, needsPerson: 0 });
+    });
+    expect(stat('Conflicts')).toBe('0 open of 1');
+    act(() => {
+      onCounts({ total: 0, needsPerson: 0 });
+    });
+    expect(stat('Conflicts')).toBe('0');
   });
 
   it('no DXF hint when the set-aside files are not DXF', async () => {
@@ -225,6 +352,42 @@ describe('ProjectScreen', () => {
     ).toBe(`#/p/${ID}/documents`);
     expect(screen.queryByText('the conflicts list')).toBeNull();
     expect(screen.queryByText('Start a new chat')).toBeNull();
+  });
+
+  it('IN-128 (QA R4-G4) a 3000-file zip: entries with the same reason are one row, the rows capped', async () => {
+    const txt = Array.from({ length: 3000 }, (_, i) => ({
+      path: `notes/n${String(i)}.txt`,
+      reason: 'plain text, 1 bytes',
+    }));
+    const odd = Array.from({ length: 20 }, (_, i) => ({
+      path: `odd${String(i)}.bin`,
+      reason: `not read: kind ${String(i)}`,
+    }));
+    mockApi({ [GET]: { ...variants.noDrawings, files: [], skipped: [...txt, ...odd] } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    const rows = within(panel).getAllByRole('listitem');
+    expect(rows).toHaveLength(NOTHING_ROWS);
+    const group = must(rows[0]);
+    expect(within(group).getByText('3000 files')).toBeTruthy();
+    expect(group.textContent).toContain('plain text, 1 bytes');
+    expect(group.textContent).toContain('For example: notes/n0.txt, notes/n1.txt, notes/n2.txt');
+    expect(group.textContent).not.toContain('notes/n3.txt');
+    expect(must(rows[1]).textContent).toContain('odd0.bin');
+    // 1 group + 11 of the 20 odd ones shown: 9 more, still on Documents
+    expect(panel.textContent).toContain('And 9 more files.');
+    expect(
+      within(panel).getByRole('link', { name: 'Every file is listed in Documents.' }),
+    ).toBeTruthy();
+  });
+
+  it('IN-128 under the threshold (3 entries with one reason) each entry keeps its own row, nothing counted', () => {
+    const three = ['a.txt', 'b.txt', 'c.txt'].map((path) => ({ path, reason: 'plain text' }));
+    expect(whyRows(three)).toEqual(three.map((t) => ({ reason: 'plain text', paths: [t.path] })));
+    expect(whyRows([...three, { path: 'd.txt', reason: 'plain text' }])).toEqual([
+      { reason: 'plain text', paths: ['a.txt', 'b.txt', 'c.txt', 'd.txt'] },
+    ]);
   });
 
   it('IN-23 a failed project shows "Ingest failed" and its error, and is not polled', async () => {
@@ -390,14 +553,19 @@ describe('ProjectScreen', () => {
   });
 
   it('IN-89 every file finished while the project runs: Step 9 of 9, Index working, no file bar', async () => {
-    mockApi({ [GET]: { ...variants.running, files: project.files } });
+    // every file finished while it runs: the server is in its last phase, which lists its steps when it ends
+    mockApi({
+      [GET]: { ...variants.running, files: project.files, phase: 'index', index_steps: [] },
+    });
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText('Step 9 of 9')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Index' })).toBeTruthy();
     const rows = stepRows();
     expect(rows.map(iconOf)).toEqual([...Array<string>(8).fill('done'), 'working']);
-    expect(must(rows[8]).textContent).toContain('every file made searchable for questions');
+    expect(must(rows[8]).textContent).toContain(
+      'judging what triage set aside, describing the rest, indexing it all for the chat',
+    );
     expect(must(rows[8]).textContent).not.toContain(' files');
   });
 
@@ -430,12 +598,13 @@ describe('ProjectScreen', () => {
     mockApi({ [GET]: variants.queued });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(stat('Elapsed')).toBe('—');
+    // "—" before it starts, and (IN-132) how long it has waited for a free slot so far
+    expect(stat('Elapsed')).toBe('—waiting 5 s for a free slot');
   });
 
   it('IN-68 Drawings ready: the count over expected_drawings; the count alone while it is null', async () => {
     for (const [body, text] of [
-      [project, `${String(project.drawings.length)} / ${String(project.expected_drawings)}`],
+      [project, `4 / ${String(project.expected_drawings)}`], // 2 of the 6 not read (IN-116)
       [projectRunning, '0'],
       [variants.queued, '0'],
     ] as const) {
@@ -519,7 +688,8 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     const card = screen.getByRole('region', { name: 'Progress' });
-    expect(card.textContent).toContain('6 drawings ready.');
+    // project.json's 2 raster drawings are on `raster: hello`: not read, so 4 of its 6 are ready (IN-116)
+    expect(card.textContent).toContain('4 drawings ready.');
     const list = screen.getByText('the conflicts list');
     const chat = screen.getByRole('button', { name: 'Start a new chat' });
     expect(card.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -542,7 +712,7 @@ describe('ProjectScreen', () => {
     act(() => {
       must(props.onCounts)({ total: 2, needsPerson: 0 });
     });
-    expect(card.textContent).toContain('6 drawings ready. Conflicts are below.');
+    expect(card.textContent).toContain('4 drawings ready. Conflicts are below.');
     expect(card.contains(screen.getByRole('link', { name: 'Start a new chat' }))).toBe(true);
     expect(card.contains(screen.getByRole('link', { name: 'Open the workspace' }))).toBe(true);
   });
@@ -587,6 +757,23 @@ describe('the upload received (UploadBox keeps it for this tab)', () => {
     expect(line()).toBe(
       `Uploaded: site.zip, 2.0 MB, received by the server. ${String(project.files.length)} files found.`,
     );
+  });
+
+  it('IN-115 (QA R2-C4) an empty zip, done: no files found, not "Unpacking…"; failed with none: nothing unpacked', async () => {
+    sessionStorage.setItem(`uploaded:${ID}`, JSON.stringify({ name: 'empty.zip', bytes: 22 }));
+    // what the server answers for an empty zip (no-keys backend, 2026-11-15): done, no files, nothing skipped
+    mockApi({ [GET]: { ...variants.noFiles, skipped: [], expected_drawings: 0 } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const line = () => screen.getByRole('status', { name: 'Upload received' }).textContent;
+    expect(line()).toBe('Uploaded: empty.zip, 1 KB, received by the server. No files found in it.');
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(within(panel).getByText('There were no files in it.')).toBeTruthy();
+    cleanup();
+    mockApi({ [GET]: { ...variants.failed, files: [], drawings: [] } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(line()).toBe('Uploaded: empty.zip, 1 KB, received by the server. Nothing was unpacked.');
   });
 
   it('nothing kept (the sample, another tab): no upload line', async () => {

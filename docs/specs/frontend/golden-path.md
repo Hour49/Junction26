@@ -265,7 +265,7 @@ reads the scans); the e2e always runs on no keys (`start-backend.sh` forces ever
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |
 | 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |
 | 7 | Type "What colour is the roof?", Ask | "I can't answer that from this drawing.", the reason in words (no code shown), question buttons it can answer; no number | yes |
-| 8 | Switch to Surveyor | `#/…/surveyor`: "Takeoff: plans/flat-b.pdf", the "To review" group first: "area of room (name 1.01)" and "area of room (name Küche)", each "Methods disagree"; the first is selected, its detail shows both values | yes |
+| 8 | Switch to Surveyor ("Send to surveyor" under the answer) | `#/…/surveyor`: "Takeoff: Drawn plan 2", the "To review" group first: "area of room (name Küche · 1.01)", "Methods disagree"; it is selected, its detail shows both values | yes |
 | 9 | Press "Keep A: 22.40 m² (room outlines × sheet scale)" (the drawn outline) | The row reads 22.40 m², "Changed in review", "Settled at 22.40 m² …" | yes |
 | 10 | Type "Ana" in "Signing as", press "Sign off 22.40 m²" | The row reads "Verified"; "Signed off by Ana, <date time> UTC: 22.40 m². Engineers see this value as verified." | yes |
 | 11 | Switch to Engineer, ask "What is the net floor area of room 1.01?" again | Answer `22.40 m²`, "Verified", "Verified by Ana, <date time> UTC" | yes |
@@ -419,7 +419,7 @@ step 4. Drawing ids are content hashes and stable, but the fixtures' ids are sta
 | Refusal | step 7 | "What colour is the roof?" |
 | Conflict | step 6 and 8 | flat-b's kitchen |
 | Signed / verified | steps 10, 11 | the sign-off |
-| Error (`{detail, code}`) | the service-down test: `GET /api/projects` answered 500 `{"detail": "internal error", "code": "internal"}` by `page.route`; home shows "internal error" and "internal" and a Retry; after `page.unroute`, Retry loads the list | `page.route` in the test |
+| Error (`{detail, code}`) | the service-down test: `GET /api/projects` answered 500 `{"detail": "internal error", "code": "internal"}` by `page.route`; home shows "internal error" (not the code) and a Retry; after `page.unroute`, Retry loads the list | `page.route` in the test |
 | Empty | not on the path: an empty project list is the ingest spec's component test (IN-13) | — |
 | A console error or page error | fails the golden-path test (QA.md §2 "no errors in the browser console") | listener on `console` (type `error`) and `pageerror` |
 
@@ -527,7 +527,7 @@ Selectors
    | --- | --- | --- | --- |
    | shared | offline text | "Running offline: no API keys, no models" (full text at both widths) | SH-16, Layout |
    | shared | view links | links "Ingest", "Engineer", "Surveyor"; current one `aria-current="page"` | SH-13, SH-14 |
-   | shared | error view | `detail`, "code: <code>", a "Retry" button, `role="alert"` | States "Screen error" |
+   | shared | error view | `detail` (no code), a "Retry" button, `role="alert"` | States "Screen error" |
    | ingest | sample button | button "Try the sample project" | IN-1, IN-9 |
    | ingest | project done | "Done", "11 of 11 files finished" | IN-16 |
    | ingest | file row | a link whose name contains the file's `path`; state words "flagged", "set aside", "text only" | IN-18, IN-19 |

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 
-from app.core.drawing.model import Drawing
+from app.core.drawing.model import Conflict, Drawing
 from app.core.ingest.model import (
     CARBON_FLAG,
     CARBON_PART_FLAG,
@@ -55,10 +55,16 @@ def judge(
             f"{schedules}{SCALE_WORDS[drawing.scale.status]}"
         )
     flags: list[str] = []
-    conflicts = [entry for entry in drawing.conflicts or () if entry.status == "conflict"]
-    if conflicts:
-        what = ", ".join(sorted({CONFLICT_WORDS[entry.quantity] for entry in conflicts}))
-        flags.append(f"{count(len(conflicts), 'conflict')} between the two methods ({what})")
+    disputed = [entry for entry in drawing.conflicts or () if entry.status == "conflict"]
+    conflicts = [entry for entry in disputed if entry.quantity != "scale"]
+    # a conflict a rule settled still flags the file (golden demo step 3) but says so: it needs
+    # no person (review.needs_person, the Conflicts tile's open count) (R4-B7)
+    for ruled, said in ((False, ""), (True, ", settled by a rule")):
+        some = [entry for entry in conflicts if (entry.resolution is not None) == ruled]
+        if some:
+            what = ", ".join(sorted({CONFLICT_WORDS[entry.quantity] for entry in some}))
+            flags.append(f"{count(len(some), 'conflict')} between the two methods ({what}){said}")
+    flags += [scale_flag(entry) for entry in disputed if entry.quantity == "scale"]
     empty = read_nothing(drawing, route, reader)
     if empty is not None:
         flags.append(empty)
@@ -69,6 +75,16 @@ def judge(
 
 
 UNRULED_FLAG = "a drawn PDF without reading rules, read as an image"
+
+
+def scale_flag(entry: Conflict) -> str:
+    """A `scale` conflict in words. It is not a conflict a person settles in the Conflicts list
+    (no takeoff quantity is the scale, takeoff._conflict_keys): a rule picks one of the two, or
+    none does and the estimate stays the sheet's scale (printed.py); either way the file is
+    flagged so a person checks the scale its areas and lengths rest on (QA R3-A1)."""
+    if entry.resolution is None:
+        return "the scale read two ways disagrees and no rule decides between them"
+    return f"the scale read two ways disagrees: a rule keeps {entry.resolution.rule}"
 
 
 def read_nothing(drawing: Drawing, route: Route, reader: str | None) -> str | None:

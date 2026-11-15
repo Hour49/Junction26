@@ -92,7 +92,7 @@ describe('AccountScreen list', () => {
     render(<AccountScreen />);
     await flush();
     expect(screen.getByText('internal error')).toBeTruthy();
-    expect(screen.getByText(/code: internal/)).toBeTruthy();
+    expect(screen.queryByText(/code: internal/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await flush();
     expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(2);
@@ -228,7 +228,7 @@ describe('AccountScreen panel', () => {
       '–',
       '–',
     ]);
-    expect(p.getByText('Review not loaded: internal error (internal)')).toBeTruthy();
+    expect(p.getByText('Review not loaded: internal error')).toBeTruthy();
     expect(p.getByText('Uploaded sample-project.zip')).toBeTruthy();
     expect(p.getByText('Analysis done')).toBeTruthy();
     fireEvent.click(p.getByRole('button', { name: 'Retry' }));
@@ -279,7 +279,7 @@ describe('AccountScreen history', () => {
     render(<AccountScreen />);
     await flush();
     const p = within(panel());
-    expect(p.getByText('Sign-offs not loaded: internal error (internal)')).toBeTruthy();
+    expect(p.getByText('Sign-offs not loaded: internal error')).toBeTruthy();
     expect(p.getByText('Uploaded sample-project.zip')).toBeTruthy();
     expect(p.getByText(/^Settled by a rule: /)).toBeTruthy();
   });
@@ -376,7 +376,7 @@ describe('AccountScreen #121 fields', () => {
     await flush();
     const p = within(panel());
     expect(p.getByText('Questions').nextElementSibling?.textContent).toBe('–');
-    expect(p.getByText('Questions not loaded: internal error (internal)')).toBeTruthy();
+    expect(p.getByText('Questions not loaded: internal error')).toBeTruthy();
     expect(p.getByText('Uploaded sample-project.zip')).toBeTruthy();
     fireEvent.click(p.getByRole('button', { name: 'Retry' }));
     await flush();

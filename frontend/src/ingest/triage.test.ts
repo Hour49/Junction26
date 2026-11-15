@@ -46,13 +46,15 @@ describe('triage.ts (file-triage.md FT-5)', () => {
     expect(rowLine(t(street))).toBe('Not a floor plan: not a drawing');
   });
 
-  it('FT-25 a doubted non-plan sheet says what it looks like, next to the class words', () => {
+  it('FT-25 a doubted non-plan sheet says what the sheet-kind step says it looks like, as that step', () => {
     const doubt = { ...sheet, decision: 'doubt' as const };
     const asPlan = { ...t(south), class: 'floor_plan' as const, description: null, sheet: doubt };
-    expect(looksLike(asPlan)).toBe('Looks like: an elevation');
-    expect(rowLine(asPlan)).toBe('A floor plan · Looks like: an elevation');
+    expect(looksLike(asPlan)).toBe('the sheet-kind step says it looks like an elevation');
+    expect(rowLine(asPlan)).toBe(
+      'Read as a floor plan · the sheet-kind step says it looks like an elevation',
+    );
     expect(rowLine({ ...t(south), sheet: doubt })).toBe(
-      'Not a floor plan: another kind of drawing · Looks like: an elevation · the south elevation of a two-storey house',
+      'Not a floor plan: another kind of drawing · the sheet-kind step says it looks like an elevation · the south elevation of a two-storey house',
     );
     for (const kind of ['architectural_floor_plan', 'multi_view_sheet'] as const)
       expect(looksLike({ ...asPlan, sheet: { ...doubt, kind } })).toBeNull(); // a plan kind: no doubt worth saying
@@ -62,6 +64,26 @@ describe('triage.ts (file-triage.md FT-5)', () => {
     expect(rowLine({ ...t(south), sheet })).toBe(
       'Not a floor plan: an elevation (South elevation, A-201)',
     );
+  });
+
+  it('FT-25 (QA R4-E16) a plan the sheet-kind step calls not a drawing does not also read flatly as a floor plan', () => {
+    const notDrawing = {
+      ...sheet,
+      decision: 'doubt' as const,
+      kind: 'not_a_drawing' as const,
+      kind_words: 'not a drawing',
+    };
+    const line = rowLine({
+      ...t(south),
+      class: 'floor_plan',
+      description: null,
+      sheet: notDrawing,
+    });
+    expect(line).toBe(
+      'Read as a floor plan · the sheet-kind step says it does not look like a drawing',
+    );
+    expect(line).not.toContain('A floor plan');
+    expect(line).not.toContain('Looks like: not a drawing');
   });
 
   it('FT-24 a sheet that set the file aside gives its words, title and number', () => {
@@ -104,8 +126,8 @@ describe('triage.ts (file-triage.md FT-5)', () => {
       'This file was not described, so there is nothing to judge or overrule.',
     );
     expect(callError(new ApiError(404, 'not-found', 'no such file'))).toBe(
-      'This file is no longer in the project. (no such file, not-found)',
+      'This file is no longer in the project. (no such file)',
     );
-    expect(callError(new ApiError(500, 'internal', 'boom'))).toBe('boom (internal)');
+    expect(callError(new ApiError(500, 'internal', 'boom'))).toBe('boom');
   });
 });

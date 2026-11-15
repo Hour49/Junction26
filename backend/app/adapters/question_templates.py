@@ -42,6 +42,7 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     NOT_COUNTED,
+    ONE_VIEW,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
     SIZE_FILTER,
@@ -254,8 +255,11 @@ BREAKDOWN = re.compile(
 )
 # "in each drawing" asked of one drawing is its own quantity, not a breakdown (the project chat
 # asks every drawing the question as written: qa-a cross-drawing walk, 2026-11-15)
+# "in the whole project" is the same ask of the project chat (demo walk 2026-11-15: "project" read
+# as the building model, so 9 of 12 drawings refused and the chat said 68 doors for the project)
 EACH_SHEET = re.compile(
-    r"\s*\b(?:in|on|of|for)\s+(?:each|every)\s+(?:drawing|plan|floor ?plan|sheet|file|page)s?\b",
+    r"\s*\b(?:(?:in|on|of|for)\s+(?:each|every)\s+(?:drawing|plan|floor ?plan|sheet|file|page)s?"
+    r"|(?:in|across)\s+(?:the\s+)?(?:(?:whole|entire)\s+)?project)\b",
     re.IGNORECASE,
 )
 # "Is there a kitchen?", "Does this drawing show a kitchen?", "Which drawings show a kitchen?":
@@ -285,6 +289,7 @@ PLACE = re.compile(
     rf"|{FLOOR.pattern}",
     re.IGNORECASE,
 )
+VIEW = re.compile(r"plan \d+[a-z]?")  # PLACE's view of a sheet ("plan 6A")
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
 )
@@ -298,6 +303,9 @@ SIZE_FILTER_WORDS = re.compile(
     r"|\b(?:over|under|above|below|exceeding|at least|at most)\s+\d"
     r"|\bwith\s+(?:a\s+)?(?:width|height|length|area|size|depth|thickness)\b"
 )
+# The question's own sentence, before a hint ("... on this floor plan? Count doorways fitted with
+# a door; ...")
+FIRST_SENTENCE = re.compile(r"\?|(?<=[a-z0-9²)])\.\s")
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
 IN_PLACE = re.compile(r"\b(?:in|inside|within|on) (?:the|this|that|a|an|one) ([^\W\d_]+)")
@@ -307,11 +315,37 @@ SHEET = frozenset(
     diagram building project flat apartment house dwelling unit whole entire
     """.split()  # noqa: SIM905 (a word list reads better as text)
 )
+_SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
+# English words that leave something out, one list for the balcony rule (APPLIED), the exclusion
+# check (ENGLISH_EXCLUDING) and a parenthesis that is an exclusion (NOT_EXCLUSION); answer's nit on
+# #616: "(besides the entrance)" answered every door
+_LEAVING_OUT = (
+    r"excluding|except|excepting|not counting|not including|leaving out|without|other than"
+    r"|apart from|aside from|besides|minus|save for|with the exception of|omitting|but not"
+)
+# Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
+# balconies" (EXCLUDING), a room's "longer side" (its length); and words that narrow nothing
+# (review-532): "over all", and "only" at the end or next to the sheet ("on this floor plan
+# only", "only on this drawing"). Anywhere else "only" narrows the thing ("doors only open
+# outward", "toilets only for staff": R4-C2). Not "the apartment with number A": the parser reads
+# that name only as "apartment A", so it would answer for the whole sheet (review-539)
+APPLIED = re.compile(
+    rf"\b(?:{_LEAVING_OUT})\s+(?:the\s+|its\s+)?balcon\w*"
+    r"|\b(?:longer|shorter)\s+side\b"
+    # "only" ends the question or its clause; with the sheet before it ("on this floor plan
+    # only") or after it ("only on this drawing"): "doors on this plan only open outward" narrows
+    # the verb (review-616 must)
+    r"|\bover\s+all\b|\bonly\s*[.!]?\s*(?:,|$)"
+    rf"|\bonly\s+(?:in|on|within)\s+(?:the|this|that)\s+(?:(?:{_SHEET_WORDS})\s*)+[.!]?\s*(?:,|$)"
+)
 INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen included")
     r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"
     r"|\by compris\b|\bincluid\w*|\bcompres[aoie]\b|\binclus\w*|\btogether\b|\bzusammen\b"
 )
-BUILDING = re.compile(r"\bbuilding\b|\bproject\b")  # the whole model, not this sheet
+# The whole model, not this sheet. "project" is not the model: the project chat asks each drawing
+# the question as written, so "in this project" or "does the project have" is that drawing's own
+# quantity, as "in the whole project" is (EACH_SHEET; review-529 S1)
+BUILDING = re.compile(r"\bbuilding\b")
 # In English the counted thing comes right after these words ("how many X-ray rooms" is not a
 # count of rooms); the words in FILLER may come between.
 ENGLISH_COUNT = re.compile(r"\b(?:how many|number of|count of|count the|count)\s+")
@@ -355,6 +389,12 @@ class TemplateParser:
         return parsed
 
     def _parse(self, raw: str) -> Query | TableQuery | Unsupported:
+        found = self._read(raw)
+        if isinstance(found, Query) and _unapplied_exclusion(raw.casefold(), found.subject):
+            return Unsupported(reason="a condition on the items (rooms that have...)")
+        return found
+
+    def _read(self, raw: str) -> Query | TableQuery | Unsupported:
         quoted = _quoted(raw)
         bare = QUOTED.sub(" _ ", raw)  # the question without its quoted names
         lower = bare.casefold()
@@ -366,8 +406,10 @@ class TemplateParser:
             return Unsupported(reason="a superlative (longest, largest...) is not a takeoff")
         if BREAKDOWN.search(lower):
             return Unsupported(reason="a breakdown or list is not one quantity")
-        if PLACE.search(lower):
-            return Unsupported(reason=UNQUOTED_PLACE)
+        if place := PLACE.search(lower):
+            # "enlarged plan 6A": one view of the sheet, not a floor or a side (R4-D3)
+            view = VIEW.fullmatch(place.group()) and not FLOOR.search(lower)
+            return Unsupported(reason=ONE_VIEW if view else UNQUOTED_PLACE)
         if SIZE_FILTER_WORDS.search(lower):
             return Unsupported(reason=SIZE_FILTER)
         if CONDITION.search(lower):
@@ -375,6 +417,10 @@ class TemplateParser:
         measure: Measure | None = next((m for m, cue in MEASURES if cue.search(lower)), None)
         if measure is None:
             return Unsupported(reason="no count, area, length or volume asked for")
+        # "bedrooms with a balcony", "doors next to the kitchen": the takeoff counts whole classes
+        # (review-524 should 2); the hint sentences after the question are not read for it
+        if has_qualifier(APPLIED.sub(" ", FIRST_SENTENCE.split(lower, maxsplit=1)[0])):
+            return Unsupported(reason="a condition on the items (rooms that have...)")
         body, hits = _subjects(lower)
         if any(subject == SPACE_THING for _, subject in hits):
             return Unsupported(reason=NOT_A_ROOM_SPACE)
@@ -528,6 +574,39 @@ def _quoted(raw: str) -> list[_Quoted]:
             role = "storey"
         found.append(_Quoted(text=inner, role=role))
     return found
+
+
+# The English exclusions R4-C12 refuses when not applied; the other languages' ones in golden are
+# the indoor net area's outdoor spaces and hint sentences the parser does apply (extras: 3)
+ENGLISH_EXCLUDING = re.compile(rf"\b(?:{_LEAVING_OUT})\b")
+# A parenthesis that is an exclusion ("(except the entrance)") is read, not dropped (review-616 S2)
+NOT_EXCLUSION = re.compile(rf"\((?!\s*(?:{_LEAVING_OUT})\b)[^()]*\)")
+
+
+def _unapplied_exclusion(lower: str, subject: str) -> bool:
+    """The question's own sentence leaves out a part of what it counts or measures ("doors except
+    the entrance", "rooms leaving out the storage rooms") or something no subject names ("except
+    the entrance"): the takeoff has whole classes only, so it can't be applied (R4-C12). Leaving
+    out another class ("bathrooms, leaving out separate WC rooms") changes nothing, and an
+    apartment's balconies are applied (APPLIED)."""
+    sentence = FIRST_SENTENCE.split(NOT_EXCLUSION.sub(" ", lower), maxsplit=1)[0]
+    for clause in CLAUSES.split(sentence):
+        if (excluding := ENGLISH_EXCLUDING.search(clause)) is None or APPLIED.search(clause):
+            continue
+        after = clause[excluding.end() :]
+        left_out = after if WORD.search(after) else clause[: excluding.start()]
+        named = [found for found, pattern in _SUBJECTS if pattern.search(left_out)]
+        if not named or any(_overlaps(subject, found) for found in named):
+            return True
+    return False
+
+
+def _overlaps(counted: str, left_out: str) -> bool:
+    """Whether a thing left out is (a part of) the counted one: the same class, a room type of
+    all rooms or of an apartment, or one of a sum's classes ("shower+bathtub")."""
+    if counted in ("room", "apartment") and left_out.split(":", 1)[0] == "room":
+        return True
+    return bool(set(counted.split("+")) & set(left_out.split("+")))
 
 
 def _subjects(lower: str) -> tuple[str, list[tuple[int, str]]]:

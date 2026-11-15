@@ -69,6 +69,7 @@ describe('conflicts.ts', () => {
     expect(parseAnswer('12', 'count')).toEqual({ value: 12 });
     expect(parseAnswer('0', 'count')).toEqual({ value: 0 });
     expect(parseAnswer('2.5', 'count')).toBe('Type a whole number, like 12.');
+    expect(parseAnswer('28.5', 'rooms')).toBe('Type a whole number, like 12.'); // a room count
     expect(parseAnswer('two are the same door', 'count')).toEqual({
       note: 'two are the same door',
     });
@@ -93,6 +94,11 @@ describe('conflicts.ts', () => {
     );
     expect(subLine([needs, needs])).toBe('2 need you.');
     expect(subLine([])).toBe('Both methods agree wherever two of them measured.');
+    expect(subLine([], 165)).toBe('Both methods agree wherever two of them measured.');
+    // QA R2-E1: an unread sheet (0 quantities) must not read as two methods agreeing
+    expect(subLine([], 0)).toBe(
+      'Nothing was measured on these drawings, so there was nothing to compare.',
+    );
     expect(progressText([base, yours, needs])).toBe('2 of 3 settled');
   });
 

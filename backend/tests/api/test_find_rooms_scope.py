@@ -7,11 +7,16 @@ import json
 from types import SimpleNamespace
 from typing import Any
 
+from fastapi.testclient import TestClient
 from test_api_drawing_names import read, status
 
-from app.adapters.agent_tools import _find_rooms  # pyright: ignore[reportPrivateUsage]
+from app.adapters.agent_tools import (  # pyright: ignore[reportPrivateUsage]
+    _find_rooms,  # pyright: ignore[reportPrivateUsage]
+    project_toolbox,
+)
 from app.core.drawing.model import Drawing, Page, Room, RoomType, Scale
 from app.core.errors import NotFoundError
+from scripts.make_sample_archive import build_archive
 
 PAGE = Page(page=1, width=100, height=100, unit="pt")
 
@@ -74,3 +79,18 @@ def test_the_drawings_it_could_not_search_are_named() -> None:
     assert find("kitchen")["not_searched"] == expected
     none = find("sauna")
     assert none["status"] == "unknown" and none["not_searched"] == expected
+
+
+def test_r4_bedrooms_finds_the_drawn_flats_typed_bedrooms_on_the_sample(client: TestClient) -> None:
+    """Big QA R4 (describe): "Do all the bedrooms meet the Finnish minimum?" said "both bedrooms
+    found" from the two scans' printed BEDROOM and left out the drawn flats' bedrooms, printed
+    "Zimmer" and "Stanza" (typed bedroom). A plural finds them too (#644's forms)."""
+    project = client.post("/api/projects", params={"name": "sample-project.zip"},
+                          content=build_archive()).json()["id"]  # fmt: skip
+    toolbox = project_toolbox(client.app, project, [], {})
+    found = json.loads(toolbox.run("find_rooms", json.dumps({"query": "bedrooms"})))
+    assert found["status"] == "ok", found
+    labels = sorted((r["name"], r["label"]) for r in found["rooms"])
+    assert ("Drawn plan 3", "Stanza 1.02") in labels, labels
+    assert [label for _, label in labels].count("Zimmer 1.05") == 2, labels
+    assert "Building model 1" in {d["name"] for d in found["not_searched"]}, found

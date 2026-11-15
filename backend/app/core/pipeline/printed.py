@@ -18,8 +18,9 @@ scale and the stage-8 measurements to check the reading with.
   and length on the sheet (`takeoff.disputed_scale`); a ratio does not (it needs a resolution and
   can belong to another detail): the estimate stays the sheet's scale and no rule decides.
 - Printed facts. A printed count of an element class, of a room type or of all rooms becomes a
-  second value of that count (method `printed_total`). It never replaces the count read off the
-  drawing: no rule decides between the two, so a difference stays open for a person.
+  second value of that count (method `printed_total`). It does not replace the count read off the
+  drawing: no rule decides between the two, so a difference stays open for a person. With
+  PRINTED_TOTAL_ANSWERS=on, one that matches the count exactly is reported (printed_answer.py).
 """
 
 import math
@@ -51,6 +52,7 @@ from app.core.pipeline.raster_scale import (
     label_area_checks,
     rooms_with_areas,
 )
+from app.core.pipeline.scale_signatures import Signatures, Verdict, bar_verdict, ratio_verdict
 from app.core.pipeline.second_count import ESTIMATE_RANGE, far_apart, mm_per_px
 
 INCH_M = 0.0254
@@ -112,8 +114,41 @@ _RATIO = re.compile(
 # architect's scale: any other number there is a view, level or sheet number ("LEVEL 2 1/4\"",
 # "A-301 1/8\""), not inches.
 _FRACTION = r"(?<![\d.])(?:(1)[\s-]+(?=1\s*/\s*2(?!\d)))?(\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
-_INCHES = r"(?:\"|''|\u201d|in(?:ch(?:es)?)?\b)"  # ", '', a right double quote, in, inch
-_FEET = r"(?:'|\u2019|ft\b|feet\b|foot\b)"  # ', a right single quote, ft, feet
+_INCHES = r"(?:\"|''|\u201d|in(?:ch(?:es)?)?\b\.?)"  # ", '', a right double quote, in(.), inch
+_FEET = r"(?:'|\u2019|ft\b\.?|feet\b|foot\b)"  # ', a right single quote, ft(.), feet
+# How old and typeset sheets print a scale (QA R3-C1, USCG Building 407: "SIZE \u00bc\"=1'-0\""):
+# a fraction glyph is " n/d" (1\u00bd is 1 1/2), the fraction slash a slash, primes quotes
+_GLYPHS = str.maketrans(
+    {
+        "\u00bc": " 1/4",
+        "\u00bd": " 1/2",
+        "\u00be": " 3/4",
+        "\u215b": " 1/8",
+        "\u215c": " 3/8",
+        "\u215d": " 5/8",
+        "\u215e": " 7/8",
+        "\u2044": "/",  # the fraction slash
+        "\u2032": "'",  # prime
+        "\u2033": '"',  # double prime
+    }
+)
+# A glyph right after a digit is that many inches and more: 1\u00bc" is 1.25" (review-612 S1)
+_AFTER_DIGIT = re.compile("(\\d+)([\u00bc\u00bd\u00be\u215b\u215c\u215d\u215e])")
+
+
+def _plain(text: str) -> str:
+    """`text` with its fraction glyphs, fraction slash and primes as `_IMPERIAL` reads them."""
+    mixed = _AFTER_DIGIT.sub(
+        lambda m: f"{int(m.group(1)) + _fraction(_GLYPHS[ord(m.group(2))]):g}", text
+    )
+    return mixed.translate(_GLYPHS)
+
+
+def _fraction(text: str) -> float:
+    numerator, denominator = text.split("/")
+    return float(numerator) / float(denominator)
+
+
 _IMPERIAL = re.compile(
     rf"{_FRACTION}\s*{_INCHES}\s*=\s*(\d+(?:\.\d+)?)\s*{_FEET}(?:\s*-?\s*(\d+(?:\.\d+)?)\s*{_INCHES})?",
     re.IGNORECASE,
@@ -129,7 +164,7 @@ def ratio_of(text: str | None) -> float | None:
         grouped, plain = found.groups()
         ratio = float(re.sub(_GROUPED, "", grouped) if grouped else plain.replace(",", "."))
         return ratio if ratio > 0 else None
-    if (found := _IMPERIAL.search(text)) is not None:
+    if (found := _IMPERIAL.search(_plain(text))) is not None:
         return _imperial_ratio(found)
     return None
 
@@ -138,7 +173,8 @@ def imperial_scales(text: str) -> list[tuple[float, str]]:
     """Every imperial scale `text` prints, as `ratio_of` reads it, with the scale as printed:
     "1/4\" = 1'-0\"" is (48, "1/4\" = 1'-0\""). The text should be one label: a 1 before 1/2" is
     read as a whole inch, so a view number 1 next to a 1/2" scale would be."""
-    found = ((_imperial_ratio(match), match.group(0).strip()) for match in _IMPERIAL.finditer(text))
+    plain = _plain(text)
+    found = ((_imperial_ratio(m), m.group(0).strip()) for m in _IMPERIAL.finditer(plain))
     return [(ratio, printed) for ratio, printed in found if ratio is not None]
 
 
@@ -195,6 +231,14 @@ def printed_scale(printed: PrintedSheet, pages: Sequence[Page], dpi: float | Non
             text=shown,
             source=f"printed scale bar ({_bars(len(measured))})",
         )
+    return ratio_scale(printed, pages, dpi)
+
+
+def ratio_scale(printed: PrintedSheet, pages: Sequence[Page], dpi: float | None) -> Scale | None:
+    """The sheet's printed ratio in metres per page unit, at `dpi` on a page in pixels, at 72 to
+    the inch on a page in points; None without a ratio or a resolution."""
+    ratio = ratio_of(printed.printed_scale)
+    shown = printed.printed_scale if ratio is not None else None
     if ratio is not None and dpi is not None:
         # Metres per page unit. A scanned PDF's page is in points, 72 to the inch of its paper,
         # whatever resolution its render states: `dpi` there only says the paper size is known.
@@ -273,12 +317,18 @@ def fact_measurements(facts: Sequence[PrintedFact]) -> list[Measurement]:
 
 
 def with_printed(
-    found: Extracted, printed: PrintedSheet, pages: Sequence[Page], dpi: float | None
+    found: Extracted,
+    printed: PrintedSheet,
+    pages: Sequence[Page],
+    dpi: float | None,
+    signatures: Signatures = "off",
 ) -> Extracted:
     """`found` with what the sheet prints: its printed scale in place of an estimated one (or of
     none), every room area the estimate gave measured again at it, and the printed scale and
     counts as stage-8 values against the reading. A scale the reading measured itself is kept.
-    Every area printed in a room's label is then checked at the sheet's final scale."""
+    Every area printed in a room's label is then checked at the sheet's final scale.
+    `signatures` (SCALE_SIGNATURES): two scales a known slip apart are named (scale_signatures):
+    "bar" a bar against its ratio, "on" also a ratio against the doors."""
     notes = [*found.notes, *printed.notes]
     measurements = [
         *_room_types_counted(found, printed.printed_facts),
@@ -286,7 +336,12 @@ def with_printed(
     ]
     notes += [f"printed on the sheet: {fact.text}" for fact in printed.printed_facts]
     scale = printed_scale(printed, pages, dpi)
+    signed = _signature(scale, found, printed, pages, dpi, signatures)
     if found.scale.status in ("scaled", "not_to_scale"):
+        scale = None
+    elif scale is not None and signed is not None and signed.keep_estimate:  # labels: the doors
+        measurements = [*scale_measurements(scale, found.scale), *measurements]
+        notes.append(signed.note)
         scale = None
     elif (
         scale is not None
@@ -330,6 +385,9 @@ def with_printed(
     update: dict[str, object] = {"notes": tuple(notes), "printed": (*found.printed, *measurements)}
     if scale is not None:
         measurements = [*scale_measurements(scale, found.scale), *measurements]
+        if signed is not None:
+            notes.append(signed.note)
+            measurements = [*_ratio_value(signed, scale, found.scale), *measurements]
         measured, refused = rooms_with_areas(_unestimated(found.rooms), scale, pages)
         update |= {
             "scale": scale,
@@ -342,6 +400,48 @@ def with_printed(
             ),
         }
     return _label_checked(found.model_copy(update=update), pages)
+
+
+def _signature(
+    scale: Scale | None,
+    found: Extracted,
+    printed: PrintedSheet,
+    pages: Sequence[Page],
+    dpi: float | None,
+    signatures: Signatures,
+) -> Verdict | None:
+    """SCALE_SIGNATURES: a measured bar against the ratio printed beside it, or (no bar) the
+    ratio against the door estimate when they are inside ESTIMATE_RANGE (outside it, the
+    far-apart rules decide), a known slip apart (scale_signatures). None otherwise."""
+    if signatures == "off" or scale is None or scale.m_per_unit is None:
+        return None
+    if "scale_bar" in scale.evidence:
+        return bar_verdict(scale, ratio_scale(printed, pages, dpi))
+    estimate = found.scale
+    if signatures != "on" or estimate.status != "estimated" or estimate.m_per_unit is None:
+        return None
+    if far_apart(scale.m_per_unit, estimate.m_per_unit):
+        return None
+    return ratio_verdict(scale, estimate, found.rooms, pages)
+
+
+def _ratio_value(signed: Verdict, bar: Scale, before: Scale) -> list[Measurement]:
+    """The printed ratio as a value of the sheet's `scale` beside the bar (and the bar too
+    when no estimate put it there: a conflict needs two values)."""
+    if signed.ratio is None or bar.m_per_unit is None:
+        return []
+    sheet = Subject(kind="sheet", ref=None)
+    values: list[tuple[float, MeasureMethod]] = [(signed.ratio, "scale_text")]
+    if before.status != "estimated" or before.m_per_unit is None:
+        values.append((bar.m_per_unit, "scale_bar"))
+    return [
+        Measurement(
+            quantity="scale",
+            subject=sheet,
+            value=MeasuredValue(value=value, unit="m/px", method=method),
+        )
+        for value, method in values
+    ]
 
 
 def _unestimated(rooms: Sequence[Room]) -> tuple[Room, ...]:
@@ -371,6 +471,10 @@ def _label_checked(found: Extracted, pages: Sequence[Page]) -> Extracted:
             "notes": (*(n for n in found.notes if not n.startswith(LABEL_NOTE)), *said),
         }
     )
+
+
+unestimated = _unestimated  # for label_scale.py (LABEL_SCALE)
+label_checked = _label_checked
 
 
 def _room_types_counted(found: Extracted, facts: Sequence[PrintedFact]) -> list[Measurement]:

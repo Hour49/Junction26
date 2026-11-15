@@ -2,6 +2,7 @@
 import { act } from '@testing-library/react';
 import { project, projectList, projectTriaged, trace } from '../api/fixtures';
 import type { FileStatus, FileTrace, ProjectView, Triage } from '../api';
+import sample from './sample-run.json';
 
 /** The value, or a thrown error naming what was missing. */
 export function must<T>(value: T | null | undefined): T {
@@ -112,6 +113,7 @@ export const traceVariants = {
               output: '',
               failure: null,
               cost_usd: 0,
+              steps: [],
             },
           ]
         : [s],
@@ -201,3 +203,84 @@ export const sheet: NonNullable<Triage['sheet']> = {
   takeoff_possible: false,
   title: 'South elevation',
 };
+
+/**
+ * The demo's readers as ingest records them: the live site's config, copied from a real finished run
+ * (`.agents/ingest-ui/sample-trace.json`, trace, 2026-11-15; backend composition `build_ingest` `names`).
+ */
+export const DEMO_READERS = {
+  bim: 'ifc',
+  cad: 'hello',
+  vector: 'pdf',
+  raster: 'composite',
+  raster_components:
+    'elements=decisions-s1536:detector-v8:C-yolo26l,plans=decisions-s1536:detector-v8:C-yolo26l,' +
+    'door=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,window=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,' +
+    'sink=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,toilet=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,' +
+    'shower=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,bathtub=arbiter-t1:C-yolo26l:C-yolo26l-onnx-val,' +
+    'rooms=regionrooms',
+  tables: 'pdf',
+  second_counter: 'ifc',
+  rectifier: 'r3',
+  decisions_kind: 'True',
+  raster_scale: 'priors',
+  raster_printed_scale: 'carbon',
+  room_words: 'swiss+generic:v1',
+  floor_plans: 'rooms:v2',
+  double_check_readers: 'l1=detector:C-yolo26l,m1=detector:C-yolo26m',
+  carbon_reader: 'large+few3+snap+storey:dcb03cd7955c',
+  carbon_levels: 'demote:dcb03cd7955c',
+  triage: 'classifier=off, sheet_kind=carbon, describer=carbon, judge=rules',
+  evidence_scope: 'all_non_plan',
+};
+
+/** The image route's chips on the demo readers, in the order they run. */
+export const RASTER_CHIPS = [
+  'photo flattening',
+  'printed scale (Gemini)',
+  'Gemini cross-check (not counted)',
+  'symbol detector',
+  'Gemini count decision',
+  'count arbiter',
+  'room reader',
+  'double check by 2 more readers (not counted)',
+  'Gemini for sheets with few symbols',
+  'scale from door sizes',
+];
+
+/** The step labels real files reported on the demo config, by route (sample-trace.json, extract stage). */
+export const LIVE_STEPS = {
+  raster: [
+    'Printed scale and counts (Gemini Carbon)',
+    'Gemini Carbon check (never counted)',
+    'Gemini Decisions count swap (1536 px) over Symbol detector, 8 views',
+    'Symbol detector, 8 views + count arbiter',
+    'Symbol detector (arbiter base)',
+    'Room reader (Gemini + region model)',
+    'Double-check reader l1: Symbol detector',
+    'Double-check reader m1: Symbol detector',
+    'Symbol detector (arbiter second read)',
+    'Count arbiter (L1 page counts)',
+    'Gemini Carbon reader (things drawn)',
+  ],
+  vector: ['Drawn-PDF reader (Swiss plan rules)', 'Schedule tables (PDF)'],
+  bim: ['IFC model reader'],
+};
+
+/**
+ * The demo sample as the server sent it (trace's e2e on main 9e08a439, 2026-11-15, 0 USD), trimmed to what the
+ * lanes read: `done` the finished project, `mid` a poll while the image route was still reading. The rest of each
+ * file and drawing is the fixture's.
+ */
+export function sampleRun(which: 'done' | 'mid'): ProjectView {
+  const run = sample[which];
+  const file = must(project.files[0]);
+  const drawing = must(project.drawings[0]);
+  return {
+    ...project,
+    ...run,
+    readers: sample.done.readers,
+    files: run.files.map((f) => ({ ...file, ...f }) as FileStatus),
+    drawings: run.drawings.map((d) => ({ ...drawing, ...d })),
+  } as ProjectView;
+}

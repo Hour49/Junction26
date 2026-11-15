@@ -106,8 +106,8 @@ fe-ingest (Documents issue rows + ingest gate, `src/documents`, `src/ingest`):
   on Documents (fe-ingest, 2026-11-14): Carbon's picks need a person's look; conflicts without it stay on Ingest.
 - RS-31 An issue with `resolved.verdict: 'cannot_tell'` (needs_person): pill as before ("Needs a person") plus
   "Carbon could not tell", the reason and a link "Settle the conflict" → the conflict card; counted by `needsYou`
-  (as the server's `issues_to_answer`, which counts every open non-note issue). No answer form on either: a conflict
-  is settled on its card.
+  (as the server's `issues_to_answer`: a conflict counts there only with `resolved`, R3-G1). No answer form on
+  either: a conflict is settled on its card.
 - RS-32 IngestFinished with `projectResolved` + `projectReviewResolved`: "Start a new chat" is not locked (the pick
   needs nobody); with `resolving.review` it stays locked.
 

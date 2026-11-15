@@ -140,6 +140,15 @@ def test_other_files(data: bytes, expected: str) -> None:
     assert kind(data) == expected
 
 
+def test_a_text_file_says_its_size_in_the_right_number() -> None:
+    # QA R4-G4: a zip of 3000 one-byte files listed "plain text, 1 bytes" 3000 times
+    probe = FileProbe()
+    assert [probe.probe(data).did for data in (b"x", b"xy")] == [
+        "plain text, 1 byte",
+        "plain text, 2 bytes",
+    ]
+
+
 def test_an_ifc_model() -> None:
     assert kind(ifc_model()) == "ifc"
 
@@ -245,4 +254,14 @@ def test_a_set_whose_first_page_is_text_names_its_drawn_pages() -> None:
 def test_a_pdf_whose_page_does_not_load_is_named_damaged() -> None:
     found = FileProbe().probe(misplaced_page_pdf())
     assert found.kind == "unknown"
-    assert found.did.startswith("a damaged PDF: page 1 does not load"), found.did
+    assert found.did == "a damaged PDF: page 1 does not load", found.did
+
+
+def test_a_cut_off_pdf_is_named_damaged_in_plain_words() -> None:
+    """QA R2-C2: the reason showed pdfium's "Failed to load document (PDFium: Data format
+    error)." A user reads what is wrong with the file, not the library's message."""
+    data = swiss_sheet().pdf()
+    for cut in (len(data) // 2, len(data) - 40):
+        found = FileProbe().probe(data[:cut])
+        assert found.kind == "unknown"
+        assert found.did == "a damaged or cut-off PDF that cannot be opened", found.did

@@ -112,6 +112,15 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
   const project = 'projectId' in route ? route.projectId : null;
   return (
     <InfoProvider>
+      <button
+        type="button"
+        className="skip-link"
+        onClick={() => {
+          main.current?.focus();
+        }}
+      >
+        Skip to content
+      </button>
       <Header route={route} />
       <InfoBar wide={isWide(route)} />
       <main id="main" tabIndex={-1} ref={main}>

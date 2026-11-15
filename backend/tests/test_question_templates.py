@@ -265,6 +265,7 @@ def test_room_types_and_rooms_named_as_included_still_count() -> None:
 
 def test_a_question_about_the_building_is_about_the_model_not_the_sheet() -> None:
     assert PARSE("How many doors are there in this building?") == Query(subject="door", model=True)
+    assert PARSE("How many doors in the entire building?") == Query(subject="door", model=True)
 
 
 def test_the_largest_room_of_a_label_or_type_by_area() -> None:
@@ -516,6 +517,13 @@ def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
         ("How many doors in each drawing?", "How many doors?"),
         ("How many windows are there on each sheet?", "How many windows are there?"),
         ("What is the total floor area of each plan?", "What is the total floor area?"),
+        ("How many doors are there in the whole project?", "How many doors are there?"),
+        ("How many doors are there in the project?", "How many doors are there?"),
+        ("How many windows across the entire project?", "How many windows?"),
+        # review-529 S1: near phrasings read "project" as the building model and refused on a sheet
+        ("How many doors are there in this project?", "How many doors are there?"),
+        ("How many doors does the project have?", "How many doors are there?"),
+        ("How many windows does this project have?", "How many windows are there?"),
     ],
 )
 def test_each_drawing_is_the_whole_drawing_not_a_breakdown(text: str, same_as: str) -> None:
@@ -625,3 +633,201 @@ def test_words_that_are_no_size_filter_still_parse(text: str, subject: str | Non
         assert PARSE(text) != Unsupported(reason=SIZE_FILTER)
     else:
         assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many bedrooms with a balcony?",
+        "How many bedrooms with a balcony are there on this plan?",
+        "How many doors next to the kitchen?",
+        "How many toilets without a window?",
+        "What is the area of the rooms between the hall and the kitchen?",
+        "How many rooms near the entrance?",
+    ],
+)
+def test_a_count_of_a_narrowed_thing_is_refused_not_the_whole_class(text: str) -> None:
+    """review-524 should 2 (a confident wrong on main): "How many bedrooms with a balcony?" was
+    the count of all bedrooms. A thing narrowed by what has_qualifier knows is refused, as the
+    yes/no form ("Is there a bedroom with a balcony?") already is."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+def test_a_hint_sentence_after_the_question_is_no_qualifier() -> None:
+    """The dataset's hints ("Count doorways fitted with a door; … without a door leaf …") follow
+    the question: only the question's own first sentence is read for a qualifier."""
+    text = (
+        "How many doors are shown on this floor plan? Count doorways fitted with a door; open "
+        "doorways without a door leaf do not count."
+    )
+    assert PARSE(text) == PARSE("How many doors are shown on this floor plan?")
+    assert isinstance(PARSE(text), Query)
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("How many windows are there in the plan, over all?", "window"),
+        ("How many windows are there overall?", "window"),
+        ("How many doors are shown on this floor plan only?", "door"),
+    ],
+)
+def test_review_532_words_that_do_not_narrow_the_thing_are_no_qualifier(
+    text: str, subject: str
+) -> None:
+    """review-532 should 1: "over all" and "only" don't narrow what is counted, so they are not
+    refused as a condition on the items."""
+    found = PARSE(text)
+    assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many rooms above the garage?",
+        "How many windows under the roof?",
+        "How many rooms over the garage?",
+        "How many toilets on the floor below?",
+    ],
+)
+def test_a_place_after_over_under_above_below_still_narrows_the_thing(text: str) -> None:
+    """A bare over/under/above/below names a place ("rooms above the garage"); answered, it
+    would be the count of every room, so it stays refused."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total floor area of the apartment with number A?",
+        "What is the total floor area of the apartment with the name A?",
+        "How many rooms are in the apartment with the label B?",
+    ],
+)
+def test_review_539_a_thing_named_after_with_stays_refused(text: str) -> None:
+    """review-539 must: let through, "the apartment with number A" lost its A and answered for
+    the whole sheet ("the apartment", apartment=None). The parser reads the name only as
+    "apartment A", so this wording stays refused, as on main."""
+    assert isinstance(PARSE(text), Unsupported)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors only open outward?",
+        "How many toilets are only for staff?",
+        "How many windows only open inward?",
+        "How many doors are there only in the kitchen?",
+        # review-616 must: "only" by a sheet word, then a verb it narrows
+        "How many doors on this plan only open outward?",
+        "How many doors in this drawing only open outward?",
+        "How many doors only on this drawing open outward?",
+    ],
+)
+def test_r4_c2_only_inside_the_question_still_narrows_the_thing(text: str) -> None:
+    """R4-C2 (Tudor's QA round 4): since #539 any "only" was let through, so "How many doors only
+    open outward?" answered every door (2) and "How many toilets are only for staff?" every
+    toilet (1) on sample flat-b. "only" narrows nothing only at the end or next to a sheet word;
+    anywhere else it stays a condition on the items."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("How many doors are shown on this floor plan only?", "door"),
+        ("How many doors are there only on this drawing?", "door"),
+        ("How many windows are there in this plan only?", "window"),
+        ("How many toilets are there only on this sheet?", "toilet"),
+        ("How many doors only?", "door"),
+        ("How many doors only.", "door"),
+        ("How many doors are there only on this floor plan?", "door"),
+        ("How many doors are there on this sheet only, not the elevations?", "door"),
+    ],
+)
+def test_r4_c2_only_at_the_end_or_by_the_sheet_narrows_nothing(text: str, subject: str) -> None:
+    found = PARSE(text)
+    assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are there except the entrance?",
+        "How many doors are there, excluding the entrance door?",
+        "How many windows are there other than the kitchen window?",
+        "How many doors, not counting the front door?",
+        "How many rooms are there leaving out the storage rooms?",
+        # review-616 S1, S2: the same in other words, and in parentheses
+        "How many doors are there apart from the entrance?",
+        "How many doors are there besides the front door?",
+        "How many doors are there, not including the front door?",
+        "How many windows are there minus the skylights?",
+        "How many doors are there (except the entrance)?",
+    ],
+)
+def test_r4_c12_an_exclusion_the_parser_cannot_apply_is_refused(text: str) -> None:
+    """R4-C12 (Tudor's QA round 4): "How many doors are there except the entrance?" answered 2,
+    every door on sample flat-b: EXCLUDING only keeps the left-out nouns from being the subject,
+    and nothing applied or refused the exclusion. Only an apartment's balconies are applied
+    (APPLIED); any other exclusion is a condition on the items."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sum the rooms of apartment B without balconies; area in m²?",
+        "What is the floor area of the apartment in m², not counting the balcony?",
+        "What is the floor area of the apartment, excluding balconies?",
+        "What is the floor area of the apartment except the balcony?",
+    ],
+)
+def test_r4_c12_an_apartment_without_its_balconies_is_still_answered(text: str) -> None:
+    assert isinstance(PARSE(text), Query), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many water closets are drawn in enlarged plan 6A 'Restrooms'?",
+        "How many doors are in plan 3?",
+    ],
+)
+def test_r4_d3_one_view_of_a_sheet_is_refused_as_one_view(text: str) -> None:
+    """R4-D3 (pic-det, .agents/exp/r4-d3.md): "water closets in enlarged plan 6A" on A-701 is
+    rightly refused (we count whole sheets: 5 WCs, 6A has 2), but its reason named "ground floor,
+    north facade". A view's name gets its own reason; no new answers."""
+    from app.core.answering.model import ONE_VIEW, UNQUOTED_PLACE
+
+    assert PARSE(text) == Unsupported(reason=ONE_VIEW)
+    assert PARSE("How many doors are on the ground floor plan 3?") == Unsupported(
+        reason=UNQUOTED_PLACE
+    )  # a floor too: the floor's reason, as before
+
+
+EXCLUSION_WORDS = (
+    "excluding", "except", "excepting", "not counting", "not including", "leaving out", "without",
+    "other than", "apart from", "aside from", "besides", "minus", "save for", "except for",
+    "with the exception of", "omitting", "but not",
+)  # fmt: skip
+
+
+@pytest.mark.parametrize("word", EXCLUSION_WORDS)
+@pytest.mark.parametrize("form", ["How many doors are there {w} the entrance?",
+                                  "How many doors are there ({w} the entrance)?"])  # fmt: skip
+def test_r4_besides_every_exclusion_word_is_refused_plain_or_in_parentheses(
+    word: str, form: str
+) -> None:
+    """answer's nit on #616: "(besides the entrance)" answered every door, since the parenthesis
+    check had its own shorter word list. Every exclusion word, plain or in parentheses, leaves
+    out a door the takeoff can't, so the question is refused."""
+    text = form.format(w=word)
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)"), text
+
+
+@pytest.mark.parametrize("word", ["excluding", "not counting", "besides", "apart from", "minus"])
+def test_r4_besides_an_apartment_without_its_balconies_still_answers(word: str) -> None:
+    for text in (f"What is the floor area of the apartment, {word} the balconies?",
+                 f"What is the floor area of the apartment ({word} the balconies)?"):  # fmt: skip
+        assert isinstance(PARSE(text), Query), text

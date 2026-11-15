@@ -9,7 +9,8 @@ What is read, and the conventions the facts follow:
 - Element facts: `<entity>.<measure>` with subject "all", "external", "internal",
   "load_bearing", "non_load_bearing" or "predefined:<TYPE>" sums or counts that part of the
   class (e.g. "wall.length" / "external"); `<entity>_type.<measure>` is per type, subject the
-  type's name. Some classes (ONE_BY_ONE) also get one fact per element, subject its name.
+  type's name. Some classes (ONE_BY_ONE) also get one fact per element, subject its name
+  (`<entity>.global_id` among them, for a question that names an element by its GUID).
 - A type's name is its IfcTypeObject's Name, else the element's ObjectType, else the element's
   Name without the trailing Revit id (":123456").
 - Quantities are the file's own (its Qto sets, e.g. Length, NetSideArea, NetVolume), summed
@@ -20,7 +21,9 @@ What is read, and the conventions the facts follow:
   key of the `space_function.*` sums. `space.area` is the footprint of its solid, read by
   objects.py's own `_solid`, so a room has one area wherever it is asked. What the file states
   is kept apart: the Qto areas (`space.net_floor_area`, `space.gross_floor_area`) and the area
-  the authoring tool writes in a property set (`space.stated_area`, STATED_AREAS).
+  the authoring tool writes in a property set (`space.stated_area`, STATED_AREAS). A space's
+  `space.height` is its Qto Height, else the depth of its body when that is one upright extrusion;
+  a body cut by a boolean (an attic under its roof) gives `space.height_up_to` instead.
 - Derived numbers are computed here, never by the answering side (suffixed topics, whole
   building unless a storey is set): `<entity>.<measure>.min|max|average` per part,
   `<entity>.<measure>.per_storey` (the total over the storeys that hold the class),
@@ -39,6 +42,7 @@ import ifcopenshell.geom
 import ifcopenshell.util.element as element_util
 
 from app.adapters.ifc_model.objects import _solid, _storey, _unit_scales
+from app.adapters.vector_pdf.ifc_render import room_type
 from app.core.ifc_facts import Discipline, Fact
 
 CLASSES: Mapping[str, tuple[str, Discipline]] = {
@@ -144,6 +148,7 @@ class _Element:
     thickness: float | None
     flags: Mapping[str, bool]  # IsExternal, LoadBearing, as the file states them
     fire_rating: str | None
+    global_id: str
 
 
 def arch_facts(file: Any) -> list[Fact]:
@@ -347,7 +352,21 @@ def _spaces(file: Any, scales: Mapping[str, float]) -> Iterator[Fact]:
             yield _fact("space.long_name", name, entity.LongName, None, "LongName", storey)
         if (kind := element_util.get_type(entity)) is not None and kind.Name:
             yield _fact("space.type", name, kind.Name, None, "IfcSpaceType", storey)
+        # what its names say it is, by the room words a drawn room is typed with ("BAÑ" a
+        # bathroom), as the model's own takeoff types it (ifc_model `_typed`); big QA R1 E6
+        words = " ".join(text for text in (entity.LongName, entity.Name) if text)
+        if (room := room_type(words)) != "other":
+            yield _fact("space.room_type", name, room, None, "room words of its names", storey)
         quantities = _quantities(entity)
+        body, cut = (None, False) if "Height" in quantities else _space_body(entity)
+        if body is not None and abs(body.ExtrudedDirection.DirectionRatios[-1]) > 0.99:  # upright
+            height = body.Depth * scales["LENGTHUNIT"]
+            if cut:  # clipped (an attic under its roof): the extrusion is only its top
+                yield _fact(
+                    "space.height_up_to", name, height, "m", "uncut body extrusion depth", storey
+                )
+            else:
+                yield _fact("space.height", name, height, "m", "body extrusion depth", storey)
         for quantity in SPACE_QUANTITIES:
             if quantity not in quantities:
                 continue
@@ -384,6 +403,29 @@ def _spaces(file: Any, scales: Mapping[str, float]) -> Iterator[Fact]:
         if (topic, subject, storey) == (topic, "all", None) and storeys:
             per_storey = value / len(storeys)
             yield _fact(f"{topic}.per_storey", "all", per_storey, unit, "total / storeys")
+
+
+def _space_body(space: Any) -> tuple[Any | None, bool]:
+    """The extrusion a space's Body is, when it is exactly one (directly or as one mapped item),
+    and whether a boolean cuts it (its height then varies: an attic clipped by its roof). None
+    for a mesh, several solids or anything else: no height is read from those (pic-reg M1)."""
+    shape = getattr(space, "Representation", None)
+    items = [
+        item
+        for representation in (shape.Representations if shape else ())
+        if representation.RepresentationIdentifier == "Body"
+        for item in representation.Items
+    ]
+    if len(items) == 1 and items[0].is_a("IfcMappedItem"):
+        items = list(items[0].MappingSource.MappedRepresentation.Items)
+    if len(items) != 1:
+        return None, False
+    item, cut = items[0], False
+    for _ in range(MAX_NESTING):
+        if not item.is_a("IfcBooleanResult"):
+            break
+        item, cut = item.FirstOperand, True
+    return (item, cut) if item.is_a("IfcExtrudedAreaSolid") else (None, False)
 
 
 def _stated_area(space: Any) -> tuple[float, str] | None:
@@ -491,6 +533,7 @@ def _element(entity: Any, key: str, scales: Mapping[str, float]) -> _Element:
         thickness=thickness,
         flags=flags,
         fire_rating=str(rating) if rating not in (None, "") else None,
+        global_id=entity.GlobalId,
     )
 
 
@@ -737,6 +780,7 @@ def _one_by_one(key: str, discipline: Discipline, elements: Sequence[_Element]) 
         ) -> Fact:
             return _fact(f"{key}.{name}", e.name, value, unit, source, e.storey, discipline)
 
+        yield fact("global_id", e.global_id, None, "GlobalId")
         for name in dict.fromkeys((e.type_name, e.family_name)):
             yield fact("type", name, None, "type name")
         for name, value in e.measures.items():

@@ -28,6 +28,10 @@ SHOWERS_AND_BATHTUBS = CountingRule(
     id="showers-and-bathtubs", text="showers and bathtubs together, each counted once"
 )
 ROOM_AREA = CountingRule(id="room-area", text="the room's net floor area as the drawing gives it")
+# A room whose area is an estimate (its outline at a scale): not given by the drawing (R1 row 18)
+ROOM_AREA_MEASURED = CountingRule(
+    id="room-area-measured", text="the room's net floor area, measured from its outline"
+)
 ROOMS_TOTAL = CountingRule(
     id="rooms-total",
     text="the sum of the rooms' net floor areas; unknown when one of them has no area",
@@ -35,8 +39,7 @@ ROOMS_TOTAL = CountingRule(
 # Shafts, lifts and stairwells stay in because the dataset's answers keep them.
 INDOOR_TOTAL = CountingRule(
     id="indoor-rooms-total",
-    text="every room that is not outdoor; shafts, lifts and stairwells are counted in, "
-    "though the question says shafts are left out",
+    text="every room that is not outdoor; shafts, lifts and stairwells are counted in",
 )
 APARTMENT_AREA = CountingRule(
     id="apartment-area",
@@ -72,6 +75,14 @@ MODEL_SPACES = CountingRule(
     "model, drawn on this sheet or not (not the net floor area the file may state, which can "
     "differ), else the area of the room the sheet draws it as; unknown when a space has "
     "neither",
+)
+MODEL_SPACE_TYPES = CountingRule(
+    id="model-space-types",
+    text="the model's spaces whose name says the room type, by the word table a drawn room's "
+    'label is typed with ("HAB" a bedroom, "COC" a kitchen); a space listed again with the '
+    "same number, name and storey counts once. When every space is typed, a room type that no "
+    "space is typed as counts 0; otherwise it is unknown. A guess from the names, not measured: "
+    "Low",
 )
 ROOM_SIDE = CountingRule(
     id="room-longer-side",

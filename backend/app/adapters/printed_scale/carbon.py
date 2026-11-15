@@ -152,7 +152,9 @@ class CarbonPrinted:
             check = {"page": contract.check_page, "bars": check_bars, "ticks": check_ticks}[kind]
             if path is not None and path.is_file():
                 try:
-                    return check(json.loads(reply_text(json.loads(path.read_text()))))
+                    form = check(json.loads(reply_text(json.loads(path.read_text()))))
+                    cost.hit()  # the step says its reply was cached
+                    return form
                 except (ValueError, GeminiError, AttributeError, TypeError, KeyError, IndexError):
                     pass  # a cached file that does not parse is a miss
             prompt, schema, tokens = {

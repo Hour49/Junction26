@@ -41,7 +41,7 @@ on Retry. Per `ProjectSummary`:
 | --- | --- |
 | `id` | selection key; "Open workspace" `href` `#/p/<id>` |
 | `name` | list item title and panel heading (mono, `overflow-wrap: anywhere`; text, never HTML) |
-| `state` | the list pill: `queued`/`running` "Reading", `done` "Ready", `failed` "Failed" (words, plus the token colour) |
+| `state` | the list pill: `queued`/`running` "Reading", `done` "Ready" (warn "Nothing read" when `drawings` is 0, QA R4-A12), `failed` "Failed" (words, plus the token colour) |
 | `created_at` | list item time and the panel's "created <time>" (`formatTime`, shared: `YYYY-MM-DD HH:MM UTC`) |
 | `files`, `drawings` | "<kind> · 11 files · 5 drawings" (singular "1 file", "1 drawing"); kind: `files === 1` "Single file", else "Archive" |
 | `to_review` (#121, `number \| null`, null unless done) | a warn pill "<n> to review" after the state pill; none when null or 0 |
@@ -104,7 +104,7 @@ nothing relies on the colour.
 | --- | --- | --- |
 | Loading list | the shared `Loading` "Loading workspaces…"; no panel | pending `GET /api/projects` (`never()`) |
 | Empty | "No workspaces yet." and a link "Drop files or try a sample" to `#/`; no panel | `project_list.json` with `projects: []` |
-| List error | shared `ErrorView` with `detail`, "code: <code>", Retry (reloads the list) | 500 `error.json` |
+| List error | shared `ErrorView` with `detail` (no raw `code`, QA R2-C5), Retry (reloads the list) | 500 `error.json` |
 | Loading panel | the list, and in the panel "Loading <name>…" | pending `GET /api/projects/{id}` |
 | Panel error | the list stays; the panel shows `ErrorView` with Retry (reloads that project) | 404 `error.json` for the project |
 | Review error | heading, Files and Drawings stats and the upload / analysis events show; To review and Signed off read "–"; one line "Review not loaded: <detail> (<code>)" with Retry | 500 for `…/review` |
@@ -144,7 +144,7 @@ List
 - AC-4 Pills: `queued` and `running` "Reading", `done` "Ready", `failed` "Failed"; each pill holds its word.
   [unit `workspacePill`]
 - AC-5 `projects: []` shows "No workspaces yet." and a link to `#/`; no panel, no project request. [component]
-- AC-6 A 500 list shows `ErrorView` with "internal error" and "code: internal"; Retry sends `GET /api/projects`
+- AC-6 A 500 list shows `ErrorView` with "internal error" and no "code: internal"; Retry sends `GET /api/projects`
   again. [component, `error.json`-shaped body]
 - AC-7 The first item is selected (`aria-pressed="true"`); clicking the second item of a two-project derived list
   selects it, sends `GET /api/projects/<its id>` and `…/review`, and the first item becomes `aria-pressed="false"`.
@@ -208,6 +208,8 @@ Layout
 - AC-25 At 390x844 the page has no horizontal scroll with a 60-character unbroken workspace name, the list is above
   the panel, and the stats are two columns. [e2e, qa-r1's long-name upload]
 - AC-26 At 1440x900 the list and the panel sit side by side. [e2e screenshot, looked at]
+- AC-37 (QA round 2) Below 900 px wide (a tablet, or 200% zoom) the panel goes under the list: at 800x900
+  there is no horizontal scroll (the side-by-side panel was 233 px wide, its stats broke mid-word). [e2e, desktop]
 - AC-28 (#121, pre-QA) A list item with `to_review: 2, conflicts_open: 1` shows the pill "2 to review" and no
   conflict pill (rule-settled conflicts are counted open by the API); with `to_review` null or 0 no pill shows; no
   element has `data-pending`. [component]

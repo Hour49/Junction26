@@ -144,6 +144,8 @@ SEVERAL_PRINTED = "a room name several rooms carry"
 # A floor, facade or wing named in words, not as a quoted storey name: answer.RoomByType reads a
 # floor against the drawing's storeys
 UNQUOTED_PLACE = "a place named without quotes (ground floor, north facade)"
+# A view of a sheet with several ("enlarged plan 6A"): counts are per sheet (R4-D3)
+ONE_VIEW = "asks about one view of a sheet with several views; counts are per sheet"
 # A floor the drawing names no storey for, or names several for: review/ask.py says which floors
 # it has, or how much is on each of its unnamed plans
 NO_SUCH_FLOOR = "a floor the drawing does not name"

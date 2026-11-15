@@ -64,7 +64,7 @@ def test_a_source_is_described_and_says_why_with_both_calls_costed() -> None:
     found = picture_evidence(IMAGE, FakeKinds({IMAGE: picture_kind("elevation", False)}), DESCRIBER)
     assert found.description is not None
     assert found.description.subject == "the north elevation of a house"
-    assert found.why == "not a floor plan: elevation (Gemini sheet kind, fake kind)"
+    assert found.why == "not a floor plan: elevation (fake kind)"
     assert found.cost_usd == pytest.approx(0.042)
 
 

@@ -66,3 +66,25 @@ export function shownRuns(c: ServicesChange): { removed: Run[]; added: Run[] } {
 
 /** "41%": a page fraction as an SVG length on the picture. */
 export const pct = (v: number) => `${String(Math.round(v * 10000) / 100)}%`;
+
+const ZOOM_MARGIN = 0.05; // page fraction around the change: the room's walls stay in view
+const ZOOM_MIN = 0.2; // the close-up is at least a fifth of the page: 5x at most, a room and its neighbours
+
+/** The close-up (#566): a square of page fractions (so it has the picture's own shape) around the moved
+ * terminals and the shown runs, with a margin, inside the page. The whole page when nothing has a place. */
+export function zoomBox(
+  c: ServicesChange,
+  runs: { removed: Run[]; added: Run[] },
+): { x: number; y: number; s: number } {
+  const points = [
+    ...c.moved.flatMap((m) => [m.from, m.to].filter((p): p is Point => p != null)),
+    ...[...runs.removed, ...runs.added].flatMap((r) => r.polyline),
+  ];
+  if (points.length === 0) return { x: 0, y: 0, s: 1 };
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const s = Math.min(1, Math.max(ZOOM_MIN, x1 - x0 + 2 * ZOOM_MARGIN, y1 - y0 + 2 * ZOOM_MARGIN));
+  const inside = (mid: number) => Math.min(Math.max(mid - s / 2, 0), 1 - s);
+  return { x: inside((x0 + x1) / 2), y: inside((y0 + y1) / 2), s };
+}

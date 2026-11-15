@@ -24,6 +24,7 @@ from app.api.project_ask import ProjectAnswer, with_models_3d
 from app.api.views import View, drawings_of
 from app.composition import chat_caps, chat_model, spend_guard
 from app.core.agent import model
+from app.core.agent.accepted_edits import with_accepted_edits
 from app.core.agent.loop import run_turn
 from app.core.agent.prompt import COUNTRY, NO_COUNTRY, SERVICES
 from app.core.checks.model import RulePack
@@ -199,6 +200,9 @@ def _turn_runner(
                 context = f"{context}\n{said}"
             turn = run_turn(current, body.message, body.selection, model, tools, caps, guard,
                             names=names, context=context, emit=emit)  # fmt: skip
+            # R4-F5: an answer on a drawing with an accepted edit says it reads it as drawn; kept
+            # with the chat, so the turn reads the same when the chat is opened again
+            turn = current.turns[-1] = with_accepted_edits(turn, current.proposals)
             chats.put(project_id, current)
             shown = ChatTurn.model_validate(turn.model_dump(mode="json"))
             # MODEL_3D: the views' state is put on at response time only, never kept with the chat

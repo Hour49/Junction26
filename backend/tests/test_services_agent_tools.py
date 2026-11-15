@@ -15,10 +15,11 @@ from app.adapters.services_agent_tools import (
     run_services_tool,
 )
 from app.adapters.services_store import ServicesStore
+from app.core.agent.evidence import mint
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.plan_edit.model import Selection
 from app.core.services.stored import Connectivity, ServicesModel, fraction
-from tests.services_fixtures import SUPPLY, two_rooms
+from tests.services_fixtures import SUPPLY, WC_ROOM, controllers, two_rooms, wc_room
 
 LIMIT = 4000
 
@@ -143,6 +144,33 @@ def test_sv22_sv26_list_services_narrows_to_the_room_of_a_selection() -> None:
 def test_sv23_list_services_bad_ids_say_so() -> None:
     assert "error" in _run(_store(), "list_services", drawing_id="nope")
     assert "error" in _run(_store(), "list_services", drawing_id="d1", room_id="SR9")
+
+
+def test_with_no_drawing_named_every_services_model_is_listed() -> None:
+    """Live 2026-11-15 05:22 (services demo, three services IFCs): every services chat turn began
+    with an error step, because list_services with no drawing_id refused ("name the drawing_id;
+    the project's services models: ...") and the model then asked each model in turn. With no
+    drawing named it lists each model, within the one result's limit; a model the filter can't
+    apply to (a room it doesn't have) is skipped with its reason."""
+    store = ServicesToolStore(models={"d1": two_rooms(), "d2": wc_room()}, selections={})
+    found = _run(store, "list_services", kind="sanitary_terminal")
+    assert "error" not in found, found
+    assert [m["drawing_id"] for m in found["models"]] == ["d2"]  # d1 has none: skipped, not 0
+    assert [s["drawing_id"] for s in found["skipped"]] == ["d1"]
+    assert found["count"] == 10 == sum(m["count"] for m in found["models"])
+    places: dict[str, Any] = {}
+    mint(found, places, 1)  # each item is a place on its own model's drawing
+    d2 = found["models"][0]
+    assert len(places) == len(d2["items"]) > 3
+    assert len(d2["items"]) + d2["more"] == 10 and {p["drawing_id"] for p in places.values()} == {
+        "d2"
+    }
+    found = _run(store, "list_services", room_id=WC_ROOM)
+    assert [m["drawing_id"] for m in found["models"]] == ["d2"], found
+    assert [s["drawing_id"] for s in found["skipped"]] == ["d1"] and found["skipped"][0]["reason"]
+    assert "error" in _run(store, "list_services", room_id="SR9")  # no model has it
+    big = _run(store, "list_services")  # every element of both: each cut to its share
+    assert len(json.dumps(big, ensure_ascii=False)) < LIMIT and len(big["models"]) == 2
 
 
 NOT_READ = (
@@ -388,3 +416,124 @@ def test_the_list_tool_says_breakdowns_come_from_the_groups() -> None:
     listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
     said = listing["function"]["description"]
     assert "by_type" in said and "by_room" in said
+
+
+def _plumbing() -> ServicesModel:
+    """The fixture plus a plumbing system: 3 WCs and 2 basins (sanitary terminals), a water
+    heater (unitary equipment), a roof drain (waste terminal) and a filter, as a real plumbing
+    model has them (#430 c6887184725: "91 in total" for its 72 sanitary fixtures)."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    radiator = next(e for e in doc["elements"] if e["id"] == "E3")
+    made = (
+        [("sanitary_terminal", "flow_terminal", "WC")] * 3
+        + [("sanitary_terminal", "flow_terminal", "Waschtisch")] * 2
+        + [
+            ("unitary_equipment", "energy_conversion_device", "Durchlauferhitzer"),
+            ("waste_terminal", "flow_terminal", "Regenablauf"),
+            ("filter", "flow_treatment_device", "Rückspülfilter"),
+        ]
+    )
+    more = [
+        {**radiator, "id": f"E{200 + i}", "ref": {"guid": f"s{i}"}, "ports": [], "kind": kind,
+         "group": group, "type": name, "label": name, "systems": ["Trinkwasser"],
+         "discipline": "plumbing"}
+        for i, (kind, group, name) in enumerate(made)
+    ]  # fmt: skip
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *more]})
+
+
+def test_a_kind_counts_that_kind_only_and_every_list_counts_its_kinds() -> None:
+    whole = _run(_store(_plumbing()), "list_services", drawing_id="d1", system="Trinkwasser")
+    assert whole["by_kind"]["sanitary_terminal"] == 5  # the fixtures, apart from what is not one
+    assert whole["by_kind"]["unitary_equipment"] == whole["by_kind"]["waste_terminal"] == 1
+    fixtures = _run(_store(_plumbing()), "list_services", drawing_id="d1", kind="sanitary_terminal")
+    assert fixtures["count"] == sum(fixtures["by_type"].values()) == len(fixtures["items"]) == 5
+    assert fixtures["by_type"] == {"WC": 3, "Waschtisch": 2}
+    assert fixtures["by_kind"] == {"sanitary_terminal": 5}
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "by_kind" in json.dumps(listing)
+
+
+def test_an_ifc_type_counts_that_type_only_and_every_list_counts_its_types() -> None:
+    """R5 (live check, 2026-11-15): "toilets in 13 WC Damen Ost" counted all 10 sanitary
+    terminals of the room (truth 3): only the PredefinedType tells a WC from a basin or a frame."""
+    room = _run(_store(wc_room()), "list_services", drawing_id="d1", room_id=WC_ROOM,
+                kind="sanitary_terminal")  # fmt: skip
+    assert room["count"] == 10
+    assert room["by_predefined"] == {"SANITARYFOUNTAIN": 5, "TOILETPAN": 3, "WASHHANDBASIN": 2}
+    wcs = _run(_store(wc_room()), "list_services", drawing_id="d1", room_id=WC_ROOM,
+               kind="sanitary_terminal", predefined="toiletpan")  # fmt: skip
+    assert wcs["count"] == len(wcs["items"]) == 3 and wcs["by_predefined"] == {"TOILETPAN": 3}
+    assert {i["id"] for i in wcs["items"]} == {"E301", "E302", "E303"} and wcs["untyped"] == 0
+    blind = _run(_store(wc_room(untyped=10)), "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
+    assert "its types: untyped" in blind["error"], blind  # #559 S1: no TOILETPAN anywhere
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "by_predefined" in json.dumps(listing) and "predefined" in json.dumps(listing)
+
+
+def test_an_ifc_type_the_model_lacks_is_an_error_naming_its_types() -> None:
+    """#559 review S1 (ifc-ask, 2026-11-15): predefined="TOILET" matched nothing and gave a
+    confident 0; a type no element of that kind has is an error naming the types, as an unknown
+    room name is. A type the model has elsewhere is a true 0 in a room without it."""
+    store = _store(wc_room(untyped=2))
+    wrong = _run(store, "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="TOILET")  # fmt: skip
+    assert "TOILET" in wrong["error"] and "TOILETPAN" in wrong["error"], wrong
+    assert "WASHHANDBASIN" in wrong["error"] and "untyped" in wrong["error"], wrong
+    none_here = _run(store, "list_services", drawing_id="d1", room_id="2 Bedroom",
+                     kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
+    assert none_here["count"] == 0 and "error" not in none_here, none_here
+    loose = _run(store, "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="untyped")  # fmt: skip
+    assert loose["count"] == 2 and {i["id"] for i in loose["items"]} == {"E309", "E310"}, loose
+    empty = _run(store, "list_services", drawing_id="d1", predefined="")
+    assert "predefined" in empty["error"], empty
+
+
+def test_dampers_and_valves_are_listed_and_counted_by_storey() -> None:
+    """R1 services row 7 (S1): "How many fire dampers are on the ground floor?" said 0, truth 5:
+    the list kept only terminals and equipment, so no IfcDamper or IfcValve (flow controllers)
+    was ever listed and kind="damper" was a confident 0."""
+    store = ServicesToolStore(
+        models={"lft": controllers("ventilation"), "hzg": controllers("heating")}, selections={}
+    )
+    dampers = _run(store, "list_services", kind="damper", storey="E00_OKRD")
+    assert dampers["count"] == 5, dampers
+    assert [m["drawing_id"] for m in dampers["models"]] == ["lft"]
+    assert dampers["models"][0]["by_predefined"] == {"FIREDAMPER": 5}
+    fire = _run(store, "list_services", drawing_id="lft", storey="B01_OKRD", kind="damper",
+                predefined="FIREDAMPER")  # fmt: skip
+    assert fire["count"] == 2, fire
+    valves = _run(store, "list_services", drawing_id="hzg", kind="valve", storey="E00_OKRD")
+    assert valves["count"] == 20 and valves["by_predefined"] == {"ISOLATING": 8, "untyped": 12}
+    heating = _run(store, "list_services", drawing_id="hzg")  # review-699: as the tool says
+    assert heating["count"] == 3 and "valve" not in heating["by_kind"], heating
+    assert _run(store, "list_services", drawing_id="lft", storey="E00_OKRD")["count"] == 0
+
+
+def test_a_kind_no_listed_element_has_is_an_error_naming_the_kinds_not_a_zero() -> None:
+    """R1 services row 7: a kind filter that matches nothing in the model gave count 0 with no
+    error, and the chat stated it as a fact. A kind the model has elsewhere is a true 0."""
+    lone = _store(controllers("ventilation"))
+    wrong = _run(lone, "list_services", drawing_id="d1", kind="sprinkler")
+    assert "sprinkler" in wrong["error"] and "damper" in wrong["error"], wrong
+    assert "space_heater" in wrong["error"], wrong  # the radiators: every listed kind is named
+    store = ServicesToolStore(
+        models={"lft": controllers("ventilation"), "hzg": controllers("heating")}, selections={}
+    )
+    nowhere = _run(store, "list_services", kind="sprinkler")
+    assert "no services model has it" in nowhere["error"], nowhere
+    none_here = _run(lone, "list_services", drawing_id="d1", kind="damper", room_id="SR2")
+    assert none_here["count"] == 0 and "error" not in none_here, none_here
+
+
+def test_566_moving_a_washbasin_is_a_refusal_not_a_failure() -> None:
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    e2 = next(e for e in doc["elements"] if e["id"] == "E2")
+    e2["ports"].append({"id": "E2.p3", "at": (2.5, 0.1, 0.1), "flow": "source"})
+    found = _run(_store(ServicesModel.model_validate(doc)), "propose_move_terminal",
+                 drawing_id="d1", element_id="E2", wall_id="SW2")  # fmt: skip
+    assert found["status"] == "refused" and "3 pipe connections" in found["reason"], found
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "propose_move_terminal")
+    assert "frame" in listing["function"]["description"]

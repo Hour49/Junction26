@@ -8,10 +8,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.core.agent.loop import NUDGE, UNBACKED
+from app.core.agent.loop import NUDGE, SAID_UNIT, UNBACKED, said_value
 from app.core.agent.ports import Reply
 from app.core.agent.review import DOUBT, REVIEWED, pushed
 from app.core.agent.rooms import name_words
+from app.core.review.review import noun as count_noun
 
 Json = dict[str, Any]
 
@@ -30,7 +31,7 @@ NO_PACK = (
     "and ask again."
 )
 ROOM = re.compile(r"\broom\b")
-# "Where are they?" about the last answer (the "Show them on the plan" chip, contract F)
+# "Where are they?" about the last answer (the "Show me where they are" chip, contract F)
 SHOW = re.compile(
     r"\b(show me where|where are they|show (them|it|me them) on the plan|mark them)\b"
 )
@@ -57,7 +58,6 @@ BIGGER = {"largest": "largest", "biggest": "largest", "smallest": "smallest"}
 NUMBER_OF = re.compile(r"^(?:total\s+)?(?:number|count|amount)\s+of\s+(?P<things>.+)$")
 # an answer in feet is compared in metres (review-483); the unit said after the winning value
 METRIC = {"ft2": ("m2", 0.09290304), "ft": ("m", 0.3048)}
-SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³"}
 LOAD = (
     "These drawings do not say which walls carry load. A structural drawing, a building model "
     "that marks load-bearing walls, or a structural engineer would settle it."
@@ -82,9 +82,18 @@ ASKS = (  # the network question a message asks, in ask_services' words
 )
 ELEMENT, WALL = re.compile(r"\be\d{1,6}\b"), re.compile(r"\bsw\d{1,5}\b")
 # "Which radiators are in the bedroom?", "How many sinks are there in Küche 1-3?": the room's
-# services listed (QA #430); sinks and toilets only here, not as something moved
-IN_ROOM_TERMINALS = {**TERMINALS, "sink": "sanitary_terminal", "washbasin": "sanitary_terminal",
-                     "basin": "sanitary_terminal", "toilet": "sanitary_terminal"}  # fmt: skip
+# services listed (QA #430); sinks and toilets only here, not as something moved. A sanitary word
+# counts its IFC PredefinedType: a WC, a basin and their mounting frames are all one IFC class (R5).
+# A sink is a washbasin too in English: "sinks in Bad 1-3" counted SINK only, a confident 0 where
+# the basins are WASHHANDBASIN (R4-C3); list_services takes the types comma-separated
+SANITARY_TYPES = {"sink": "SINK,WASHHANDBASIN", "washbasin": "WASHHANDBASIN",
+                  "basin": "WASHHANDBASIN", "toilet": "TOILETPAN", "urinal": "URINAL"}  # fmt: skip
+IN_ROOM_TERMINALS = {**TERMINALS, **dict.fromkeys(SANITARY_TYPES, "sanitary_terminal")}
+# the IFC sanitary types in the person's words (#559 qa-a: no raw IFC names in an answer)
+SANITARY_WORDS = {"SINK": "sink", "WASHHANDBASIN": "washbasin", "TOILETPAN": "toilet",
+                  "URINAL": "urinal", "SANITARYFOUNTAIN": "sanitary fountain", "BATH": "bath",
+                  "SHOWER": "shower", "BIDET": "bidet", "CISTERN": "cistern",
+                  "WCSEAT": "WC seat"}  # fmt: skip
 IN_ROOM_TERMINAL = re.compile(r"\b(" + "|".join(IN_ROOM_TERMINALS) + r")s?\b")
 LISTING = re.compile(r"\b(how many|which|what|list|count|are there|is there)\b")
 IN_ROOM = re.compile(  # the LAST "in <room>" at the end, before an "on level 2"
@@ -220,16 +229,19 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     return _answer(found)
 
 
-def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
-    """This turn's first list_services that worked (narrowed by the terminal word and the
-    selection) and, when a terminal word narrows it, found one; or the next call to find the
-    drawing with a services model: list_drawings, then list_services per drawing, a drawing a
-    selection names first, then IFC files (TRIED). Each IFC file is its own model, so an empty
-    list of one goes on to the next; when all are empty, the first."""
+def _services(turn: _Turn, words: str, kind: str | None = None) -> tuple[str, Json] | Json:
+    """This turn's first list_services that worked (narrowed by the terminal kind and the
+    selection) and, when a kind narrows it, found one; or the next call to find the drawing with
+    a services model: list_drawings, then list_services per drawing, a drawing a selection names
+    first, then IFC files. Each IFC file is its own model, so an empty list of one goes on to the
+    next: with a kind, every IFC file is asked (review-521: the heating model listed 4th was never
+    asked under TRIED), else TRIED drawings; when all are empty, the first. `kind`: the one a
+    room question counts (IN_ROOM_TERMINALS), else the terminal word's."""
     listed = [(a, f) for n, a, f in turn.done if n == "list_services" and "room_id" not in a]
     worked = [f for _, f in listed if isinstance(f, dict) and "error" not in f]
     word = TERMINAL.search(words)
-    ok = next((f for f in worked if f.get("items") or not word), None)
+    kind = kind or (TERMINALS[word[1]] if word else None)
+    ok = next((f for f in worked if f.get("items") or not kind), None)
     if ok is not None:
         return ok
     drawings = turn.result("list_drawings")
@@ -244,11 +256,13 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
                      if f" on {d.get('name')} page " in line), None)  # fmt: skip
 
     found.sort(key=lambda d: (selected(d) is None, d.get("kind") != "ifc"))
-    if len(listed) < min(TRIED, len(found)):
+    # with a kind, up to the last IFC file in this order: a selected sheet asked first counts too
+    models = max((i + 1 for i, d in enumerate(found) if d.get("kind") == "ifc"), default=0)
+    if len(listed) < min(max(TRIED, models if kind else 0), len(found)):
         drawing = found[len(listed)]
         args: Json = {"drawing_id": drawing["drawing_id"]}
-        if word:
-            args["kind"] = TERMINALS[word[1]]
+        if kind:
+            args["kind"] = kind
         if sel := selected(drawing):
             args["selection_id"] = sel
         return "list_services", args
@@ -256,7 +270,7 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
         return worked[0]
     if not any(d.get("kind") == "ifc" for d in found) and all("drawing_id" in a for a, _ in listed):
         # an IFC set aside at upload is in no drawing list: the project's only services model
-        return "list_services", {"kind": TERMINALS[word[1]]} if word else {}
+        return "list_services", {"kind": kind} if kind else {}
     why = next((str(f.get("error")) for _, f in listed if isinstance(f, dict)), None)
     return _final("dont_know", f"I can't find the building's services: {why or 'no drawings'}.")
 
@@ -264,16 +278,30 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
 def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] | None:
     """The terminals of one kind in the room the message names, by its name or id
     (list_services' room_id); None when the project has no services model to list."""
-    found = _services(turn, words)
+    found = _services(turn, words, IN_ROOM_TERMINALS[word])
     if isinstance(found, tuple):
         return None if found[0] == "final_answer" else found
     if _beside(turn, found["drawing_id"]):  # #491 review: the drawings answer, as before
         return None
     listed = turn.result("list_services", room_id=room)
+    sanitary = word in SANITARY_TYPES  # an architecture model counts sinks and toilets too
+    have: Json = found.get("by_predefined") or {}  # the whole model's types of that kind
+    lacks = sanitary and not set(SANITARY_TYPES[word].split(",")) & set(have)
+    if lacks and have and not _cut(have):
+        if _other_ifc(turn, found["drawing_id"]):
+            return None  # the architecture model may type it
+        why = (  # #559 S1, in plain words: not "0 urinals", nor the tool's IFC names
+            f"the services model's {_untyped(have['untyped'])}, so it doesn't say which are {word}s"
+            if set(have) == {"untyped"}
+            else f"the services model has no fixture typed as a {word}; its sanitary fixtures "
+            f"are {_fixtures(have)}"
+        )
+        return _final("dont_know", f"I can't tell: {why}.")
     if listed is None:
         kind = IN_ROOM_TERMINALS[word]
-        return "list_services", {"drawing_id": found["drawing_id"], "room_id": room, "kind": kind}
-    sanitary = word not in TERMINALS  # an architecture model counts sinks and toilets too
+        typed = {"predefined": SANITARY_TYPES[word]} if sanitary else {}
+        call = {"drawing_id": found["drawing_id"], "room_id": room, "kind": kind, **typed}
+        return "list_services", call
     if not isinstance(listed, dict) or "error" in listed:
         if sanitary and _other_ifc(turn, found["drawing_id"]):
             return None  # review-517: its room and fixtures are in the other model
@@ -284,11 +312,39 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
     if sanitary and not count and _other_ifc(turn, found["drawing_id"]):
         return None  # not "0 sinks": the services model holds none, the architecture model may
     name = (listed.get("room") or {}).get("name") or room
+    untyped = int(listed.get("untyped") or 0)
+    if untyped and not count:  # R5: never a whole-category number, nor a 0 it can't know
+        return _final(
+            "dont_know",
+            f"I can't tell: the {_untyped(untyped, after=f' in {name}')}, "
+            f"so it doesn't say which are {word}s.",
+        )
     cited = ", ".join(f"{i.get('label')} ({i['id']})" for i in items[:10])
-    text = f"{count} {word}{'' if count == 1 else 's'} in {name}" + (
-        f": {cited}." if cited else "."
-    )
+    text = f"{count} {word}{'' if count == 1 else 's'} in {name}"
+    if untyped:  # never a silent undercount: there may be more (orchestrator, 03:52)
+        text = f"At least {text} ({_untyped(untyped, ' more', ' there')})"
+    text += f": {cited}." if cited else "."
     return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
+
+
+def _untyped(n: int, before: str = "", after: str = "") -> str:
+    """'1 sanitary fixture has no type in the model', '3 more sanitary fixtures there have ...'."""
+    many = n != 1
+    return (f"{n}{before} sanitary fixture{'s' if many else ''}{after} "
+            f"{'have' if many else 'has'} no type in the model")  # fmt: skip
+
+
+def _cut(groups: Json) -> bool:
+    """A group list cut short ("and K more groups"): what it lacks may still be there."""
+    return any(key.startswith("and ") for key in groups)
+
+
+def _fixtures(groups: Json) -> str:
+    """'16 toilets, 12 washbasins and 34 sanitary fountains' from by_predefined."""
+    said = [f"{n} with no type in the model" if key == "untyped"
+            else f"{n} {SANITARY_WORDS.get(key, key.lower())}{'' if n == 1 else 's'}"
+            for key, n in groups.items()]  # fmt: skip
+    return ", ".join(said[:-1]) + f" and {said[-1]}" if len(said) > 1 else said[0]
 
 
 def _other_ifc(turn: _Turn, services: str) -> bool:
@@ -812,13 +868,29 @@ def _answer(found: Json) -> tuple[str, Json]:
         more: Json = {"options": options} if options and related else {}
         return _final("dont_know", dont_know(why), **more)
     # The turn carries the ask_drawings result, shown in full under the text: one sentence that
-    # cites each answering drawing's first mark. `answered` (the loop's) lists every one; `parts`
-    # may be cut for the window (#466)
-    listed: list[Json] = [a for a in found.get("answered") or [] if isinstance(a, dict)]
-    firsts = [marks[0]["ev"] for p in answering[:12] if (marks := [
-        m for m in p["answer"].get("marks", []) if isinstance(m, dict) and "ev" in m])]  # fmt: skip
-    evidence = [str(a["ev"]) for a in listed if a.get("ev")][:12] or firsts
-    cites = "".join(f"[{ev}]" for ev in evidence)
-    # No count of drawings in the sentence: the card under it lists every drawing's value, and
-    # a sentence that says "the drawing" or "the drawings" is wrong for some turn (#430).
-    return _final("answer", f"The answer is below{' ' + cites if cites else ''}.", evidence)
+    # gives each answering drawing's value and cites its first mark (R2-A6: not "The answer is
+    # below"). `answered` (the loop's) lists every one; `parts` may be cut for the window (#466).
+    # No count of drawings: "the drawing" or "the drawings" is wrong for some turn (#430). The
+    # project total, when the drawings have one, leads; past 12 drawings "and N more" (R4-C5).
+    every: list[Json] = [a for a in found.get("answered") or [] if isinstance(a, dict)] or [
+        {"drawing": p.get("name") or p.get("drawing_id"), "answer": p["answer"]["answer"],
+         "unit": p["answer"].get("unit"), "ev": _first_ev(p["answer"])} for p in answering
+    ]  # fmt: skip
+    listed = every[:12]
+    said = "; ".join(f"{a['drawing']}: {said_value(a)}" + (f" [{a['ev']}]" if a.get("ev") else "")
+                     for a in listed)  # fmt: skip
+    if cut := len(every) - len(listed):
+        said += f"; and {cut} more drawing{'s' if cut > 1 else ''}"
+    total = found.get("total")
+    if isinstance(total, (int, float)) and len(every) > 1:  # one drawing's total is its value
+        quantity: Json = answering[0]["answer"].get("quantity") or {}  # its noun is for its value
+        counted = count_noun(str(quantity.get("measure")), str(quantity.get("subject")), total)
+        named = f" {counted}" if counted and found.get("total_unit") == "count" else ""
+        whole = said_value({"answer": total, "unit": found.get("total_unit")})
+        said = f"In total {whole}{named}. {said}"
+    return _final("answer", f"{said}.", [str(a["ev"]) for a in listed if a.get("ev")])
+
+
+def _first_ev(answer: Json) -> str | None:
+    marks = [m for m in answer.get("marks") or [] if isinstance(m, dict) and "ev" in m]
+    return str(marks[0]["ev"]) if marks else None

@@ -21,6 +21,7 @@ the entry does not matter.
 
 import math
 import re
+import statistics
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
@@ -30,6 +31,7 @@ from app.core.drawing.model import (
     DOOR_SHAPES_NOTE,
     ELEMENT_CLASSES,
     PLAN,
+    ROOM_TYPES,
     Attr,
     Conflict,
     Drawing,
@@ -43,6 +45,7 @@ from app.core.drawing.model import (
     Scale,
     Table,
 )
+from app.core.pipeline.label_scale import LABEL_SOURCE
 from app.core.pipeline.model import (
     Counted,
     CountingRule,
@@ -53,7 +56,7 @@ from app.core.pipeline.model import (
     QuantityUnit,
     ValueMark,
 )
-from app.core.pipeline.raster_scale import AREA_REFUSED
+from app.core.pipeline.raster_scale import AREA_REFUSED, outline_m2
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
     AS_GIVEN,
@@ -66,8 +69,10 @@ from app.core.pipeline.rules import (
     MODEL_COUNT,
     MODEL_MEASURED,
     MODEL_QUANTITY,
+    MODEL_SPACE_TYPES,
     MODEL_SPACES,
     ROOM_AREA,
+    ROOM_AREA_MEASURED,
     ROOM_NAMES,
     ROOM_NUMBERS,
     ROOM_SIDE,
@@ -76,6 +81,7 @@ from app.core.pipeline.rules import (
     apply_rules,
     combine_totals,
 )
+from app.core.pipeline.scale_signatures import SCALE_SLIP
 from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
 from app.core.pipeline.user_scale import is_user_scale
 
@@ -199,8 +205,12 @@ def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
 
 
 def _whole_sheet(key: str, rule: str) -> bool:
-    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name)."""
-    return rule in PARTIAL_RULES and "label=" not in key and "name=" not in key
+    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name), or the
+    count of all its rooms: a reader's rooms can miss rooms for both (QA round 3 R3-G2/G3)."""
+    if "label=" in key or "name=" in key:
+        return False
+    count = rule == EACH_ONCE.id and key.split("|")[0] == "room" and "apartment=" not in key
+    return rule in PARTIAL_RULES or count  # count: "room", "room|storey=..."
 
 
 def _room_columns(table: Table) -> tuple[int, int | None] | None:
@@ -250,7 +260,7 @@ def _add_sheet(
 ) -> None:
     """What the sheet draws, for the whole sheet and each storey. With a building model, the
     storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
-    scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
+    scale = label_disputed(drawing) or scale_estimate(drawing.scale) or disputed_scale(drawing)
     sheet = _without_seen_through(counted, drawing)
     cut = frozenset(
         cls
@@ -349,6 +359,14 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
             for model in (True, False) if not drawing.pages else (True,):
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
+        if not drawing.pages:  # the model file itself: its spaces of each room type (qa-a)
+            typed = typed_spaces(items)
+            if _all_typed(items):  # a type no space has is 0, not unknown (R4-C4)
+                typed = {kind: [] for kind in _zero_types(typed)} | typed
+            for kind, same in sorted(typed.items()):
+                for model in (True, False):
+                    key = quantity_key("count", f"room:{kind}", storey=storey, model=model)
+                    _put(found, key, "count", len(same), marks(same), MODEL_SPACE_TYPES)
     if not drawing.pages:  # the model file itself: its spaces' areas over every storey too
         spaces = [item for item in objects if item.class_ == SPACE]
         for model in (True, False):
@@ -365,6 +383,55 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
                 _put(found, key, measure, total, marks(same), MODEL_QUANTITY)
         spaces = [item for item in items if item.class_ == SPACE]
         _add_model_spaces(found, storey, spaces, rooms, marks, scale)
+
+
+MEP_TWIN = re.compile(r"\bMEP Space\b", re.IGNORECASE)  # a room's services copy (duplex-mep)
+
+
+# Room types a person (and the dataset: "bathrooms/toilets") reads as one: with a space of one,
+# the other is not 0 (a WC answers "Is there a bathroom?"; review-663 M1)
+SAME_ROOM = frozenset({"bathroom", "wc"})
+
+
+def _zero_types(typed: Mapping[str, object]) -> list[str]:
+    """The room types a fully typed scope gives 0 for: every type but "other" and those it has,
+    and neither of SAME_ROOM when it has one of them."""
+    near: frozenset[str] = SAME_ROOM if typed.keys() & SAME_ROOM else frozenset()
+    return [kind for kind in ROOM_TYPES if kind != "other" and kind not in near]
+
+
+def _all_typed(items: Iterable[ModelObject]) -> bool:
+    """Every space of `items` (a services copy left out) has a room type from its names, and
+    there is one: then a type none has is a count of 0. One untyped space ("Raum 12") could be
+    of any type, so a missing type stays unknown."""
+    spaces = [
+        item
+        for item in items
+        if item.class_ == SPACE
+        and not any(MEP_TWIN.search(name) for name in (item.name, item.long_name) if name)
+    ]
+    return bool(spaces) and all(isinstance(item.attrs.get("room_type"), str) for item in spaces)
+
+
+def typed_spaces(items: Iterable[ModelObject]) -> dict[str, list[ModelObject]]:
+    """The spaces of `items` by their `room_type` (the IFC reader's), a space listed again with
+    the same number, name and storey once (review-527: duplex-m lists every room twice), and a
+    room's services copy ("Bedroom 1 MEP Space": duplex-mep) not at all."""
+    typed: dict[str, list[ModelObject]] = defaultdict(list)
+    seen: set[tuple[str, str | None, str | None]] = set()
+    for item in items:
+        kind = item.attrs.get("room_type")
+        if item.class_ != SPACE or not isinstance(kind, str):
+            continue
+        if any(MEP_TWIN.search(name) for name in (item.name, item.long_name) if name):
+            continue
+        if item.name:
+            twin = (item.name, item.long_name, item.storey)
+            if twin in seen:
+                continue
+            seen.add(twin)
+        typed[kind].append(item)
+    return typed
 
 
 def _add_model_spaces(
@@ -543,6 +610,12 @@ def _conflict_keys(
                     storeys = dict.fromkeys((None, own))  # ordered, unlike a set
                     keys += [quantity_key("area", "room", name=name, storey=s) for s in storeys]
             return keys
+        case "floor_area", "sheet":  # a printed gross (gross_net.py): the rooms' net totals
+            return [
+                quantity_key("area", "room", storey=scope, indoor=indoor)
+                for indoor in (True, False)
+                for scope in scopes
+            ]
         case "apartment_area", "apartment":
             labels = [a.label for a in drawing.apartments if a.id == ref and a.label is not None]
             return [quantity_key("area", "apartment", apartment=label) for label in labels]
@@ -763,10 +836,52 @@ def _percent(spread: float) -> str:
     return f"{round(100 * spread)}%"
 
 
+# The areas printed in the rooms' labels check the sheet's scale (area-root, QA R3-B6): at least
+# LABEL_SCALE_ROOMS of them, their median over their outlines more than LABEL_SCALE_RANGE off in
+# area. Pre-registered 2026-11-15 05:15 on the main run's 12 CubiCasa sheets with >= 3 printed
+# rooms and a scale: medians 0.92-1.19, none over 1.35, as none of those scales is off.
+LABEL_SCALE_RANGE = 1.35
+LABEL_SCALE_ROOMS = 3
+
+
+def label_disputed(drawing: Drawing) -> str | None:
+    """What an area or length rests on, in words a user reads, when the areas printed in the
+    sheet's rooms put its scale more than LABEL_SCALE_RANGE off (their median over the rooms'
+    outlines at that scale), naming both: one of the two is misread (T4: a printed ratio at a
+    camera's dpi came out 23x too small in area). None with fewer than LABEL_SCALE_ROOMS."""
+    m_per_unit = drawing.scale.m_per_unit
+    if m_per_unit is None or (drawing.scale.source or "").startswith(LABEL_SOURCE):
+        return None  # a scale made from the labels agrees with them (label_scale.py)
+    pages = {page.page: page for page in drawing.pages}
+    ratios: list[float] = []
+    for room in drawing.rooms:
+        page = pages.get(room.page)
+        if room.area_source != "printed" or not room.area_m2 or page is None:
+            continue
+        outline = outline_m2(room, page, m_per_unit)
+        if outline:
+            ratios.append(room.area_m2 / outline)
+    if len(ratios) < LABEL_SCALE_ROOMS:
+        return None
+    median = statistics.median(ratios)
+    if 1 / LABEL_SCALE_RANGE <= median <= LABEL_SCALE_RANGE:
+        return None
+    way = "larger" if median > 1 else "smaller"
+    times = median if median > 1 else 1 / median
+    return (
+        f"measured at the sheet's scale ({mm_per_px(m_per_unit)}), but the areas printed in "
+        f"{len(ratios)} rooms make them about {times:.1f}x {way}, so one of the two is misread"
+    )
+
+
 def disputed_scale(drawing: Drawing) -> str | None:
     """What an area or length rests on, in words a user reads, when the sheet's scale is a
     measured scale bar more than second_count.ESTIMATE_RANGE from the scale estimated from the
-    doors (printed.py: the bar is used, but one of the two is a misread), naming both."""
+    doors (printed.py: the bar is used, but one of the two is a misread), naming both. Also
+    when SCALE_SIGNATURES held the sheet: its note says what the areas rest on (SCALE_SLIP)."""
+    held = next((n for n in drawing.notes if n.startswith(SCALE_SLIP)), None)
+    if held is not None:
+        return held.removeprefix(SCALE_SLIP)
     m_per_unit = drawing.scale.m_per_unit
     if drawing.scale.status != "scaled" or m_per_unit is None:
         return None
@@ -1141,7 +1256,8 @@ def _add_scope(
     for name, same in named.items():
         if sums and len(same) == 1:  # a name two rooms share names neither
             key = quantity_key("area", "room", name=name, storey=storey)
-            _area_sum(found, key, same, ROOM_AREA, scale)
+            rule = ROOM_AREA if rooms_estimate(same, scale) is None else ROOM_AREA_MEASURED
+            _area_sum(found, key, same, rule, scale)
     for (cls, measure), attr in MEASURED.items():
         of_class = [element for element in elements if element.class_ == cls]
         values = [element.attrs.get(attr) for element in of_class]

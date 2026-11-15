@@ -15,7 +15,9 @@ if [[ "${E2E_DEMO:-}" == 1 ]]; then
   # only work with a key refuse to start without one (composition, checked one by one), so they get the no-keys
   # values: the raster readers (Decisions swap, Carbon reader and levels, printed scale, double-check readers),
   # the sheet kind and triage describer, the wider evidence scope (it asks the sheet kind), and the Gemini chat
-  # (every turn would need the key: the rules planner). Everything else is the demo's, including the r3 rectifier
+  # (every turn would need the key: the rules planner), and the picture reader (DISCIPLINE_PICTURES=gemini refuses an
+  # empty key at startup: the local template reader). SHEET_DISCIPLINE=gemini needs no change: it only picks the
+  # sheet-kind prompt, and SHEET_KIND=off builds no sheet-kind client. Everything else is the demo's, including the r3 rectifier
   # and the check/gate policies and local gates (they need no key).
   # Needs the repo's data/models (a worktree: link it from the main clone, as tools/qa-env.sh does).
   [[ -d ../data/models ]] || { echo "E2E_DEMO=1 needs data/models (ln -s <main clone>/data/models data/)" >&2; exit 1; }
@@ -23,7 +25,7 @@ if [[ "${E2E_DEMO:-}" == 1 ]]; then
   export GEMINI_API_KEY= EU_VLM_API_KEY= VERDA_INFERENCE_API_KEY= \
     EXTRACTOR_RASTER=hello RASTER_COMPONENTS= DECISIONS_KIND=false DECISIONS_CONFIDENCE=false \
     CARBON_READER=off CARBON_LEVELS=off RASTER_PRINTED_SCALE=off DOUBLE_CHECK_READERS= \
-    SHEET_KIND=off TRIAGE_DESCRIBER=off EVIDENCE_SCOPE=set_aside CHAT_MODEL=rules
+    SHEET_KIND=off TRIAGE_DESCRIBER=off EVIDENCE_SCOPE=set_aside CHAT_MODEL=rules DISCIPLINE_PICTURES=template
   exec uv run --locked uvicorn app.main:create_app --factory --host 127.0.0.1 --port "${E2E_API_PORT:-8010}"
 fi
 # Triage stays off unless the caller sets TRIAGE_CLASSIFIER=rules (e2e/triage.spec.ts, file-triage.md FT-21); the

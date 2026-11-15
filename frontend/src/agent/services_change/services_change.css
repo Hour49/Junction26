@@ -1,9 +1,19 @@
 /* A services proposal on its storey picture (docs/specs/backend/services-model.md SV-30), on the shell's Vellum
-   tokens. Removed dashed grey, new thick, the moved terminal hollow with an arrow: dash and weight, not colour
-   alone; the legend and the lists say it in words. */
+   tokens. Removed dashed grey, new thick in the accent, the moved terminal hollow with an arrow, its new place
+   filled with a ring: dash, weight and shape, not colour alone; the legend and the lists say it in words. The
+   close-up (#566) scales the picture inside a clipped frame; the overlay is drawn in the close-up's own places. */
+.sc-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .sc-frame {
   position: relative;
   display: block;
+  overflow: hidden;
+}
+.sc-frame > img {
+  transform-origin: 0 0;
 }
 .sc-frame > img {
   display: block;
@@ -24,8 +34,8 @@ line.sc-removed {
 }
 .sc-added line,
 line.sc-added {
-  stroke: var(--v-danger);
-  stroke-width: 5px;
+  stroke: var(--v-accent);
+  stroke-width: 6px;
   stroke-linecap: round;
 }
 .sc-from {
@@ -34,7 +44,12 @@ line.sc-added {
   stroke-width: 2.5px;
 }
 .sc-to {
-  fill: var(--v-text);
+  fill: var(--v-accent);
+}
+.sc-ring {
+  fill: none;
+  stroke: var(--v-accent);
+  stroke-width: 2.5px;
 }
 .sc-arrow {
   stroke: var(--v-text);
@@ -64,4 +79,49 @@ line.sc-added {
 }
 .sc-failed span {
   color: var(--v-danger);
+}
+
+/* The change plays once when the After picture shows (#566): the old runs fade to grey dashed, the new runs draw
+   on along their length, the terminal slides to its new place, the ring pulses. Never with reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .sc-overlay .sc-removed line {
+    animation: sc-fade 0.5s ease-out both;
+  }
+  .sc-overlay .sc-added line {
+    stroke-dasharray: 1;
+    animation: sc-draw 0.8s ease-out 0.3s both;
+  }
+  .sc-overlay .sc-to {
+    animation: sc-slide 0.8s ease-in-out both;
+  }
+  .sc-overlay .sc-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: sc-pulse 0.9s ease-out 1.1s 2 both;
+  }
+}
+@keyframes sc-fade {
+  from {
+    stroke: var(--v-text);
+    stroke-dasharray: none;
+  }
+}
+@keyframes sc-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sc-slide {
+  from {
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+@keyframes sc-pulse {
+  50% {
+    transform: scale(1.6);
+    opacity: 0.35;
+  }
 }

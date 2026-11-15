@@ -11,6 +11,7 @@ import {
   type ProjectView,
 } from '../api';
 import { ErrorView } from '../shell/ErrorView';
+import { dropKept, hasKeys, readKept, writeKept } from '../shell/kept';
 import { Loading } from '../shell/Loading';
 import { AnswerCard, type Turn } from './AnswerCard';
 import { AskBox } from './AskBox';
@@ -36,6 +37,47 @@ export function placeIn(
   return { page, box: ok ? box : null };
 }
 
+type Done = Extract<Turn, { status: 'done' }>;
+
+// R3-L2: the answered turns outlive a reload of this tab (pending and failed ones are not kept).
+const keyOf = (projectId: string, drawingId: string) => `engineer-thread:${projectId}:${drawingId}`;
+// What the answer card reads of a kept answer (AnswerView's required fields): one missing, the thread is dropped.
+const ANSWER_KEYS = [
+  'answer',
+  'check',
+  'confidence',
+  'cost_usd',
+  'drawing_id',
+  'explanation',
+  'file',
+  'latency_s',
+  'level',
+  'line',
+  'marks',
+  'method',
+  'pages',
+  'proof',
+  'quantity',
+  'question',
+  'reader',
+  'refusal',
+  'unit',
+];
+const isDone = (t: unknown): t is Done =>
+  hasKeys(t, ['id', 'question', 'status', 'answer']) &&
+  t.status === 'done' &&
+  typeof t.id === 'number' &&
+  typeof t.question === 'string' &&
+  hasKeys(t.answer, ANSWER_KEYS);
+export function keptTurns(projectId: string, drawingId: string): Done[] {
+  const key = keyOf(projectId, drawingId);
+  const kept = readKept(key);
+  if (kept === null) return [];
+  if (Array.isArray(kept.turns) && kept.turns.every(isDone)) return kept.turns;
+  dropKept(key); // QA R4-C13: a stale shape starts empty instead of a blank page
+  return [];
+}
+
 /** The engineer workspace (docs/specs/frontend/engineer.md). The shell mounts it keyed by route path, so a
  * new drawing starts an empty thread. `query`: `ask` (asked on open) and `page`/`box` (the opening place). */
 export function EngineerPage(props: {
@@ -45,8 +87,9 @@ export function EngineerPage(props: {
 }) {
   const { projectId, drawingId } = props;
   const [load, setLoad] = useState<Load>({ state: 'loading' });
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const nextId = useRef(1);
+  const [turns, setTurns] = useState<Turn[]>(() => keptTurns(projectId, drawingId));
+  const nextId = useRef(Math.max(0, ...turns.map((t) => t.id)) + 1);
+  const keptAsked = useRef(new Set(turns.map((t) => t.question)));
   const pending = useRef(false);
   const thread = useRef<HTMLElement>(null);
   // Not blocking: until it arrives, or if it fails, no position, arrows or original picture.
@@ -90,7 +133,8 @@ export function EngineerPage(props: {
       (drawing) => {
         if (abort.signal.aborted) return; // StrictMode's first run: only the live load asks
         setLoad({ state: 'ready', drawing });
-        if (openAsk) ask(openAsk);
+        // a reload keeps `?ask=`: not again when the kept thread already holds it (QA R4-C1)
+        if (openAsk && !keptAsked.current.has(openAsk)) ask(openAsk);
       },
       (error: unknown) => {
         if (!abort.signal.aborted) setLoad({ state: 'error', error });
@@ -101,6 +145,12 @@ export function EngineerPage(props: {
       abort.abort();
     };
   }, [drawingId, projectId, openAsk, ask]);
+
+  useEffect(() => {
+    const done = turns.filter((t): t is Done => t.status === 'done');
+    if (done.length === 0) return;
+    writeKept(keyOf(projectId, drawingId), { turns: done });
+  }, [turns, projectId, drawingId]);
 
   // Again when the answer arrives: the card is taller than the pending line. CSS scroll-margin keeps it
   // clear of the sticky header and ask box.
@@ -144,10 +194,12 @@ export function EngineerPage(props: {
   const flagged = self?.state === 'flagged';
   // EN-87: the chat's name for this drawing; the file name until the project loads
   const name = drawingLabel(self ?? { file: drawing.file });
+  // EN-92: refusals draw no sheet, so the opening card stays until a turn shows one
+  const drawn = turns.some((t) => !(t.status === 'done' && t.answer.refusal));
   return (
     <div className="en-page">
       <h1 className="en-sr">{name}</h1>
-      {turns.length === 0 && (
+      {!drawn && (
         <>
           {drawing.pages.length > 0 ? (
             <div className="v-card en-card en-card--empty">
