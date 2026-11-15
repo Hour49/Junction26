@@ -35,6 +35,7 @@ from app.core.review.review import (
     sheet_row,
     sign,
     storey_twins,
+    takeoff_twins,
     with_twins,
 )
 
@@ -259,10 +260,10 @@ def test_which_room_is_the_largest_builds_the_drawing_s_takeoff_once(
 
     def twins(found: dict[str, Quantity]) -> dict[str, str]:
         twinned.append(len(found))
-        return storey_twins(found)
+        return takeoff_twins(found)
 
     monkeypatch.setattr(asking, "known_quantities", counted)
-    monkeypatch.setattr(asking, "storey_twins", twins)
+    monkeypatch.setattr(asking, "takeoff_twins", twins)
     kitchen = Room(id="r1", type="kitchen", label="Küche", page=1, box=BOX_A, area_m2=22.4)
     bath = Room(id="r2", type="bathroom", label="Bad", page=1, box=BOX_B, area_m2=5.0)
     found = asked("Which room is the largest?", scaled(kitchen, bath))

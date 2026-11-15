@@ -45,3 +45,19 @@ def test_a_sign_off_or_edit_of_the_model_key_lands_on_the_plain_row(client: Test
     settled = client.post(f"/api/drawings/{model}/review", json=edit)
     assert settled.status_code == 200, settled.text
     assert row(settled.json(), "door")["value"] == doors + 1
+
+
+def test_an_answer_on_the_model_key_shows_the_plain_row_s_decision(client: TestClient) -> None:
+    """qa-c on #665: "the whole building model" resolves to "door|model", a row the takeoff no
+    longer lists, so the surveyor's settled value on "door" must be that answer's value too."""
+    model, takeoff = model_takeoff(client)
+    doors = row(takeoff, "door")["value"]
+    edit = {"quantity": "door", "action": "settle", "value": doors + 1}
+    assert client.post(f"/api/drawings/{model}/review", json=edit).status_code == 200
+    for question in (
+        "How many doors are there?",
+        "How many doors are in the whole building model?",
+    ):
+        found = client.post("/api/ask", json={"drawing_id": model, "question": question})
+        assert found.status_code == 200, found.text
+        assert found.json()["answer"] == doors + 1, (question, found.json())
