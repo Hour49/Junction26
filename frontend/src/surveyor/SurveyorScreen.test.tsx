@@ -103,6 +103,24 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('loading and routing', () => {
+  it('R4-B1 a link to a project or drawing that is gone: one plain message, a way back, no ids, no Retry', async () => {
+    const gone = (what: string) => reply(404, { detail: `no ${what}`, code: 'not-found' });
+    show('', {
+      [PATH.takeoff]: gone(`drawing ${did}`),
+      [PATH.drawing]: gone(`drawing ${did}`),
+      [PATH.review]: gone(`project ${pid}`),
+      [PATH.project]: gone(`project ${pid}`),
+    });
+    await screen.findByText('This project or drawing no longer exists.');
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+    });
+    expect(screen.getByRole('link', { name: 'Back to workspaces' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    expect(document.body.textContent).not.toContain(did);
+    expect(document.body.textContent).not.toContain(pid);
+  });
+
   it('SV-1 sends the four loads (the project for names) and shows loading until takeoff and drawing answer', async () => {
     const api = show('', { [PATH.takeoff]: never() });
     expect(screen.getByText('Loading the takeoff…')).toBeTruthy();
@@ -811,7 +829,7 @@ describe('states', () => {
   it('SV-45 a 404 leads back to the projects; any other load error offers Retry', async () => {
     show('', { [PATH.takeoff]: reply(404, errorBody) });
     const notFound = await screen.findByRole('alert');
-    expect(notFound.textContent).toContain('no drawing 0123456789abcdef');
+    expect(notFound.textContent).toContain('This project or drawing no longer exists.'); // no raw id (R4-B1)
     expect(notFound.textContent).not.toContain('not-found');
     expect(
       within(notFound).getByRole('link', { name: 'Back to workspaces' }).getAttribute('href'),

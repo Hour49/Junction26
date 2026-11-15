@@ -75,6 +75,8 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0, names = {}
     );
   if ('error' in load) {
     const { error } = load;
+    // the project is gone: the workspace's own message says so once, with the way back (R4-B1)
+    if (error instanceof ApiError && error.status === 404) return null;
     return (
       <aside className="sv-side">
         <div role="alert">

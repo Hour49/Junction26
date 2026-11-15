@@ -142,7 +142,12 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       <div className="v-page v-page--wide sv-screen">
         {side}
         <ErrorView
-          error={loadError}
+          error={
+            // a link to a project or drawing that is gone: one plain sentence, no ids (R4-B1)
+            loadError instanceof ApiError && loadError.status === 404
+              ? new ApiError(404, loadError.code, 'This project or drawing no longer exists.')
+              : loadError
+          }
           onRetry={() => {
             setLoadError(null);
             setAttempt((n) => n + 1);

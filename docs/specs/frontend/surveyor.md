@@ -340,7 +340,8 @@ States, safety, layout
 - SV-44: An empty takeoff shows "Nothing was counted on this drawing."; with `reader.extractor: "hello"` also the
   no-reader sentence; with zeros off also the zeros toggle; there is no Sign off, CSV link or Reset all.
   [component] derived `takeoff.json` (`quantities: []`), derived `drawing.json`
-- SV-45: A 404 on the takeoff shows `ErrorView` with "no drawing 0123456789abcdef" (no "code: not-found"), a link
+- SV-45: A 404 on the takeoff shows `ErrorView` with "This project or drawing no longer exists." (no raw id, no
+  "code: not-found"; the side panel shows nothing on its own 404, R4-B1), a link
   "Back to workspaces" to `#/workspaces` and no Retry (asking again finds nothing, QA qa-3 (b)); any other load error (a 500)
   shows Retry, which re-sends the loads. [component] `error.json`, derived 500
 - SV-46: A label, mark label, reason, rule text or file name holding `<img src=x onerror=alert(1)>` renders as that
