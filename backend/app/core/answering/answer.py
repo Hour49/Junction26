@@ -1,7 +1,9 @@
 """The answering use cases: one question (the API) and a batch of them (the CLI)."""
 
 import functools
+import itertools
 import logging
+import math
 import re
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
@@ -334,10 +336,11 @@ WHOLE_ROOM_NUMBER = re.compile(r"\d{1,4}")
 
 
 def number_gaps(numbers: Iterable[str]) -> list[str]:
-    """The room numbers missing between the whole numbers found (2, 3, 5, 6 -> 1, 4), within
-    each hundred (101-130 is one storey's run; 1-40 a sheet's), from its first number (1, or
-    x01). A run with fewer than 3 numbers found, or more missing than found, is numbered sparsely,
-    not read with gaps: nothing."""
+    """The room numbers missing between the whole numbers found (2, 3, 5, ... -> 1, 4), within
+    each hundred (101-130 is one storey's run; 1-40 a sheet's): between the lowest and the highest
+    found, and x01 when the lowest is x02. Refusal beats a wrong list (review-600): a run with
+    fewer than 3 numbers, one numbered in steps (even or odd numbers only: their differences share
+    a factor), or one missing more than a quarter of its numbers names nothing."""
     runs: dict[int, set[int]] = {}
     for text in numbers:
         if WHOLE_ROOM_NUMBER.fullmatch(text.strip()):
@@ -345,8 +348,12 @@ def number_gaps(numbers: Iterable[str]) -> list[str]:
             runs.setdefault(n // 100, set()).add(n)
     out: list[int] = []
     for hundred, found in sorted(runs.items()):
-        missing = [n for n in range(hundred * 100 + 1, max(found)) if n not in found]
-        if len(found) >= 3 and len(missing) <= len(found):
+        ordered = sorted(found)
+        if len(ordered) < 3 or math.gcd(*(b - a for a, b in itertools.pairwise(ordered))) > 1:
+            continue
+        low = ordered[0] - 1 if ordered[0] == hundred * 100 + 2 else ordered[0]
+        missing = [n for n in range(low, ordered[-1]) if n not in found]
+        if len(missing) * 4 <= ordered[-1] - low + 1:
             out += missing
     return [str(n) for n in out]
 

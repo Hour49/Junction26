@@ -1541,7 +1541,7 @@ def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> N
     rooms = tuple(
         Room(id=f"r{n}", type="other", label="DORM", page=1, box=BOX_A if n % 2 else BOX_B,
              attrs={"number": str(n), "reader": "gemini"})
-        for n in (2, 3, 5, 6)
+        for n in (2, 3, 5, 6, 7, 8, 9, 10)
     )  # fmt: skip
     drawing = Drawing(
         file="scan.png", pages=(PAGE,), scale=Scale(status="estimated", m_per_unit=0.05),
@@ -1551,10 +1551,10 @@ def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> N
         "How many rooms are there?", drawing, parser=TemplateParser(), clock=lambda: 0.0,
         prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=True, route="raster",
     )  # fmt: skip
-    assert got.answer.answer == 4 and got.answer.sure is False
+    assert got.answer.answer == 8 and got.answer.sure is False
     assert got.partial is not None and got.level is not None and got.level.level == "low"
     said = (
-        "These are the 4 rooms the reader found; rooms it missed are not counted. "
+        "These are the 8 rooms the reader found; rooms it missed are not counted. "
         "Room numbers it did not find between them: 1 and 4."
     )
     assert said in got.level.text

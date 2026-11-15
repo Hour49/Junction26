@@ -233,11 +233,23 @@ def test_refused_partial_a_room_refused_at_a_replaced_scale_is_measured_again() 
 
 
 def test_room_number_gaps_are_within_a_run_and_never_from_sparse_numbering() -> None:
-    """QA round 3 R3-G3: the room numbers a reader skipped between the ones it found."""
+    """QA round 3 R3-G3: the room numbers a reader skipped between the ones it found. Refusal
+    beats a wrong list (review-600): when the numbering is not a plain run, nothing is named."""
     from app.core.answering.answer import number_gaps
 
-    assert number_gaps(["2", "3", "5", "6"]) == ["1", "4"]
+    def run(numbers: range | list[int]) -> list[str]:
+        return [str(n) for n in numbers]
+
+    # T4: 1-40 read without 1, 4, 20, 28 (the lowest found is 2, so 1 counts)
+    t4 = [n for n in range(1, 41) if n not in (1, 4, 20, 28)]
+    assert number_gaps(run(t4)) == ["1", "4", "20", "28"]
+    assert number_gaps(run([2, 3, 5, 6, 7, 8, 9, 10])) == ["1", "4"]
     assert number_gaps(["101", "102", "104", "201", "202", "203"]) == ["103"]  # per storey
-    assert number_gaps(["5", "40", "90"]) == []  # sparse: more missing than found
+    # review-600: even-only, odd-only and a run starting at 10 have no gaps to name
+    assert number_gaps(run(range(2, 41, 2))) == []
+    assert number_gaps(run(range(1, 40, 2))) == []
+    assert number_gaps(run([n for n in range(10, 41) if n != 25])) == ["25"]  # not 1-9
+    assert number_gaps(run([1, 2, 3, 7, 8])) == []  # more than a quarter missing (3 of 8)
+    assert number_gaps(["5", "40", "90"]) == []  # sparse
     assert number_gaps(["1", "2"]) == []  # too few to see a run
     assert number_gaps(["1.07", "A3", "Stanza"]) == []  # not whole numbers
