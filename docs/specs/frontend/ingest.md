@@ -699,9 +699,12 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   (the current tick pulses, `motion-safe` only). [component]
 - IN-107: With no `step`, `phase` or `readers` (an older server) the card renders from `stage` and `state`, with no
   reader chips and no "No reader" line. [component]
-- IN-108: The totals are, in order: Elapsed, Files through, Drawings ready, Things found, Conflicts
-  (`conflicts_open`, "—" until the server counts them), Flagged, Set aside, Cost (`formatCost(cost_usd)`). This
-  brings Cost back beside Set aside (IN-86 said "not Cost"; changed with its test). [component]
+- IN-108: The totals are, in order: Elapsed, Files through, Drawings ready, Things found, Conflicts, Flagged, Set
+  aside, Cost (`formatCost(cost_usd)`). This brings Cost back beside Set aside (IN-86 said "not Cost"; changed with
+  its test). Conflicts counts what the conflicts list under the card reports (`onCounts`, the card's "N conflicts
+  found"), never `conflicts_open`: "—" until the list has loaded, the count alone while none is settled ("0" with
+  none), "<open> open of <found>" once some are ("0 open of 1" beside "1 conflict found · 1 settled by a rule").
+  Was `conflicts_open`, which read "Conflicts 0" there (QA R4-E6; changed with its test). [component]
 - IN-109: With `phase: "index"` the card names step 9 "Index" even if a file still runs, its hint reads "judging
   what was set aside, describing the rest, indexing it all for the chat" (was "every file made searchable for
   questions": IN-89 changed with its test), and its row lists `index_steps` as "<label>: <did>". [component]
