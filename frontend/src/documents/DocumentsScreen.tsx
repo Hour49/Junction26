@@ -130,7 +130,7 @@ export function DocumentsScreen({
             <Tip text={TIPS.issues} wrap>
               <h2 className="m-0 text-xl">Issues on demand</h2>
             </Tip>
-            {rows.length > 0 && (
+            {rows.length > 0 && left > 0 && (
               <p className={MUTED}>
                 {`${plural(left, 'issue')} need${left === 1 ? 's' : ''} your answer now.`}
               </p>

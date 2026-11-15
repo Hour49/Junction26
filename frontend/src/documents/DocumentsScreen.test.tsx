@@ -312,6 +312,8 @@ describe('DocumentsScreen (documents.md)', () => {
         within(must(cards()[0])).getByRole('button', { name: 'It belongs to this project' }),
       ).toBeTruthy();
       expect(issuesRegion().queryByText('Nothing needs your answer right now.')).toBeNull();
+      // nothing counted: no "0 issues need your answer now." above a card that asks for a call (Bogdan, 2026-11-15)
+      expect(issuesRegion().queryByText(/need(s)? your answer now/)).toBeNull();
     });
 
     it('a failed call is worded under the card and the chips work again', async () => {
