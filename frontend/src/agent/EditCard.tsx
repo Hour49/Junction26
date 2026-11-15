@@ -184,12 +184,27 @@ function SheetBox({
     loaded.state !== 'loading' && loaded.key === key ? loaded : { state: 'loading' };
   const box = useRef<HTMLDivElement>(null);
   const zoom = zoomFor(extent);
-  // Centre the change in the plan box once the page frame has its size.
+  // Centre the change in the plan box once the page frame has its size, and again when the box changes width: the
+  // frame scales with the box, the scroll does not (a window resize keeps the card mounted, #716).
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    el.scrollLeft = ((extent[0] + extent[2]) / 2) * el.scrollWidth - el.clientWidth / 2;
-    el.scrollTop = ((extent[1] + extent[3]) / 2) * el.scrollHeight - el.clientHeight / 2;
+    const centre = () => {
+      el.scrollLeft = ((extent[0] + extent[2]) / 2) * el.scrollWidth - el.clientWidth / 2;
+      el.scrollTop = ((extent[1] + extent[3]) / 2) * el.scrollHeight - el.clientHeight / 2;
+    };
+    centre();
+    if (typeof ResizeObserver === 'undefined') return;
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      centre();
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once the page is ready, and when a tab changes the extent
   }, [load.state, ...extent]);
   useEffect(() => {
