@@ -190,6 +190,30 @@ export function elapsedMs(p: ProjectView, now: number): number | null {
   return p.started_at ? Math.max(0, now - Date.parse(p.started_at)) : null;
 }
 
+/** A wait for a free slot shorter than this is not worth a line under Elapsed. */
+export const QUEUE_SHOWN_MS = 2000;
+
+/**
+ * How long the project waited for a free slot before its run began (`created_at` to `started_at`; still queued:
+ * to `now`), which Elapsed (from `started_at`) leaves out (QA ingest R1: "1.1 s" after 65 s on the clock); null
+ * once nothing waits, or below `QUEUE_SHOWN_MS`.
+ */
+export function queueWaitMs(
+  p: Pick<ProjectView, 'state' | 'created_at' | 'started_at'>,
+  now: number,
+): number | null {
+  const created = Date.parse(p.created_at);
+  const start = p.started_at ? Date.parse(p.started_at) : p.state === 'queued' ? now : NaN;
+  const wait = start - created;
+  return wait >= QUEUE_SHOWN_MS ? wait : null;
+}
+
+/** A wait in plain words: "64 s", "3 min 5 s". */
+export function formatWait(ms: number): string {
+  const s = Math.round(ms / 1000);
+  return s < 120 ? `${String(s)} s` : `${String(Math.floor(s / 60))} min ${String(s % 60)} s`;
+}
+
 /** "1 file", "0 files", "2 files". */
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${String(n)} ${n === 1 ? one : many}`;

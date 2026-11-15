@@ -10,6 +10,9 @@ import {
   STEPS,
   activeStep,
   elapsedMs,
+  formatWait,
+  queueWaitMs,
+  QUEUE_SHOWN_MS,
   formatCost,
   formatMs,
   formatSize,
@@ -108,6 +111,24 @@ describe('ingest.ts', () => {
     expect(percentDone(project.files)).toBe(100);
     expect(percentDone(variants.queued.files)).toBe(0);
     expect(percentDone([])).toBe(0);
+  });
+
+  it('IN-132 queueWaitMs: created_at to started_at (queued: to now), null under 2 s; formatWait in plain words', () => {
+    const p = (created: string, started: string | null, state: 'queued' | 'running' | 'done') => ({
+      created_at: created,
+      started_at: started,
+      state,
+    });
+    const t0 = '2026-11-15T03:00:00Z';
+    expect(queueWaitMs(p(t0, '2026-11-15T03:01:04Z', 'done'), 0)).toBe(64_000);
+    expect(queueWaitMs(p(t0, '2026-11-15T03:00:01.900Z', 'done'), 0)).toBeNull();
+    expect(queueWaitMs(p(t0, '2026-11-15T03:00:02Z', 'running'), 0)).toBe(QUEUE_SHOWN_MS);
+    expect(queueWaitMs(p(t0, null, 'queued'), Date.parse(t0) + 12_000)).toBe(12_000);
+    // no start and not queued (a restart lost it): unknown, not a wait up to now
+    expect(queueWaitMs(p(t0, null, 'done'), Date.parse(t0) + 12_000)).toBeNull();
+    expect(formatWait(64_000)).toBe('64 s');
+    expect(formatWait(119_400)).toBe('119 s');
+    expect(formatWait(185_000)).toBe('3 min 5 s');
   });
 
   it('IN-61 elapsedMs: ms once ended, now - started_at while live (never below 0), null before it starts', () => {
