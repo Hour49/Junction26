@@ -907,6 +907,8 @@ Ingest's project status, plus `drawings`:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [],
   "drawings": [
     {
       "drawing_id": "adeefbbcc17559fc",
@@ -1062,6 +1064,10 @@ Ingest's project status, plus `drawings`:
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
   0), 0.0 with no paid reader, which is the point to show. `normalised` on an image file: as on the drawing's page.
+- `step` on a running file (decision 0018, additive): the label of the step running now ("Room reader"); left
+  out when none is. `phase` on the project while it runs: `files` (reading the files) or `index` (the last phase:
+  judging relevance, describing, the evidence index); null otherwise. `index_steps`: what ran in that last phase,
+  as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs.
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
   `set_aside`: no screen polls it for ever.
 
@@ -1115,6 +1121,8 @@ after a restart cut that run off:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [],
   "drawings": [],
   "skipped": [],
   "expected_drawings": null,
@@ -1171,6 +1179,8 @@ after a restart cut that run off:
   "error": "the server restarted during ingest",
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [],
   "drawings": [],
   "skipped": [
     {
@@ -1667,6 +1677,8 @@ photo of an elevation sheet with its register, showing a building that matches n
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [],
   "drawings": [
     {
       "drawing_id": "6a47e9a1c33db404",
@@ -2257,7 +2269,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "plans/flat-a.pdf",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "hash",
@@ -2265,7 +2278,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "identify",
@@ -2273,7 +2287,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "drawn PDF",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "group",
@@ -2281,7 +2296,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "2 files",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "route",
@@ -2289,7 +2305,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "vector",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "normalise",
@@ -2297,7 +2314,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "extract",
@@ -2305,7 +2323,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "second_count",
@@ -2313,7 +2332,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "takeoff",
@@ -2321,7 +2341,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "takeoff: 141 quantities, 81 above zero",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "write",
@@ -2329,7 +2350,8 @@ that is not an evidence id. `description.detail` is a model's description no per
       "ms": 12.5,
       "output": "141 quantities",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     }
   ],
   "second_count": {
@@ -2346,6 +2368,16 @@ that is not an evidence id. `description.detail` is a model's description no per
   (`write`, or `route` for a file set aside there), so the ingest screen counts it as on the first run.
 - `did`: one readable line of what the stage did; `output`: what it produced; `ms`: its time.
 - `failure`: set when the stage failed; the file then ends `set_aside` with this as its reason.
+- `steps` (decision 0018, additive): what ran inside the stage, in start order; `[]` where nothing is broken down
+  yet. Each step: `id` (a stable machine id, below), `label` (plain words to show: "Symbol detector, 8 views"),
+  `did` (one line of what it found, or the error when it failed), `at_ms` (when it began, ms after its stage
+  began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`) and
+  `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`,
+  `sheet_kind`, `classifier`, `describer` (identify); `exif`, `rectifier`, `scan_render` (normalise); `detector`,
+  `decisions`, `arbiter`, `rooms`, `carbon`, `printed_scale`, `double_check`, `plans`, `reader` (any other raster
+  source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`, `room_areas`, `schedule_tags`,
+  `second_count` (second_count); `judge`, `describe`, `evidence` (the project's `index_steps`). A new id may be
+  added; a screen shows `label` and need not know the id.
 
 A file set aside at a stage that failed (a zip entry that would be written outside the project folder): the
 stage carries `failure`, and later stages are not run:
@@ -2380,7 +2412,8 @@ stage carries `failure`, and later stages are not run:
       "ms": 12.5,
       "output": "",
       "failure": "unsafe path: it could be written outside the project folder",
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     }
   ],
   "second_count": null
@@ -2567,7 +2600,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-a.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -2575,7 +2609,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -2583,7 +2618,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -2591,7 +2627,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 files",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -2599,7 +2636,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -2607,7 +2645,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -2615,7 +2654,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -2623,7 +2663,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -2631,7 +2672,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -2639,7 +2681,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -2826,7 +2869,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-a.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -2834,7 +2878,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -2842,7 +2887,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -2850,7 +2896,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 files",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -2858,7 +2905,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -2866,7 +2914,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 800 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -2874,7 +2923,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -2882,7 +2932,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -2890,7 +2941,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -2898,7 +2950,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -3076,7 +3129,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-b.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3084,7 +3138,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3092,7 +3147,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -3100,7 +3156,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3108,7 +3165,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3116,7 +3174,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -3124,7 +3183,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3132,7 +3192,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5 quantities measured twice, 1 conflict",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3140,7 +3201,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3148,7 +3210,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -3278,7 +3341,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "plans/flat-c.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3286,7 +3350,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1dd9419ba7b69b19337fc8690777766fcdd22301df5fb46ff3f70056dec57b0c",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3294,7 +3359,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -3302,7 +3368,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3310,7 +3377,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3318,7 +3386,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -3326,7 +3395,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 elements, 3 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3334,7 +3404,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "2 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3342,7 +3413,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 93 quantities, 43 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3350,7 +3422,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "93 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -3395,7 +3468,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "scans/ground-floor.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3403,7 +3477,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3411,7 +3486,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -3419,7 +3495,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3427,7 +3504,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3435,7 +3513,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -3443,7 +3522,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3451,7 +3531,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3459,7 +3540,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3467,7 +3549,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3509,7 +3592,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "scans/ground-floor-copy.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3517,7 +3601,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3525,7 +3610,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -3533,7 +3619,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3541,7 +3628,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "cache",
@@ -3549,7 +3637,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "flagged",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3557,7 +3646,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -3565,7 +3655,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3573,7 +3664,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3581,7 +3673,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3589,7 +3682,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3631,7 +3725,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photos/plan-photo.jpg",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3639,7 +3734,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3647,7 +3743,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photo of a drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -3655,7 +3752,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3663,7 +3761,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3671,7 +3770,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 page, page 1 is 1600 x 1200 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -3679,7 +3779,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -3687,7 +3788,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3695,7 +3797,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3703,7 +3806,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3736,7 +3840,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photos/site.jpg",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3744,7 +3849,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3752,7 +3858,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "photo",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3837,7 +3944,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "model/house.ifc",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3845,7 +3953,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "951a9027130b1b3a7a86e1c1b1292a582fb01c988a189f406078ed8b7cac0047",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3853,7 +3962,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "IFC model",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -3861,7 +3971,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3869,7 +3980,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "bim",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -3877,7 +3989,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "no page, a building model",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -3885,7 +3998,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "12 model objects",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -3893,7 +4007,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "takeoff: 51 quantities, 35 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -3901,7 +4016,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "51 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3934,7 +4050,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "cad/detail.dxf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -3942,7 +4059,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -3950,7 +4068,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "DXF drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -3958,7 +4077,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -3966,7 +4086,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "cad",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -3999,7 +4120,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "docs/specification.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -4007,7 +4129,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "91af270215243f7925863c27187149ec275efe789e6ed277a3a9da77ad86d692",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -4015,7 +4138,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "text PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -4048,7 +4172,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "docs/notes.txt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -4056,7 +4181,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "ca6138f02cfafd870094f2e8ef9a15f39c6c8925025613a0c6465ae21f2e7a20",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -4064,7 +4190,8 @@ upload lists the files, instead of one request per file.
           "ms": 12.5,
           "output": "text file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -4491,6 +4618,8 @@ tell, and an uncertain answer with the model's check:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [],
   "drawings": [
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -12262,6 +12391,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018, ingest trace steps): `StageTrace.steps` (a `StepTrace` list: `id`, `label`,
+  `did`, `at_ms`, `ms`, `cost_usd`, `state`, `found`), `FileStatus.step` (left out when none), `ProjectStatus.phase`
+  and `ProjectStatus.index_steps`. Old clients ignore them; fixtures regenerated.
 - 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
   reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and
   has no scale bar (#282); a scale bar needs one unit, metres or feet (#301). `VECTOR_FALLBACK=raster` (default

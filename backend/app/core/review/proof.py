@@ -19,7 +19,7 @@ from pydantic import ConfigDict, Field
 
 from app.core.drawing.model import ELEMENT_CLASSES, Box, Drawing, ModelObject, Table
 from app.core.model import Frozen
-from app.core.pipeline.rules import MODEL_COUNT, MODEL_QUANTITY, MODEL_SPACES
+from app.core.pipeline.rules import MODEL_COUNT, MODEL_QUANTITY, MODEL_SPACE_TYPES, MODEL_SPACES
 from app.core.pipeline.second_count import METHODS
 from app.core.pipeline.takeoff import SPACE, normalised
 from app.core.review.model import MarkView, Row
@@ -28,7 +28,7 @@ from app.core.review.model import MarkView, Row
 PALETTE = ("#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#17becf", "#8c564b", "#e377c2")
 FIXED = {"door": 0, "window": 1, "toilet": 2, "sink": 3, "shower": 4, "bathtub": 5, "stair": 6}
 GREY = "#9e9e9e"  # rejected and excluded marks
-MODEL_RULES = {MODEL_COUNT.id, MODEL_QUANTITY.id, MODEL_SPACES.id}
+MODEL_RULES = {MODEL_COUNT.id, MODEL_QUANTITY.id, MODEL_SPACES.id, MODEL_SPACE_TYPES.id}
 ProofKind = Literal["count", "sum", "model", "schedule", "none"]
 
 
@@ -215,13 +215,15 @@ def _sum(found: Row) -> str | None:
 
 def _model(found: Row, drawing: Drawing, keys: tuple[ClassKey, ...]) -> Proof:
     objects = drawing.model_objects or ()
-    wanted = SPACE if found.subject == "room" else found.subject
+    wanted = SPACE if found.subject.split(":")[0] == "room" else found.subject
+    kind = found.subject.split(":", 1)[1] if found.subject.startswith("room:") else None
     scope = found.scope
     named = scope.name is not None or scope.label is not None or scope.apartment is not None
     chosen = [
         item
         for item in objects
         if item.class_ == wanted
+        and (kind is None or item.attrs.get("room_type") == kind)  # a typed count: that type
         and (scope.storey is None or normalised(item.storey or "") == scope.storey)
     ]
     # Shown only when it is exactly what was counted (core does not name the objects yet)

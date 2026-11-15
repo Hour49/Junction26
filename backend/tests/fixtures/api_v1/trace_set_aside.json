@@ -26,7 +26,8 @@
       "ms": 12.5,
       "output": "",
       "failure": "unsafe path: it could be written outside the project folder",
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     }
   ],
   "second_count": null

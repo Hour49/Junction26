@@ -1,11 +1,13 @@
-// Workspaces screen (docs/specs/frontend/account.md) on the live no-keys backend: AC-25, AC-26, AC-27.
+// Workspaces screen (docs/specs/frontend/account.md) on the live no-keys backend: AC-25, AC-26, AC-27, AC-37.
 import { expect, test } from '@playwright/test';
 import { noKeys, sampleDone, shot, watchErrors } from './support';
 
 // No hyphens or spaces: nothing the browser may break the line at (as qa-r1).
 const LONG_NAME = 'Hafenstrasse_12_Bauabschnitt_B_Ausfuehrungsplaene_Rev07a.txt';
 
-test('AC-25 AC-26 AC-27 the workspaces list and the selected one', async ({ page }, testInfo) => {
+test('AC-25 AC-26 AC-27 AC-37 the workspaces list and the selected one', async ({
+  page,
+}, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const upload = await page.request.post(`/api/projects?name=${encodeURIComponent(LONG_NAME)}`, {
@@ -56,6 +58,22 @@ test('AC-25 AC-26 AC-27 the workspaces list and the selected one', async ({ page
   await items.filter({ hasText: LONG_NAME }).first().click();
   await expect(panel.getByRole('heading', { name: LONG_NAME })).toBeVisible();
   await shot(page, testInfo, 'account-long-name', offline);
+
+  // AC-37 between phone and desktop (a tablet, or 200% zoom): the card goes under the list, no sideways scroll
+  if (testInfo.project.name !== 'phone') {
+    await items.filter({ hasText: 'sample-project.zip' }).first().click();
+    await page.setViewportSize({ width: 800, height: 900 });
+    const [list, card] = [
+      await page.locator('.account-list').boundingBox(),
+      await panel.boundingBox(),
+    ];
+    expect(list && card && card.y > list.y + list.height - 1).toBe(true);
+    const sideways = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(sideways).toBe(0);
+    await page.setViewportSize({ width: 1440, height: 900 });
+  }
 
   await expect(page.locator('body')).not.toContainText(/Beatrice|Hour49|harbour-block-archive/);
   expect(errors).toEqual([]);

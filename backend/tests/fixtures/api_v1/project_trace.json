@@ -171,7 +171,8 @@
           "ms": 12.5,
           "output": "plans/flat-a.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -179,7 +180,8 @@
           "ms": 12.5,
           "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -187,7 +189,8 @@
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -195,7 +198,8 @@
           "ms": 12.5,
           "output": "2 files",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -203,7 +207,8 @@
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -211,7 +216,8 @@
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -219,7 +225,8 @@
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -227,7 +234,8 @@
           "ms": 12.5,
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -235,7 +243,8 @@
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -243,7 +252,8 @@
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -430,7 +440,8 @@
           "ms": 12.5,
           "output": "plans/flat-a.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -438,7 +449,8 @@
           "ms": 12.5,
           "output": "f73bc98a3ee5e771c83902a884a87038618c91d697d48033845f049a94edbb5f",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -446,7 +458,8 @@
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -454,7 +467,8 @@
           "ms": 12.5,
           "output": "2 files",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -462,7 +476,8 @@
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -470,7 +485,8 @@
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 800 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -478,7 +494,8 @@
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -486,7 +503,8 @@
           "ms": 12.5,
           "output": "5 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -494,7 +512,8 @@
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -502,7 +521,8 @@
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -680,7 +700,8 @@
           "ms": 12.5,
           "output": "plans/flat-b.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -688,7 +709,8 @@
           "ms": 12.5,
           "output": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -696,7 +718,8 @@
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -704,7 +727,8 @@
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -712,7 +736,8 @@
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -720,7 +745,8 @@
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -728,7 +754,8 @@
           "ms": 12.5,
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -736,7 +763,8 @@
           "ms": 12.5,
           "output": "5 quantities measured twice, 1 conflict",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -744,7 +772,8 @@
           "ms": 12.5,
           "output": "takeoff: 141 quantities, 81 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -752,7 +781,8 @@
           "ms": 12.5,
           "output": "141 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -882,7 +912,8 @@
           "ms": 12.5,
           "output": "plans/flat-c.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -890,7 +921,8 @@
           "ms": 12.5,
           "output": "1dd9419ba7b69b19337fc8690777766fcdd22301df5fb46ff3f70056dec57b0c",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -898,7 +930,8 @@
           "ms": 12.5,
           "output": "drawn PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -906,7 +939,8 @@
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -914,7 +948,8 @@
           "ms": 12.5,
           "output": "vector",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -922,7 +957,8 @@
           "ms": 12.5,
           "output": "1 page, page 1 is 600 x 400 pt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -930,7 +966,8 @@
           "ms": 12.5,
           "output": "2 elements, 3 rooms, 1 plan, scale read from the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -938,7 +975,8 @@
           "ms": 12.5,
           "output": "2 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -946,7 +984,8 @@
           "ms": 12.5,
           "output": "takeoff: 93 quantities, 43 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -954,7 +993,8 @@
           "ms": 12.5,
           "output": "93 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": {
@@ -999,7 +1039,8 @@
           "ms": 12.5,
           "output": "scans/ground-floor.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1007,7 +1048,8 @@
           "ms": 12.5,
           "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1015,7 +1057,8 @@
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -1023,7 +1066,8 @@
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -1031,7 +1075,8 @@
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -1039,7 +1084,8 @@
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -1047,7 +1093,8 @@
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -1055,7 +1102,8 @@
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -1063,7 +1111,8 @@
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -1071,7 +1120,8 @@
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -1113,7 +1163,8 @@
           "ms": 12.5,
           "output": "scans/ground-floor-copy.png",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1121,7 +1172,8 @@
           "ms": 12.5,
           "output": "4d70b874dd858dc28d22d213c66069458696a5baeb401eadd0935f2027bc36b4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1129,7 +1181,8 @@
           "ms": 12.5,
           "output": "PNG drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -1137,7 +1190,8 @@
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -1145,7 +1199,8 @@
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "cache",
@@ -1153,7 +1208,8 @@
           "ms": 12.5,
           "output": "flagged",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -1161,7 +1217,8 @@
           "ms": 12.5,
           "output": "1 page, page 1 is 1200 x 850 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -1169,7 +1226,8 @@
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -1177,7 +1235,8 @@
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -1185,7 +1244,8 @@
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -1193,7 +1253,8 @@
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -1235,7 +1296,8 @@
           "ms": 12.5,
           "output": "photos/plan-photo.jpg",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1243,7 +1305,8 @@
           "ms": 12.5,
           "output": "d3c1c562a56f613a2850c78a47e72feb4c02ca0680c2099f227dac57ad38f4c4",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1251,7 +1314,8 @@
           "ms": 12.5,
           "output": "photo of a drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -1259,7 +1323,8 @@
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -1267,7 +1332,8 @@
           "ms": 12.5,
           "output": "raster",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -1275,7 +1341,8 @@
           "ms": 12.5,
           "output": "1 page, page 1 is 1600 x 1200 px",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -1283,7 +1350,8 @@
           "ms": 12.5,
           "output": "0 elements, 0 rooms, 0 plans, no scale on the sheet",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "second_count",
@@ -1291,7 +1359,8 @@
           "ms": 12.5,
           "output": "0 quantities measured twice, 0 conflicts",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -1299,7 +1368,8 @@
           "ms": 12.5,
           "output": "takeoff: 0 quantities, 0 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -1307,7 +1377,8 @@
           "ms": 12.5,
           "output": "0 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -1340,7 +1411,8 @@
           "ms": 12.5,
           "output": "photos/site.jpg",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1348,7 +1420,8 @@
           "ms": 12.5,
           "output": "642105ade12e3629470ad9e6b42039cb4312899f0f22c23eb7fe15c7cc56b4c3",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1356,7 +1429,8 @@
           "ms": 12.5,
           "output": "photo",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -1441,7 +1515,8 @@
           "ms": 12.5,
           "output": "model/house.ifc",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1449,7 +1524,8 @@
           "ms": 12.5,
           "output": "951a9027130b1b3a7a86e1c1b1292a582fb01c988a189f406078ed8b7cac0047",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1457,7 +1533,8 @@
           "ms": 12.5,
           "output": "IFC model",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -1465,7 +1542,8 @@
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -1473,7 +1551,8 @@
           "ms": 12.5,
           "output": "bim",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "normalise",
@@ -1481,7 +1560,8 @@
           "ms": 12.5,
           "output": "no page, a building model",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "extract",
@@ -1489,7 +1569,8 @@
           "ms": 12.5,
           "output": "12 model objects",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "takeoff",
@@ -1497,7 +1578,8 @@
           "ms": 12.5,
           "output": "takeoff: 51 quantities, 35 above zero",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "write",
@@ -1505,7 +1587,8 @@
           "ms": 12.5,
           "output": "51 quantities",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -1538,7 +1621,8 @@
           "ms": 12.5,
           "output": "cad/detail.dxf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1546,7 +1630,8 @@
           "ms": 12.5,
           "output": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1554,7 +1639,8 @@
           "ms": 12.5,
           "output": "DXF drawing",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "group",
@@ -1562,7 +1648,8 @@
           "ms": 12.5,
           "output": "1 file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "route",
@@ -1570,7 +1657,8 @@
           "ms": 12.5,
           "output": "cad",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -1603,7 +1691,8 @@
           "ms": 12.5,
           "output": "docs/specification.pdf",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1611,7 +1700,8 @@
           "ms": 12.5,
           "output": "91af270215243f7925863c27187149ec275efe789e6ed277a3a9da77ad86d692",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1619,7 +1709,8 @@
           "ms": 12.5,
           "output": "text PDF",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null
@@ -1652,7 +1743,8 @@
           "ms": 12.5,
           "output": "docs/notes.txt",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "hash",
@@ -1660,7 +1752,8 @@
           "ms": 12.5,
           "output": "ca6138f02cfafd870094f2e8ef9a15f39c6c8925025613a0c6465ae21f2e7a20",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         },
         {
           "stage": "identify",
@@ -1668,7 +1761,8 @@
           "ms": 12.5,
           "output": "text file",
           "failure": null,
-          "cost_usd": 0.0
+          "cost_usd": 0.0,
+          "steps": []
         }
       ],
       "second_count": null

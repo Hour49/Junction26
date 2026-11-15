@@ -144,10 +144,12 @@ export function EngineerPage(props: {
   const flagged = self?.state === 'flagged';
   // EN-87: the chat's name for this drawing; the file name until the project loads
   const name = drawingLabel(self ?? { file: drawing.file });
+  // EN-92: refusals draw no sheet, so the opening card stays until a turn shows one
+  const drawn = turns.some((t) => !(t.status === 'done' && t.answer.refusal));
   return (
     <div className="en-page">
       <h1 className="en-sr">{name}</h1>
-      {turns.length === 0 && (
+      {!drawn && (
         <>
           {drawing.pages.length > 0 ? (
             <div className="v-card en-card en-card--empty">

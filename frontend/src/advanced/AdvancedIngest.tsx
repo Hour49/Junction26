@@ -18,6 +18,7 @@ import {
 import { useDrawingData } from './useDrawingData';
 import { useProjectTrace } from './useProjectTrace';
 import { CheckPairs, FileStrip, PlanMarks, ReadyList, RouteLanes } from './visuals';
+import { FileMatrix } from './FileMatrix';
 import './advanced.css';
 import { Button } from '@/components/ui/button';
 
@@ -188,6 +189,7 @@ export function AdvancedIngest({
 
   return (
     <div className="adv">
+      <FileMatrix projectId={projectId} project={project} traces={traces} />
       <nav aria-label="Steps" className="adv-rail">
         {STEPS.map((s, i) => {
           const k = i + 1;

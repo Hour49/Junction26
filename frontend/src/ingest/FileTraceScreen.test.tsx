@@ -1,6 +1,6 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { drawing, error, trace } from '../api/fixtures';
+import { drawing, error, takeoff, trace } from '../api/fixtures';
 import type { FileTrace } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
@@ -233,15 +233,56 @@ describe('FileTraceScreen', () => {
     expect(api.calls.some((c) => c.url.startsWith('/api/drawings/'))).toBe(false);
   });
 
-  it('IN-83 the stages are folded in a closed <details> "How it was read: N stages"', async () => {
+  it('AD-100 the stages are open on a time axis under "How it was read: N stages" (was folded, IN-83)', async () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    const fold = must(
-      screen.getByText(`How it was read: ${String(trace.stages.length)} stages`).closest('details'),
+    const region = screen.getByRole('region', { name: 'Stages' });
+    expect(region.querySelector('details')).toBeNull();
+    expect(
+      within(region).getByRole('heading', {
+        name: `How it was read: ${String(trace.stages.length)} stages`,
+      }),
+    ).toBeTruthy();
+    expect(region.querySelectorAll('.ingest-trace > li')).toHaveLength(trace.stages.length);
+    // equal times: the third stage starts at 2/10 of the axis and is 1/10 long
+    const span = must(region.querySelectorAll<HTMLElement>('.tl-span')[2]);
+    expect(span.style.getPropertyValue('--l')).toBe('20.00%');
+    expect(span.style.getPropertyValue('--w')).toBe('10.00%');
+  });
+
+  it('AD-106 the decisions sit in their own region, in pipeline order', async () => {
+    mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const items = within(screen.getByRole('region', { name: 'Decisions' })).getAllByRole(
+      'listitem',
     );
-    expect(fold.open).toBe(false);
-    expect(fold.querySelectorAll('.ingest-trace > li')).toHaveLength(trace.stages.length);
+    expect(items.map((li) => li.querySelector('.tl-where')?.textContent)).toEqual([
+      'Identify',
+      'Route',
+      'Second count',
+      'Outcome',
+    ]);
+    expect(must(items[3]).textContent).toContain('Ready to ask');
+  });
+
+  it('AD-107 a file whose counts disagree shows both values; one takeoff request, none when they agree', async () => {
+    const conflicted = { ...trace, second_count: { measured: 5, conflicts: 1 } };
+    const TAKEOFF = `GET /api/drawings/${must(trace.file.drawing_id)}/takeoff`;
+    const api = mockApi({ [GET]: conflicted, [TAKEOFF]: takeoff });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    await flush(); // the takeoff is asked once the trace is in
+    const region = screen.getByRole('region', { name: 'Decisions' });
+    expect(region.textContent).toContain('1 conflict between the counts');
+    expect(region.textContent).toContain('22.40 m² on the drawing, 30.00 m² the second way');
+    expect(api.calls.filter((c) => c.url.includes('/takeoff'))).toHaveLength(1);
+    cleanup();
+    const quiet = mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(quiet.calls.some((c) => c.url.includes('/takeoff'))).toBe(false);
   });
 
   it('R1-1-1 a takeoff of one quantity reads "What it ends as: 1 quantity"', async () => {
