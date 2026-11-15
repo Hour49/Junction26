@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawing, project } from '../../api/fixtures';
 import { mockApi } from '../../test/mockApi';
 import { EditCard } from '../EditCard';
@@ -378,5 +378,37 @@ describe('a discipline picture with the edit drawn on it (AC-40..44)', () => {
     expect(container.querySelector('.ag-strike')).toBeNull();
     expect(screen.queryByText(/Paired by/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Not this sheet' })).toBeNull();
+  });
+});
+
+describe('the plan box on a width change (#716 review)', () => {
+  it('keeps the change centred when the box changes width: the card is not remounted on a resize any more', async () => {
+    const observed = new Map<Element, () => void>();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly cb: () => void) {}
+        observe(el: Element) {
+          observed.set(el, this.cb);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const { container } = await card();
+    const box = container.querySelector<HTMLElement>('.ag-planbox');
+    if (!box) throw new Error('no plan box');
+    let width = 300; // the frame is twice the box wide, as zoomFor makes it for a small change
+    Object.defineProperty(box, 'clientWidth', { get: () => width, configurable: true });
+    Object.defineProperty(box, 'scrollWidth', { get: () => width * 2, configurable: true });
+    const resized = observed.get(box);
+    expect(resized).toBeDefined();
+    const centre = () => (box.scrollLeft + width / 2) / (width * 2);
+    act(() => resized?.());
+    const at = centre();
+    width = 450; // 390 -> 1440: the box grows, the frame with it
+    act(() => resized?.());
+    expect(centre()).toBeCloseTo(at, 3);
+    expect(box.scrollLeft).toBeGreaterThan(0);
   });
 });
