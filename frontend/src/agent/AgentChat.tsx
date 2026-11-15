@@ -408,17 +408,13 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   );
   const pane = wide && plan;
   // The plan beside the chat (chat-ux #1) where the window has room for it.
-  // Narrower: the same plan as a sheet over the chat, while it is open.
-  const split = (chat: ReactNode) =>
-    pane ? (
-      <div className="ag-split">
-        {chat}
-        {pane}
-      </div>
-    ) : (
-      <>
-        {chat}
-        {sheet && plan && (
+  // Narrower: the same plan as a sheet over the chat, while it is open. The chat keeps one parent at every width:
+  // a new parent remounted every card on a resize, back to its Plan tab and After (big QA R1 edits).
+  const split = (chat: ReactNode) => (
+    <div className={pane ? 'ag-split' : 'ag-nosplit'}>
+      {chat}
+      {pane ||
+        (sheet && plan && (
           <PlanSheet
             onClose={() => {
               setSheet(false);
@@ -426,9 +422,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           >
             {plan}
           </PlanSheet>
-        )}
-      </>
-    );
+        ))}
+    </div>
+  );
 
   const row = (r: Row) => (
     <article key={r.id} className="en-turn" aria-label={r.message}>

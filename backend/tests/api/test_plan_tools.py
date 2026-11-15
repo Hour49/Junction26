@@ -188,7 +188,10 @@ def test_ac16_floor9178_the_bagno_stanza_wall_has_its_door(
         if {r["label"] for r in w["rooms"]} == {"Bagno 1.01", "Stanza 1.02"}
     ]
     assert wall["doors"] == ["e6"] and wall["thickness_m"] == pytest.approx(0.12, abs=0.01)
-    assert wall["length_m"] == pytest.approx(3.6, abs=0.1)  # L-shaped round the shaft
+    # L-shaped round the shaft: its mass 3.22 + 0.29 m and the 0.75 m door e6 in it (edits R1:
+    # a wall's length counts its door opening, as drawn; 3.6 was the mass alone, read off one
+    # rectangle of the whole strip)
+    assert wall["length_m"] == pytest.approx(4.24, abs=0.1)
     assert len(found["walls"]) == 12 and len(found["rooms"]) == 10
 
 
