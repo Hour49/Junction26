@@ -21,11 +21,12 @@ from app.settings import Settings
 ROOT = Path(__file__).resolve().parents[3] / "data"
 DEMO = ROOT / "demo" / "demo-project.zip"
 DATA = ROOT / "stoa" / "full" / "junction-dataset" / "data"
-AC20 = DATA / "ifc_models" / "kit-fzk-haus_ac20-fzk-haus.ifc"
+AC20 = DATA / "ifc_bench" / "ac20_arc.ifc"
 OFFICE = DATA / "ifc_bench" / "fantasy_office_building_3_arc.ifc"
 HUB = DATA / "ifc_bench" / "digital_hub_arc.ifc"
 MODEL = "bimspeed-vitoria_ald26-project.ifc"
 P2 = "bimspeed-vitoria_ald26-project_plan-03-p2.pdf"
+PLAIN = "site1029_bldg2117_floor9641.pdf"
 needs = pytest.mark.skipif(
     not all(p.exists() for p in (DEMO, AC20, OFFICE, HUB)), reason="partner data not linked"
 )
@@ -128,11 +129,35 @@ def test_r1_a_storey_the_file_lacks_is_refused_not_the_whole_model(
 
 @needs
 def test_r1_a_storey_by_its_name_is_scoped_as_if_quoted(client: TestClient) -> None:
-    """ac20 row 24: "on the Erdgeschoss" was read as a room, and the fact path gave the file's 77.
-    Now it is the storey, the same row as "on 'Erdgeschoss'" (the model's takeoff puts 5 doors
-    there; local-dec's truth is 18: the IFC's door-to-storey count, not this parser path)."""
+    """ac20 (ifc_bench/ac20_arc.ifc, R1 row 24): "on the Erdgeschoss" was read as a room. Now it
+    is the storey, the same row as "on 'Erdgeschoss'": 18 doors, local-dec's ifcopenshell truth."""
     pid = project(client, AC20.name, AC20.read_bytes())
     named = parts(client, pid, "How many doors are there on the Erdgeschoss?")[AC20.name]
     quoted = parts(client, pid, "How many doors are there on 'Erdgeschoss'?")[AC20.name]
-    assert named["answer"] == quoted["answer"] is not None, named
-    assert named["answer"] != 77  # main: the whole file's
+    assert named["answer"] == quoted["answer"] == 18, (named, quoted)
+
+
+@needs
+@pytest.mark.parametrize(
+    "question",
+    ["How many doors are there on P1 and P2?", "How many doors are there in total on P1 and P2?"],
+)
+def test_r1_two_storeys_named_are_refused_not_answered_as_the_first(
+    client: TestClient, demo: str, question: str
+) -> None:
+    """review-702 M1: the model and the P1 sheet gave P1's 16 for "P1 and P2" (truth 32)."""
+    for name, answer in parts(client, demo, question).items():
+        assert answer["answer"] is None, (name, answer)
+
+
+@needs
+def test_r1_a_plan_naming_no_storey_says_so_with_the_storey_as_asked(client: TestClient) -> None:
+    """review-702 S1: the Swiss plan names no storey, so "on P1" is refused (main: its 33, the
+    whole sheet's); the refusal said "door count (storey p1)", lowercased."""
+    with zipfile.ZipFile(DEMO) as given:
+        content = given.read(f"plans/{PLAIN}")
+    got = parts(client, project(client, PLAIN, content), "How many doors are there on P1?")[PLAIN]
+    assert got["answer"] is None, got
+    assert got["refusal"]["text"] == (
+        "This drawing doesn't name its storeys, so I can't tell if it shows P1."
+    ), got["refusal"]

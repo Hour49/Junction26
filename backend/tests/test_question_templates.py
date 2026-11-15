@@ -10,6 +10,7 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SIZE_FILTER,
     Query,
@@ -872,3 +873,21 @@ def test_r1_a_storey_named_by_its_code_or_name_without_quotes(text: str, storey:
 def test_r1_sheet_floor_and_room_words_are_no_storey_code(text: str) -> None:
     parsed = PARSE(text)
     assert not (isinstance(parsed, Query) and parsed.storey is not None), parsed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are there on P1 and P2?",
+        "How many doors are there in total on P1 and P2?",
+        "How many doors are there on P1, P2?",
+        "How many doors are there on P1 or P2?",
+        "How many doors are there on level P1 to P3?",
+        "How many doors are there on EG & OG1?",
+        "How many doors are there on the Erdgeschoss and OG1?",
+    ],
+)
+def test_r1_two_storeys_named_are_refused_not_the_first_one(text: str) -> None:
+    """review-702 M1: "on P1 and P2" read P1 alone and answered P1's 16 for both; one storey at
+    a time, as one room at a time."""
+    assert PARSE(text) == Unsupported(reason=SEVERAL_STOREYS)

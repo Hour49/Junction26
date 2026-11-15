@@ -499,10 +499,12 @@ class RoomByType:
     def _storey(self, asked: str, sheet: bool) -> str | None:
         """The drawing's own storey a question's storey names (big QA R1): the one of that name,
         else the one whose name holds it as a word ("OG2" is "OK OG2", "E00" is "E00_OKRD");
-        `asked` itself on a drawing that names no storey (as before); None when the drawing names
-        storeys and none, or several, are it. With `sheet` (not a question about the model), a
-        sheet whose plans name their storeys is only those: the P2 sheet, which carries the
-        model's storeys too, is no answer for P1 (its 0 would be read as P1's)."""
+        `asked` itself on a drawing that names no storey, which then has no row for it and refuses
+        (a quoted storey did so before; "on P1" on a plain plan gave the whole sheet's count on
+        main, review-702 S1); None when the drawing names storeys and none, or several, are it.
+        With `sheet` (not a question about the model), a sheet whose plans name their storeys is
+        only those: the P2 sheet, which carries the model's storeys too, is no answer for P1 (its
+        0 would be read as P1's)."""
         named = storeys(self._drawing)
         drawn = sorted({str(plan.storey) for plan in self._drawing.plans if plan.storey})
         if sheet and self._drawing.pages and drawn:

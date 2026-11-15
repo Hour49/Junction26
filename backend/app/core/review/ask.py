@@ -47,6 +47,7 @@ from app.core.answering.model import (
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SHARED_FLOOR,
     Answer,
@@ -181,6 +182,8 @@ PARTS = {  # an unsupported count that would drop part of the question: which pa
     "drawing. Try one of these instead.",
     SEVERAL_ROOMS: "This question names more than one room, and I answer for one room at a time. "
     "Ask for each room on its own.",
+    SEVERAL_STOREYS: "This question names more than one storey, and I answer for one storey at a "
+    "time. Ask for each storey on its own.",
 }
 
 
@@ -1440,4 +1443,9 @@ def _refusal(
                 f"Room {parsed.name} has no outline on this drawing, only a box around it, so I "
                 "can't tell what is inside it.",
             )
+    if parsed.storey is not None and not storeys(drawing):  # "on P1" on a plain plan (review-702)
+        return (
+            "not-in-drawing",
+            f"This drawing doesn't name its storeys, so I can't tell if it shows {parsed.storey}.",
+        )
     return "not-in-drawing", f"This drawing doesn't give the {label(query, drawing)}."

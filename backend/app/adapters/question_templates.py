@@ -44,6 +44,7 @@ from app.core.answering.model import (
     NOT_COUNTED,
     ONE_VIEW,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SIZE_FILTER,
     UNQUOTED_PLACE,
@@ -324,6 +325,13 @@ STOREY_AT = re.compile(
     r"|\bon\s+the\s+(?P<name>[A-ZÄÖÜ][^\W\d_]{2,})\b(?!\s+(?:floor|level|storey|story)\b)",
     re.IGNORECASE,
 )
+# A second storey joined to the first ("on P1 and P2", "P1, P2", "level P1 to P3", "EG & OG1"):
+# one storey at a time, never the first one's count for both (review-702 M1)
+STOREY_ALSO = re.compile(
+    r"\s*(?:,|&|-|\u2013|\b(?:and|or|to|through)\b)\s*(?:the\s+)?(?:(?:level|floor|storey|story)\s+)?"
+    rf"(?:{STOREY_CODE}|(?-i:[A-ZÄÖÜ][^\W\d_]{{2,}}))\b",
+    re.IGNORECASE,
+)
 SHEET = frozenset(
     """
     floor plan floorplan drawing sheet page model storey story level layout image picture map
@@ -413,6 +421,8 @@ class TemplateParser:
         quoted = _quoted(raw)
         bare = QUOTED.sub(" _ ", raw)  # the question without its quoted names
         if not any(q.role == "storey" for q in quoted) and (at := _storey_at(bare)) is not None:
+            if STOREY_ALSO.match(bare, at.end()):
+                return Unsupported(reason=SEVERAL_STOREYS)
             quoted.append(_Quoted(text=at.group("code") or at.group("name"), role="storey"))
             bare = f"{bare[: at.start()]} _ {bare[at.end() :]}"  # as if it were quoted
         lower = bare.casefold()

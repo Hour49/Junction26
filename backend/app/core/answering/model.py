@@ -139,6 +139,8 @@ SEVERAL_THINGS = "a count that names more than one kind of thing"
 IN_ONE_ROOM = "a count within one room is not taken off"
 SIZE_FILTER = "a size or count filter on the items (larger than, at least...) is not applied"
 SEVERAL_ROOMS = "a question about one room that names more than one"
+# "on P1 and P2" (review-702 M1): one storey at a time, never the first one's count for both
+SEVERAL_STOREYS = "a question about one storey that names more than one"
 # A printed room name several rooms carry ("How big is Bagno?"): review/ask.py lists them
 SEVERAL_PRINTED = "a room name several rooms carry"
 # A floor, facade or wing named in words, not as a quoted storey name: answer.RoomByType reads a
