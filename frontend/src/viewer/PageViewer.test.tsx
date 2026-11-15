@@ -311,6 +311,20 @@ describe('PageViewer: conflict readings', () => {
     expect(b?.style.top).toBe(a?.style.top);
   });
 
+  it('K2 tags near the right edge stay inside the frame and do not cover each other (review-460)', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    const edge: QuantityConflict = {
+      ...conflict,
+      values: conflict.values.map((v) => ({ ...v, box: [0.995, 0.2, 1, 0.3] })),
+    };
+    const { container } = viewer(answerArea, { marks: [], conflict: edge, unit: 'm2' });
+    const [a, b] = [...container.querySelectorAll<HTMLElement>('.vw-tag')];
+    // a tag is 24 px with its gap: A at 800 - 24 = 776 px (97 %), B one tag to its left (752 px), not past the edge
+    expect(a?.style.left).toBe('97%');
+    expect(b?.style.left).toBe('94%');
+    expect(b?.style.top).toBe(a?.style.top);
+  });
+
   it('R3 VW-19 conflict readings name the method in words, never the API id', () => {
     const { container } = viewer(answerArea, { marks: conflictRow.marks, conflict, unit: 'm2' });
     const legend = container.querySelector('.vw-legend')?.textContent ?? '';

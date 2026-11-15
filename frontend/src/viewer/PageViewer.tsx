@@ -129,6 +129,15 @@ function tagsMeet(
   const dy = Math.abs((a[1] ?? 0) - (b[1] ?? 0));
   return W > 0 && H > 0 ? dx * W < TAG_STEP && dy * H < TAG_HIGH : dx < 0.02 && dy < 0.02;
 }
+/** A conflict tag's place in a measured frame (`W` x `H` px), as % of it: at its box's corner, `shift` tags to
+ * the right, or to the left when that would leave the frame (review-460); never outside the frame. */
+function tagSpot(box: number[] | null | undefined, shift: number, W: number, H: number) {
+  const x = Math.min((box?.[0] ?? 0) * W, W - TAG_STEP);
+  const right = x + shift * TAG_STEP;
+  const left = Math.max(0, right <= W - TAG_STEP ? right : x - shift * TAG_STEP);
+  const top = Math.max(0, Math.min((box?.[1] ?? 0) * H, H - TAG_HIGH));
+  return { left: `${((left / W) * 100).toFixed(3)}%`, top: `${((top / H) * 100).toFixed(3)}%` };
+}
 /** A box in page fractions: four numbers in 0..1, x0 <= x1, y0 <= y1. */
 const isBox = (b: number[] | null | undefined): b is Box =>
   b?.length === 4 &&
@@ -806,16 +815,16 @@ export function PageViewer({
             // earlier tag already covers moves right by a tag's width (K2).
             const left = `${((r.box?.[0] ?? 0) * 100).toFixed(1)}%`;
             const shift = tags.slice(0, i).filter((q) => tagsMeet(q.box, r.box, W, H)).length;
+            // once the frame is measured, placed in px and kept inside it (review-460)
+            const style =
+              W > 0 && H > 0
+                ? tagSpot(r.box, shift, W, H)
+                : {
+                    left: shift > 0 ? `calc(${left} + ${String(shift * TAG_STEP)}px)` : left,
+                    top: `${((r.box?.[1] ?? 0) * 100).toFixed(1)}%`,
+                  };
             return (
-              <span
-                key={r.tag}
-                className="vw-tag"
-                aria-hidden="true"
-                style={{
-                  left: shift > 0 ? `calc(${left} + ${String(shift * TAG_STEP)}px)` : left,
-                  top: `${((r.box?.[1] ?? 0) * 100).toFixed(1)}%`,
-                }}
-              >
+              <span key={r.tag} className="vw-tag" aria-hidden="true" style={style}>
                 {r.tag}
               </span>
             );
