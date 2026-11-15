@@ -503,7 +503,9 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
         # "How many offices?" and no space is one: said, then every space
         lines.insert(0, f"No space in this file is named '{query.words[0]}' (not available).")
     if picked:  # how many spaces the question's words name: a count of the listed spaces
-        lines.insert(0, f"Spaces matching '{' '.join(query.words)}'{where}: {len(chosen)}")
+        n = len(chosen)  # with its noun: "8" before a line "M. TOILET" would read as 8 m
+        matched = f"{n} {_plural('space', n)}"
+        lines.insert(0, f"Spaces matching '{' '.join(query.words)}'{where}: {matched}")
     else:
         lines.append(f"Spaces{where}: {total('all', storey)}")
     if query.aggregate in ("max", "min"):

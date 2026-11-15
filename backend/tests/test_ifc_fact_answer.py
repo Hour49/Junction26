@@ -627,6 +627,26 @@ def test_a_space_name_the_file_lacks_is_said_first() -> None:
     assert "ceiling" not in text("What is the ceiling height in the kitchen?")  # one measure
 
 
+def test_a_count_of_named_spaces_ends_with_its_noun() -> None:
+    """Dev re-score: "...: 8" then a line "M. STAFF TOILET" read as 8 m; a count ends with its
+    noun so the next line cannot make it a length."""
+    toilets = FactSheet(model="clinic", disciplines=["architecture"], facts=[
+        fact("space.long_name", "2C07", "M. STAFF TOILET", None, storey="EG"),
+        fact("space.long_name", "2C23", "M. TOILET", None, storey="EG"),
+        fact("space.long_name", "2C24", "W. TOILET", None, storey="EG"),
+    ])  # fmt: skip
+    query = parse_ifc_question("How many toilet rooms are there?")
+    assert query is not None
+    said = (fact_text(query, toilets) or "").splitlines()
+    assert said[0] == "Spaces matching 'toilet': 3 spaces" and said[1].startswith("M. STAFF")
+    one = parse_ifc_question("How many X-RAY rooms are there in total?")
+    assert one is not None
+    xray = FactSheet(model="clinic", disciplines=["architecture"], facts=[
+        fact("space.long_name", "2A12", "X-RAY", None, storey="EG"),
+    ])  # fmt: skip
+    assert (fact_text(one, xray) or "").startswith("Spaces matching 'x-ray': 1 space\n")
+
+
 def test_a_fixture_kind_the_question_names_leads_with_its_type_count() -> None:
     """QA research-lead: "How many toilets" led with all 16 sanitary fixtures; the 4 WC seats
     were four lines down."""
