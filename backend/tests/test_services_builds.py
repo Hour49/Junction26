@@ -115,6 +115,25 @@ def test_a_building_model_with_proxies_only_is_no_services_model(tmp_path: Path)
     assert ServicesStore(cache).none_path(sha).is_file()
 
 
+def test_a_proxy_with_a_port_is_a_services_model(tmp_path: Path) -> None:
+    """Review of #503 (S1): what the proxy rule keeps. A Revit export writes a toilet with no IFC
+    class as an IfcBuildingElementProxy with its drain port: that model builds and is stored."""
+    m = _Ifc()
+    toilet = m.box("IfcBuildingElementProxy", 1.0, 1.0, 0.0, (0.4, 0.6, 0.4), Name="WC")
+    port = m._new(  # pyright: ignore[reportPrivateUsage]
+        "IfcDistributionPort",
+        ObjectPlacement=m._placed(1.0, 1.3, 0.1),  # pyright: ignore[reportPrivateUsage]
+        FlowDirection="SOURCE",
+    )
+    m._new("IfcRelNests", RelatingObject=toilet, RelatedObjects=[port])  # pyright: ignore[reportPrivateUsage]
+    services = m.save(tmp_path / "s.ifc")
+    cache = tmp_path / "cache"
+    assert _child(str(services), "sanitary.ifc", str(cache)) == 0
+    model = ServicesStore(cache).load(hashlib.sha256(services.read_bytes()).hexdigest())
+    assert model is not None
+    assert [(e.group, len(e.ports)) for e in model.elements] == [("building_element_proxy", 1)]
+
+
 def test_a_model_or_marker_stored_before_the_proxy_rule_is_never_read(tmp_path: Path) -> None:
     """Orchestrator, 2026-11-15: a services model means something else since the proxy rule, so
     the builder version is 2 and an entry an older build wrote (the arc IFC stored at 02:40 as a
