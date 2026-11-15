@@ -189,7 +189,7 @@ def test_graph_reads_the_runs_and_keeps_its_own_sheets(
     assert status.state == "done", status
     (metres,) = _ask(settings, files, "How many metres of heating pipe?")
     said = str(metres.answer)
-    length = float(said.split("Total length: ")[1].split(" m")[0])
+    length = float(said.split("HEATING: ")[1].split(" m")[0])  # the system the question names
     assert abs(length - 5.0) <= 0.15, said  # the lane's mask test's 3%
     assert metres.sure is False
 
