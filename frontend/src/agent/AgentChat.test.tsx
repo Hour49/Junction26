@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { drawing, fileReadAsPlan, project } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
+import { KEPT_VERSION } from '../shell/kept';
 import { AgentChat } from './AgentChat';
 import type { ChatRequest } from './agent';
 import { answerTurn, dontKnowTurn, model, needsInputTurn } from './fixtures';
@@ -343,4 +344,27 @@ it('QA G2 a thread kept over a reload scrolls to its last turn once the project 
     expect(scrolled).toHaveBeenCalled();
   });
   Element.prototype.scrollIntoView = vi.fn();
+});
+
+it('R4-C13 a thread kept by an older build (no version, or a turn missing what the card reads) is dropped, not a blank page', async () => {
+  const key = `agent-chat:${PID}`;
+  const row = {
+    id: 1,
+    status: 'done',
+    message: 'How many doors?',
+    chips: [],
+    turn: { kind: 'answer' },
+  };
+  for (const value of [
+    { rows: [row] },
+    { rows: [{ ...row, turn: answerTurn }] },
+    { v: KEPT_VERSION, rows: [row] },
+  ]) {
+    sessionStorage.setItem(key, JSON.stringify(value));
+    open(never());
+    expect(await screen.findByLabelText('Question')).toBeTruthy();
+    expect(screen.queryByText('How many doors?')).toBeNull();
+    expect(sessionStorage.getItem(key)).toBeNull(); // dropped, so the next reload starts clean too
+    cleanup();
+  }
 });

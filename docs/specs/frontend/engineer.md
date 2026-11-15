@@ -46,7 +46,10 @@ Uses, does not own: the API client (`frontend/src/api/`, shared.md), the shell, 
 7. "Send to surveyor" opens the surveyor view of the same drawing on this quantity. "Picture of this answer" opens
    the server's drawn proof (`evidence.png`) in a new tab.
 8. The user asks more questions; earlier answers stay in the thread above (newest at the bottom). The thread lives
-   in memory only: a reload or another drawing starts an empty thread.
+   in this tab only: the answered turns are kept in `sessionStorage` per project and drawing (#587, R3-L2), so a
+   reload keeps them and another drawing starts its own thread. The kept value carries a version (`KEPT_VERSION`,
+   `shell/kept.ts`) and each turn must have the answer fields the card reads; a value of another version or shape is
+   removed and the thread starts empty, never a blank page (QA R4-C13). The agent chat keeps its thread the same way.
 9. From the issues list (issues.md) the user follows a link that opens this screen already asking an issue's
    question (`?ask=`), or with the drawing opened at an issue's place (`?page=&box=`); section "Opening at a
    question or a place".
@@ -197,7 +200,8 @@ Status words (`quantity.status`): `signed` "Verified", `conflict` "Methods disag
 Added 2026-11-14 13:45 by fe-engineer for #139/#140 (brief `fe-checks-issues.md`, decision #142): the issues list
 reopens a refused question and jumps to an issue's place. Read once when the screen mounts (the shell remounts it
 on a new route path; another issue's link always comes from another route). The URL is left as it is, so a reload
-does the same again: the link is the question or the place.
+does the same again: the link is the question or the place; `?ask=` is not asked again when the kept thread already
+holds that question (QA R4-C1).
 
 **`?ask=<question>`** (a `refused_answer` issue whose `drawing_id` is set; `Issue.question` verbatim):
 - After `GET /api/drawings/{id}` succeeds, the question is asked exactly as if typed: one turn, one
@@ -545,7 +549,7 @@ is read when present but never mocked (its shape is not final); its line carries
 
 ## Out of scope
 
-- Keeping the thread across reloads, or sharing it between people; a question on a whole project (API.md "What is
+- Sharing the thread between people or tabs; a question on a whole project (API.md "What is
   not in v1").
 - Drawing per-item contested (amber) marks: v1 shows a conflict per quantity with both values (API.md "What is not
   in v1").
