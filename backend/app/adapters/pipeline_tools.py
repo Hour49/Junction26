@@ -465,12 +465,13 @@ def _item(element: Any) -> dict[str, Any]:
 
 def _room(room: Room) -> dict[str, Any]:
     """A room with its printed number when the reader keeps it apart from the label (the vector
-    reader's attrs), so rooms of one name are told apart ("Stanza" four times: R3-L3)."""
+    reader's attrs), so rooms of one name are told apart ("Stanza" four times: R3-L3); a room
+    with none has no `number` key (review-617 M1)."""
+    out = _dump(room, "id", "type", "label", "box", "polygon", "area_m2", "outdoor")
     number = next((v for key in ROOM_NUMBERS if isinstance(v := room.attrs.get(key), str)), None)
-    return {
-        **_dump(room, "id", "type", "label", "box", "polygon", "area_m2", "outdoor"),
-        "number": number,
-    }
+    if number is not None:
+        out["number"] = number
+    return out
 
 
 Runner = Callable[[PipelineStore, Any], Any]

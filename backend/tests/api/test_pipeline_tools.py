@@ -183,10 +183,11 @@ def test_each_room_carries_its_printed_number_so_rooms_of_one_name_are_told_apar
     ]  # fmt: skip
     rooms.append({"id": "r8", "type": "kitchen", "label": "Cucina\n1.08", "page": 1, "box": BOX})
     found = geometry_of(drawing(rooms=rooms), "vector", "d" * 16, 1)
-    assert [(r["label"], r["number"]) for r in found["rooms"]] == [
+    assert [(r["label"], r["number"]) for r in found["rooms"][:4]] == [
         ("Stanza", "1.04"), ("Stanza", "1.05"), ("Stanza", "1.06"), ("Stanza", "1.07"),
-        ("Cucina\n1.08", None),  # the raster reader keeps it in the label
     ]  # fmt: skip
+    # The raster reader keeps it in the label: a room with no number has no key (review-617 M1)
+    assert found["rooms"][4]["label"] == "Cucina\n1.08" and "number" not in found["rooms"][4]
 
 
 def test_get_plan_geometry_on_a_real_drawing(store: PipelineStore, project: dict[str, Any]) -> None:
