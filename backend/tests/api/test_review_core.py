@@ -1766,3 +1766,62 @@ def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> N
         prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=False, route="vector",
     )  # fmt: skip
     assert got.partial is None
+
+
+def _flats(*, assigned: bool) -> Drawing:
+    """Two flats, A and B, each with a kitchen (B's 13.92 m²); `assigned`: the rooms say which
+    flat they are in, as the Swiss reader reads them."""
+    from app.core.drawing.model import Apartment
+
+    def room(rid: str, kind: str, box: tuple[float, float, float, float], m2: float, flat: str):
+        return Room(id=rid, type=kind, label=kind.capitalize(), page=1, box=box, area_m2=m2,
+                    attrs={"number": rid}, apartment=flat if assigned else None)  # fmt: skip
+
+    rooms = (
+        room("1.01", "kitchen", BOX_A, 12.25, "aA"),
+        room("1.02", "living", (0.1, 0.3, 0.2, 0.4), 26.72, "aA"),
+        room("2.01", "kitchen", BOX_B, 13.92, "aB"),
+        room("2.02", "living", (0.5, 0.5, 0.6, 0.6), 22.1, "aB"),
+    )
+    flats = (
+        Apartment(id="aA", label="A", area_m2=38.97),
+        Apartment(id="aB", label="B", area_m2=36.02),
+    )
+    return Drawing(file="x.pdf", pages=(PAGE,), scale=Scale(status="scaled"), rooms=rooms,
+                   apartments=flats)  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the area of the kitchen in apartment B?",
+        "How big is the kitchen of apartment B?",
+        "What is the net floor area of the kitchen in apartment B in m²?",
+    ],
+)
+def test_r1_11_a_room_type_inside_an_apartment_is_that_room_never_the_whole_flat(text: str) -> None:
+    """Big QA R1 row 11 (S1): "the area of the kitchen in apartment B" answered apartment B's
+    whole area (82.60 m², High) on site1029. The room type inside the flat is that flat's one
+    room of the type."""
+    drawing = _flats(assigned=True)
+    found = asked(text, drawing)
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == 13.92
+    assert found.query == asked("What is the net floor area of room 2.01?", drawing).query
+
+
+def test_r1_11_without_the_rooms_flat_it_refuses_never_the_whole_flat() -> None:
+    """A drawing that does not say which rooms are in which flat: a plain refusal, not B's
+    whole area and not another flat's kitchen."""
+    found = asked("What is the area of the kitchen in apartment B?", _flats(assigned=False))
+    assert found.refusal is not None
+    assert found.answer.answer is None
+    assert found.refusal.text == (
+        "The drawing doesn't say which kitchen is in apartment B, so I can't give its area. Ask "
+        "about the room by its number or name."
+    ), found.refusal
+
+
+def test_r1_11_the_flat_itself_still_answers_its_area() -> None:
+    found = asked("What is the area of apartment B?", _flats(assigned=True))
+    assert (found.refusal, found.answer.answer) == (None, 36.02)

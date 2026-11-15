@@ -486,7 +486,10 @@ class TemplateParser:
         if len({s for s in subjects if s in ELEMENT_SUBJECTS}) > 1:
             return Unsupported(reason="one sum over several element classes is not taken off")
         if measure == "area" and apartment is not None:
-            return Query(measure="area", subject="apartment", apartment=apartment.group(1))
+            # "the kitchen in apartment B" is that flat's kitchen, never the whole flat (R1 row 11)
+            # (its first subject: "apartment A ... except balconies" stays the flat's area)
+            subject = subjects[0] if subjects[0].startswith("room:") else "apartment"
+            return Query(measure="area", subject=subject, apartment=apartment.group(1))
         subject = next((s for s in subjects if s in AREA_SUBJECTS), subjects[0])
         code = ROOM_CODE.search(bare)
         if largest:

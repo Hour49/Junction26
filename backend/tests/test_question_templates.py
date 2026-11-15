@@ -831,3 +831,13 @@ def test_r4_besides_an_apartment_without_its_balconies_still_answers(word: str) 
     for text in (f"What is the floor area of the apartment, {word} the balconies?",
                  f"What is the floor area of the apartment ({word} the balconies)?"):  # fmt: skip
         assert isinstance(PARSE(text), Query), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["What is the area of the kitchen in apartment B?", "How big is the kitchen of apartment B?",
+     "Wie gross ist die Nettofläche der Küche von Wohnung B?"],
+)  # fmt: skip
+def test_r1_11_a_room_type_in_an_apartment_is_that_type_within_the_flat(text: str) -> None:
+    """Big QA R1 row 11 (S1): the kitchen in apartment B was read as apartment B's area."""
+    assert PARSE(text) == Query(measure="area", subject="room:kitchen", apartment="B")
