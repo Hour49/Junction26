@@ -177,8 +177,11 @@ the same props-recording double as SurveyorScreen.test.tsx):
 - CF-27: after a person picks a value on a card that needed a person (reloaded as settled), the card's button is
   "Modify", never "Change".
 - CF-18: each card's "Open in the surveyor workspace" links to `#/p/<pid>/d/<did>/surveyor?q=<quantity encoded>`.
-- CF-19: ProjectReviewSide shows "Settle the conflicts" linking to `#/p/<pid>/conflicts` when the project has at
-  least one conflict.
+- CF-19: ProjectReviewSide shows "Settle the conflicts" when a conflict needs a person, else "See the conflicts",
+  when the project has at least one conflict. It links to `#/p/<pid>?d=<drawing>&q=<quantity>` of the first conflict
+  that needs a person (else the first), so the project page opens on that card (CF-29's focus), not its top
+  (R4-B9). Each conflict's state uses the card's words: "needs you", "settled by a rule", "picked by …",
+  "settled by you" (R4-B11).
 - CF-20: no mock value of the design appears (no "harbour", "Beatrice", "IfcDoor", country names): a test renders
   the screen and asserts none of these strings are in the document.
 - CF-21: the pill is focusable and its tooltip text is its accessible description.

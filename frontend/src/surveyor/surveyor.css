@@ -305,8 +305,9 @@
     height: 22px;
   }
 }
-.sv-detail {
-  scroll-margin-top: 88px; /* the shell's sticky header: the scrolled-to detail is not hidden under it */
+.sv-detail,
+.sv-work > .vw {
+  scroll-margin-top: 88px; /* the shell's sticky header: the scrolled-to detail (or plan, R4-E10) is not hidden under it */
 }
 /* K3: on a phone the drawings and conflicts fold behind one toggle with both counts, so the drawing starts above
    the fold; wider screens never show the toggle */

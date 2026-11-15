@@ -84,3 +84,26 @@ test('R3-G9: on a phone the takeoff is one card per quantity', async ({ page }, 
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(wide, 'no sideways scroll').toBeLessThanOrEqual(0);
 });
+
+// R4-E10: at 390 the detail sat under all 81 rows, ~5,700 px below the plan and its numbered marks. Now a tap on a
+// row brings the plan into view with the detail right under it, before the lists.
+test('R4-E10: on a phone a tapped quantity shows the plan with its detail right under it', async ({
+  page,
+}, testInfo) => {
+  const offline = await noKeys(page);
+  await openSurveyor(page);
+  const row = page.getByRole('button', { name: 'window count', exact: true });
+  await row.scrollIntoViewIfNeeded();
+  await row.tap();
+  const detail = page.getByRole('region', { name: 'Selected quantity' });
+  await expect(detail).toContainText('window count');
+  const plan = page.locator('.vw').first();
+  await expect.poll(async () => (await plan.boundingBox())?.y ?? -1).toBeGreaterThanOrEqual(0); // the plan is on screen, under the sticky header
+  const planBox = await plan.boundingBox();
+  const detailBox = await detail.boundingBox();
+  const table = await page.getByRole('table', { name: 'To review' }).boundingBox();
+  expect(detailBox && planBox && detailBox.y > planBox.y).toBe(true);
+  expect(detailBox && table && detailBox.y < table.y).toBe(true);
+  expect(planBox && planBox.y < (page.viewportSize()?.height ?? 0)).toBe(true);
+  await shot(page, testInfo, 'surveyor-r4e10-detail-under-plan', offline);
+});
