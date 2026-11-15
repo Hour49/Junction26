@@ -1530,3 +1530,42 @@ def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
     unlabelled = dining.model_copy(update={"label": None})
     plain = living.model_copy(update={"label": None})
     assert asked("What is the area of the living room?", scaled(plain, unlabelled)).refusal
+
+
+def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> None:
+    """Tudor's QA round 3 R3-G3/R3-G2: on a scan the room count led with the reader's total (36
+    rooms where 100+ are drawn, room numbers 1, 4, 20, 28 missing; 28 where the sheet prints 48)
+    as if it were all of them. A count of rooms a reader picked off a picture is partial, as the
+    area total over the same rooms already was: Low, in words that say what it counts and which
+    room numbers between the ones found were not read."""
+    rooms = tuple(
+        Room(id=f"r{n}", type="other", label="DORM", page=1, box=BOX_A if n % 2 else BOX_B,
+             attrs={"number": str(n), "reader": "gemini"})
+        for n in (2, 3, 5, 6, 7, 8, 9, 10)
+    )  # fmt: skip
+    drawing = Drawing(
+        file="scan.png", pages=(PAGE,), scale=Scale(status="estimated", m_per_unit=0.05),
+        rooms=rooms, elements=(Element(id="e1", class_="door", page=1, box=BOX_A),),
+    )  # fmt: skip
+    got = ask(
+        "How many rooms are there?", drawing, parser=TemplateParser(), clock=lambda: 0.0,
+        prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=True, route="raster",
+    )  # fmt: skip
+    assert got.answer.answer == 8 and got.answer.sure is False
+    assert got.partial is not None and got.level is not None and got.level.level == "low"
+    said = (
+        "These are the 8 rooms the reader found; rooms it missed are not counted. "
+        "Room numbers it did not find between them: 1 and 4."
+    )
+    assert said in got.level.text
+    assert got.check is not None and said in got.check.reason
+    # rooms drawn on a vector sheet are all of them: no partial, as before
+    drawn = drawing.model_copy(
+        update={"rooms": tuple(r.model_copy(update={"attrs": {"number": r.attrs["number"]}})
+                               for r in rooms)}
+    )  # fmt: skip
+    got = ask(
+        "How many rooms are there?", drawn, parser=TemplateParser(), clock=lambda: 0.0,
+        prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=False, route="vector",
+    )  # fmt: skip
+    assert got.partial is None

@@ -1,7 +1,9 @@
 """The answering use cases: one question (the API) and a batch of them (the CLI)."""
 
 import functools
+import itertools
 import logging
+import math
 import re
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
@@ -274,7 +276,7 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
         cost_usd=0.0,  # a lookup: no model is called on the drawing
         latency_s=latency,
         abstain=abstain,
-        explanation=_with_partial("; ".join(notes), found.partial) or None,
+        explanation=_with_partial("; ".join(notes), found.partial, found.unit == "count") or None,
         estimate=None if found.estimate is None else True,
         conflicts=conflicts,
         resolution=resolution,
@@ -284,19 +286,30 @@ def _from_takeoff(question: Question, found: Quantity, method: str, latency: flo
 NAMED_MISSING = 3  # rooms named in a partial total's sentence; the rest are counted
 
 
-def _with_partial(said: str, partial: Partial | None) -> str:
+def _with_partial(said: str, partial: Partial | None, count: bool = False) -> str:
     """The other notes, then a partial total's sentence as a sentence of its own."""
     if partial is None:
         return said
-    sentence = partial_text(partial)
+    sentence = partial_text(partial, count=count)
     return f"{said.rstrip('.')}. {sentence}" if said else sentence
 
 
-def partial_text(partial: Partial) -> str:
-    """One plain sentence: a room total is the sum of the rooms found, and which it misses."""
+def partial_text(partial: Partial, count: bool = False, gaps: Sequence[str] = ()) -> str:
+    """One plain sentence: a room total is the sum of the rooms found, and which it misses.
+    `count`: the total is the number of rooms found, not their sum (QA round 3 R3-G2/G3);
+    `gaps`: room numbers between the ones found that were not found (`number_gaps`)."""
     rooms = f"{partial.counted} room{'' if partial.counted == 1 else 's'}"
     named = _named(partial.missing)
     table = f"the {partial.schedule}" if partial.schedule else "a schedule on the sheet"
+    if count:  # a refused box area leaves a room in the count: only missed rooms make it partial
+        if not partial.read:
+            return f"These are the {rooms} drawn on the sheet; {table} lists more: {named}."
+        said = f"These are the {rooms} the reader found; rooms it missed are not counted."
+        if partial.missing:
+            said += f" Not counted: {named}."
+        if gaps:
+            said += f" Room numbers it did not find between them: {_listed(gaps)}."
+        return said
     if partial.refused:  # rooms found, their box areas refused (raster_scale.refused_boxes)
         why = (
             "its box cannot be the room"
@@ -315,6 +328,42 @@ def partial_text(partial: Partial) -> str:
         return f"{said}; {table} lists more: {named}."
     said = f"This is the sum of the {rooms} the reader found; rooms it missed are not in it"
     return said + (f". Not in it: {named}." if partial.missing else ".")
+
+
+# Room numbers listed in a partial count's sentence; past this many, the rest are counted
+NAMED_GAPS = 6
+WHOLE_ROOM_NUMBER = re.compile(r"\d{1,4}")
+
+
+def number_gaps(numbers: Iterable[str]) -> list[str]:
+    """The room numbers missing between the whole numbers found (2, 3, 5, ... -> 1, 4), within
+    each hundred (101-130 is one storey's run; 1-40 a sheet's): between the lowest and the highest
+    found, and x01 when the lowest is x02. Refusal beats a wrong list (review-600): a run with
+    fewer than 3 numbers, one numbered in steps (even or odd numbers only: their differences share
+    a factor), or one missing more than a quarter of its numbers names nothing."""
+    runs: dict[int, set[int]] = {}
+    for text in numbers:
+        if WHOLE_ROOM_NUMBER.fullmatch(text.strip()):
+            n = int(text)
+            runs.setdefault(n // 100, set()).add(n)
+    out: list[int] = []
+    for hundred, found in sorted(runs.items()):
+        ordered = sorted(found)
+        if len(ordered) < 3 or math.gcd(*(b - a for a, b in itertools.pairwise(ordered))) > 1:
+            continue
+        low = ordered[0] - 1 if ordered[0] == hundred * 100 + 2 else ordered[0]
+        missing = [n for n in range(low, ordered[-1]) if n not in found]
+        if len(missing) * 4 <= ordered[-1] - low + 1:
+            out += missing
+    return [str(n) for n in out]
+
+
+def _listed(numbers: Sequence[str]) -> str:
+    """ "1, 4, 20 and 28"; past NAMED_GAPS, "and N more"."""
+    shown = list(numbers[:NAMED_GAPS])
+    if (more := len(numbers) - NAMED_GAPS) > 0:
+        return f"{', '.join(shown)} and {more} more"
+    return shown[0] if len(shown) == 1 else f"{', '.join(shown[:-1])} and {shown[-1]}"
 
 
 def _named(rooms: Sequence[str]) -> str:
