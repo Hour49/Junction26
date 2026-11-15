@@ -49,12 +49,12 @@ def test_ac11_a_question_asks_the_drawings_then_answers_from_them() -> None:
         "marks": [{"ev": "ev_1"}, {"ev": "ev_2"}]}}]}  # fmt: skip
     name, args = plan("How many doors?", ("ask_drawings", {}, asked))
     assert name == "final_answer"
-    assert args == {"kind": "answer", "text": "The answer is below [ev_1].",
+    assert args == {"kind": "answer", "text": "a.pdf: 2 [ev_1].",
                     "evidence_ids": ["ev_1"]}  # fmt: skip
     model = {"drawing_id": DRAWING, "name": "b.ifc", "answer": {"answer": 2, "marks": []}}
     asked["parts"].append(model)
     _, args = plan("How many doors?", ("ask_drawings", {}, asked))
-    assert args["text"] == "The answer is below [ev_1]."
+    assert args["text"] == "a.pdf: 2 [ev_1]; b.ifc: 2."
 
 
 def test_ac11_all_refused_is_dont_know_with_the_reason() -> None:
@@ -531,5 +531,17 @@ def test_the_lead_sentence_does_not_count_the_drawings() -> None:
         "answer": n, "unit": "count", "quantity": {"noun": "doors"},
         "marks": [{"ev": f"ev_{n}"}]}} for n in range(1, 5)]  # fmt: skip
     _, args = plan("How many doors?", ("ask_drawings", {}, {"parts": parts}))
-    assert args["text"] == "The answer is below [ev_1][ev_2][ev_3][ev_4]."
+    assert args["text"] == "1.pdf: 1 [ev_1]; 2.pdf: 2 [ev_2]; 3.pdf: 3 [ev_3]; 4.pdf: 4 [ev_4]."
     assert "drawing" not in args["text"]
+
+
+def test_r2_a6_the_lead_says_each_drawings_value_not_that_it_is_below() -> None:
+    """Tudor QA R2-A6: the offline answer started 'The answer is below [1].'; it now says what
+    each drawing gives, rounded as the card shows it, in the drawing's unit."""
+    answered = [{"drawing": "a.pdf", "answer": 52.269, "unit": "m2", "ev": "ev_1"},
+                {"drawing": "b.pdf", "answer": 120.0, "unit": "ft2", "ev": "ev_2"},
+                {"drawing": "c.ifc", "answer": "yes", "unit": None, "ev": None}]  # fmt: skip
+    parts = [{"drawing_id": DRAWING, "name": "a.pdf", "answer": {"answer": 52.269, "unit": "m2"}}]
+    _, args = plan("How big?", ("ask_drawings", {}, {"answered": answered, "parts": parts}))
+    assert args["text"] == "a.pdf: 52.27 m² [ev_1]; b.pdf: 120 ft² [ev_2]; c.ifc: yes."
+    assert args["evidence_ids"] == ["ev_1", "ev_2"]
