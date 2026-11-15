@@ -188,3 +188,17 @@ def test_the_demo_config_is_all_on_with_five_measured_worse_off() -> None:
         "DISCIPLINE_PICTURES",
     ):
         assert not any(line.startswith(off + "=") for line in config), off
+
+
+def test_the_demo_chat_answers_with_flash_priced_as_documented() -> None:
+    """flash-chat (.agents/exp/whole-turn-model.md): the chat agent runs on gemini-3.5-flash for
+    both steps of a turn (p50 5.06 -> 3.64 s over 2 runs, right and grounded not lower). The model
+    has no entry on Google's price list, so its price is set to the repo's documented one, not left
+    at the default meant for gemini-4-hydrogen."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    assert "AGENT_MODEL=gemini-3.5-flash" in config
+    assert "AGENT_PRICE_IN_PER_M=1.50" in config
+    assert "AGENT_PRICE_OUT_PER_M=9.00" in config
+    assert "CHAT_MODEL=gemini" in config  # flash is the agent's model, the chat stays the agent

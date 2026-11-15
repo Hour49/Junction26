@@ -64,6 +64,9 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   CARBON_READ_WORKERS=12  # one read's tile calls at once (at most 20); at 2 local slots 24 peaked at 9.4 GB, 12 at 7.3 (review-422)
   MALLOC_ARENA_MAX=2  # glibc arenas: peak 9.6 -> 6.7 GB on the same replay, and no slower (33.1 vs 36.5 s)
   IFC_FACTS_CACHE=../data/cache/facts  # all-on-2: fact sheets stored where the deploy's precompute_facts writes them (the env's data/cache/facts), so no IFC question starts a build
+  AGENT_MODEL=gemini-3.5-flash  # flash-chat: chat p50 5.06 -> 3.64 s over 2 runs of the chat-eval dev set, right and grounded not lower (.agents/exp/whole-turn-model.md)
+  AGENT_PRICE_IN_PER_M=1.50  # gemini-3.5-flash has no entry on Google's price list (2026-11-15): the repo's third-party price (raster_ocr/gemini.py)
+  AGENT_PRICE_OUT_PER_M=9.00
   USER_SCALE=true)  # all-on-2: the agent chat takes a scale from its user for a drawing without one (#432: never sure, the proof names the source)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
