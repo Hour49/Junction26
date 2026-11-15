@@ -1549,6 +1549,11 @@ export interface components {
             kind: string | null;
             /** Name */
             name: string;
+            /**
+             * Not A Drawing
+             * @default false
+             */
+            not_a_drawing: boolean;
             /** Not Drawable Reason */
             not_drawable_reason?: string | null;
             /** Other Renderings */
