@@ -133,7 +133,7 @@ def test_floor_words_of_several_languages() -> None:
     cases = {
         "EG": "0", "Erdgeschoss": "0", "Ground floor": "0", "1. OG": "1", "OG1": "1",
         "Level 02": "2", "2nd floor": "2", "3F": "3", "2. krs": "2", "KRS1": "1", "Kellari": "-1",
-        "B1": "-1", "ullakko": "roof",
+        "B1": "-1", "ullakko": "attic",
         "plan-02-e00-okrd": "0", "E01_OKRD": "1", "B01": "-1", "A-101 plan.pdf": None,
     }  # fmt: skip
     for words, key in cases.items():
@@ -394,3 +394,68 @@ def test_a_project_year_is_not_a_sheet_number() -> None:
     plan = PLAN.model_copy(update={"name": "KOY_2019 plan.pdf", "rooms": ()})
     found = one(plan, sheet(name="KOY_2019 heating.png", rooms=(), size_m=(10.0, 10.0)))
     assert found == "only 0 room names appear on both sheets (3 are needed)"
+
+
+# --- the confirmation run's 10 wrong pairings (pics-answer 2026-11-15, USCG Governors Island) ----
+
+
+def named(plan: str, candidate: str, **change: object) -> Pairing | str:
+    """A plan and one heating sheet named by their titles, no folders, laid over by room names."""
+    return one(
+        PLAN.model_copy(update={"name": plan}),
+        sheet().model_copy(update={"name": candidate} | change),
+    )
+
+
+def test_a_floor_the_name_says_but_pairing_cannot_read_refuses_instead_of_geometry() -> None:
+    # refusal side: "Upper Floors" names floors no rule reads; geometry alone must not pick it
+    found = named("Building 7 Upper Floors Plan.png", "Building 7 Heating First Floor Plan.png")
+    assert found == "the plan names a floor that is not read ('Upper Floors'): no floor to pair on"
+    found = named("Building 7 Plan.png", "Building 7 Heating Typical Floor Plan.png")
+    said = "the services picture names a floor that is not read ('Typical Floor')"
+    assert found == said + ": no floor to pair on"
+    # "Floor Plan" alone names no floor: geometry as before
+    found = named("Building 7 Floor Plan.png", "Building 7 Heating Floor Plan.png")
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+
+
+def test_floor_lists_ranges_and_plurals_are_read() -> None:
+    from app.core.services.pairing import _floors  # pyright: ignore[reportPrivateUsage]
+
+    cases = {
+        "Second Thru Seventh Floors": ["2", "3", "4", "5", "6", "7"],
+        "First and Second Floors Plans": ["1", "2"],
+        "Basement, First and Second Floor": ["-1", "1", "2"],
+        "First, Second, and Third Floor Plans": ["1", "2", "3"],
+        "Second and Attic Floor": ["2", "attic"],
+        "2nd floor": ["2"],
+        "Floors 2-4": ["2", "3", "4"],
+    }
+    for words, keys in cases.items():
+        found = _floors(Sheet(drawing_id="d", page=1, name=words + ".png"))
+        assert sorted(found) == sorted(keys), words
+
+
+def test_the_confirmation_runs_wrong_pairings_are_refused() -> None:
+    # building 855: a plan of floors 2-7 against the first floor electrical and the roof plumbing
+    plan = "Capehart Apartment Building 855 New Work Plan - Second Thru Seventh Floors.png"
+    first = "Building 855 Capehart Apartment First Floor Plan - Electrical.png"
+    found = named(plan, first, disciplines=("electrical",))
+    assert isinstance(found, str) and found.startswith("another floor")
+    found = named(plan, "Renovation of Capehart Apartment Building 855 Roof Plan Plumbing.png",
+                  disciplines=("plumbing",))  # fmt: skip
+    assert isinstance(found, str) and found.startswith("another floor")
+    # building 928: a roof plan against first and second floor HVAC
+    found = named(
+        "Building 928 Architectural Equipment, Roof Plans - Shop Building, June 20, 1984.png",
+        "Building 928 Heating, Ventilation, Air Conditioning First and Second Floors Plans Shop "
+        "Building, June 20, 1984.png",
+    )
+    assert isinstance(found, str) and found.startswith("another floor")
+    # building 333: an attic is not the roof
+    found = named(
+        "Building 333 Exterior Rehabilitation Projects Architectural Roof Plan, July 2, 1991.png",
+        "Building 333 Electrical Attic Space Power and Lighting Plan.png",
+        disciplines=("electrical",),
+    )
+    assert found == "another floor: 'Attic' against 'Roof'"
