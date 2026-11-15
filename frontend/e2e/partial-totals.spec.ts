@@ -5,7 +5,8 @@ import { expect, test, type Route } from '@playwright/test';
 import { noKeys, sampleDone, shot, watchErrors } from './support';
 
 const PARTIAL = { partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] };
-const TIP = 'May be partial: sums 7 rooms; 2 not in it';
+// the question is a room count (unit `count`, #600), so the tip says it counts its rooms (partialTip, 4f6c658f)
+const TIP = 'May be partial: counts 7 rooms; 2 not in it';
 const SAID =
   'This is the sum of the 7 rooms the reader found; rooms it missed are not in it. Not in it: Sauna, WC 2.';
 
