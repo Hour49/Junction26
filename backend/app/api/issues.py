@@ -74,6 +74,7 @@ NOT_ABOUT_THE_DRAWING = "unsupported-question"
 CSV_COLUMNS = (
     "id", "kind", "severity", "state", "file", "file_id", "drawing_id", "floor", "page",
     "x0", "y0", "x1", "y1", "mark_id", "why", "quantity", "question", "reason", "check",
+    "answer", "answered_by", "answered_at",
 )  # fmt: skip
 SEVERITY_WORDS: dict[Severity, str] = {
     "fails_rule": "fails a rule", "needs_person": "needs a person", "note": "note",
@@ -276,10 +277,11 @@ def _csv(found: list[Issue], numbered: bool) -> str:
             issue.id, issue.kind, issue.severity, issue.state, issue.file, issue.file_id,
             issue.drawing_id, issue.floor, issue.page, x0, y0, x1, y1, issue.mark_id, issue.why,
             issue.quantity, issue.question, issue.reason, issue.check,
+            *((said.text, said.by, said.at) if (said := issue.answer) else (None, None, None)),
         )  # fmt: skip
         row = ["" if cell is None else csv_cell(cell) for cell in cells]
         writer.writerow(([n] if numbered else []) + row)
-    return out.getvalue()
+    return "\ufeff" + out.getvalue()  # a BOM, so Excel reads UTF-8 (umlauts, law text)
 
 
 def _by_page(found: list[Issue]) -> dict[tuple[str, int], list[tuple[int, Issue]]]:
@@ -427,14 +429,21 @@ def open_count(
     takeoffs: Mapping[str, Takeoff],
 ) -> tuple[int, int]:
     """How many issues of the done project are open, and how many of those still wait for a
-    person's answer (not a note, not answered); no pack: code checks are a screen's choice. For
-    `issues_open` and `issues_to_answer`."""
+    person's answer on Documents: the client's `waitsForYou` (documents.md DOC-12): not a note,
+    not answered, and a conflict only once a model looked at it (`resolved`; one without stays on
+    Ingest). No pack: code checks are a screen's choice. For `issues_open` and
+    `issues_to_answer`."""
     found = [
         issue
         for issue in listed_issues(status, ingest, reviews, settings, takeoffs)
         if issue.state == "open"
     ]
-    to_answer = sum(issue.severity != "note" and issue.answer is None for issue in found)
+    to_answer = sum(
+        issue.severity != "note"
+        and issue.answer is None
+        and (issue.kind != "conflict" or issue.resolved is not None)
+        for issue in found
+    )
     return len(found), to_answer
 
 

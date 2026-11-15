@@ -17,10 +17,18 @@ import { LawSection } from './LawSection';
 import { useServiceTabs } from './multi/ServiceTabs';
 import { ServicesChangePlan } from './services_change/ServicesChangePlan';
 
+/** `key`: the drawing and page it is for; another key means that page is still loading (AC-40: a tab's sheet). */
 type PageLoad =
-  { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
+  | { state: 'loading' }
+  | { state: 'error'; key: string; error: unknown }
+  | { state: 'ready'; key: string; page: PageView; file: string };
 
 const NOTE = 'Proposed from the drawn geometry. Structure, services and permits are not checked.';
+// SERVICES_FOLLOW=on: the tabs above show what the change does to each service model
+const NOTE_FOLLOWED =
+  'Proposed from the drawn geometry; services followed through their models, as each tab shows. Structure and permits are not checked.';
+const SERVICES_NOTE =
+  'Proposed from the services model in the IFC file. Structure, flow, pressure and permits are not checked.';
 
 /** The legend's swatch: the same stroke, dash and fill as on the plan (colour never alone). */
 function Swatch({
@@ -147,7 +155,7 @@ function EditPlan({
     if (hot || reveal > 0)
       fig.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   }, [hot, reveal]);
-  const [load, setLoad] = useState<PageLoad>({ state: 'loading' });
+  const [loaded, setLoad] = useState<PageLoad>({ state: 'loading' });
   const [after, setAfter] = useState(true);
   const [revealed, setRevealed] = useState(reveal);
   if (reveal !== revealed) {
@@ -155,6 +163,12 @@ function EditPlan({
     setAfter(true);
   }
   const services = useServiceTabs(p, after); // a tab per discipline (services-follow.md)
+  // AC-40: a tab with its own services sheet shows that sheet; otherwise the plan
+  const sheet = services?.sheet ?? null;
+  const source = sheet ?? { drawing_id: p.drawing_id, page: p.page };
+  const key = `${source.drawing_id}#${String(source.page)}`;
+  const load: PageLoad =
+    loaded.state !== 'loading' && loaded.key === key ? loaded : { state: 'loading' };
   const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
   const box = useRef<HTMLDivElement>(null);
   const extent = services?.focus ?? extentOf(p);
@@ -169,23 +183,26 @@ function EditPlan({
   }, [load.state, ...extent]);
   useEffect(() => {
     const abort = new AbortController();
-    getDrawing(p.drawing_id, { project: projectId, signal: abort.signal }).then(
+    const { drawing_id, page: n } = source;
+    const at = `${drawing_id}#${String(n)}`;
+    getDrawing(drawing_id, { project: projectId, signal: abort.signal }).then(
       (d) => {
-        const page = d.pages.find((pg) => pg.page === p.page);
+        const page = d.pages.find((pg) => pg.page === n);
         setLoad(
           page
-            ? { state: 'ready', page }
-            : { state: 'error', error: new Error(`no page ${String(p.page)}`) },
+            ? { state: 'ready', key: at, page, file: d.file }
+            : { state: 'error', key: at, error: new Error(`no page ${String(n)}`) },
         );
       },
       (error: unknown) => {
-        if (!abort.signal.aborted) setLoad({ state: 'error', error });
+        if (!abort.signal.aborted) setLoad({ state: 'error', key: at, error });
       },
     );
     return () => {
       abort.abort();
     };
-  }, [p.drawing_id, p.page, projectId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `source` is rebuilt each render; `key` names it
+  }, [key, projectId]);
 
   return (
     <figure className="ag-plan" aria-label="Proposed plan" ref={fig}>
@@ -204,6 +221,7 @@ function EditPlan({
         </defs>
       </svg>
       {services?.tabs}
+      {services?.head}
       <div className="v-segmented ag-toggle" role="group" aria-label="Show the plan">
         <button
           type="button"
@@ -237,12 +255,17 @@ function EditPlan({
             url={load.page.url}
             width={load.page.width}
             height={load.page.height}
-            alt={`Page ${String(p.page)}, ${after ? 'with the proposed change' : 'as drawn'}`}
-            page={p.page}
+            alt={
+              sheet
+                ? `${load.file}, page ${String(sheet.page)}, ${after ? 'with the proposed change drawn on it' : 'as drawn'}`
+                : `Page ${String(p.page)}, ${after ? 'with the proposed change' : 'as drawn'}`
+            }
+            page={source.page}
           >
-            {after && <Overlay p={p} hatch={hatch} />}
+            {/* the plan's overlay and a picked subject are in the plan's page fractions: not on another sheet */}
+            {after && !sheet && <Overlay p={p} hatch={hatch} />}
             {services?.layer}
-            {hot && (
+            {hot && !sheet && (
               <svg
                 className="vw-overlay ag-overlay"
                 viewBox="0 0 1 1"
@@ -320,12 +343,16 @@ export function EditCard(props: {
         <EditPlan p={p} projectId={projectId} hot={hot} reveal={props.reveal ?? 0} />
       )}
       <div className="ag-side">
-        <h4 className="en-label">Changes</h4>
-        <ul className="ag-changes">
-          {changeLines(p).map((l) => (
-            <li key={l}>{l}</li>
-          ))}
-        </ul>
+        {changeLines(p).length > 0 && (
+          <>
+            <h4 className="en-label">Changes</h4>
+            <ul className="ag-changes">
+              {changeLines(p).map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+          </>
+        )}
         <LawSection
           law={p.law}
           onPick={(subject, ev, ref) => {
@@ -352,7 +379,9 @@ export function EditCard(props: {
             </ul>
           </>
         )}
-        <p className="en-small">{NOTE}</p>
+        <p className="en-small">
+          {p.services_change ? SERVICES_NOTE : p.services ? NOTE_FOLLOWED : NOTE}
+        </p>
         {p.state === 'proposed' ? (
           <div className="ag-decide">
             <button

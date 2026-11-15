@@ -4,18 +4,22 @@ What we already know, so QA does not re-report it and fixers do not re-investiga
 per entry; an entry goes when its fix is merged.
 
 ## Known issues
-- K2 · minor · frontend · The viewer's conflict tags A and B overlap when both methods' boxes start at the same
-  corner (flat-b room 1.01) (Sat 05:05)
-- K3 · minor · frontend · On a phone the surveyor's drawings and conflicts list is not collapsed; the drawing starts
-  below the fold (Sat 05:05)
-- K5 · minor · backend · An estimated raster area (RASTER_SCALE=priors) can be far off while printing a narrow band
-  when the detector finds the wrong doors: golden colorful-10706 living room +74% at ±24% (13 doors),
-  high_quality-17 +100% at ±40% (1 door), colorful-7513 kitchen −37% at ±24% (10 doors, QA R3). The band is a 68% one, honest on val overall (Sat 06:45)
+- K5 · minor · backend · An estimated raster area (RASTER_SCALE=priors) is off by more than its printed 68% band
+  more often on one CubiCasa drawing style (`high_quality`: page scale inside its band on 43% of 70 val pages and
+  32% of 19 golden dev pages; other styles 73-90%): the doors there read smaller than the 0.794 m prior. Door count
+  and door-width spread don't predict it (a refit per door count and spread failed on the held-out half,
+  2026-11-15), and neither do image-wide traits (door size against the page, ink, colour, image size,
+  anti-aliasing): the best, anti-aliasing, flagged 11.9% of the other styles' pages on the held-out half (limit 10%)
+  and missed 23 of 35 of the style's pages. #347's ±14.2% band for 5 or more doors whose widths disagree stays.
+  Golden colorful-10706 living room +74%, high_quality-17 +100%, colorful-7513 kitchen −37% (QA R3) (Sat 06:45;
+  Sun 02:10)
 - K6 · minor · backend · An IFC uploaded with its PDF sheets but without their SVG renderings is not linked to
-  them: no sheet-vs-model conflicts (vitoria plan-02-p1.pdf: 4 conflicts beside its SVG, none without; QA R6-c-2)
-  (Sat 15:10)
-- K7 · minor · frontend · The project chat lists only the drawings that answered; refused ones are only counted in
-  the note, not named (ProjectChat.tsx `answering`; QA R6-c-3) (Sat 15:10)
+  them: no sheet-vs-model conflicts (vitoria plan-02-p1.pdf: 4 conflicts beside its SVG, none without; QA R6-c-2).
+  Measured 2026-11-15: from the PDF alone the wall, column, slab, railing, beam and stair counts cannot be told
+  apart (one drawing style), and comparing the doors, windows and rooms the PDF reader counts would keep 52 of the
+  235 dataset conflicts and add 29 false ones, so the link stays SVG-only. Every dataset sheet ships with its SVG;
+  only an upload without it is affected. Without the link the sheet has no wall geometry either, so no wall edit can
+  be proposed on it and the services follow-up has nothing to follow (#413, read from the code, not run) (Sat 15:10)
 - K8 · limit · backend · Sketches: we claim no door counting. On 14 hand-drawn sheets (mostly historical, 2026-11-14
   fail test, `prototypes/handdrawn/`) the door count was in range on 0 of 10 sheets with doors; windows 4 of 10, only on
   clean line drawings. Every door, window, room and WC count asked for a check; the exception is plans on a page, sure
@@ -29,6 +33,23 @@ per entry; an entry goes when its fix is merged.
   a number before a Nordic/German street, a postal code or ZIP on another line than its street, a ZIP with no state
   before it, an English street followed by a lowercase word (200 dataset PDFs: 52 of 52 changed lines were real
   addresses; #259) (Sat 19:20)
+- K12 · limit · backend · Memory on the live host's 8 GB cap: the demo config now reads up to 10 drawing groups at
+  once (#422), and #422's cold upload of 10 files peaked at 7.3 GB (cgroup), with one local reading at a time and
+  MALLOC_ARENA_MAX=2; two local readings at once peaked at 9.4 GB once, so INGEST_LOCAL_IN_FLIGHT stays 1. #405
+  holds a big greyscale page once (the image readers' peak on a 138 Mpx scan: 11.13 to 2.84 GB cold), but what a
+  reading leaves resident after an upload is not given back yet (Sun 01:30; Sun 02:50)
+- K13 · minor · backend · A services proposal on a services IFC that was set aside at upload carries the first 16
+  characters of the file's sha256 as its drawing id: the edit card's picture works, a lookup by drawing name may
+  show the bare id (#413) (Sun 01:30)
+- K15 · minor · backend · A group read before is reused by content and keeps the reason text it was read with, so
+  a reason reworded since (#459, #475) shows its old words until a fresh run reads the file again (seen on #475's
+  run, not re-run here) (Sun 02:55)
+- K16 · limit · backend · The evidence index (EVIDENCE_SCOPE=all_non_plan, on in the demo) can also hold a floor
+  plan's description: 1 of the 20 plan pictures in the demo projects, a camera photo of an evacuation plan that
+  Carbon called `other` (31 of 227 on a hard hand-checked set). The photo is still read as a plan and its counts
+  come from that reading, but the chat may quote the description, which nobody checks. A question in Finnish can
+  miss a sheet the same question in English finds (a site plan sixth of 8 sources in Finnish, second in English;
+  13 of 15 test questions found their source in the first 5). Measured on #267 at bc25177, not re-run (Sat 18:37)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).
@@ -37,3 +58,9 @@ per entry; an entry goes when its fix is merged.
   sign-offs.
 - The answer's model score is never shown as a probability or percent; with no keys there is none.
 - The sign-off name is what the surveyor types; there is no login (decision 0001).
+- The app has a light theme only and does not follow the system's dark mode (#403).
+- The pen (draw mode) is greyed out on a drawing that cannot be drawn on, with the reason: a scan or photo, a
+  building model with no drawn plan, a sheet with no scale, rooms without outlines or no wall geometry (#407, #416).
+- A scan with no detected door gets no area scale from Carbon's door boxes (SCALE_CARBON_DOORS stays off), and
+  services drawn on a scan or photo are not read (DISCIPLINE_PICTURES stays off). The measured reasons
+  are in [PIPELINE.md §4](PIPELINE.md#4-settings-the-demo-config-and-what-stays-off).

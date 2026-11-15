@@ -183,3 +183,26 @@ it('R4-E17 a focus the page gives after a pointer press opens no tip; keyboard f
   b.focus();
   expect((await screen.findByRole('tooltip')).textContent).toContain('Country rules.');
 });
+
+it('R2-D6 the wrapper a locked button gets to show its tip is a named Tab stop, not an unnamed one', () => {
+  render(
+    <Tip text="Type a question first." wrap>
+      <button disabled aria-label="Ask" />
+    </Tip>,
+  );
+  const wrapper = screen.getByRole('button', { name: 'Ask' }).parentElement as HTMLElement;
+  expect(wrapper.tabIndex).toBe(0);
+  expect(wrapper.getAttribute('role')).toBe('group');
+  expect(wrapper.getAttribute('aria-label')).toBe('Type a question first.');
+});
+
+it('R2-D3 a label, number or badge with a tip is not a Tab stop; a screen reader still gets the tip', () => {
+  render(
+    <Tip text="Files that finished reading." wrap>
+      <span>Files through</span>
+    </Tip>,
+  );
+  const label = screen.getByText('Files through').parentElement as HTMLElement;
+  expect(label.tabIndex).toBe(-1);
+  expect(label.getAttribute('aria-description')).toBe('Files that finished reading.');
+});

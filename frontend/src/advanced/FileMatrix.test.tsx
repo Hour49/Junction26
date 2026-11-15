@@ -1,0 +1,394 @@
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { project, trace } from '../api/fixtures';
+import type { FileTrace, ProjectView, StageTrace, StepTrace } from '../api';
+import { formatMs, routeLabel } from '../ingest/ingest';
+import { must, traceVariants } from '../ingest/testing';
+import { FileMatrix } from './FileMatrix';
+import { TraceTimeline } from './TraceTimeline';
+
+afterEach(cleanup);
+
+const PID = project.id;
+const step = (over: Partial<StepTrace>): StepTrace => ({
+  id: 'detector',
+  label: 'Symbol detector, 8 views',
+  did: '',
+  at_ms: 0,
+  ms: 0,
+  cost_usd: 0,
+  state: 'done',
+  ...over,
+});
+// shortcut: the contract's fixtures still send steps: [] (trace worker, 2026-11-15); these are our own.
+const extract: StageTrace = {
+  stage: 'extract',
+  did: '7 elements, 5 rooms',
+  ms: 4000,
+  output: '',
+  failure: null,
+  cost_usd: 0.012,
+  steps: [
+    step({ at_ms: 0, ms: 1200, found: { door: 31, window: 12 } }),
+    step({
+      id: 'rooms',
+      label: 'Room reader (Gemini)',
+      at_ms: 0,
+      ms: 4000,
+      cost_usd: 0.012,
+      did: '9 rooms',
+    }),
+    step({ id: 'carbon', label: 'Carbon counter', state: 'skipped' }),
+    step({
+      id: 'printed_scale',
+      label: 'Printed scale',
+      at_ms: 1200,
+      ms: 300,
+      state: 'failed',
+      did: 'no scale text',
+    }),
+  ],
+};
+
+const traces = (p: ProjectView, by: (f: ProjectView['files'][number]) => FileTrace) =>
+  new Map(p.files.map((f) => [f.id, by(f)]));
+
+describe('TraceTimeline steps', () => {
+  it('AD-103 each step with its label, what it found, time, cost; failed and skipped marked; side by side said', () => {
+    render(<TraceTimeline stages={[extract]} />);
+    const list = screen.getByRole('list', { name: 'Steps of Extract' });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]?.textContent).toContain('Symbol detector, 8 views');
+    expect(rows[0]?.textContent).toContain('31 doors, 12 windows');
+    expect(rows[0]?.textContent).toContain(formatMs(1200));
+    expect(rows[1]?.textContent).toContain('9 rooms');
+    expect(rows[1]?.textContent).toContain('$0.01');
+    expect(within(must(rows[2])).getByRole('img').getAttribute('aria-label')).toBe('skipped');
+    expect(rows[2]?.textContent).toContain('skipped');
+    expect(rows[2]?.querySelector('.tl-track')).toBeNull();
+    expect(within(must(rows[3])).getByRole('img').getAttribute('aria-label')).toBe('failed');
+    expect(screen.getByText('4 steps inside Extract, up to 2 side by side')).toBeTruthy();
+    // the room reader ran for the whole stage, the detector its first 30 %
+    const spans = [...list.querySelectorAll<HTMLElement>('.tl-span')];
+    expect(spans[0]?.style.getPropertyValue('--w')).toBe('30.00%');
+    expect(spans[1]?.style.getPropertyValue('--w')).toBe('100.00%');
+    expect(spans[2]?.style.getPropertyValue('--l')).toBe('30.00%');
+  });
+
+  it('AD-121 a real raster extract: the wait and the runs side by side are said in words, steps stay the items', () => {
+    const raster: StageTrace = {
+      ...extract,
+      ms: 21168.7,
+      cost_usd: 0,
+      steps: [
+        step({ id: 'printed_scale', label: 'Printed scale and counts', at_ms: 1.3, ms: 359.3 }),
+        step({ id: 'carbon', label: 'Gemini Carbon check (never counted)', at_ms: 4.4, ms: 368.1 }),
+        step({
+          id: 'arbiter',
+          label: 'Symbol detector, 8 views + count arbiter',
+          at_ms: 16031.8,
+          ms: 5128.4,
+        }),
+        step({
+          id: 'detector',
+          label: 'Symbol detector (arbiter base)',
+          at_ms: 16031.8,
+          ms: 4486.7,
+        }),
+        step({ id: 'rooms', label: 'Room reader', at_ms: 16031.9, ms: 1369.7 }),
+        step({ id: 'arbiter', label: 'Count arbiter', at_ms: 20608.2, ms: 551.9 }),
+        step({ id: 'carbon', label: 'Gemini Carbon reader', at_ms: 21161.5, state: 'skipped' }),
+      ],
+    };
+    render(<TraceTimeline stages={[raster]} />);
+    const list = screen.getByRole('list', { name: 'Steps of Extract' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(7);
+    const notes = [...list.querySelectorAll('[role="presentation"]')].map((n) => n.textContent);
+    expect(notes).toEqual([
+      'Side by side, 1.30 ms to 372.5 ms: 2 steps',
+      'No step ran from 372.5 ms to 16.0 s',
+      'Side by side, 16.0 s to 21.2 s: 4 steps, up to 3 at once',
+    ]);
+    expect(list.querySelectorAll('.tl-step.together')).toHaveLength(6);
+    // the arbiter spans its run, so its bar is full width, not squeezed into the stage's last quarter
+    const arbiter = within(list)
+      .getByText('Symbol detector, 8 views + count arbiter')
+      .closest('li');
+    expect(
+      must(arbiter?.querySelector<HTMLElement>('.tl-span')).style.getPropertyValue('--w'),
+    ).toBe('100.00%');
+    expect(list.textContent).not.toContain('queue');
+  });
+
+  it('AD-104 a stage without steps (an old server, or none recorded) draws no step list', () => {
+    const old = { ...extract } as Partial<StageTrace>;
+    delete old.steps;
+    render(<TraceTimeline stages={[old as StageTrace, { ...extract, steps: [] }]} />);
+    expect(screen.queryByRole('list', { name: 'Steps of Extract' })).toBeNull();
+    expect(screen.getAllByText('7 elements, 5 rooms')).toHaveLength(2);
+  });
+});
+
+describe('TraceTimeline steps on the real stages (AD-125)', () => {
+  // shapes of the #535 sample (2026-11-15): identify and normalise steps whose dids the stage's line joins, and
+  // the second count's checks, sent with 0 ms (not timed)
+  const identify: StageTrace = {
+    stage: 'identify',
+    did: 'a photo of a drawing (1920x1080 px); triage: a floor plan (P(plan) 0.35)',
+    ms: 21,
+    output: 'raster_photo',
+    failure: null,
+    cost_usd: 0,
+    steps: [
+      step({
+        id: 'probe',
+        label: 'Content probe',
+        did: 'a photo of a drawing (1920x1080 px)',
+        ms: 20,
+      }),
+      step({
+        id: 'classifier',
+        label: 'Triage: is it a floor plan?',
+        did: 'a floor plan (P(plan) 0.35)',
+        at_ms: 20,
+        ms: 0.6,
+      }),
+    ],
+  };
+  const normalise: StageTrace = {
+    stage: 'normalise',
+    did: 'rectified by page flattening: 1691x1015 px; 1 page, page 1 is 1691 x 1015 px',
+    ms: 153,
+    output: '',
+    failure: null,
+    cost_usd: 0,
+    steps: [
+      step({
+        id: 'rectifier',
+        label: 'Photo rectifier',
+        did: 'paper seen straight on: 1691x1015 px',
+        ms: 152,
+      }),
+      step({
+        id: 'pages',
+        label: 'Page size',
+        did: '1 page, page 1 is 1691 x 1015 px',
+        at_ms: 152,
+        ms: 1,
+      }),
+    ],
+  };
+  const second: StageTrace = {
+    stage: 'second_count',
+    did: '28 quantities measured twice, 1 conflict',
+    ms: 224,
+    output: '',
+    failure: null,
+    cost_usd: 0,
+    steps: [
+      step({
+        id: 'scale_check',
+        label: 'Scale: printed text vs scale bar',
+        did: '1 quantity compared: 1 agree, 0 conflicts',
+        found: { agree: 1, conflict: 0 },
+      }),
+      step({
+        id: 'room_areas',
+        label: 'Room areas: printed vs measured',
+        did: '27 quantities compared: 26 agree, 1 conflict',
+        found: { agree: 26, conflict: 1 },
+      }),
+    ],
+  };
+  const rows = (stage: string) =>
+    within(screen.getByRole('list', { name: `Steps of ${stage}` })).getAllByRole('listitem');
+
+  it("a step's did the stage's line already says is not said again; its own did stays", () => {
+    render(<TraceTimeline stages={[identify, normalise]} />);
+    for (const row of rows('Identify')) expect(row.querySelector('.tl-step-did')).toBeNull();
+    const [rectifier, pages] = rows('Normalise');
+    expect(must(rectifier).querySelector('.tl-step-did')?.textContent).toBe(
+      'paper seen straight on: 1691x1015 px',
+    );
+    expect(must(pages).querySelector('.tl-step-did')).toBeNull();
+    expect(must(pages).textContent).toContain('Page size');
+    expect(screen.getAllByText(/1 page, page 1 is 1691 x 1015 px/)).toHaveLength(1);
+  });
+
+  it('second-count checks: no made-up time or bar; a check that found a conflict is marked', () => {
+    render(<TraceTimeline stages={[second]} />);
+    const [scale, rooms] = rows('Second count');
+    for (const row of [must(scale), must(rooms)]) {
+      expect(row.querySelector('.tl-ms')?.textContent).toBe('');
+      expect(row.querySelector('.tl-track')).toBeNull();
+    }
+    expect(within(must(scale)).getByRole('img').getAttribute('aria-label')).toBe('done');
+    expect(within(must(rooms)).getByRole('img', { name: 'found a conflict' }).textContent).toBe(
+      '!',
+    );
+    expect(must(rooms).textContent).toContain('27 quantities compared: 26 agree, 1 conflict');
+  });
+});
+
+describe('FileMatrix', () => {
+  it('AD-110 every file is a row opening its trace, with route, state, time and what it found', () => {
+    render(
+      <FileMatrix
+        projectId={PID}
+        project={project}
+        traces={traces(project, (f) => ({ ...trace, file: f }))}
+      />,
+    );
+    const region = screen.getByRole('region', { name: 'Files by stage' });
+    const rows = within(within(region).getByRole('list', { name: 'Files' })).getAllByRole(
+      'listitem',
+    );
+    expect(rows).toHaveLength(project.files.length);
+    project.files.forEach((f, i) => {
+      const row = must(rows[i]);
+      expect(within(row).getByRole('link', { name: f.path }).getAttribute('href')).toBe(
+        `#/p/${PID}/f/${f.id}`,
+      );
+      // a file read with its group names that file (AD-119), else its route
+      expect(row.textContent).toContain(
+        f.source && f.source !== f.path
+          ? `read with ${f.source}`
+          : f.route
+            ? routeLabel(f.route)
+            : 'not routed',
+      );
+      if (f.stage) expect(row.textContent).toContain(formatMs(f.ms));
+    });
+    const pdf = must(rows[project.files.findIndex((f) => f.takeoff?.room !== undefined)]);
+    expect(pdf.textContent).toMatch(/\d+ rooms?/);
+    // the bar says each stage and its time in words
+    expect(
+      within(pdf)
+        .getByRole('img', { name: /^Unpack .*, Store / })
+        .getAttribute('aria-label'),
+    ).toContain(`Extract ${formatMs(trace.stages[6]?.ms ?? 0)}`);
+  });
+
+  it('AD-111 a failed stage is said on its row; a running file says the step it is on', () => {
+    const files = project.files.map((f, i) =>
+      i === 0
+        ? {
+            ...f,
+            state: 'running' as const,
+            stage: 'extract' as const,
+            step: 'Room reader (Gemini)',
+          }
+        : f,
+    );
+    const p = { ...project, state: 'running' as const, files };
+    render(
+      <FileMatrix
+        projectId={PID}
+        project={p}
+        traces={traces(p, (f) =>
+          f.id === files[1]?.id ? { ...traceVariants.failed, file: f } : { ...trace, file: f },
+        )}
+      />,
+    );
+    const rows = screen.getAllByRole('listitem').filter((li) => li.classList.contains('fm-row'));
+    expect(rows[0]?.textContent).toContain('Now: Room reader (Gemini)');
+    expect(rows[0]?.querySelector('.fm-seg.now')).not.toBeNull();
+    expect(rows[1]?.querySelector('.fm-fail')?.textContent).toBe(
+      '✕ Extract failed: no page could be read',
+    );
+  });
+
+  it('AD-115 a file that found nothing says why on its own full-width line', () => {
+    const files = [
+      {
+        ...must(project.files[0]),
+        state: 'set_aside' as const,
+        takeoff: {},
+        reason: 'a photo, not of a drawing',
+      },
+    ];
+    render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
+    expect(document.querySelector('.fm-why')?.textContent).toBe('a photo, not of a drawing.');
+    expect(document.querySelector('.fm-found')).toBeNull();
+  });
+
+  it('AD-119 a file read with its group names that file, not the route as if it were read itself', () => {
+    const files = [
+      {
+        ...must(project.files[0]),
+        path: 'plans/flat-a.png',
+        source: 'plans/flat-a.pdf',
+        route: 'vector' as const,
+      },
+    ];
+    render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
+    const meta = must(document.querySelector('.fm-meta'));
+    expect(meta.textContent).toContain('read with plans/flat-a.pdf');
+    expect(meta.textContent).not.toContain('drawn PDF route');
+  });
+
+  it('AD-124 a long path keeps its file name whole: the folder is its own part, the name the full path', () => {
+    const pdf = 'plans/site1029_bldg2117_floor9641.pdf';
+    const files = [
+      {
+        ...must(project.files[0]),
+        id: 'f2',
+        path: 'plans/site1029_bldg2117_floor9641.png',
+        source: pdf,
+      },
+    ];
+    render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
+    const link = screen.getByRole('link', { name: 'plans/site1029_bldg2117_floor9641.png' });
+    expect(link.getAttribute('title')).toBe('plans/site1029_bldg2117_floor9641.png');
+    // a browser names flex parts with a space between them ("plans/ site…"): the label keeps the plain path
+    expect(link.getAttribute('aria-label')).toBe('plans/site1029_bldg2117_floor9641.png');
+    expect(must(link.querySelector('.fm-folder')).textContent).toBe('plans/');
+    expect(must(link.querySelector('.fm-name')).textContent).toBe(
+      'site1029_bldg2117_floor9641.png',
+    );
+    const readWith = must(document.querySelector('.fm-with'));
+    expect(readWith.textContent).toBe(`read with ${pdf}`);
+    expect(readWith.getAttribute('title')).toBe(pdf);
+    expect(must(readWith.querySelector('.fm-name')).textContent).toBe(
+      'site1029_bldg2117_floor9641.pdf',
+    );
+  });
+
+  it('AD-112 bars compare files: the slowest is full width, the others their share', () => {
+    const files = project.files.slice(0, 2).map((f, i) => ({ ...f, ms: i === 0 ? 1000 : 250 }));
+    render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
+    const bars = [...document.querySelectorAll<HTMLElement>('.fm-segs')];
+    expect(bars.map((b) => b.style.width)).toEqual(['100%', '25%']);
+  });
+
+  it('AD-113 the last phase lists its index steps; no files draws nothing', () => {
+    const p = {
+      ...project,
+      phase: 'index' as const,
+      index_steps: [
+        step({ id: 'judge', label: 'Relevance judge', did: '2 files judged', ms: 900 }),
+      ],
+    };
+    render(<FileMatrix projectId={PID} project={p} traces={new Map()} />);
+    expect(screen.getByText('After the files, now: indexing for questions')).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Index steps' }).textContent).toContain(
+      '2 files judged',
+    );
+    cleanup();
+    const { container } = render(
+      <FileMatrix projectId={PID} project={{ ...project, files: [] }} traces={new Map()} />,
+    );
+    expect(container.textContent).toBe('');
+  });
+
+  it('AD-114 file paths and step words render as text', () => {
+    const evil = '<img src=x onerror=alert(1)>';
+    const files = [
+      { ...must(project.files[0]), path: evil, step: evil, state: 'running' as const },
+    ];
+    render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
+    expect(screen.getByText(evil)).toBeTruthy();
+    expect(document.querySelector('img[src="x"]')).toBeNull();
+  });
+});

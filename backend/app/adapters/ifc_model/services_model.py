@@ -61,8 +61,9 @@ from app.core.services.stored import (
 )
 
 # Bumped on any change that alters what is built: the store keys models by it, so a deploy
-# rebuilds the models an older builder wrote.
-BUILDER_VERSION = 1
+# rebuilds the models an older builder wrote. 2 (2026-11-15): a model of portless proxies only is
+# no services model (services_store.has_services); b1 entries may hold one, so none is read.
+BUILDER_VERSION = 2
 FLOW = {"SOURCE": "source", "SINK": "sink", "SOURCEANDSINK": "both"}
 SAME_ELEVATION_M = 0.05
 OVERLAP = 0.5  # of the services plan's box that the building's must cover

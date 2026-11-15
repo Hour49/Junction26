@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { useState } from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, type Screens } from './App';
 import type { Issue } from './api';
 import {
@@ -13,7 +13,7 @@ import {
   rulePackFi,
 } from './api/fixtures';
 import { issuesChanged } from './shell/issueCount';
-import { InfoProvider, useInfo } from './shell/info';
+import { INFO_RETRY_MS, InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
 import { stubResizeObserver } from './test/resizeObserver';
@@ -77,6 +77,11 @@ const stubs: Screens = {
   DocumentsScreen: DocumentsStub,
   FileTraceScreen: ({ fileId }) => <p>trace {fileId}</p>,
   EngineerPage: ({ drawingId }) => <p>engineer {drawingId}</p>,
+  SurveyorScreen: ({ drawingId, query }) => (
+    <p>
+      surveyor {drawingId} {query.get('q')}
+    </p>
+  ),
 };
 
 function go(hash: string) {
@@ -114,16 +119,27 @@ describe('shell', () => {
     expect(screen.getByText('trace f2')).toBeTruthy();
     go(`#/p/${P}/d/${D}/engineer`);
     expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
+    go(`#/p/${P}/d/${D}/surveyor?q=${encodeURIComponent('area:room|name=küche')}`);
+    expect(screen.getByText(`surveyor ${D} area:room|name=küche`)).toBeTruthy();
     await screen.findByText(OFFLINE);
   });
 
-  it("P8 an old …/surveyor link lands on the same drawing's engineer view, query kept, no Surveyor tab", async () => {
-    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door`;
+  it('R2-D3 the first Tab stop is "Skip to content", which moves focus to the screen', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
-    expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
-    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/engineer?q=door`);
-    expect(screen.queryByRole('link', { name: /surveyor/i })).toBeNull();
+    const skip = screen.getByRole('button', { name: 'Skip to content' });
+    const first = document.querySelector('a[href], button, input, [tabindex]:not([tabindex="-1"])');
+    expect(first).toBe(skip);
+    fireEvent.click(skip);
+    expect(document.activeElement).toBe(document.getElementById('main'));
+    await screen.findByText(OFFLINE);
+  });
+
+  it('R2-D5 the not-found link is a 44 px tap target', async () => {
+    window.location.hash = '#/nope';
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    expect(screen.getByRole('link', { name: 'Go to the start' }).className).toMatch(/\bmin-h-11\b/);
     await screen.findByText(OFFLINE);
   });
 
@@ -172,7 +188,7 @@ describe('shell', () => {
     expect(marked()).toEqual(tabs('Documents'));
     for (const hash of [
       `#/p/${P}/checks`,
-      `#/p/${P}/d/${D}/engineer`,
+      `#/p/${P}/d/${D}/surveyor`,
       `#/p/${P}/d/${D}/engineer`,
     ]) {
       go(hash);
@@ -185,7 +201,7 @@ describe('shell', () => {
   });
 
   it('SH-75 with a pack every tab href carries it (also an unlisted pack)', async () => {
-    window.location.hash = `#/p/${P}/d/${D}/engineer?q=door&pack=fi`;
+    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`;
     mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
@@ -376,7 +392,7 @@ describe('shell', () => {
   });
 
   it('SH-69 the country picker lists the rule packs and writes ?pack; no request, no pending', async () => {
-    window.location.hash = `#/p/${P}/d/${D}/engineer?q=door`;
+    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door`;
     const api = mockApi({
       'GET /api/info': withPacks,
       'GET /api/projects': projectList,
@@ -401,7 +417,7 @@ describe('shell', () => {
     // the rules page link shows only once a country is chosen
     expect(within(group()).queryByRole('link', { name: 'Building construction rules' })).toBeNull();
     fireEvent.click(fi);
-    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/engineer?q=door&pack=fi`);
+    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door&pack=fi`);
     go(window.location.hash);
     expect(button().getAttribute('aria-label')).toBe('Country rules: Finland');
     expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
@@ -418,7 +434,7 @@ describe('shell', () => {
         .getAttribute('aria-pressed'),
     ).toBe('true');
     fireEvent.click(within(group()).getByRole('button', { name: 'No checks' }));
-    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/engineer?q=door`);
+    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door`);
     go(window.location.hash);
     fireEvent.click(button());
     fireEvent.keyDown(group(), { key: 'Escape' });
@@ -474,7 +490,7 @@ describe('shell', () => {
       `#/p/${P}`,
       `#/p/${P}/f/f1`,
       `#/p/${P}/d/${D}/engineer`,
-      `#/p/${P}/d/${D}/engineer`,
+      `#/p/${P}/d/${D}/surveyor`,
       '#/nope',
     ]) {
       go(hash);
@@ -502,12 +518,35 @@ describe('shell', () => {
     });
     render(<App screens={stubs} />);
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain(
-      'The server did not answer: no drawing 0123456789abcdef (not-found)',
-    );
+    expect(alert.textContent).toContain('The server did not answer: no drawing 0123456789abcdef');
+    expect(alert.textContent).not.toContain('not-found'); // R2-C5
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await screen.findByText(OFFLINE);
     expect(api.calls.filter((c) => c.url === '/api/info')).toHaveLength(2);
+  });
+
+  it('SH-20b after an info error it asks again by itself, and the strip clears once the server answers', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let first = true;
+      const api = mockApi({
+        'GET /api/info': () => {
+          const answer = first ? reply(500, errorBody) : info;
+          first = false;
+          return answer;
+        },
+        'GET /api/projects': projectList,
+        ...noIssues,
+      });
+      render(<App screens={stubs} />);
+      await screen.findByRole('alert');
+      await act(() => vi.advanceTimersByTimeAsync(INFO_RETRY_MS));
+      await screen.findByText(OFFLINE);
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(api.calls.filter((c) => c.url === '/api/info')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('SH-21 useInfo gives the limits once loaded, null before', async () => {

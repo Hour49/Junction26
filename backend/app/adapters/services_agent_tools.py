@@ -18,8 +18,11 @@ caller with the model each drawing's chat edits (its source plus the accepted pa
 
 import json
 import logging
+import re
+from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from typing import Any, Literal, get_args
 
 from pydantic import Field, ValidationError
@@ -36,12 +39,12 @@ from app.adapters.pipeline_tools import (
 )
 from app.adapters.plan_tools import ONE_AT_A_TIME
 from app.adapters.service_tools import _models  # pyright: ignore[reportPrivateUsage]
-from app.adapters.services_store import ServicesStore
+from app.adapters.services_store import ServicesBuilds, ServicesStore
 from app.core.errors import DomainError
 from app.core.ingest.model import FileStatus
 from app.core.plan_edit.model import Flag as PlanFlag
 from app.core.plan_edit.model import Proposal, Selection
-from app.core.services.derive import graph
+from app.core.services.derive import discipline_of, graph
 from app.core.services.edit import (
     EditRefusedError,
     Position,
@@ -59,11 +62,20 @@ from app.core.services.stored import Element, Point2, Room, ServicesModel, Store
 log = logging.getLogger(__name__)
 
 LIMIT = 3900  # characters of one result (SV-23: under 4,000)
+# what a person reads in the chat when a project's IFC files have no stored services model
+NOT_READ = (
+    "none of this project's IFC files has been read into a services model yet, so its pipes, "
+    "ducts and cables cannot be followed"
+)
 MAX_ITEMS = 60
+MAX_GROUPS = 30  # of each by_ count before a result is cut to LIMIT
 NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
 )
 FROM_PICTURE = "a services model read from a picture is listed and counted, not edited"
+BUILDING = "being built from its file now, which takes a minute or a few; ask again then"
+# German exports name heating systems H_* (Heizung) or Heiz-/Wärme-: words facts_mep's table lacks
+HEATING_MARKS = ("heiz", "wärme", "waerme")
 WALL_COVER_M = 0.3  # a wall is on a room side when it covers this much of it (edit.py's rule)
 MOUNTED_M = 0.5  # a terminal this close to a room side is mounted on its wall
 
@@ -101,6 +113,7 @@ class ServicesToolStore:
     proposals: list[Proposal] = field(default_factory=list[Proposal])
     project_id: str | None = None  # for the picture's path (SV-28)
     accepted: Mapping[str, tuple[str, ...]] = field(default_factory=dict[str, tuple[str, ...]])
+    building: tuple[str, ...] = ()  # the models being built from their files now (SV-8)
     made_before: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
@@ -112,19 +125,25 @@ class ServicesToolStore:
         except DomainError as error:  # the project could not be read
             raise ToolError(f"no services model: {error}") from error
         if found is None:
-            have = ", ".join(self.models) or "none"
+            if not self.models:  # an upload's IFC files have no model until one is built (SV-8)
+                raise ToolError(f"{NOT_READ}{self.building_note()}")
+            have = ", ".join(self.models)
             raise ToolError(
                 f"drawing {drawing_id!r} has no services model; the project's services models: "
-                f"{have}"
+                f"{have}{self.building_note()}"
             )
         return found
+
+    def building_note(self) -> str:
+        """What is being built, for a tool that found no model: so "none" is not read as final."""
+        return f"; {BUILDING}: {', '.join(self.building)}" if self.building else ""
 
 
 class _ProjectModels(Mapping[str, ServicesModel]):
     """The stored services models of a project's IFC files by drawing id (the files #333's
     follow-up reads, `service_tools._models`), each with the chat's accepted services patches
     applied in proposal order. Read when first asked for, never built here (SV-8: models are built
-    at ingest or by `python -m app.cli services build`)."""
+    off the request by `ServicesBuilds` or by `python -m app.cli services build`)."""
 
     def __init__(
         self, pipeline: PipelineStore, cache: ServicesStore, accepted: list[Proposal]
@@ -183,9 +202,12 @@ def project_services(
     selections: Sequence[Selection],
     proposals: list[Proposal],
     chat: Mapping[str, Proposal],
+    builds: ServicesBuilds | None = None,
 ) -> ServicesToolStore:
     """The services tools' store for one chat turn: the project's stored models plus the chat's
-    accepted services proposals (`chat`), sharing `proposals` with the plan tools."""
+    accepted services proposals (`chat`), sharing `proposals` with the plan tools. `builds`:
+    a file of the project with no stored model starts its build (SV-8), and the tools say it is
+    being built; None: none is built here."""
     accepted = sorted(
         (p for p in chat.values() if p.state == "accepted" and p.services_change is not None),
         key=lambda p: int(p.proposal_id[1:]) if p.proposal_id[1:].isdigit() else 0,
@@ -200,7 +222,53 @@ def project_services(
         proposals,
         project_id=pipeline.project_id,
         accepted=by_drawing,
+        building=() if builds is None else _building(pipeline, builds),
     )
+
+
+def _building(pipeline: PipelineStore, builds: ServicesBuilds) -> tuple[str, ...]:
+    """The ids of the project's model files whose services model is being built, each missing
+    one's build started. A file read as a model listing no wall, door, window or room (a
+    services model) starts first, an architecture model (one listing some) last; with exactly
+    one architecture model in the project, every other build gets it for its rooms and walls
+    (#475 review S2, C1). Never raises: the tools then say what they find, as before."""
+    try:
+        files, _ = _models(pipeline.ingest.status(pipeline.project_id), None)
+        listed = {f.id: _listed(pipeline, f) for f in files}
+        plans = [f for f in files if listed[f.id]]
+        arc = _bytes_of(pipeline, plans[0].id) if len(plans) == 1 else None
+        first = sorted(files, key=lambda f: 0 if listed[f.id] == () else 2 if listed[f.id] else 1)
+        return tuple(
+            i
+            for f in first
+            if (i := model_id(f))
+            and f.sha256
+            and builds.building(
+                f.sha256,
+                PurePosixPath(f.path).name,
+                _bytes_of(pipeline, f.id),
+                None if listed[f.id] else arc,
+            )
+        )
+    except Exception:
+        log.warning("services models not started", exc_info=True)
+        return ()
+
+
+def _listed(pipeline: PipelineStore, file: FileStatus) -> tuple[object, ...] | None:
+    """The plan objects (walls, doors, windows, spaces) the file's model drawing lists; None: no
+    drawing read (set aside at upload, or not readable now)."""
+    if file.drawing_id is None:
+        return None
+    try:
+        return pipeline.ingest.drawing(file.drawing_id).model_objects
+    except DomainError:
+        return None
+
+
+def _bytes_of(pipeline: PipelineStore, file_id: str) -> Callable[[], bytes]:
+    """The file's bytes, read only when a build runs."""
+    return lambda: pipeline.ingest.upload_bytes(pipeline.project_id, file_id)
 
 
 @dataclass(frozen=True)
@@ -256,8 +324,15 @@ class _ListArgs(_Args):
     )
     storey: str | None = Field(default=None, max_length=60, description="storey id (L1...) or name")
     system: str | None = Field(default=None, max_length=120, description="a system's name")
-    room_id: str | None = Field(default=None, pattern=r"^SR\d{1,5}$", description="a room (SR...)")
-    kind: str | None = Field(default=None, max_length=60, description="e.g. space_heater")
+    room_id: str | None = Field(
+        default=None,
+        max_length=80,
+        description="its id (SR...) or name, e.g. 1-3 Küche",
+    )
+    kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
+    predefined: str | None = Field(
+        default=None, min_length=1, max_length=40, description="by_predefined key or untyped"
+    )
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
     )
@@ -298,25 +373,26 @@ class _ResizeArgs(_DrawingArgs):
     size: str = Field(min_length=1, max_length=30, description="a size its system has, e.g. DN20")
 
 
-_CHANGES = " Changes nothing: the person accepts or rejects the proposal."
+_CHANGES = " Changes nothing until accepted."
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
-        "A building's pipes, ducts and cables: storeys, systems, connectivity, and terminals "
-        "and equipment (ids E...). With room_id: that room's walls (SW...), what hangs on "
-        "them, and whether a pipe is in reach. Use before proposing.",
+        "Pipes, ducts, cables: storeys, systems, connectivity, terminals and equipment "
+        "(ids E...) with room. count, by_kind, by_predefined (IFC type), by_type, by_room: all "
+        "matches (items may be cut); state totals and breakdowns from them. room_id: its walls "
+        "(SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
     (
         "ask_services",
-        "One question about the network: what feeds an element, what it serves, what is cut "
-        "off when it closes, run lengths, open ends, ...",
+        "What feeds an element, what it serves, what is cut off when it closes, run lengths, "
+        "open ends, ...",
         _AskArgs,
     ),
     (
         "propose_move_terminal",
-        "Propose moving a terminal (radiator, air terminal) to another wall of its room "
-        "(wall_id, or the user's selection_id), its pipes rerouted along the walls." + _CHANGES,
+        "Propose moving a terminal (radiator, basin; not a frame) to another wall of its room "
+        "(wall_id or selection_id), pipes rerouted along walls." + _CHANGES,
         _MoveArgs,
     ),
     (
@@ -369,14 +445,18 @@ def run_services_tool(store: ServicesToolStore, name: str, arguments: str | dict
 def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     if args.drawing_id is None:  # the project's only model: a set-aside IFC is in no drawing list
         have = list(store.models)
+        if not have:
+            raise ToolError(f"{NOT_READ}{store.building_note()}")
         if len(have) != 1:
-            raise ToolError(f"name the drawing_id; the project's services models: "
-                            f"{', '.join(have) or 'none'}")  # fmt: skip
+            raise ToolError(
+                f"name the drawing_id; the project's services models: {', '.join(have)}"
+                f"{store.building_note()}"
+            )
         args = args.model_copy(update={"drawing_id": have[0]})
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
     storey = _storey_of(model, args.storey) if args.storey else None
-    room = _room(model, args.room_id) if args.room_id else None
+    room = _room_named(model, args.room_id) if args.room_id else None
     if args.selection_id and room is None:  # SV-22: the selection's room, else its storey
         selection = _selection(store, args.drawing_id, args.selection_id)
         resolved = resolve_selection(model, selection)
@@ -394,16 +474,9 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     }
     if room is not None:
         found |= _walls(model, room)
-    items = [
-        {
-            "id": e.id,
-            "kind": e.kind,
-            "label": e.label[:40],
-            "room": e.room,
-            "system": e.systems[0] if e.systems else None,
-            "page": pages.get(e.storey or ""),
-            "box": _box(model, e),
-        }
+    names = {r.id: r.name for r in model.rooms}
+    matched = [
+        e
         for e in model.elements
         if (e.group == "flow_terminal" or _equipment(e))
         and (storey is None or e.storey == storey.id)
@@ -411,11 +484,62 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         and (room is None or e.room == room.id)
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
+    if args.predefined is not None:  # R5: a WC, a basin and its frame are one IFC class
+        wanted = args.predefined.upper()
+        types = {
+            e.predefined or "untyped"
+            for e in model.elements
+            if (e.group == "flow_terminal" or _equipment(e))
+            and (args.kind is None or args.kind in (e.kind, e.group))
+        }
+        if wanted not in {t.upper() for t in types}:  # #559 S1: not a confident 0 for a typo
+            raise ToolError(
+                f"no {args.kind or 'terminal'} has the IFC type {args.predefined!r}; "
+                f"its types: {', '.join(sorted(types))}"
+            )
+        found["untyped"] = sum(e.predefined is None for e in matched)
+        matched = [e for e in matched if (e.predefined or "untyped").upper() == wanted]
+    items = [
+        {
+            "id": e.id,
+            "kind": e.kind,
+            "label": e.label[:40],
+            "room": e.room,
+            "room_name": names.get(e.room or ""),
+            "system": e.systems[0] if e.systems else None,
+            "page": pages.get(e.storey or ""),
+            "box": _box(model, e),
+        }
+        for e in matched
+    ]
+    found["count"] = len(items)
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
-    while len(json.dumps(found, ensure_ascii=False)) > LIMIT and found["items"]:
-        found["items"].pop()
-        found["more"] += 1
+    kinds, types = Counter(e.kind for e in matched), Counter(e.type for e in matched)
+    predefined = Counter(e.predefined or "untyped" for e in matched)
+    rooms = Counter(f"{e.room} {names.get(e.room, '')}".strip() if e.room else "no room"
+                    for e in matched)  # fmt: skip
+    top = MAX_GROUPS
+    while True:  # the groups count every match: items go first, then the smallest groups
+        found["by_kind"], found["by_type"] = _groups(kinds, top), _groups(types, top)
+        found["by_predefined"] = _groups(predefined, top)
+        found["by_room"] = _groups(rooms, top)
+        short = len(json.dumps(found, ensure_ascii=False)) <= LIMIT
+        if short or (top == 1 and not found["items"]):
+            break
+        if found["items"]:
+            found["items"].pop()
+            found["more"] += 1
+        else:
+            top //= 2
     return found
+
+
+def _groups(counts: Counter[str], top: int) -> dict[str, int]:
+    """The `top` largest groups, the rest summed under "and K more groups"."""
+    kept = dict(counts.most_common(top))
+    if len(counts) > top:
+        kept[f"and {len(counts) - top} more groups"] = sum(counts.values()) - sum(kept.values())
+    return kept
 
 
 def _ask(store: ServicesToolStore, args: Any) -> dict[str, Any]:
@@ -588,6 +712,28 @@ def _room(model: ServicesModel, room_id: str) -> Room:
     return found
 
 
+def _room_named(model: ServicesModel, named: str) -> Room:
+    """The room an id or a name gives, in any case and word order ("küche 1-3" is "1-3 Küche");
+    else the one room whose name holds all its words. Several, or none: said, with the rooms."""
+    by_id = next((r for r in model.rooms if r.id.casefold() == named.strip().casefold()), None)
+    if by_id is not None:
+        return by_id
+    asked = set(_room_words(named))
+    exact = [r for r in model.rooms if set(_room_words(r.name)) == asked]
+    found = exact or [r for r in model.rooms if asked and asked <= set(_room_words(r.name))]
+    if len(found) == 1:
+        return found[0]
+    if found:
+        listed = "; ".join(f"{r.id} {r.name!r}" for r in found[:10])
+        raise ToolError(f"{len(found)} rooms match {named!r}: {listed}; name one by its id")
+    some = "; ".join(f"{r.id} {r.name!r}" for r in model.rooms[:15]) or "none"
+    raise ToolError(f"no room named {named!r} in this services model; its rooms: {some}")
+
+
+def _room_words(text: str) -> list[str]:
+    return [w for w in re.findall(r"\w+", text.casefold()) if w != "the"]
+
+
 def _equipment(e: Element) -> bool:
     return (
         e.group in EQUIPMENT_GROUPS
@@ -601,17 +747,27 @@ def _systems(model: ServicesModel) -> list[dict[str, Any]]:
     for e in model.elements:
         for name in e.systems:
             by.setdefault(name, []).append(e)
+    types = {s.name: s.type for s in model.systems}
     return [
         {
             "name": name,
-            "discipline": max(
-                {e.discipline for e in members}, key=[e.discipline for e in members].count
-            ),
+            "discipline": _discipline(f"{name} {types.get(name, '')}", members),
             "elements": len(members),
             "length_m": round(sum(e.length_m or 0 for e in members), 2),
         }
         for name, members in sorted(by.items())
     ]
+
+
+def _discipline(words: str, members: list[Element]) -> str:
+    """A system's own name and type first; its members' (mostly pipes, read as plumbing) last."""
+    words = words.lower()
+    if words.startswith("h_") or any(mark in words for mark in HEATING_MARKS):
+        return "heating"
+    said = discipline_of(words)
+    if said != "other":
+        return said
+    return max({e.discipline for e in members}, key=[e.discipline for e in members].count)
 
 
 def _walls(model: ServicesModel, room: Room) -> dict[str, Any]:

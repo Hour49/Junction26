@@ -2,7 +2,7 @@
 bathroom A | 0.12 m wall with a door | bedroom B, a balcony C past the façade, a hall D apart."""
 
 import pytest
-from shapely.geometry import Polygon, box
+from shapely.geometry import MultiPolygon, Polygon, box
 
 from app.core.plan_edit.edit import EditRefusedError, place_room, remove_wall
 from app.core.plan_edit.model import Ring
@@ -72,6 +72,21 @@ def test_ac17_removing_the_wall_merges_both_rooms_and_the_wall() -> None:
     assert all(0 <= x <= 1 and 0 <= y <= 1 for x, y in merged.polygon)  # AC-20 page fractions
 
 
+def test_a_wall_strip_in_two_pieces_names_each_piece() -> None:
+    """DigitalHub W17 (2026-11-15): the strip was two pieces with one label, so the edit card
+    listed "Removed: Wall W17, 6.87 m, 0.2 m thick" twice. Each piece says which part it is,
+    as a room cut in two does."""
+    from app.core.plan_edit.edit import _items  # pyright: ignore[reportPrivateUsage]
+
+    strip = MultiPolygon([box(3, 0, 3.12, 1), box(3, 2, 3.12, 3.2)])
+    found = _items(page(), "W1", strip, "Wall W1, 2.2 m")
+    assert [(i.id, i.label) for i in found] == [
+        ("W1", "Wall W1, 2.2 m (part 1)"),
+        ("W1.2", "Wall W1, 2.2 m (part 2)"),
+    ]
+    assert [i.label for i in _items(page(), "W1", box(3, 0, 3.12, 3), "Wall W1")] == ["Wall W1"]
+
+
 def test_ac17_a_wall_by_its_id_is_the_same_edit() -> None:
     wall = next(w for w in walls_of(page()) if w.rooms == ("r1", "r2"))
     by_id = remove_wall(page(), "p2", wall_id=wall.id)
@@ -117,3 +132,34 @@ def test_ac18_a_region_outside_the_rooms_is_refused() -> None:
 def test_ac18_a_region_across_a_wall_is_refused() -> None:
     with pytest.raises(EditRefusedError, match="crosses a wall"):
         place_room(page(), "p1", frac(1.5, 0.5, 4.5, 2.5), "Storage")
+
+
+def test_qa_a_wall_thinner_than_the_gap_between_its_rooms_still_merges_them() -> None:
+    """QA 2026-11-15 (DigitalHub ground floor, 11 of 43 walls): the room outlines stop 0.035 m
+    short of the wall's faces, so the 0.08 m mass alone left the rooms apart and a listed wall
+    was refused as 'not on two sides of one inside wall'."""
+    a, b = box(0, 0, 3, 3), box(3.15, 0, 7, 3)
+    mass = box(-0.2, -0.2, 7.2, 3.2).difference(a.buffer(0.035, join_style="mitre"))
+    mass = mass.difference(b.buffer(0.035, join_style="mitre"))
+    assert isinstance(mass, Polygon)
+    thin = PlanPage(
+        drawing_id="d" * 16,
+        page=1,
+        width_m=10,
+        height_m=10,
+        rooms=(
+            PlanRoom("r1", "Office 1", "office", ring(a)),
+            PlanRoom("r2", "Office 2", "office", ring(b)),
+        ),
+        mass=(
+            (
+                ring(mass),
+                tuple(tuple((x / 10, y / 10) for x, y in h.coords[:-1]) for h in mass.interiors),
+            ),
+        ),
+        openings=(),
+    )
+    (wall,) = walls_of(thin)
+    assert wall.thickness_m == pytest.approx(0.08, abs=0.02)
+    (merged,) = remove_wall(thin, "p1", wall_id=wall.id).rooms
+    assert merged.area_after_m2 == pytest.approx(9 + 3.85 * 3 + 0.15 * 3, abs=0.05)

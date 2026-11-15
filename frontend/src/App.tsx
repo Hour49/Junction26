@@ -15,6 +15,7 @@ import { NotFound } from './shell/NotFound';
 import { useDocumentTitle } from './shell/title';
 import { packOf, parseRoute, routeHref, routePath, useHash } from './shell/route';
 import './shell/shell.css';
+import { SurveyorScreen } from './surveyor/SurveyorScreen';
 
 /** The screen of each route; tests pass stubs. */
 export interface Screens {
@@ -27,6 +28,7 @@ export interface Screens {
   DocumentsScreen: ComponentType<{ projectId: string; pack: string | null }>;
   FileTraceScreen: ComponentType<{ projectId: string; fileId: string }>;
   EngineerPage: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
+  SurveyorScreen: ComponentType<{ projectId: string; drawingId: string; query: URLSearchParams }>;
 }
 
 const builtScreens: Screens = {
@@ -38,6 +40,7 @@ const builtScreens: Screens = {
   DocumentsScreen,
   FileTraceScreen,
   EngineerPage,
+  SurveyorScreen,
 };
 
 export function App({ screens = builtScreens }: { screens?: Screens }) {
@@ -46,17 +49,14 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
   const key = routePath(route);
   useDocumentTitle(route);
   const main = useRef<HTMLElement>(null);
-  // An old `…/surveyor` link lands on the same drawing's engineer view (the query is kept).
-  const old = route.name === 'workspace' && routeHref(route) !== hash;
-  useEffect(() => {
-    if (old) window.location.replace(routeHref(route));
-  }, [old, route]);
   // Focus follows a route change (a new path), not a `?q=` change within a screen.
   const shown = useRef(key);
   useEffect(() => {
     if (shown.current === key) return;
     shown.current = key;
     main.current?.focus();
+    // A DOM write inside this effect, which is what the rule asks for; the compiler misreads it here.
+    // eslint-disable-next-line react-hooks/immutability
     document.documentElement.scrollTop = 0;
   }, [key]);
   const {
@@ -68,7 +68,10 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
     DocumentsScreen: Documents,
     FileTraceScreen: Trace,
   } = screens;
-  const Work = screens.EngineerPage;
+  const Work =
+    route.name === 'workspace' && route.role === 'surveyor'
+      ? screens.SurveyorScreen
+      : screens.EngineerPage;
   let body;
   switch (route.name) {
     case 'home':
@@ -111,6 +114,15 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
   const project = 'projectId' in route ? route.projectId : null;
   return (
     <InfoProvider>
+      <button
+        type="button"
+        className="skip-link"
+        onClick={() => {
+          main.current?.focus();
+        }}
+      >
+        Skip to content
+      </button>
       <Header route={route} />
       <InfoBar wide={isWide(route)} />
       <main id="main" tabIndex={-1} ref={main}>

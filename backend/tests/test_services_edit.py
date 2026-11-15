@@ -162,6 +162,26 @@ def test_sv15_remove_takes_the_radiator_and_its_branches_and_closes_the_tees() -
     assert _pipe_m(after) == pytest.approx(_pipe_m(model) - branches)  # the tees leave no gap
 
 
+def _without_port_places(model: ServicesModel) -> ServicesModel:
+    """The model as an IFC2X3 export gives it: connected ports, none with a position."""
+    doc = model.model_dump(mode="json", by_alias=True)
+    for e in doc["elements"]:
+        e["ports"] = [{**p, "at": None} for p in e["ports"]]
+    return ServicesModel.model_validate(doc)
+
+
+def test_edits_that_draw_runs_are_refused_when_the_ports_have_no_positions() -> None:
+    model = _without_port_places(two_rooms())
+    words = r"^The file gives no positions for the pipe and duct ends"
+    with pytest.raises(EditRefusedError, match=words):
+        move_terminal(model, "E2", "SW2", "centre")
+    with pytest.raises(EditRefusedError, match=words):
+        add_terminal(model, "E2", "SW2", "centre")
+    with pytest.raises(EditRefusedError, match=words):
+        remove_element(model, "E2")  # closing its tees draws a straight piece between two ends
+    assert resize(model, "E10", "DN20").patch  # a resize draws nothing
+
+
 # --- SV-16 add ----------------------------------------------------------------------------------
 
 
@@ -278,10 +298,10 @@ def test_sv19_no_pipe_of_this_circuit_in_or_next_to_the_room() -> None:
 
 
 def test_sv19_the_branch_does_not_end_at_a_junction() -> None:
-    model = _with(two_rooms(), E4={"kind": "valve", "group": "flow_controller"})
-    assert _refusal(model, "E2", "SW2", "centre") == (
-        "Its branch does not end at a junction: a valve or equipment is in the way."
-    )
+    valve = {"kind": "valve", "group": "flow_controller", "label": "Valve DN20"}
+    assert _refusal(_with(two_rooms(), E4=valve), "E2", "SW2", "centre") == (
+        "Its branch does not end at a junction: Valve DN20 (E4) is in the way."
+    )  # #566: the valve or equipment is named; an open end keeps "a valve or equipment"
 
 
 def test_sv19_supply_and_return_would_cross(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -313,3 +333,49 @@ def test_sv21_a_change_that_would_disconnect_is_refused(monkeypatch: pytest.Monk
     monkeypatch.setattr(edit, "_connect", lambda work, a, b: None)  # the new runs stay loose
     with pytest.raises(EditRefusedError, match=r"^The reroute would disconnect"):
         move_terminal(two_rooms(), "E2", "SW2", "centre")
+
+
+# --- #566: a washbasin (cold, hot, waste), its own water heater, its mounting frame ---------
+
+
+def _basin(model: ServicesModel) -> ServicesModel:
+    """E2 as a washbasin with a third (waste) port, and the tee its supply meets as the small
+    water heater under it (IfcUnitaryEquipment), as real plumbing models have them."""
+    e2 = next(e for e in model.elements if e.id == "E2")
+    waste = {"id": "E2.p3", "at": (2.5, 0.1, 0.1), "flow": "source"}
+    ports = [p.model_dump(mode="json") for p in e2.ports] + [waste]
+    heater = {"group": "energy_conversion_device", "kind": "unitary_equipment",
+              "label": "Water heater 3 kW"}  # fmt: skip
+    return _with(model, E2={"ports": ports, "label": "Washbasin 60x60"}, E4=heater)
+
+
+def test_566_a_terminal_with_three_connections_is_refused_naming_them_and_what_feeds_it() -> None:
+    model = _basin(two_rooms())
+    for edit_it in (
+        lambda: move_terminal(model, "E2", "SW2", "centre"),
+        lambda: add_terminal(model, "E2", "SW2", "centre"),
+    ):
+        with pytest.raises(EditRefusedError) as refused:
+            edit_it()
+        said = str(refused.value)
+        assert said.startswith("Washbasin 60x60 (E2) has 3 pipe connections;"), said
+        assert "Water heater 3 kW (E4) is in the way" in said
+
+
+def test_566_a_branch_ending_at_equipment_names_it() -> None:
+    model = _with(two_rooms(), E4={"group": "energy_conversion_device", "label": "Heater X"})
+    with pytest.raises(EditRefusedError, match=r"^Its branch does not end at a junction: Heater X "
+                       r"\(E4\) is in the way\.$"):  # fmt: skip
+        move_terminal(model, "E2", "SW2", "centre")
+
+
+def test_566_a_terminal_with_no_connections_is_said_to_be_likely_a_mounting_frame() -> None:
+    e2 = next(e for e in two_rooms().elements if e.id == "E2").model_dump(mode="json")
+    frame = {**e2, "ref": {"guid": "frame"}, "label": "Basin mounting frame", "ports": []}
+    frame.pop("id")
+    model = _with(two_rooms(), E50=frame)
+    words = r"^Basin mounting frame \(E50\) has no pipe connections \(likely a mounting"
+    with pytest.raises(EditRefusedError, match=words):
+        move_terminal(model, "E50", "SW2", "centre")
+    with pytest.raises(EditRefusedError, match=words):
+        add_terminal(model, "E50", "SW2", "centre")

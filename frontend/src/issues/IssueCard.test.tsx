@@ -19,7 +19,7 @@ import type { FileStatus, Highlight, Issue } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { flush, must } from '../ingest/testing';
-import { issueRoute } from '../conflicts/issueLinks';
+import { issueRoute } from '../surveyor/issueLinks';
 import { IssueCard } from './IssueCard';
 
 const scene = vi.hoisted(() => ({
@@ -166,7 +166,8 @@ describe('IssueCard', () => {
     });
     fireEvent.click(use);
     await flush();
-    expect(card().getByRole('alert').textContent).toContain(`(${error.code})`);
+    expect(card().getByRole('alert').textContent).toContain(error.detail);
+    expect(card().getByRole('alert').textContent).not.toContain(error.code); // R2-C5
     expect(use.disabled).toBe(false);
   });
 

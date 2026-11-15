@@ -19,6 +19,7 @@ from app.core.pipeline.model import Route
 FileState = Literal["queued", "running", "ready", "flagged", "text_only", "set_aside"]
 FINISHED: frozenset[FileState] = frozenset({"ready", "flagged", "text_only", "set_aside"})
 ProjectState = Literal["queued", "running", "done", "failed"]
+ProjectPhase = Literal["files", "index"]
 # What Gemini Carbon read of a raster drawing: its elements (CARBON_READER sent it to Carbon), or
 # another part a composite takes from the `carbon` source (rooms, plans, scale, a class)
 CarbonRead = Literal["elements", "part"]
@@ -378,6 +379,24 @@ class ProjectContext(Frozen):
     descriptions: tuple[str, ...]  # the other described files' subjects
 
 
+StepState = Literal["done", "failed", "skipped"]
+
+
+class StepTrace(Frozen):
+    """One thing that ran inside a stage (a reader, a check, a model call), or in the project's
+    last phase (decision 0017). Readers that run at the same time have overlapping
+    [at_ms, at_ms + ms) spans."""
+
+    id: str  # stable machine id of what ran: "detector", "carbon", "vector", ... (docs/API.md)
+    label: str  # plain words for the screen: "Symbol detector, 8 views"
+    did: str = ""  # one readable line of what it found, or the error when it failed
+    at_ms: float = Field(default=0, ge=0)  # when it began, ms after its stage (or phase) began
+    ms: float = Field(default=0, ge=0)  # how long it ran
+    cost_usd: float = Field(default=0.0, ge=0)
+    state: StepState = "done"
+    found: dict[str, int] = Field(default_factory=dict[str, int])  # counts by class
+
+
 class StageTrace(Frozen):
     stage: Stage
     did: str  # what the stage did, one readable line
@@ -385,6 +404,7 @@ class StageTrace(Frozen):
     output: str = ""  # what it produced, in short
     failure: str | None = None  # set when the stage failed; the file is then set aside
     cost_usd: float = Field(default=0.0, ge=0)  # model calls paid for (app/core/cost.py)
+    steps: tuple[StepTrace, ...] = ()  # what ran inside the stage, in start order
 
 
 Point = tuple[float, float]
@@ -482,6 +502,8 @@ class FileStatus(Frozen):
     evidence: FileEvidence | None = Field(default=None, exclude_if=lambda value: value is None)
     # An IFC file's 3D view, set by the API while MODEL_3D is on; left out of the JSON otherwise
     model_3d: Model3d | None = Field(default=None, exclude_if=lambda value: value is None)
+    # While running: the label of the step running now; left out of the JSON otherwise
+    step: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectStatus(Frozen):
@@ -499,6 +521,9 @@ class ProjectStatus(Frozen):
     error: str | None = None
     ms: float = Field(default=0, ge=0)
     cost_usd: float = Field(default=0.0, ge=0)
+    # While running: reading the files, or the last phase (judge, describe, evidence index)
+    phase: ProjectPhase | None = None
+    index_steps: tuple[StepTrace, ...] = ()  # what ran in the last phase, in start order
 
 
 class SecondCount(Frozen):
@@ -564,6 +589,7 @@ class Outcome(Frozen):
     stages: tuple[StageTrace, ...] = ()
     normalised: Normalised | None = None
     flags: tuple[str, ...] = ()  # how the page was read, for every answer (judge.reading_flags)
+    degraded: bool = False  # a model call failed while it was read: shown, never reused
 
     @model_validator(mode="before")
     @classmethod

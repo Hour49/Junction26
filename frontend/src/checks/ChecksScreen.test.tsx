@@ -203,7 +203,7 @@ describe('ChecksScreen', () => {
     await flush();
     const dialog = screen.getByRole('dialog', { name: fileOf(D2) });
     expect(
-      within(dialog).getByRole('button', { name: 'Mark 1: Door f, fails the rule' }),
+      within(dialog).getByRole('button', { name: 'Mark 1: Door f, 0.75 m, fails the rule' }),
     ).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     await flush();
@@ -264,7 +264,7 @@ describe('ChecksScreen', () => {
         (c) => c.url.startsWith(`/api/drawings/${D2}`) && !c.url.includes('/pages/'),
       ),
     ).toHaveLength(1);
-    const badge = screen.getByRole('button', { name: 'Mark 1: Door f, fails the rule' });
+    const badge = screen.getByRole('button', { name: 'Mark 1: Door f, 0.75 m, fails the rule' });
     expect(badge.className).toContain('vw-badge--fail');
     cleanup();
     const d2c = must(checks.drawings[1]);
@@ -309,6 +309,21 @@ describe('ChecksScreen', () => {
     await show('fi', { [CHECKS]: reply(404, { detail: 'no such project', code: 'not_found' }) });
     expect(screen.queryByText(/These rules are not available/)).toBeNull();
     expect(screen.getByRole('alert').textContent).toContain('Not found'); // ErrorView, no Retry on a 404
+  });
+
+  it('CK-19 a project that fails to load (backend down) offers Retry; Retry asks again and shows the checks', async () => {
+    let tries = 0;
+    const { api } = await show('fi', {
+      [`GET /api/projects/${PID}`]: () =>
+        ++tries === 1 ? reply(502, '<html>Bad gateway</html>') : project,
+    });
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(checkCalls(api)).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await flush();
+    expect(tries).toBe(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(checkCalls(api)).toHaveLength(1);
   });
 
   it('CK-15 a new pack asks again and shows only the new pack', async () => {

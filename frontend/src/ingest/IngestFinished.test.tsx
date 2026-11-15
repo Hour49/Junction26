@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { project, projectResolved, projectReviewResolved, resolving } from '../api/fixtures';
 import type { ProjectReview, ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
-import { ConflictsList } from '../conflicts/ConflictsScreen';
+import { ConflictsList } from '../surveyor/ConflictsScreen';
 import { CONFLICTS_ID, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
 import { must, variants } from './testing';
 
-vi.mock('../conflicts/ConflictsScreen', () => ({
+vi.mock('../surveyor/ConflictsScreen', () => ({
   ConflictsList: vi.fn(() => <section id="conflicts">the conflicts list</section>),
 }));
 vi.mock('../shell/issueCount', () => ({ useIssuesToAnswer: vi.fn(() => null) }));
@@ -119,13 +119,14 @@ describe('IngestFinished and DoneLine (ingest.md v3)', () => {
       cleanup();
       return text;
     };
-    expect(line(null, null)).toBe('5 drawings ready.');
-    expect(line({ total: 0, needsPerson: 0 }, 0)).toBe('5 drawings ready.');
+    // project.json's 2 raster drawings are on `raster: hello`: not read, so 4 of its 6 are ready (IN-116)
+    expect(line(null, null)).toBe('4 drawings ready.');
+    expect(line({ total: 0, needsPerson: 0 }, 0)).toBe('4 drawings ready.');
     expect(line({ total: 3, needsPerson: 1 }, 2)).toBe(
-      '5 drawings ready. Conflicts are below. 2 issues in Documents need you.',
+      '4 drawings ready. Conflicts are below. 2 issues in Documents need you.',
     );
     expect(line({ total: 3, needsPerson: 1 }, 1)).toBe(
-      '5 drawings ready. Conflicts are below. 1 issue in Documents needs you.',
+      '4 drawings ready. Conflicts are below. 1 issue in Documents needs you.',
     );
     vi.mocked(useIssuesToAnswer).mockReturnValue(2);
     render(<DoneLine projectId={ID} project={project} counts={null} />);

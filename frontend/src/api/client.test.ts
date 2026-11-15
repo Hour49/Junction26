@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { never, mockApi, reply } from '../test/mockApi';
 import {
   ApiError,
@@ -138,12 +138,35 @@ describe('API client', () => {
     expect(error.message).toBe(`${fx.error.detail} (not-found)`);
   });
 
-  it('SH-33 a non-JSON error body gives http-<status>', async () => {
-    mockApi({ 'GET /api/info': reply(502, '<html>Bad gateway</html>') });
+  it('SH-33 a non-JSON error body gives http-<status>; a gateway down or a lapsed access code says so', async () => {
+    const offline = 'The server is not answering right now. Try again in a minute.';
+    const bodies: [number, unknown][] = [
+      [502, '<html>Bad gateway</html>'],
+      [503, '<html>Service unavailable</html>'],
+      [504, ''],
+      [524, '<html>A timeout occurred</html>'], // Cloudflare: the backend took over 100 s (hung)
+      [530, '<html>Origin unreachable</html>'],
+      [502, { error: 'the app is offline' }], // the access gate's own reply (site/src/index.js)
+    ];
+    for (const [status, body] of bodies) {
+      mockApi({ 'GET /api/info': reply(status, body) });
+      await expect(getInfo()).rejects.toMatchObject({
+        status,
+        code: `http-${String(status)}`,
+        detail: offline,
+      });
+    }
+    mockApi({ 'GET /api/info': reply(401, { error: 'an access code is needed for the app' }) });
     await expect(getInfo()).rejects.toMatchObject({
-      status: 502,
-      code: 'http-502',
-      detail: 'the server answered 502',
+      status: 401,
+      code: 'http-401',
+      detail: 'The access code has expired. Reload the page to enter it again.',
+    });
+    mockApi({ 'GET /api/info': reply(418, '<html>teapot</html>') });
+    await expect(getInfo()).rejects.toMatchObject({
+      status: 418,
+      code: 'http-418',
+      detail: 'the server answered 418',
     });
   });
 
@@ -264,10 +287,10 @@ describe('API client', () => {
     });
   });
 
-  it('SH-35 every function passes the caller signal to fetch', async () => {
+  it('SH-35 the caller signal aborts every function', async () => {
     const edit = fx.reviewRequests[0];
     if (!edit) throw new Error('review_requests.json is empty');
-    const api = mockApi({
+    const routes = {
       'GET /api/info': fx.info,
       'POST /api/projects/sample': fx.projectStarted,
       'GET /api/projects': fx.projectList,
@@ -282,10 +305,14 @@ describe('API client', () => {
       [`GET /api/drawings/${tid}/takeoff`]: fx.takeoff,
       [reviewPath]: fx.takeoff,
       [signoffPath]: fx.takeoff,
-    });
-    const signal = new AbortController().signal;
-    const opts = { signal };
-    await Promise.all([
+      [`GET /api/drawings/${did}/checks`]: fx.drawingChecks,
+      [`GET /api/projects/${pid}/checks`]: fx.projectChecks,
+      [`GET /api/projects/${pid}/issues`]: fx.projectIssues,
+    };
+    const api = mockApi(Object.fromEntries(Object.keys(routes).map((k) => [k, never()])));
+    const abort = new AbortController();
+    const opts = { signal: abort.signal };
+    const sent = Promise.allSettled([
       getInfo(opts),
       startSample(opts),
       listProjects(opts),
@@ -300,10 +327,36 @@ describe('API client', () => {
       getTakeoff(tid, opts),
       postReview(tid, edit, opts),
       postSignoff(tid, fx.signoffRequest, opts),
+      getDrawingChecks(did, { ...opts, pack: 'fi' }),
+      getProjectChecks(pid, { ...opts, pack: 'fi' }),
+      getIssues(pid, opts),
     ]);
-    const signals = api.fetch.mock.calls.map(([, init]) => init?.signal);
-    expect(signals).toHaveLength(14);
-    expect(signals.every((s) => s === signal)).toBe(true);
+    abort.abort();
+    const results = await sent;
+    expect(api.fetch.mock.calls).toHaveLength(17);
+    expect(results.map((r) => r.status === 'rejected' && (r.reason as Error).name)).toEqual(
+      Array(17).fill('AbortError'),
+    );
+  });
+
+  it('SH-89 a GET with no answer in 60 s (a frozen backend) rejects as a timeout; a POST is not timed', async () => {
+    vi.useFakeTimers();
+    try {
+      mockApi({ 'GET /api/info': never(), [`POST /api/projects/${pid}/ask`]: never() });
+      let posted = false;
+      const got = getInfo().catch((e: unknown) => e);
+      void askProject(pid, 'rooms?').finally(() => (posted = true));
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(await got).toMatchObject({
+        status: 0,
+        code: 'timeout',
+        detail: 'The server is not answering right now. Try again in a minute.',
+      });
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(posted).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('upload: XHR (for its progress) reports bytes sent and resolves the 202; the caller signal aborts it', async () => {
@@ -371,17 +424,14 @@ describe('API client', () => {
   });
 
   it('SH-65 the checks and issues functions send their rows and resolve with the fixtures', async () => {
-    const signal = new AbortController().signal;
     const api = mockApi({
       [`GET /api/drawings/${did}/checks`]: fx.drawingChecks,
       [`GET /api/projects/${pid}/checks`]: fx.projectChecks,
       [`GET /api/projects/${pid}/issues`]: fx.projectIssues,
     });
-    expect(await getDrawingChecks(did, { pack: 'fi', project: pid, signal })).toEqual(
-      fx.drawingChecks,
-    );
-    expect(await getProjectChecks(pid, { pack: 'fi', signal })).toEqual(fx.projectChecks);
-    expect(await getIssues(pid, { signal })).toEqual(fx.projectIssues);
+    expect(await getDrawingChecks(did, { pack: 'fi', project: pid })).toEqual(fx.drawingChecks);
+    expect(await getProjectChecks(pid, { pack: 'fi' })).toEqual(fx.projectChecks);
+    expect(await getIssues(pid)).toEqual(fx.projectIssues);
     expect(await getIssues(pid, { pack: 'fi' })).toEqual(fx.projectIssues);
     expect(await getDrawingChecks(did, { pack: 'a b' })).toEqual(fx.drawingChecks);
     expect(api.calls.map((c) => c.url)).toEqual([
@@ -391,8 +441,6 @@ describe('API client', () => {
       `/api/projects/${pid}/issues?pack=fi`,
       `/api/drawings/${did}/checks?pack=a%20b`,
     ]);
-    const signals = api.fetch.mock.calls.slice(0, 3).map(([, init]) => init?.signal);
-    expect(signals.every((s) => s === signal)).toBe(true);
   });
 
   it('SH-65 issues CSV and zip URLs, with and without a pack', () => {

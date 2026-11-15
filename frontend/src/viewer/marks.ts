@@ -25,8 +25,8 @@ export function safeColour(colour: string | undefined): string {
 /** A mark's state in words, for the legend and the badge label (never colour alone). */
 export const STATE_WORDS: Record<MarkView['state'], string> = {
   counted: 'counted',
-  added: 'added',
-  rejected: 'rejected',
+  added: 'added by a surveyor',
+  rejected: 'rejected by a surveyor',
   excluded: 'left out by the rule',
 };
 

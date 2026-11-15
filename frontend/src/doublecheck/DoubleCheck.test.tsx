@@ -162,7 +162,7 @@ describe('DoubleCheck', () => {
     expect(within(panel()).getByText('Sign off 2 doors as')).toBeTruthy();
     expect(within(panel()).getByLabelText<HTMLInputElement>('Signing as').value).toBe('Ana');
     click('Confirm');
-    await within(panel()).findByText('Checked by a person');
+    await within(panel()).findByText('Checked by Ana, 2026-11-14 13:40 UTC');
     const [sign, ask] = posts(api);
     expect(sign?.url).toBe(`/api/drawings/${did}/signoff?project=${pid}`);
     expect(sign?.body).toEqual({ quantity: 'door', by: 'Ana', settle: true });
@@ -268,8 +268,9 @@ describe('DoubleCheck', () => {
   it('DC-10 a signed answer shows Checked by a person and no request', () => {
     show(reasked);
     expect(within(panel()).getByText('Checked by a person')).toBeTruthy();
-    expect(within(panel()).queryByText(/Checked by Ana/)).toBeNull(); // no name, no time
-    expect(within(panel()).queryByRole('link')).toBeNull(); // no surveyor workspace any more
+    expect(within(panel()).getByText('Checked by Ana, 2026-11-14 13:40 UTC')).toBeTruthy();
+    const link = within(panel()).getByRole('link', { name: 'Open in the surveyor workspace' });
+    expect(link.getAttribute('href')).toBe(`#/p/${pid}/d/${did}/surveyor?q=door`);
     expect(within(panel()).queryByRole('button', { name: 'Looks right' })).toBeNull();
     expect(within(panel()).queryByRole('button', { name: 'Fix it' })).toBeNull();
   });
@@ -283,7 +284,9 @@ describe('DoubleCheck', () => {
     click('Looks right');
     click('Confirm');
     const alert = await within(panel()).findByRole('alert');
-    expect(alert.textContent).toBe('This value cannot be changed.');
+    expect(alert.textContent).toBe(
+      'Someone signed this off already. Undo the sign-off in the surveyor workspace to change it.',
+    );
     await waitFor(() => {
       expect(onChanged).toHaveBeenCalledWith(reasked);
     });
@@ -340,7 +343,7 @@ describe('DoubleCheck', () => {
     expect(tsx).not.toMatch(/#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(|font-family|font-\[/i);
   });
 
-  it('DC-16 Cancel after an edit keeps it; no surveyor words or link', async () => {
+  it('DC-16 Cancel after an edit keeps it and says so, with the workspace link', async () => {
     show(asking, { [PATH.review]: oneDoor });
     click('Fix it');
     click('Reject mark 2');
@@ -348,8 +351,14 @@ describe('DoubleCheck', () => {
       expect((button('Cancel') as HTMLButtonElement).disabled).toBe(false);
     });
     click('Cancel');
-    expect(within(panel()).queryByText(/surveyor/i)).toBeNull();
-    expect(within(panel()).queryByRole('link')).toBeNull();
+    expect(
+      within(panel()).getByText(
+        'Your edits are kept; Reset in the surveyor workspace undoes them.',
+      ),
+    ).toBeTruthy();
+    expect(
+      within(panel()).getByRole('link', { name: 'Open in the surveyor workspace' }),
+    ).toBeTruthy();
     expect(button('Looks right')).toBeTruthy();
   });
 

@@ -632,7 +632,10 @@ class _Run:
                                status="error" if bad else "ok", ms=ms))  # fmt: skip
         summary = _summary(name, found, self.names)
         self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": summary})
-        for_model = text if isinstance(found, str) else _for_model(found)
+        if isinstance(found, str):
+            for_model = text
+        else:
+            for_model = _ask_for_model(found) if name == ASK else _for_model(found)
         if name == ASK and isinstance(found, dict) and self.ask is not None:
             given = json.loads(out)
             issues = self.ask.load()
@@ -646,7 +649,7 @@ class _Run:
                      "answer": issue["answer"]["text"]}
                     for issue in said
                 ]  # fmt: skip
-                for_model = _for_model({**found, "people_answered": people})
+                for_model = _ask_for_model({**found, "people_answered": people})
         self._reply(call, for_model)
 
     def _show(self, call: Json, arguments: str) -> None:
@@ -963,10 +966,14 @@ class _Run:
         """The sentence for a number in `text` that rests only on unrated places (an
         UNRATED_TOOLS result of this turn gives it; no rated answer's value, earlier ones
         included, nor the user's message does), worded for the tools that gave it; None: no
-        such number, or the text says so already. A label's number ("LOBBY 104") is a name."""
+        such number, or the text says so already. A label's number ("LOBBY 104") is a name, and
+        so is a drawing's ("Drawn plan 5": qa-a, "which drawing has no scale"), or its file's
+        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516)."""
         if SAID_UNRATED.search(text):
             return None
-        for label in _labels([_json(found) for _, found in self.unrated]):
+        labels = _labels([_json(found) for _, found in self.unrated])
+        names = [*labels, *self.names.values(), *(file for _, file in self._files())]
+        for label in sorted(names, key=len, reverse=True):  # "Drawn plan 10" before "... 1"
             text = re.sub(re.escape(label), " ", text, flags=re.I)
         rated = numbers(self.rated)
         tools = {
@@ -1080,6 +1087,29 @@ def _asked(found: Json, evs: set[str], given: Json) -> Json:
         disputed += _evs(check.get("disputed"))
     ordered = sorted(evs, key=lambda ev: int(ev.removeprefix("ev_")))
     return {"answer": given, "evs": ordered, "marks": marks, "disputed": disputed}
+
+
+def _answered(found: Any) -> Any:
+    """An ask_drawings result as the model reads it: `answered` first, each answering drawing's
+    file, value, unit and first mark. The window cut keeps only the first drawings of `parts`
+    while the card shows them all (#466: "The drawing answers this below [1]." over 4 drawings);
+    this short list survives the cut, as `parts` is always the longer list."""
+    if not isinstance(found, dict):
+        return found
+    given: Json = found  # pyright: ignore[reportUnknownVariableType]
+    answered: list[Json] = []
+    parts: list[Any] = given.get("parts") or []
+    for part in parts:
+        each: Json = part if isinstance(part, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+        answer: Json = each.get("answer") or {}
+        if answer.get("answer") is None:
+            continue
+        quantity: Json = answer.get("quantity") or {}
+        evs = _evs(answer.get("marks") or quantity.get("marks"))
+        answered.append({"drawing": each.get("name") or each.get("drawing_id"),
+                         "answer": answer["answer"], "unit": answer.get("unit"),
+                         "ev": evs[0] if evs else None})  # fmt: skip
+    return {"answered": answered, **given} if answered else given
 
 
 def _evs(items: Any) -> list[str]:
@@ -1270,18 +1300,34 @@ def _too_long(arguments: str) -> str | None:
     return text if isinstance(text, str) and len(text) > TEXT_CHARS else None
 
 
-def _for_model(found: Any) -> str:
+def _ask_for_model(found: Any) -> str:
+    """An ask_drawings result as the model reads it: `_answered`'s list first and whole, then the
+    rest cut into the room left. Cut together, `answered` was the longest list once `parts` was
+    down to one drawing, and was halved too (review-483: 13 drawings of ~8 KB, the model saw 1).
+    The rest cut as text (not JSON) is left out: `answered` alone is then what the model reads."""
+    seen = _answered(found)
+    if not isinstance(seen, dict) or "answered" not in seen:
+        return _for_model(seen)
+    given: Json = seen  # pyright: ignore[reportUnknownVariableType]
+    head = _compact(_slim({"answered": given["answered"]}))
+    rest = _for_model({k: v for k, v in given.items() if k != "answered"}, TOOL_CHARS - len(head))
+    if not rest.endswith("}") or rest.endswith('{"truncated": true}') or rest == "{}":
+        return head
+    return f"{head[:-1]},{rest[1:]}"
+
+
+def _for_model(found: Any, limit: int = TOOL_CHARS) -> str:
     """A tool result as the model reads it: compact JSON without geometry or empty fields. Until
-    it fits TOOL_CHARS the longest list is halved, keeping its first items as they are; how many
+    it fits `limit` the longest list is halved, keeping its first items as they are; how many
     were cut goes beside it as `<key>_more` (a cut top-level list becomes {items, items_more}).
     Still too long: cut as text with a note."""
     slim = _slim(found)
     keeps: dict[tuple[Any, ...], int] = {}
     text = _compact(_cut(slim, keeps))
-    while len(text) > TOOL_CHARS:
+    while len(text) > limit:
         longest = _longest(slim, keeps)
         if longest is None:
-            return text[:TOOL_CHARS] + '\n{"truncated": true}'
+            return text[:limit] + '\n{"truncated": true}'
         path, kept = longest
         keeps[path] = kept // 2
         text = _compact(_cut(slim, keeps))

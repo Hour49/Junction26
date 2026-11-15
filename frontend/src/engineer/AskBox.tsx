@@ -96,7 +96,7 @@ export function AskBox(props: {
   /** The chat's paperclip (chat.md CH-17): shown only when passed; `attaching` disables it. */
   onAttach?: (photo: File) => void;
   attaching?: boolean;
-  /** A shorter `file` for the placeholder on phones (CH-22), where the paperclip takes its room. */
+  /** The whole placeholder on phones (CH-22), where the paperclip and pen leave ~170px: "Ask about the drawin" was cut. */
   short?: string;
   /** The chat's pen (ui-bugs 1): shown only when passed; while on, typing and sending wait. */
   pen?: Pen;
@@ -135,7 +135,7 @@ export function AskBox(props: {
         <input
           id="en-question"
           value={text}
-          placeholder={drawing ? PEN_ON : `Ask about ${phone && short ? short : file}`}
+          placeholder={drawing ? PEN_ON : phone && short ? short : `Ask about ${file}`}
           disabled={drawing}
           autoComplete="off"
           aria-describedby={tooLong ? 'en-too-long' : undefined}

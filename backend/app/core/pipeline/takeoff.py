@@ -26,6 +26,8 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 
 from app.core.drawing.model import (
     COUNT_KEYS,
+    CUT_SOLID_NOTE,
+    DOOR_SHAPES_NOTE,
     ELEMENT_CLASSES,
     PLAN,
     Attr,
@@ -64,6 +66,7 @@ from app.core.pipeline.rules import (
     MODEL_COUNT,
     MODEL_MEASURED,
     MODEL_QUANTITY,
+    MODEL_SPACE_TYPES,
     MODEL_SPACES,
     ROOM_AREA,
     ROOM_NAMES,
@@ -75,7 +78,21 @@ from app.core.pipeline.rules import (
     combine_totals,
 )
 from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
+from app.core.pipeline.user_scale import is_user_scale
 
+# What a wall count rests on when the sheet draws walls, columns and other parts in one style (an
+# IFC model rendered to PDF): the listed cut solids, of which some are not walls, so the count can
+# only be too high. Said in plain words for a judge (review-455 S2), one or many (S4).
+_CUT_SOLID_WALLS = (
+    "{n} solid {shapes} counted as {walls}: this drawing shows walls, columns and other cut parts "
+    "the same way, so there may be fewer walls"
+)
+# The same for doors grouped from drawn frame and swing shapes (4 of 9 golden IFC sheets: one
+# short): a missed door makes the drawing hold more doors than read, never fewer (review-455 M1)
+_DOORS_FROM_SHAPES = (
+    "{n} {doors} read from drawn shapes: a door drawn edge-on or over another can be missed, so "
+    "there may be more doors"
+)
 # An element sum an estimated scale makes an estimate (a volume is the model's, not the sheet's).
 SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
 # Two sums of the same rooms: equal up to float rounding. A room set's areas differ by whole rooms,
@@ -144,8 +161,8 @@ def take_off(drawing: Drawing, counted: Mapping[str, Counted]) -> dict[str, Quan
     found: dict[str, Quantity] = {}
     if drawing.pages:
         _add_sheet(found, drawing, counted)
-    if drawing.model_objects is not None:
-        _add_model(found, drawing)
+    if drawing.model_objects is not None and (drawing.pages or drawing.model_objects):
+        _add_model(found, drawing)  # not a model file of none of the plan's: a services model
     _mark_partial(found, drawing)
     return _read_only(_with_conflicts(found, drawing), drawing.read)
 
@@ -183,8 +200,12 @@ def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
 
 
 def _whole_sheet(key: str, rule: str) -> bool:
-    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name)."""
-    return rule in PARTIAL_RULES and "label=" not in key and "name=" not in key
+    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name), or the
+    count of all its rooms: a reader's rooms can miss rooms for both (QA round 3 R3-G2/G3)."""
+    if "label=" in key or "name=" in key:
+        return False
+    count = rule == EACH_ONCE.id and key.split("|")[0] == "room" and "apartment=" not in key
+    return rule in PARTIAL_RULES or count  # count: "room", "room|storey=..."
 
 
 def _room_columns(table: Table) -> tuple[int, int | None] | None:
@@ -236,10 +257,15 @@ def _add_sheet(
     storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
     scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
     sheet = _without_seen_through(counted, drawing)
-    _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
+    cut = frozenset(
+        cls
+        for cls, said in (("wall", CUT_SOLID_NOTE), ("door", DOOR_SHAPES_NOTE))
+        if any(said in note for note in drawing.notes)
+    )
+    _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale, cut=cut)
     _add_apartments(found, drawing, scale)
     _add_room_sides(found, drawing, scale)
-    _add_room_counts(found, drawing)
+    _add_room_counts(found, drawing, cut)
     plans = {plan.id: plan.storey for plan in drawing.plans}
     elements_by: dict[str, list[Element]] = defaultdict(list)
     rooms_by: dict[str, list[Room]] = defaultdict(list)
@@ -253,7 +279,9 @@ def _add_sheet(
         elements, rooms = elements_by[storey], rooms_by[storey]
         on_storey = apply_rules(_listed(elements, rooms))
         sums = drawing.model_objects is None
-        _add_scope(found, on_storey, elements, rooms, storey=storey, scale=scale, sums=sums)
+        _add_scope(
+            found, on_storey, elements, rooms, storey=storey, scale=scale, sums=sums, cut=cut
+        )
 
 
 def _without_seen_through(counted: Mapping[str, Counted], drawing: Drawing) -> dict[str, Counted]:
@@ -326,6 +354,11 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
             for model in (True, False) if not drawing.pages else (True,):
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
+        if not drawing.pages:  # the model file itself: its spaces of each room type (qa-a)
+            for kind, same in sorted(typed_spaces(items).items()):
+                for model in (True, False):
+                    key = quantity_key("count", f"room:{kind}", storey=storey, model=model)
+                    _put(found, key, "count", len(same), marks(same), MODEL_SPACE_TYPES)
     if not drawing.pages:  # the model file itself: its spaces' areas over every storey too
         spaces = [item for item in objects if item.class_ == SPACE]
         for model in (True, False):
@@ -344,6 +377,30 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
         _add_model_spaces(found, storey, spaces, rooms, marks, scale)
 
 
+MEP_TWIN = re.compile(r"\bMEP Space\b", re.IGNORECASE)  # a room's services copy (duplex-mep)
+
+
+def typed_spaces(items: Iterable[ModelObject]) -> dict[str, list[ModelObject]]:
+    """The spaces of `items` by their `room_type` (the IFC reader's), a space listed again with
+    the same number, name and storey once (review-527: duplex-m lists every room twice), and a
+    room's services copy ("Bedroom 1 MEP Space": duplex-mep) not at all."""
+    typed: dict[str, list[ModelObject]] = defaultdict(list)
+    seen: set[tuple[str, str | None, str | None]] = set()
+    for item in items:
+        kind = item.attrs.get("room_type")
+        if item.class_ != SPACE or not isinstance(kind, str):
+            continue
+        if any(MEP_TWIN.search(name) for name in (item.name, item.long_name) if name):
+            continue
+        if item.name:
+            twin = (item.name, item.long_name, item.storey)
+            if twin in seen:
+                continue
+            seen.add(twin)
+        typed[kind].append(item)
+    return typed
+
+
 def _add_model_spaces(
     found: dict[str, Quantity],
     storey: str | None,
@@ -355,8 +412,8 @@ def _add_model_spaces(
 ) -> None:
     """A storey's space areas: the total and each space by name; with `total_key`, only the
     total of `spaces` under that key (the model file's whole-model totals). A space's area is
-    the one the model states, else that of the room the sheet draws it as (measured at the
-    sheet's scale); a space with neither leaves the total unknown."""
+    the footprint of its shape in the model, else that of the room the sheet draws it as
+    (measured at the sheet's scale); a space with neither leaves the total unknown."""
 
     def put(key: str, chosen: Sequence[ModelObject]) -> None:
         found_areas = [_space_area(space, rooms) for space in chosen]
@@ -380,8 +437,9 @@ def _add_model_spaces(
 
 
 def _space_area(space: ModelObject, rooms: Mapping[str, Room]) -> tuple[float | None, Room | None]:
-    """A model space's net floor area: the one the model states, else that of the room the sheet
-    draws it as (returned too, for what its measurement rests on); None when it has neither."""
+    """A model space's floor area: the footprint of its shape in the model (objects.py), else that
+    of the room the sheet draws it as (returned too, for what its measurement rests on); None
+    when it has neither."""
     if (stated := space.quantities.get("area_m2")) is not None:
         return stated, None
     room = rooms.get(space.element) if space.element is not None else None
@@ -773,6 +831,13 @@ def scale_estimate(scale: Scale) -> str | None:
     """What an area or length on a sheet with this scale rests on, in words a user reads, when
     that is an estimate."""
     match scale.status:
+        case "estimated" if is_user_scale(scale):  # USER_SCALE: the user's, named as theirs
+            band = (
+                f", which may be off by about ±{_percent(scale.uncertainty)}"
+                if scale.uncertainty
+                else ""
+            )
+            return f"measured using {scale.source}{band}"
         case "estimated":
             how = f" ({scale.source})" if scale.source else ""
             band = ""
@@ -829,7 +894,9 @@ def _mark(item: Element | Room) -> Mark:
     return Mark(page=item.page, box=item.box)
 
 
-def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
+def _add_room_counts(
+    found: dict[str, Quantity], drawing: Drawing, cut: frozenset[str] = frozenset()
+) -> None:
     """What is drawn in each room one name selects (`room_names`; a name two rooms share selects
     neither), counted by the sheet's rules ("How many doors does Bagno 1.01 have?" counted the
     whole sheet; Tudor's chat QA, 2026-11-14). A fixture is the room's when its box centre lies
@@ -837,7 +904,8 @@ def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
     (floor9178: all 19, about half a wall from the outline), so it is the room's when its centre
     lies within its box's short side (the wall's depth) of the outline: a door between two rooms
     is both rooms'. A room with no outline, only its box, gets none: a box is not the room's
-    shape (review/ask.py says so)."""
+    shape (review/ask.py says so). `cut`: as `_add_scope`'s, so a room's door count from grouped
+    shapes is an estimate as the sheet's is (review-455 S3)."""
     named: dict[str, list[Room]] = defaultdict(list)
     for room in drawing.rooms:
         for name in room_names(room):
@@ -851,8 +919,16 @@ def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
             if not key.startswith("room"):
                 count = quantity_key("count", key, name=name)
                 marks = chosen.marks
+                estimate = _shape_estimate(key, len(marks)) if key in cut else None
                 _put(
-                    found, count, "count", len(marks), marks, chosen.rule, excluded=chosen.excluded
+                    found,
+                    count,
+                    "count",
+                    len(marks),
+                    marks,
+                    chosen.rule,
+                    estimate,
+                    excluded=chosen.excluded,
                 )
 
 
@@ -1032,6 +1108,18 @@ def room_names(room: Room) -> tuple[str, ...]:
     return tuple(sorted({normalised(value) for value in found}))
 
 
+def _shape_estimate(cls: str, n: int) -> str | None:
+    one = n == 1
+    match cls:
+        case "wall":
+            shapes, walls = ("shape is", "a wall") if one else ("shapes are", "walls")
+            return _CUT_SOLID_WALLS.format(n=n, shapes=shapes, walls=walls)
+        case "door":
+            return _DOORS_FROM_SHAPES.format(n=n, doors="door is" if one else "doors are")
+        case _:
+            return None
+
+
 def _add_scope(
     found: dict[str, Quantity],
     counted: Mapping[str, Counted],
@@ -1040,9 +1128,12 @@ def _add_scope(
     storey: str | None,
     scale: str | None,
     sums: bool = True,
+    cut: frozenset[str] = frozenset(),
 ) -> None:
     """Every quantity of one set of items: the whole sheet (`storey` None) or one storey.
-    `scale`: what the sheet's scale makes an estimate of (scale_estimate). `sums` False: the
+    `scale`: what the sheet's scale makes an estimate of (scale_estimate). `cut`: the element
+    classes whose count rests on shapes a reader grouped (CUT_SOLID_NOTE walls, DOOR_SHAPES_NOTE
+    doors): their count is an estimate. `sums` False: the
     element sums, the rooms' area total and each named room's area are left to a building
     model (`_add_model`)."""
     for key, chosen in counted.items():
@@ -1053,6 +1144,7 @@ def _add_scope(
             len(chosen.marks),
             chosen.marks,
             chosen.rule,
+            _shape_estimate(key, len(chosen.marks)) if key in cut else None,
             excluded=chosen.excluded,
         )
     _put(

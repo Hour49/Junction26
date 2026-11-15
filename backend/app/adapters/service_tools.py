@@ -25,13 +25,14 @@ from functools import partial
 from pathlib import PurePosixPath
 from typing import Any
 
+from app.adapters.discipline_pictures.lane import PictureFactSheet
 from app.adapters.ifc_services import FILES_KEPT, ServiceFile, ServiceFiles
 from app.adapters.pipeline_tools import (
     PipelineStore,
     _done,  # pyright: ignore[reportPrivateUsage]
     _entry,  # pyright: ignore[reportPrivateUsage]
 )
-from app.adapters.plan_tools import plan_page
+from app.adapters.plan_tools import CannotEditError, plan_page
 from app.api.views import drawings_of
 from app.core.errors import DomainError
 from app.core.ifc_facts import Discipline, FactSheet
@@ -41,12 +42,22 @@ from app.core.plan_edit.walls import PlanPage
 from app.core.services.follow import follow, not_followed
 from app.core.services.model import (
     LANES,
+    DisciplineFollow,
     Frame,
     Lane,
     Point2,
     ServiceElement,
     ServicesFollow,
     fit_frame,
+)
+from app.core.services.pairing import (
+    Register,
+    SheetWalls,
+    by_room_names,
+    by_walls,
+    either,
+    pair,
+    plan_wall_lines,
 )
 from app.core.services.picture_follow import Sheet, picture_follow
 
@@ -74,6 +85,9 @@ class ServiceFollower:
     credit_of: Callable[[int, str], str | None] = lambda size, sha256: None  # a file's credit
     # A drawing's services fact sheet read from its picture, by drawing id; None: it has none
     pictures: Callable[[str], FactSheet | None] = lambda drawing_id: None
+    # A picture's wall lines in its pixels and its page size (the sheet-walls reader); None: a
+    # picture is laid over the plan by room names only
+    sheet_walls: SheetWalls | None = None
 
     def run(self, proposal: Proposal) -> tuple[ServicesFollow, dict[str, Any]]:
         """The follow-up for the proposal and what the model reads of it."""
@@ -163,18 +177,38 @@ class ServiceFollower:
         status = _done(self.pipeline, self.pipeline.project_id)
         if _entry(status, proposal.drawing_id).route == "bim":
             return followed
+        files = {f.drawing_id: f for f in reversed(status.files) if f.drawing_id}  # the first
         sheets: list[tuple[Sheet, FactSheet]] = []
         for drawing_id in dict.fromkeys(f.drawing_id for f in status.files if f.drawing_id):
             facts = self.pictures(drawing_id)
             if facts is not None:  # a picture lane reads page 1; the plan's own sheet its page
                 page = proposal.page if drawing_id == proposal.drawing_id else 1
-                sheets.append((self._sheet(drawing_id, page, facts), facts))
+                sheets.append((self._sheet(files[drawing_id], page, facts), facts))
         if not sheets:
             return followed
-        plan = self._sheet(proposal.drawing_id, proposal.page, self.pictures(proposal.drawing_id))
-        seen = picture_follow(proposal, plan, sheets)
+        plan_file = files.get(proposal.drawing_id) or FileStatus(
+            id="", path="", size=0, drawing_id=proposal.drawing_id
+        )
+        plan = self._sheet(plan_file, proposal.page, self.pictures(proposal.drawing_id))
+        pairings = pair(plan, [sheet for sheet, _ in sheets], self._register(proposal))
+        seen = picture_follow(proposal, plan, sheets, pairings=pairings)
+        # every drawing id a picture may be read from, its renderings' too, to the drawing's name
+        names = {
+            drawing_id: entry.name
+            for entry in drawings_of(status)
+            for drawing_id in (entry.drawing_id, *(r.drawing_id for r in entry.other_renderings))
+        }
+
+        def named(lane: DisciplineFollow) -> DisciplineFollow:
+            """A picture lane's sheets by their names in the project, each once (review-544 S1),
+            as a model lane's model."""
+            if not lane.source:
+                return lane
+            said = dict.fromkeys(names.get(i, i) for i in lane.source.split(", "))
+            return lane.model_copy(update={"source": ", ".join(said)})
+
         lanes = tuple(
-            mine if mine.status != "no_model" else theirs
+            named(mine) if mine.status != "no_model" else theirs
             for mine, theirs in zip(seen.disciplines, followed.disciplines, strict=True)
         )
         return followed.model_copy(
@@ -185,21 +219,44 @@ class ServiceFollower:
             }
         )
 
-    def _sheet(self, drawing_id: str, page: int, facts: FactSheet | None) -> Sheet:
+    def _register(self, proposal: Proposal) -> Register:
+        """Room names first, then the plan's walls when a sheet-walls reader is given."""
+        if self.sheet_walls is None:
+            return by_room_names
+        try:
+            page = plan_page(self.pipeline, proposal.drawing_id, proposal.page)
+        except (CannotEditError, DomainError) as error:  # no wall geometry: room names only
+            log.info("no plan walls to lay pictures by: %s", error)
+            return by_room_names
+        return either(by_room_names, by_walls(plan_wall_lines(page), self.sheet_walls))
+
+    def _sheet(self, file: FileStatus, page: int, facts: FactSheet | None) -> Sheet:
         """Where a drawing's page lies: its size in metres when it has a scale, its room names
-        at their boxes' centres, the floor its services facts name."""
+        at their boxes' centres, the floor its services facts name, and what pairing reads:
+        the upload's path, the sheet number and discipline triage read, the lanes its picture
+        marks."""
+        drawing_id = file.drawing_id or ""
         drawing = self.pipeline.ingest.drawing(drawing_id)
+        read = file.triage.sheet if file.triage else None
         shown = next((p for p in drawing.pages if p.page == page), None)
         m = drawing.scale.m_per_unit
         return Sheet(
             drawing_id=drawing_id,
             page=page,
             storey=next((f.storey for f in facts.facts if f.storey), None) if facts else None,
-            size_m=(shown.width * m, shown.height * m) if shown and m else None,
+            size_m=(shown.width * m, shown.height * m) if shown and m else _read_size(facts),
             rooms=tuple(
                 (r.label, ((r.box[0] + r.box[2]) / 2, (r.box[1] + r.box[3]) / 2))
                 for r in drawing.rooms
                 if r.page == page and r.label
+            ),
+            name=file.path or None,
+            sheet_number=read.sheet_number if read else None,
+            discipline=read.discipline if read else None,
+            disciplines=tuple(
+                lane
+                for lane in LANES
+                if facts and any(f.discipline == lane and f.spots for f in facts.facts)
             ),
         )
 
@@ -232,6 +289,12 @@ class ServiceFollower:
             return "the model does not say how high this sheet's storey is"
         above = min((h for _, h in source.storeys if h > floor + 1.0), default=floor + TOP_STOREY_M)
         return _Placed(frame, storey, (floor, above))
+
+
+def _read_size(facts: FactSheet | None) -> Point2 | None:
+    """A picture's page in metres by the scale its lane read (scale bar or printed ratio)."""
+    scale = facts.scale if isinstance(facts, PictureFactSheet) else None
+    return (scale.width_px * scale.m_per_px, scale.height_px * scale.m_per_px) if scale else None
 
 
 def _models(status: Any, source: str | None) -> tuple[list[FileStatus], int]:
@@ -304,8 +367,23 @@ def follower(app: Any, pipeline: PipelineStore) -> ServiceFollower:
     credits = getattr(app.state, "credits", None)
     made = ServiceFollower(pipeline, files, credits.of if credits is not None else lambda *_: None)
     if pipeline.settings.discipline_pictures != "off":  # the picture lane's kept sheets
-        from app.adapters.discipline_pictures.lane import PictureSheets
+        from app.adapters.discipline_pictures.lane import PictureSheets, kept_in
 
-        kept = PictureSheets(None, pipeline.settings.discipline_pictures_cache_dir)
+        settings = pipeline.settings
+        kept = PictureSheets(
+            None, kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
+        )
         made.pictures = kept.of_drawings(lambda: _done(pipeline, pipeline.project_id).files)
+        from app.adapters.discipline_pictures import sheet_walls  # the pictures' wall lines
+
+        made.sheet_walls = sheet_walls.reader(partial(_picture, pipeline))
     return made
+
+
+def _picture(pipeline: PipelineStore, sheet: Sheet) -> tuple[str, Callable[[], bytes]] | None:
+    """The services sheet's uploaded file: its sha256 and how to load its bytes; None: none."""
+    files = _done(pipeline, pipeline.project_id).files
+    file = next((f for f in files if f.drawing_id == sheet.drawing_id and f.sha256), None)
+    if file is None or file.sha256 is None:
+        return None
+    return file.sha256, partial(pipeline.ingest.upload_bytes, pipeline.project_id, file.id)

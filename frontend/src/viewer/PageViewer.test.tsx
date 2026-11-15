@@ -78,7 +78,7 @@ describe('PageViewer: page and frame', () => {
     const img = screen.getByAltText('Page 1 of plans/flat-a.pdf');
     const src = img.getAttribute('src');
     fireEvent.error(img);
-    await screen.findByText('Page 1 could not be loaded: no drawing 0123456789abcdef (not-found)');
+    await screen.findByText('Page 1 could not be loaded: no drawing 0123456789abcdef');
     expect(fetchMock).toHaveBeenCalledWith(src);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => {
@@ -210,7 +210,7 @@ describe('PageViewer: legend, caption, pages', () => {
     const mixed = viewer(answer, { marks: [m1, { ...m2, state: 'rejected', n: null }] }).container;
     const text = mixed.querySelector('.vw-legend')?.textContent ?? '';
     expect(text).toContain('counted');
-    expect(text).toContain('rejected');
+    expect(text).toContain('rejected by a surveyor');
   });
 
   it('VW-29 (demo parity) no credit line, with or without a credit; file name shown', () => {
@@ -260,7 +260,7 @@ describe('PageViewer: mark states', () => {
   it('VW-15 rejected: ×, dotted outline, two crossing lines, words in the label', () => {
     const { container } = viewer(answer, { marks: [door1, rejected] });
     const b = badgeOf(container, '×');
-    expect(b?.getAttribute('aria-label')).toBe('door, rejected');
+    expect(b?.getAttribute('aria-label')).toBe('door, rejected by a surveyor');
     const rects = container.querySelectorAll('svg rect');
     expect(rects[1]?.getAttribute('stroke-dasharray')).toBe('2 3');
     expect(container.querySelectorAll('svg line.vw-cross')).toHaveLength(2);
@@ -269,7 +269,7 @@ describe('PageViewer: mark states', () => {
   it('VW-16 added: +n, dashed outline, words in the label', () => {
     const { container } = viewer(answer, { marks: [door1, added] });
     const b = badgeOf(container, '+3');
-    expect(b?.getAttribute('aria-label')).toBe('Mark 3: item, added');
+    expect(b?.getAttribute('aria-label')).toBe('Mark 3: item, added by a surveyor');
     expect(container.querySelectorAll('svg rect')[1]?.getAttribute('stroke-dasharray')).toBe('6 3');
   });
 
@@ -294,6 +294,91 @@ describe('PageViewer: conflict readings', () => {
     const legend = container.querySelector('.vw-legend')?.textContent ?? '';
     expect(legend).toContain(`A: ${methodName('polygon_x_scale')} read 22.40 m²`);
     expect(legend).toContain(`B: ${methodName('printed_label')} read 30.00 m²`);
+  });
+
+  it('K2 tag B moves right of tag A when both boxes start at the same corner', () => {
+    const [ax0, ay0] = conflict.values[0]?.box ?? [0, 0];
+    const same: QuantityConflict = {
+      ...conflict,
+      values: conflict.values.map((v, i) =>
+        i === 1 && v.box ? { ...v, box: [ax0, ay0, v.box[2], v.box[3]] } : v,
+      ),
+    };
+    const { container } = viewer(answerArea, { marks: [], conflict: same, unit: 'm2' });
+    const [a, b] = [...container.querySelectorAll<HTMLElement>('.vw-tag')];
+    expect(a?.style.left).toBe(`${(ax0 * 100).toFixed(1)}%`);
+    expect(b?.style.left).toBe(`calc(${(ax0 * 100).toFixed(1)}% + 24px)`);
+    expect(b?.style.top).toBe(a?.style.top);
+  });
+
+  it('K2 tags near the right edge stay inside the frame and do not cover each other (review-460)', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    const edge: QuantityConflict = {
+      ...conflict,
+      values: conflict.values.map((v) => ({ ...v, box: [0.995, 0.2, 1, 0.3] })),
+    };
+    const { container } = viewer(answerArea, { marks: [], conflict: edge, unit: 'm2' });
+    const [a, b] = [...container.querySelectorAll<HTMLElement>('.vw-tag')];
+    // a tag is 24 px with its gap: A at 800 - 24 = 776 px (97 %), B one tag to its left (752 px), not past the edge
+    expect(a?.style.left).toBe('97%');
+    expect(b?.style.left).toBe('94%');
+    expect(b?.style.top).toBe(a?.style.top);
+  });
+
+  // review-505: a tag is placed after it is moved inside the frame, off every tag placed before it
+  const FRAME = 800;
+  const tagRects = (boxes: number[][]) => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(FRAME);
+    const v0 = conflict.values[0];
+    const values = boxes.map((box, i) => ({ ...(conflict.values[i] ?? v0), box }));
+    const { container } = viewer(answerArea, {
+      marks: [],
+      conflict: { ...conflict, values } as QuantityConflict,
+      unit: 'm2',
+    });
+    const page = answerArea.pages.find((p) => p.page === v0?.page) ?? answerArea.pages[0];
+    const H = (FRAME * (page?.height ?? 0)) / (page?.width ?? 1);
+    const rects = [...container.querySelectorAll<HTMLElement>('.vw-tag')].map((t) => ({
+      x: (parseFloat(t.style.left) / 100) * FRAME,
+      y: (parseFloat(t.style.top) / 100) * H,
+    }));
+    return { rects, H };
+  };
+  const apart = (rects: { x: number; y: number }[]) =>
+    rects.every((a, i) =>
+      rects.slice(i + 1).every((b) => Math.abs(a.x - b.x) >= 24 || Math.abs(a.y - b.y) >= 20),
+    );
+
+  it('K2 two tags near the right edge whose corners are 28 px apart do not cover each other once clamped', () => {
+    const { rects } = tagRects([
+      [0.96, 0.2, 1, 0.3],
+      [0.995, 0.2, 1, 0.3],
+    ]);
+    expect(rects).toHaveLength(2);
+    expect(apart(rects)).toBe(true);
+    expect(rects.every((r) => r.x >= 0 && r.x <= FRAME - 24)).toBe(true);
+  });
+
+  it('K2 two tags near the bottom edge whose corners are 21 px apart do not cover each other once clamped', () => {
+    const { H } = tagRects([[0.5, 0.5, 0.6, 0.6]]);
+    cleanup();
+    const { rects } = tagRects([
+      [0.5, (H - 21) / H, 0.6, 1],
+      [0.5, 1, 0.6, 1],
+    ]);
+    expect(rects).toHaveLength(2);
+    expect(apart(rects)).toBe(true);
+    expect(rects.every((r) => r.y >= 0 && r.y <= H - 20 + 0.01)).toBe(true);
+  });
+
+  it('K2 a third tag moved left at the right edge does not land on another tag', () => {
+    const { rects } = tagRects([
+      [0.94, 0.2, 1, 0.3],
+      [0.995, 0.2, 1, 0.3],
+      [0.995, 0.2, 1, 0.3],
+    ]);
+    expect(rects).toHaveLength(3);
+    expect(apart(rects)).toBe(true);
   });
 
   it('R3 VW-19 conflict readings name the method in words, never the API id', () => {
@@ -595,6 +680,11 @@ describe('PageViewer: label placement (R2-qa-1-3)', () => {
     const wide = badges(viewer(answerArea, { unit: 'm2' }).container);
     expect(wide.map((b) => b.textContent)).toEqual(['1 · 22.40 m²', '2 · 2.49 m²']);
     const wideLabels = wide.map((b) => b.getAttribute('aria-label'));
+    // R3-C8: the value is in the label, so a screen reader hears it on the narrow frame too
+    expect(wideLabels).toEqual([
+      'Mark 1: Küche, 22.40 m², counted',
+      'Mark 2: Reduit, 2.49 m², counted',
+    ]);
     cleanup();
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(358);
     const narrow = badges(viewer(answerArea, { unit: 'm2', selected: 'm1' }).container);
@@ -1399,5 +1489,24 @@ describe('PageViewer: crowded pages (carbon flag, item 4)', () => {
     const { container } = viewer(answer, { marks: many(60) });
     expect(badges(container)).toHaveLength(60);
     expect(container.querySelector('.vw-many')).toBeNull();
+  });
+
+  it('VW-98 bare (chat card): marks whose number had no room are counted under the image', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    // QA R3-C10: 6 of 155 door numbers had no free spot and vanished from the chat card without a word
+    const stacked = many(120).map((m) => ({
+      ...m,
+      box: [0.5, 0.5, 0.51, 0.51] as [number, number, number, number],
+    }));
+    const { container } = viewer(answer, { marks: stacked, bare: true });
+    const shown = badges(container).length;
+    expect(shown).toBeLessThan(120);
+    expect(container.querySelector('.vw-many')?.textContent).toBe(
+      `${String(120 - shown)} label(s) had no room on the page`,
+    );
+    cleanup();
+    expect(
+      viewer(answer, { marks: many(10), bare: true }).container.querySelector('.vw-many'),
+    ).toBeNull();
   });
 });

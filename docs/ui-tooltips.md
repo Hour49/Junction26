@@ -52,7 +52,7 @@ class names on `TooltipContent`:
 
 | Screen | file:line | Element | Proposed tip | Pri |
 | --- | --- | --- | --- | --- |
-| Home | `ingest/UploadBox.tsx:160-169` | "Try the sample project" | A small made-up flat with 11 files. Click it to see Vellum work end to end. | P1 |
+| Home | `ingest/UploadBox.tsx:160-169` | "Try the sample project" | A small made-up flat with 12 files. Click it to see Vellum work end to end. | P1 |
 | Home | `ingest/UploadBox.tsx:171` | "The sample starts from scratch each time." (plain text) | (no tip: already clear) | n/a |
 | Home | `ingest/UploadBox.tsx:205-211` | Format chips ("IFC models", "DXF", "PDF, drawn or scanned", "SVG") | IFC and DXF are CAD/BIM files; drawn PDFs are read exactly, scanned PDFs and photos are read by AI. | P2 |
 | Home | `ingest/UploadBox.tsx:139-148,160-169` | Disabled buttons while an upload runs | Wait for the current upload to finish. | P3 |
@@ -129,7 +129,7 @@ class names on `TooltipContent`:
 | Answer | `engineer/AnswerCard.tsx:122-148` | Status pill (signed / agree / conflict / estimate / edited / one method) | Use the existing `statusTip` texts via the shared Tip. | P1 |
 | Answer | `engineer/AnswerCard.tsx:325` | "Partial" pill (`title`) | Only part of the project was read, so this answer may be incomplete. | P2 |
 | Answer | `engineer/AnswerCard.tsx:410` | "This drawing was flagged" box | Vellum read this drawing but something looks off. Check the answer against the plan. | P1 |
-| Answer | `engineer/AnswerCard.tsx:494,501-503` | "Checks" label and "Second reader's score 0.91 (not a probability)" | Checks: how the number was verified. Score: how much a second, independent reader agrees; higher is better. | P1 |
+| Answer | `engineer/AnswerCard.tsx:494,501-503` | "Checks" label and "Second reader's score 0.91 (not a probability)" | Checks: how the number was verified. Score: how much a second, independent reader agrees; higher is better. The score line (and so its tip) is absent where the checks say "one method; no second check" (engineer.md EN-93). | P1 |
 | Answer | `engineer/AnswerCard.tsx:506-508` | "Counting rule: ... door_count" | The written rule Vellum used to count. The small id is for engineers. | P2 |
 | Answer | `engineer/ChecksPanel.tsx:14,33,36` | "by room outlines × sheet scale", "Second method ... agrees", "Estimated by one method" | A method is one way of measuring. Two methods agreeing is stronger than one. | P2 |
 | Answer | `engineer/ChatAnswer.tsx:151` | "Signed off" pill | A surveyor checked this value and signed it. | P2 |

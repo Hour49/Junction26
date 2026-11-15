@@ -205,8 +205,8 @@ describe('TriageCard (file-triage.md)', () => {
       'no-description',
       'This file was not described, so there is nothing to judge or overrule.',
     ],
-    [404, 'not-found', 'This file is no longer in the project. (boom, not-found)'],
-    [500, 'internal', 'boom (internal)'],
+    [404, 'not-found', 'This file is no longer in the project. (boom)'],
+    [500, 'internal', 'boom'],
   ])(
     'FT-13 %i %s is worded, the file stays, the buttons work again',
     async (status, code, line) => {
@@ -309,7 +309,7 @@ describe('TriageCard (file-triage.md)', () => {
         'not-triaged',
         'Triage did not set this file aside, so there is nothing to read again.',
       ],
-      [500, 'internal', 'boom (internal)'],
+      [500, 'internal', 'boom'],
     ])('FT-19 %i %s is worded', async (status, code, line) => {
       localStorage.setItem(NAME_KEY, 'Ana');
       vi.spyOn(window, 'confirm').mockReturnValue(true);

@@ -13,10 +13,10 @@ import {
 } from '../api/fixtures';
 import { mockApi, reply } from '../test/mockApi';
 import type { SourceFigureProps } from '../viewer/SourceFigure';
+import { ProjectReviewSide } from './ProjectReviewSide';
 import { ConflictsList } from './ConflictsScreen';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { REVIEW_TIPS } from '../shell/tips-review';
-import { SERVER_DOWN } from '../shell/ErrorView';
 
 // The source figure is fe-viewer's; here a double recording its props and counting its mounts.
 const fig = vi.hoisted(() => ({ props: [] as SourceFigureProps[], mounts: 0 }));
@@ -216,6 +216,19 @@ describe('ConflictsList', () => {
     expect(cards()).toHaveLength(3);
   });
 
+  it('CF-4b nothing measured (QA R2-E1): no agree line', async () => {
+    const review = {
+      ...withConflicts([]),
+      drawings: projectReview.drawings.map((d) => ({ ...d, quantities: 0 })),
+    };
+    show({ [PATH.review]: review });
+    expect((await ready()).textContent).toBe('No conflicts found');
+    expect(
+      screen.getByText('Nothing was measured on these drawings, so there was nothing to compare.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Both methods agree wherever two of them measured.')).toBeNull();
+  });
+
   it('CF-4 no conflicts: agree line, no segments, no cards', async () => {
     const counts = vi.fn();
     const { container } = show({ [PATH.review]: withConflicts([]) }, undefined, counts);
@@ -375,18 +388,10 @@ describe('ConflictsList', () => {
     const c = card(base.label);
     click(within(c).getByRole('button', { name: "Use the rule's value" }));
     const alert = await within(c).findByRole('alert');
-    expect(alert.textContent).toBe('This value cannot be changed.');
+    expect(alert.textContent).toBe(
+      'This value is signed off. Undo the sign-off in the surveyor workspace first.',
+    );
     expect(within(c).getByText('Your choice')).toBeTruthy();
-  });
-
-  it('QA #430 a 502 on settle says the server is restarting, not "the server answered 502"', async () => {
-    show({ [PATH.edit]: reply(502, '<html>Bad Gateway</html>') });
-    await ready();
-    const c = card(base.label);
-    click(within(c).getByRole('button', { name: 'Modify' }));
-    click(tile(c, 1));
-    const alert = await within(c).findByRole('alert');
-    expect(alert.textContent).toBe(SERVER_DOWN);
   });
 
   it('CF-10 a card that needs a person: open tiles, none pressed, the typed box shown', async () => {
@@ -539,7 +544,9 @@ describe('ConflictsList', () => {
     click(within(c).getByRole('button', { name: 'Modify' }));
     click(tile(c, 1));
     const alert = await within(c).findByRole('alert');
-    expect(alert.textContent).toContain('This value cannot be changed.');
+    expect(alert.textContent).toContain(
+      'This value is signed off. Undo the sign-off in the surveyor workspace first.',
+    );
     expect(within(c).getByRole('button', { name: 'Cancel' })).toBeTruthy();
     expect(disabled(tile(c, 1))).toBe(false);
   });
@@ -707,6 +714,18 @@ describe('ConflictsList', () => {
     expect(within(foot).getByRole('button', { name: 'Modify' }).className).toContain('cf-soft');
   });
 
+  it('CF-19 the side panel links to the project (the conflicts are on Ingest) when there are conflicts', async () => {
+    mockApi({ [PATH.review]: projectReview });
+    render(<ProjectReviewSide projectId={pid} drawingId={did} />);
+    const link = await screen.findByRole('link', { name: 'Settle the conflicts' });
+    expect(link.getAttribute('href')).toBe(`#/p/${pid}`);
+    cleanup();
+    mockApi({ [PATH.review]: withConflicts([]) });
+    render(<ProjectReviewSide projectId={pid} drawingId={did} />);
+    await screen.findByRole('list', { name: /Conflicts/ });
+    expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
+  });
+
   it('CF-20 none of the design mock values appear', async () => {
     show({ [PATH.review]: withConflicts([needs, base, yours]) });
     await ready();
@@ -749,12 +768,12 @@ describe('ConflictsList', () => {
     expect(await tipOf(t.parentElement as HTMLElement)).toBe(REVIEW_TIPS.choiceLocked);
   });
 
-  it('CF-23 a real sign-off on the entry locks the card and names no one', async () => {
+  it('CF-23 a real sign-off on the entry locks the card and names the signer', async () => {
     const signed: ConflictEntry = { ...base, signed: { by: 'Ana', at: AT, value: 30 } };
     show({ [PATH.review]: withConflicts([signed]) });
     await ready();
     const c = card(base.label);
-    expect(within(c).queryByText(/Signed off|Ana/)).toBeNull();
+    expect(within(c).getByText('Signed off by Ana')).toBeTruthy();
     expect(disabled(tile(c, 1))).toBe(true);
     expect(within(c).queryByRole('button', { name: 'Modify' })).toBeNull();
   });

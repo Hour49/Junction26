@@ -38,7 +38,9 @@ from app.core.pipeline.ports import DrawingFiles
 READER = "mask"
 COLOURFUL = 60  # max - min channel: a pixel with a colour, not black or grey
 SAME_COLOUR = 50  # per channel: a pixel drawn in the legend line's colour
-ELONGATED = 4.0  # a run is at least this many times longer than wide (text, blobs are not)
+# a run is at least this many times longer than wide (text, blobs are not); 1.5 keeps the stubs
+# a riser draws (tune half, own-colour runs within 10% of the drawn length: 0.50 at 4, 0.60)
+ELONGATED = 1.5
 PAD = 2  # pixels around a legend box
 SIZE = re.compile(r"\b(?:DN|NS|NW)\s?\d+\b|Ø\s?\d+(?:\s?mm)?", re.I)  # a size as printed
 

@@ -2,9 +2,12 @@ import type { Info, Resolved, RulePack } from './types';
 
 const UNITS: Record<string, string> = { m: 'm', m2: 'm²', m3: 'm³', ft: 'ft', ft2: 'ft²' };
 
+/** A count's unit: 'rooms' is the backend's room count (second_count.py, printed.py). */
+export const isCountUnit = (unit: string | null): boolean => unit === 'count' || unit === 'rooms';
+
 /** A value as every screen shows it: a count as an integer, anything else with 2 decimals and its unit. */
 export function formatValue(value: number, unit: string | null): string {
-  if (unit === null || unit === 'count') return String(Math.round(value));
+  if (unit === null || isCountUnit(unit)) return String(Math.round(value));
   return `${value.toFixed(2)} ${UNITS[unit] ?? unit}`;
 }
 

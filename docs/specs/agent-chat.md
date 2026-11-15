@@ -162,12 +162,14 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   "Bagno 1.01 + Stanza 1.02 · 24.04 → 24.56 m²", a legend (Existing · Demolished · New · Changed room; colour never
   alone: dash, hatch and words too). Before / After toggle (`aria-pressed`): Before hides the overlay. Below: the
   change list (one line per removed/added item and per room with before → after and the difference), unknowns,
-  flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked.", and Accept /
+  flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked." (with the
+  services followed, SERVICES_FOLLOW=on: "Proposed from the drawn geometry; services followed through their models,
+  as each tab shows. Structure and permits are not checked."), and Accept /
   Reject. After a decision the buttons give way to "Accepted" / "Rejected".
 - AC-33 (ui-bugs 1, 2026-11-15) The pen: a pen button in the ask bar next to the paperclip. Pen on: the question
   box and Ask are disabled, and on each open file in the files list (AC-36) whose drawing can be drawn on, click a
-  room → selection `room`, drag a rectangle (the viewer's pick mode) → selection `region`. Pen again or Escape
-  (outside the viewer) → typing back. Chips above the ask bar ("Room Bagno 1.01 ×", "Area on Drawn plan 1 ×") stay,
+  room → selection `room`, drag a rectangle (the viewer's pick mode) → selection `region`. A finished click or drag puts the pen down by
+  itself (R4-F1: the box was left disabled with no hint); pen again or Escape (outside the viewer) → typing back. Chips above the ask bar ("Room Bagno 1.01 ×", "Area on Drawn plan 1 ×") stay,
   go with the next message and are cleared after it. A drawing can be drawn on when `canDraw` says so
   (`engineer/projectAsk.ts`: not `raster`, read with pages; to become the backend's field, board #404). With no
   open drawable file the pen is greyed out and hover, focus or a tap shows "You can't draw on this plan: it is a
@@ -210,6 +212,25 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   ask bar and the starter chips; no "What I read" block (removed). The ask box is fully in the first screen
   (390x844, keycheck 334). [component `AgentChat.test.tsx`; browser 1440 and 390: e2e AC-39 asserts the ask box's
   bottom is within the viewport]
+- AC-40 (pics-edit-follow W3, 2026-11-15) A discipline tab whose lane carries a `picture` (the floor's services
+  sheet that lane was read from: `drawing_id`, `page`, `pairing`, and the edit's `removed` / `added` outlines and
+  the lane's marks in THAT sheet's page fractions) shows that sheet's page image instead of the plan, loaded as the
+  viewer loads a page. On it, in its own coordinates: the removed wall's strip struck out (the Demolished look, plus
+  a strike line along it) or the new partition drawn (the New look), and the lane's marks with their status icon
+  and word as on the plan (AC services-follow; colour never alone). The card zooms to the edit on that sheet.
+- AC-41 Before / After on a picture tab: Before shows the sheet as drawn with its marks and no edit, After the edit
+  and each mark's status. The image's alt names the sheet and the state ("Heating plan 1, page 1, with the
+  proposed change drawn on it").
+- AC-42 Above the picture one line says why this sheet was taken to be this floor's <discipline> sheet: "Paired by
+  the title block: 'EG' on both" (`paired_by`: same_page → "Same page as the plan", metadata → "Paired by the
+  sheets' names", geometry → "Paired by the walls", user → "Paired by you"), then the server's `reason`.
+- AC-43 "Not this sheet" (a button beside that line): the tab drops the picture and its actions, says "Not checked:
+  you said this is not this floor's <discipline> sheet." with "Use this sheet again", and its tab note reads "not
+  checked". Kept in the card only (until the pairing override of services-follow SFP-9.. can be called); a wrong
+  pairing is always visible and refusable, never silent.
+- AC-44 A lane without `picture` is drawn over the plan as before; with DISCIPLINE_PICTURES off the API sends no
+  `picture` and nothing changes. 390 px: the picture is full width, the line and the button wrap, no horizontal
+  scroll. [component `ServiceTabs.test.tsx`, `EditCard.test.tsx`; browser 1440 and 390 by hand on a fixture]
 
 ## 4. Tests
 

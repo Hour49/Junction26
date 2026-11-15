@@ -57,7 +57,14 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   TRIAGE_DESCRIBER=carbon  # all-on: an image set aside is described by Carbon for the evidence index (about 0.005 USD an image)
   TRIAGE_JUDGE=rules  # all-on: the judge's rules say whether a set-aside file relates to the project
   EVIDENCE_SCOPE=all_non_plan  # all-on: the evidence index also holds every other non-plan file and PDF page (decision 0012)
-  SERVICES_FOLLOW=on)  # services-on: an IFC project's plumbing/ventilation/heating files are followed and the chat gets the services tools (#397); the deploy builds the DigitalHub cache first
+  SERVICES_FOLLOW=on  # services-on: an IFC project's plumbing/ventilation/heating files are followed and the chat gets the services tools (#397); the deploy builds the DigitalHub cache first
+  INGEST_GROUPS_IN_FLIGHT=10  # ingest-60s: 10 cold files 273 s -> 88 s, cgroup peak 7.3 GB
+  INGEST_LOCAL_IN_FLIGHT=1  # 2 is about 20% faster on cached replies but peaked at 9.4 GB once, over MEMORY
+  CARBON_CALLS_IN_FLIGHT=48  # the process cap: 107 calls waited 5.4 s in all at 48 (1489 s at 8), 0 429s; up to 48 may run past GEMINI_BUDGET_USD
+  CARBON_READ_WORKERS=12  # one read's tile calls at once (at most 20); at 2 local slots 24 peaked at 9.4 GB, 12 at 7.3 (review-422)
+  MALLOC_ARENA_MAX=2  # glibc arenas: peak 9.6 -> 6.7 GB on the same replay, and no slower (33.1 vs 36.5 s)
+  IFC_FACTS_CACHE=../data/cache/facts  # all-on-2: fact sheets stored where the deploy's precompute_facts writes them (the env's data/cache/facts), so no IFC question starts a build
+  USER_SCALE=true)  # all-on-2: the agent chat takes a scale from its user for a drawing without one (#432: never sure, the proof names the source)
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180

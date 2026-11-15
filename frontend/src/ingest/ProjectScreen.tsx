@@ -1,14 +1,23 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useState, type ReactNode } from 'react';
 import { errorText, formatTime, getProject, type FileStatus, type ProjectView } from '../api';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { parseRoute, useHash } from '../shell/route';
-import { PROJECT_STATE_LABEL, STATE_LABEL, keepPolling, sizeText, uploadedKey } from './ingest';
+import {
+  PROJECT_STATE_LABEL,
+  STATE_LABEL,
+  isLive,
+  keepPolling,
+  nameParts,
+  sizeText,
+  uploadedKey,
+} from './ingest';
 import { ChatRow, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
+import { readDrawings } from './pipeline';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
-import { MUTED, PAGE, PANEL } from './ui';
+import { MUTED, PAGE, PANEL, TAP } from './ui';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -99,7 +108,16 @@ export function TitleRow({
           )}
           {eyebrow}
         </p>
-        <h1 className="v-title mt-1! [overflow-wrap:anywhere]">{title}</h1>
+        {/* a long upload or file name shows 3 lines at most; the heading's name and its title stay whole (IN-114).
+            It wraps after its own separators first; `anywhere` only for a part too long for a line (IN-121) */}
+        <h1 className="v-title mt-1! line-clamp-3 [overflow-wrap:anywhere]" title={title}>
+          {nameParts(title).map((part, i) => (
+            <Fragment key={`${String(i)}:${part}`}>
+              {i > 0 && <wbr />}
+              {part}
+            </Fragment>
+          ))}
+        </h1>
       </div>
       {children}
     </header>
@@ -116,6 +134,7 @@ function NothingRead({ projectId, project }: { projectId: string; project: Proje
   return (
     <Card role="region" aria-label="Nothing read" className={cn(PANEL, 'grid gap-4')}>
       <h2 className="v-h2">Nothing could be read from this upload</h2>
+      {why.length === 0 && <p>There were no files in it.</p>}
       {why.length > 0 && (
         <ul className="grid gap-3">
           {why.map((w) => (
@@ -125,6 +144,12 @@ function NothingRead({ projectId, project }: { projectId: string; project: Proje
             </li>
           ))}
         </ul>
+      )}
+      {project.files.some((f) => f.kind === 'dxf' && f.state === 'set_aside') && (
+        // with no drawing at all, a DXF was set aside for want of a page to place it on
+        <p>
+          A DXF is read with the PDF or PNG of the same name: put both in one .zip and upload that.
+        </p>
       )}
       <a href={`#/p/${projectId}/documents`}>Every file is listed in Documents.</a>
     </Card>
@@ -140,6 +165,13 @@ function uploaded(projectId: string): { name: string; bytes: number } | null {
   } catch {
     return null;
   }
+}
+
+/** A long name cut in the middle, so its start and its extension both show (IN-114). */
+export function shortName(name: string, max = 60): string {
+  if (name.length <= max) return name;
+  const tail = Math.floor(max / 3);
+  return `${name.slice(0, max - tail - 1)}…${name.slice(-tail)}`;
 }
 
 /** Route `#/p/<project_id>`: the ingest followed live (Simple), or step by step (`?view=advanced`). */
@@ -165,8 +197,9 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   }
 
   const base = `#/p/${projectId}`;
-  // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7).
-  const nothingRead = project.state === 'done' && project.drawings.length === 0;
+  // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7); so does one whose
+  // drawings were all on a route with no reader (IN-116)
+  const nothingRead = project.state === 'done' && readDrawings(project).length === 0;
   return (
     <div className={cn('v-page v-page--narrow', PAGE)}>
       <TitleRow
@@ -188,14 +221,33 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
       </TitleRow>
       {sent && (
         <p role="status" aria-label="Upload received" className="text-text-2">
-          {`Uploaded: ${sent.name}, ${sizeText(sent.bytes)}, received by the server. `}
+          Uploaded: <span title={sent.name}>{shortName(sent.name)}</span>
+          {`, ${sizeText(sent.bytes)}, received by the server. `}
           {project.files.length > 0
             ? `${String(project.files.length)} ${project.files.length === 1 ? 'file' : 'files'} found.`
-            : 'Unpacking…'}
+            : // finished with no files (an empty zip): said plainly, not "Unpacking…" (IN-115)
+              isLive(project)
+              ? 'Unpacking…'
+              : project.state === 'done'
+                ? 'No files found in it.'
+                : 'Nothing was unpacked.'}
         </p>
       )}
       {project.state === 'failed' && project.error && (
         <p className="font-semibold text-danger">{project.error}</p>
+      )}
+      {project.state === 'failed' && (
+        // stopped for good: the server does not resume it, so say how to go on
+        <p className="flex flex-wrap gap-x-4">
+          <a className={TAP} href="#/">
+            Upload again
+          </a>
+          {project.drawings.length > 0 && (
+            <a className={TAP} href={`${base}/documents`}>
+              See what was read in Documents
+            </a>
+          )}
+        </p>
       )}
       {error !== null && <StaleNote error={error} failedAt={failedAt} onRetry={retry} />}
       {advanced ? (

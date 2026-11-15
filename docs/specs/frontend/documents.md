@@ -122,7 +122,8 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
    `Issue.suggestions`, `Issue.label`. Answering does not close an issue (`state` stays `open`).
 4. (later) **`Issue.sources[]`**: other files showing the same place (the demo's arrows between source files).
 5. **`issues_to_answer`** on the project GET (landed in #223): the badge count server-side (fe-shared's choice;
-   non-conflict, not `note`, `open`, unanswered); else `needsYou` (DOC-12) from `getIssues`.
+   not `note`, `open`, unanswered, a conflict only with `resolved`: exactly `waitsForYou`, R3-G1); else `needsYou`
+   (DOC-12) from `getIssues`.
 
 ## States
 

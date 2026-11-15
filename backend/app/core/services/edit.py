@@ -56,12 +56,20 @@ TAKEN = "Another terminal is already there."
 DOORS = "Both ways round this room pass a door."
 NO_RUN = "No {run} of this circuit in or next to this room."
 NO_JUNCTION = "Its branch does not end at a junction: a valve or equipment is in the way."
+IN_THE_WAY = "Its branch does not end at a junction: {name} is in the way."
+MANY_PORTS = (
+    "{name} has {n} pipe connections; a terminal with more than two is not moved or copied yet."
+)
+NO_PORTS = (
+    "{name} has no pipe connections (likely a mounting frame): choose the fixture that has them."
+)
 CROSS = "Supply and return would cross."
 NOT_ITS_WALL = "This wall is not a wall of its room."
 NO_SIZE = "No element of this system has that size."
 
 NOT_SIZED = "Sizes are copied from the old branch. Flow, pressure and clashes with other services are not checked."  # noqa: E501
 UNKNOWN_CLASH = "Whether the new run clashes with other services: not checked."
+NO_PLACES = "The file gives no positions for the pipe and duct ends, so no new run can be drawn."
 
 LONG_K, LONG_PLUS_M = 3.0, 2.0  # long_reroute: added > 3 x removed + 2 m (SV-20)
 MAIN_DZ_M = 0.3  # a main is tapped at the old height +- this
@@ -177,6 +185,7 @@ def move_terminal(
     its old height, turned to the wall; its branches rerouted by SV-18."""
     work = _Work(model)
     term = work.terminal(element_id)
+    _two_legs(model, term)
     room = _room_of(model, term)
     storey = _storey(model, term)
     _put(work, model, term, room, room, wall_id, position)
@@ -200,6 +209,7 @@ def add_terminal(
     system types."""
     work = _Work(model)
     like = work.terminal(like_element_id)
+    _two_legs(model, like)
     like_room = _room_of(model, like)
     wall = next((w for w in model.walls if w.id == wall_id), None)
     if room_id is None and wall is not None:
@@ -228,7 +238,7 @@ def add_terminal(
     _put(work, model, term, like_room, room, wall_id, position)
     dz = storey.elevation_m - like_storey.elevation_m
     term["at"] = (term["at"][0], term["at"][1], term["at"][2] + dz)
-    term["ports"] = [{**p, "at": (p["at"][0], p["at"][1], p["at"][2] + dz)} for p in term["ports"]]
+    term["ports"] = [{**p, "at": (x, y, z + dz)} for p in term["ports"] for x, y, z in [_at(p)]]
     for branch in branches:
         x, y, z = branch.junction_at
         branch.junction_at, branch.junction_xy = (x, y, z + dz), None  # no old junction here
@@ -252,6 +262,8 @@ def _put(
 ) -> None:
     """SV-18 step 1: the terminal onto the wall's edge of `room`, at its distance from its wall in
     `from_room` and its height, turned to the wall; refused when there is no place."""
+    for port in term["ports"]:  # first: no wall helps when no run can be drawn
+        _at(port)
     from_edges, edges = room_edges(from_room.polygon), room_edges(room.polygon)
     old_xy, _ = _centre(term)
     old = min(range(len(from_edges)), key=lambda i: from_edges[i].line.distance(Spot(old_xy)))
@@ -275,6 +287,32 @@ def _put(
     body = _body(term)
     if body and any(Polygon(body).intersects(Polygon(b)) for b in others):
         raise EditRefusedError(TAKEN)
+
+
+def _at(port: dict[str, Any]) -> Point3:
+    """A port's position; an edit that needs one the file does not give is refused."""
+    if port["at"] is None:
+        raise EditRefusedError(NO_PLACES)
+    return port["at"]
+
+
+def _two_legs(model: ServicesModel, term: dict[str, Any]) -> None:
+    """#566: the reroute draws one or two legs; a terminal with none (a mounting frame) or more
+    (a washbasin's cold, hot and waste) is refused, with what blocks a branch when one is."""
+    name = f"{term['label']} ({term['id']})"
+    if not term["ports"]:
+        raise EditRefusedError(NO_PORTS.format(name=name))
+    if len(term["ports"]) > 2:
+        said = MANY_PORTS.format(name=name, n=len(term["ports"]))
+        probe = _Work(model)
+        for port in term["ports"]:
+            try:
+                probe.chain(port["id"])
+            except EditRefusedError as error:
+                if str(error) != NO_JUNCTION:
+                    said += f" {error}"
+                    break
+        raise EditRefusedError(said)
 
 
 def _supply_first(ports: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -370,7 +408,7 @@ class _Work:
             dx, dy = q[0] - at[0], q[1] - at[1]
             return (to[0] + dx * c - dy * s, to[1] + dx * s + dy * c, q[2])
 
-        term["ports"] = [{**p, "at": moved(p["at"])} for p in term["ports"]]
+        term["ports"] = [{**p, "at": moved(_at(p))} for p in term["ports"]]
         term["at"] = (to[0], to[1], at[2])
 
     def chain(self, port_id: str) -> tuple[list[str], str]:
@@ -381,8 +419,11 @@ class _Work:
         while True:
             other = self.peer.get(current)
             element = self.el.get(_owner(other)) if other else None
-            if other is None or element is None or element["group"] not in RUN_GROUPS:
+            if other is None or element is None:
                 raise EditRefusedError(NO_JUNCTION)
+            if element["group"] not in RUN_GROUPS:  # #566: say which valve or equipment
+                name = f"{element['label']} ({element['id']})"
+                raise EditRefusedError(IN_THE_WAY.format(name=name))
             if len(element["ports"]) >= 3:
                 return out, other
             if len(element["ports"]) != 2 or element["id"] in out:
@@ -399,7 +440,7 @@ class _Work:
         if junction["group"] == "flow_fitting" and len(rest) == 2 and all(rest):
             a, b = (r for r in rest if r)
             self.remove(junction["id"])
-            ends = self.port(a)["at"], self.port(b)["at"]
+            ends = _at(self.port(a)), _at(self.port(b))
             if math.dist(*ends) < 1e-3:
                 _connect(self, a, b)
                 return
@@ -494,7 +535,7 @@ def _reroute(
         branches, skip = added
     legs = [
         Leg(
-            port=_xy(p["at"]),
+            port=_xy(_at(p)),
             offset=b.offset,
             mains=tuple(_mains(work, b, term["storey"], skip, by_type=added is not None)),
             junction=b.junction_xy,
@@ -537,7 +578,7 @@ def _build(
             if close:
                 work.close(branch.junction_port)
             start = work.tap(run.tap.main, run.tap.at)
-            z = work.port(start)["at"][2]
+            z = _at(work.port(start))[2]
         if run.tap.tier == "outside":
             flags.append(
                 Flag(
@@ -545,7 +586,7 @@ def _build(
                     text="The connection goes through a wall: it needs a core drill.",
                 )
             )
-        points = [work.port(start)["at"], *((x, y, z) for x, y in run.path[1:]), port["at"]]
+        points = [_at(work.port(start)), *((x, y, z) for x, y in run.path[1:]), _at(port)]
         _emit(work, branch, room.id, _dedupe(points), start, port["id"])
     if routed.crossover_m is not None:
         flags.append(
@@ -565,7 +606,7 @@ class _Branch:
         self.chain, self.junction_port = work.chain(port_id)
         chain = self.chain
         pieces = [work.el[i] for i in chain]
-        x, y, z = work.port(self.junction_port)["at"]
+        x, y, z = _at(work.port(self.junction_port))
         self.junction_at: Point3 = (x, y, z)
         self.junction_xy: Point2 | None = _xy(self.junction_at)
         junction = work.el[_owner(self.junction_port)]

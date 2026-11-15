@@ -47,7 +47,9 @@ def test_ac11_ac22_an_answer_turn_with_sources_and_steps(client: TestClient) -> 
     assert [step["tool"] for step in turn["steps"]] == ["ask_drawings"]
     cited = set(re.findall(r"\[(\d+)\]", turn["text"]))
     assert {str(e["n"]) for e in turn["evidence"]} == cited  # only what the text cites
-    assert turn["text"] == "The drawings answer this below [1][2]."
+    assert turn["text"] == (  # R2-A6: each drawing's value, the model too (it has no mark)
+        "Drawn plan 1: 2 [1]; Drawn plan 2: 2 [2]; Drawn plan 3: 1 [3]; Building model 1: 2."
+    )
     [answer] = turn["answers"]  # the project ask result, as POST /api/projects/{id}/ask gives it
     asked = client.post(
         f"/api/projects/{project}/ask", json={"question": "How many doors are there?"}
@@ -70,7 +72,9 @@ def test_ac11_dont_know_turns(client: TestClient) -> None:
 
 
 def test_ac11_an_edit_is_refused_on_a_sheet_without_wall_fills(client: TestClient) -> None:
-    turn = ask(client, sample(client), "Remove the wall between the bathroom and the bedroom")
+    # flat-a draws no wall fills; the sample's flat-c does (it is the sheet edits work on)
+    message = "Remove the wall between the bathroom and the bedroom on plans/flat-a.pdf"
+    turn = ask(client, sample(client), message)
     assert turn["kind"] == "dont_know" and turn["edit"] is None
     assert turn["text"].startswith("I can't edit this plan")
 
@@ -450,3 +454,15 @@ def test_item2_a_failure_before_the_turn_began_still_sends_turn_first(
 
 def test_item2_info_says_the_chat_streams(client: TestClient) -> None:
     assert client.get("/api/info").json()["chat"]["stream"] is True
+
+
+def test_which_drawing_has_the_largest_floor_area_names_it(client: TestClient) -> None:
+    """qa-a demo walk: the question went to every drawing as said (each refused a comparison) and
+    the model's copy of the answer kept 1 drawing of 6. Now each drawing's total is asked and the
+    largest is named from all of them: flat-b (Drawn plan 2), 53.00 m² against flat-a's 52.27."""
+    turn = ask(client, sample(client), "Which drawing has the largest floor area?")
+    assert turn["kind"] == "answer"
+    assert turn["text"] == "Drawn plan 2 has the largest floor area: 53 m² [1]."
+    assert turn["evidence"][0]["name"] == "Drawn plan 2"
+    [answer] = turn["answers"]  # the card: every drawing's total
+    assert answer["question"] == "What is the total floor area?"

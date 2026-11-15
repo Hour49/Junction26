@@ -872,3 +872,63 @@ def test_a_room_s_count_takes_its_fixtures_inside_and_the_doors_and_windows_in_i
     assert (of("door", "1.04"), of("window", "1.04"), of("sink", "1.04")) == (1, 1, 0)
     assert of("door", "1.02") is None  # a box is not the room's shape
     assert found["door"].value == 3  # the sheet's count is unchanged
+
+
+def test_a_wall_count_of_cut_solids_is_an_estimate_and_a_door_count_is_not() -> None:
+    """B1: a sheet rendered from an IFC model draws walls, columns and other parts in one style,
+    so its 'walls' are cut solids and the count may be too high (64 listed, 26 walls)."""
+    note = "3 cut solids are listed as walls: the sheet draws walls, columns and other cut parts"
+    elements = (element(1, "wall"), element(2, "wall"), element(3, "wall"), element(4, "door"))
+    listed = known_quantities(drawing(elements=elements, notes=(note,)))
+    walls = listed[Query(subject="wall").key()]
+    assert walls.value == 3 and walls.estimate is not None
+    assert walls.estimate == (  # plain words for a judge: no "cut solids" (review-455 S2)
+        "3 solid shapes are counted as walls: this drawing shows walls, columns and other cut "
+        "parts the same way, so there may be fewer walls"
+    )
+    assert listed[Query(subject="door").key()].estimate is None
+    plain = known_quantities(drawing(elements=elements))  # walls a reader named walls
+    assert plain[Query(subject="wall").key()].estimate is None
+
+
+def test_a_door_count_read_from_drawn_shapes_is_an_estimate_a_window_count_is_not() -> None:
+    """B1: an IFC-rendered sheet's doors are grouped from frame and swing shapes; a door drawn
+    edge-on or over another is missed (17 read, 18 in the model), so the count may be low."""
+    note = "2 doors are read from drawn shapes"
+    elements = (element(1, "door"), element(2, "door"), element(3, "window"))
+    listed = known_quantities(drawing(elements=elements, notes=(note,)))
+    doors = listed[Query(subject="door").key()]
+    assert doors.value == 2 and doors.estimate is not None
+    # a missed door means more doors than read, never fewer (review-455 M1)
+    assert doors.estimate == (
+        "2 doors are read from drawn shapes: a door drawn edge-on or over another can be missed, "
+        "so there may be more doors"
+    )
+    assert listed[Query(subject="window").key()].estimate is None
+
+
+def test_one_solid_shape_is_worded_in_the_singular() -> None:
+    """review-455 S4: three plain PDFs read one filled shape as a wall ("1 cut solids")."""
+    note = "1 cut solids are listed as walls: the sheet draws walls, columns and other cut parts"
+    listed = known_quantities(drawing(elements=(element(1, "wall"),), notes=(note,)))
+    estimate = listed[Query(subject="wall").key()].estimate
+    assert estimate is not None and estimate.startswith("1 solid shape is counted as a wall:")
+
+
+def test_a_room_s_door_count_from_drawn_shapes_is_an_estimate_too() -> None:
+    """review-455 S3: the per-room door counts use the same grouped doors as the sheet's."""
+    outline = ((0.10, 0.10), (0.30, 0.10), (0.30, 0.30), (0.10, 0.30))
+    office = room(1, "other", 4.0, label="Office", polygon=outline, attrs={"number": "1.02"})
+    items = (
+        Element.model_validate({"id": "e1", "class": "door", "page": 1,
+                                "box": (0.300, 0.18, 0.320, 0.22)}),
+        Element.model_validate({"id": "e2", "class": "window", "page": 1,
+                                "box": (0.18, 0.090, 0.22, 0.100)}),
+    )  # fmt: skip
+    note = "1 doors are read from drawn shapes: a door drawn edge-on or over another can be missed"
+    found = known_quantities(drawing(rooms=(office,), elements=items, notes=(note,)))
+    door, window = found["door|name=1.02"], found["window|name=1.02"]
+    assert door.value == 1 and door.estimate is not None and "more doors" in door.estimate
+    assert window.value == 1 and window.estimate is None
+    plain = known_quantities(drawing(rooms=(office,), elements=items))
+    assert plain["door|name=1.02"].estimate is None

@@ -378,9 +378,29 @@ main[tabindex='-1']:focus-visible {
   max-width: 240px;
 }
 .country-button {
+  min-width: 44px; /* a tap target (R2-D5) */
   max-width: 100%;
   padding: 4px 14px 4px 12px;
   white-space: nowrap;
+}
+/* first Tab stop on every screen; seen only when focused (R2-D3) */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 980px;
+  background: var(--v-text);
+  color: var(--v-surface);
+  font: inherit;
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible {
+  transform: none;
 }
 .country-button svg {
   flex-shrink: 0;

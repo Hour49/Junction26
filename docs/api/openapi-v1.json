@@ -1,6 +1,44 @@
 {
   "components": {
     "schemas": {
+      "Affine": {
+        "additionalProperties": false,
+        "description": "How a services sheet lies on the plan: a sheet page fraction (x, y) lands on the plan's\npage at (a x + b y + c, d x + e y + f). Identity on the plan's own page.",
+        "properties": {
+          "a": {
+            "default": 1.0,
+            "title": "A",
+            "type": "number"
+          },
+          "b": {
+            "default": 0.0,
+            "title": "B",
+            "type": "number"
+          },
+          "c": {
+            "default": 0.0,
+            "title": "C",
+            "type": "number"
+          },
+          "d": {
+            "default": 0.0,
+            "title": "D",
+            "type": "number"
+          },
+          "e": {
+            "default": 1.0,
+            "title": "E",
+            "type": "number"
+          },
+          "f": {
+            "default": 0.0,
+            "title": "F",
+            "type": "number"
+          }
+        },
+        "title": "Affine",
+        "type": "object"
+      },
       "After": {
         "additionalProperties": false,
         "properties": {
@@ -2146,6 +2184,16 @@
             "title": "Marks",
             "type": "array"
           },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FollowPicture"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reason": {
             "anyOf": [
               {
@@ -3669,6 +3717,17 @@
             "title": "State",
             "type": "string"
           },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
           "takeoff": {
             "additionalProperties": {
               "anyOf": [
@@ -3828,6 +3887,80 @@
           "clause"
         ],
         "title": "Finding",
+        "type": "object"
+      },
+      "FollowPicture": {
+        "additionalProperties": false,
+        "description": "The discipline sheet a lane was read from, with the edit drawn in its page fractions.",
+        "properties": {
+          "added": {
+            "default": [],
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "marks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PictureMark"
+            },
+            "title": "Marks",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pairing": {
+            "$ref": "#/components/schemas/Pairing"
+          },
+          "removed": {
+            "default": [],
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Removed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "page",
+          "pairing"
+        ],
+        "title": "FollowPicture",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -5471,6 +5604,53 @@
         "title": "PageView",
         "type": "object"
       },
+      "Pairing": {
+        "additionalProperties": false,
+        "description": "Why a services sheet is taken to be the plan's floor (pics-edit-follow W1).",
+        "properties": {
+          "drawing_id": {
+            "title": "Drawing Id",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "paired_by": {
+            "enum": [
+              "same_page",
+              "metadata",
+              "geometry",
+              "user"
+            ],
+            "title": "Paired By",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "required": [
+          "drawing_id",
+          "page",
+          "paired_by",
+          "reason"
+        ],
+        "title": "Pairing",
+        "type": "object"
+      },
       "Patch": {
         "additionalProperties": false,
         "description": "An edit as data (SV-13): elements as they are after (`moved`, `changed`) or new (`added`),\nids that go (`removed`), and the connections that go or come.",
@@ -5525,6 +5705,60 @@
           }
         },
         "title": "Patch",
+        "type": "object"
+      },
+      "PictureMark": {
+        "additionalProperties": false,
+        "description": "A lane's mark where the discipline sheet draws it (`ref` as in the lane's marks).",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "line": {
+            "default": [],
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Line",
+            "type": "array"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "title": "PictureMark",
         "type": "object"
       },
       "PictureRef": {
@@ -6196,6 +6430,14 @@
             "title": "Id",
             "type": "string"
           },
+          "index_steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StepTrace"
+            },
+            "title": "Index Steps",
+            "type": "array"
+          },
           "issues_open": {
             "anyOf": [
               {
@@ -6238,6 +6480,21 @@
               }
             ],
             "title": "Not Plans"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "enum": [
+                  "files",
+                  "index"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
           },
           "readers": {
             "additionalProperties": {
@@ -8570,6 +8827,14 @@
             ],
             "title": "Stage",
             "type": "string"
+          },
+          "steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StepTrace"
+            },
+            "title": "Steps",
+            "type": "array"
           }
         },
         "required": [
@@ -8651,6 +8916,66 @@
           "ms"
         ],
         "title": "Step",
+        "type": "object"
+      },
+      "StepTrace": {
+        "additionalProperties": false,
+        "description": "One thing that ran inside a stage (a reader, a check, a model call), or in the project's\nlast phase (decision 0017). Readers that run at the same time have overlapping\n[at_ms, at_ms + ms) spans.",
+        "properties": {
+          "at_ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "At Ms",
+            "type": "number"
+          },
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "did": {
+            "default": "",
+            "title": "Did",
+            "type": "string"
+          },
+          "found": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Found",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Ms",
+            "type": "number"
+          },
+          "state": {
+            "default": "done",
+            "enum": [
+              "done",
+              "failed",
+              "skipped"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StepTrace",
         "type": "object"
       },
       "StoreyRow": {

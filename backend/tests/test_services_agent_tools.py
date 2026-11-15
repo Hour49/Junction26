@@ -18,7 +18,7 @@ from app.adapters.services_store import ServicesStore
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.plan_edit.model import Selection
 from app.core.services.stored import Connectivity, ServicesModel, fraction
-from tests.services_fixtures import SUPPLY, two_rooms
+from tests.services_fixtures import SUPPLY, WC_ROOM, two_rooms, wc_room
 
 LIMIT = 4000
 
@@ -86,6 +86,47 @@ def test_sv23_list_services_filters_and_stays_short_with_a_more_count() -> None:
     assert all(i["kind"] == "space_heater" for i in found["items"])
 
 
+def test_sv23_a_count_question_gets_the_total_not_the_part_listed() -> None:
+    """Live (#430): "How many radiators are there?" → "14 ... and 49 more"; the total first."""
+    model = two_rooms()
+    doc = model.model_dump(mode="json", by_alias=True)
+    radiator = next(e for e in doc["elements"] if e["id"] == "E3")
+    many = [{**radiator, "id": f"E{100 + i}", "ref": {"guid": f"g{i}"}} for i in range(61)]
+    big = ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *many]})
+    found = _run(_store(big), "list_services", drawing_id="d1", kind="space_heater")
+    assert found["count"] == 63 and len(found["items"]) < 63
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "count" in listing["function"]["description"]
+
+
+def test_sv23_a_heating_system_named_h_underscore_is_called_heating() -> None:
+    """Live (#430): German exports name heating systems H_* (Vorlauf/Rücklauf) and their pipes
+    read as plumbing; the system's own name says heating."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    names = {SUPPLY: "H_Transport_VL_1", "Heating Return": "H_Transport_RL_0"}
+    for e in doc["elements"]:
+        e["systems"] = [names.get(s, s) for s in e["systems"]]
+        e["discipline"] = "plumbing"  # what the words of a pipe give
+    found = _run(_store(ServicesModel.model_validate(doc)), "list_services", drawing_id="d1")
+    assert {s["name"]: s["discipline"] for s in found["systems"]} == {
+        "H_Transport_RL_0": "heating",
+        "H_Transport_VL_1": "heating",
+    }
+
+
+def test_sv23_a_system_s_own_words_name_its_discipline_before_its_members() -> None:
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    for e in doc["elements"]:
+        e["systems"] = ["Domestic Cold Water" if s == SUPPLY else "Lüftung 1" for s in e["systems"]]
+        e["discipline"] = "heating"
+    found = _run(_store(ServicesModel.model_validate(doc)), "list_services", drawing_id="d1")
+    # "Lüftung" says nothing to the table: the members' majority stays
+    assert {s["name"]: s["discipline"] for s in found["systems"]} == {
+        "Domestic Cold Water": "plumbing",
+        "Lüftung 1": "heating",
+    }
+
+
 def test_sv22_sv26_list_services_narrows_to_the_room_of_a_selection() -> None:
     store = _store(sel_1=_region(7.5, 2.0))  # inside SR2
     found = _run(store, "list_services", drawing_id="d1", selection_id="sel_1")
@@ -102,6 +143,26 @@ def test_sv22_sv26_list_services_narrows_to_the_room_of_a_selection() -> None:
 def test_sv23_list_services_bad_ids_say_so() -> None:
     assert "error" in _run(_store(), "list_services", drawing_id="nope")
     assert "error" in _run(_store(), "list_services", drawing_id="d1", room_id="SR9")
+
+
+NOT_READ = (
+    "none of this project's IFC files has been read into a services model yet, so its pipes, "
+    "ducts and cables cannot be followed"
+)
+
+
+def test_sv23_a_project_with_no_services_model_read_says_so_in_words() -> None:
+    """QA: an IFC upload has no services model until one is built; the error says that, with
+    no drawing id and no "models: none" (it is what a person reads in the chat)."""
+    store = ServicesToolStore(models={})
+    assert _run(store, "list_services", drawing_id="78b0f2d7c0284c60") == {"error": NOT_READ}
+    assert _run(store, "list_services") == {"error": NOT_READ}
+    assert _run(store, "ask_services", drawing_id="d1", op="feeds", element_id="E2") == {
+        "error": NOT_READ
+    }
+    # a project that has models still names them, so the chat can pick one
+    named = _run(_store(), "list_services", drawing_id="x")["error"]
+    assert "the project's services models: d1" in named
 
 
 # --- SV-24 ask_services --------------------------------------------------------------------------
@@ -261,3 +322,153 @@ def test_sv25_listing_the_project_s_models_loads_none_of_them(
     monkeypatch.setattr(ServicesStore, "load", lambda *_: _never())
     models = _ProjectModels(pipeline, store, [])  # pyright: ignore[reportArgumentType]
     assert list(models) == ["d1"] and len(models) == 1
+
+
+# --- room names (QA #430 c6886540832: a room's name never reached the services model's room) ---
+
+
+def test_listed_items_carry_their_rooms_name() -> None:
+    items = {i["id"]: i for i in _run(_store(), "list_services", drawing_id="d1")["items"]}
+    assert items["E2"]["room"] == "SR1" and items["E2"]["room_name"] == "1 Living"
+    assert items["E3"]["room_name"] == "2 Bedroom"
+
+
+@pytest.mark.parametrize("named", ["1 Living", "living 1", "LIVING", "SR1", "sr1"])
+def test_the_room_argument_takes_a_name_in_any_case_and_word_order(named: str) -> None:
+    found = _run(_store(), "list_services", drawing_id="d1", room_id=named)
+    assert found["room"] == {"id": "SR1", "name": "1 Living"}
+    assert {i["id"] for i in found["items"]} == {"E1", "E2"}
+
+
+def test_a_name_two_rooms_hold_lists_them_and_an_unknown_one_says_so() -> None:
+    model = two_rooms()
+    renamed = model.model_copy(
+        update={"rooms": (model.rooms[0], model.rooms[1].model_copy(update={"name": "2 Living"}))}
+    )
+    both = _run(_store(renamed), "list_services", drawing_id="d1", room_id="living")
+    assert "SR1 '1 Living'" in both["error"] and "SR2 '2 Living'" in both["error"]
+    unknown = _run(_store(), "list_services", drawing_id="d1", room_id="Küche 1-3")
+    assert "no room named 'Küche 1-3'" in unknown["error"] and "1 Living" in unknown["error"]
+
+
+# --- breakdowns (#430 c6886940069 R2: "of each type", "per room" refused when the list was cut) ---
+
+
+def _many(count: int, types: int) -> ServicesModel:
+    """The fixture with `count` more radiators in turns of the two rooms, of `types` type names."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    radiator = next(e for e in doc["elements"] if e["id"] == "E3")
+    many = [
+        {**radiator, "id": f"E{100 + i}", "ref": {"guid": f"g{i}"}, "ports": [],
+         "type": f"Radiator type {i % types}", "room": ("SR1", "SR2")[i % 2]}
+        for i in range(count)
+    ]  # fmt: skip
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *many]})
+
+
+def test_a_cut_list_still_counts_every_match_by_type_and_by_room() -> None:
+    found = _run(_store(_many(300, 3)), "list_services", drawing_id="d1", kind="space_heater")
+    assert found["more"] > 0  # the items are cut, the groups are not
+    assert found["by_type"] == {
+        "Radiator type 0": 100, "Radiator type 1": 100, "Radiator type 2": 100,
+        "Radiator 22-600": 2,
+    }  # fmt: skip
+    assert found["by_room"] == {"SR1 1 Living": 151, "SR2 2 Bedroom": 151}
+
+
+def test_too_many_groups_keep_the_largest_and_count_the_rest() -> None:
+    found = _run(_store(_many(300, 300)), "list_services", drawing_id="d1", kind="space_heater")
+    rest = [k for k in found["by_type"] if k.startswith("and ")]
+    assert len(rest) == 1 and rest[0].endswith(" more groups")
+    assert sum(found["by_type"].values()) == found["count"] == 302
+    assert found["by_type"]["Radiator 22-600"] == 2  # the largest group is kept
+
+
+def test_the_list_tool_says_breakdowns_come_from_the_groups() -> None:
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    said = listing["function"]["description"]
+    assert "by_type" in said and "by_room" in said
+
+
+def _plumbing() -> ServicesModel:
+    """The fixture plus a plumbing system: 3 WCs and 2 basins (sanitary terminals), a water
+    heater (unitary equipment), a roof drain (waste terminal) and a filter, as a real plumbing
+    model has them (#430 c6887184725: "91 in total" for its 72 sanitary fixtures)."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    radiator = next(e for e in doc["elements"] if e["id"] == "E3")
+    made = (
+        [("sanitary_terminal", "flow_terminal", "WC")] * 3
+        + [("sanitary_terminal", "flow_terminal", "Waschtisch")] * 2
+        + [
+            ("unitary_equipment", "energy_conversion_device", "Durchlauferhitzer"),
+            ("waste_terminal", "flow_terminal", "Regenablauf"),
+            ("filter", "flow_treatment_device", "Rückspülfilter"),
+        ]
+    )
+    more = [
+        {**radiator, "id": f"E{200 + i}", "ref": {"guid": f"s{i}"}, "ports": [], "kind": kind,
+         "group": group, "type": name, "label": name, "systems": ["Trinkwasser"],
+         "discipline": "plumbing"}
+        for i, (kind, group, name) in enumerate(made)
+    ]  # fmt: skip
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *more]})
+
+
+def test_a_kind_counts_that_kind_only_and_every_list_counts_its_kinds() -> None:
+    whole = _run(_store(_plumbing()), "list_services", drawing_id="d1", system="Trinkwasser")
+    assert whole["by_kind"]["sanitary_terminal"] == 5  # the fixtures, apart from what is not one
+    assert whole["by_kind"]["unitary_equipment"] == whole["by_kind"]["waste_terminal"] == 1
+    fixtures = _run(_store(_plumbing()), "list_services", drawing_id="d1", kind="sanitary_terminal")
+    assert fixtures["count"] == sum(fixtures["by_type"].values()) == len(fixtures["items"]) == 5
+    assert fixtures["by_type"] == {"WC": 3, "Waschtisch": 2}
+    assert fixtures["by_kind"] == {"sanitary_terminal": 5}
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "by_kind" in json.dumps(listing)
+
+
+def test_an_ifc_type_counts_that_type_only_and_every_list_counts_its_types() -> None:
+    """R5 (live check, 2026-11-15): "toilets in 13 WC Damen Ost" counted all 10 sanitary
+    terminals of the room (truth 3): only the PredefinedType tells a WC from a basin or a frame."""
+    room = _run(_store(wc_room()), "list_services", drawing_id="d1", room_id=WC_ROOM,
+                kind="sanitary_terminal")  # fmt: skip
+    assert room["count"] == 10
+    assert room["by_predefined"] == {"SANITARYFOUNTAIN": 5, "TOILETPAN": 3, "WASHHANDBASIN": 2}
+    wcs = _run(_store(wc_room()), "list_services", drawing_id="d1", room_id=WC_ROOM,
+               kind="sanitary_terminal", predefined="toiletpan")  # fmt: skip
+    assert wcs["count"] == len(wcs["items"]) == 3 and wcs["by_predefined"] == {"TOILETPAN": 3}
+    assert {i["id"] for i in wcs["items"]} == {"E301", "E302", "E303"} and wcs["untyped"] == 0
+    blind = _run(_store(wc_room(untyped=10)), "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
+    assert "its types: untyped" in blind["error"], blind  # #559 S1: no TOILETPAN anywhere
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "by_predefined" in json.dumps(listing) and "predefined" in json.dumps(listing)
+
+
+def test_an_ifc_type_the_model_lacks_is_an_error_naming_its_types() -> None:
+    """#559 review S1 (ifc-ask, 2026-11-15): predefined="TOILET" matched nothing and gave a
+    confident 0; a type no element of that kind has is an error naming the types, as an unknown
+    room name is. A type the model has elsewhere is a true 0 in a room without it."""
+    store = _store(wc_room(untyped=2))
+    wrong = _run(store, "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="TOILET")  # fmt: skip
+    assert "TOILET" in wrong["error"] and "TOILETPAN" in wrong["error"], wrong
+    assert "WASHHANDBASIN" in wrong["error"] and "untyped" in wrong["error"], wrong
+    none_here = _run(store, "list_services", drawing_id="d1", room_id="2 Bedroom",
+                     kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
+    assert none_here["count"] == 0 and "error" not in none_here, none_here
+    loose = _run(store, "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="untyped")  # fmt: skip
+    assert loose["count"] == 2 and {i["id"] for i in loose["items"]} == {"E309", "E310"}, loose
+    empty = _run(store, "list_services", drawing_id="d1", predefined="")
+    assert "predefined" in empty["error"], empty
+
+
+def test_566_moving_a_washbasin_is_a_refusal_not_a_failure() -> None:
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    e2 = next(e for e in doc["elements"] if e["id"] == "E2")
+    e2["ports"].append({"id": "E2.p3", "at": (2.5, 0.1, 0.1), "flow": "source"})
+    found = _run(_store(ServicesModel.model_validate(doc)), "propose_move_terminal",
+                 drawing_id="d1", element_id="E2", wall_id="SW2")  # fmt: skip
+    assert found["status"] == "refused" and "3 pipe connections" in found["reason"], found
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "propose_move_terminal")
+    assert "frame" in listing["function"]["description"]

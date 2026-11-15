@@ -13,7 +13,7 @@ import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 
-from app.core.discipline import discipline_from_question
+from app.core.discipline import discipline_from_question, discipline_named_in
 from app.core.drawing.model import Box
 from app.core.ifc_facts import Discipline, Fact, FactSheet, Spot
 from app.core.model import Frozen
@@ -69,7 +69,8 @@ class Checked(Frozen):
 # kind (snake case, as facts_mep) -> the disciplines it may be, first the default, and its words
 # in the dataset's languages. Matched case-blind after a word start, so compounds match their
 # first part only when listed whole ("lämpöpatteri"). The first kind that matches wins: a
-# "supply air valve" is an air terminal, a "radiator valve" a valve.
+# "supply air valve" is an air terminal, a "radiator valve" a valve, a "lighting panelboard" or a
+# "switchboard" a distribution board.
 _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
     (
         "air_terminal",
@@ -80,10 +81,22 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"diffuseur|bouche|grille d'air|diffusore|bocchetta|difusor|rejilla|õhujaotur|"
         r"sissepuhke|väljatõmbe",
     ),
-    (
+    (  # a radiator family named by its valve's position: "Heizkörper Plan Ventil Unten:Rechts"
+        "space_heater",
+        ("heating",),
+        r"heizk[öo]rper\b[^:]*\bventil\s+(?:unten|oben|seitlich|mitte|links|rechts)",
+    ),
+    (  # a radiator's valve: "Radiator valve", "Heizkörperventil"
+        "valve",
+        ("heating",),
+        r"radiator valve|thermostatic valve|heizk[öo]rperventil|thermostatventil|"
+        r"patteriventtiili|termostaattiventtiili|radiatorventil|radiatorkraan",
+    ),
+    (  # before the radiator too: "Radiator return valve", "Heizkörper Ventil"
         "valve",
         ("plumbing", "heating", "fire"),
-        r"valve|venttiili|ventil|afsluiter|klep|vanne|robinet|valvola|válvula|ventiil",
+        r"valve|venttiili|ventil(?!at)|\w+ventil(?!at)|afsluiter|klep|vanne|"
+        r"robinet|valvola|válvula|ventiil",
     ),
     (
         "space_heater",
@@ -110,6 +123,13 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"prise de courant|presa|enchufe|toma de corriente|pistikupesa",
     ),
     (
+        "electric_distribution_board",
+        ("electrical",),
+        r"distribution board|switchboard|ryhmäkeskus|sähkökeskus|verteiler|elcentral|"
+        r"gruppcentral|verdeelkast|tableau électrique|quadro elettrico|cuadro eléctrico|"
+        r"jaotuskilp|panel ?board",
+    ),
+    (
         "switching_device",
         ("electrical",),
         r"switch|kytkin|schalter|strömbrytare|brytare|schakelaar|interrupteur|interruttore|"
@@ -122,16 +142,10 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"lampada|apparecchio illuminante|luminaria|valgusti",
     ),
     (
-        "electric_distribution_board",
-        ("electrical",),
-        r"distribution board|switchboard|ryhmäkeskus|sähkökeskus|verteiler|elcentral|"
-        r"gruppcentral|verdeelkast|tableau électrique|quadro elettrico|cuadro eléctrico|"
-        r"jaotuskilp",
-    ),
-    (
         "sanitary_terminal",
         ("plumbing",),
-        r"wc\b|toilet|wash ?basin|sink|shower|bath|urinal|wc-istuin|pesuallas|allas|suihku|"
+        r"wc\b|toilet|water closet|lavator|wash ?basin|sink|shower|bath|urinal|wc-istuin|"
+        r"pesuallas|allas|suihku|"
         r"waschbecken|waschtisch|dusche|badewanne|tvättställ|dusch|wastafel|douche|"
         r"lavabo|lavandino|doccia|inodoro|ducha|kraanikauss|dušš",
     ),
@@ -151,7 +165,11 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"cable tray|cable ladder|kaapelihylly|kaapelihyllyt|kabeltrasse|kabelrinne|kabelstege|"
         r"kabelgoot|chemin de câbles|passerella|bandeja|kaablirenn",
     ),
-    ("pump", ("plumbing", "heating", "fire"), r"pump|pumppu|pumpe|pomp|pompe|pompa|bomba"),
+    (
+        "pump",
+        ("plumbing", "heating", "fire"),
+        r"pump|pumppu|pumpe|\w+pumpe\b|pomp|pompe|pompa|bomba",
+    ),
     ("fan", ("ventilation",), r"fan\b|puhallin|ventilator|fläkt|ventilateur|ventilatore"),
     (
         "column",
@@ -171,18 +189,58 @@ _KIND_RES: list[tuple[str, tuple[Discipline, ...], re.Pattern[str]]] = [
 ]
 
 
-def kind_of(label: str, group: str | None) -> tuple[str, Discipline] | None:
+# A Revit family's prefix ("M_Radiator", "M_Lavatory"): "_" is a word character, so the kind's
+# word after it has no word start
+_FAMILY_PREFIX = re.compile(r"^[A-Za-z]{1,3}_(?=[A-Za-z])")
+# The run a line style draws, by the discipline its system names ("Hydronic Supply", "Sanitary")
+_SEGMENT: dict[Discipline, str] = {
+    "heating": "pipe_segment",
+    "plumbing": "pipe_segment",
+    "fire": "pipe_segment",
+    "ventilation": "duct_segment",
+    "electrical": "cable_carrier_segment",
+}
+
+
+def kind_of(
+    label: str, group: str | None, sheet: Discipline | None = None
+) -> tuple[str, Discipline] | None:
     """The IFC kind a legend label names and that kind's discipline; None when it names none. A
     kind several disciplines draw (a valve, a pipe) takes the one its group heading, else the
-    label itself, names; else its default."""
+    label itself, names; else its default. With the `sheet`'s discipline (triage's, else the
+    file name's) only a strong word in the group or label beats it: "Ventil" names no discipline
+    on a heating sheet, "cold water" does."""
+    label = _FAMILY_PREFIX.sub("", label)
     for kind, can, pattern in _KIND_RES:
         if pattern.search(label):
+            if sheet in can:
+                for text in (group, label):
+                    named = discipline_named_in(text or "")
+                    if named in can:
+                        return kind, named
+                return kind, sheet
             for text in (group, label):
                 named = discipline_from_question(text or "")
                 if named in can:
                     return kind, can[can.index(named)]
             return kind, can[0]
     return None
+
+
+def line_kind_of(
+    label: str, group: str | None, sheet: Discipline | None = None
+) -> tuple[str, Discipline] | None:
+    """A line style's kind: the segment its label names, else the segment of the discipline its
+    system names ("Unit A Hydronic Supply In" -> a heating pipe, "Supply Air" -> a duct), else
+    (a `sheet` discipline given) the sheet's segment."""
+    kind = kind_of(label, group, sheet)
+    if kind and kind[0] in _SEGMENT.values():
+        return kind
+    named = discipline_from_question(label) or discipline_from_question(group or "")
+    if sheet in _SEGMENT:
+        named = discipline_named_in(label) or discipline_named_in(group or "") or sheet
+    discipline = named if named in _SEGMENT else (kind[1] if kind else None)
+    return None if discipline not in _SEGMENT else (_SEGMENT[discipline], discipline)
 
 
 # A storey as a sheet's title prints it ("2ND FLOOR", "2. krs", "1. OG", "Level 3", "Kellari")
@@ -354,10 +412,11 @@ def _fact(
     )
 
 
-def picture_facts(drawing: str, checked: Checked) -> FactSheet:
+def picture_facts(drawing: str, checked: Checked, sheet: Discipline | None = None) -> FactSheet:
     """The facts of one checked page, keyed by `drawing` (the drawing id). Counts per label and
     per kind (`all`), per legend group (`category.count`); run lengths per system and per
-    printed size, from readings with a scale."""
+    printed size, from readings with a scale. `sheet`: the page's own discipline, for labels
+    that name none (`kind_of`)."""
     readings = checked.readings
     facts: list[Fact] = []
     counted: list[tuple[_Unit, list[Spot]]] = []
@@ -366,12 +425,16 @@ def picture_facts(drawing: str, checked: Checked) -> FactSheet:
         looked = [r for r in readings if label in _labels(r)]
         lead = looked[0]
         group, line = _group_of(label, readings)
-        kind = kind_of(label, group)
+        kind = (line_kind_of if line else kind_of)(label, group, sheet)
+        if sheet is None:
+            named = discipline_from_question(group or "")
+        else:
+            named = discipline_named_in(group or "") or sheet
         unit = _Unit(
             label=label,
             kind=kind and kind[0],
             group=group,
-            discipline=kind[1] if kind else discipline_from_question(group or "") or "other",
+            discipline=kind[1] if kind else named or "other",
             readers=tuple(r.reader for r in looked),
             held=not checked.agreed.get(label, False),
             legend=lead.legend is not None,

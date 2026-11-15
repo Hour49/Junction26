@@ -37,7 +37,7 @@ from app.adapters.vector_pdf.wall_fills import WallFill, wall_fills
 from app.api.checks import checks_of, find_pack
 from app.api.deps import Ingest
 from app.api.issues import issues_of
-from app.api.project_ask import ProjectAskRequest, project_ask
+from app.api.project_ask import ProjectAnswer, ProjectAskRequest, project_ask
 from app.api.projects import review_of
 from app.api.takeoff import takeoff_rows
 from app.api.views import DrawingEntry, drawings_of
@@ -45,7 +45,9 @@ from app.composition import Answering
 from app.core.checks.model import RulePack
 from app.core.drawing.model import Drawing
 from app.core.errors import DomainError
-from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.ingest.model import FileStatus, ProjectStatus, Triage
+from app.core.ingest.triage import sheet_flag
+from app.core.pipeline.user_scale import HINT as SCALE_HINT
 from app.core.review.ports import ReviewStore
 from app.settings import Settings
 
@@ -62,6 +64,7 @@ class PipelineStore:
     settings: Settings
     answering: Answering
     packs: tuple[RulePack, ...] = ()
+    user_scale: bool = False  # USER_SCALE: a no-scale refusal says the user can give the scale
 
     @classmethod
     def of_app(cls, app: Any, project_id: str) -> "PipelineStore":
@@ -123,8 +126,10 @@ def _tool(name: str, description: str, model: type[_Args]) -> dict[str, Any]:
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_drawings",
-        "The drawings of the project: id, file name, kind, read state, page count and, for a "
-        "file that is not a floor plan, what triage thinks it shows and whether it belongs.",
+        "The drawings of the project: id, file name, kind, read state, page count, what kind "
+        "of sheet triage says each picture looks like (with its printed title, sheet number and "
+        "whether it may not be a floor plan) and, for a file that is not a floor plan, what "
+        "triage thinks it shows and whether it belongs.",
         _NoArgs,
     ),
     (
@@ -266,12 +271,31 @@ def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) 
             "subject": None if triage.description is None else triage.description.subject,
             "relevance": None if triage.relevance is None else triage.relevance.verdict,
             "verdict": triage.verdict,
+            "sheet": _sheet(triage),
         },
     }
 
 
+def _sheet(triage: Triage) -> dict[str, Any] | None:
+    """What the sheet-kind step called the picture, so the chat can say what kind of drawing it
+    is: a doubted piping plan is read, so its class is floor_plan (R3-G4: "a raster floor
+    plan"). `flag`: the reading flag its answers carry (triage.sheet_flag)."""
+    sheet = triage.sheet
+    if sheet is None:
+        return None
+    return {
+        "looks_like": sheet.kind_words,
+        "decision": sheet.decision,
+        "title": sheet.title,
+        "sheet_number": sheet.sheet_number,
+        "printed_scale": sheet.printed_scale,
+        "seen": sheet.seen,
+        "flag": sheet_flag(triage),
+    }
+
+
 def _ask(store: PipelineStore, args: Any) -> BaseModel:
-    return project_ask(
+    found = project_ask(
         store.project_id,
         ProjectAskRequest(question=args.question),
         store.ingest,
@@ -279,6 +303,21 @@ def _ask(store: PipelineStore, args: Any) -> BaseModel:
         store.answering,
         store.settings,
     )
+    return with_scale_hint(found) if store.user_scale else found
+
+
+def with_scale_hint(found: ProjectAnswer) -> ProjectAnswer:
+    """USER_SCALE: each no-scale refusal also says how the user can give the scale."""
+    parts = []
+    for part in found.parts:
+        refusal = part.answer.refusal
+        if refusal is not None and refusal.code == "no-scale":
+            hinted = refusal.model_copy(update={"text": f"{refusal.text} {SCALE_HINT}"})
+            part = part.model_copy(
+                update={"answer": part.answer.model_copy(update={"refusal": hinted})}
+            )
+        parts.append(part)
+    return found.model_copy(update={"parts": parts})
 
 
 def _takeoff(store: PipelineStore, args: Any) -> BaseModel:

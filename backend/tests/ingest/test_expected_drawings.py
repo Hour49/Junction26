@@ -34,7 +34,7 @@ def test_expected_drawings_never_overshoots_nor_drops_while_the_sample_runs(
     final = ingest.status(ingest.start("sample-project.zip", build_archive()))
     assert final.state == "done"
     expected = expected_drawings_of(final)
-    assert expected == len(drawings_of(final)) == 5
+    assert expected == len(drawings_of(final)) == 6
     seen = [expected_drawings_of(status) for status in store.saved]
     known = [n for n in seen if n is not None]
     assert known, seen

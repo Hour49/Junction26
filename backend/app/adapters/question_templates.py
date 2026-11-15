@@ -44,6 +44,7 @@ from app.core.answering.model import (
     NOT_COUNTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
+    SIZE_FILTER,
     UNQUOTED_PLACE,
     Query,
     TableQuery,
@@ -58,7 +59,12 @@ QUOTED = re.compile(r"(?<!\w)'(.+?)'(?!\w)|„([^“”]*)[“”]|«([^»]*)»|
 # Subject nouns, matched at a word start on the casefolded question. The order matters where one
 # pattern contains another: a matched span is blanked out before the next pattern runs (WC rooms
 # before WC seats, bathtubs before bathrooms, balconies before beams).
+SPACE_THING = "space_thing"  # a SUBJECTS hit that names no subject of the takeoff
+NOT_A_ROOM_SPACE = "a space heater, space heating or space frame is not a room the takeoff has"
 SUBJECTS: Sequence[tuple[str, str]] = (
+    # Matched first, so its "space" is no room: a service or structure named with it (space
+    # heaters, space heating, space frames; QA #430, review-470 S1). Never a Query: refused
+    (SPACE_THING, r"\bspaces?[\s-]+(?:heat\w*|frames?|truss\w*|cool\w*)"),
     ("room:wc", r"\bwc[- ]?(?:rooms?|til\w*|räume?)\b|\btoilet rooms?\b|\bseparate wcs?\b"),
     (
         "bathtub",
@@ -246,6 +252,35 @@ BREAKDOWN = re.compile(
     r"|width|system|function)\b|breakdown|distribut|grouped|\btypes\b|\bdifferent\b|\bdistinct\b"
     r"|proportion|\bwhich\b|\bwhere\b|\blist\b|\bwhat are\b|\bmetrics\b|statistic"
 )
+# "in each drawing" asked of one drawing is its own quantity, not a breakdown (the project chat
+# asks every drawing the question as written: qa-a cross-drawing walk, 2026-11-15)
+# "in the whole project" is the same ask of the project chat (demo walk 2026-11-15: "project" read
+# as the building model, so 9 of 12 drawings refused and the chat said 68 doors for the project)
+EACH_SHEET = re.compile(
+    r"\s*\b(?:(?:in|on|of|for)\s+(?:each|every)\s+(?:drawing|plan|floor ?plan|sheet|file|page)s?"
+    r"|(?:in|across)\s+(?:the\s+)?(?:(?:whole|entire)\s+)?project)\b",
+    re.IGNORECASE,
+)
+# "Is there a kitchen?", "Does this drawing show a kitchen?", "Which drawings show a kitchen?":
+# asked as the count of one drawing, 0 is no
+IS_THERE = re.compile(
+    r"^(?:is|are)\s+there\s+(?:an?|any|some)\s+(?P<thing>[^?]+?)"
+    r"(?:\s+(?:on|in)\s+(?:this|the)\s+(?:drawing|plan|sheet|file|page|image))?\s*\??$"
+    r"|^(?:does|do)\s+(?:(?:this|the|any)\s+)?(?:drawing|plan|floor ?plan|sheet|file|page|image|it)"
+    r"\s+(?:show|have|contain|include|depict)\s+(?:an?|any|some)\s+(?P<shown>[^?]+?)\s*\??$"
+    r"|^which\s+(?:drawing|plan|floor ?plan|sheet|file|page|image)s?\s+(?:show|have|has|contain"
+    r"|include|depict)s?\s+(?!(?:the|no|more|most|fewer|fewest|less|least)\b)"
+    r"(?:(?:an?|any|some)\s+)?(?P<which>[^?]+?)\s*\??$",
+    re.IGNORECASE,
+)
+# a thing narrowed by size, place or company ("a door larger than 1 m", "a bedroom with a
+# balcony"): its count is not the answer, so "is there a X" is not rewritten (review-510)
+QUALIFIER = re.compile(
+    r"\b(?:than|with|without|that|which|who|larger|bigger|smaller|wider|narrower|taller"
+    r"|longer|shorter|over|under|above|below|more|less|at least|at most|only|between|near"
+    r"|next to)\b",
+    re.IGNORECASE,
+)
 PLACE = re.compile(
     r"\b(?:ground|first|second|third|fourth|fifth|sixth|top|upper|lower|north|south|east|west)\b"
     r"|\bhouse [a-z]\b|\bfa[cç]ade\b|\bwing\b|\bplan \d+[a-z]?\b"
@@ -255,6 +290,27 @@ PLACE = re.compile(
 )
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
+)
+# A filter on the size of the items ("doors larger than 1 m", "windows at least 1 m wide", "rooms
+# with more than 2 windows"): the takeoff has whole classes only, so a question that carries one
+# is refused, not answered as the whole class (a confident wrong answer, fail-1 2026-11-15).
+# English only.
+SIZE_FILTER_WORDS = re.compile(
+    r"\b(?:larger|bigger|smaller|wider|narrower|taller|shorter|longer|higher|lower|deeper|thicker"
+    r"|thinner|greater|more|less|fewer)\s+than\b"
+    r"|\b(?:over|under|above|below|exceeding|at least|at most)\s+\d"
+    r"|\bwith\s+(?:a\s+)?(?:width|height|length|area|size|depth|thickness)\b"
+)
+# The question's own sentence, before a hint ("... on this floor plan? Count doorways fitted with
+# a door; ...")
+FIRST_SENTENCE = re.compile(r"\?|(?<=[a-z0-9²)])\.\s")
+# Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
+# balconies" (EXCLUDING), a room's "longer side" (its length); and words that narrow nothing
+# (review-532): "over all", "only". Not "the apartment with number A": the parser reads that
+# name only as "apartment A", so it would answer for the whole sheet (review-539)
+APPLIED = re.compile(
+    r"\b(?:without|excluding|except)\s+(?:the\s+|its\s+)?balcon\w*|\b(?:longer|shorter)\s+side\b"
+    r"|\bover\s+all\b|\bonly\b"
 )
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
@@ -269,7 +325,10 @@ INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen in
     r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"
     r"|\by compris\b|\bincluid\w*|\bcompres[aoie]\b|\binclus\w*|\btogether\b|\bzusammen\b"
 )
-BUILDING = re.compile(r"\bbuilding\b|\bproject\b")  # the whole model, not this sheet
+# The whole model, not this sheet. "project" is not the model: the project chat asks each drawing
+# the question as written, so "in this project" or "does the project have" is that drawing's own
+# quantity, as "in the whole project" is (EACH_SHEET; review-529 S1)
+BUILDING = re.compile(r"\bbuilding\b")
 # In English the counted thing comes right after these words ("how many X-ray rooms" is not a
 # count of rooms); the words in FILLER may come between.
 ENGLISH_COUNT = re.compile(r"\b(?:how many|number of|count of|count the|count)\s+")
@@ -300,7 +359,7 @@ class TemplateParser:
     """The `QuestionParser` port, from words and quoted names (see the module docstring)."""
 
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
-        raw = unicodedata.normalize("NFC", " ".join(text.split()))
+        raw = _as_asked(unicodedata.normalize("NFC", " ".join(text.split())))
         parsed = self._parse(raw)
         text, read = corrected(raw, [match.span() for match in QUOTED.finditer(raw)])
         if not read:
@@ -326,12 +385,20 @@ class TemplateParser:
             return Unsupported(reason="a breakdown or list is not one quantity")
         if PLACE.search(lower):
             return Unsupported(reason=UNQUOTED_PLACE)
+        if SIZE_FILTER_WORDS.search(lower):
+            return Unsupported(reason=SIZE_FILTER)
         if CONDITION.search(lower):
             return Unsupported(reason="a condition on the items (rooms that have...)")
         measure: Measure | None = next((m for m, cue in MEASURES if cue.search(lower)), None)
         if measure is None:
             return Unsupported(reason="no count, area, length or volume asked for")
+        # "bedrooms with a balcony", "doors next to the kitchen": the takeoff counts whole classes
+        # (review-524 should 2); the hint sentences after the question are not read for it
+        if has_qualifier(APPLIED.sub(" ", FIRST_SENTENCE.split(lower, maxsplit=1)[0])):
+            return Unsupported(reason="a condition on the items (rooms that have...)")
         body, hits = _subjects(lower)
+        if any(subject == SPACE_THING for _, subject in hits):
+            return Unsupported(reason=NOT_A_ROOM_SPACE)
         model = any(q.role == "model" for q in quoted) or BUILDING.search(lower) is not None
         floor_total = (
             measure == "area"
@@ -516,3 +583,19 @@ def _counted_thing_named(body: str, hits: list[tuple[int, str]]) -> bool:
         if word.group() not in FILLER:
             return False
     return True
+
+
+def _as_asked(raw: str) -> str:
+    """The question one drawing answers: "in each drawing" dropped, and "is there a X" / "does
+    this drawing show a X" / "which drawings show a X" asked as "How many X?"."""
+    found = IS_THERE.match(raw)
+    thing = found and (found["thing"] or found["shown"] or found["which"])
+    if thing and not has_qualifier(thing):
+        raw = f"How many {thing}?"
+    return EACH_SHEET.sub("", raw)
+
+
+def has_qualifier(thing: str) -> bool:
+    """Whether a counted thing is narrowed ("door larger than 1 m", "bedroom with a balcony"),
+    so a plain count of it would not answer the question."""
+    return QUALIFIER.search(thing) is not None

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Issue } from '../api';
 import { projectIssues } from '../api/fixtures';
-import { issueRoute } from '../conflicts/issueLinks';
+import { issueRoute } from '../surveyor/issueLinks';
 import {
   counts,
   filterIssues,
@@ -46,7 +46,7 @@ describe('issues.ts', () => {
   });
 
   it('IS-4 counts by state, zero states left out', () => {
-    expect(counts(issues)).toBe('3 open · 1 settled · 1 closed'); // never "signed off" (2026-11-15)
+    expect(counts(issues)).toBe('3 open · 1 settled · 1 signed off');
     expect(counts(issues.filter((i) => i.state === 'open'))).toBe('3 open');
     expect(counts([])).toBe('');
   });
@@ -115,11 +115,11 @@ describe('issues.ts', () => {
     expect(linksOf(byId('i-aside'))).toEqual({ 'Why it was set aside': `#/p/${PID}/f/f7` });
 
     const flag = linksOf(byId('i-ifc'));
-    // no surveyor screen any more (2026-11-15): no link to it, and page null: not located
-    expect(flag).toEqual({});
+    expect(flag['Open in the surveyor']).toBe(`#/p/${PID}/d/${DRAWING_IFC}/surveyor`);
+    expect(flag['Open the drawing']).toBeUndefined(); // page null: not located
 
     const check = linksOf(byId('i-check'), 'fi');
-    expect(Object.keys(check).some((label) => /surveyor/i.test(label))).toBe(false);
+    expect(query(must(check['Open in the surveyor'])).get('q')).toBe('door');
     expect(check['See the check']).toBe(`#/p/${PID}/checks?pack=fi`);
     for (const href of Object.values(check)) expect(query(href).get('pack')).toBe('fi');
   });

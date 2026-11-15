@@ -1,11 +1,17 @@
 // EN-69, EN-70: the card mounts DoubleCheck (double-check.md "Mounting"); here it is a props-recording double.
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup as unmount, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { AnswerView } from '../api';
 import { answer, answerArea, answerRefused, drawing, project } from '../api/fixtures';
 import { mockApi } from '../test/mockApi';
 import { EngineerPage } from './EngineerPage';
 import { answerEdited } from './testing';
+
+/** A fresh page: unmounted, and no engineer thread kept in the tab (R3-L2). */
+function cleanup() {
+  unmount();
+  sessionStorage.clear();
+}
 
 type Props = {
   answer: AnswerView;
@@ -82,7 +88,7 @@ it("EN-70 onChanged replaces that turn's answer only; the card sends nothing its
     doorMount.onChanged(answerEdited);
   });
   expect(within(doors).getByTestId('answer-value').textContent).toBe('1');
-  expect(within(doors).queryByText(/Changed in review/)).toBeNull();
+  expect(within(doors).getByText('Changed in review, was 2')).toBeTruthy();
   expect(last().answer).toEqual(answerEdited);
   expect(within(area).getByTestId('answer-value').textContent).toBe('52.27 m²');
   expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(posts);

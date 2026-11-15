@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { project, projectChecks, projectIssues, projectReview, takeoff } from '../api/fixtures';
 import type { ProjectView } from '../api';
-import { COLUMNS, fileName, scanRows, toCsv, type Scan } from './csv';
+import { COLUMNS, fileName, roomLabel, scanRows, toCsv, type Scan } from './csv';
 
 // extraction_v1 has no contract fixture (getModel is untyped): a minimal model in its shape (decision 0004).
 const model = {
@@ -13,6 +13,7 @@ const model = {
       page: 1,
       area_m2: 22.401,
       area_status: 'measured',
+      attrs: { number: '1.03' },
     },
   ],
   elements: [
@@ -41,6 +42,27 @@ const HEADER =
   'kind,file,drawing_id,page,item,type,label,value,unit,width_m,height_m,status,detail';
 
 describe('scan CSV', () => {
+  it('EX-4 a set-aside file the project lists in both files and skipped is one row (QA fe-ui2)', () => {
+    const [aside, lost] = [project.skipped[0], project.skipped[1]];
+    if (!aside || !lost) throw new Error('project.json has two skipped files');
+    const file = project.files[0];
+    if (!file) throw new Error('project.json has a file');
+    // the backend lists a set-aside file under files (with its id) and again under skipped
+    const both: ProjectView = {
+      ...project,
+      files: [
+        ...project.files,
+        { ...file, id: 'f9', path: aside.path, state: 'set_aside', reason: aside.reason },
+      ],
+    };
+    const rows = scanRows({ ...scan, project: both }).filter((r) => r.kind === 'file');
+    expect(rows.filter((r) => r.file === aside.path).map((r) => [r.item, r.status])).toEqual([
+      ['f9', 'set_aside'],
+    ]);
+    // a skipped file that never became a file (the server restarted mid-ingest) keeps its row
+    expect(rows.filter((r) => r.file === lost.path).map((r) => r.status)).toEqual(['skipped']);
+  });
+
   it('EX-3 the first line is the header', () => {
     expect(COLUMNS.join(',')).toBe(HEADER);
     expect(lines(toCsv(scanRows(scan)))[0]).toBe(HEADER);
@@ -62,13 +84,16 @@ describe('scan CSV', () => {
     expect(rows.find((r) => r.item === 'e2')?.width_m).toBeUndefined();
     expect(rows.find((r) => r.kind === 'room')).toMatchObject({
       type: 'kitchen',
-      label: 'Küche',
-      value: 22.401,
+      label: 'Küche 1.03',
+      value: 22.4,
       unit: 'm2',
     });
     const conflict = rows.find((r) => r.kind === 'conflict');
     expect(conflict?.status).toBe('settled by rule');
     expect(conflict?.detail).toContain('22.401');
+    // QA R2-E9: method ids in words, as the conflict card names them
+    expect(conflict?.detail).not.toMatch(/polygon_x_scale|printed_label/);
+    expect(conflict?.detail).toContain('room outlines × sheet scale 22.401 m2');
     expect(scanRows({ ...scan, checks: null }).some((r) => r.kind === 'check')).toBe(false);
   });
 
@@ -117,5 +142,15 @@ describe('scan CSV', () => {
     const date = new Date(2026, 10, 4, 23, 30);
     expect(fileName('sample-project.zip', date)).toBe('sample-project-scan-2026-11-04.csv');
     expect(fileName('a/b:c?.ZIP', date)).toBe('a-b-c--scan-2026-11-04.csv');
+  });
+});
+
+describe('R3-L3 room rows', () => {
+  it('the printed number goes with the name, once; no number keeps the name', () => {
+    expect(roomLabel('Stanza', '1.07')).toBe('Stanza 1.07');
+    expect(roomLabel('Room 1.07', '1.07')).toBe('Room 1.07');
+    expect(roomLabel('Stanza', null)).toBe('Stanza');
+    expect(roomLabel(null, '1.07')).toBe('1.07');
+    expect(roomLabel(undefined, ' ')).toBeNull();
   });
 });

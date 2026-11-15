@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from app.adapters.chat_rules import RulesChatModel
 from app.core.agent.loop import NUDGE, STOPS, UNBACKED, run_turn
 from app.core.agent.model import Caps, Chat, ChatTurn
 from app.core.agent.ports import ChatModelError, Reply
@@ -446,3 +447,60 @@ def test_tudor_nit_a_measured_area_reaches_the_model_as_the_card_shows_it() -> N
     got = turn(model, Tools(ask_drawings=shown))
     assert "7.557" not in model.sent[1][-1]["content"]
     assert got.text == "The kitchen is 7.56 m²."  # 7.557 is no longer backed
+
+
+def test_466_the_lead_cites_every_drawing_the_card_shows_though_parts_are_cut() -> None:
+    """#466 (Mada's look-check): 4 drawings answered, the card showed 4, the rules lead said "The
+    drawing answers this below [1].": the planner read the result cut for the model's window, where
+    `parts` kept 1 drawing. The model's copy now lists every answering drawing in `answered`."""
+    marks = [{"id": f"m{k}", "page": 1, "box": [0.1, 0.1, 0.2, 0.2],
+              "label": f"door {k} " + "x" * 40} for k in range(30)]  # fmt: skip
+    parts = [{"drawing_id": f"{DRAWING[:-1]}{n}", "name": f"{n}.pdf", "answer": {
+        "answer": 30, "unit": "count", "quantity": {"noun": "doors"}, "marks": marks,
+        "explanation": "y" * 900}} for n in range(1, 5)]  # fmt: skip
+    model = RulesChatModel()
+    got = turn(model, Tools(ask_drawings={"question": "how many doors", "parts": parts}))  # pyright: ignore[reportArgumentType]
+    assert len(got.answers[0]["parts"]) == 4  # the card
+    assert got.text == "1.pdf: 30 [1]; 2.pdf: 30 [2]; 3.pdf: 30 [3]; 4.pdf: 30 [4]."  # each drawing
+
+
+def test_every_answering_drawing_reaches_the_model_though_parts_are_cut() -> None:
+    """qa-a demo walk: 'which drawing has the largest floor area' on 6 drawings: the model's copy
+    kept 1 part of 6, so it could not compare them. `answered` lists each one that answered."""
+    marks = [{"id": f"m{k}", "page": 1, "box": [0.1, 0.2, 0.3, 0.4], "label": f"Room {k} " * 9}
+             for k in range(25)]  # fmt: skip
+    parts = [{"drawing_id": f"{n:016x}", "name": f"plan-{n}.pdf",
+              "answer": {"answer": 10.0 + n, "unit": "m2", "marks": marks}}
+             for n in range(5)]  # fmt: skip
+    refused = {"drawing_id": f"{9:016x}", "name": "scan.png",
+               "answer": {"answer": None, "refusal": {"text": "Not read."}}}  # fmt: skip
+    asked = {"question": "What is the total floor area?", "parts": [*parts, refused]}
+    model = Model(step(call("ask_drawings", question="What is the total floor area?")),
+                  final(kind="dont_know", text="No."))  # fmt: skip
+    turn(model, Tools(ask_drawings=asked))
+    seen = json.loads(model.sent[1][-1]["content"])
+    assert seen["parts_more"] >= 1  # the cut this is about
+    assert [(a["drawing"], a["answer"], a["unit"]) for a in seen["answered"]] == [
+        (f"plan-{n}.pdf", 10.0 + n, "m2") for n in range(5)]  # fmt: skip
+    assert [a["ev"] for a in seen["answered"]] == [f"ev_{1 + 25 * n}" for n in range(5)]
+
+
+def test_review_483_answered_is_never_cut_though_each_part_is_8_kb() -> None:
+    """qa-c review of #483 (MUST 1): once `parts` was cut to one drawing, `answered` was the
+    longest list and got halved too (13 drawings of ~8 KB each: the model saw 6). It is built
+    first and kept whole; only the rest is cut."""
+    marks = [{"id": f"m{k}", "page": 1, "box": [0.1, 0.2, 0.3, 0.4], "label": f"Room {k}"}
+             for k in range(10)]  # fmt: skip
+    parts = [{"drawing_id": f"{n:016x}", "name": f"plan-{n}.pdf",
+              "answer": {"answer": 10.0 + n, "unit": "m2", "marks": marks,
+                         "explanation": "x" * 7500}}
+             for n in range(13)]  # fmt: skip
+    asked = {"question": "What is the total floor area?", "parts": parts}
+    model = Model(step(call("ask_drawings", question="What is the total floor area?")),
+                  final(kind="dont_know", text="No."))  # fmt: skip
+    turn(model, Tools(ask_drawings=asked))
+    content = model.sent[1][-1]["content"]
+    assert len(content) <= 8000
+    seen = json.loads(content)
+    assert "answered_more" not in seen
+    assert [a["drawing"] for a in seen["answered"]] == [f"plan-{n}.pdf" for n in range(13)]

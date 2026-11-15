@@ -4,6 +4,7 @@ import { Tip } from '@/components/ui/tip';
 import {
   errorText,
   evidenceUrl,
+  formatTime,
   formatValue,
   methodName,
   previewUrl,
@@ -17,8 +18,9 @@ import { routeLabel } from '../ingest/ingest';
 import { pageFlagged } from '../doublecheck/check';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
 import { ResolverLines } from './Resolver';
+import { routeHref } from '../shell/route';
 import { TIPS } from '../shell/tips';
-import { ChecksPanel } from './ChecksPanel';
+import { ChecksPanel, oneMethod } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
 import {
   estimateLine,
@@ -48,6 +50,8 @@ function sign(m: MarkView): string {
 
 /** The viewer's words for a mark that is not simply counted. */
 function stateWords(m: MarkView): string | null {
+  if (m.state === 'rejected') return 'rejected by a surveyor';
+  if (m.state === 'added') return 'added by a surveyor';
   if (m.state === 'excluded') return `left out by the rule${m.reason ? `: ${m.reason}` : ''}`;
   return null;
 }
@@ -71,6 +75,9 @@ function cameFrom(r: Reader): string {
   return `${readerName(r.extractor)} read ${r.source ?? 'no file'} (${routeLabel(r.route)}), ${second}`;
 }
 
+/** EN-91: mark-list rows shown before "Show all". */
+const MARK_ROWS = 12;
+
 function MarkList(props: {
   marks: MarkView[];
   unit: string | null;
@@ -79,34 +86,54 @@ function MarkList(props: {
 }) {
   const { marks, unit, selected, onHover } = props;
   const sum = unit !== 'count' && unit !== null;
+  // EN-91: at most MARK_ROWS rows until asked; a badge picked past them shows the whole list
+  const [all, setAll] = useState(false);
+  const long = marks.length > MARK_ROWS;
+  const whole = all || marks.findIndex((m) => m.id === selected) >= MARK_ROWS;
   return (
-    <ol className="en-marks">
-      {marks.map((m) => {
-        const words = stateWords(m);
-        const counts = m.state === 'counted' || m.state === 'added';
-        const leave = () => {
-          onHover(null);
-        };
-        const enter = () => {
-          onHover(m.id);
-        };
-        return (
-          <li
-            key={m.id}
-            tabIndex={0}
-            aria-selected={m.id === selected}
-            onMouseEnter={enter}
-            onMouseLeave={leave}
-            onFocus={enter}
-            onBlur={leave}
-          >
-            <span className="en-sign">{sign(m)}</span> {m.label ?? 'item'}
-            {sum && counts && m.value !== null && ` ${formatValue(m.value, unit)}`}
-            {words && ` ${words}`}
-          </li>
-        );
-      })}
-    </ol>
+    <>
+      <ol className="en-marks">
+        {(whole ? marks : marks.slice(0, MARK_ROWS)).map((m) => {
+          const words = stateWords(m);
+          const counts = m.state === 'counted' || m.state === 'added';
+          const leave = () => {
+            onHover(null);
+          };
+          const enter = () => {
+            onHover(m.id);
+          };
+          return (
+            <li
+              key={m.id}
+              tabIndex={0}
+              aria-selected={m.id === selected}
+              onMouseEnter={enter}
+              onMouseLeave={leave}
+              onFocus={enter}
+              onBlur={leave}
+            >
+              <span className="en-sign">{sign(m)}</span> {m.label ?? 'item'}
+              {sum && counts && m.value !== null && ` ${formatValue(m.value, unit)}`}
+              {words && ` ${words}`}
+            </li>
+          );
+        })}
+      </ol>
+      {long && (
+        <Button
+          type="button"
+          variant="link"
+          size="xs"
+          className="h-auto self-start px-0"
+          aria-expanded={all}
+          onClick={() => {
+            setAll((a) => !a);
+          }}
+        >
+          {all ? 'Show fewer' : `Show all ${String(marks.length)}`}
+        </Button>
+      )}
+    </>
   );
 }
 
@@ -121,7 +148,6 @@ const TONE: Record<Row['status'], string> = {
 
 /** The status in words, with its explanation as a tooltip on hover and focus. */
 export function StatusPill({ status }: { status: Row['status'] }) {
-  if (status === 'signed' || status === 'edited') return null; // nothing says a person checked or changed it
   // ui-bugs 7c: the app's one tooltip (components/ui/tip), as every pill
   return (
     <Tip text={statusTip(status)} wrap>
@@ -378,6 +404,15 @@ function Answer(props: {
       : (a.answer ?? '');
   // An IFC model's fact answer is lines of text, not one value: set as text, never in the big value's type.
   const text = typeof a.answer === 'string' && (a.answer.includes('\n') || a.answer.length > 60);
+  const surveyor =
+    row &&
+    routeHref({
+      name: 'workspace',
+      projectId,
+      drawingId: a.drawing_id,
+      role: 'surveyor',
+      query: new URLSearchParams({ q: row.key }),
+    });
   const refs = refsOf(a, projectId, place);
   const opened = refs.findIndex((r) => r.kind === open);
   const openRef = refs[opened];
@@ -395,22 +430,33 @@ function Answer(props: {
     !!a.check && !a.quantity?.signed && (pageFlagged(a) || a.level?.level !== 'high');
   const said = a.quantity?.estimate && reasonShown && a.check?.reason.includes(a.quantity.estimate);
   const estimate = said ? null : estimateLine(a);
-  const confidence = grade && (
-    <div className="en-grade">
-      <div className="en-labelrow">
-        <h4 className="en-label">Confidence</h4>
-        <TipIf text={a.level?.text}>
-          <span className={`v-pill${GRADE_TONE[grade]}`}>{grade}</span>
-        </TipIf>
+  const confidence =
+    row?.status === 'signed' ? (
+      // A person's sign-off replaces the level (EN-83).
+      <div className="en-grade">
+        <div className="en-labelrow">
+          <h4 className="en-label">Confidence</h4>
+          <span className="v-pill v-pill--ok">Signed off</span>
+        </div>
       </div>
-      <span className="en-bar" aria-hidden="true">
-        {[1, 2, 3].map((s) => (
-          <span key={s} className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'} />
-        ))}
-      </span>
-      <WhyToggle text={a.level?.text} />
-    </div>
-  );
+    ) : (
+      grade && (
+        <div className="en-grade">
+          <div className="en-labelrow">
+            <h4 className="en-label">Confidence</h4>
+            <TipIf text={a.level?.text}>
+              <span className={`v-pill${GRADE_TONE[grade]}`}>{grade}</span>
+            </TipIf>
+          </div>
+          <span className="en-bar" aria-hidden="true">
+            {[1, 2, 3].map((s) => (
+              <span key={s} className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'} />
+            ))}
+          </span>
+          <WhyToggle text={a.level?.text} />
+        </div>
+      )
+    );
   return (
     <>
       {flagged && (
@@ -498,6 +544,11 @@ function Answer(props: {
           {a.proof.arithmetic && <p className="en-arith">{a.proof.arithmetic}</p>}
         </figure>
         <div className="en-side">
+          {row?.signed && (
+            <p className="en-verified">
+              Verified by {row.signed.by}, {formatTime(row.signed.at)}
+            </p>
+          )}
           {!flagged && confidence}
           {row && (
             <div className="en-checks">
@@ -510,7 +561,8 @@ function Answer(props: {
               <ChecksPanel row={row} />
             </div>
           )}
-          {score && (
+          {/* EN-93: beside "one method; no second check" a score reads as a contradiction. */}
+          {score && !(row && oneMethod(row)) && (
             <Tip text={TIPS.secondScore} wrap>
               <p className="en-score">
                 Second reader's score {formatScore(score.score)} (not a probability)
@@ -555,6 +607,7 @@ function Answer(props: {
               Picture of this answer
             </a>
           )}
+          {surveyor && <a href={surveyor}>Send to surveyor</a>}
         </footer>
       </div>
     </>
@@ -562,11 +615,10 @@ function Answer(props: {
 }
 
 function ErrorTurn({ error, onRetry }: { error: unknown; onRetry: () => void }) {
-  const { detail, code } = errorText(error);
+  const { detail } = errorText(error);
   return (
     <div className="v-card en-error" role="alert">
       <p>The question could not be answered: {detail}</p>
-      <p className="en-small">code: {code}</p>
       <button type="button" className="en-chip v-press" onClick={onRetry}>
         Try again
       </button>

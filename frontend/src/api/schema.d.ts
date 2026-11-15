@@ -785,6 +785,43 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Affine
+         * @description How a services sheet lies on the plan: a sheet page fraction (x, y) lands on the plan's
+         *     page at (a x + b y + c, d x + e y + f). Identity on the plan's own page.
+         */
+        Affine: {
+            /**
+             * A
+             * @default 1
+             */
+            a: number;
+            /**
+             * B
+             * @default 0
+             */
+            b: number;
+            /**
+             * C
+             * @default 0
+             */
+            c: number;
+            /**
+             * D
+             * @default 0
+             */
+            d: number;
+            /**
+             * E
+             * @default 1
+             */
+            e: number;
+            /**
+             * F
+             * @default 0
+             */
+            f: number;
+        };
         /** After */
         After: {
             /**
@@ -1428,6 +1465,7 @@ export interface components {
              * @default []
              */
             marks: components["schemas"]["ServiceMark"][];
+            picture?: components["schemas"]["FollowPicture"] | null;
             /** Reason */
             reason?: string | null;
             /** Source */
@@ -1874,6 +1912,8 @@ export interface components {
              * @enum {string}
              */
             state: "queued" | "running" | "ready" | "flagged" | "text_only" | "set_aside";
+            /** Step */
+            step?: string | null;
             /** Takeoff */
             takeoff?: {
                 [key: string]: number;
@@ -1922,6 +1962,38 @@ export interface components {
              * @enum {string}
              */
             unit: "m2" | "m" | "count";
+        };
+        /**
+         * FollowPicture
+         * @description The discipline sheet a lane was read from, with the edit drawn in its page fractions.
+         */
+        FollowPicture: {
+            /**
+             * Added
+             * @default []
+             */
+            added: [
+                number,
+                number
+            ][][];
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["PictureMark"][];
+            /** Page */
+            page: number;
+            pairing: components["schemas"]["Pairing"];
+            /**
+             * Removed
+             * @default []
+             */
+            removed: [
+                number,
+                number
+            ][][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2417,6 +2489,25 @@ export interface components {
             width: number;
         };
         /**
+         * Pairing
+         * @description Why a services sheet is taken to be the plan's floor (pics-edit-follow W1).
+         */
+        Pairing: {
+            /** Drawing Id */
+            drawing_id: string;
+            /** Page */
+            page: number;
+            /**
+             * Paired By
+             * @enum {string}
+             */
+            paired_by: "same_page" | "metadata" | "geometry" | "user";
+            /** Reason */
+            reason: string;
+            /** Score */
+            score?: number | null;
+        };
+        /**
          * Patch
          * @description An edit as data (SV-13): elements as they are after (`moved`, `changed`) or new (`added`),
          *     ids that go (`removed`), and the connections that go or come.
@@ -2452,6 +2543,27 @@ export interface components {
              * @default []
              */
             removed: string[];
+        };
+        /**
+         * PictureMark
+         * @description A lane's mark where the discipline sheet draws it (`ref` as in the lane's marks).
+         */
+        PictureMark: {
+            /** At */
+            at?: [
+                number,
+                number
+            ] | null;
+            /**
+             * Line
+             * @default []
+             */
+            line: [
+                number,
+                number
+            ][];
+            /** Ref */
+            ref: string;
         };
         /** PictureRef */
         PictureRef: {
@@ -2637,6 +2749,11 @@ export interface components {
             finished_at?: string | null;
             /** Id */
             id: string;
+            /**
+             * Index Steps
+             * @default []
+             */
+            index_steps: components["schemas"]["StepTrace"][];
             /** Issues Open */
             issues_open?: number | null;
             /** Issues To Answer */
@@ -2650,6 +2767,8 @@ export interface components {
             name: string;
             /** Not Plans */
             not_plans?: number | null;
+            /** Phase */
+            phase?: ("files" | "index") | null;
             /** Readers */
             readers?: {
                 [key: string]: string;
@@ -3489,6 +3608,11 @@ export interface components {
              * @enum {string}
              */
             stage: "unpack" | "hash" | "identify" | "group" | "route" | "cache" | "normalise" | "extract" | "second_count" | "takeoff" | "write";
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["StepTrace"][];
         };
         /** Started */
         Started: {
@@ -3519,6 +3643,48 @@ export interface components {
             status: "ok" | "error";
             /** Tool */
             tool: string;
+        };
+        /**
+         * StepTrace
+         * @description One thing that ran inside a stage (a reader, a check, a model call), or in the project's
+         *     last phase (decision 0017). Readers that run at the same time have overlapping
+         *     [at_ms, at_ms + ms) spans.
+         */
+        StepTrace: {
+            /**
+             * At Ms
+             * @default 0
+             */
+            at_ms: number;
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number;
+            /**
+             * Did
+             * @default
+             */
+            did: string;
+            /** Found */
+            found?: {
+                [key: string]: number;
+            };
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Ms
+             * @default 0
+             */
+            ms: number;
+            /**
+             * State
+             * @default done
+             * @enum {string}
+             */
+            state: "done" | "failed" | "skipped";
         };
         /** StoreyRow */
         StoreyRow: {

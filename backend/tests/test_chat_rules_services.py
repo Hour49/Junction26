@@ -203,3 +203,69 @@ def test_sv26_a_named_element_the_list_does_not_have_is_said_so() -> None:
     assert (name, args["kind"]) == ("final_answer", "dont_know")
     assert "E7 is not in the services list" in args["text"]
     assert "no room" not in args["text"]
+
+
+IFC2 = "1111222233334444"
+TWO = [*DRAWINGS, {"drawing_id": IFC2, "name": "m/electrical.ifc", "kind": "ifc"}]
+SOCKET = {"id": "E7", "kind": "outlet", "label": "Duplex Receptacle", "room": "SR1", "ev": "ev_7"}
+
+
+def test_sv26_an_empty_list_of_one_model_goes_on_to_the_next_model() -> None:
+    """QA: a project with two services models; the first has no socket, the second has one."""
+    message = "move the socket"
+    listing: Done = ("list_drawings", {}, TWO)
+    none: Done = ("list_services", {"drawing_id": IFC, "kind": "outlet"},
+                  {"drawing_id": IFC, "items": [], "more": 0})  # fmt: skip
+    assert plan(message, listing, none) == ("list_services", {"drawing_id": IFC2, "kind": "outlet"})
+    found: Done = ("list_services", {"drawing_id": IFC2, "kind": "outlet"},
+                   {"drawing_id": IFC2, "items": [SOCKET], "more": 0})  # fmt: skip
+    assert plan(message, listing, none, found) == (
+        "list_services", {"drawing_id": IFC2, "room_id": "SR1"})  # fmt: skip
+    empty: Done = ("list_services", {"drawing_id": IFC2, "kind": "outlet"},
+                   {"drawing_id": IFC2, "items": [], "more": 0})  # fmt: skip
+    assert plan(message, listing, none, empty)[0] == "list_services"  # the PDF last
+    pdf: Done = ("list_services", {"drawing_id": PDF, "kind": "outlet"},
+                 {"error": f"drawing {PDF!r} has no services model"})  # fmt: skip
+    name, args = plan(message, listing, none, empty, pdf)
+    assert name == "final_answer"
+    assert args["text"] == "I found no socket in the services model to move."
+
+
+def test_a_selected_sheet_does_not_take_the_last_ifc_files_turn() -> None:
+    """review-531 nit: the selected drawing is asked first, so a cap of "the number of IFC files"
+    left the 4th IFC (the heating model) unasked and the radiator move said none was found."""
+    arc, lft, san, hzg = ("a" * 16, "b" * 16, "c" * 16, "d" * 16)
+    models = ((arc, "arc"), (lft, "lft"), (san, "san"), (hzg, "hzg"))
+    ifcs = [{"drawing_id": d, "name": f"m/{n}.ifc", "kind": "ifc"} for d, n in models]
+    drawings = [{"drawing_id": PDF, "name": "plan.pdf", "kind": "pdf"}, *ifcs]
+    none = {"error": "drawing has no services model; the project's services models: lft, san, hzg"}
+    empty = {"items": [], "more": 0}
+    done: list[Done] = [
+        ("list_drawings", {}, drawings),
+        (
+            "list_services",
+            {"drawing_id": PDF, "kind": "space_heater", "selection_id": "sel_1"},
+            none,
+        ),
+        ("list_services", {"drawing_id": arc, "kind": "space_heater"}, none),
+        (
+            "list_services",
+            {"drawing_id": lft, "kind": "space_heater"},
+            {**empty, "drawing_id": lft},
+        ),
+        (
+            "list_services",
+            {"drawing_id": san, "kind": "space_heater"},
+            {**empty, "drawing_id": san},
+        ),
+    ]
+    message = "move the radiator\nsel_1: region on plan.pdf page 1, no room"
+    assert plan(message, *done) == ("list_services", {"drawing_id": hzg, "kind": "space_heater"})
+
+
+def test_untyped_fixtures_are_counted_in_words_with_their_verb() -> None:
+    """review-559 nit: every 'no type in the model' sentence agrees with its number."""
+    from app.adapters.chat_rules import _untyped
+
+    assert _untyped(1) == "1 sanitary fixture has no type in the model"
+    assert _untyped(3) == "3 sanitary fixtures have no type in the model"

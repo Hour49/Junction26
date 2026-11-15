@@ -8,6 +8,7 @@ import { stubResizeObserver } from '../test/resizeObserver';
 import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
+import { KEPT_VERSION } from '../shell/kept';
 import { AgentChat } from './AgentChat';
 import { paneFocus, PlanPane, viewMarks } from './PlanPane';
 import { unionBox, viewOf, type ChatTurn, type View } from './agent';
@@ -26,7 +27,11 @@ vi.mock('../viewer/PageViewer', () => ({
     );
   },
 }));
-const viewer = () => viewers.at(-1) as ViewerProps;
+// The viewer that shows the turn's view: the answer card's reference can open a second file (QA #430), whose viewer
+// renders after it with no marks or focus (every drawing here is the same fixture, so the file name can't tell them).
+const viewer = () =>
+  (viewers.findLast((v) => v.focus !== null || v.marks.length > 0) ??
+    viewers.at(-1)) as ViewerProps;
 
 const PID = project.id;
 const CHAT = `POST /api/projects/${PID}/chat`;
@@ -88,7 +93,13 @@ function open(chat: unknown) {
     },
     removeEventListener: vi.fn(),
   }));
-  const routes: Record<string, unknown> = { [`GET /api/projects/${PID}`]: project, [CHAT]: chat };
+  // No drawing is drawable here (main's fixture made Drawn plan 3 drawable, which would open it by default, #430):
+  // these tests are about the view's file; the #430 tests below set `drawable` themselves.
+  const undrawn = {
+    ...project,
+    drawings: project.drawings.map((d) => ({ ...d, drawable: false })),
+  };
+  const routes: Record<string, unknown> = { [`GET /api/projects/${PID}`]: undrawn, [CHAT]: chat };
   for (const d of project.drawings) {
     routes[`GET /api/drawings/${d.drawing_id}`] = { ...drawing, id: d.drawing_id };
     routes[`GET /api/drawings/${d.drawing_id}/model`] = model;
@@ -253,6 +264,7 @@ describe('the plan beside the chat (wide window)', () => {
   it('a restored thread (back from the workspace) reopens its newest view', async () => {
     // answers-5 keeps the thread in sessionStorage; the older turn has no place, the newest has one
     const kept = {
+      v: KEPT_VERSION, // the current kept shape (R4-C13: another version is dropped)
       chatId: viewTurn.chat_id,
       rows: [
         { id: 1, message: 'Where is Bagno 1.01?', chips: [], status: 'done', turn: viewTurn },
@@ -287,6 +299,7 @@ describe('the plan beside the chat (wide window)', () => {
     expect(names).toEqual([
       'Drawn plan 1',
       'Drawn plan 2',
+      'Drawn plan 3',
       'Plan image 1',
       'Plan photo 1',
       'Building model 1',
@@ -316,7 +329,8 @@ describe('the plan beside the chat (wide window)', () => {
   });
 
   it('#430 the first DRAWABLE drawing opens by default, so the pen works at once; the order stays', async () => {
-    const [d1, d2, , , model3d] = project.drawings;
+    const [d1, d2] = project.drawings;
+    const model3d = project.drawings.find((d) => d.kind === 'ifc'); // by kind: main's fixture added a drawing
     if (!d1 || !d2 || !model3d) throw new Error('fixture drawings');
     const sample = {
       ...project,
@@ -352,7 +366,8 @@ describe('the plan beside the chat (wide window)', () => {
   });
 
   it('qa #430 a building model with no page is listed last, so the first open file is a plan', async () => {
-    const [d1, d2, , , model3d] = project.drawings;
+    const [d1, d2] = project.drawings;
+    const model3d = project.drawings.find((d) => d.kind === 'ifc'); // by kind: main's fixture added a drawing
     if (!d1 || !d2 || !model3d) throw new Error('fixture drawings');
     // the upload's IFC sorted first, as on mix.zip; its drawing has no page
     const first = { ...project, drawings: [model3d, d1, d2] };

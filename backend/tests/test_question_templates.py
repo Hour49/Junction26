@@ -11,6 +11,7 @@ from app.core.answering.model import (
     NO_SUBJECT,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
+    SIZE_FILTER,
     Query,
     Unsupported,
 )
@@ -44,6 +45,44 @@ PARSE = TemplateParser().parse
 )
 def test_a_count_question_names_its_subject(text: str, subject: str) -> None:
     assert PARSE(text) == Query(measure="count", subject=subject)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many space heaters are there?",
+        "How many space heaters does the model have?",
+        "How many space frames are there?",
+        "How many space trusses are shown?",
+        "How many space-heaters are there?",
+    ],
+)
+def test_space_as_part_of_a_compound_noun_is_not_rooms(text: str) -> None:
+    """Tudor's QA (#430 c6886348353): "space heaters" answered "room count: 1"."""
+    assert isinstance(PARSE(text), Unsupported)  # refused, so the fact sheet may answer it
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total area covered by space heating?",
+        "What is the total area of the space heating zones?",
+        "What is the total floor area with space cooling?",
+    ],
+)
+def test_an_area_of_a_space_service_is_refused_not_the_indoor_total(text: str) -> None:
+    """review-470 S1: with "space" no room word in these compounds, a subjectless total area
+    became every indoor room's area; a named service that is no room is refused."""
+    assert isinstance(PARSE(text), Unsupported)
+
+
+@pytest.mark.parametrize(
+    "text", ["How many spaces are there?", "How many spaces does the model have?",
+             "How many spaces are shown on this floor plan?"],
+)  # fmt: skip
+def test_spaces_alone_are_still_rooms(text: str) -> None:
+    found = PARSE(text)
+    assert isinstance(found, Query) and (found.measure, found.subject) == ("count", "room")
 
 
 def test_hints_and_excluded_clauses_are_not_the_subject() -> None:
@@ -226,6 +265,7 @@ def test_room_types_and_rooms_named_as_included_still_count() -> None:
 
 def test_a_question_about_the_building_is_about_the_model_not_the_sheet() -> None:
     assert PARSE("How many doors are there in this building?") == Query(subject="door", model=True)
+    assert PARSE("How many doors in the entire building?") == Query(subject="door", model=True)
 
 
 def test_the_largest_room_of_a_label_or_type_by_area() -> None:
@@ -468,3 +508,204 @@ def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
     assert PARSE("What is the area of Zimmer-1.05?") == Query(
         measure="area", subject="room", name="1.05"
     )
+
+
+@pytest.mark.parametrize(
+    ("text", "same_as"),
+    [
+        ("How many doors are in each drawing?", "How many doors?"),
+        ("How many doors in each drawing?", "How many doors?"),
+        ("How many windows are there on each sheet?", "How many windows are there?"),
+        ("What is the total floor area of each plan?", "What is the total floor area?"),
+        ("How many doors are there in the whole project?", "How many doors are there?"),
+        ("How many doors are there in the project?", "How many doors are there?"),
+        ("How many windows across the entire project?", "How many windows?"),
+        # review-529 S1: near phrasings read "project" as the building model and refused on a sheet
+        ("How many doors are there in this project?", "How many doors are there?"),
+        ("How many doors does the project have?", "How many doors are there?"),
+        ("How many windows does this project have?", "How many windows are there?"),
+    ],
+)
+def test_each_drawing_is_the_whole_drawing_not_a_breakdown(text: str, same_as: str) -> None:
+    """qa-a cross-drawing walk: the project chat asks every drawing the question as written, and
+    "in each drawing" was refused as a breakdown by 12 of 13 drawings ("per drawing" worked).
+    Asked of one drawing, it is that drawing's own quantity."""
+    assert isinstance(PARSE(same_as), Query)
+    assert PARSE(text) == PARSE(same_as)
+
+
+@pytest.mark.parametrize(
+    ("text", "same_as"),
+    [
+        ("Does this drawing show a kitchen?", "How many kitchens?"),
+        ("Does the plan have any bathrooms?", "How many bathrooms?"),
+        ("Is there a kitchen?", "How many kitchens?"),
+        ("Is there a bathtub on this plan?", "How many bathtubs?"),
+        ("Are there any balconies?", "How many balconies?"),
+        ("Which drawings show a kitchen?", "How many kitchens?"),
+        ("Which plans have bathtubs?", "How many bathtubs?"),
+        ("Does any drawing show a bathtub?", "How many bathtubs?"),
+    ],
+)
+def test_is_there_a_thing_is_asked_as_its_count(text: str, same_as: str) -> None:
+    """qa-a cross-drawing walk: the agent asked every drawing "Does this drawing show a kitchen?"
+    and every 2D drawing refused it; "How many kitchens?" answers on 11 of 13. The count says it:
+    0 is no, more is yes."""
+    assert isinstance(PARSE(same_as), Query)
+    assert PARSE(text) == PARSE(same_as)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are in each room?",
+        "Does the kitchen have a window?",
+        "Is there a door larger than 1 m?",
+        "Is there a door wider than 1 m on this plan?",
+        "Does this drawing show a bedroom with a balcony?",
+    ],
+)
+def test_a_breakdown_or_a_yes_no_about_one_thing_stays_unsupported(text: str) -> None:
+    assert isinstance(PARSE(text), Unsupported)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Which drawing has the most doors?",
+        "Which drawing has the largest floor area?",
+        "Which plan has more windows?",
+        "Which drawing has no scale?",
+    ],
+)
+def test_which_drawing_has_the_most_is_a_comparison_not_a_count(text: str) -> None:
+    """A comparison between drawings (or "no scale") is not "which drawings show a X": refused on
+    one drawing as before, with the same reason; the chat compares each drawing's own count."""
+    assert PARSE(text) == Unsupported(reason="a breakdown or list is not one quantity")
+
+
+def test_review_510_a_yes_no_with_a_qualifier_is_left_as_written() -> None:
+    """review-510 must 1: "is there a door larger than 1 m" was asked as the count of all doors, a
+    confident yes to a question the count does not answer. A qualified thing is not rewritten,
+    so it is refused as on main; a bare noun phrase still is."""
+    from app.adapters.question_templates import has_qualifier
+
+    for thing in ["door larger than 1 m", "bedroom with a balcony", "kitchen that has a window",
+                  "room between the hall and the kitchen", "door of at least 90 cm",
+                  "toilet next to the kitchen", "only bathroom"]:  # fmt: skip
+        assert has_qualifier(thing), thing
+    for thing in ["kitchen", "bathtubs", "balconies", "separate WC", "sliding doors"]:
+        assert not has_qualifier(thing), thing
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors larger than 1 m?",
+        "How many doors are wider than 90 cm?",
+        "How many windows are taller than 1.2 m on this plan?",
+        "Count the rooms bigger than 20 m².",
+        "How many walls are longer than 5 m?",
+        "How many rooms have more than 2 windows?",
+        "How many doors are over 1 m wide?",
+        "How many windows are at least 1 m wide?",
+        "How many doors with a width of 90 cm are there?",
+        "What is the total length of the walls longer than 5 m?",
+    ],
+)
+def test_a_size_filter_the_parser_cannot_apply_is_refused_not_dropped(text: str) -> None:
+    """A count (or length) of "doors larger than 1 m" read as all the doors is a confident wrong
+    answer: the filter was dropped. The parser takes off whole classes only, so it refuses."""
+    assert PARSE(text) == Unsupported(reason=SIZE_FILTER)
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("How many doors are there on this plan?", "door"),
+        ("How many rooms are there?", "room"),
+        ("How many more doors than windows are there?", None),
+    ],
+)
+def test_words_that_are_no_size_filter_still_parse(text: str, subject: str | None) -> None:
+    found = PARSE(text)
+    if subject is None:
+        assert PARSE(text) != Unsupported(reason=SIZE_FILTER)
+    else:
+        assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many bedrooms with a balcony?",
+        "How many bedrooms with a balcony are there on this plan?",
+        "How many doors next to the kitchen?",
+        "How many toilets without a window?",
+        "What is the area of the rooms between the hall and the kitchen?",
+        "How many rooms near the entrance?",
+    ],
+)
+def test_a_count_of_a_narrowed_thing_is_refused_not_the_whole_class(text: str) -> None:
+    """review-524 should 2 (a confident wrong on main): "How many bedrooms with a balcony?" was
+    the count of all bedrooms. A thing narrowed by what has_qualifier knows is refused, as the
+    yes/no form ("Is there a bedroom with a balcony?") already is."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+def test_a_hint_sentence_after_the_question_is_no_qualifier() -> None:
+    """The dataset's hints ("Count doorways fitted with a door; … without a door leaf …") follow
+    the question: only the question's own first sentence is read for a qualifier."""
+    text = (
+        "How many doors are shown on this floor plan? Count doorways fitted with a door; open "
+        "doorways without a door leaf do not count."
+    )
+    assert PARSE(text) == PARSE("How many doors are shown on this floor plan?")
+    assert isinstance(PARSE(text), Query)
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("How many windows are there in the plan, over all?", "window"),
+        ("How many windows are there overall?", "window"),
+        ("How many doors are shown on this floor plan only?", "door"),
+    ],
+)
+def test_review_532_words_that_do_not_narrow_the_thing_are_no_qualifier(
+    text: str, subject: str
+) -> None:
+    """review-532 should 1: "over all" and "only" don't narrow what is counted, so they are not
+    refused as a condition on the items."""
+    found = PARSE(text)
+    assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many rooms above the garage?",
+        "How many windows under the roof?",
+        "How many rooms over the garage?",
+        "How many toilets on the floor below?",
+    ],
+)
+def test_a_place_after_over_under_above_below_still_narrows_the_thing(text: str) -> None:
+    """A bare over/under/above/below names a place ("rooms above the garage"); answered, it
+    would be the count of every room, so it stays refused."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total floor area of the apartment with number A?",
+        "What is the total floor area of the apartment with the name A?",
+        "How many rooms are in the apartment with the label B?",
+    ],
+)
+def test_review_539_a_thing_named_after_with_stays_refused(text: str) -> None:
+    """review-539 must: let through, "the apartment with number A" lost its A and answered for
+    the whole sheet ("the apartment", apartment=None). The parser reads the name only as
+    "apartment A", so this wording stays refused, as on main."""
+    assert isinstance(PARSE(text), Unsupported)

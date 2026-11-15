@@ -25,9 +25,7 @@ async function failureOf(src: string): Promise<string> {
       detail?: unknown;
       code?: unknown;
     } | null;
-    return typeof body?.detail === 'string'
-      ? `${body.detail} (${String(body.code)})`
-      : `HTTP ${String(res.status)}`;
+    return typeof body?.detail === 'string' ? body.detail : `HTTP ${String(res.status)}`;
   } catch {
     return 'network error';
   }

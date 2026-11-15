@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-/** The only workspace is the engineer's; `/surveyor` URLs (old links) parse to it. */
-export type Role = 'engineer';
+export type Role = 'engineer' | 'surveyor';
 
 export type Route =
   | { name: 'home'; query: URLSearchParams }
@@ -47,8 +46,9 @@ export function parseRoute(hash: string): Route {
   m = FILE.exec(path);
   if (m?.[1] && m[2]) return { name: 'file', projectId: m[1], fileId: m[2], query };
   m = WORKSPACE.exec(path);
-  if (m?.[1] && m[2]) {
-    return { name: 'workspace', projectId: m[1], drawingId: m[2], role: 'engineer', query };
+  if (m?.[1] && m[2] && m[3]) {
+    const role = m[3] === 'surveyor' ? 'surveyor' : 'engineer';
+    return { name: 'workspace', projectId: m[1], drawingId: m[2], role, query };
   }
   return { name: 'not-found', hash, query };
 }

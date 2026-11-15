@@ -67,7 +67,7 @@ describe('Retry after a backend blip', () => {
       const alert = await screen.findByRole('alert');
       expect(alert.textContent).toContain(SERVER_DOWN);
       expect(alert.textContent).not.toContain('the server answered 502');
-      expect(alert.textContent).toContain('code: http-502');
+      expect(alert.textContent).not.toContain('http-502'); // R2-C5: no raw code
       const before = asked();
       server.down = false;
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));

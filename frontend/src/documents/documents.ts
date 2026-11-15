@@ -23,7 +23,8 @@ export const isAnswerable = (i: Issue) =>
   i.kind !== 'conflict' && (i.kind === 'unrelated_file' || i.severity !== 'note');
 
 /** The one count rule (DOC-12): answerable, still open, no `Issue.answer`, notes excluded. Badge, done line and
- * the "Issues on demand" list use it. */
+ * the number in the "N issues need your answer now" line use it. The "Issues on demand" list is this plus the open
+ * unanswered answerable notes (DocumentsScreen `answerableOpen`: the call on a file triage set aside). */
 export const waitsForYou = (i: Issue) =>
   (isAnswerable(i) || !!i.resolved) && i.severity !== 'note' && i.state === 'open' && !i.answer;
 

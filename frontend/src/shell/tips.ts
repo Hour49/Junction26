@@ -4,7 +4,7 @@ import { statusTip } from '../engineer/format';
 
 export const TIPS = {
   // Home / upload
-  sample: 'A small made-up flat with 11 files. Click it to see Vellum work from start to finish.',
+  sample: 'A small made-up flat with 12 files. Click it to see Vellum work from start to finish.',
   offline:
     'No AI key is set, so Vellum uses its built-in readers only. Scans and photos may stay unread.',
   formats:
@@ -39,6 +39,7 @@ export const TIPS = {
   suggested: 'Questions Vellum knows it can answer for this drawing. Click one to ask it.',
   sendDisabled: 'Type a question first.',
   checks: 'How this number was verified: which methods measured it and whether they agree.',
+  // Shown only where the checks name a second method or a conflict (engineer.md EN-93).
   secondScore:
     'How much a second, independent reader agrees. Higher is better; it is not a probability.',
   flagged: 'Vellum read this drawing, but something looks off. Check the answer against the plan.',
@@ -54,9 +55,11 @@ export const TIPS = {
   colGlobalId: "The object's unique id inside the building model.",
   // Answer status pill (same words as engineer/format.ts)
   status: {
+    signed: statusTip('signed'),
     agree: statusTip('agree'),
     conflict: statusTip('conflict'),
     estimate: statusTip('estimate'),
+    edited: statusTip('edited'),
     single: statusTip('single'),
   },
   // Documents

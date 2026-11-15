@@ -46,9 +46,12 @@ from app.adapters.decisions.g1main import G1MainReader
 from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtractor
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
+from app.adapters.discipline_pictures.gemini import GeminiPictureReader
+from app.adapters.discipline_pictures.glyphs import GlyphReader
 from app.adapters.discipline_pictures.lane import CODE as PICTURES_CODE
-from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets
+from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets, kept_in
 from app.adapters.discipline_pictures.legend import OcrLegend
+from app.adapters.discipline_pictures.template import TemplateReader
 from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
@@ -106,6 +109,7 @@ from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.triage.sheet_kind import (
     ADVANCED_LONG_SIDE,
+    CONTRACTS,
     GeminiSheetKindClient,
     SheetKindClassifier,
     SheetKindReader,
@@ -131,7 +135,6 @@ from app.core.drawing.model import Room
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
-from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import reading_flags
 from app.core.ingest.model import CarbonRead, ContentKind, ProjectStatus
 from app.core.ingest.model import Sheet as SheetKind
@@ -323,6 +326,7 @@ def build_pipeline(
                         settings,
                         _raster(settings, scans, decisions, kind_of, use_carbon, took),
                         scans,
+                        kind_of,
                     ),
                     files,
                 ),
@@ -358,7 +362,7 @@ def _facts(settings: Settings, files: DrawingFiles) -> FactSource | None:
         cache = Path(settings.ifc_facts_cache) if settings.ifc_facts_cache else None
         sources.append(IfcFactSource(files, cache))
     if settings.discipline_pictures != "off":
-        sources.append(PictureSheets(files, settings.discipline_pictures_cache_dir))
+        sources.append(PictureSheets(files, _pictures_cache(settings)))
     return FirstSheet(sources) if sources else None
 
 
@@ -371,13 +375,34 @@ def _pictures(
     """DISCIPLINE_PICTURES: the picture lane beside the raster reader (lane.py); off: `inner`."""
     if settings.discipline_pictures == "off":
         return inner
+    legend = OcrLegend(files, _ocr())
+    symbols = check = None
+    if settings.discipline_pictures == "glyphs":
+        symbols = GlyphReader(files, legend.legend, settings.discipline_glyphs_model)
+    elif settings.discipline_pictures == "gemini":
+        key = settings.gemini_api_key.get_secret_value()
+        client = CarbonClient(
+            key,
+            settings.carbon_timeout_s,
+            budget=spend_guard(settings),
+            in_flight=settings.carbon_calls_in_flight,
+        )
+        replies = kept_in(settings.discipline_pictures_cache_dir, "gemini") / "replies"
+        symbols = GeminiPictureReader(files, client, replies)
+        check = TemplateReader(files, legend.legend)  # its agreement unholds a label (pic-det)
     return PictureLane(
         inner,
         files,
         sheets or (lambda _path: None),
-        PictureSheets(files, settings.discipline_pictures_cache_dir),
-        OcrLegend(files, _ocr()),
+        PictureSheets(files, _pictures_cache(settings)),
+        legend,
+        symbols,
+        check,
     )
+
+
+def _pictures_cache(settings: Settings) -> Path:
+    return kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
 
 
 @cache
@@ -583,12 +608,14 @@ def _triage(settings: Settings) -> TriageSteps | None:
 
 def _sheet_kind_reader(settings: Settings) -> SheetKindReader:
     """The sheet-kind model of SHEET_KIND and of the evidence step: one cache, one guard."""
+    contract = CONTRACTS[settings.sheet_discipline]
     client = GeminiSheetKindClient(
         settings.gemini_api_key.get_secret_value(),
         settings.gemini_timeout_s,
         budget=spend_guard(settings),
+        contract=contract,
     )
-    return SheetKindReader(client, settings.sheet_kind_cache_dir)
+    return SheetKindReader(client, settings.sheet_kind_cache_dir, contract)
 
 
 def _describer(settings: Settings) -> Describer | None:
@@ -661,9 +688,9 @@ class Answering:
     resolver: Resolver | None = None  # RESOLVER; None: off
     carbon_ladder: bool = False  # CARBON_LEVELS=ladder: a Medium answer Carbon reads alike is High
     room_words: RoomWords = no_room_words  # what a room's printed label names (room_word_doubt)
-    # IFC_FACTS: a file's stored fact sheet by (sha256, path, its bytes when a build must start),
-    # never parsed in this process (adapters/ifc_model/facts_store.py). None: off
-    facts: Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None = None
+    # IFC_FACTS: the files' stored fact sheets by sha256, built apart when ingest is done with a
+    # model or on a miss, never parsed here (adapters/ifc_model/facts_store.py). None: off
+    facts: StoredFacts | None = None
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -700,14 +727,12 @@ def build_answering(settings: Settings) -> Answering:
     )
 
 
-def _chat_facts(
-    settings: Settings,
-) -> Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None:
+def _chat_facts(settings: Settings) -> StoredFacts | None:
     if not settings.ifc_facts:
         return None
     if settings.ifc_facts_cache:
-        return StoredFacts(Path(settings.ifc_facts_cache)).facts
-    return StoredFacts(settings.projects_dir.parent / "cache" / "facts").facts
+        return StoredFacts(Path(settings.ifc_facts_cache))
+    return StoredFacts(settings.projects_dir.parent / "cache" / "facts")
 
 
 def _scan_confidence(
@@ -975,7 +1000,7 @@ def _raster(
                     _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
                     kind_of,
                 )
-            shipped = OneAtATime(shipped)  # one local reading in memory at a time (groups.py)
+            shipped = OneAtATime(shipped, settings.ingest_local_in_flight)  # held in memory at once
             shipped = _scaled(settings, shipped)  # PriorScale's door constants fit the detector
             if settings.carbon_reader == "advanced" and settings.sheet_kind == "off":
                 raise InvalidInputError(
@@ -1052,7 +1077,12 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
             return PriorScale(inner)
 
 
-def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extractor:
+def _printed(
+    settings: Settings,
+    inner: Extractor,
+    files: DrawingFiles,
+    kind_of: Callable[[str], str | None],
+) -> Extractor:
     """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/),
     read by gemini-4-carbon on the process's spend guard, cached with the Carbon reader's
     replies (its page reply is shared)."""
@@ -1061,9 +1091,14 @@ def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extra
             return inner
         case "carbon":
             key = settings.gemini_api_key.get_secret_value()
-            client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
+            client = CarbonClient(
+                key,
+                settings.carbon_timeout_s,
+                budget=spend_guard(settings),
+                in_flight=settings.carbon_calls_in_flight,
+            )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
-            return PrintedScale(inner, reader, files)
+            return PrintedScale(inner, reader, files, kind_of)  # kind: no camera dpi
 
 
 def _raster_component(
@@ -1167,8 +1202,14 @@ def _carbon(
     """The Carbon reader (app/adapters/carbon/) on the process's spend guard. `policy`: ROOM_POLICY
     when it reads a drawing on its own (as a composite's source, the composite applies it)."""
     key = settings.gemini_api_key.get_secret_value()
-    client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
-    return CarbonExtractor(files, CarbonReader(client, settings.carbon_cache_dir), policy)
+    client = CarbonClient(
+        key,
+        settings.carbon_timeout_s,
+        budget=spend_guard(settings),
+        in_flight=settings.carbon_calls_in_flight,
+    )
+    reader = CarbonReader(client, settings.carbon_cache_dir, settings.carbon_read_workers)
+    return CarbonExtractor(files, reader, policy)
 
 
 def _names_carbon(settings: Settings) -> bool:

@@ -206,12 +206,20 @@ class Settings(BaseSettings):
     # does not (app/core/answering/facts.py): off until measured. IFC_FACTS_CACHE: a folder that
     # keeps each sheet as JSON across runs; "" keeps them in memory only
     ifc_facts: bool = False
+    # The agent chat takes a scale from its user for a drawing without one ("the scale is 1:100",
+    # "the kitchen is 12 m2"): that chat's areas on it are measured with it, never sure, and a
+    # no-scale refusal says what to type (app/core/pipeline/user_scale.py). Off until measured
+    user_scale: bool = False
     ifc_facts_cache: str = ""
     # A scanned services or structural plan (triage's Sheet.discipline) read into a fact sheet at
     # ingest by local readers, no model call (app/adapters/discipline_pictures/lane.py; spec
-    # discipline-pictures.md): "template" = OCR legend + template symbols + mask runs. Off: ingest
-    # is unchanged. The sheets are kept in the cache folder by the page file's content
-    discipline_pictures: Literal["off", "template"] = "off"
+    # discipline-pictures.md): "template" = OCR legend + template symbols + mask runs; "glyphs" =
+    # the same with the trained glyph detector in DISCIPLINE_GLYPHS_MODEL for the symbols
+    # (glyphs.py); "gemini" = one Carbon call per page reads the legend and the symbols (gemini.py,
+    # GEMINI_API_KEY, on the spend guard), mask runs as template. Off: ingest is unchanged. The
+    # sheets are kept in the cache folder by the page file's content
+    discipline_pictures: Literal["off", "template", "glyphs", "gemini"] = "off"
+    discipline_glyphs_model: Path = Path("../data/models/pic-glyphs")
     discipline_pictures_cache_dir: Path = Path("../data/cache/discipline-pictures")
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none
@@ -261,6 +269,14 @@ class Settings(BaseSettings):
     # model) are read one after another. 1 (one by one, as before) until the host's memory is
     # checked: at 4 that upload swapped 10.3 GB past a 10 GB cap, against 5.0 GB at 1
     ingest_groups_in_flight: int = Field(default=1, ge=1)
+    # Local raster readings (the composite's detectors, arbiter and rooms) at once in the process
+    # (app/adapters/one_at_a_time.py): each holds its page in memory, about 1.5-3 GB on a big sheet
+    ingest_local_in_flight: int = Field(default=1, ge=1)
+    # Carbon calls in flight at once in the process, every reader's (app/adapters/carbon/reader.py)
+    carbon_calls_in_flight: int = Field(default=8, ge=1)
+    # Carbon calls at once for one sheet's read (its tiles; app/adapters/carbon/reader.py), under
+    # CARBON_CALLS_IN_FLIGHT: a big sheet has tens of tiles, so this bounds the slowest file
+    carbon_read_workers: int = Field(default=4, ge=1)
     # The building-code rule packs, one JSON file per pack (decision 0009); by default the ones
     # shipped in app/rules. A pack that does not validate (a rule without its clause) stops start
     rule_packs_dir: Path = Path(__file__).parent / "rules"
@@ -314,6 +330,12 @@ class Settings(BaseSettings):
     # set-aside gate failed, 7 of 227 plans): a sheet it would set aside is read and flagged with
     # the kind it looks like, so its answers are never certified and are Low (orchestrator)
     sheet_kind_set_aside: bool = True
+    # Where Sheet.discipline comes from (.agents/exp/pics-pic-cls.md): rules = the title and sheet
+    # number words (discipline_from_sheet; the sheet-kind-2 prompt, replies and cache as before);
+    # gemini = the sheet-kind reply's own discipline field (prompt sheet-kind-3, one call still),
+    # None when the title or number names another one. gemini re-pays one reply per cached sheet.
+    # Off in the demo until Bogdan turns it on with DISCIPLINE_PICTURES (orchestrator, 2026-11-15)
+    sheet_discipline: Literal["rules", "gemini"] = "rules"
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

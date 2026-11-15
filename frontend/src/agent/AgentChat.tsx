@@ -15,6 +15,7 @@ import { usePhotoAdd } from '../engineer/photoAdd';
 import { askable, canDraw, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
+import { dropKept, hasKeys, readKept, writeKept } from '../shell/kept';
 import { Loading } from '../shell/Loading';
 import {
   evidenceView,
@@ -52,13 +53,39 @@ type Kept = { chatId?: string; rows: Done[] };
 
 // answers-5: "Show it" leaves the chat route; the thread comes back from here (this tab only).
 const keyOf = (projectId: string) => `agent-chat:${projectId}`;
+// What a reply card reads of a kept turn (ChatTurn's required fields): one missing, the thread is dropped.
+const TURN_KEYS = [
+  'answers',
+  'chat_id',
+  'cost_usd',
+  'evidence',
+  'kind',
+  'latency_s',
+  'model',
+  'next',
+  'steps',
+  'text',
+  'turn',
+];
+const isDone = (r: unknown): r is Done =>
+  hasKeys(r, ['id', 'message', 'chips', 'status', 'turn']) &&
+  r.status === 'done' &&
+  typeof r.id === 'number' &&
+  typeof r.message === 'string' &&
+  Array.isArray(r.chips) &&
+  hasKeys(r.turn, TURN_KEYS);
 function kept(projectId: string): Kept {
-  try {
-    const raw = sessionStorage.getItem(keyOf(projectId));
-    if (raw) return JSON.parse(raw) as Kept;
-  } catch {
-    // no storage (private mode) or a bad value: start empty
-  }
+  const key = keyOf(projectId);
+  const value = readKept(key);
+  if (value === null) return { rows: [] };
+  const { chatId, rows } = value;
+  if (
+    (chatId === undefined || typeof chatId === 'string') &&
+    Array.isArray(rows) &&
+    rows.every(isDone)
+  )
+    return { chatId, rows };
+  dropKept(key); // QA R4-C13: a stale shape starts empty instead of a blank page
   return { rows: [] };
 }
 
@@ -287,14 +314,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   useEffect(() => {
     const done = rows.filter((r): r is Done => r.status === 'done');
     if (done.length === 0) return;
-    try {
-      sessionStorage.setItem(
-        keyOf(projectId),
-        JSON.stringify({ chatId: chatId.current, rows: done } satisfies Kept),
-      );
-    } catch {
-      // full or blocked storage: the thread just isn't kept
-    }
+    writeKept(keyOf(projectId), { chatId: chatId.current, rows: done } satisfies Kept);
   }, [rows, projectId]);
 
   useEffect(() => {
@@ -305,9 +325,11 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
 
   const last = rows.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
+  // load.state too: a thread kept over a reload is there before the project loads, so scroll once it renders (QA G2)
+  const ready = load.state === 'ready';
   useEffect(() => {
-    if (lastKey) thread.current?.lastElementChild?.scrollIntoView({ block: 'start' });
-  }, [lastKey]);
+    if (lastKey && ready) thread.current?.lastElementChild?.scrollIntoView({ block: 'start' });
+  }, [lastKey, ready]);
 
   if (load.state === 'loading') return <Loading label="Loading the project…" />;
   if (load.state === 'error') {
@@ -421,6 +443,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         setOpened(openIds.includes(id) ? openIds.filter((x) => x !== id) : [...openIds, id]);
       }}
       onPick={(sel, chip) => {
+        setDrawMode(false); // R4-F1: a finished click or drag puts the pen down, so typing is back at once
         setPointed((ps) => [
           ...ps,
           { sel: { ...sel, id: `sel_${String(nextSel.current++)}` }, chip },
@@ -471,7 +494,6 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       {r.status === 'error' && (
         <div className="v-card en-error" role="alert">
           <p>The message could not be answered: {errorText(r.error).detail}</p>
-          <p className="en-small">code: {errorText(r.error).code}</p>
           <button
             type="button"
             className="en-chip v-press"
@@ -551,7 +573,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         asked={rows.length}
         onAsk={ask}
         onAttach={photo.attach}
-        short="the drawings"
+        short="Ask a question"
         attaching={photo.attaching}
         pen={pen}
       />

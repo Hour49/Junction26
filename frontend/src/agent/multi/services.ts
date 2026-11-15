@@ -1,7 +1,7 @@
 // A proposal's services follow-up (docs/specs/backend/services-follow.md "API"), typed from the OpenAPI schema,
 // and the pure helpers of its tabs.
 import type { components } from '../../api/schema';
-import type { Box, Point, Proposal } from '../agent';
+import type { Box, Point } from '../agent';
 
 type Schemas = components['schemas'];
 
@@ -21,6 +21,58 @@ export const STATUS: Record<Status, { word: string; icon: string }> = {
 };
 /** Strongest first: the list's order, and the status a mark takes when two actions name it. */
 const RANK: Status[] = ['cut_off', 'needs_decision', 'follows', 'stays'];
+
+/** How a services sheet was taken to be this floor's (pics-edit-follow W1). */
+export type Pairing = Schemas['Pairing'];
+/** A lane's own services sheet (pics-edit-follow W2, services-follow.md SFPW-1..6; null on model and unchecked
+ * lanes and always with DISCIPLINE_PICTURES off): the edit's strips and the lane's marks in THAT sheet's page
+ * fractions; `marks` joins `lane.marks` and `lane.actions` by ref. */
+export type LanePicture = Schemas['FollowPicture'];
+export const pictureOf = (l: Lane): LanePicture | null => l.picture ?? null;
+
+/** AC-42: how the sheet was paired, in words. */
+export const PAIRED_BY: Record<Pairing['paired_by'], string> = {
+  same_page: 'Same page as the plan',
+  metadata: "Paired by the sheets' names",
+  geometry: 'Paired by the walls',
+  user: 'Paired by you',
+};
+
+/** The lane on its own sheet: each mark at its place on that sheet (marks the sheet does not place are left out).
+ * A picture moves nothing and draws no new run (services-follow.md § Pictures), so no new place or path is kept. */
+export function onSheet(l: Lane, pic: LanePicture): Lane {
+  const placed = new Map(pic.marks.map((m) => [m.ref, m]));
+  return {
+    ...l,
+    marks: l.marks.flatMap((m) => {
+      const q = placed.get(m.ref);
+      return q ? [{ ...m, line: q.line, at: q.at }] : [];
+    }),
+    actions: l.actions.map((a) => ({ ...a, moved_to: null, paths: [] })),
+  };
+}
+
+/** The strike line through a removed strip: along its long side, from the middle of one short side to the other. */
+export function strikeOf(strip: Point[]): [Point, Point] | null {
+  if (strip.length < 2) return null;
+  const mid = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const len = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const [a, b, c, d] = strip;
+  if (strip.length === 4 && a && b && c && d)
+    return len(a, b) < len(b, c) ? [mid(a, b), mid(c, d)] : [mid(b, c), mid(d, a)];
+  const xs = strip.map((q) => q[0]);
+  const ys = strip.map((q) => q[1]);
+  const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  return x1 - x0 >= y1 - y0
+    ? [
+        [x0, (y0 + y1) / 2],
+        [x1, (y0 + y1) / 2],
+      ]
+    : [
+        [(x0 + x1) / 2, y0],
+        [(x0 + x1) / 2, y1],
+      ];
+}
 
 const NOT_CHECKED: Record<Exclude<Lane['status'], 'checked'>, string> = {
   no_model: 'no model',
@@ -82,7 +134,10 @@ export const isTerminal = (m: ServiceMark) => !RUNS.has(m.kind);
 /** The part of the page to look at under a lane's tab: the changed walls with the lane's terminals and what it
  * proposes (all within a few metres of the change), plus a margin, so the card can zoom to it. A run's line is
  * left out: it can cross the whole storey. Null when the lane draws nothing. */
-export function focusOf(l: Lane, p: Proposal): Box | null {
+export function focusOf(
+  l: Lane,
+  p: { removed: { polygon: Point[] }[]; added: { polygon: Point[] }[] },
+): Box | null {
   if (l.marks.length === 0) return null;
   const pts = [
     ...[...p.removed, ...p.added].flatMap((g) => g.polygon),

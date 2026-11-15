@@ -38,7 +38,7 @@ test('the Next and Previous page buttons work by click and by tap', async ({ pag
     )
     .toBe('done');
   const { id } = await drawingOf(page, pid, 'set.pdf');
-  await page.goto(`/#/p/${pid}/d/${id}/engineer`);
+  await page.goto(`/#/p/${pid}/d/${id}/surveyor`);
 
   const press = testInfo.project.use.hasTouch
     ? (name: string) => page.getByRole('button', { name }).tap()

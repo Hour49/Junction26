@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup as unmount, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   drawingLabel,
@@ -23,6 +23,7 @@ import {
 import { InfoProvider } from '../shell/info';
 import { TIPS } from '../shell/tips';
 import { mockApi, never } from '../test/mockApi';
+import { KEPT_VERSION } from '../shell/kept';
 import { EngineerPage } from './EngineerPage';
 import { formatScore } from './format';
 import {
@@ -46,6 +47,23 @@ import {
   projectOneDrawing,
   refusalWithMarkup,
 } from './testing';
+
+// EN-23: the score shows where the checks line names a second method (EN-93 hides it beside "one method").
+const scoredAgree = {
+  ...answerConfidence,
+  quantity: answerConfidence.quantity && {
+    ...answerConfidence.quantity,
+    status: 'agree' as const,
+    first: { method: 'plan_drawing', value: 2 },
+    second: { method: 'ifc_model', value: 2 },
+  },
+};
+
+/** A fresh page: unmounted, and no engineer thread kept in the tab (R3-L2). */
+function cleanup() {
+  unmount();
+  sessionStorage.clear();
+}
 
 const PROJECT = '5e0c1a2b3d4f';
 const DRAWING = drawing.id;
@@ -166,7 +184,7 @@ describe('drawing header and ask box', () => {
   it('EN-3 a 404 shows the error with detail, code and a link to the project', async () => {
     open({ [DRAWING_ROUTE]: { status: 404, body: error } });
     expect(await screen.findByText(/no drawing 0123456789abcdef/)).toBeTruthy();
-    expect(screen.getAllByText(/not-found/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/not-found/)).toHaveLength(0); // R2-C5: no raw code
     const back = screen.getByRole('link', { name: 'Back to the project' });
     expect(back.getAttribute('href')).toBe(`#/p/${PROJECT}`);
   });
@@ -297,6 +315,29 @@ describe('answers', () => {
     expect(sumRows).toContain('1 Küche 22.40 m²');
   });
 
+  it('EN-91 the mark list shows 12 rows and "Show all <n>", which toggles to every row', async () => {
+    const m0 = (answer.marks[0] ?? {}) as (typeof answer.marks)[number];
+    const many = {
+      ...answer,
+      marks: Array.from({ length: 38 }, (_, i) => ({ ...m0, id: `e${String(i + 1)}`, n: i + 1 })),
+    };
+    const t = await shown(many);
+    const list = () => t.querySelectorAll('.en-marks li');
+    expect(list()).toHaveLength(12);
+    const more = within(t).getByRole('button', { name: 'Show all 38' });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(more);
+    expect(list()).toHaveLength(38);
+    const fewer = within(t).getByRole('button', { name: 'Show fewer' });
+    expect(fewer.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(fewer);
+    expect(list()).toHaveLength(12);
+    cleanup();
+    const two = await shown(answer);
+    expect(two.querySelectorAll('.en-marks li')).toHaveLength(2);
+    expect(within(two).queryByRole('button', { name: /^Show all/ })).toBeNull();
+  });
+
   it('EN-18 the counting rule', async () => {
     const t = await shown(answer);
     expect(
@@ -304,6 +345,15 @@ describe('answers', () => {
         'Counting rule: every element, room and plan the drawing lists counts once',
       ),
     ).toBeTruthy();
+  });
+
+  it("QA R3-A2 EN-93 one method, no second check: no second reader's score beside it", async () => {
+    expect(answerConfidence.confidence).not.toBeNull();
+    const t = await shown(answerConfidence);
+    expect(within(t).getByText('Measured by one method; no second check.')).toBeTruthy();
+    expect(within(t).queryByText(/Second reader's score/)).toBeNull();
+    const details = within(t).getByText('Details').closest('details') as HTMLElement;
+    expect(within(details).getByText('Signal: g1main')).toBeTruthy();
   });
 
   it('EN-20 the viewer gets the proof legend: one colour per room label', async () => {
@@ -314,10 +364,10 @@ describe('answers', () => {
   });
 
   it("QA R1 EN-23 the second reader's score, no signal name on the card, never a probability", async () => {
-    const conf = answerConfidence.confidence;
+    const conf = scoredAgree.confidence;
     expect(conf).not.toBeNull();
     const signal = conf?.signal ?? '';
-    const t = await shown(answerConfidence);
+    const t = await shown(scoredAgree);
     expect(
       within(t).getByText(
         `Second reader's score ${formatScore(conf?.score ?? NaN)} (not a probability)`,
@@ -429,7 +479,7 @@ describe('refusals and errors', () => {
     expect(
       await within(t).findByText('The question could not be answered: question too long'),
     ).toBeTruthy();
-    expect(within(t).getByText(/validation/)).toBeTruthy();
+    expect(within(t).queryByText(/validation/)).toBeNull(); // R3-L7: no raw 'code: …' line
     fireEvent.change(input(), { target: { value: 'x' } });
     expect(askButton().disabled).toBe(false);
     fireEvent.click(within(t).getByRole('button', { name: 'Try again' }));
@@ -467,6 +517,41 @@ describe('thread', () => {
     const articles = screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'));
     expect(articles).toEqual([answer.question, answerArea.question]);
     expect(screen.getByText('2 asked')).toBeTruthy();
+  });
+
+  it('R3-L2 the answered turns come back after a reload of the tab; the counter goes on', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer, answerArea) });
+    await typeAndAsk(answer.question);
+    await within(await turn(answer.question)).findByTestId('answer-value');
+    unmount(); // the reload: the page mounts again in the same tab, its storage kept
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerArea) });
+    expect(await within(await turn(answer.question)).findByTestId('answer-value')).toBeTruthy();
+    expect(screen.getByText('1 asked')).toBeTruthy();
+    await typeAndAsk(answerArea.question);
+    await within(await turn(answerArea.question)).findByTestId('answer-value');
+    const articles = screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'));
+    expect(articles).toEqual([answer.question, answerArea.question]);
+  });
+
+  it('R3-L2 a thread kept for another drawing or a bad stored value starts empty', async () => {
+    sessionStorage.setItem(`engineer-thread:${PROJECT}:other`, JSON.stringify([{ id: 1 }]));
+    sessionStorage.setItem(`engineer-thread:${PROJECT}:${DRAWING}`, '{not json');
+    open({ [DRAWING_ROUTE]: drawing });
+    expect(await screen.findByText('Ask a question about this drawing.')).toBeTruthy();
+    expect(screen.getByText('0 asked')).toBeTruthy();
+  });
+
+  it('R4-C13 a thread kept by an older build (no version, or a turn missing what the card reads) is dropped, not a blank page', async () => {
+    const key = `engineer-thread:${PROJECT}:${DRAWING}`;
+    const old = [{ id: 1, status: 'done', question: answer.question, answer: { answer: 2 } }];
+    for (const value of [old, [{ ...old[0], answer }], { v: KEPT_VERSION, turns: old }]) {
+      sessionStorage.setItem(key, JSON.stringify(value));
+      open({ [DRAWING_ROUTE]: drawing });
+      expect(await screen.findByText('Ask a question about this drawing.')).toBeTruthy();
+      expect(screen.getByText('0 asked')).toBeTruthy();
+      expect(sessionStorage.getItem(key)).toBeNull(); // dropped, so the next reload starts clean too
+      unmount();
+    }
   });
 
   it('EN-47 each turn is an article named by its question', async () => {
@@ -527,6 +612,22 @@ describe('thread', () => {
   });
 });
 
+describe('EN-92 a thread of refusals keeps the drawing in view', () => {
+  it('shows the page after a refusal, and only the answer card once a question is answered', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerRefused, answer) });
+    const empty = () => screen.queryByRole('figure', { name: 'Drawing' });
+    expect(await screen.findByRole('figure', { name: 'Drawing' })).toBeTruthy();
+    await typeAndAsk(answerRefused.question);
+    const t = await turn(answerRefused.question);
+    await within(t).findByText("I can't answer that from this drawing.");
+    // QA r2 R2-A2: a judge whose first question is refused still sees the sheet
+    expect(empty()).toBeTruthy();
+    fireEvent.click(within(t).getByRole('button', { name: answer.question }));
+    await within(await turn(answer.question)).findByTestId('answer-value');
+    expect(document.querySelector('.en-card--empty')).toBeNull();
+  });
+});
+
 /** Asks one question and waits for its answer, refusal or error to show. */
 async function shownTurn(a: AnswerView, d = drawing) {
   open({ [DRAWING_ROUTE]: d, 'POST /api/ask': answers(a) });
@@ -562,12 +663,18 @@ describe('extended answers', () => {
     expect(within(t).getByText('2 door objects in the model on Ground floor')).toBeTruthy();
   });
 
-  it('EN-30 no answer links to a surveyor view', async () => {
+  it('EN-30 Send to surveyor links to the surveyor view on the key; absent on a refusal', async () => {
     const t = await shownTurn(answer);
-    expect(within(t).queryByRole('link', { name: /surveyor/i })).toBeNull();
+    const link = within(t).getByRole('link', { name: 'Send to surveyor' });
+    expect(link.getAttribute('href')).toBe(`#/p/${PROJECT}/d/${DRAWING}/surveyor?q=door`);
     cleanup();
     const c = await shownTurn(answerConflict);
-    expect(within(c).queryByRole('link', { name: /surveyor/i })).toBeNull();
+    expect(within(c).getByRole('link', { name: 'Send to surveyor' }).getAttribute('href')).toBe(
+      `#/p/${PROJECT}/d/${DRAWING}/surveyor?q=area%3Aroom%7Cname%3D1.01`,
+    );
+    cleanup();
+    const r = await shownTurn(answerRefused);
+    expect(within(r).queryByRole('link', { name: 'Send to surveyor' })).toBeNull();
   });
 
   it('#90 EN-29 the picture link carries the project; only when confidence is null', async () => {
@@ -714,16 +821,20 @@ describe('extended answers', () => {
     expect(within(t).getByText(/1 counted without a mark \(second reader\)/)).toBeTruthy();
   });
 
-  it('EN-32 a signed answer says nothing of who checked it', async () => {
+  it('EN-32 a signed answer shows who verified it and when', async () => {
     const t = await shownTurn(answerSigned);
-    expect(t.textContent).not.toMatch(/Verified|Ana|signed/i);
+    expect(within(t).getByText('Verified by Ana, 2026-11-14 01:40 UTC')).toBeTruthy();
+    expect(within(t).getByText('Verified')).toBeTruthy();
   });
 
-  it('EN-34 nobody decided: one plain sentence, no Kept line', async () => {
+  it('EN-34 nobody decided: the surveyor sentence, no Kept line', async () => {
     const t = await shownTurn(answerNeedsPerson);
-    expect(within(t).getByText('No rule decides this value.')).toBeTruthy();
+    expect(
+      within(t).getByText(
+        'No rule decides. A surveyor has to settle it before this value can be used.',
+      ),
+    ).toBeTruthy();
     expect(within(t).queryByText(/^Kept /)).toBeNull();
-    expect(t.textContent).not.toMatch(/surveyor/i);
   });
 
   it('EN-35 agree shows the second method; single says one method', async () => {
@@ -746,9 +857,16 @@ describe('extended answers', () => {
 
   it('EN-37 an edited answer: was 2, the rejected and added rows', async () => {
     const t = await shownTurn(answerEdited);
-    expect(within(t).queryByText(/Changed in review/)).toBeNull();
-    expect(rowTexts(t)).toContain('× door');
-    expect(rowTexts(t)).toContain('+3 item');
+    expect(within(t).getByText('Changed in review, was 2')).toBeTruthy();
+    expect(rowTexts(t)).toContain('× door rejected by a surveyor');
+    expect(rowTexts(t)).toContain('+3 item added by a surveyor');
+  });
+
+  it('EN-38 a settled value shows when and what', async () => {
+    const t = await shownTurn(answerSettled);
+    expect(
+      within(t).getByText('Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²'),
+    ).toBeTruthy();
   });
 
   it('EN-38 a settled value replaces the Kept line', async () => {
@@ -843,7 +961,7 @@ describe('Vellum (screen 4)', () => {
     expect(fig.textContent).toContain('PDF vector · drawn PDF route');
     const also = within(t).getByRole('link', { name: 'flat-a.png' });
     expect(also.getAttribute('href')).toBe(`#/p/${PROJECT}/d/c9b719f715357201/engineer`);
-    expect(within(t).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(t).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it('EN-56 previous and next drawing wrap round; none for one drawing or before the project', async () => {
@@ -862,7 +980,7 @@ describe('Vellum (screen 4)', () => {
     const nav = await screen.findByRole('navigation', { name: 'Drawings' });
     expect(within(nav).getByRole('link', { name: 'Next drawing' })).toBeTruthy();
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(nav).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it.each([
@@ -875,7 +993,7 @@ describe('Vellum (screen 4)', () => {
       `#/p/${PROJECT}/d/${project.drawings[1]?.drawing_id ?? ''}/engineer`,
     );
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5')).toBeTruthy();
+    expect(within(nav).getByText('1 / 6')).toBeTruthy();
   });
 
   it.each([
@@ -907,6 +1025,8 @@ describe('Vellum (screen 4)', () => {
       'Estimate',
       'Measured with an estimated scale or method; treat it as approximate.',
     ],
+    [answerEdited, 'Changed in review', 'A surveyor changed this value in review.'],
+    [answerSigned, 'Verified', 'A surveyor checked this value and signed it off.'],
   ])('EN-57 the status pill %#: words, and its tooltip on focus', async (a, word, tip) => {
     const t = await shownTurn(a);
     // ui-bugs 7c: the shared Tip (components/ui/tip) on a focusable wrapper around the pill
@@ -1034,11 +1154,13 @@ describe('Vellum (screen 4)', () => {
     }
   });
 
-  it('EN-83 a signed answer shows its level like any other; nothing says it was signed off', async () => {
+  it('EN-83 signed off: "Signed off", no level; no double-check panel on a High answer', async () => {
     const signed = await shownTurn({ ...answerSigned, level: answerHigh.level });
     const block = signed.querySelector('.en-grade') as HTMLElement;
-    expect(within(block).queryByText('Signed off')).toBeNull();
-    expect(signed.textContent).not.toMatch(/Signed off|Verified/);
+    expect(within(block).getByText('Signed off')).toBeTruthy();
+    expect(within(block).queryByText('High')).toBeNull();
+    expect(block.textContent).not.toContain(answerHigh.level?.text ?? 'x');
+    expect(block.querySelector('.en-bar')).toBeNull();
   });
 
   it('EN-84 flagged drawing: flag reason and level at the top, above the plan and marks', async () => {
@@ -1210,6 +1332,7 @@ describe('judge path', () => {
   it('EN-90 a partial room total has a tag beside its value with the counts', async () => {
     const t = await shownTurn({
       ...answer,
+      unit: 'm2', // a room total sums its rooms (a room count says "counts": format.test.ts)
       partial: true,
       rooms_counted: 7,
       rooms_missing: ['Sauna', 'WC 2'],
@@ -1281,7 +1404,7 @@ describe('hover tips on the engineer page (docs/ui-tooltips.md)', () => {
   });
 
   it('the checks, second reader score and counting rule explain themselves', async () => {
-    const t = await shownTurn(answerConfidence);
+    const t = await shownTurn(scoredAgree);
     await tipOf(within(t).getByText('Checks'), TIPS.checks);
     await tipOf(within(t).getByText(/^Second reader's score/), TIPS.secondScore);
     await tipOf(within(t).getByText(/^Counting rule:/), TIPS.rule);

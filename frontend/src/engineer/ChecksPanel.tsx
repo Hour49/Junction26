@@ -1,4 +1,7 @@
-import { formatValue, methodName, type Row } from '../api';
+import { formatTime, formatValue, methodName, type Row } from '../api';
+
+/** Measured once, no conflict: the checks line says "one method; no second check" (EN-35, EN-36). */
+export const oneMethod = (row: Row) => !row.conflict && !(row.first && row.second);
 
 /** The row's review state in words (the status is the pill beside it): the second method or the conflict, estimate, edits. */
 export function ChecksPanel({ row }: { row: Row }) {
@@ -15,13 +18,17 @@ export function ChecksPanel({ row }: { row: Row }) {
               </li>
             ))}
           </ul>
-          {/* A settled value replaces the rule's choice: no Kept line then. */}
+          {/* A settled value replaces the rule's choice: the settled line says it. */}
           {settled ? null : conflict.resolution ? (
             <p>
               Kept {value(conflict.resolution.value)}: {conflict.resolution.rule}
             </p>
           ) : (
-            row.needs_person && <p className="en-warn">No rule decides this value.</p>
+            row.needs_person && (
+              <p className="en-warn">
+                No rule decides. A surveyor has to settle it before this value can be used.
+              </p>
+            )
           )}
         </>
       ) : first && second ? (
@@ -32,6 +39,14 @@ export function ChecksPanel({ row }: { row: Row }) {
         <p>{row.estimate ? 'Estimated' : 'Measured'} by one method; no second check.</p>
       )}
       {row.estimate && <p className="en-warn">Estimate: {row.estimate}</p>}
+      {settled && (
+        <p>
+          Settled by a surveyor at {formatTime(settled.at)}: {value(settled.value)}
+        </p>
+      )}
+      {row.value !== row.original_value && (
+        <p>Changed in review, was {value(row.original_value)}</p>
+      )}
     </div>
   );
 }

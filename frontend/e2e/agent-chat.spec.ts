@@ -78,6 +78,13 @@ test('AC-30 AC-31 AC-37: a question goes over the step stream and gets an answer
   await expect(card.locator('.ag-steps')).toHaveCount(0);
   await expect(card).not.toContainText(/\d+ steps? · /);
   await shot(page, testInfo, 'agent-answer', offline);
+  // CH-51 phone grade: the card's thumbnail opens the full viewer with its zoom; Close returns
+  await card.getByRole('button', { name: 'Enlarge the plan' }).first().click();
+  const sheet = page.getByRole('dialog', { name: 'The plan' });
+  await expect(sheet.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+  await shot(page, testInfo, 'agent-answer-enlarged', offline);
+  await sheet.getByRole('button', { name: 'Close' }).click();
+  await expect(sheet).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

@@ -1,12 +1,6 @@
 # Golden demo path and its end-to-end test (spec, frontend v1)
 Status: draft, 2026-11-14 16:40 (demo parity section planned; Vellum section 11:20), by fe-golden.  Story: #33.  API: docs/API.md (v1).
 
-> **P8 (2026-11-15): the Surveyor is gone from the frontend** (user decision). Everything below about the surveyor
-> screen, settling a value there, signing off, "Verified by …", the per-drawing CSV and the `…/surveyor` route is
-> superseded: steps V10-V14, GP-9 to GP-13, GP-28 and the sign-off parts of GP-34 are deleted from the e2e. An old
-> `…/surveyor` URL lands on the same drawing's engineer view. Screenshots `10-surveyor-queue`, `11-signed` and
-> `12-verified` are no longer taken. The header Export (whole project) stays.
-
 ## Purpose
 
 The golden path is the flow we show the judges in the 3-minute pitch: a zip goes in, one file is followed through
@@ -41,10 +35,14 @@ checks on every screenshot (offline strip, no horizontal scroll, no console erro
 | V5b | (chat) | click the chip "How many doors are there?" (the chips go, the bar moves to the bottom) | one card from one `POST /api/projects/{pid}/ask` (#135): several drawings answer, so no total and no why line (the written answer says the numbers are not added up); a line per drawing ("plans/flat-b.pdf: 2"), each with "Show it on <file>"; no image |
 | V6 | Ask, with proof, `…/d/<did>/engineer` (4) | by its URL (ui-bugs 8) | as GP-5: the page, its credit, the suggested questions |
 | V7-V9 | (4) | the door count, the room 1.01 area, the roof refusal | as GP-6, GP-7, GP-8 |
+| V10-V12 | Surveyor, `…/surveyor` (restyle) | settle 1.01 on 22.40 m², sign off as "Ana" | as GP-9, GP-10, GP-11 |
+| V13 | (4) | ask the 1.01 area again | as GP-12: "22.40 m²", "Verified by Ana, …" |
+| V14 | Surveyor | Export CSV | as GP-13 |
 | V15 | Workspaces, `#/workspaces` (5) | follow "Workspaces" in the header | the sample workspace first and selected; stats Files 11, Drawings 5, To review 0, Signed off "1 of <n>" (one per room, though #131 signs the room's twin row too); history: "Uploaded sample-project.zip", "Analysis done", then (with the "Asked: …" events) "Conflict settled: area of room (name Küche · 1.01)" (kept 22.40 m²) before "Signed off: area of room (name Küche · 1.01)" (… by Ana); no "Settled by a rule" left |
 
 Screenshots per width (`frontend/screenshots/<desktop|phone>/`): `01-home`, `02-project`, `03-advanced`,
-`04-trace`, `05-conflicts`, `05a-chat`, `05b-chat-answer`, `06-engineer`, `07-count`, `08-area-conflict`, `09-refusal`, `13-workspaces`. Each is opened and looked at against its canvas screen (QA.md §3).
+`04-trace`, `05-conflicts`, `05a-chat`, `05b-chat-answer`, `06-engineer`, `07-count`, `08-area-conflict`, `09-refusal`, `10-surveyor-queue`,
+`11-signed`, `12-verified`, `13-workspaces`. Each is opened and looked at against its canvas screen (QA.md §3).
 
 Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the new screens):
 
@@ -57,10 +55,10 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
 - GP-32 V6: flat-b's `#/p/<id>/d/<16 hex>/engineer?ask=<question>` opened by its URL (ui-bugs 8/13: the chat
   and the plan pane have no link to a drawing's workspace any more) shows the drawing asking that question. The path no longer goes through the card's surveyor link or "Open the workspace". [e2e]
 - GP-33 V15: "Workspaces" in the header reaches `#/workspaces`; the first workspace is "sample-project.zip" with
-  `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 0.
+  `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 0 and Signed off matching `/^1 of \d+$/` (one per room).
   [e2e]
 - GP-34 V15: the history starts "Uploaded sample-project.zip", "Analysis done"; later "Conflict settled: area of room
-  (name Küche · 1.01)" ; "Asked: How many doors are there?" twice (the chat's one
+  (name Küche · 1.01)" comes before "Signed off: area of room (name Küche · 1.01)" (with "by Ana"), the only "Signed off" event; "Asked: How many doors are there?" twice (the chat's one
   grouped entry and the engineer's ask); no "Settled by a
   rule" event is left (#131: the one conflict was settled by a person). [e2e]
 - GP-35 Fifteen screenshots per width, named as above, each with the offline strip and no horizontal scroll.
@@ -97,7 +95,7 @@ Open points (Vellum):
   Settled (ingest.md, 11:30): Simple keeps the file list, so V4 can be reached from Simple; the test still walks V3
   (Advanced) for its screenshot and reaches V4 from there.
 - V-2 The pitch is 3 minutes: V3, V4 and V14 can be cut live; the test still walks them.
-- V-3 (superseded by P8).
+- V-3 After V10-V12 the sample's flat-b has one conflict left (Küche), decided by rule, so "To review" is 1 in V15.
 
 ## Demo parity: how the path walks the demo's screens (round 3, 2026-11-14 16:25)
 
@@ -266,7 +264,7 @@ reads the scans); the e2e always runs on no keys (`start-backend.sh` forces ever
 | 5 | Click "How many doors are there?" | Answer `2`, "door count", two numbered marks 1 and 2 on the doors, "Counting rule: every element, room and plan the drawing lists counts once", "One method", Cost $0 | yes |
 | 6 | Type "What is the net floor area of room 1.01?", Ask | Answer `30.00 m²`, the kitchen shaded, status "Methods disagree": "22.40 m² by room outlines × sheet scale", "30.00 m² by printed room areas", "Kept 30.00 m²: the printed label over the outline at the sheet's scale" | yes |
 | 7 | Type "What colour is the roof?", Ask | "I can't answer that from this drawing.", the reason in words (no code shown), question buttons it can answer; no number | yes |
-| 8 | Switch to Surveyor | `#/…/surveyor`: "Takeoff: plans/flat-b.pdf", the "To review" group first: "area of room (name 1.01)" and "area of room (name Küche)", each "Methods disagree"; the first is selected, its detail shows both values | yes |
+| 8 | Switch to Surveyor ("Send to surveyor" under the answer) | `#/…/surveyor`: "Takeoff: Drawn plan 2", the "To review" group first: "area of room (name Küche · 1.01)", "Methods disagree"; it is selected, its detail shows both values | yes |
 | 9 | Press "Keep A: 22.40 m² (room outlines × sheet scale)" (the drawn outline) | The row reads 22.40 m², "Changed in review", "Settled at 22.40 m² …" | yes |
 | 10 | Type "Ana" in "Signing as", press "Sign off 22.40 m²" | The row reads "Verified"; "Signed off by Ana, <date time> UTC: 22.40 m². Engineers see this value as verified." | yes |
 | 11 | Switch to Engineer, ask "What is the net floor area of room 1.01?" again | Answer `22.40 m²`, "Verified", "Verified by Ana, <date time> UTC" | yes |
@@ -420,7 +418,7 @@ step 4. Drawing ids are content hashes and stable, but the fixtures' ids are sta
 | Refusal | step 7 | "What colour is the roof?" |
 | Conflict | step 6 and 8 | flat-b's kitchen |
 | Signed / verified | steps 10, 11 | the sign-off |
-| Error (`{detail, code}`) | the service-down test: `GET /api/projects` answered 500 `{"detail": "internal error", "code": "internal"}` by `page.route`; home shows "internal error" and "internal" and a Retry; after `page.unroute`, Retry loads the list | `page.route` in the test |
+| Error (`{detail, code}`) | the service-down test: `GET /api/projects` answered 500 `{"detail": "internal error", "code": "internal"}` by `page.route`; home shows "internal error" (not the code) and a Retry; after `page.unroute`, Retry loads the list | `page.route` in the test |
 | Empty | not on the path: an empty project list is the ingest spec's component test (IN-13) | — |
 | A console error or page error | fails the golden-path test (QA.md §2 "no errors in the browser console") | listener on `console` (type `error`) and `pageerror` |
 
@@ -453,8 +451,21 @@ The path
 - GP-8 Step 7: the turn for "What colour is the roof?" shows "I can't answer that from this drawing." and
   the reason "This question isn't one I can turn into a count…", no "code:" line, at least one question button,
   and no answer value. [e2e]
+- GP-9 Step 8: the "Surveyor" link reaches `#/p/<id>/d/<same drawing id>/surveyor`, whose "To review" group lists
+  "area of room (name 1.01)" and "area of room (name Küche)", each with "Methods disagree". [e2e]
+- GP-10 Step 9: with "area of room (name 1.01)" selected, "Keep A: 22.40 m² (room outlines × sheet scale)" makes its row read
+  22.40 m² and "Changed in review", and the detail "Settled at 22.40 m²". [e2e]
+- GP-11 Step 10: "Ana" in "Signing as" and "Sign off 22.40 m²" make the row read "Verified" and the detail
+  "Signed off by Ana". [e2e]
+- GP-12 Step 11: back on Engineer, asking "What is the net floor area of room 1.01?" shows "22.40 m²", "Verified" and
+  text matching `Verified by Ana, \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC`. [e2e]
+- GP-13 Step 12: "Export CSV" on Surveyor gives a download named `flat-b-takeoff.csv` whose line starting
+  `plans/flat-b.pdf,area:room|name=1.01,` matches `,22\.401,m2,signed,30\.0,` and `,Ana,`. [e2e]
 - GP-14 Every step from 1 to 12 passes in both projects; the `phone` project uses no other steps or selectors than
   `desktop`. [e2e]
+- GP-28 Step 8a (06:00 scope): the "Surveyor" link reaches `#/p/<id>/d/<same drawing id>/surveyor`, whose side
+  panel lists the conflicts "area of room (name 1.01)" and "area of room (name Küche)", each with "plans/flat-b.pdf",
+  "22.40 m² vs 30.00 m²" and "decided by rule". [e2e]
 - GP-15 Running `npm run e2e` twice in a row passes both times (a new temp data dir, and `fresh=true` resets the
   sign-off of the first run). [e2e, by hand once before merge]
 
@@ -515,7 +526,7 @@ Selectors
    | --- | --- | --- | --- |
    | shared | offline text | "Running offline: no API keys, no models" (full text at both widths) | SH-16, Layout |
    | shared | view links | links "Ingest", "Engineer", "Surveyor"; current one `aria-current="page"` | SH-13, SH-14 |
-   | shared | error view | `detail`, "code: <code>", a "Retry" button, `role="alert"` | States "Screen error" |
+   | shared | error view | `detail` (no code), a "Retry" button, `role="alert"` | States "Screen error" |
    | ingest | sample button | button "Try the sample project" | IN-1, IN-9 |
    | ingest | project done | "Done", "11 of 11 files finished" | IN-16 |
    | ingest | file row | a link whose name contains the file's `path`; state words "flagged", "set aside", "text only" | IN-18, IN-19 |

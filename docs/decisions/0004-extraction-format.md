@@ -118,10 +118,11 @@ floor area as the dataset defines it, `side_area_m2` is one face of a wall), `el
 sheet, or the room for a space; null when not drawn here) and `attrs`. A null `model_objects` (left out) means the
 source has no model: every non-BIM file, and all gold today.
 
-The model checks that every `element` names a listed element of the same class (a listed room for a space) and
-that no element or room is named twice. An `.ifc` file with a non-empty `model_objects` may have `pages: []`, and
-then has empty `plans`, `elements` and `rooms`; every other file still needs at least one page. `--strict-v2` asks
-no scale of such a file, since it has no image. Part 1 scoring doesn't change: elements are what is drawn.
+The model checks that every `element` names a listed element of the same class (a listed room for a space) and that
+no element or room is named twice. An `.ifc` file with `model_objects` set (an empty list for a services model, see
+the amendment of 2026-11-15) may have `pages: []`, and then has empty `plans`, `elements` and `rooms`; every other
+file still needs at least one page. `--strict-v2` asks no scale of such a file, since it has no image. Part 1
+scoring doesn't change: elements are what is drawn.
 
 Alternative rejected: a nullable `Element.box`. It would change the Part 1 scorer and every consumer that assumes a
 box, and it would mix "drawn on this sheet" with "in the model".
@@ -196,6 +197,19 @@ bedrooms with 0 (one model) each have a 2.36 m high door to the outside.
 `attrs` already takes any JSON scalar, so the schema and the Part 1 scorer don't change. Files without the keys read
 as before: all gold, every non-BIM file, and every extraction written before this.
 
+## Amendment, 2026-11-15 03:30: a space's room type in `model_objects`
+
+- Decided by: the orchestrator (qa-a's bedroom count on an .ifc alone, 2026-11-15; review-527 S1); written by
+  agent local-dec (worker), #527.
+
+A `space` in `model_objects` may carry `room_type` (string, a room `type` such as `bedroom` or `kitchen`): what the
+space's LongName and Name say it is, by the word table a drawn IFC room's label is typed with
+(`backend/app/adapters/vector_pdf/ifc_render.py` `ROOM_WORDS`: "4IZQ-HAB1" a bedroom, "1DER-COC" a kitchen). Left
+out when no room word names the space. A services copy of a room ("Bedroom 1 MEP Space") keeps the type its name
+gives; it is the count that leaves it out. It is a guess from names, not a measurement: an .ifc asked on its own
+counts its spaces by it ("How many bedrooms?"; `takeoff.typed_spaces`: a space listed again with the same number,
+name and storey once, a services copy not at all), and those counts are Low and never sure. `attrs` already takes any JSON scalar, so the schema and the scorer don't change.
+
 ## Amendment, 2026-11-14 19:57: a room type as a conflict's class
 
 - Decided by: agent golden (worker), for the orchestrator to confirm (series point on 240e620, 19:54: `stoa_eval
@@ -212,3 +226,17 @@ not scored).
 
 Alternative rejected: the backend writing the room type somewhere else (a `sheet` subject plus a note, or a new
 subject kind). It would lose the type or add a kind that `counts` doesn't need for the same idea.
+
+## Amendment, 2026-11-15 02:15: an `.ifc` model may list no object of the plan's classes
+
+A services model (DigitalHub's heating `-hzg-v2.ifc`, ventilation `-lft-v2.ifc`) uploaded on its own has no wall,
+door, window, column, stair, slab, beam, railing or space, so its `model_objects` is `[]`. Before, an `.ifc` file
+without pages needed a non-empty `model_objects`, so ingest set the model aside ("no PDF, PNG or JPEG in its group")
+and the chat had no drawing to ask (Tudor's QA batch 1, B4). Now an `.ifc` file without pages may have
+`model_objects: []`: the model was read and lists none of the plan's classes. `null` still means the file is no
+model (`eval/stoa_eval/extraction.py`, `backend/app/core/drawing/model.py`). Every file valid before stays valid. No
+gold has such a file, so nothing scores differently. Its MEP elements are answered from its fact sheet
+(`IFC_FACTS`) and the services tools, not from `model_objects`.
+
+Alternative rejected: services classes in `model_objects`. It would add classes to `ModelClass` and to the API
+schema the frontend generates, for counts the fact sheet already gives.

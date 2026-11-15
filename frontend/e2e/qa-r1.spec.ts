@@ -1,6 +1,6 @@
 // QA round 1 layout bugs (board #14), as browser tests on the live no-keys backend. Each fails while its bug is there.
 import { expect, test } from '@playwright/test';
-import { fileFromDocuments, noKeys, shot, startSample } from './support';
+import { fileFromDocuments, noKeys, openSurveyor, shot, startSample } from './support';
 
 // No hyphens or spaces: nothing the browser may break the line at.
 const LONG_NAME = 'Hafenstrasse_12_Bauabschnitt_B_Ausfuehrungsplaene_Rev07a.txt';
@@ -30,6 +30,47 @@ test('R1-5-4 / R1-4-1: a long project name does not widen the page at 390x844', 
   }
 });
 
+test('R1-4-2: the takeoff shows at least 10 whole rows at 1440x900', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'a desktop-width bug');
+  await openSurveyor(page);
+  await expect(page.getByRole('table', { name: 'To review' })).toBeVisible();
+  // For each row's label button: is it wholly on screen, and wholly inside its nearest clipping box?
+  const rows = await page.evaluate(() => {
+    const clipBox = (element: Element) => {
+      for (let at = element.parentElement; at; at = at.parentElement) {
+        const style = getComputedStyle(at);
+        if (/(auto|scroll|hidden|clip)/.test(style.overflowX + style.overflowY)) {
+          return at.getBoundingClientRect();
+        }
+      }
+      return null;
+    };
+    return [...document.querySelectorAll('tr th[scope="row"] button')].map((button) => {
+      const box = button.getBoundingClientRect();
+      const clip = clipBox(button);
+      const inClip =
+        !clip ||
+        (box.left >= clip.left - 0.5 &&
+          box.right <= clip.right + 0.5 &&
+          box.top >= clip.top - 0.5 &&
+          box.bottom <= clip.bottom + 0.5);
+      const onScreen = box.top >= 0 && box.bottom <= window.innerHeight && box.width > 0;
+      return {
+        label: button.textContent,
+        onScreen,
+        inClip,
+        cutSideways: !!clip && (box.left < clip.left - 0.5 || box.right > clip.right + 0.5),
+      };
+    });
+  });
+  const whole = rows.filter((row) => row.onScreen && row.inClip);
+  expect(whole.length, 'rows wholly visible without scrolling').toBeGreaterThanOrEqual(10);
+  expect(
+    rows.filter((row) => row.cutSideways).map((row) => row.label),
+    'row buttons cut at the side of their box',
+  ).toEqual([]);
+});
+
 test('R1 engineer: an IFC answer fits 390x844', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone', 'a phone-width check');
   await fileFromDocuments(page, 'model/house.ifc');
@@ -45,4 +86,11 @@ test('R1 engineer: an IFC answer fits 390x844', async ({ page }, testInfo) => {
   await expect(turn.getByTestId('answer-value')).toBeVisible();
   await expect(turn).toBeInViewport({ ratio: 0.2 });
   await shot(page, testInfo, 'qa-r1-ifc-390', await noKeys(page));
+  // R3-L2: a reload of the tab keeps the answered question, and asks nothing again
+  await page.reload();
+  await expect(
+    page.getByRole('article', { name: question }).getByTestId('answer-value'),
+  ).toBeVisible();
+  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByText('1 asked')).toBeVisible();
 });

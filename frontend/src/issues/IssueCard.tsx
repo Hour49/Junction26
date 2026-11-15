@@ -14,7 +14,7 @@ import {
   type RelevanceRequest,
 } from '../api';
 import { callError, callLine } from '../ingest/triage';
-import { issueRoute } from '../conflicts/issueLinks';
+import { issueRoute } from '../surveyor/issueLinks';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { ModelDialog } from '../model3d/ModelDialog';
 import { Badge } from '@/components/ui/badge';
@@ -174,8 +174,7 @@ function IssueAnswerForm(props: {
       setText(next.answer?.text ?? '');
       onIssue(next);
     } catch (e) {
-      const { detail, code } = errorText(e);
-      setFailed(`${detail} (${code})`);
+      setFailed(errorText(e).detail);
     } finally {
       setSending(false);
     }

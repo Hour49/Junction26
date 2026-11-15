@@ -138,7 +138,11 @@ export const STEPS: readonly { name: string; hint: string; stages: readonly (Sta
     hint: 'one drawing model per drawing, with its marks',
     stages: ['write'],
   },
-  { name: 'Index', hint: 'every file made searchable for questions', stages: [] },
+  {
+    name: 'Index',
+    hint: 'judging what was set aside, describing the rest, indexing it all for the chat',
+    stages: [],
+  },
 ];
 
 /** The step (1-8) a stage belongs to; no stage yet is step 1. No stage is in Index (9). */
@@ -181,7 +185,8 @@ export const keepPolling = (p: ProjectView) =>
 
 /** Elapsed ms: the project's `ms` once ingest ends; while live, `now − started_at` (never below 0); null before it starts. */
 export function elapsedMs(p: ProjectView, now: number): number | null {
-  if (!isLive(p)) return p.ms;
+  // a restart mid-ingest leaves no finished_at and ms 0: unknown, not "0.00 ms"
+  if (!isLive(p)) return p.finished_at ? p.ms : null;
   return p.started_at ? Math.max(0, now - Date.parse(p.started_at)) : null;
 }
 
@@ -229,4 +234,10 @@ export function sizeText(bytes: number): string {
 /** A part of `total` in `total`'s unit, without the unit: "0.5" of "2.0 MB", "15" of "29 KB". */
 export function amount(bytes: number, total: number): string {
   return total < MB ? String(Math.round(bytes / 1024)) : (bytes / MB).toFixed(1);
+}
+
+/** A name cut after each of its own separators (`_`, `-`, `.`, `/`), so a long name with no spaces wraps there
+ * and not inside a word (IN-121): "Bau_Haus.zip" → ["Bau_", "Haus.", "zip"]. Joined, the parts are the name. */
+export function nameParts(name: string): string[] {
+  return name.split(/(?<=[_\-./])/);
 }

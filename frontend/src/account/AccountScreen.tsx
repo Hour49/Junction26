@@ -90,8 +90,8 @@ export function AccountScreen() {
           </a>
         </p>
       ) : (
-        <div className="flex items-start gap-6 max-[720px]:flex-col max-[720px]:items-stretch">
-          <ul className="account-list m-0 grid max-w-[400px] min-w-0 flex-[1_1_320px] list-none gap-3 p-0 max-[720px]:max-w-none max-[720px]:flex-none">
+        <div className="flex items-start gap-6 max-[900px]:flex-col max-[900px]:items-stretch">
+          <ul className="account-list m-0 grid max-w-[400px] min-w-0 flex-[1_1_320px] list-none gap-3 p-0 max-[900px]:max-w-none max-[900px]:flex-none">
             {projects.map((p) => (
               <li key={p.id}>
                 <Item
@@ -239,7 +239,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
         </dl>
         {reviewError && (
           <p className="text-danger" role="alert">
-            Review not loaded: {reviewError.detail} ({reviewError.code}){' '}
+            Review not loaded: {reviewError.detail}{' '}
             <Button variant="secondary" size="pill" className="font-medium" onClick={review.retry}>
               Retry
             </Button>
@@ -247,7 +247,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
         )}
         {questionsError && (
           <p className="text-danger" role="alert">
-            Questions not loaded: {questionsError.detail} ({questionsError.code}){' '}
+            Questions not loaded: {questionsError.detail}{' '}
             <Button
               variant="secondary"
               size="pill"
@@ -286,7 +286,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
         </ol>
         {takeoffError && (
           <p className="text-danger" role="alert">
-            Sign-offs not loaded: {takeoffError.detail} ({takeoffError.code})
+            Sign-offs not loaded: {takeoffError.detail}
           </p>
         )}
       </>

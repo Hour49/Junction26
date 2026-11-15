@@ -42,6 +42,17 @@ def listed(client: TestClient, project_id: str) -> list[dict[str, Any]]:
     return body["issues"]
 
 
+def waits_for_you(issue: dict[str, Any]) -> bool:
+    """The client's one count rule (frontend/src/documents/documents.ts `waitsForYou`, DOC-12): a
+    conflict only once a model looked at it (`resolved`), not a note, open, unanswered."""
+    return (
+        (issue["kind"] != "conflict" or "resolved" in issue)
+        and issue["severity"] != "note"
+        and issue["state"] == "open"
+        and issue["answer"] is None
+    )
+
+
 def drawing_of(project: dict[str, Any], path: str) -> str:
     return next(file["drawing_id"] for file in project["files"] if file["path"] == path)
 
@@ -202,7 +213,9 @@ def test_the_csv_has_the_same_rows_and_text_from_a_file_cannot_run_as_a_formula(
     assert reply.status_code == 200
     assert reply.headers["content-type"] == "text/csv; charset=utf-8"
     assert reply.headers["content-disposition"] == 'attachment; filename="drawings-issues.csv"'
-    header, *rows = list(csv.reader(io.StringIO(reply.text)))
+    # a UTF-8 BOM first, so Excel reads the umlauts (QA fe-ui2: "KÃ¼che" without it)
+    assert reply.content.startswith(b"\xef\xbb\xbf")
+    header, *rows = list(csv.reader(io.StringIO(reply.content.decode("utf-8-sig"))))
     assert tuple(header) == issues.CSV_COLUMNS
     assert [row[0] for row in rows] == [issue["id"] for issue in found] and len(rows) == 1
     (row,) = rows
@@ -213,7 +226,7 @@ def test_the_csv_has_the_same_rows_and_text_from_a_file_cannot_run_as_a_formula(
 def test_the_csv_carries_a_box_as_four_numbers(client: TestClient) -> None:
     project = sample(client)
     reply = client.get(f"/api/projects/{project['id']}/issues.csv")
-    rows = list(csv.DictReader(io.StringIO(reply.text)))
+    rows = list(csv.DictReader(io.StringIO(reply.content.decode("utf-8-sig"))))
     room = next(row for row in rows if row["kind"] == "conflict")
     assert [room[key] for key in ("page", "x0", "y0", "x1", "y1")] == [
         "1", "0.16667", "0.125", "0.5", "0.375",
@@ -329,7 +342,8 @@ def test_the_zip_holds_the_numbered_csv_and_one_marked_png_per_page_with_boxes(
     project = sample(client)
     listing = listed(client, project["id"])
     archive = zip_of(client, project["id"])
-    rows = list(csv.DictReader(io.StringIO(archive.read("issues.csv").decode())))
+    assert archive.read("issues.csv").startswith(b"\xef\xbb\xbf")  # Excel reads it as UTF-8
+    rows = list(csv.DictReader(io.StringIO(archive.read("issues.csv").decode("utf-8-sig"))))
     assert [(int(row["n"]), row["id"]) for row in rows] == [
         (n, issue["id"]) for n, issue in enumerate(listing, start=1)
     ]
@@ -363,7 +377,7 @@ def test_each_issue_sentence_under_a_marked_page_starts_its_own_line() -> None:
 def test_a_page_without_issues_has_no_png(client: TestClient, plan_pdf: bytes) -> None:
     archive = zip_of(client, upload(client, plan_pdf))  # a clean sheet: no issue at all
     assert archive.namelist() == ["issues.csv"]
-    (header,) = list(csv.reader(io.StringIO(archive.read("issues.csv").decode())))
+    (header,) = list(csv.reader(io.StringIO(archive.read("issues.csv").decode("utf-8-sig"))))
     assert tuple(header) == ("n", *issues.CSV_COLUMNS)
 
 

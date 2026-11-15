@@ -180,9 +180,9 @@ when `rotated` is not 0, "deskewed <deskew_deg>°" when `deskew_deg` is not 0, "
 | --- | --- | --- | --- | --- |
 | Loading | list shows "Loading projects…" | "Loading project…" in place of the content | "Loading trace…" | delay the response (component test: a pending promise; e2e: `page.route` with a delay) |
 | Empty | (no list on home in v2) | only once the project is `done` or `failed`: no files: "This upload has no files." No drawings: "No drawings: nothing in this upload could be read as a plan." While `queued` or `running` an empty list gives no verdict: it reads "Waiting for the files…", and with no files yet the progress line is left out (no "0 of 0") | stages `[]`: "No stages yet." | variants `list-empty`, `no-drawings`, `no-files`, `trace-queued`; `queued` with `files: []` |
-| Error | drop card: `detail` and `code` of the upload error | first load fails: `ErrorView` (its `not-found` link "Back to workspaces") with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
+| Error | drop card: `detail` of the upload error (no raw `code`, QA R2-C5) | first load fails: `ErrorView` (its `not-found` link "Back to workspaces") with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
 | Upload refused | `uploadTooLarge`'s sentence. No request sent | | | a `File` over the limit (component test: `new File` with a stubbed `size`) |
-| Busy / too large | box shows `detail` and `code` (`busy`, `too-large`) | | | `mockApi` 429 / 413 with `error.json` spread with that `code` |
+| Busy / too large | box shows `detail` (worded per `code`: `busy`, `too-large`) | | | `mockApi` 429 / 413 with `error.json` spread with that `code` |
 | Running | | polling; "Analysing now"; the working step row shows its hint and file bar; running files show "running" | polling; stages grow | variant `running` / `trace-running` |
 | Failed project | | "Ingest failed", "Stopped" and `error`; no step list; polling stopped; files listed as returned | | variant `failed` |
 | Set aside | | the row reads "set aside" with its `reason` | the failing stage reads "Failed: <failure>" | variant `set-aside` / `trace-failed` |
@@ -220,9 +220,11 @@ The header is the shell's (logo, "Vellum", "Workspaces"); these screens draw non
 - The drop card (`section`, `aria-label` "Drop drawings or an archive"): white, radius 28 px, max 760 px; inside it a
   dashed inner zone (radius 20 px) with the upload icon, "Drop a drawing or a .zip here" (24 px semibold), the
   buttons "Choose a file" (accent, pill) and "Try the sample project" (grey pill), the sample note, and the busy,
-  refusal and error lines. Under the inner zone the format chips: "IFC models", "DXF", "PDF, drawn or scanned",
-  "SVG", "PNG · JPG scans and photos", "ZIP archives" (a scanned PDF is named, since ingest routes it to the raster
-  reader; user-facing copy changed 2026-11-14).
+  refusal and error lines. Under the inner zone the format chips: "IFC models", "DXF with its PDF", "PDF, drawn or
+  scanned", "SVG with its PDF", "PNG · JPG scans and photos", "ZIP archives" (a scanned PDF is named, since ingest
+  routes it to the raster reader; user-facing copy changed 2026-11-14; a DXF or SVG uploaded alone is set aside with
+  "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image" (SVG the same; API.md,
+  #459), so its chip says so: QA 2026-11-15, before it read "DXF", "SVG").
 - Under the card, centred: "Earlier uploads are in Workspaces" (a link to `#/workspaces`).
 - Not built: the edit-plan link, the country picker, the avatar (common brief).
 
@@ -264,6 +266,9 @@ Home and upload
   encoded. [component, `info.json`]
 - IN-4: Picking a file over `limits.upload_mb` × 1048576 bytes shows the sentence `uploadTooLarge` returns for it
   and sends no request. [component, `info.json`]
+- IN-93: Picking a file whose name is over 255 characters (counted as the API counts them: an emoji is one) shows
+  "This file name is <n> characters long; the limit is 255. Rename the file and try again." and sends no request;
+  without it the API's 422 read "query.name: String should have at most 255 characters". [component]
 - IN-5: With `/api/info` not loaded (pending or failed), a file of any size is uploaded and the server decides.
   [component]
 - IN-6: Dropping two files shows "Drop one file or one zip at a time." and sends no request; dropping one file
@@ -273,7 +278,7 @@ Home and upload
 - IN-8: On `202` from an upload or from the sample, the location becomes `#/p/<id>` with `id` from
   `project_started.json`. [component]
 - IN-9: "Try the sample project" sends `POST /api/projects/sample?fresh=true` with no body. [component]
-- IN-10: For the sample, a 413, 429, 422 or 404 response shows its `detail` and `code` in the box (e.g. "busy") and re-enables the
+- IN-10: For the sample, a 413, 429, 422 or 404 response shows its `detail` in the box, not the code (QA R2-C5) and re-enables the
   controls. [component, `error.json` bodies with status and code changed]
 - IN-89 (Bogdan 2026-11-15, "so I know when i've successfully uploaded and sent to server and received, and moves me
   to start the extraction"): a file goes over XHR (fetch has no upload progress). Sending: "Sending <name>: <sent>
@@ -328,7 +333,7 @@ Project screen
 - IN-28: A poll that fails keeps the last data on screen and shows "Not updating since <formatTime(now)>: <detail> (<code>)"
   with Retry; polling is paused until Retry, which sends the request again. [component, fake timers, 500 +
   `error.json`]
-- IN-29: A first load answered 404 `not-found` shows `ErrorView` with `detail`, `code` and its link "Back to workspaces" (`#/workspaces`); a
+- IN-29: A first load answered 404 `not-found` shows `ErrorView` with `detail` (no code) and its link "Back to workspaces" (`#/workspaces`); a
   first load that fails with `code` `network` shows Retry, which requests the project again. [component,
   `error.json`, rejected fetch]
 - IN-54: The toggle is a group "View" with links "Simple" (`#/p/<id>`) and "Advanced" (`#/p/<id>?view=advanced`);
@@ -398,7 +403,7 @@ File trace
   with `rectified: true` it adds "perspective corrected". [unit]
 - IN-42: An image of `BeforeAfter` that fails to load is replaced by "Preview not available" (before) or "Page not
   available" (after). [component, fire `error` on the `<img>`]
-- IN-43: A trace answered 404 shows `detail`, `code` and "Back to the project". [component, `error.json`]
+- IN-43: A trace answered 404 shows `detail` (no code) and "Back to the project". [component, `error.json`]
 - IN-48: With `trace-image`, exactly one `GET /api/drawings/<file.drawing_id>` is sent and "Credit: none recorded
   for this file" (`drawing.json`, `credit: null`) shows under the "after" image and not under "As uploaded"; with
   that request answered 500 the same line shows; with `trace.json` (no before/after) the request is not sent.
@@ -474,7 +479,8 @@ count and every conflict comes from the API, never from the demo's data.
      the first drawing's workspace `#/p/<id>/d/<drawings[0].drawing_id>/engineer`.
   No "Settle the conflicts" button (the conflicts are on this screen), no issues list (they are on Documents).
 - **Done with no drawings** stays IN-72's "Nothing read" card (no conflicts list, no chat row), now with the line
-  "Every file is listed in Documents." linking to `#/p/<id>/documents` (the Files list moved there).
+  "Every file is listed in Documents." linking to `#/p/<id>/documents` (the Files list moved there), and with a DXF
+  among the set-aside files, the line of IN-93.
 - **Failed** is unchanged (IN-23, IN-62).
 
 ### Shared pieces (exported from `src/ingest/`, used by Simple here and by fe-scaffold's Advanced view)
@@ -635,6 +641,145 @@ Index has no stage id: the backend keeps the project `running` with every file f
   "Cross-check" or "Drawing model". [unit]
 - IN-91: e2e at 1440 and 390: a finished sample project shows "All 9 steps done" and the nine names in order on Simple;
   Advanced's rail shows the same nine. Screenshots `ingest-steps-<width>.png`, `advanced-steps-<width>.png`. [e2e]
+- IN-93 (QA 2026-11-15, #468): IN-72's "Nothing read" card adds "A DXF is read with the PDF or PNG of the same
+  name: put both in one .zip and upload that." when any set-aside file is a DXF, and no such line otherwise
+  (`ProjectScreen.tsx`). [component: ProjectScreen.test.tsx "a lone DXF set aside: the Nothing-read card says to
+  upload it with its PDF or PNG in one zip", "no DXF hint when the set-aside files are not DXF"]
+
+## Pipeline view v5 (ingest UI track, 2026-11-15, brief `ingest-ui/live`; Bogdan 03:20: "I want the ingestion pipeline to look much better, and then to be more representative of the operations we are doing right now in the actual pipeline.")
+
+Simple's progress card becomes the pipeline as it runs: the steps on the left, on the right the files by the route
+they take, each lane with the readers that route runs on this server, and per file its stage, the reader running
+now and, once read, what it found. Advanced and the file page are not changed here. API: decision 0018
+(`FileStatus.step`, `ProjectStatus.phase`, `index_steps`); every new field is optional, so an older server still
+renders from `stage`, `state` and `takeoff`.
+
+Card, top to bottom (`ProgressCard.tsx`, `RouteLanes.tsx`, helpers in `pipeline.ts`):
+
+1. Caption ("Step n of 9" / "All 9 steps done"), the `h2` (the step, "Ready" or "Stopped"), the ring. Once done, a
+   sentence under "Ready" says what was read by which route and what needs a person (`routeSummary`).
+2. The chat row (IN-88, unchanged).
+3. Eight live totals: Elapsed, Files through, Drawings ready, Things found, Conflicts, Flagged, Set aside, Cost.
+4. Two columns from 720 px (one under it): the nine steps (names and order as v4) and "How each file is read":
+   one lane per route with files (IFC model, CAD, Drawn PDF, Image), then "Not routed yet", then "Not drawings".
+5. The done line (v3, unchanged).
+
+Readers per route come from `ProjectView.readers`, what ingest recorded for this upload (backend
+`composition.build_ingest` `names`), not from `/api/info`: e.g. the demo's image route reads "photo flattening,
+printed scale (Gemini), Gemini cross-check (not counted), symbol detector, Gemini count decision, count arbiter,
+room reader, double check by 2 more readers (not counted), Gemini for sheets with few symbols, scale from door
+sizes" (IN-117). A reader named `hello` or `off` is not shown. Step labels a file reports (`FileStatus.step`) light
+their reader chip while they run and tick it ("ran") after; a label no reader name covers gets its own chip.
+
+- IN-100: The card has a region "Routes" with the heading "How each file is read" and one region per lane with
+  files, named by the lane (`IFC model`, `CAD`, `Drawn PDF`, `Image`, `Not routed yet`, `Not drawings`), its `h3`
+  "<name> route" for a route; each lane lists its readers (list "Readers") and its files, each file a link to
+  `#/p/<id>/f/<fid>`. [component: ProgressCard.test.tsx; e2e: golden-path GP-3 "the finished screen"]
+- IN-101: `routeReaders(readers)` gives each route's readers in words from the recorded settings; a reader `hello`
+  or `off` gives none; no record gives none. A route with files whose reader reads nothing says "No reader for this
+  route on this server: nothing on it is counted."; with no record of the readers it says nothing.
+  [unit: pipeline.test.ts; component]
+- IN-102: "Things found" is the sum of a file's plain takeoff counts (no `area:`, `length:`, `room:` or `|` keys,
+  no `plan` or `apartment`) over finished files that read themselves (another rendering of a drawing is not counted
+  again); "—" while running with no file finished. `foundLine` names the biggest four ("5 rooms, 3 windows, 2
+  doors"), then "+n more". [unit; component]
+- IN-103: Lanes come in the order model, CAD, drawn PDF, image, not routed yet, not drawings; inside a lane:
+  running, flagged, ready, then the rest, in upload order; empty lanes are left out. [unit]
+- IN-104: Done, the sentence under "Ready" reads e.g. "Read 1 IFC model, 3 drawn PDFs and 3 images. 4 flagged
+  files need a look; 2 set aside." (each drawing once). [unit; component]
+- IN-105: A step label seen on a file (`FileStatus.step`) stays ticked on its lane's reader chip after it ends; a
+  running one is marked "running:" (screen-reader text) and in the accent; a label no reader name starts with is
+  shown as its own chip. [component]
+- IN-106: A file row says, running: "<Stage>: <step>" ("Extract: Symbol detector, 8 views"), or the stage alone
+  from an older server; queued: "waiting for a free reader"; another rendering: "same drawing as <source>"; ready:
+  what it found; flagged or set aside: what it found, then its reason. An 8-tick track beside it shows its step
+  (the current tick pulses, `motion-safe` only). [component]
+- IN-107: With no `step`, `phase` or `readers` (an older server) the card renders from `stage` and `state`, with no
+  reader chips and no "No reader" line. [component]
+- IN-108: The totals are, in order: Elapsed, Files through, Drawings ready, Things found, Conflicts
+  (`conflicts_open`, "—" until the server counts them), Flagged, Set aside, Cost (`formatCost(cost_usd)`). This
+  brings Cost back beside Set aside (IN-86 said "not Cost"; changed with its test). [component]
+- IN-109: With `phase: "index"` the card names step 9 "Index" even if a file still runs, its hint reads "judging
+  what was set aside, describing the rest, indexing it all for the chat" (was "every file made searchable for
+  questions": IN-89 changed with its test), and its row lists `index_steps` as "<label>: <did>". [component]
+- IN-110: A lane shows at most 6 files; the rest are a link "<n> more files in Documents" to `#/p/<id>/documents`.
+  [component]
+- IN-111: While running, the step named is the one most files are read in now (a tie: the later step), not the
+  lowest step a file waits in; with none running, the lowest (v4's `activeStep`). Every step a file is in now is
+  "working" with its file bar; the hint shows on the named step only. (IN-57's examples hold: one file running in
+  Extract.) [unit: `headlineStep`; component]
+- IN-112: At 390 and 1440 the running, index and finished cards have no horizontal scroll; done on a phone the nine
+  steps sit in two columns. Screenshots in the PR. [browser: e2e `ingest-steps-<width>.png`, `02-ingest-done.png`;
+  the running and index states by a scratch script with the API mocked]
+- IN-113 (orchestrator, 390 check with 40 files): a file row's link shows the folder muted and the file name in
+  its own span that does not shrink, so a long path gives up its folder first and rows of one folder stay apart
+  ("…/Grundriss_OG4…", not "Planunterlagen/Archi…"); the link's name and `title` stay the full path. [component]
+- IN-114 (QA R2-C3, 255-character upload name): the title `h1` (screen 2 and the file page) shows at most 3 lines
+  (`line-clamp-3`), with no sideways scroll at 390; its accessible name and `title` stay the full name. The
+  "Uploaded: …" line cuts a name over 60 characters in the middle ("Bauprojekt_…_Me.png"), its `title` the whole
+  name. [component;
+  browser: screenshots at 390 and 1440 in the PR]
+- IN-115 (QA R2-C4, empty zip): the "Uploaded: …" line says "Unpacking…" only while the project is queued or
+  running with no files yet. Done with no files (an empty zip: the server answers `done`, `files: []`,
+  `skipped: []`, no `error`) it says "No files found in it.", and the "Nothing read" card adds "There were no files
+  in it."; failed with no files it says "Nothing was unpacked." (the server's error follows). [component]
+- IN-116 (QA R2-A1, unread PNG): a drawing or file on a route whose reader is `hello` (`readers[route]`, "not read:
+  this setup has no reader for …") was not read. The server keeps its drawing (flagged, with a page for the
+  viewer), but "Drawings ready", the done line ("<n> drawings ready."), the "Flagged" total and the finished
+  sentence's "Read …" leave it out; the sentence counts it as "<n> not read", not as flagged. A done project with no drawing read shows
+  IN-72's "Nothing read" card, not "Ready" with a 100% ring. (A real reader that read nothing is not told apart:
+  the API has no field for it yet.) [unit: `unread`, `readDrawings`, `routeSummary`; component]
+- IN-117 (live demo readers, trace's sample 2026-11-15): the chips name what each source really is. An
+  `arbiter-t1` part is "symbol detector" and "count arbiter" (never its class: no "door" or "window" chip); a
+  `detector*` source is "symbol detector" for every part (it finds the plans too: no separate "plan finder");
+  `decisions*` adds "Gemini count decision" (not "count arbiter"); `carbon_levels` is "Gemini cross-check (not
+  counted)"; `carbon_reader=large…` is "Gemini for sheets with few symbols" (it reads a sheet only when the shipped
+  reader found fewer than 3 things), any other value "Gemini reader"; `raster_printed_scale` "printed scale
+  (Gemini)"; `double_check_readers` "double check by <n> more readers (not counted)"; `raster_scale=priors` "scale
+  from door sizes"; `rectifier` other than `none` "photo flattening"; the drawn PDF route "drawn-PDF reader",
+  "schedule tables", "second count"; the model route "IFC model reader". Image chips come in the order they run.
+  [unit: pipeline.test.ts; component]
+- IN-118: every step label a file on the demo config reports (the extract steps of a scan, a photo, a drawn PDF and
+  an IFC model in the sample traces) lights a chip of its lane, so none turns into a chip of its own: a chip
+  stands for the labels that start with its words or with the server's name for it ("Gemini Decisions…",
+  "Gemini Carbon check…", "Gemini Carbon reader…", "Printed scale…", "Double-check reader…", "Drawn-PDF reader…",
+  "Schedule tables…"). [unit; component]
+- IN-119: above the lanes, "Every file first, before it takes a route:" and a list "Sorting" from `readers.triage`
+  and `decisions_kind`: "scan or photo (Gemini)" (`decisions_kind=True`), "plan or not (rules)" or "(image
+  model)" (`classifier`), "sheet kind (Gemini)" (`sheet_kind`), "describes sheets that are not plans (Gemini)"
+  (`describer`), "keep or set aside (rules)" (`judge`); `off` parts are left out; no record, no list.
+  [unit: `triageReaders`; component]
+- IN-120 (orchestrator, `whole-390.png`: ten image chips in one wall): a lane's readers are grouped by what they
+  do, the groups in the order they run, each with a short label beside its chips (above them on a phone):
+  "Prepare" (photo flattening, printed scale, tiles), "Count" (every reader that counts: symbol detector, Gemini
+  count decision, count arbiter, room reader, …), "Checks, not counted" (Gemini cross-check, the double-check
+  readers, the drawn PDF's second count), "If few symbols" (`carbon_reader=large…`), "Scale" (scale from door
+  sizes), "Also ran" (a step the server ran that no reader covers). The group comes from the reader
+  (`readerGroup`), never from its position. Under a label a chip leaves out what the label says: "Gemini
+  cross-check", "double check by 2 more readers", "Gemini reader" (IN-117's names stay the readers' full names and
+  are what a lane with one group shows, with no label). The running highlight and the "ran" ticks work as before.
+  The whole is a group "Readers", each group a list named by its label. Changed on purpose with it: IN-100's,
+  IN-105's and IN-118's expected chip texts. [unit: `groupReaders`, `chipWords`; component; browser: screenshots
+  at 1440 and 390]
+- IN-121 (QA R3-G8, "Bauprojekt_Mehrfamilienhaus_Zuerich-Nord_2026.zip" at 390): the title `h1` wraps a long
+  name after its own separators (`_`, `-`, `.`, `/`: a `<wbr>` after each, `nameParts`) before it breaks inside a
+  word; `overflow-wrap:anywhere` stays only for a part longer than a line. Its accessible name and `title` stay the
+  exact name (IN-114). [unit: `nameParts`; component; browser: screenshots at 390 and 1440]
+- IN-122 (QA R3-G8, flag reason cut at 390): a finished file's row note in the lanes (what it found and why it is
+  flagged or set aside) is shown whole, wrapping over as many lines as it needs; a queued or running file's note
+  stays at 2 lines. [component; browser: screenshot at 390]
+
+Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
+advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
+hairline facts, Route fact as `routeLabel`) stands.
+
+Changed on purpose (IN-116): IN-16, IN-68 and IN-76 count the drawings read, so on `project.json` (a no-keys run,
+`raster: hello`) "Drawings ready" is 4 / 6 and the done line "4 drawings ready.", and the golden path e2e on a
+no-keys backend sees 4 / 6 (its scan and photo are not read).
+
+Changed on purpose: IN-86 (Cost is back as the 8th total), IN-89's hint text, the golden path's "no file list on
+Ingest" (v3): file links now appear on Ingest, only inside the route lanes. "Showing `readers` and `counts` on these
+screens" leaves Out of scope.
 
 ## Out of scope
 
@@ -646,7 +791,7 @@ Index has no stage id: the backend keeps the project `running` with every file f
 - The design's "Choose files" (plural): one file per upload, zip several.
 - The mock's end-of-ingest conflict list with approve / modify / pick a variant: conflicts live in the surveyor
   workspace (`GET /api/projects/{id}/review` is the surveyor spec's).
-- Showing `readers`, `counts` and the drawing model on these screens.
+- Showing the drawing model on these screens (readers and counts are shown since v5).
 - A preview of files with no drawing (a set-aside photo); `preview.png` exists for them but nothing links it here.
 - Deleting or renaming projects (no endpoint), refreshing the project list on a timer.
 

@@ -13,22 +13,29 @@ of the same floor when both have a scale and at least three room names appear on
 two are laid over by the names' places in metres (a shift; the sheets' scales give the size).
 """
 
+import re
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 
 from shapely.geometry import LineString, Polygon, box
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
+from app.core.discipline import disciplines_named
 from app.core.ifc_facts import Discipline, FactSheet, Spot
 from app.core.model import Frozen
 from app.core.plan_edit.model import Item, Proposal
 from app.core.services.follow import LETTER, counted
 from app.core.services.model import (
     LANES,
+    Affine,
     Code,
     DisciplineFollow,
+    FollowPicture,
+    Pairing,
+    PictureMark,
     Point2,
     ServiceAction,
     ServiceMark,
@@ -69,13 +76,69 @@ _WORDS = {
 
 class Sheet(Frozen):
     """Where a page lies: its drawing and page, the floor its title names, its size in metres
-    (None: no scale) and the room names it prints with their places (page fractions)."""
+    (None: no scale), the room names it prints with their places (page fractions), and what
+    pairing reads besides (services-follow.md SFP-9..)."""
 
     drawing_id: str
     page: int
     storey: str | None = None
     size_m: Point2 | None = None
     rooms: tuple[tuple[str, Point2], ...] = ()
+    name: str | None = None  # the upload's path, ZIP folders included
+    sheet_number: str | None = None  # as the title block prints it (triage)
+    disciplines: tuple[Discipline, ...] = ()  # the services lanes its picture marks
+    discipline: Discipline | None = None  # the one triage named (its title, number or reply)
+
+
+# A sheet number's discipline letter as sets print it: H-101 heating, P-101 plumbing, E-101
+# electrical, M-101 mechanical (heating or ventilation). E00/E01 (two digits) are levels.
+_LETTER_LANES: dict[str, frozenset[Discipline]] = {
+    "H": frozenset({"heating"}),
+    "P": frozenset({"plumbing"}),
+    "M": frozenset({"heating", "ventilation"}),
+    "E": frozenset({"electrical"}),
+}
+_LETTERED = re.compile(r"(?<![A-Za-z])([HPME])[-_ .]?(\d{3,4})\b")
+_YEAR = re.compile(r"19[5-9]\d|20[0-4]\d")  # "E2019" is a year, not a sheet number
+# Names for several services at once, which no one discipline word is: mechanical and HVAC are
+# heating and ventilation (US sets), LVI and HLS add plumbing (FI, DE), MEP and TGA are all four
+_GROUPS: tuple[tuple[re.Pattern[str], frozenset[Discipline]], ...] = (
+    (re.compile(r"\b(?:mechanical|hvac)\b", re.I), frozenset({"heating", "ventilation"})),
+    (re.compile(r"\b(?:lvi|hls)\b", re.I), frozenset({"heating", "ventilation", "plumbing"})),
+    (re.compile(r"\b(?:mep|tga|haustechnik)\b", re.I), frozenset(LANES)),
+)
+
+
+def named_lanes(sheet: Sheet) -> frozenset[Discipline]:
+    """The services lanes a sheet names itself, whatever its picture's marks say: the discipline
+    triage named, its sheet number's letter (H-101 heating), a discipline word or code in its file
+    name ("heating", "P-101"; strong words only, each one named) and a name for several
+    ("Mechanical", "HVAC", "LVI": each of them). Empty when it names none.
+    Architecture is not a lane: a services sheet triage could not name by its words is called
+    architecture by its kind, so it never refuses a lane here."""
+    named: set[Discipline] = set()
+    if sheet.discipline is not None and sheet.discipline in LANES:
+        named.add(sheet.discipline)
+    stem = PurePosixPath(sheet.name).stem if sheet.name else ""
+    for text in (sheet.sheet_number or "", stem):
+        for m in _LETTERED.finditer(text):
+            if not _YEAR.fullmatch(m.group(2)):
+                named |= _LETTER_LANES[m.group(1)]
+    words = stem.replace("_", " ")  # "\b" does not part "dh_hvac"
+    named |= {d for d in disciplines_named(words) if d in LANES}
+    for pattern, lanes in _GROUPS:
+        if pattern.search(words):
+            named |= lanes
+    return frozenset(named)
+
+
+def takes(sheet: Sheet, lane: Discipline) -> bool:
+    """Whether a lane may take this sheet's marks: the sheet names no lane, or names this one.
+    Another discipline's sheet is never in a lane, however well it lies over the plan (pic-sync
+    2026-11-15 04:46: the plumbing lane took H-101, the heating sheet, by its wall match at 0.9
+    over P-101's page-to-page match at 0.7)."""
+    named = named_lanes(sheet)
+    return not named or lane in named
 
 
 Place = Callable[[Point2], Point2]  # a services page's fractions -> the plan page's fractions
@@ -92,6 +155,8 @@ class _Thing:
     shape: BaseGeometry
     run: bool
     frac: tuple[Point2, ...]  # its centre (a symbol) or its line (a run), plan fractions
+    sheet: tuple[str, int] = ("", 0)  # the drawing and page it is drawn on
+    own: tuple[Point2, ...] = ()  # `frac` in that sheet's fractions
 
     @property
     def name(self) -> str:
@@ -106,10 +171,10 @@ class _Found:
     things: list[_Thing]
 
 
-def align(plan: Sheet, sheet: Sheet) -> Place | str:
+def align(plan: Sheet, sheet: Sheet) -> Affine | str:
     """How the services sheet's fractions land on the plan's, or why they cannot."""
     if (sheet.drawing_id, sheet.page) == (plan.drawing_id, plan.page):
-        return lambda p: p
+        return Affine()
     if plan.storey and sheet.storey and _norm(plan.storey) != _norm(sheet.storey):
         return f"the services picture is of another floor ({sheet.storey})"
     if plan.size_m is None:
@@ -135,13 +200,18 @@ def align(plan: Sheet, sheet: Sheet) -> Place | str:
         return f"the room names of the two sheets miss each other by up to {worst:.2f} m"
     # shortcut: a shift only (sheets of one floor share their orientation); fit a rotation when
     # a real pair of sheets needs one
-    return lambda p: ((p[0] * sw + dx) / pw, (p[1] * sh + dy) / ph)
+    return Affine(a=sw / pw, c=dx / pw, e=sh / ph, f=dy / ph)
 
 
 def picture_follow(
-    proposal: Proposal, plan: Sheet, sheets: Sequence[tuple[Sheet, FactSheet]]
+    proposal: Proposal,
+    plan: Sheet,
+    sheets: Sequence[tuple[Sheet, FactSheet]],
+    pairings: Sequence[Pairing | str] | None = None,
 ) -> ServicesFollow:
-    """The proposal's removed and added walls followed on every services picture of the floor."""
+    """The proposal's removed and added walls followed on every services picture of the floor.
+    `pairings`, in the sheets' order: how each lies on the plan, or why it does not (pics W1);
+    None: each by `align`."""
     unit = plan.size_m or (1.0, 1.0)
     metres = plan.size_m is not None
     on, inside, near = (ON_M, IN_M, NEAR_M) if metres else (ON_FRAC, IN_FRAC, NEAR_FRAC)
@@ -151,16 +221,24 @@ def picture_follow(
     things: dict[Discipline, list[_Thing]] = defaultdict(list)
     sources: dict[Discipline, list[str]] = defaultdict(list)
     refused: dict[Discipline, str] = {}
-    for sheet, facts in sheets:
-        place = align(plan, sheet)
-        if isinstance(place, str):
+    taken: dict[Discipline, Pairing] = {}  # the first sheet laid over, per lane
+    for n, (sheet, facts) in enumerate(sheets):
+        paired = pairings[n] if pairings is not None else _paired(plan, sheet)
+        if isinstance(paired, str):
             for f in facts.facts:
                 if f.discipline in LANES and f.spots:
-                    refused.setdefault(f.discipline, place)
+                    refused.setdefault(f.discipline, paired)
             continue
+        place = (paired.to_plan or Affine()).apply
         for discipline, found in _things(sheet, facts, place, unit).items():
+            if paired.paired_by != "same_page" and not takes(sheet, discipline):
+                # a heating sheet's marks read as plumbing are not the floor's plumbing
+                why = f"{named_why(sheet)}: its {discipline} marks are not taken"
+                refused.setdefault(discipline, why)
+                continue
             things[discipline] += found
             sources[discipline].append(sheet.drawing_id)
+            taken.setdefault(discipline, paired)
     lanes: list[DisciplineFollow] = []
     for discipline in LANES:
         name = discipline.capitalize()
@@ -183,12 +261,70 @@ def picture_follow(
             *_on_wall(here, removed, "removed", on, inside, passage),
             *_on_wall(here, added, "added", on, inside, passage),
         ]
-        lanes.append(_lane(discipline, here, found, changed, near, sources[discipline]))
+        lane = _lane(discipline, here, found, changed, near, sources[discipline])
+        lanes.append(
+            lane.model_copy(update={"picture": _picture(lane, here, proposal, taken[discipline])})
+        )
     return ServicesFollow(
         storey=plan.storey,
         disciplines=tuple(lanes),
         unknowns=UNKNOWNS if any(d.status == "checked" for d in lanes) else (),
     )
+
+
+def named_why(sheet: Sheet) -> str:
+    """ "H-101 E00 heating.png is a heating sheet by its name": why a lane does not take it."""
+    shown = PurePosixPath(sheet.name).name if sheet.name else sheet.drawing_id
+    return f"{shown} is a {' or '.join(sorted(named_lanes(sheet)))} sheet by its name"
+
+
+def _paired(plan: Sheet, sheet: Sheet) -> Pairing | str:
+    """`align` as a pairing: the plan's own page, or a sheet laid over by its room names."""
+    place = align(plan, sheet)
+    if isinstance(place, str):
+        return place
+    own = (sheet.drawing_id, sheet.page) == (plan.drawing_id, plan.page)
+    return Pairing(
+        drawing_id=sheet.drawing_id,
+        page=sheet.page,
+        paired_by="same_page" if own else "geometry",
+        reason="the services marks are on the plan's own page"
+        if own
+        else f"laid over the plan by the room names both sheets print (within {ALIGN_M} m) "
+        "and their scales",
+        to_plan=place,
+    )
+
+
+def _picture(
+    lane: DisciplineFollow, here: list[_Thing], proposal: Proposal, paired: Pairing
+) -> FollowPicture:
+    """The lane's sheet with the edit and the lane's marks in that sheet's page fractions."""
+    back = (paired.to_plan or Affine()).inverse()
+    sheet = (paired.drawing_id, paired.page)
+
+    def mapped(items: Sequence[Item]) -> tuple[tuple[Point2, ...], ...]:
+        return tuple(tuple(_round(back.apply(p)) for p in i.polygon) for i in items)
+
+    mine = {t.frac: t for t in here if t.sheet == sheet}  # a mark's plan place gives its thing
+    marks: list[PictureMark] = []
+    for mark in lane.marks:
+        thing = mine.get(mark.line or ((mark.at,) if mark.at else ()))
+        if thing is not None:
+            line, at = (thing.own, None) if thing.run else ((), thing.own[0])
+            marks.append(PictureMark(ref=mark.ref, line=line, at=at))
+    return FollowPicture(
+        drawing_id=paired.drawing_id,
+        page=paired.page,
+        pairing=paired,
+        removed=mapped(proposal.removed),
+        added=mapped(proposal.added),
+        marks=tuple(marks),
+    )
+
+
+def _round(p: Point2) -> Point2:
+    return (round(p[0], 5), round(p[1], 5))
 
 
 # --- reading the picture's marks ------------------------------------------------------------------
@@ -234,6 +370,7 @@ def _things(
                     place,
                     unit,
                     measure == "length",
+                    (sheet.drawing_id, sheet.page),
                 )
             )
     return out
@@ -248,23 +385,28 @@ def _thing(
     place: Place,
     unit: Point2,
     run: bool,
+    sheet: tuple[str, int] = ("", 0),
 ) -> _Thing:
-    x0, y0 = place((spot.box[0], spot.box[1]))
-    x1, y1 = place((spot.box[2], spot.box[3]))
+    sx0, sy0, sx1, sy1 = spot.box
+    x0, y0 = place((sx0, sy0))
+    x1, y1 = place((sx1, sy1))
     word = _WORDS.get(kind) or (label if kind == "symbol" else kind.replace("_", " "))
     if not run:
         centre = (round((x0 + x1) / 2, 5), round((y0 + y1) / 2, 5))
         shape = box(x0 * unit[0], y0 * unit[1], x1 * unit[0], y1 * unit[1])
-        return _Thing(discipline, word, label, size, shape, False, (centre,))
+        own = (_round(((sx0 + sx1) / 2, (sy0 + sy1) / 2)),)
+        return _Thing(discipline, word, label, size, shape, False, (centre,), sheet, own)
     # shortcut: a run piece's spot is its box, so the piece is taken along the box's long side;
     # a diagonal piece reads as its box's long side (pass the piece's ends when readers give them)
     if (x1 - x0) * unit[0] >= (y1 - y0) * unit[1]:
         ends = ((x0, (y0 + y1) / 2), (x1, (y0 + y1) / 2))
+        own = ((sx0, (sy0 + sy1) / 2), (sx1, (sy0 + sy1) / 2))
     else:
         ends = (((x0 + x1) / 2, y0), ((x0 + x1) / 2, y1))
+        own = (((sx0 + sx1) / 2, sy0), ((sx0 + sx1) / 2, sy1))
     line = LineString([(x * unit[0], y * unit[1]) for x, y in ends])
     frac = tuple((round(x, 5), round(y, 5)) for x, y in ends)
-    return _Thing(discipline, word, label, size, line, True, frac)
+    return _Thing(discipline, word, label, size, line, True, frac, sheet, tuple(map(_round, own)))
 
 
 def _strips(items: Sequence[Item], unit: Point2) -> tuple[BaseGeometry, float]:

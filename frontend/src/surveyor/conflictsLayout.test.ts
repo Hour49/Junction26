@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { SOFT } from './ConflictCard';
 
-const css = readFileSync('src/conflicts/conflicts.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''); // vitest runs in frontend/
+const css = readFileSync('src/surveyor/conflicts.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''); // vitest runs in frontend/
 
 /** The declarations of rules naming `selector` exactly, inside `scope` (a media query's text) or the whole file. */
 function rulesFor(selector: string, scope = css): string {

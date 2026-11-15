@@ -4,7 +4,9 @@ On the night of 13-14 November the team ran about a dozen experiment tracks on t
 part of the Stoa dataset where we read a drawing from pixels). This page lists every arm worth naming, what it
 changed, what it scored, whether it shipped, and what it cost. It is the "how we improved" record that
 [GOLDEN.md](GOLDEN.md) points at. Sections 1 to 13 are final as of 2026-11-14 09:14 (every track closed, the last arm, integ-5, at 08:59). Section 14
-covers the later round "local" (from 09:42) and is a draft.
+covers the later round "local" (from 09:42) and is a draft. Section 15 covers the evening of 14 November (17:40 to
+midnight) and section 16 the night of 14-15 November (midnight to 03:00), one short entry per measured round.
+Section 17 covers services on pictures from 03:00 to 04:30.
 
 ## Protocol
 
@@ -1035,6 +1037,350 @@ street addresses from two sheets, and a no-personal-data rule and a contact-reda
   a handful of errors.
 - The hand-drawn gold and its reconciliation come from one model family; no person has counted those sheets.
 - The window-error shares are from small hand samples (20 pages, 20 extra boxes, 20 missed windows).
+
+## 15. The evening of 14 November: Carbon, scans, answering, chat (2026-11-14 17:40-24:00)
+
+Same format as section 16: what was tried, the line written before measuring, the number, the verdict and the log
+(in `.agents/exp/`, local, not in this repo). Times are EET on 14 November. Many of these rounds ran on small sets
+of hard sheets (photos, scans, big drawings) rather than on CubiCasa val, so their numbers are counts of sheets
+and pairs, not percentages with intervals, unless the entry gives one.
+
+### 15.1 Carbon (gemini-4-carbon) as a reader, a second opinion and a resolver
+
+- **Carbon reader on simple and hard pages** (`carbon-reader.md`, 17:43-20:32). As the primary reader on CubiCasa
+  pages it loses: val 120 pages 69.5% against C1-T1's 86.9%, -17.5 [-22.2, -12.8], no family passing its line; golden
+  dev 67 sheets 78.8% against 85.9%, -7.1 [-12.2, -2.4]. On the 14 floor plans of the hard set it was right on 87 of
+  the 88 counts it answered and refused 54 of 142. Then four routing rules, each with lines written first:
+  - route by the sheet-kind `advanced` flag: it flagged 48% of val and 61% of golden dev pages, and lines 1 and 2
+    failed (val -8.3 [-12.1, -4.8], golden dev -3.4 [-7.1, -0.2]); line 3 failed too (92 right counts against the
+    product's 106). **NO-GO**. 2.38 USD.
+  - route images over 4,000 px: lines 1 and 2 held (val -0.09 [-0.28, +0.00], golden dev +0.00 [-0.50, +0.51]; only
+    5 of 187 simple pages move), line 3 failed on the 6 big hard-set plans (Carbon 31 right, 1 wrong, 33 refused;
+    product 42, 23, 0). **NO-GO** as it stood. 0 USD.
+  - over 4,000 px, things drawn from Carbon and rooms from the product, on 4 fresh sheets: 39 right, 3 wrong, 4
+    refused against the product's 28, 18, 0. **PASS** (4 sheets, one read each). This is `CARBON_READER=large`.
+    0.346 USD.
+  - also send a page where the shipped reader found fewer than 3 things: it moves no val or golden dev page, and
+    on the purpose test (4 scans counted by eye first) the 3 moved scans went from 2 right, 5 wrong to 5 right,
+    1 wrong, 1 refused. **PASS** (PR #293). 0.207 + 0.164 USD.
+- **How far to take Carbon** (`carbon-first.md`, until 19:34; 15.83 USD in all). Primary reader on 200 clean val
+  pages: 86.0% against 87.4%, -1.4 [-3.1, +0.2]; the room families that looked better did not hold on 176 fresh pages
+  (all families -2.3 [-4.0, -0.7]). **NO-GO**, no family moves to Carbon. Settling an asking answer when a second
+  blind Carbon read agrees: 74% of asking answers settled, 10.4% of those wrong, so only 61.8% [53.3, 69.7] of wrong
+  answers would still ask against a 95% line. **NO-GO**. Deciding disputed counts from the marks: right on 51.8% of
+  the 139 it answered, against 45.1% of all 144 for the shipped value, 40 fixed and 30 broken. **NO-GO**. Resolving
+  the 136 real drawing-vs-IFC conflicts on dev with a gold answer: the rule is right on 122 (89.7%), Carbon on 69
+  (50.7%); Carbon never fixed a case the rule got wrong and broke 2. **NO-GO**: the rule stays and Carbon only writes
+  the reason. As a second reader for levels, on 176 fresh pages with lines set first: a Medium answer Carbon agrees
+  with is 97.2% exact [95.4, 98.4] (line 93%), one it disagrees with 60.0%; a Low it agrees with is 75.0% (line 85%,
+  fails). **PASS for Medium, NO-GO for Low**. A 5-case pilot of Carbon as the resolver (`resolver-pilot.md`, 0.05 USD)
+  corrected none of 3 wrong answers.
+- **Carbon's agreement sets the level** (`integ.md` AW, 18:02-20:00). Rule 1, agreement splits flagged answers
+  into Medium and Low: its second line failed on 80 val pages (58.7 against 57.8). **NO-GO**. Rule 2, "Medium and Carbon
+  disagrees -> Low", on 251 val pages not used before: demoted answers 73.4% exact (line <= 80%), Medium 92.4% ->
+  95.4% (+2.97, line +1.0), Medium share down 4.80 points (line <= 5.0). **PASS**, 13.80 USD. The same rule on the
+  67 golden dev raster sheets (not blind; a confirmation): L3 failed, share down 5.43 points. Then
+  `CARBON_LEVELS=ladder` (Bogdan, "make them high"): a Medium Carbon agrees with becomes High. On the same val units
+  High goes from 44.9% of answers at 99.0% exact to 69.7% at 97.7%. This was decided after the val numbers, with no
+  line written first, and is not measured on test. It is in the demo config.
+
+### 15.2 Which pages go where: sheet kind, big sheets, drawn PDFs
+
+- **Sheet-kind gate** (`vlm-kind.md`, 17:48). Carbon names what each sheet is. The cut was picked on 200 keyed rows
+  (0.9) and judged on 675 more. Line: at most 2 true floor plans set aside. Measured: 7 of 227 (3.1%), with 405 of
+  416 non-plans set aside (97.4%). **NO-GO**: the step ships as a warning only (`SHEET_KIND_SET_ASIDE=false`). 3.5
+  Flash set aside 4-5 of 75 plans at every cut. 11.25 USD at list prices.
+- **Fewer false warnings on photos** (`sheet-kind-live.md`, 22:40). Line: false warnings on camera-photo plans at
+  least halved, no true warning lost. Rule N2 (camera photos only): 7 to 2, non-plans 550 to 550. **PASS**, PR #364;
+  golden 0/3,058. Rule N1 (every input) cut all plan warnings by 26% only and was not built. 0 USD.
+- **Tiles for big sheets** (`big-tiles.md`). Cut sheets over 4,000 px into tiles before the detector. On the hard
+  sheets the summed error fell (doors 90 to 8, toilets 58 to 2, sinks 105 to 9), but 4 val and 2 golden dev pages
+  trigger and lose 2 exact door counts and 1 shower+bathtub. **NO-GO** as registered; PR #253 ships it off. A second
+  line at 8,000 px (no CubiCasa page is that large) failed on doors (summed error 231 to 231). 0 USD.
+- **Finer tiles for the few-things path** (`few-path-latency.md`, ~22:00). Line: no extra wrong answer and the
+  median tile phase at most 0.7x. Measured: 38/0/1 to 38/1/0 right/wrong/refused, median 6.2 to 7.15 s. **NO-GO**.
+  0.507 USD.
+- **Drawn PDFs with no vector rules read as images** (`think-local-r10.md`, `vector-generic.md`; VECTOR_FALLBACK).
+  On the 16 pre-registered sheets line 3 failed. On a fresh set of 10 on PR #348's head: 33 right, 5 wrong (13%,
+  line at most 10%), and a structural detail sheet answered a plan and a door (line: nothing on those sheets).
+  **NO-GO**, the setting stays off. It would also read every page of a PDF set with Carbon (0.03-0.38 USD a
+  page).
+- **Scan sweep** (`scan-sweep.md`, 19:25-19:40, no line). 18 scanned uploads on PR #280's head: 17 finished with 0
+  errors, 0 timeouts and no memory growth; one 59 MB binder was stopped by hand for memory. 1.11 USD.
+
+### 15.3 Scale and room areas on scans
+
+- **Printed scale from the scale bar** (`printed-scale.md`, PR #256). Measured, no line: on the 22 Swiss PNGs of
+  golden dev the scale came within 2% on 22 of 22 (median error 0.18%); four inbox sheets agreed with their paper
+  sizes. 0.348 USD. This is `RASTER_PRINTED_SCALE=carbon` in the demo.
+- **Printed dimensions as a scale** (`printed-dimension.md`). Line 1: within 1% on at least 15 of 18 sheets and no
+  sheet worse than today. 13 of 14 measured sheets were within 1%, but cc 1910 got worse (+0.77% against -0.19%).
+  **NO-GO**. Line 2 on 15 fresh sheets: 9 within 1% (needs 12), and cc 11478 worse by 3.52 points. **NO-GO**; PR #292
+  was closed. About 2.4 USD over both.
+- **Scan dpi from the paper size** (`scan-dpi.md`). Line 1: the right dpi on at least 80% of 28 scans of known dpi.
+  Measured 15 of 28 (54%). **NO-GO**. 0 USD.
+- **A scanned PDF's printed ratio in page units** (`fable-rooms-r10.md`, PR #340). A bug fix with replays, not an
+  arm: the ratio was turned into metres per render pixel on a page measured in points. The USCG floor plan's total
+  area went from 43.05 to 138.75 m²; golden 0/3,058, 204/204. A follow-up (trust a big scan's own dpi) failed its
+  line 4 and was not built.
+- **Room sizes printed as "W x D" or dimension lines** (`carbon-r11.md`). Lines: at least 95% of values right. Text in
+  the label 22 of 24 (91.7%), dimension lines 21 of 23 (91.3%): **NO-GO** for both. A second line on new sheets: 29
+  of 30 right but coverage 28 of 36 (77.8%, line 80%): **NO-GO**. 0.70 USD.
+- **Fit a room box to its walls** (`room-fit.md`, 22:40). 29 held rooms, gold scale. Line: within-10% share up by
+  at least 10 points. Flood fill 48.3%, a fixed ratio 75.9%, against 79.3% today. **NO-GO**. 0 USD.
+- **A certified wrong bathroom count on a Swiss PNG** (`certified-bathroom.md`). Root cause: the image route typed a
+  "Bagno" room `other`, and the bathroom certificate (fitted on CubiCasa only) said High. PR #358's four lines:
+  the sheet answers 2 at Low; CubiCasa val 0 of 6,764 answers and 0 levels change; 0 High wrong on the three cached
+  Swiss PNGs (was 1); golden drawn and BIM routes 0 of 1,606 change. **PASS**. 0 USD.
+
+### 15.4 Answering
+
+- **Golden misses at 240e620 by cause** (`carbon-r10.md`). 199 wrong: 190 CubiCasa counts and 9 schedule questions.
+  On 82 of 82 failing dev units the answer equals the boxes the reader found; about half are the reader's, the rest
+  are not winnable from the page or are scope. Rule S (count only elements on the drawn flat): val +0.05
+  [-0.25, +0.39], **NO-GO**. Room types from printed labels: golden +2.30, but val-120 +0.33 [-0.69, +1.44] against
+  a line of +0.3 with the lower end above 0: **NO-GO**. 0 USD.
+- **Counts inside one room** (`answer.md`, PR #332). Line from the orchestrator: per-room door counts at least 80%
+  exact on CubiCasa val, else refuse them. Measured 86.1% (2,758 named rooms; 86.5% over every room). **PASS**.
+- **Questions about one floor of a multi-plan sheet** (`per-floor.md`). 12 fresh dev sheets. L3 failed (2 of 54 floor
+  questions got the whole sheet's count, a caption cut off by the image edge) and L6 failed (13 of 47 answers
+  certified). **NO-GO**, no PR. 1.21 USD.
+- **Nouns the parser has no word for** (`vocab-nouns.md`, `vocab-nouns-lines.md`, PR #388). Counting rooms by a
+  printed noun (P1) failed its held-out line: 5 of 16 right (31%, line 40%), so P1 was dropped. The rest (refusals
+  that name the label to ask about) held golden 0/3,058. **PASS without P1**.
+- **Two wrong answers on the fresh judge set** (`judge-fresh-fixes.md`, PR #377). "Rum" rooms are refused instead of
+  counted as 10 bedrooms; a sheet of 2 plans and 5 other views says 2 plans. Golden 0 of 3,058 answers differ; on
+  val 2 answers change, both on one page.
+- **The 10 schedule-sheet failures on golden** (`golden-schedule-fails.md`, no line). Generic fixes are worth up to
+  about 5 questions; the rest would be wording tuned to the gold and are not recommended.
+
+### 15.5 Detector training and the archive sheets
+
+- **Hard window styles oversampled in training** (`window-arm-w.md`). Line: windows +2.0 points with the lower end
+  above 0, no other family down by more than 1. Measured: windows -1.3 [-5.9, +2.9], toilets -4.5 [-6.9, -2.4].
+  **NO-GO** (killed 17:36). A seed-1 retrain of the shipped recipe was level with the shipped model on eight views
+  (all questions -0.1 [-0.8, +0.6]), but 5.3 points lower on one-view windows: one-view window numbers move with
+  the seed. 2.15 EUR of GPU.
+- **Sure answers on 50 archive sheets, second blind count** (`styles-doors.md`, `archive30-counts.md`,
+  `sure-guard.md`, 17:40-17:43). The 174 Sure answers sit on 45 of the 50 sheets, most of them churches, ruins,
+  manuscripts and outbuildings, so zeros dominate. 2 are confirmed wrong, both toilet counts (2 of the 5 Sure toilet
+  answers); every Sure sauna, plan, WC, sink, bathroom, kitchen, bedroom and balcony answer was right.
+
+### 15.6 Measurement sets and the end-to-end look
+
+- **Hard set** (`hard-set.md`). 44 public files labelled by eye (21 with a floor plan, 27 over 4,000 px), frozen at
+  18:20 with their hashes; most arms above score on it.
+- **Fresh judge set** (`judge-fresh.md`). 7 files from Wikimedia Commons the team had not used, 68 questions written
+  before scoring. Live commit e57d23f: 32 right, 13 wrong, 23 refused; 71% of the answered ones right. Toilets 7 of
+  7, sinks 5 of 5; windows 1 of 3. About 1 USD of uploads.
+- **Golden series point** (`golden.md` r8-AO, 17:21-17:40). Demo config at 6150709: 2,746 of 2,948 (93.1%), dev
+  92.8%, holdout 94.8%; CubiCasa element F1 85.1 to 86.1%. 0 USD.
+
+### 15.7 Chat and the evidence index
+
+- **Chat A/Bs** (`chat-eval.md`; 22 scripts, 64 turns, 18 with a truth). Lines: right and grounded not lower than
+  the parent. #321 typed walls: PASS (an http error gone). #319 show_on_plan: PASS, views on 31 of 64 turns from 0.
+  #335 thinking: "none" equals "low" on right and grounded and is about 6% cheaper. #330 parallel tools: identical
+  replies, 0.8 to 0.6 s in all on the 3 turns with parallel tools. #353 counting rules: PASS. #339 "are you sure":
+  formally -1 on right on the first head, PASS on the fixed head (right 10 of 14, level kept 7 of 7). 4.94 USD,
+  then most of a second 3 USD budget.
+- **pi harness spike** (`pi-spike.md`). At matched settings pi's agent loop gave the same answers at about the same
+  speed (median 5.30 s against 4.95 s) and cost. Not adopted; streamed steps, parallel tools and a context hook were
+  taken as ideas.
+- **Evidence index on every non-plan file** (`rag-evidence.md` 7.11, 18:37). Line 1: at least 14 of 15 questions find
+  their source in the first 5: 13 (fail). Line 2: no floor plan indexed as evidence: 1 (a hotel plan photo, fail).
+  Parity and cost held. Turned on for the demo with both failures written in KNOWN.
+
+### 15.8 Gaps in this section
+
+- Small sets throughout: 4-16 sheets in most Carbon lines, 29 rooms for the room arms, 68 judge-set questions.
+- Several lines were written by the worker who later scored them, and some sets (the hard set, the judge set)
+  were seen while designing other arms; each log says where.
+- Not written up here: design notes (resolver shape, the cross-discipline edit, services overlap, ADR 0012 text,
+  evidence contracts, the hard-set schema), CI pre-flight logs, and PRs that are fixes without an experiment.
+
+## 16. The night of 14-15 November: accuracy arms, speed and memory, chat (2026-11-15 00:00-03:00)
+
+Each entry gives what was tried, the line written before measuring, the number, the verdict and the log (in
+`.agents/exp/` unless named otherwise; local, not in this repo). "Golden 0/3,058" means a golden v2 run in the demo
+config on cached replies gave no changed answer against main, and "204/204" that every extraction file was
+byte-identical. Every val and golden dev number here is from the same pages the earlier rounds tuned on; no arm was
+fitted on the test split or on the eval half of golden v2.
+
+### 16.1 Accuracy arms on raster sheets: none passed
+
+- **Room zoom** (`room-zoom.md`). A second Carbon call on a crop around each Carbon room box, asking for the room's
+  outline. 22 design rooms and 29 held rooms with printed areas, on 8 dev CubiCasa pages, at the gold scale. Line:
+  held rooms within 10% of the printed area >= 94.3% (today's box/1.104 gives 79.3%, so +15 points). Measured on held:
+  79.3%, +0 points. The median error halved (6.9% to 3.6%), and the slowest call took 38 s, over the 10 s per sheet
+  limit. **NO-GO**, nothing built. 0.365 USD. One held room is 3.4 points.
+- **K5 arm B: area band per door count and door-width spread** (`k5-door-band.md`). Line: every door-count bucket
+  with at least 20 rooms has at least 60% of its rooms inside the band the answer states, on val (held-out half) and
+  golden dev. Today the 5-9 door bucket fails: 48% on val, 49% on golden dev. Arm B (refit per door count x spread,
+  two ways on val) held out: 41% and 52% on val, 44% on golden dev. **NO-GO**. The two other registered arms did not
+  apply: the room-box term is calibrated (spread 0.152 against the shipped 0.157) and no fitted band is above the
+  0.37 refusal level. Found after the result, not a line: the misses follow the CubiCasa drawing style. On
+  `high_quality` sheets the page scale is inside its band on 30 of 70 val pages (43%) and 6 of 19 golden dev pages
+  (32%), against 73-90% on the other styles. 0 USD.
+- **K5 arm S: an image trait for that style** (`k5-style.md`). Five traits from the image and the detected doors,
+  never the file name; the rule picked on val half A was "mid-grey pixels are at least 65.06% of the non-white ones".
+  Line L2: it flags at most 10% of half B's other-style pages. Measured: 18 of 151 (11.9%), and it found only 12 of 35
+  `high_quality` pages. **NO-GO**. 0 USD.
+- **K6: link an IFC model to its PDF sheets without the SVG twin** (`k6-pdf-link.md`). 71 plan sheets of 14 models.
+  Line L1: the vitoria plan-02 sheet gives the same 4 sheet-vs-model conflicts PDF-only as with its SVG; L2: no new
+  conflict a reviewer would call false. The cheap arm (the vector reader's door, window and room counts against the
+  model's storey) kept 52 of the 235 conflicts, lost 183, added 29, all 29 false; vitoria kept 1 of 4. A full arm
+  (rebuild the twin or fit the model geometry to the PDF) was estimated over the 2 h build gate. **NO-GO**, no build.
+  Every dataset sheet ships with its SVG (0 of 14 groups affected). 0 USD.
+- **Door view rule** (`door-views.md`, worker qa-c). Also count a door that most of the 8 views see when its fused
+  score is under the 0.28 threshold; views and score fitted on val half A (182 pages), judged on half B (194). Line:
+  exact door count +3.0 points. Fitted rule: seen in all 8 views and score >= 0.26. Half B: 68.04% to 68.56%,
+  +0.52 points. **NO-GO**. The looser rule a QA note suggested (6 views, score 0.20) gives the same +0.52 and 21% more
+  false doors per page. 0 USD.
+- **Window count arbiter refit** (`windows-r13.md`). Where the window misses come from, 376 val pages: right 207
+  (55.1%); the right count among the arbiter's candidates but not picked 81 (21.5%); not among them 88 (23.4%). The
+  window arbiter's pick equals the 8-view detector count on all 376 pages. Arm V refit the window model on val half A
+  (190 pages) and was judged on half B (186). Line: exact window count +3.0 points. Measured: 55.9% to 57.0%, +1.1
+  [-1.1, +3.2]; fitted on B and judged on A, -2.6 [-5.8, +0.5]. **NO-GO**: where the one-view count or the page count
+  model disagrees with the 8-view count, the 8-view count is right as often or more, so there is nothing for a refit to
+  learn. 0 USD.
+- **Carbon double counts** (`r11-local-dec.md`). Rule T merges two Carbon fixtures of one class whose centres are under
+  0.75 m apart; rule W drops a Carbon window that touches only an outdoor room. Line: no page goes from exact to
+  wrong. T: 5 shower pages went from exact to wrong (317 to 314 exact). W: 3 window pages did (185 to 182): on Nordic
+  sheets a window on a balcony is a real window. **NO-GO** for both. 0 USD.
+
+### 16.2 Answering
+
+- **A room type word that two rooms share** (`r11-answer.md`, PR #415, merged). "The living room" when two rooms are
+  typed living answers the one printed LIVING ROOM. Line: golden 0/3,058 worse. Measured 0/3,058 changed. **PASS**.
+  A second line asked whether named-room areas from a Carbon box need a guard (more than 20% of them outside their
+  stated band): 13 of 109 (11.9%; 16 of 112 counting unmatched boxes), so no guard.
+- **"Shower rooms" read as bathrooms** (same log). Golden 0 changes, but on one judge-set sheet it turned a refusal into
+  a wrong Low answer (1 against 5). Not shipped: the rule of the round was that no refusal is traded for a Low guess
+  unless the line says so.
+- **USER_SCALE: a scale the user types in the chat** (`user-scale.md`, PRs #432 and #480, merged; on in the demo
+  config since #512). Line L1: on 69 golden dev CubiCasa sheets, giving one room's area sets every other room's area
+  within 2% of the gold scale's. Measured: 17,320 of 17,320 (sheet, given room, other room) triples. With it off:
+  golden 0/3,058, 204/204. Refusal and "never High" lines held as tests. **PASS**. 0 USD.
+- **Confident wrong answers on golden v2** (`.agents/qa/r12/confident-wrong.md`, worker fail-1). Run 030abbb: 278
+  raster answers marked sure, 274 right, 4 wrong: 2 questions in 2 languages (colorful-30 WC seats 2 against 1,
+  high_quality_architectural-8517 storeys 2 against 3). No cause covers more than one question. A rule "sure needs a
+  score of 0.8" would remove both and demote 13 right answers; it was not adopted, because it would be chosen from two
+  golden dev items. No change. 0 USD.
+- **Golden dev misses by family** (`answer-r13.md`). 2,388 dev items, 2,217 right, 171 not. 164 of the 171 are CubiCasa
+  counts, the same drawings and numbers in English and Finnish, with errors in both directions (windows: 35 drawings,
+  21 under, 14 over). That points at the readers, not the question parser. Nothing built. 0 USD.
+- **Judge set re-score** (`r11-integ.md`; a measurement set, nothing tuned on it). Main 030abbb: 36 right, 12 wrong, 20
+  refused, 0 wrong at High (the earlier e2a48d7 had 34/11/23). With SCALE_CARBON_DOORS on: 37/14/17; on the one sheet it
+  touches it turns two refusals into two wrong Low areas (16 m² against 9.8, 149 m² against 100). The setting stays
+  off. 0.72 USD.
+- **Eight vocabulary refusals on the judge set** (`r11-eu-big.md`): closets, porches, vaults, telephone booths,
+  fireplaces, flats, lifts, staircases. Three would need a label count that already failed its held-out line (5 of 16
+  right), lifts only Carbon's side reading has, and the other four need a reader we don't have. Stoa's dev questions
+  never ask these nouns on raster sheets. No change. 0 USD.
+
+### 16.3 Speed and memory
+
+- **Parallel ingest** (`parallel-ingest.md`, PR #395, merged with default 1). Drawing groups read in parallel. Six cold
+  images, one run each: 253.0 s on main, 78.9 s with 4 groups (-69%). The memory line failed for both (each pinned at
+  the 10 GB cap), so the default stayed 1. Golden 0/3,058, 204/204. 3.11 USD.
+- **Raster memory** (`raster-memory.md`, PR #405, merged). A 138.6 Mpx greyscale page took 11.5 GB: every reader made
+  its own full-page RGB copy (about 0.42 GB each) and they run at once. With the copies removed, the readers' peak
+  above idle went from 11.13 to 2.84 GB cold and from 9.30 to 1.51 GB warm. Golden 0/3,058, 204/204; 4 of 4 hard photos
+  gave identical extractions. 0 USD.
+- **Ingest of 10 cold files** (`ingest-60s.md`, PR #422, merged). Line L2: under 60 s, median of 2. One cold run each:
+  273.1 s on main (2.49 USD), 88.3 s on the branch (2.78 USD), memory peak 7.3 GB under the 8 GB cap, golden 0/3,058,
+  204/204. L2 not met; it shipped because it cut the wait to about a third. The demo config took its settings (10
+  groups, 48 Carbon calls in flight, 12 tile calls per read, MALLOC_ARENA_MAX=2; the last cut a cached replay's peak
+  from 9.6 to 6.7 GB). Three paid cold runs of the merged code around 02:00 took 190.9, 277.8 and 188.9 s: Gemini
+  answered about twice as slowly as in the earlier run. Round 2 (PR #453, open) predicts 87.1 to 82.4 s on a latency
+  replay; the slowest files wait on their own chain of Carbon calls.
+- **Three uploads at once** (`concurrent-uploads.md`). One backend at the live cap (8 GB, no swap), the same 10 files
+  as three projects on cached replies. Line: peak under 8 GB, 0 errors, every file ends as it does alone. Measured: peak
+  6.35 GiB, 0 5xx, all 30 files the same; each project took 73-96 s against 37 s alone, because they queue on the one
+  local reading slot. **PASS**, no change needed. 0 USD.
+- **First project GET** (`cold-get.md`, PR #419, merged; no line registered). A 130-drawing project's first GET took
+  7.8 s, 60% of it rebuilding per-drawing name tables once per takeoff row. Built once per drawing: 7.8 s to 3.2 s
+  (5.1 s to 2.96 s on a quieter machine), responses byte-identical.
+- **Chat latency** (`chat-latency.md`, PR #447, merged). 20 recorded turns: 96.7 of 104.6 s (92%) is the model.
+  The one slow server step was "which room is the largest?" rebuilding the drawing's takeoff for every room. Line:
+  that step at least 50% faster, answers unchanged. Arm A (takeoff once): -48%, missed. Arm B (also the storey table
+  once): median 1.958 to 0.419 s (-79%), 0 answer changes on 20 turns, golden 0/3,058. **PASS**. 0.40 USD.
+- **Services prebuild** (`precompute-services.md`). A change to the deploy's prebuild step builds the ventilation and
+  plumbing stores next to heating: 19.2 s (333 MB), 13.1 s (302 MB) and 156.8 s (1,331 MB), 189.1 s in all, 3.1 s when
+  already built. A measurement for the deploy change, no line. 0.156 USD.
+
+### 16.4 Chat
+
+- **A cheaper final model step** (`final-step.md`). Every turn is two model steps; the arms changed only the second:
+  T thinking off, F a faster Gemini model, C shorter tool results. Line: the median turn 25% faster with right and
+  grounded answers not lower. Pilot on 20 recorded requests: F cut the step by 42% but changed the kind of answer on
+  4 of 20, which predicts about -16% on the turn; T predicts -3%; C removed 2.5% of the prompt. **NO-GO** for all three,
+  nothing built. 1.08 USD.
+- **Streaming the answer text** (`stream-text.md`, a study). On the endpoint we call, a tool call's arguments arrive
+  in one piece (one chunk at 5.98 s), so streaming needs the answer moved out of the tool call: a loop and frontend
+  change of about 3-3.5 h, with lines written for it. Not built. About 0 USD.
+- **The final config's chat** (`chat-final.md`). Line: the all-on branch has no more wrong answers than main on the
+  chat set (22 scripts, 64 turns, 18 with a truth), and 0 5xx. Main, two runs: 14 of 18 right in each, 6 wrong in all,
+  63 of 64 grounded, median 4.96 and 5.23 s per turn, about 1.09 USD per run. The all-on arm had not run when this
+  was written.
+
+### 16.5 Robustness
+
+- **Gemini faults** (`gemini-faults.md`, PR #439, merged). Every Gemini call answered with 429, 503, 402, a timeout, a
+  reset or a non-JSON body, on a small upload and a chat, with seven lines written first. Before the fix two failed: a
+  file read with failed calls said it held nothing, and that empty reading was reused on the next upload of the same
+  file, even after Gemini recovered. No Gemini adapter retried a 429 or 503. After: all seven hold; a persistent 503
+  makes the upload take 42 s instead of 10 s. 0 USD (calls faked).
+
+### 16.6 Gaps in this section
+
+- Most rounds ran once, on a machine shared with other jobs. Paid cold timings move with Gemini's speed: the same
+  ingest code took 88.3 s in one run and 188.9-277.8 s in three runs around 02:00.
+- Small data: room zoom has 29 held rooms, the K5 bands rest on a few pages with cached rooms, and the judge set is 68
+  questions.
+- Not in this page yet: the whole-turn faster-model arm (`whole-turn-model.md`, registered 02:46, running); the
+  all-on chat arm; ingest round 2 (#453). The evening of 14 November is section 15.
+- Fixes without an experiment (TIFF and WebP uploads, the services-only IFC, the evidence-index lock, set-aside
+  wording) are in their PRs, not here.
+
+## 17. Services on pictures: symbol readers, pairing and laying over (2026-11-15 03:00-04:35)
+
+All of it is behind `DISCIPLINE_PICTURES` (any of its readers), off in the demo. The numbers are from the PR
+bodies and the handoff comments named in each entry; the logs are on the machines that ran them.
+
+- **Symbol readers** (PR #579, merged). On a held-out rendered building (DigitalHub, 36 pages, 1,155 symbols;
+  glyphs was trained on the clinic only), the template reader with its OCR legend got P 0.07, R 0.29 and counts within
+  10% on 8 of 54. The rule was written before any arm ran. `gemini` (one Carbon call a page reads the legend and
+  the symbols, $0.030 a page) got P 0.95, R 0.92, 46 of 54, and passes. `glyphs` (a YOLO glyph detector on the
+  CPU) got P 0.92, R 0.38, 9 of 54 with the OCR legend and misses by one count unit (air terminals). The OCR
+  legend holds both local readers back on scans. The bench is one synthetic building whose legend is always
+  printed, so this is not a pass on real sheets, and the facts stay Low.
+
+- **Wall register hardening** (PR #538, merged; Tudor's bench in his handoff on #281). Rendered DigitalHub pairs:
+  other-floor sheets laid wrong 17 of 72 times with #498, 8 of 72 with #538 (5 on the identical twin storeys E00/E01,
+  3 turned half round); same floor 14 right, 3 wrong, 19 refused, 0.3 s. Real USCG Building 407 pairs: all 4
+  refused, which is right by eye.
+- **Half-turn guard** (PR #554, merged). `FLIP_MARGIN` 1.5 was set before any run. The dev1 DigitalHub bench then
+  showed 1.5 refusing right lays at ratios 1.39 and 1.45 (one is the pairing test's floor), while the one wrong lay
+  it caught was at 1.02, so it was set to the quarter turns' 1.3 after the fact. On outline-heavy synthetic floors
+  1.3 gives the same results as #538 alone, 0 wrong.
+- **Pairing by floor words** (PR #558, merged). On 20 USCG units (buildings 407, 877, 110), right / wrong / refused
+  other floor / refused same floor: main 8 / 2 / 7 / 3; #558 as pre-registered 4 / 0 / 9 / 7; #558 after a post-hoc
+  change 9 / 0 / 9 / 2. Confirmation on 4,610 unseen units from 34 other Governors Island buildings, line "0 wrong"
+  written first, each arm run once: main 371 / 602 / 2,665 / 972; #558 603 / **10** / 3,257 / 740. **Line failed.**
+- **Listed and ranged floors** (PR #575, merged). Fixes the causes of those 10. On the same 4,610 units, after the
+  fact: 630 right, 0 wrong (12 rights became refusals). Its pre-registered out-of-sample confirmation (Commons
+  categories outside Governors Island, 13,451 titles) left 6 units after the hand reading, under the minimum of 10:
+  **inconclusive**. Both arms gave 2 / 0 / 3 / 1 there.
+- **Laying over by walls per plan view** (PR #580, merged; register + plan-view finder #557 wired into pairing). dev1
+  DigitalHub bench, 108 rows: same floor 3 right, 0 wrong, 33 refused (the bench's plan side has no outer walls);
+  other floor 0 wrong of 72. Without the crop-scale rule the finder arm had 1 wrong same-floor lay.
+- **DINO symbol check, kinds** (PR #551, merged, not called yet). Tudor's bench on #543: a label of no kind caught
+  1,075 of 1,085 valve symbols and 205 of 245 sanitary ones (valve recall on scans .36 to .20, sanitary photo
+  precision .47 to .02). #551 confirms only air terminals and air-worded labels; not measured again.
+- Gaps: no end-to-end run of the wired walls path yet (#580 lists it); the 4,610-unit set is one archive series and
+  its post-hoc 0 wrong is not a confirmation.
 
 ---
 

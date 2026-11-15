@@ -6,12 +6,17 @@ import {
   isTerminal,
   laneName,
   markStatus,
+  onSheet,
   ordered,
+  PAIRED_BY,
+  pictureOf,
   placeOfAction,
   placeOfMark,
   STATUS,
+  strikeOf,
   tabNote,
   type Lane,
+  type LanePicture,
   type ServiceAction,
   type ServicesFollow,
   type Status,
@@ -116,6 +121,50 @@ function Layer({
         )}
     </>
   );
+}
+
+/** AC-40: the edit on the lane's own sheet, in that sheet's page fractions: the removed strip struck out, the new
+ * partition drawn (the plan's Demolished and New looks). Before shows none of it. */
+function SheetEdit({ pic }: { pic: LanePicture }) {
+  const line = { vectorEffect: 'non-scaling-stroke' } as const;
+  return (
+    <svg
+      className="vw-overlay ag-overlay"
+      viewBox="0 0 1 1"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {pic.removed.map((strip, i) => {
+        const strike = strikeOf(strip);
+        return (
+          <g key={`r${String(i)}`}>
+            <polygon className="ag-removed" points={pointsOf(strip)} {...line} />
+            {strike && <polyline className="ag-strike" points={pointsOf(strike)} {...line} />}
+          </g>
+        );
+      })}
+      {pic.added.map((wall, i) => (
+        <polygon key={`a${String(i)}`} className="ag-added" points={pointsOf(wall)} {...line} />
+      ))}
+    </svg>
+  );
+}
+
+/** The part of the sheet to look at: the lane's focus there, else the edit's outlines plus a margin. */
+function sheetFocus(lane: Lane, pic: LanePicture): Box | null {
+  const edit = {
+    removed: pic.removed.map((polygon) => ({ polygon })),
+    added: pic.added.map((polygon) => ({ polygon })),
+  };
+  const box = focusOf(onSheet(lane, pic), edit);
+  if (box) return box;
+  const pts = [...pic.removed, ...pic.added].flat();
+  if (pts.length === 0) return null;
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const pad = Math.max(0.05, 0.5 * Math.max(x1 - x0, y1 - y0));
+  return [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
 }
 
 function Key({ lane, after }: { lane: Lane; after: boolean }) {
@@ -232,13 +281,32 @@ function Panel({
 export function useServiceTabs(
   p: Proposal,
   after: boolean,
-): { tabs: ReactNode; layer: ReactNode; panel: ReactNode; focus: Box | null } | null {
+): {
+  tabs: ReactNode;
+  head: ReactNode;
+  layer: ReactNode;
+  panel: ReactNode;
+  focus: Box | null;
+  /** AC-40: the open lane's own services sheet, drawn instead of the plan; null: the plan. */
+  sheet: { drawing_id: string; page: number } | null;
+} | null {
   const [name, setName] = useState<string | null>(null);
   const [pickedId, setPickedId] = useState<string | null>(null);
+  // AC-43: the lanes whose sheet the user said is not this floor's (kept in the card)
+  const [refused, setRefused] = useState<ReadonlySet<string>>(new Set());
   const services = p.services;
   if (!services) return null;
   const lane = services.disciplines.find((l) => l.discipline === name) ?? null;
   const picked = lane?.actions.find((a) => a.id === pickedId) ?? null;
+  const said = lane !== null && refused.has(lane.discipline);
+  const pic = lane && !said ? pictureOf(lane) : null;
+  const refuse = (discipline: string, no: boolean) => {
+    const next = new Set(refused);
+    if (no) next.add(discipline);
+    else next.delete(discipline);
+    setRefused(next);
+    setPickedId(null);
+  };
   const open = (next: string | null) => {
     setName(next);
     setPickedId(null);
@@ -256,7 +324,8 @@ export function useServiceTabs(
           Plan
         </button>
         {services.disciplines.map((l) => {
-          const note = tabNote(l);
+          const off = refused.has(l.discipline);
+          const note = off ? 'not checked' : tabNote(l);
           return (
             <button
               key={l.discipline}
@@ -268,16 +337,49 @@ export function useServiceTabs(
             >
               {laneName(l)}
               {note !== null && (
-                <span className={l.status === 'checked' ? 'ms-count' : 'ms-off'}>{note}</span>
+                <span className={l.status === 'checked' && !off ? 'ms-count' : 'ms-off'}>
+                  {note}
+                </span>
               )}
             </button>
           );
         })}
       </div>
     ),
-    focus: lane && focusOf(lane, p),
-    layer: lane && <Layer lane={lane} after={after} picked={picked} />,
-    panel: lane && (
+    sheet: pic && { drawing_id: pic.drawing_id, page: pic.page },
+    head: lane && (pic || said) && (
+      <p className="ms-pairing">
+        {pic ? (
+          <span>
+            {PAIRED_BY[pic.pairing.paired_by]}: {pic.pairing.reason}
+          </span>
+        ) : (
+          <span>Not checked: you said this is not this floor&apos;s {lane.discipline} sheet.</span>
+        )}
+        <button
+          type="button"
+          className="ag-law-subject"
+          onClick={() => {
+            refuse(lane.discipline, !said);
+          }}
+        >
+          {said ? 'Use this sheet again' : 'Not this sheet'}
+        </button>
+      </p>
+    ),
+    focus: lane && !said ? (pic ? sheetFocus(lane, pic) : focusOf(lane, p)) : null,
+    layer:
+      lane &&
+      !said &&
+      (pic ? (
+        <>
+          {after && <SheetEdit pic={pic} />}
+          <Layer lane={onSheet(lane, pic)} after={after} picked={picked} />
+        </>
+      ) : (
+        <Layer lane={lane} after={after} picked={picked} />
+      )),
+    panel: lane && !said && (
       <Panel
         services={services}
         lane={lane}

@@ -46,7 +46,10 @@ Uses, does not own: the API client (`frontend/src/api/`, shared.md), the shell, 
 7. "Send to surveyor" opens the surveyor view of the same drawing on this quantity. "Picture of this answer" opens
    the server's drawn proof (`evidence.png`) in a new tab.
 8. The user asks more questions; earlier answers stay in the thread above (newest at the bottom). The thread lives
-   in memory only: a reload or another drawing starts an empty thread.
+   in this tab only: the answered turns are kept in `sessionStorage` per project and drawing (#587, R3-L2), so a
+   reload keeps them and another drawing starts its own thread. The kept value carries a version (`KEPT_VERSION`,
+   `shell/kept.ts`) and each turn must have the answer fields the card reads; a value of another version or shape is
+   removed and the thread starts empty, never a blank page (QA R4-C13). The agent chat keeps its thread the same way.
 9. From the issues list (issues.md) the user follows a link that opens this screen already asking an issue's
    question (`?ask=`), or with the drawing opened at an issue's place (`?page=&box=`); section "Opening at a
    question or a place".
@@ -95,7 +98,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | --- | --- |
 | `question` | the user's bubble (the server's echo, so a trimmed question shows as sent) |
 | `answer`, `unit` | the big value and unit (format below). Null: no number anywhere in the card. A string `answer` (schedule) shows as text, `unit` null shows no unit. |
-| `confidence.score`, `confidence.calibrated` | the score line: "Second reader's score 0.87 (not a probability)". `calibrated: false` is the only value in the contract; the score is never shown as a percent, claimed as a probability, or called a confidence. `confidence` null: the line is absent (no made-up figure). |
+| `confidence.score`, `confidence.calibrated` | the score line: "Second reader's score 0.87 (not a probability)". `calibrated: false` is the only value in the contract; the score is never shown as a percent, claimed as a probability, or called a confidence. `confidence` null: the line is absent (no made-up figure). Also absent when the checks line says "one method; no second check" (EN-93). |
 | `line.sure`, `confidence.score` | the "Grade" block (Bogdan's rule, #14 c6874945888): `line.sure === true` "High"; else with `confidence` "Medium" when the score is 0.8 or more, "Low" below; no `confidence` and not sure: no block. Pill (`.v-pill--ok/--warn/--danger`), a 3-step bar (`aria-hidden`), and the line "From the Sure check and the second reader's score (0.8 or more: Medium)." Labelled "Grade", never "Confidence" (D3: the score is not a confidence) |
 | `confidence.signal` | only in Details: "Signal: <signal>" (an internal name, never on the card itself) |
 | `quantity.label`, `quantity.noun` | the answer sentence (Vellum: no separate card title), composed, not mocked (#14 c6874945888): with a noun "There are **<value>** <noun>." ("There is 1 door." for 1), else "<Label>: **<value>**."; the noun also right after the big value (outside `answer-value`). `noun` is in the API since PR #120 (`answer.json` "doors"; null for areas) |
@@ -165,15 +168,15 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | State | How to reach it on purpose | What shows |
 | --- | --- | --- |
 | Loading drawing | throttle the network, or a mocked `GET /api/drawings/{id}` that never resolves | the shared loading view; no ask box |
-| Drawing error | unknown drawing id in the route (`#/p/x/d/0123456789abcdef/engineer`) → 404 `error.json` | the shared `ErrorView` with `detail` and `code` (and its "Go to the start" link for `not-found`), plus a link back to `#/p/<project_id>` |
+| Drawing error | unknown drawing id in the route (`#/p/x/d/0123456789abcdef/engineer`) → 404 `error.json` | the shared `ErrorView` with `detail` (no raw `code`, QA R2-C5) (and its "Go to the start" link for `not-found`), plus a link back to `#/p/<project_id>` |
 | Empty thread | open a drawing, ask nothing | header, page without marks, suggestions, ask box; text "Ask a question about this drawing." |
 | No suggestions | `drawing.json` with `suggestions: []` | instead of the buttons: "No ready questions for this drawing."; with extractor `hello` also "This setup has no reader for this kind of sheet, so nothing on it was counted or measured. You can still ask about the project's other drawings." Ask box stays usable. |
 | Asking | a mocked `POST /api/ask` that never resolves | the question bubble, "Reading <file>…" with a spinner, Ask disabled, input kept for the next question |
-| Ask error | mocked `POST /api/ask` with 404 `error.json`, 422 `validation` or 500 `internal` | in that turn: "The question could not be answered: <detail>" and the `code` in small text, a "Try again" button that sends the same question; Ask re-enabled |
+| Ask error | mocked `POST /api/ask` with 404 `error.json`, 422 `validation` or 500 `internal` | in that turn: "The question could not be answered: <detail>" (no raw `code`, QA R2-C5), a "Try again" button that sends the same question; Ask re-enabled |
 | Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text` (no code line), one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
 | Answer, count | `answer.json` | value `2`, title "door count", viewer with marks 1 and 2, mark list "1 door", "2 door", rule "every element, room and plan the drawing lists counts once", status "One method" |
 | Answer, sum | `answer_area.json` | value `52.27 m²`, rooms shaded, mark list with "Küche 22.40 m²"…, the arithmetic line with what was left out, the viewer's colour key |
-| Answer with a model score | `answer_confidence.json` (`confidence: {"signal": "g1main", "score": 0.87, "calibrated": false}`) | as count plus "Second reader's score 0.87 (not a probability)"; Details has "Signal: g1main"; no "Picture of this answer" link |
+| Answer with a model score | `answer_confidence.json` (`confidence: {"signal": "g1main", "score": 0.87, "calibrated": false}`, `first`/`second` null) | as count with "Measured by one method; no second check." and no score line (EN-93); Details has "Signal: g1main"; no "Picture of this answer" link. Derived with `status: "agree"` and `first`/`second` set: plus "Second reader's score 0.87 (not a probability)" |
 | Answer, building model | `answer_model.json` | value `2`, no viewer; `ModelProof` with "Door 1", "Door 2", their storey and GlobalId, the storey table, the arithmetic line |
 | Answer, schedule | see Open points (no fixture yet) | the string answer, the schedule table, no rule or checks panel |
 | Verified | derived: `answer.json` with `quantity.status: "signed"`, `quantity.signed: {"by": "Ana", "at": "2026-11-14T01:40:00Z", "value": 2}` | status "Verified", "Verified by Ana, 2026-11-14 01:40 UTC" next to the value |
@@ -197,7 +200,8 @@ Status words (`quantity.status`): `signed` "Verified", `conflict` "Methods disag
 Added 2026-11-14 13:45 by fe-engineer for #139/#140 (brief `fe-checks-issues.md`, decision #142): the issues list
 reopens a refused question and jumps to an issue's place. Read once when the screen mounts (the shell remounts it
 on a new route path; another issue's link always comes from another route). The URL is left as it is, so a reload
-does the same again: the link is the question or the place.
+does the same again: the link is the question or the place; `?ask=` is not asked again when the kept thread already
+holds that question (QA R4-C1).
 
 **`?ask=<question>`** (a `refused_answer` issue whose `drawing_id` is set; `Issue.question` verbatim):
 - After `GET /api/drawings/{id}` succeeds, the question is asked exactly as if typed: one turn, one
@@ -309,7 +313,7 @@ Desktop 1440x900: one centred column, max 1040 px, padding 32 px 24 px, sections
        "Details" (Query, Method, Signal, How), "Picture of this answer", "Send to surveyor".
   5. A refusal turn: the bubble, the read-as note, then a card (`--v-surface`, radius, padding 20 px) with bold
      "I can't answer that from this drawing.", `refusal.text`, and the `can_answer` questions as chips. No plan.
-  6. An error turn: as today (detail, code, "Try again"), in a `.v-card` with `--v-danger` text.
+  6. An error turn: as today (detail, "Try again"; no raw code, QA R3-L7), in a `.v-card` with `--v-danger` text.
 - **Suggestion chips** (`drawing.suggestions`; hidden while the newest turn is a refusal, whose card offers its
   own `can_answer` chips, EN-60): one row of chips (radius 980 px, 14 px, min 44 px tall,
   `--v-fill`, hover `--v-accent-soft`, wrapping) after the thread, outside every article (a refusal's `can_answer` chips are inside
@@ -382,7 +386,7 @@ Answers
 - EN-20 The viewer gets `proof.legend` as `legend`: the Küche polygon's stroke is `#d62728` and the Reduit polygon's `#1f77b4` (VW-21); a derived legend `note` "1 counted without a mark (second reader)" shows as text. [component, `answer_area.json`, derived `answer.json`]
 - EN-21 An excluded mark shows in the list with the sign "–" and no number, as "– Balkon left out by the rule: outdoor room". [component, derived `answer_area.json`]
 - EN-22 The viewer gets `quantity.conflict` as `conflict`: tags "A" and "B" are on the page for the derived conflict answer; `answer.json` (conflict null) has no tag. [component, derived conflict, `answer.json`]
-- EN-23 With the `confidence` object, "Second reader's score 0.87 (not a probability)" shows; the signal name ("g1main") is not on the card outside Details, and Details shows "Signal: g1main". The card has no "%" next to the score, no word "confidence", and "probability" only in "not a probability". For `answer.json` (confidence null) no score line and no "Signal:" line show. [component, `answer_confidence.json`]
+- EN-23 With the `confidence` object, "Second reader's score 0.87 (not a probability)" shows; the signal name ("g1main") is not on the card outside Details, and Details shows "Signal: g1main". The card has no "%" next to the score, no word "confidence", and "probability" only in "not a probability". For `answer.json` (confidence null) no score line and no "Signal:" line show. Only where the checks line names a second method or a conflict (EN-93). [component, `answer_confidence.json` derived `agree`]
 - EN-24 The footer shows "Cost $0" and "Time 2.0 ms" for `answer.json`. [component]
 - EN-25 `engineer/format.ts` gives: cost 0 → "$0", 0.0004 → "$0.0004", 0.123 → "$0.12"; latency 0.0001622 → "0.2 ms", 0.002 → "2.0 ms", 1.25 → "1.25 s"; score 0.87 → "0.87". Values and times on screen come from the shared `formatValue`/`formatTime` (their criteria are in shared.md). [unit]
 - EN-26 (Vellum: the sentence is the where-line of reference 1, "Original file"; the heading is "References") "Where this came from" shows "PDF vector reader read plans/flat-a.pdf (drawn PDF route), no second count" for `answer.json` (`second_counter: "none"`), and "PDF vector reader read plans/flat-a.pdf (drawn PDF route), second count by IFC model" with `second_counter: "ifc"`. [component, `answer.json`, derived `answer.json`]
@@ -511,6 +515,18 @@ Thread and pages
   (EN-88) is left out. A High answer shows no panel, so its estimate line stays. [component]
 - EN-90 (#350) An answer with `partial` true shows CH-49's "May be partial" tag beside the value (name and title
   "May be partial: sums 7 rooms; 2 not in it"); nothing without it. [component]
+- EN-91 (QA 2026-11-15) The mark list shows at most 12 rows; with more marks the first 12 and a button "Show all
+  <n>" (`aria-expanded`), which shows every row and becomes "Show fewer". A selected mark past the 12th (a badge
+  clicked in the viewer, EN-17) shows the whole list, so its row is there. Before: a schedule's 38 rows listed "1 item"
+  … "38 item", 2,000 px of card. [component]
+- EN-92 (QA round 2, R2-A2) A refusal draws no sheet, so the opening card (the page without marks, the "how it was
+  read" line) stays above the thread while every turn is a refusal; the first turn that is not a refusal (pending, an
+  answer or an error) replaces it as before (EN-78). A judge whose first question is refused still sees the drawing.
+  [component]
+- EN-93 (QA round 3, R3-A2) Where the checks line says "Measured/Estimated by one method; no second check." (no
+  conflict, `first` or `second` null) the card shows no "Second reader's score" line: beside "no second check" a score
+  reads as a contradiction, and a 0.00 alarms a reader. Details still has "Signal: g1main". With a conflict or two
+  agreeing methods, or no takeoff row, the score shows as in EN-23. [component, `answer_confidence.json`]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
@@ -533,7 +549,7 @@ is read when present but never mocked (its shape is not final); its line carries
 
 ## Out of scope
 
-- Keeping the thread across reloads, or sharing it between people; a question on a whole project (API.md "What is
+- Sharing the thread between people or tabs; a question on a whole project (API.md "What is
   not in v1").
 - Drawing per-item contested (amber) marks: v1 shows a conflict per quantity with both values (API.md "What is not
   in v1").

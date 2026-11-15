@@ -52,7 +52,7 @@ project's drawings").
 | Asking | the question bubble and "Reading N drawings…"; Ask disabled |
 | Answered (one or more parts) | one card: the quantity label (small), the total (`answer-value`, 44 px) in `total_unit` when `total` is not null, a "Sure" badge after it when `total_sure` (as EN-53), `total_note`, then one line per answering part "<name>: <value>" with "Show it on <name>" linking to `#/p/<pid>/d/<drawing_id>/engineer?ask=<question>` (plus `&pack=<id>` when the chat has one), so that drawing opens already answering this question with its marks (engineer.md EN-72; QA R4b-1); no plan, no image |
 | Refused by all | one refusal card: "I can't answer that from these drawings.", the first refusal's text and its `can_answer` chips (a click asks the project again) |
-| The ask failed (404, 409, 500, network) | the engineer's error turn ("The question could not be answered: <detail>", code, Try again asks again) |
+| The ask failed (404, 409, 500, network) | the engineer's error turn ("The question could not be answered: <detail>", no raw code, Try again asks again) |
 
 Phone 390: one column, no sideways scroll, the ask box sticks to the bottom (engineer.md EN-71 band).
 
@@ -139,8 +139,8 @@ agent chat's next turn sees the new drawing because the backend reads the projec
 - CH-21 A poll that fails after the post succeeded is retried on the next tick (the file is added either way); after
   180 polls (3 minutes) still queued or running: "plan.jpg is still being read. Reload later to ask about it.", the
   paperclip freed. Leaving the chat while a photo is read stops the polling. [component]
-- CH-22 On a phone (`max-width: 480px`) the chats' ask bar reads "Ask about the drawings", so the paperclip does not
-  cut the placeholder; the engineer page's ask bar (no `short`) is unchanged. [component]
+- CH-22 On a phone (`max-width: 480px`) the chats' ask bar reads "Ask a question", so the paperclip and pen do not
+  cut the placeholder ("Ask about the drawings" was cut to "Ask about the drawin", QA G2); the engineer page's ask bar (no `short`) is unchanged. [component]
 
 ## Demo parity (Tudor 16:25, brief `fe-demo-parity.md`)
 
@@ -274,6 +274,10 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   sheet's scale 22.401, the printed room areas 30); kept 30: ..."): its "Methods disagree" pill says the reason is
   below. Before: nothing was below, so the chat never said which value was kept or why. [component,
   `answer_conflict.json`]
+- CH-51 (QA 2026-11-15, phone grade area 8) The card's plan thumbnail is the bare viewer (no zoom). A tap on the image
+  (not on a mark) or the "Enlarge the plan" button opens the same reference, marks and legend in the full viewer
+  (zoom buttons, legend) in the full-window plan sheet (`PlanSheet`); Close or Escape shuts it and focus goes back to
+  the button. [component + e2e AC-30, desktop and phone]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 

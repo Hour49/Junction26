@@ -6,6 +6,7 @@ import {
   ApiError,
   askQuestion,
   errorText,
+  formatTime,
   formatValue,
   getDrawing,
   postReview,
@@ -16,6 +17,7 @@ import {
   type SignOffRequest,
   type Takeoff,
 } from '../api';
+import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { pageFlagged, patch, requestLine, stateOf, toViewer } from './check';
 import { checkOf, type Disputed } from './types';
@@ -47,7 +49,7 @@ interface Props {
 type Mode = 'ask' | 'fixing' | 'confirm';
 type Credit = { credit: string | null } | { error: unknown } | null;
 
-const NAME_KEY = 'countersign.surveyorName'; // the saved name key (kept so a name typed before is remembered)
+const NAME_KEY = 'countersign.surveyorName'; // the surveyor workspace's key: one name for both
 
 function savedName(): string {
   try {
@@ -64,7 +66,8 @@ function saveName(name: string) {
   }
 }
 
-const SIGNED_ALREADY = 'This value cannot be changed.';
+const SIGNED_ALREADY =
+  'Someone signed this off already. Undo the sign-off in the surveyor workspace to change it.';
 
 /** "2 doors" / "1 door" / "52.27 m²". */
 function valueWords(a: AnswerView): string {
@@ -87,6 +90,8 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState<string | null>(null); // a failed re-ask after the sign-off
+  const [edited, setEdited] = useState(false);
+  const [kept, setKept] = useState(false);
   const [name, setName] = useState(savedName);
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -114,6 +119,20 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
   const row = a.quantity;
   const key = row.key;
   const isCount = a.unit === 'count';
+  const workspace = (
+    <a
+      className="font-semibold text-primary"
+      href={routeHref({
+        name: 'workspace',
+        projectId,
+        drawingId,
+        role: 'surveyor',
+        query: new URLSearchParams({ q: key }),
+      })}
+    >
+      Open in the surveyor workspace
+    </a>
+  );
 
   function show(next: AnswerView) {
     setLive({ from: answer, answer: next });
@@ -150,6 +169,7 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
       (t) => {
         const next = rowOf(t);
         if (next) show(patch(a, next));
+        setEdited(true);
       },
     );
   }
@@ -172,11 +192,17 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
   }
 
   if (state === 'checked') {
+    const s = row.signed;
     return (
       <section className={cn(PANEL, 'gap-2 bg-ok-soft')} aria-label="Double-check">
         <Tip text={REVIEW_TIPS.checkedByPerson} wrap>
           <Badge className={cn(PILL, 'bg-card text-ok')}>Checked by a person</Badge>
         </Tip>
+        {s && (
+          <p className={ASK}>
+            Checked by {s.by}, {formatTime(s.at)}
+          </p>
+        )}
         {refresh !== null && (
           <p role="alert" className={ERROR}>
             Checked. The answer could not be refreshed: {refresh}{' '}
@@ -190,6 +216,7 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
             {error}
           </p>
         )}
+        {workspace}
       </section>
     );
   }
@@ -391,6 +418,7 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
                 disabled={busy}
                 onClick={() => {
                   setMode('ask');
+                  setKept(edited);
                 }}
               >
                 Cancel
@@ -418,6 +446,7 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
                   disabled={busy}
                   onClick={() => {
                     setMode('fixing');
+                    setKept(false);
                   }}
                 >
                   Fix it
@@ -448,6 +477,11 @@ export function DoubleCheck({ answer, projectId, drawingId, onChanged }: Props) 
         </div>
       )}
 
+      {kept && mode === 'ask' && (
+        <p className={HINT}>
+          <span>Your edits are kept; Reset in the surveyor workspace undoes them.</span> {workspace}
+        </p>
+      )}
       {busy && (
         <p role="status" className={HINT}>
           Saving…

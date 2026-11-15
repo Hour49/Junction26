@@ -185,6 +185,8 @@
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
+  "phase": null,
+  "index_steps": [],
   "drawings": [
     {
       "drawing_id": "44cc9f0d991eafe3",
