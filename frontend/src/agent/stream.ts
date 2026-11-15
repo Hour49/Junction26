@@ -55,6 +55,29 @@ function eventOf(m: { event: string; data: string }): StreamEvent {
 
 const LOST = 'The connection was lost while the agent was working. Ask again.';
 
+/** A live stream sends a byte at least every 10 s (the server's ping, contract C); this long with none, the
+ * connection is gone even if it was never closed (a killed backend behind a proxy, a frozen one), so the turn fails
+ * as lost instead of spinning forever (QA R2-C6). */
+export const STREAM_IDLE_MS = 45_000;
+
+/** `step`, or a lost connection (after `onLost`) when it has not settled in STREAM_IDLE_MS. */
+async function orLost<T>(step: Promise<T>, onLost: () => void): Promise<T> {
+  let idle: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      step,
+      new Promise<never>((_, reject) => {
+        idle = setTimeout(() => {
+          reject(new ApiError(0, 'network', LOST)); // first: the abort onLost makes must not win the race
+          onLost();
+        }, STREAM_IDLE_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(idle);
+  }
+}
+
 /** One turn over the stream route, calling `onEvent` for each event; resolves with the final ChatTurn. Only for a
  * server whose /api/info says `chat.stream` (the caller picks the sync route otherwise). Never resends: a lost
  * connection may have started the turn on the server. */
@@ -65,14 +88,21 @@ export async function streamTurn(
   opts: { signal?: AbortSignal } = {},
 ): Promise<ChatTurn> {
   let response: Response;
+  const stop = new AbortController(); // frees a request that never answered
   try {
-    response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/chat/stream`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      signal: opts.signal ?? null,
-    });
+    response = await orLost(
+      fetch(`/api/projects/${encodeURIComponent(projectId)}/chat/stream`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        signal: opts.signal ? AbortSignal.any([opts.signal, stop.signal]) : stop.signal,
+      }),
+      () => {
+        stop.abort();
+      },
+    );
   } catch (error) {
+    if (error instanceof ApiError) throw error;
     if ((error as { name?: unknown } | null)?.name === 'AbortError') throw error;
     throw new ApiError(0, 'network', 'cannot reach the server');
   }
@@ -84,7 +114,9 @@ export async function streamTurn(
   for (;;) {
     let chunk: ReadableStreamReadResult<Uint8Array>;
     try {
-      chunk = await reader.read();
+      chunk = await orLost(reader.read(), () => {
+        void reader.cancel().catch(() => undefined);
+      });
     } catch (error) {
       if ((error as { name?: unknown } | null)?.name === 'AbortError') throw error;
       throw new ApiError(0, 'network', LOST);

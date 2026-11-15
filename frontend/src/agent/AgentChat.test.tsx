@@ -72,7 +72,9 @@ it('AC-30 a failed turn says why and can be sent again', async () => {
     n++ === 0 ? { status: 500, body: { detail: 'internal error', code: 'internal' } } : answerTurn,
   );
   await send('How big is the bathroom?');
-  expect((await screen.findByRole('alert')).textContent).toMatch(/internal error/);
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toMatch(/internal error/);
+  expect(alert.textContent).not.toMatch(/code:/); // R2-C5: no raw code for a person
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
 });
@@ -326,4 +328,19 @@ it('#425 the photo picker takes TIFF and WebP too, by type and by extension', as
   for (const kind of ['image/png', 'image/jpeg', 'image/tiff', 'image/webp'])
     expect(accept).toContain(kind);
   for (const ext of ['.tif', '.tiff', '.webp']) expect(accept).toContain(ext);
+});
+
+it('QA G2 a thread kept over a reload scrolls to its last turn once the project loads, not the top', async () => {
+  open(answerTurn);
+  await send('How big is the bathroom?');
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  cleanup(); // the reload: sessionStorage keeps the thread
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
+  open(answerTurn);
+  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  await waitFor(() => {
+    expect(scrolled).toHaveBeenCalled();
+  });
+  Element.prototype.scrollIntoView = vi.fn();
 });

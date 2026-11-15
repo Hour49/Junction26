@@ -2,6 +2,7 @@ import { useEffect, useState, type JSX } from 'react';
 import type { FileStatus, ProjectView } from '../api';
 import { DoneLine, IngestFinished, type ConflictCounts } from '../ingest/IngestFinished';
 import { STEPS, formatCost, formatMs, formatSize, isFinished, stepOf } from '../ingest/ingest';
+import { readDrawings } from '../ingest/pipeline';
 import {
   STATUS_WORD,
   STEP_VIEW,
@@ -111,9 +112,7 @@ export function AdvancedIngest({
         const c = planCounts(project);
         const expected = project.expected_drawings;
         // a drawing on a route whose reader is `hello` was not read: not ready (AD-123, as Simple's IN-116)
-        const ready = project.drawings.filter(
-          (d) => isFinished(d) && !(d.route != null && project.readers?.[d.route] === 'hello'),
-        ).length;
+        const ready = readDrawings(project).filter((d) => isFinished(d)).length;
         return [
           { label: 'Rooms', value: dash(c.room) },
           { label: 'Doors', value: dash(c.door) },

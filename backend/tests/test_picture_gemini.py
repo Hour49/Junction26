@@ -10,12 +10,13 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from app.adapters.discipline_pictures import gemini
 from app.adapters.discipline_pictures.gemini import GeminiPictureReader, reading_of
 from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets
 from app.adapters.raster_ocr.gemini import GeminiError, NoAnswerError
 from app.core.drawing.model import Page
 from app.core.ifc_facts import Spot
-from app.core.picture_facts import HELD, PictureReading, Sighting
+from app.core.picture_facts import HELD, LegendEntry, PictureReading, Run, Sighting
 from app.core.pipeline.model import DrawingFile, Sheet
 
 
@@ -172,17 +173,59 @@ def named_sheet() -> tuple[DrawingFile, Sheet]:
     return source, Sheet(file=source, pages=(Page(page=1, width=400, height=300, unit="px"),))
 
 
-def test_after_a_failed_call_the_lane_keeps_the_sheet_it_had(tmp_path: Path) -> None:
+class Mask:
+    """The mask reader, faked: it always reads one supply-pipe run, so a page always has a fact
+    even with no symbols, and the lane would keep a runs-only sheet."""
+
+    def read(self, source: Any, sheet: Any) -> PictureReading:
+        pipe = LegendEntry(label="Supply pipe", group=None, line=True, box=(0.9, 0.13, 0.96, 0.14))
+        run = Run(
+            label="Supply pipe",
+            size="DN20",
+            length_m=5.0,
+            spots=(Spot(page=1, box=(0.1, 0.1, 0.3, 0.12), reader="mask"),),
+        )
+        return PictureReading(reader="mask", legend=(pipe,), read=None, runs=(run,))
+
+
+def test_after_a_failed_call_the_lane_keeps_the_sheet_it_had(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     good = reply({"legend": LEGEND, "symbols": [{"label": "Valve", "boxes": [[1, 1, 9, 9]]}]})
     made, sheets = lane(Client(good), tmp_path)
+    monkeypatch.setattr(made, "_mask", Mask())
     made.extract(*named_sheet())
     kept = sheets.sheet("1" * 64)
-    assert kept is not None and kept.facts
+    assert kept is not None and any(f.topic.startswith("valve") for f in kept.facts)
     for path in (tmp_path / "replies").glob("*.json"):
         path.unlink()  # the cached reply gone: the next read calls again, and fails
     failing, _ = lane(Client(NoAnswerError("HTTP 503")), tmp_path)
+    monkeypatch.setattr(failing, "_mask", Mask())  # the runs alone would make a sheet
     assert failing.extract(*named_sheet()) == "drawing"  # ingest goes on
-    assert sheets.sheet("1" * 64) == kept  # not overwritten by a sheet without symbols
+    assert sheets.sheet("1" * 64) == kept  # not overwritten by a runs-only sheet
+
+
+def test_a_new_reader_version_asks_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cache key holds VERSION, bumped with what PROMPT_SHA does not see (the thinking level,
+    the token cap, the JPEG encoding), so old replies are not served after such a change."""
+    client = Client(reply({"legend": LEGEND, "symbols": []}))
+    reader(client, tmp_path).read(*sheet())
+    monkeypatch.setattr(gemini, "VERSION", gemini.VERSION + "-next")
+    reader(client, tmp_path).read(*sheet())
+    assert client.calls == 2
+    (first, second) = sorted((tmp_path / "replies").glob("*.json"))
+    assert first.name != second.name
+
+
+def test_a_reply_with_no_legend_reads_nothing_and_is_not_cached(tmp_path: Path) -> None:
+    """A page where the model found no legend is asked again on the next ingest: a miss on one
+    call is not kept for good."""
+    client = Client(reply({"legend": [], "symbols": []}))
+    first = reader(client, tmp_path).read(*sheet())
+    assert first.legend is None and not first.sightings
+    reader(client, tmp_path).read(*sheet())
+    assert client.calls == 2
+    assert not list((tmp_path / "replies").glob("*.json"))
 
 
 class Reads:

@@ -559,6 +559,21 @@ describe('AdvancedIngest', () => {
     expect(document.body.textContent).not.toContain('answers ready');
   });
 
+  it('AD-124 Index: only drawings with questions get a row, the rest one line', async () => {
+    // only flat-a's file keeps its takeoff: one row, the other five drawings in one line
+    const p: ProjectView = {
+      ...project,
+      files: project.files.map((f) => (f.path === 'plans/flat-a.pdf' ? f : { ...f, takeoff: {} })),
+    };
+    await show(p);
+    const text = document.body.textContent;
+    expect(text).toContain('plans/flat-a.pdf: 141 questions ready to ask');
+    expect(text).not.toContain('0 questions ready to ask');
+    expect(text).toContain('5 drawings have none yet');
+    await show({ ...p, drawings: project.drawings.slice(0, 2) });
+    expect(document.body.textContent).toContain('1 drawing has none yet');
+  });
+
   it('AV-21 takeoffs only once a step needs them; a failure shows Retry', async () => {
     const d = must(project.drawings[0]);
     const { api } = await show(project, {

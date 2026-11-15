@@ -27,6 +27,9 @@ from app.core.pipeline.model import DrawingFile, Sheet
 from app.core.pipeline.ports import DrawingFiles
 
 READER = "vlm"
+# In the cache key with PROMPT_SHA: bump it with what that hash does not see (the Carbon model's
+# thinking level, PAGE_MAX_TOKENS, the JPEG encoding), so old replies are not served after it
+VERSION = "vlm-1"
 PROMPT = """This is a building services plan (heating, plumbing, ventilation, electrical, fire or
 structural) with a legend. First read the legend: every row that pairs a drawn symbol (or a line
 style) with its label. Give each row's label exactly as printed, whether it is a line style (a
@@ -72,8 +75,9 @@ PROMPT_SHA = hashlib.sha256((PROMPT + json.dumps(SCHEMA, sort_keys=True)).encode
 class GeminiPictureReader:
     """`PictureReader`; `legend_of` is not asked: the reply carries its own legend.
 
-    Replies are cached whole in `cache_dir` by the page file's sha256, the prompt (and schema)
-    hash and the model, so a page is paid for once; only a reply that parses is kept. A failed
+    Replies are cached whole in `cache_dir` by the page file's sha256, VERSION, the prompt (and
+    schema) hash and the model, so a page is paid for once; only a reply that parses and names a
+    legend is kept (one where the model found no legend is asked again next time). A failed
     call (no answer, budget spent) or a reply that is not the asked JSON raises `GeminiError`:
     the lane then keeps no sheet for the page (a sheet already kept stays), and the next ingest
     asks again."""
@@ -85,7 +89,8 @@ class GeminiPictureReader:
 
     def read(self, source: DrawingFile, sheet: Sheet) -> PictureReading:
         data = self._files.read(source.path)
-        name = f"vlm-{hashlib.sha256(data).hexdigest()}-{PROMPT_SHA[:12]}-{contract.MODEL}.json"
+        digest = hashlib.sha256(data).hexdigest()
+        name = f"vlm-{digest}-{VERSION}-{PROMPT_SHA[:12]}-{contract.MODEL}.json"
         path = self._cache / re.sub(r"[^A-Za-z0-9.-]", "_", name)
         if path.is_file():
             try:
@@ -102,7 +107,8 @@ class GeminiPictureReader:
             reading = reading_of(answer)
         except ValueError as error:
             raise GeminiError(f"{READER}: {error}") from None
-        write_whole(path, json.dumps(answer, ensure_ascii=False))
+        if reading.legend is not None:  # no legend: not kept, the next ingest asks again
+            write_whole(path, json.dumps(answer, ensure_ascii=False))
         usd = contract.price(answer.get("usageMetadata") or {})
         return reading.model_copy(update={"cost_usd": round(usd, 6)})
 

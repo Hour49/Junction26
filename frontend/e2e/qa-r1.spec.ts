@@ -86,4 +86,11 @@ test('R1 engineer: an IFC answer fits 390x844', async ({ page }, testInfo) => {
   await expect(turn.getByTestId('answer-value')).toBeVisible();
   await expect(turn).toBeInViewport({ ratio: 0.2 });
   await shot(page, testInfo, 'qa-r1-ifc-390', await noKeys(page));
+  // R3-L2: a reload of the tab keeps the answered question, and asks nothing again
+  await page.reload();
+  await expect(
+    page.getByRole('article', { name: question }).getByTestId('answer-value'),
+  ).toBeVisible();
+  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByText('1 asked')).toBeVisible();
 });

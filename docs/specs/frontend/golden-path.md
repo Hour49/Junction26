@@ -419,7 +419,7 @@ step 4. Drawing ids are content hashes and stable, but the fixtures' ids are sta
 | Refusal | step 7 | "What colour is the roof?" |
 | Conflict | step 6 and 8 | flat-b's kitchen |
 | Signed / verified | steps 10, 11 | the sign-off |
-| Error (`{detail, code}`) | the service-down test: `GET /api/projects` answered 500 `{"detail": "internal error", "code": "internal"}` by `page.route`; home shows "internal error" and "internal" and a Retry; after `page.unroute`, Retry loads the list | `page.route` in the test |
+| Error (`{detail, code}`) | the service-down test: `GET /api/projects` answered 500 `{"detail": "internal error", "code": "internal"}` by `page.route`; home shows "internal error" (not the code) and a Retry; after `page.unroute`, Retry loads the list | `page.route` in the test |
 | Empty | not on the path: an empty project list is the ingest spec's component test (IN-13) | — |
 | A console error or page error | fails the golden-path test (QA.md §2 "no errors in the browser console") | listener on `console` (type `error`) and `pageerror` |
 
@@ -527,7 +527,7 @@ Selectors
    | --- | --- | --- | --- |
    | shared | offline text | "Running offline: no API keys, no models" (full text at both widths) | SH-16, Layout |
    | shared | view links | links "Ingest", "Engineer", "Surveyor"; current one `aria-current="page"` | SH-13, SH-14 |
-   | shared | error view | `detail`, "code: <code>", a "Retry" button, `role="alert"` | States "Screen error" |
+   | shared | error view | `detail` (no code), a "Retry" button, `role="alert"` | States "Screen error" |
    | ingest | sample button | button "Try the sample project" | IN-1, IN-9 |
    | ingest | project done | "Done", "11 of 11 files finished" | IN-16 |
    | ingest | file row | a link whose name contains the file's `path`; state words "flagged", "set aside", "text only" | IN-18, IN-19 |

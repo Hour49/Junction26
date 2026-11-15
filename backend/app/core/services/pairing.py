@@ -20,8 +20,11 @@ from app.core.services.register import Place, Segment, register
 # wall-line fit (rotation and scale, Madalina's side) plugs in here.
 Register = Callable[[Sheet, Sheet], tuple[Affine, str] | str]
 
-# A sheet's wall lines in its own units (pixels) and its page's size in them, or why none.
-SheetWalls = Callable[[Sheet], tuple[Sequence[Segment], Point2] | str]
+# A part of a sheet (x0, y0, x1, y1 in its units, pixels) and its wall lines in the part's own
+# units (from its corner): the whole page, or a plan view the finder cut out (plan_view.py).
+Crop = tuple[tuple[float, float, float, float], Sequence[Segment]]
+# A sheet's parts with their wall lines and its page's size in its units, or why none.
+SheetWalls = Callable[[Sheet], tuple[Sequence[Crop], Point2] | str]
 
 SCORE_BOTH, SCORE_PAGE, SCORE_GEOMETRY = 0.9, 0.7, 0.6
 FACES_M = (0.03, 0.6)  # two parallel faces of the wall mass this far apart are one wall
@@ -29,6 +32,8 @@ FACE_MIN_M = 0.3  # shorter faces (door reveals, wall ends) give no wall line
 PARALLEL_DEG = 3.0
 SCALE_SLACK = 0.05  # a sheet's own scale and the walls' fitted one further apart are named
 SAME_SIZE = 0.02  # two sheets this close in metres are taken to share their frame
+CROPS_AGREE = (2.0, 0.02)  # two crops' lays agree within this turn (deg) and share of the plan
+CROPS_MARGIN = 1.3  # ... else the best must match this many times the other's wall lines
 
 # Floor words -> one key per floor ("0" ground, "1" first upper, "-1" basement, "roof").
 # shortcut: one numbering for every set (Finnish "1. krs" is the ground floor, German "EG" is 0);
@@ -39,7 +44,8 @@ SAME_SIZE = 0.02  # two sheets this close in metres are taken to share their fra
 _LEVEL_CODE = (r"\be(\d{2})\b", "{}")
 _FLOORS: tuple[tuple[str, str], ...] = (
     (r"\b(?:eg|erdgeschoss|gf|ground(?:\s+floor)?)\b", "0"),
-    (r"\b(?:dg|dachgeschoss|roof|attic|ullakko)\b", "roof"),
+    (r"\b(?:dg|dachgeschoss|attic|ullakko)\b", "attic"),  # not the roof (pics-answer, building 333)
+    (r"\broof\b", "roof"),
     (r"\b(?:ug|kg|untergeschoss|kellergeschoss|keller|kellari|basement|cellar)\b", "-1"),
     (r"\b(\d)f\b", "{}"),
     (r"\bb(\d{1,2})\b", "-{}"),  # B1, B01
@@ -49,12 +55,36 @@ _FLOORS: tuple[tuple[str, str], ...] = (
         r"\b(?:og|floor|fl|level|storey|story|etage|niveau|lvl|l|krs|kerros)\s*[-.]?\s*(\d{1,2})\b",
         "{}",
     ),
-    (r"\b(\d{1,2})(?:st|nd|rd|th)\s+floor\b", "{}"),
-    # "First Floor", "Second Floor": the USCG sheets' words (pics-answer real set, 2026-11-15)
-    *(
-        (rf"\b{word}\s+floor\b", str(n))
-        for n, word in enumerate(("first", "second", "third", "fourth", "fifth", "sixth"), 1)
-    ),
+)
+# Floors named in words, alone or listed: "First Floor", "2nd floor", "Basement, First and Second
+# Floor", "Second Thru Seventh Floors" (the USCG sheets' words; pics-answer, 2026-11-15)
+_ORDINALS = (
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+    "tenth",
+)
+_ITEM = rf"(?:ground|basement|cellar|attic|{'|'.join(_ORDINALS)}|\d{{1,2}}(?:st|nd|rd|th))"
+_SEP = r"(?:\s*,\s*(?:and\s+)?|\s+(?:and|&|thru|through|to)\s+|\s*-\s*)"
+_PHRASE = re.compile(
+    rf"\b{_ITEM}(?:{_SEP}{_ITEM})*\s+(?:floors?|storeys?|story|stories|levels?)\b", re.IGNORECASE
+)
+_NUMBERED = re.compile(  # "Floors 2-4", "levels 3 to 5"
+    r"\b(?:floors|levels|storeys)\s+(\d{1,2})\s*(-|to|thru|through|and|&)\s*(\d{1,2})\b",
+    re.IGNORECASE,
+)
+_RANGE = ("-", "to", "thru", "through")
+# A floor the name says that no rule reads: pairing must not fall back to geometry on it
+_UNREAD = re.compile(
+    r"\b(?:(?:typical|upper|lower|main|top|intermediate|mezzanine|all|other|remaining|each)\s+"
+    r"(?:floors?|levels?|storeys?)|[a-z]+\s+(?:floors|levels|storeys|stories))\b",
+    re.IGNORECASE,
 )
 _NUMBER = re.compile(r"\b([A-Z]{1,3})[-_ .]?(\d{3,4})\b")
 _YEAR = re.compile(r"(?<!\d)(19[5-9]\d|20[0-4]\d)(?!\d)")  # a year is no sheet number (N1)
@@ -80,8 +110,10 @@ def by_room_names(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
 
 
 def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register:
-    """The wall-line register (`register`): the sheet's lines laid on the plan's walls (metres),
-    the result as a map of page fractions with `register`'s words."""
+    """The wall-line register (`register`): each part of the sheet's lines laid on the plan's
+    walls (metres), the part's corner added back; the best lay as a map of page fractions with
+    `register`'s words. Two parts that lay the sheet two ways with no clear winner are refused
+    (twin views), as is a cut-out part laid off the sheet's own scale (it has no page to fill)."""
 
     def laid(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
         if plan.size_m is None:
@@ -89,21 +121,68 @@ def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register
         found = sheet_walls(sheet)
         if isinstance(found, str):
             return found
-        lines, size = found
-        placed = register(plan_walls, lines)
-        if not isinstance(placed, Place):
-            return placed.reason
+        crops, size = found
+        places: list[tuple[Place, bool]] = []
+        why: list[str] = []
+        for box, lines in crops:
+            got = register(plan_walls, lines)
+            if isinstance(got, Place):
+                whole = box == (0.0, 0.0, size[0], size[1])
+                places.append((_from_corner(got, box[:2]), whole))
+            else:
+                why.append(got.reason)
+        if not places:
+            return "; ".join(dict.fromkeys(why))
+        placed, whole = max(places, key=lambda p: p[0].inliers)
+        for other, _ in places:
+            if (
+                other is not placed
+                and not _agree(placed, other, size, plan.size_m)
+                and placed.inliers < CROPS_MARGIN * other.inliers
+            ):
+                return (
+                    f"two parts of the sheet lay it two ways ({placed.inliers} and "
+                    f"{other.inliers} wall lines match): which view is the plan is a guess"
+                )
         how = placed.reason
         if sheet.size_m is not None:  # its own scale (a scale bar): say when the walls disagree
             bar = sheet.size_m[0] / size[0]
             if abs(placed.scale / bar - 1) > SCALE_SLACK:
-                how += (
-                    f"; its scale says {bar * 1000:.1f} mm a pixel, the walls "
-                    f"{placed.scale * 1000:.1f} mm: laid by the walls"
+                said = (
+                    f"its scale says {bar * 1000:.1f} mm a pixel, the walls "
+                    f"{placed.scale * 1000:.1f} mm"
                 )
+                if not whole:
+                    return f"a part of the sheet matches the walls, but {said}: not laid"
+                how += f"; {said}: laid by the walls"
         return _fractions(placed, size, plan.size_m), how
 
     return laid
+
+
+def _from_corner(placed: Place, corner: tuple[float, float]) -> Place:
+    """`placed` for the page's units, from a crop's whose corner is `corner`: p = sR(u - o) + t."""
+    t = math.radians(placed.rotation_deg)
+    s, (ox, oy) = placed.scale, corner
+    x = placed.shift[0] - s * (math.cos(t) * ox - math.sin(t) * oy)
+    y = placed.shift[1] - s * (math.sin(t) * ox + math.cos(t) * oy)
+    return placed.model_copy(update={"shift": (x, y)})
+
+
+def _agree(a: Place, b: Place, size: Point2, plan_m: Point2) -> bool:
+    """Whether two lays put the sheet's middle at the same spot of the plan, turned alike."""
+    turn = abs((a.rotation_deg - b.rotation_deg + 180.0) % 360.0 - 180.0)
+    middle = (size[0] / 2, size[1] / 2)
+    return turn <= CROPS_AGREE[0] and math.dist(_lay(a, middle), _lay(b, middle)) <= CROPS_AGREE[
+        1
+    ] * max(plan_m)
+
+
+def _lay(placed: Place, q: Point2) -> Point2:
+    t = math.radians(placed.rotation_deg)
+    x = placed.scale * (math.cos(t) * q[0] - math.sin(t) * q[1]) + placed.shift[0]
+    y = placed.scale * (math.sin(t) * q[0] + math.cos(t) * q[1]) + placed.shift[1]
+    return (x, y)
 
 
 def either(*registers: Register) -> Register:
@@ -243,6 +322,10 @@ def _pair(plan: Sheet, sheet: Sheet, register: Register) -> Pairing | str:
     hints, refused = _metadata(plan, sheet)
     if refused:
         return refused
+    if not hints:  # geometry alone must not pick a floor the names say but no rule reads
+        for who, one in (("the plan", plan), ("the services picture", sheet)):
+            if (words := _unread(one)) is not None:
+                return f"{who} names a floor that is not read ('{words}'): no floor to pair on"
     laid = register(plan, sheet)
     if hints and not isinstance(laid, str):
         to_plan, how = laid
@@ -303,23 +386,79 @@ def _floors(sheet: Sheet, folders: bool = False) -> dict[str, str]:
     Not its folders (a set's folder "B1/" is on every floor's sheet, review-558 M1); with
     `folders`, only what its folders name."""
     found: dict[str, str] = {}
+    for source, text in _texts(sheet, folders):
+        found.update({k: v for k, v in _read(text, source)[0].items() if k not in found})
+    return found
+
+
+def _texts(sheet: Sheet, folders: bool = False) -> list[tuple[str, str]]:
+    """Where a sheet's floor is read: its title's floor, its sheet number, its file name; with
+    `folders`, its folders only."""
     path = PurePosixPath(sheet.name) if sheet.name else None
     if folders:
-        where = [("folder", " ".join(path.parent.parts))] if path else []
+        texts = [("folder", " ".join(path.parent.parts) if path else None)]
     else:
-        where = [("title", sheet.storey), ("number", sheet.sheet_number),
+        texts = [("title", sheet.storey), ("number", sheet.sheet_number),
                  ("name", path.name if path else None)]  # fmt: skip
-    for source, text in where:
-        if not text:
+    return [(source, text.replace("_", " ")) for source, text in texts if text]
+
+
+def _read(text: str, source: str) -> tuple[dict[str, str], list[tuple[int, int]]]:
+    """The floors one text names (key -> words) and where in it they were read."""
+    found: dict[str, str] = {}
+    spans: list[tuple[int, int]] = []
+    for pattern, key in _FLOORS:
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            if (pattern, key) == _LEVEL_CODE and not _level_code(source, m.start()):
+                continue
+            found.setdefault(key.format(int(m.group(1))) if m.groups() else key, m.group(0))
+            spans.append(m.span())
+    for m in _PHRASE.finditer(text):
+        for key in _phrase_keys(m.group(0)):
+            found.setdefault(key, m.group(0))
+        spans.append(m.span())
+    for m in _NUMBERED.finditer(text):
+        a, how, b = int(m.group(1)), m.group(2).casefold(), int(m.group(3))
+        for n in range(a, b + 1) if how in _RANGE else (a, b):
+            found.setdefault(str(n), m.group(0))
+        spans.append(m.span())
+    return found, spans
+
+
+def _phrase_keys(words: str) -> list[str]:
+    """The floors of a listed phrase: "Basement, First and Second Floor" -> -1, 1, 2; a range
+    of numbered floors ("Second Thru Seventh") is every floor between."""
+    parts = re.split(rf"({_SEP})", words, flags=re.IGNORECASE)
+    keys: list[str] = []
+    for i in range(0, len(parts), 2):
+        item = re.match(_ITEM, parts[i].strip(), re.IGNORECASE)
+        if item is None:
             continue
-        spaced = text.replace("_", " ")
-        for pattern, key in _FLOORS:
-            for m in re.finditer(pattern, spaced, re.IGNORECASE):
-                if (pattern, key) == _LEVEL_CODE and not _level_code(source, m.start()):
-                    continue
-                k = key.format(int(m.group(1))) if m.groups() else key
-                found.setdefault(k, m.group(0))
-    return found
+        key = _item_key(item.group(0))
+        joint = parts[i - 1].strip().casefold() if i else ""
+        if joint in _RANGE and keys and keys[-1].isdigit() and key.isdigit():
+            keys += [str(n) for n in range(int(keys[-1]) + 1, int(key))]
+        keys.append(key)
+    return keys
+
+
+def _item_key(word: str) -> str:
+    low = word.casefold()
+    if low in _ORDINALS:
+        return str(_ORDINALS.index(low) + 1)
+    if low[:-2].isdigit():
+        return str(int(low[:-2]))
+    return {"ground": "0", "basement": "-1", "cellar": "-1"}.get(low, low)
+
+
+def _unread(sheet: Sheet) -> str | None:
+    """Words of the sheet that name a floor no rule reads ("Upper Floors", "Typical Floor")."""
+    for source, text in _texts(sheet):
+        spans = _read(text, source)[1]
+        for m in _UNREAD.finditer(text):
+            if not any(a <= m.start() < b or a < m.end() <= b for a, b in spans):
+                return m.group(0)
+    return None
 
 
 def _number(sheet: Sheet) -> tuple[str, str] | None:

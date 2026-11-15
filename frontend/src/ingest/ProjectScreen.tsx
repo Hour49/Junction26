@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useState, type ReactNode } from 'react';
 import { errorText, formatTime, getProject, type FileStatus, type ProjectView } from '../api';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
@@ -9,6 +9,7 @@ import {
   STATE_LABEL,
   isLive,
   keepPolling,
+  nameParts,
   sizeText,
   uploadedKey,
 } from './ingest';
@@ -107,9 +108,15 @@ export function TitleRow({
           )}
           {eyebrow}
         </p>
-        {/* a long upload or file name shows 3 lines at most; the heading's name and its title stay whole (IN-114) */}
+        {/* a long upload or file name shows 3 lines at most; the heading's name and its title stay whole (IN-114).
+            It wraps after its own separators first; `anywhere` only for a part too long for a line (IN-121) */}
         <h1 className="v-title mt-1! line-clamp-3 [overflow-wrap:anywhere]" title={title}>
-          {title}
+          {nameParts(title).map((part, i) => (
+            <Fragment key={`${String(i)}:${part}`}>
+              {i > 0 && <wbr />}
+              {part}
+            </Fragment>
+          ))}
         </h1>
       </div>
       {children}
