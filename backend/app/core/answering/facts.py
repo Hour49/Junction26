@@ -863,8 +863,8 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
     if types:
         lines.append(f"{_plural(noun).capitalize()} by type:")
         lines += types
-    if query.by == "storey" and storey is None:
-        lines += _per_storey(entity, part, facts)
+    if query.by == "storey" and storey is None:  # asked per floor: the storeys lead (R1 ifc E3)
+        lines = _per_storey(entity, part, facts) + lines
     if "fire_rating" in query.measures:
         lines += _fire(entity, facts)
     if "length" in query.measures:  # a picture's lengths are estimates (orchestrator 05:40)
@@ -1295,7 +1295,7 @@ def _per_storey(entity: str, part: str, facts: _Facts) -> list[str]:
     counts = {name: facts.one(f"{entity}.count", part, name) for name in names}
     if not any(counts.values()):
         return []
-    return ["By storey:"] + [
+    return [f"{_plural(_noun(entity)).capitalize()} by storey:"] + [
         f"- {_label(name, facts)}: {'0' if fact is None else _num(fact)}"
         for name, fact in counts.items()
     ]

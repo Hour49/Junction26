@@ -3,6 +3,8 @@ and the adapter that builds a sheet from a (synthetic) IFC file."""
 
 from pathlib import Path
 
+import pytest
+
 from app.adapters.ifc_model import facts_source
 from app.adapters.ifc_model.facts_source import IfcFactSource
 from app.adapters.question_templates import TemplateParser
@@ -582,6 +584,43 @@ def test_a_breakdown_by_level_counts_the_storeys_and_says_the_empty_ones() -> No
     assert "Level 2 (C): 0 spaces" in said
     said = storey_text("How many furniture items are there per floor?", LEVELS)
     assert "- Ground floor (A): 2" in said and "- Level 1 (B): 0" in said
+
+
+# The demo IFC (bimspeed vitoria): 68 doors, 4 on P0 and 16 on each of P1-P4, none on P5 and P6.
+DOORS = [("P0", 4), ("P1", 16), ("P2", 16), ("P3", 16), ("P4", 16), ("P5", 0), ("P6", 0)]
+DEMO_DOORS = FactSheet(
+    model="m",
+    disciplines=["architecture"],
+    facts=[
+        *(fact("storey.elevation", name, 3.0 * i, "m", storey=name)
+          for i, (name, _) in enumerate(DOORS)),
+        fact("door.count", "all", 68, "count"),
+        *(fact("door.count", "all", n, "count", storey=name) for name, n in DOORS if n),
+        fact("door_type.count", "LKS_PUE_Puerta 1 Hoja:72 x 210 cm", 64, "count"),
+        fact("door_type.count", "Puerta elevada articulada:385 x 278", 4, "count"),
+    ],
+)  # fmt: skip
+
+
+@pytest.mark.parametrize("per", ["per floor", "on each floor", "by storey"])
+def test_a_count_asked_per_floor_answers_each_storey_first(per: str) -> None:
+    """R1 ifc E3: "How many doors are there per floor?" on the demo IFC led with "Total doors:
+    68" and the doors by type; the storeys came last, under the type list. A storey the file has
+    and holds none of the kind is 0; one it lacks is not listed."""
+    said = storey_text(f"How many doors are there {per}?", DEMO_DOORS).splitlines()
+    assert said[:8] == [
+        "Doors by storey:",
+        "- Ground floor (P0): 4",
+        "- Level 1 (P1): 16",
+        "- Level 2 (P2): 16",
+        "- Level 3 (P3): 16",
+        "- Level 4 (P4): 16",
+        "- Level 5 (P5): 0",
+        "- Level 6 (P6): 0",
+    ]
+    assert "Total doors: 68" in said and "By storey:" not in said
+    whole = storey_text("How many doors are there?", DEMO_DOORS)
+    assert whole.startswith("Total doors: 68") and "storey" not in whole  # asked as a whole
 
 
 def test_the_gross_floor_area_is_given_per_storey_with_its_share() -> None:
