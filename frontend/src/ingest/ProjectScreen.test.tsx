@@ -84,9 +84,8 @@ describe('ProjectScreen', () => {
     );
     // IN-86: the demo's 4th stat; project.json has no set-aside file
     expect(stat('Set aside')).toBe('0');
-    expect(
-      [...document.querySelectorAll('.ingest-stats dt')].map((d) => d.textContent),
-    ).not.toContain('Cost');
+    // IN-108 (v5, brief ingest-ui 2026-11-15): Cost is back beside Set aside, with the other live totals
+    expect(stat('Cost')).toBe('$0.00');
     // IN-85: the Simple/Advanced segment on its own row under the h1
     expect(must(document.querySelector('.ingest-head')).className).toContain(
       'flex-col items-start',
@@ -397,7 +396,9 @@ describe('ProjectScreen', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Index' })).toBeTruthy();
     const rows = stepRows();
     expect(rows.map(iconOf)).toEqual([...Array<string>(8).fill('done'), 'working']);
-    expect(must(rows[8]).textContent).toContain('every file made searchable for questions');
+    expect(must(rows[8]).textContent).toContain(
+      'judging what was set aside, describing the rest, indexing it all for the chat',
+    );
     expect(must(rows[8]).textContent).not.toContain(' files');
   });
 
