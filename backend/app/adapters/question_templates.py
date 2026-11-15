@@ -269,6 +269,14 @@ IS_THERE = re.compile(
     r"(?:(?:an?|any|some)\s+)?(?P<which>[^?]+?)\s*\??$",
     re.IGNORECASE,
 )
+# a thing narrowed by size, place or company ("a door larger than 1 m", "a bedroom with a
+# balcony"): its count is not the answer, so "is there a X" is not rewritten (review-510)
+QUALIFIER = re.compile(
+    r"\b(?:than|with|without|that|which|who|larger|bigger|smaller|wider|narrower|taller"
+    r"|longer|shorter|over|under|above|below|more|less|at least|at most|only|between|near"
+    r"|next to)\b",
+    re.IGNORECASE,
+)
 PLACE = re.compile(
     r"\b(?:ground|first|second|third|fourth|fifth|sixth|top|upper|lower|north|south|east|west)\b"
     r"|\bhouse [a-z]\b|\bfa[cç]ade\b|\bwing\b|\bplan \d+[a-z]?\b"
@@ -546,6 +554,14 @@ def _counted_thing_named(body: str, hits: list[tuple[int, str]]) -> bool:
 def _as_asked(raw: str) -> str:
     """The question one drawing answers: "in each drawing" dropped, and "is there a X" / "does
     this drawing show a X" / "which drawings show a X" asked as "How many X?"."""
-    if found := IS_THERE.match(raw):
-        raw = f"How many {found['thing'] or found['shown'] or found['which']}?"
+    found = IS_THERE.match(raw)
+    thing = found and (found["thing"] or found["shown"] or found["which"])
+    if thing and not has_qualifier(thing):
+        raw = f"How many {thing}?"
     return EACH_SHEET.sub("", raw)
+
+
+def has_qualifier(thing: str) -> bool:
+    """Whether a counted thing is narrowed ("door larger than 1 m", "bedroom with a balcony"),
+    so a plain count of it would not answer the question."""
+    return QUALIFIER.search(thing) is not None
