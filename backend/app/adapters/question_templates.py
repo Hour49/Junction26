@@ -254,8 +254,11 @@ BREAKDOWN = re.compile(
 )
 # "in each drawing" asked of one drawing is its own quantity, not a breakdown (the project chat
 # asks every drawing the question as written: qa-a cross-drawing walk, 2026-11-15)
+# "in the whole project" is the same ask of the project chat (demo walk 2026-11-15: "project" read
+# as the building model, so 9 of 12 drawings refused and the chat said 68 doors for the project)
 EACH_SHEET = re.compile(
-    r"\s*\b(?:in|on|of|for)\s+(?:each|every)\s+(?:drawing|plan|floor ?plan|sheet|file|page)s?\b",
+    r"\s*\b(?:(?:in|on|of|for)\s+(?:each|every)\s+(?:drawing|plan|floor ?plan|sheet|file|page)s?"
+    r"|(?:in|across)\s+(?:the\s+)?(?:(?:whole|entire)\s+)?project)\b",
     re.IGNORECASE,
 )
 # "Is there a kitchen?", "Does this drawing show a kitchen?", "Which drawings show a kitchen?":
