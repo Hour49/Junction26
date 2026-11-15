@@ -250,6 +250,13 @@ def _absent(value: object) -> bool:
     return value is None
 
 
+# The note a reader of an IFC-rendered sheet leaves when its walls are cut solids (walls, columns
+# and other parts share one drawn style): takeoff then makes a wall count an estimate
+CUT_SOLID_NOTE = "cut solids are listed as walls"
+# The same for doors grouped from frame and swing shapes: a door drawn edge-on can be missed
+DOOR_SHAPES_NOTE = "doors are read from drawn shapes"
+
+
 class Drawing(Frozen):
     file: str  # the path as the dataset's questions.jsonl gives it
     pages: tuple[Page, ...]  # none only for a model file, which has objects and no page

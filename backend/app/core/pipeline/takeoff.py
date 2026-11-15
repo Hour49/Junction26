@@ -26,6 +26,8 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 
 from app.core.drawing.model import (
     COUNT_KEYS,
+    CUT_SOLID_NOTE,
+    DOOR_SHAPES_NOTE,
     ELEMENT_CLASSES,
     PLAN,
     Attr,
@@ -76,6 +78,17 @@ from app.core.pipeline.rules import (
 )
 from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
 
+# What a wall count rests on when the sheet draws walls, columns and other parts in one style (an
+# IFC model rendered to PDF): the listed cut solids, of which some are not walls
+_CUT_SOLID_WALLS = (
+    "{n} cut solids are counted as walls: this sheet draws walls, columns and other cut parts "
+    "in one style, so the number of walls may be lower"
+)
+# The same for doors grouped from drawn frame and swing shapes (4 of 9 golden IFC sheets: one short)
+_DOORS_FROM_SHAPES = (
+    "{n} doors are read from drawn shapes: a door drawn edge-on or over another can be "
+    "missed, so the number of doors may be lower"
+)
 # An element sum an estimated scale makes an estimate (a volume is the model's, not the sheet's).
 SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
 # Two sums of the same rooms: equal up to float rounding. A room set's areas differ by whole rooms,
@@ -236,7 +249,12 @@ def _add_sheet(
     storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
     scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
     sheet = _without_seen_through(counted, drawing)
-    _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale)
+    cut = frozenset(
+        cls
+        for cls, said in (("wall", CUT_SOLID_NOTE), ("door", DOOR_SHAPES_NOTE))
+        if any(said in note for note in drawing.notes)
+    )
+    _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale, cut=cut)
     _add_apartments(found, drawing, scale)
     _add_room_sides(found, drawing, scale)
     _add_room_counts(found, drawing)
@@ -253,7 +271,9 @@ def _add_sheet(
         elements, rooms = elements_by[storey], rooms_by[storey]
         on_storey = apply_rules(_listed(elements, rooms))
         sums = drawing.model_objects is None
-        _add_scope(found, on_storey, elements, rooms, storey=storey, scale=scale, sums=sums)
+        _add_scope(
+            found, on_storey, elements, rooms, storey=storey, scale=scale, sums=sums, cut=cut
+        )
 
 
 def _without_seen_through(counted: Mapping[str, Counted], drawing: Drawing) -> dict[str, Counted]:
@@ -1023,6 +1043,11 @@ def room_names(room: Room) -> tuple[str, ...]:
     return tuple(sorted({normalised(value) for value in found}))
 
 
+def _shape_estimate(cls: str, n: int) -> str | None:
+    template = {"wall": _CUT_SOLID_WALLS, "door": _DOORS_FROM_SHAPES}.get(cls)
+    return None if template is None else template.format(n=n)
+
+
 def _add_scope(
     found: dict[str, Quantity],
     counted: Mapping[str, Counted],
@@ -1031,9 +1056,12 @@ def _add_scope(
     storey: str | None,
     scale: str | None,
     sums: bool = True,
+    cut: frozenset[str] = frozenset(),
 ) -> None:
     """Every quantity of one set of items: the whole sheet (`storey` None) or one storey.
-    `scale`: what the sheet's scale makes an estimate of (scale_estimate). `sums` False: the
+    `scale`: what the sheet's scale makes an estimate of (scale_estimate). `cut`: the element
+    classes whose count rests on shapes a reader grouped (CUT_SOLID_NOTE walls, DOOR_SHAPES_NOTE
+    doors): their count is an estimate. `sums` False: the
     element sums, the rooms' area total and each named room's area are left to a building
     model (`_add_model`)."""
     for key, chosen in counted.items():
@@ -1044,6 +1072,7 @@ def _add_scope(
             len(chosen.marks),
             chosen.marks,
             chosen.rule,
+            _shape_estimate(key, len(chosen.marks)) if key in cut else None,
             excluded=chosen.excluded,
         )
     _put(

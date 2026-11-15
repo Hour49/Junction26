@@ -835,3 +835,29 @@ def test_a_room_s_count_takes_its_fixtures_inside_and_the_doors_and_windows_in_i
     assert (of("door", "1.04"), of("window", "1.04"), of("sink", "1.04")) == (1, 1, 0)
     assert of("door", "1.02") is None  # a box is not the room's shape
     assert found["door"].value == 3  # the sheet's count is unchanged
+
+
+def test_a_wall_count_of_cut_solids_is_an_estimate_and_a_door_count_is_not() -> None:
+    """B1: a sheet rendered from an IFC model draws walls, columns and other parts in one style,
+    so its 'walls' are cut solids and the count may be too high (64 listed, 26 walls)."""
+    note = "3 cut solids are listed as walls: the sheet draws walls, columns and other cut parts"
+    elements = (element(1, "wall"), element(2, "wall"), element(3, "wall"), element(4, "door"))
+    listed = known_quantities(drawing(elements=elements, notes=(note,)))
+    walls = listed[Query(subject="wall").key()]
+    assert walls.value == 3 and walls.estimate is not None
+    assert "3 cut solids" in walls.estimate and "may be lower" in walls.estimate
+    assert listed[Query(subject="door").key()].estimate is None
+    plain = known_quantities(drawing(elements=elements))  # walls a reader named walls
+    assert plain[Query(subject="wall").key()].estimate is None
+
+
+def test_a_door_count_read_from_drawn_shapes_is_an_estimate_a_window_count_is_not() -> None:
+    """B1: an IFC-rendered sheet's doors are grouped from frame and swing shapes; a door drawn
+    edge-on or over another is missed (17 read, 18 in the model), so the count may be low."""
+    note = "2 doors are read from drawn shapes"
+    elements = (element(1, "door"), element(2, "door"), element(3, "window"))
+    listed = known_quantities(drawing(elements=elements, notes=(note,)))
+    doors = listed[Query(subject="door").key()]
+    assert doors.value == 2 and doors.estimate is not None
+    assert "2 doors" in doors.estimate and "may be lower" in doors.estimate
+    assert listed[Query(subject="window").key()].estimate is None
