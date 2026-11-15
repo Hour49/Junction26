@@ -52,8 +52,8 @@ from.
   the answer lists the pipes and ducts on a removed wall and the radiators or vents that would lose their
   connection. The chat can also say what feeds a radiator and propose moving, adding or removing one, drawn on
   the storey before and after. A scan or photo of a heating, plumbing or ventilation sheet is read too: a Gemini
-  model reads its legend and symbols, and the sheet is laid over the plan so an edit shows on it. Answers from such
-  a sheet are always Low.
+  model reads its legend and symbols, and when the sheet's walls match the plan's, it is laid over the plan so an
+  edit shows on it. Answers from such a sheet are always Low.
 - A question the drawing's quantities do not cover can be answered from what an IFC model states (its fact
   sheet), marked Low because those answers are not measured yet. An IFC file also opens in a 3D view.
 
