@@ -140,7 +140,8 @@ def project_toolbox(
     else:
         if offers_services(pipeline):  # SERVICES_FOLLOW on and an IFC file in the project
             shared = made() if made is not list else list(proposals.values())
-            services = project_services(pipeline, selection, shared, proposals)
+            builds = app.state.services_builds  # create_app's: one build at a time per app
+            services = project_services(pipeline, selection, shared, proposals, builds)
             sets.append((SERVICES_TOOLS, partial(run_services_tool, services)))
             made = lambda: services.proposals  # noqa: E731  (the same list as the plan tools')
     evidence = getattr(app.state, "evidence", None)  # EvidenceIndexes (decision 0012)

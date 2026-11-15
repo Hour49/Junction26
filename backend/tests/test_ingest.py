@@ -10,7 +10,7 @@ from app.core.drawing.model import (
     Scale,
     Subject,
 )
-from app.core.pipeline.ingest import NO_SHEET, ingest
+from app.core.pipeline.ingest import ingest, no_sheet
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Route, SetAside, Sheet
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"synthetic"
@@ -136,7 +136,7 @@ def test_ingest_writes_one_drawing_per_sheet_file_read_from_the_richest_source()
     assert pdf_drawing.conflicts is None  # nothing was measured a second time
     assert report.set_aside == (
         SetAside(path="data/cubi/readme.txt", reason="not a drawing format we read"),
-        SetAside(path="data/ifc/model.ifc", reason=NO_SHEET),
+        SetAside(path="data/ifc/model.ifc", reason=no_sheet("ifc")),
     )
 
     png_sheet = report.sheets[0]
@@ -316,7 +316,7 @@ def test_a_model_asked_about_whose_extractor_lists_nothing_is_set_aside_and_serv
     # Asked what it lists of itself, the extractor names no model objects.
     assert extractors["bim"].calls == [(MODEL, MODEL), (MODEL, SHEET)]
     assert [drawing.file for drawing in sink.drawings] == [SHEET]
-    assert report.set_aside == (SetAside(path=MODEL, reason=NO_SHEET),)
+    assert report.set_aside == (SetAside(path=MODEL, reason=no_sheet("ifc")),)
 
 
 class ListsItsModel:
@@ -410,7 +410,7 @@ def test_only_a_building_model_is_asked_what_it_holds_without_a_page() -> None:
         sink=Collected(),
     )
     assert [found.calls for found in extractors.values()] == [[], [], [], []]
-    assert report.set_aside == (SetAside(path=dxf, reason=NO_SHEET),)
+    assert report.set_aside == (SetAside(path=dxf, reason=no_sheet("dxf")),)
 
 
 def test_a_found_source_with_pages_is_read_from_and_gets_no_drawing_of_its_own() -> None:

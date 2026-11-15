@@ -64,8 +64,8 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
 - Each sheet file (PDF, PNG, JPEG) gets its own drawing model, as 0004 requires. A group has one route and one source: the
   PDF and the PNG of a swiss plan are both extracted from the PDF, each into its own page frame. A DXF file is a
   source to read from and never gets a drawing model of its own. An IFC model that is asked about gets one without a
-  page when the model route's extractor lists its objects (`model_objects`, formats v1.2 of 2026-11-14); otherwise
-  it is set aside. A source that the finder added to a group gets its drawing model only in its own group.
+  page when the model route's extractor read it (`model_objects`, formats v1.2 of 2026-11-14; an empty list for
+  a services model, 0004's amendment of 2026-11-15); otherwise it is set aside. A source that the finder added to a group gets its drawing model only in its own group.
 - The drawing model is a set of pydantic models that serialise as extraction_v1, so the adapter only adds
   `schema`, `split` and `truth`. It also carries `tables` and `conflicts` in the shapes pinned on 2026-11-13 (0004's
   amendment); the writer leaves out the one that is not set. `backend/tests/test_formats.py` validates what the

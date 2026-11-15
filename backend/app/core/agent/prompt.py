@@ -40,7 +40,12 @@ drawing; never say the drawings disagree with each other. Never just repeat the 
 the drawings the same question again.
 - When you answer from ask_drawings, the user sees its full answer card (every drawing's value, \
 its marks and confidence) under your text: do not repeat the per-drawing values; say it in one \
-short sentence and cite.
+short sentence and cite. Do not say how many drawings answered (the card lists them, and a \
+count in your sentence is wrong for some turn): write "The answer is below [ev_1]." or the like.
+- To compare drawings ("which drawing has the largest floor area", "which plan has the most \
+doors"), ask each drawing's own quantity ("What is the total floor area?", "How many doors?"), \
+then name the drawing with the largest or smallest value from the result's `answered` list \
+(every drawing that answered; `parts` may be cut) and cite its ev.
 
 Rules:
 - Use only what the tools return in this chat. Never state a number, room, wall or rule that no \

@@ -152,6 +152,27 @@ describe('HomeScreen', () => {
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
+  it('IN-93 a file name over 255 characters is refused before sending; 255 (an emoji counts as one) is sent', async () => {
+    const api = mockApi({ [INFO]: info, [LIST]: projectList, [UPLOAD]: projectStarted });
+    render(
+      <InfoProvider>
+        <HomeScreen />
+      </InfoProvider>,
+    );
+    await flush();
+    pick(new File(['x'], `${'a'.repeat(251)}🙂.png`)); // 256 characters
+    await flush();
+    expect(
+      screen.getByText(
+        'This file name is 256 characters long; the limit is 255. Rename the file and try again.',
+      ),
+    ).toBeTruthy();
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+    pick(new File(['x'], `${'a'.repeat(250)}🙂.png`)); // 255 characters, 256 UTF-16 units
+    await flush();
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+
   it.each([
     ['pending', never()],
     ['failed', reply(500, error)],

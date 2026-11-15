@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { ApiError, errorText, startSample, uploadProject, type Started } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
-import { uploadTooLarge } from '../shell/limits';
+import { nameTooLong, uploadTooLarge } from '../shell/limits';
 import { amount, sizeText, uploadedKey } from './ingest';
 import { PANEL } from './ui';
 import { Alert } from '@/components/ui/alert';
@@ -89,7 +89,8 @@ export function UploadBox() {
       return;
     }
     // No limits yet (info pending or failed): the server's 413 decides.
-    const refused = info ? uploadTooLarge(file.size, info.limits) : null;
+    const refused =
+      nameTooLong(file.name) ?? (info ? uploadTooLarge(file.size, info.limits) : null);
     if (refused) {
       setError(null);
       setNote(refused);
