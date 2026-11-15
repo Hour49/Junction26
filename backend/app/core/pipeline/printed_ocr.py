@@ -170,7 +170,8 @@ def checked(
     printed: PrintedSheet, confirmations: Sequence[Confirmation]
 ) -> tuple[PrintedSheet, list[Measurement]]:
     """`printed` with what OCR disagrees with: a scale text withheld, a note for every fact, and
-    for a printed count a second stage-8 value with OCR's reading (method `annotation`). The
+    for a printed count a second stage-8 value with OCR's reading (method `annotation`, one per
+    count: the first disagreeing fact's). The
     sheet unchanged, and no values, when nothing disagrees."""
     notes = list(printed.notes)
     extra: list[Measurement] = []
@@ -191,9 +192,12 @@ def checked(
         read = next((n for n in numbers_in(c.read)), None)
         if fact.unit == "count" and read is not None and len(read.values) == 1:
             [value] = read.values
+            # one value per count: stage 8 refuses two of one method (T2: 3 floors + TOTAL, all
+            # bedrooms); the first is kept, as fact_measurements keeps the first printed one
             extra += [
                 m.model_copy(update={"value": m.value.model_copy(update={"method": "annotation"})})
                 for m in fact_measurements([fact.model_copy(update={"value": value})])
+                if all((m.quantity, m.subject) != (e.quantity, e.subject) for e in extra)
             ]
     if scale == printed.printed_scale and len(notes) == len(printed.notes):
         return printed, []

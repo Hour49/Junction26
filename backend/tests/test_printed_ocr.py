@@ -17,7 +17,7 @@ from app.adapters.raster_ocr.tiles import PrintedOcr, joined, ruled_out, tile_or
 from app.composition import _printed
 from app.core.drawing.model import Box, Page, Scale
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
-from app.core.pipeline.printed import PrintedFact, PrintedSheet
+from app.core.pipeline.printed import PrintedFact, PrintedSheet, fact_measurements
 from app.core.pipeline.printed_ocr import (
     Confirmation,
     OcrToken,
@@ -25,6 +25,7 @@ from app.core.pipeline.printed_ocr import (
     confirm_printed,
     numbers_in,
 )
+from app.core.pipeline.second_count import second_count
 from app.settings import Settings
 
 BOX: Box = (0.5, 0.5, 0.6, 0.52)
@@ -320,3 +321,28 @@ def test_a_fact_ocr_disagrees_with_decides_no_answer(monkeypatch: pytest.MonkeyP
             Inner(), Reader(printed), files, answers=True, checker=Checker(tokens)
         ).extract(FILE, sheet)
     assert seen == [list(printed.printed_facts), []]
+
+
+def test_one_count_gets_at_most_one_ocr_value() -> None:
+    """T2 prints three floors and a TOTAL, all bedrooms: OCR disagreeing with all four gives one
+    `annotation` value for room:bedroom (the first fact's, as fact_measurements keeps the first),
+    since stage 8 refuses two values of one method on one count; every note stays."""
+    texts = ["FIRST FLOOR = 48 DORMS", "SECOND FLOOR = 48 DORMS", "THIRD FLOOR = 48 DORMS"]
+    boxes: list[Box] = [(0.5, 0.1 * i, 0.6, 0.1 * i + 0.02) for i in range(1, 5)]
+    facts = [
+        PrintedFact(text=t, subject="room:bedroom", value=v, unit="count", box=b)
+        for t, v, b in zip([*texts, "TOTAL = 144 DORMS"], [48, 48, 48, 144], boxes, strict=True)
+    ]
+    reads = ["46", "43", "40", "141"]
+    tokens = [
+        OcrToken(text=r, box=(b[0] + 0.01, b[1] + 0.005, b[0] + 0.05, b[1] + 0.015))
+        for r, b in zip(reads, boxes, strict=True)
+    ]
+    sheet = PrintedSheet(printed_facts=tuple(facts))
+    kept, extra = checked(sheet, confirm_printed(sheet, tokens))
+    assert [(m.subject.ref, m.value.value, m.value.method) for m in extra] == [
+        ("room:bedroom", 46, "annotation")
+    ]
+    assert len(kept.notes) == 4
+    found = Extracted(method="detector", scale=Scale(status="no_scale"), printed=tuple(extra))
+    second_count([], [*fact_measurements(facts), *found.printed])  # no ValueError
