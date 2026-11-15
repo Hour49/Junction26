@@ -76,6 +76,30 @@ def test_a_question_states_no_scale(message: str) -> None:
     assert parse_given(message) is None
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Is the scale 1:100?",
+        "what does a scale of 1:100 mean?",
+        "the scale is 1:100 or 1:50",  # two ratios: neither is taken
+        "The scale is 1:100, or maybe 1:50",
+        "Is it true that the kitchen is 12 m2?",
+        "the scale is 1:0",  # S2: no ratio below 1
+    ],
+)
+def test_s1_a_question_or_two_ratios_set_no_scale(message: str) -> None:
+    assert parse_given(message) is None
+
+
+def test_s1_a_statement_followed_by_a_question_is_read() -> None:
+    given = parse_given("the kitchen is 12 m2, how big is the bedroom?")
+    assert given is not None and (given.kind, given.value, given.room) == (
+        "area",
+        12,
+        "the kitchen",
+    )
+
+
 def test_a_room_is_named_by_label_or_by_type() -> None:
     plan = drawing()
     assert [r.id for r in rooms_named(plan, "the kitchen")] == ["r1"]  # type: Finnish label
@@ -212,6 +236,11 @@ def test_take_scale_says_why_it_kept_nothing(entries: None) -> None:
     said, kept = take(ingest, "the scale is 1:100")  # L3: a PNG without a DPI
     assert kept == {} and "paper size" in said
     assert take(ingest, "how big is the kitchen?") == ("", {})
+
+
+def test_s2_a_zero_ratio_is_no_scale_and_never_raises_in_the_turn(entries: None) -> None:
+    ingest = FakeIngest({"d1": drawing(PT)})
+    assert take(ingest, "the scale is 1:0") == ("", {})
 
 
 def test_take_scale_reads_a_trusted_dpi_and_a_selected_room(entries: None) -> None:

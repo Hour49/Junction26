@@ -44,6 +44,15 @@ TAKES = ("no_scale", "estimated")  # the scale statuses a user scale replaces
 _NUMBER = r"(?P<value>\d+(?:[.,]\d+)?)"
 _ROOM = r"(?P<room>(?:[^\W\d_][\w'-]*\s+){0,4}?[^\W\d_][\w'-]*)"
 _IS = r"\s+(?:is|=|has|measures|has an area of)\s+(?:about\s+|around\s+|roughly\s+)?"
+# A message is read clause by clause: after . ! ? ; and a space, or a comma and a space ("12,5"
+# and "4.2" stay whole); a clause that starts with a question word or ends with "?" asks
+CLAUSE = re.compile(r"(?<=[.!?;])\s+|,\s+|\n")
+ASKS = re.compile(
+    r"^\W*(?:is|are|was|were|does|do|did|what|what's|whats|how|can|could|would|should|which|why|"
+    r"where|when|who|isn't)\b",
+    re.IGNORECASE,
+)
+ANY_RATIO = re.compile(r"\b1\s*:\s*(\d{1,5})\b")
 RATIO = re.compile(r"\bscale\b[^0-9]{0,30}?\b1\s*:\s*(?P<ratio>\d{1,5})\b", re.IGNORECASE)
 RATIO_FIRST = re.compile(r"\b1\s*:\s*(?P<ratio>\d{1,5})\b[^0-9]{0,10}?\bscale\b", re.IGNORECASE)
 AREA = re.compile(
@@ -75,19 +84,32 @@ class Given(Frozen):
 
 
 def parse_given(message: str) -> Given | None:
-    """The scale stated in `message`, or None when it states none."""
+    """The scale stated in `message`, or None when it states none. Read clause by clause: a
+    clause that asks ("Is the scale 1:100?", "what does 1:100 mean?") states nothing, and a
+    message naming two different ratios ("1:100 or 1:50") states no ratio."""
+    ratios = {int(ratio) for ratio in ANY_RATIO.findall(message)}
+    for clause in CLAUSE.split(message):
+        if not clause.strip() or ASKS.search(clause) or clause.rstrip().endswith("?"):
+            continue
+        if (given := _stated(clause, len(ratios) == 1)) is not None:
+            return given
+    return None
+
+
+def _stated(clause: str, one_ratio: bool) -> Given | None:
     for pattern in (RATIO, RATIO_FIRST):
-        if found := pattern.search(message):
+        if found := pattern.search(clause):
             ratio = int(found["ratio"])
-            if ratio >= 1:
+            if ratio >= 1 and one_ratio:
                 return Given(kind="ratio", value=ratio, text=f"1:{ratio}")
-    if found := SIDE.search(message):
+            return None
+    if found := SIDE.search(clause):
         value = _number(found["value"])
         if value > 0:
             room = found["room"].strip()
             text = f"{room} is {value:g} m {found['side'].lower()}"
             return Given(kind="side", value=value, room=room, side=found["side"].lower(), text=text)
-    if found := AREA.search(message):
+    if found := AREA.search(clause):
         value = _number(found["value"])
         if value > 0:
             room = found["room"].strip()

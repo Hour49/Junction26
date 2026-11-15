@@ -42,6 +42,15 @@ def no_scale_sample(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> tupl
     return project, flat_a
 
 
+def snapshot(root: Path) -> dict[str, bytes]:
+    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+def read_stored(app: Any, drawing_id: str) -> Drawing:
+    """The drawing as ingest stores it, under the test's no-scale stand-in."""
+    return type(app.state.ingest).drawing(app.state.ingest, drawing_id)
+
+
 def turn(client: TestClient, project: str, message: str, chat_id: str | None = None) -> Any:
     body = {"message": message, **({"chat_id": chat_id} if chat_id else {})}
     response = client.post(f"/api/projects/{project}/chat", json=body)
@@ -63,9 +72,21 @@ def test_a_scale_the_user_gives_answers_that_drawings_areas(
     refused = part_of(first, flat_a)
     assert refused["refusal"]["code"] == "no-scale" and HINT in refused["refusal"]["text"]
     chat_id = first["chat_id"]
-    turn(client, project, "the kitchen is 22.4 m2", chat_id)
     app: Any = client.app
+    files = Path(app.state.settings.projects_dir)
+    before = snapshot(files)
+    turn(client, project, "the kitchen is 22.4 m2", chat_id)
     assert list(app.state.user_scales.of(chat_id)) == [flat_a]  # flat-b prints its own scale
+    # S3: kept in memory only: no stored file changes but the chat itself and the asked-questions
+    # log (the rules planner asks the drawings), and neither holds a scale
+    changed = {path for path in snapshot(files).keys() | before.keys()
+               if snapshot(files).get(path) != before.get(path)}  # fmt: skip
+    assert changed and all(chat_id in path or "questions" in path for path in changed), changed
+    for path in changed:
+        text = (files / path).read_text()
+        assert (
+            "m_per_unit" not in text
+        )  # answers quoted in the transcript are fine; no scale record
     again = part_of(turn(client, project, QUESTION, chat_id), flat_a)
     assert again["refusal"] is None
     rooms = {room.type: room for room in app.state.ingest.drawing(flat_a).rooms}
@@ -78,6 +99,11 @@ def test_a_scale_the_user_gives_answers_that_drawings_areas(
     assert again["line"]["sure"] is False and again["line"]["estimate"] is True
     other = part_of(turn(client, project, QUESTION), flat_a)  # a new chat: no scale given there
     assert other["refusal"]["code"] == "no-scale"
+    # S3: a restart (a new app on the same files) has forgotten it; the stored drawing never had it
+    monkeypatch.chdir(tmp_path)
+    again_app = create_app(Settings(user_scale=True))
+    assert again_app.state.user_scales.of(chat_id) == {}
+    assert read_stored(app, flat_a).scale.status == "scaled"  # flat-a as ingest stored it
 
 
 def test_off_by_default_nothing_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
