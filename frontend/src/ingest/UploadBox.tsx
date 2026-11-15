@@ -32,6 +32,13 @@ type Failed = { file: File; error: unknown; at: number };
 
 const percent = (s: Sending) => (s.total > 0 ? Math.round((100 * s.sent) / s.total) : 0);
 
+/** Whether sending the same file again can help (QA R4-G6): not when the server refused the file itself (a 4xx
+ * such as empty, too large or not a drawing), except 408 (timed out) and 429 (busy). */
+function canRetry(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.status < 400 || error.status >= 500) return true;
+  return error.status === 408 || error.status === 429;
+}
+
 /** What failed and where (Bogdan 2026-11-15): lost while sending, or refused by the server with its detail. */
 function failedLine(f: Failed): string {
   const name = f.file.name;
@@ -85,7 +92,9 @@ export function UploadBox() {
     if (!files || !file) return;
     setFailed(null); // a new try replaces the last failed upload's line
     if (files.length > 1) {
-      setNote('Drop one file or one zip at a time.');
+      setNote(
+        'Drop one file at a time. To send several, such as a DXF or SVG with its PDF, put them in one .zip.',
+      );
       return;
     }
     // No limits yet (info pending or failed): the server's 413 decides.
@@ -226,16 +235,18 @@ export function UploadBox() {
         {failed && (
           <Alert className="flex w-auto flex-wrap items-center justify-center gap-x-3 gap-y-2 border-0 bg-transparent p-0 text-[length:inherit]">
             <p>{failedLine(failed)}</p>
-            <Button
-              variant="secondary"
-              size="pill"
-              className="font-medium"
-              onClick={() => {
-                send(failed.file);
-              }}
-            >
-              Retry
-            </Button>
+            {canRetry(failed.error) && (
+              <Button
+                variant="secondary"
+                size="pill"
+                className="font-medium"
+                onClick={() => {
+                  send(failed.file);
+                }}
+              >
+                Retry
+              </Button>
+            )}
           </Alert>
         )}
         {note && <p role="alert">{note}</p>}
