@@ -5,7 +5,7 @@ import type { ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
 import { ConflictsList, type ConflictCounts } from '../surveyor/ConflictsScreen';
 import { plural } from './ingest';
-import { readDrawings } from './pipeline';
+import { drawingTally, readDrawings } from './pipeline';
 import { TAP } from './ui';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -33,7 +33,8 @@ export function DoneLine({
   if (!finished(project)) return null;
   return (
     <p className="ingest-done-line m-0 text-[15px] text-text-2 [&_a]:font-semibold [&_a]:text-primary">
-      {`${plural(readDrawings(project).length, 'drawing')} ready.`}
+      {/* the tile's number (drawingTally): the same drawings, never a sheet called not a drawing */}
+      {`${plural(drawingTally(project).ready, 'drawing')} ready.`}
       {counts !== null && counts.total > 0 && (
         <>
           {' '}

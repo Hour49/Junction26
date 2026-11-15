@@ -4,6 +4,7 @@ import { drawing, project } from '../../api/fixtures';
 import { mockApi } from '../../test/mockApi';
 import { EditCard } from '../EditCard';
 import { DID, editTurn, proposal } from '../fixtures';
+import { sheetFocus } from './ServiceTabs';
 import { followed, heatingPicture, PIC, pictured, services, ventilation } from './fixtures';
 import {
   focusOf,
@@ -54,6 +55,36 @@ describe('services helpers', () => {
       expect(box?.[i]).toBeCloseTo(v);
     });
     expect(services.disciplines[0] && focusOf(services.disciplines[0], followed)).toBeNull();
+  });
+
+  it("a services picture is in focus on the edit's own outlines, not on every symbol read on the sheet", () => {
+    // R1 edits 10c: the plumbing picture's lane carries every symbol the reader found (562 on P-101), so the
+    // box of them all was nearly the whole sheet and the struck-out wall sat cut off at its right edge
+    const far = {
+      ref: 'H9',
+      global_id: '',
+      kind: 'radiator',
+      label: 'radiator',
+      line: [],
+      at: [0.9, 0.9] as [number, number],
+    };
+    const lane = {
+      ...heatingPicture,
+      marks: [...heatingPicture.marks, far],
+      picture: {
+        ...heatingPicture.picture,
+        marks: [
+          ...heatingPicture.picture.marks,
+          { ref: 'H9', line: [], at: [0.95, 0.92] as [number, number] },
+        ],
+      },
+    };
+    const box = sheetFocus(lane, lane.picture);
+    expect(box).not.toBeNull();
+    const [x0, y0, x1, y1] = box ?? [0, 0, 0, 0];
+    expect(x0 <= 0.45 && y0 <= 0.3 && x1 >= 0.46 && y1 >= 0.4).toBe(true); // the removed strip is in view
+    expect(x1).toBeLessThan(0.7); // the far symbol is not
+    expect(y1).toBeLessThan(0.7);
   });
 
   it('an action is placed at the middle of what it draws; a tally has no place', () => {

@@ -1361,7 +1361,8 @@ the `identify` stage's line.
   (the default; `false` makes such a sheet a `doubt` instead: read and flagged, below), the file is set
   aside with the reason "not a floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it;
   `doubt`: it is read; with a non-plan kind, in either mode (an unsure one with `SHEET_KIND_SET_ASIDE=true` too), the
-  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; "), none of
+  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; ", or
+  "the sheet may not be a drawing at all; " for `not_a_drawing`), none of
   its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
   issue; the flag follows the project's triage, also when the reading is reused from the cache (a partial reading is
   never reused, #439), and `POST …/triage` drops it; with a plan kind every answer with a value ends its
@@ -5858,10 +5859,10 @@ tell, and an uncertain answer with the model's check:
         ],
         "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
         "readers": {
-          "answer": "door, score 0.41",
-          "L one view": "nothing",
-          "M one view": "nothing",
-          "seg": "door, score 0.62"
+          "answer": "door",
+          "reader 1": "nothing",
+          "reader 2": "nothing",
+          "reader 3": "door"
         }
       },
       {
@@ -5876,9 +5877,9 @@ tell, and an uncertain answer with the model's check:
         "why": "Not counted, but 2 of the 3 other readers see a door here.",
         "readers": {
           "answer": "nothing",
-          "L one view": "door, score 0.55",
-          "M one view": "door, score 0.48",
-          "seg": "nothing"
+          "reader 1": "door",
+          "reader 2": "door",
+          "reader 3": "nothing"
         }
       }
     ]
@@ -7539,10 +7540,10 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
         ],
         "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
         "readers": {
-          "answer": "door, score 0.41",
-          "L one view": "nothing",
-          "M one view": "nothing",
-          "seg": "door, score 0.62"
+          "answer": "door",
+          "reader 1": "nothing",
+          "reader 2": "nothing",
+          "reader 3": "door"
         }
       },
       {
@@ -7557,9 +7558,9 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
         "why": "Not counted, but 2 of the 3 other readers see a door here.",
         "readers": {
           "answer": "nothing",
-          "L one view": "door, score 0.55",
-          "M one view": "door, score 0.48",
-          "seg": "nothing"
+          "reader 1": "door",
+          "reader 2": "door",
+          "reader 3": "nothing"
         }
       }
     ]
@@ -11098,7 +11099,7 @@ budget, the same call a third time) ends a turn the same way.
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",
@@ -11183,7 +11184,7 @@ budget, the same call a third time) ends a turn the same way.
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",

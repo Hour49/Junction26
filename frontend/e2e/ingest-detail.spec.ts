@@ -233,10 +233,15 @@ test('AD-127 (QA R4-A9): a drawing called not a drawing is tagged on Advanced an
   const picker = page.locator('.adv-pick select');
   await picker.selectOption({ label: `${NOT_A_DRAWING} · not a drawing` });
   await expect(page.locator('.adv-visual .adv-tag')).toHaveText('not a drawing');
-  // the no-keys sample: 4 drawings read (the image route has no reader), flat-b left out (IN-126)
+  // the no-keys sample: 4 drawings read (the image route has no reader), flat-b left out of both numbers: 3 of the
+  // 5 drawings left of 6 (drawingTally, IN-131; was "3 / 6" while Simple's tile said 3 / 5, AD-133)
   await expect(page.locator('.adv-stats > div', { hasText: 'Drawings ready' })).toContainText(
-    '3 / 6',
+    '3 / 5',
   );
+  await page.locator('.adv-stats').evaluate((e) => {
+    e.scrollIntoView({ block: 'center' });
+  });
+  await shot(page, testInfo, 'detail-not-a-drawing-extract-stats', offline);
   await picker.evaluate((e) => {
     e.scrollIntoView({ block: 'center' });
   });
@@ -253,5 +258,12 @@ test('AD-127 (QA R4-A9): a drawing called not a drawing is tagged on Advanced an
     ),
   ).toBeVisible();
   await shot(page, testInfo, 'detail-not-a-drawing-file', offline);
+  // the Simple view's tile says the same as Advanced's Extract
+  await page.goto(`/#/p/${pid}`);
+  await expect(
+    page.locator('.ingest-stats dt', { hasText: 'Drawings ready' }).locator('+ dd'),
+  ).toHaveText('3 / 5');
+  // the Simple view polls on: its project request may still be in the route above when the test ends
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
   expect(errors).toEqual([]);
 });

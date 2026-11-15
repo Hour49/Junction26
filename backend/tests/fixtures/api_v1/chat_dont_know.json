@@ -401,7 +401,7 @@
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",
@@ -486,7 +486,7 @@
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",

@@ -21,6 +21,7 @@ from app.core.answering.model import (
     GLUED_FLOOR,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
+    NO_SUCH_STOREY,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SHARED_FLOOR,
@@ -415,6 +416,11 @@ class RoomByType:
 
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
         parsed = self._parser.parse(text)
+        if isinstance(parsed, Query) and parsed.storey is not None:
+            storey = self._storey(parsed.storey, sheet=not parsed.model)
+            if storey is None:
+                return Unsupported(reason=NO_SUCH_STOREY)
+            parsed = parsed.model_copy(update={"storey": storey})
         if isinstance(parsed, Unsupported):
             return self._floor(text, parsed) or self._printed(text) or parsed
         if isinstance(parsed, Query) and (unnamed := self._not_a_room(text, parsed)):
@@ -489,6 +495,27 @@ class RoomByType:
             if query.key() in self._quantities:
                 return query
         return None
+
+    def _storey(self, asked: str, sheet: bool) -> str | None:
+        """The drawing's own storey a question's storey names (big QA R1): the one of that name,
+        else the one whose name holds it as a word ("OG2" is "OK OG2", "E00" is "E00_OKRD");
+        `asked` itself on a drawing that names no storey, which then has no row for it and refuses
+        (a quoted storey did so before; "on P1" on a plain plan gave the whole sheet's count on
+        main, review-702 S1); None when the drawing names storeys and none, or several, are it.
+        With `sheet` (not a question about the model), a sheet whose plans name their storeys is
+        only those: the P2 sheet, which carries the model's storeys too, is no answer for P1 (its
+        0 would be read as P1's)."""
+        named = storeys(self._drawing)
+        drawn = sorted({str(plan.storey) for plan in self._drawing.plans if plan.storey})
+        if sheet and self._drawing.pages and drawn:
+            named = tuple(drawn)
+        if not named:
+            return asked
+        want = normalised(asked)
+        same = [storey for storey in named if normalised(storey) == want]
+        if not same:
+            same = [s for s in named if want in re.split(r"[\W_]+", s.casefold())]
+        return same[0] if len(same) == 1 else None
 
     def _floor(self, text: str, parsed: Unsupported) -> Query | Unsupported | None:
         """A floor named in words ("on the first floor", "1st floor"), which the parser refuses
