@@ -70,7 +70,6 @@ from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Partial, Quantity
-from app.core.pipeline.printed import PHOTO_SOURCE
 from app.core.pipeline.takeoff import (
     SPACE,
     known_quantities,
@@ -157,11 +156,6 @@ ROOM_NUMBER = re.compile(r"-?U?\d+\.\d+")  # a room number the parser reads with
 SERVICES_ONLY = (
     "This file is a services model: it has no wall, door, window or room, so it can't count "
     "them. Ask about its services (systems, pipes, ducts, terminals) instead."
-)
-# A camera photo of the sheet keeps no scale (printed.unmeasured_photo, QA R3-B6)
-PHOTO_TEXT = (
-    "This drawing is a camera photo, so lengths and areas can't be measured on it: its "
-    "perspective changes the scale across the page. Counts still work."
 )
 TEXTS = {
     "unsupported-question": "This question isn't one I can turn into a count, area, length or "
@@ -1302,8 +1296,6 @@ def _refusal(
     if drawing.read == () and not drawing.model_objects:
         return "no-reader", TEXTS["no-reader"]
     if parsed.measure in ("area", "length") and drawing.scale.status in NO_SCALE:
-        if drawing.scale.source == PHOTO_SOURCE:
-            return "no-scale", PHOTO_TEXT
         return "no-scale", TEXTS["no-scale"]
     looked_for = drawing.read
     wanted = {part.split(":", 1)[0] for part in parsed.subject.split("+")}
