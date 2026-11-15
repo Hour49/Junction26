@@ -58,7 +58,8 @@ def reading(legend: tuple[LegendEntry, ...], seen: list[tuple[str, tuple[int, in
     return PictureReading(reader="template", legend=legend, read=None, sightings=sightings)
 
 
-TOY = {"keep": 0.5, "keeps": {}}  # the fakes' cosines are not the model's: no tuned keep here
+# the fakes' cosines are not the model's: no tuned keep here; every kind confirmed
+TOY = {"keep": 0.5, "keeps": {}, "kinds": None}
 
 
 class Thumbnails:
@@ -97,7 +98,9 @@ def test_the_keep_is_per_kind() -> None:
     gray, legend, at = page()
     seen = [("light", at["circle"]), ("valve", at["ell"])]
     strict = {"valve": 1.01}  # no valve passes; the light keeps the default
-    kept = dino_match.confirm(gray, reading(legend, seen), Thumbnails(), keep=0.5, keeps=strict)
+    kept = dino_match.confirm(
+        gray, reading(legend, seen), Thumbnails(), keep=0.5, keeps=strict, kinds=None
+    )
     assert [s.label for s in kept.sightings] == ["light"]
 
 
@@ -139,5 +142,53 @@ def test_load_refuses_a_missing_or_different_model_file(tmp_path) -> None:
 def test_the_real_model_keeps_the_circle_and_drops_the_cross() -> None:
     gray, legend, at = page()
     seen = [("light", at["circle"]), ("light", at["cross"])]
-    kept = dino_match.confirm(gray, reading(legend, seen), dino_match.load())
+    kept = dino_match.confirm(gray, reading(legend, seen), dino_match.load(), kinds=None)
     assert [s.spot.box for s in kept.sightings] == [box(*at["circle"])]
+
+
+def labelled(gray_legend: tuple[LegendEntry, ...], labels: tuple[str, str, str], group=None):
+    """The page's legend (circle, cross, ell) under other labels and one group heading."""
+    return tuple(
+        e.model_copy(update={"label": label, "group": group})
+        for e, label in zip(gray_legend, labels, strict=True)
+    )
+
+
+def test_only_air_terminals_are_confirmed_not_labels_of_no_kind() -> None:
+    """Tudor's bench (#543): a label of no IFC kind is mostly a valve or a fixture under a Dutch or
+    brand name ('regelklep', 'kraan', 'Grohe_Rapid_SL', 'LOROX'); confirming them dropped valve
+    and sanitary recall. They stay as the template read them, look-alikes and all."""
+    gray, legend, at = page()
+    for labels in (("regelklep", "kraan", "x"), ("Grohe_Rapid_SL", "LOROX", "x")):
+        legend2 = labelled(legend, labels, group="Sanitair")
+        seen = [(labels[0], at["cross"]), (labels[1], at["circle"]), (labels[0], at["blank"])]
+        got = dino_match.confirm(gray, reading(legend2, seen), Thumbnails(), keep=0.5, keeps={})
+        assert got.sightings == reading(legend2, seen).sightings, labels
+
+
+def test_an_air_terminal_or_an_air_worded_label_is_confirmed() -> None:
+    """'toevoer rooster' (a supply grille) names no IFC kind but air words: confirmed, as is a
+    label under a ventilation heading; a light stays as read."""
+    gray, legend, at = page()
+    legend2 = labelled(legend, ("toevoer rooster", "light", "x"))
+    seen = [
+        ("toevoer rooster", at["circle"]),
+        ("toevoer rooster", at["cross"]),
+        ("light", at["cross"]),
+    ]
+    got = dino_match.confirm(gray, reading(legend2, seen), Thumbnails(), keep=0.5, keeps={})
+    assert [(s.label, s.spot.box) for s in got.sightings] == [
+        ("toevoer rooster", box(*at["circle"])),
+        ("light", box(*at["cross"])),
+    ]
+    vent = labelled(legend, ("type A", "type B", "x"), group="Ventilatie")
+    seen = [("type A", at["circle"]), ("type A", at["cross"])]
+    got = dino_match.confirm(gray, reading(vent, seen), Thumbnails(), keep=0.5, keeps={})
+    assert [s.spot.box for s in got.sightings] == [box(*at["circle"])]
+    sup = labelled(legend, ("supply air diffuser", "b", "x"))
+    seen = [("supply air diffuser", at["blank"])]
+    assert (
+        dino_match.confirm(gray, reading(sup, seen), Thumbnails(), keep=0.5, keeps={}).sightings
+        == ()
+    )
+    assert frozenset({"air_terminal"}) == dino_match.CONFIRM_KINDS
