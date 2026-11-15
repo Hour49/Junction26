@@ -16,9 +16,10 @@ import {
   stepLines,
   stepStatus,
 } from './advanced';
+import { stepsAfter } from './trace';
 import { useDrawingData } from './useDrawingData';
 import { useProjectTrace } from './useProjectTrace';
-import { CheckPairs, FileStrip, PlanMarks, ReadyList, RouteLanes } from './visuals';
+import { CheckPairs, FileStrip, PathText, PlanMarks, ReadyList, RouteLanes } from './visuals';
 import { FileMatrix } from './FileMatrix';
 import './advanced.css';
 import { Button } from '@/components/ui/button';
@@ -70,7 +71,7 @@ export function AdvancedIngest({
 
   const working: FileStatus | null =
     project.files.find((f) => !isFinished(f) && stepOf(f.stage ?? null) === step) ?? null;
-  const lines = stepLines(project.files, traces, step);
+  const lines = stepLines(project.files, traces, step, stepsAfter(project));
   const perRoute = routeLines(view, project);
   const status = stepStatus(project, step).status;
   const takeoffs = [...data.takeoffs.values()];
@@ -185,9 +186,16 @@ export function AdvancedIngest({
   const live = lines.at(-1);
   // Unpack's headline is the file and its size; a hash belongs in the mono log only (AV-33).
   const liveFile = step === 1 ? project.files.find((f) => f.path === live?.path) : undefined;
-  const liveText = !live
-    ? 'Nothing yet.'
-    : `${live.path}: ${liveFile ? formatSize(liveFile.size) : live.what}`;
+  // the file's path as running text: a line breaks after a "/", never inside the file's name (AD-125)
+  const liveText = !live ? (
+    'Nothing yet.'
+  ) : live.path ? (
+    <>
+      <PathText path={live.path} end=":" /> {liveFile ? formatSize(liveFile.size) : live.what}
+    </>
+  ) : (
+    `${live.head}: ${live.what || `failed: ${live.failure ?? ''}`}`
+  );
 
   return (
     <div className="adv">
@@ -248,12 +256,18 @@ export function AdvancedIngest({
               {step === 1 &&
                 project.skipped.map((s) => (
                   <li key={`skip-${s.path}`}>
-                    Skip {s.path} {s.reason}
+                    Skip <PathText path={s.path} /> {s.reason}
                   </li>
                 ))}
               {lines.map((l) => (
                 <li key={l.key} className={l.failure ? 'failed' : undefined}>
-                  {l.text}
+                  {l.path ? (
+                    <>
+                      {l.head} <PathText path={l.path} /> {l.what}
+                    </>
+                  ) : (
+                    l.text
+                  )}
                   {l.cost > 0 && ` · ${formatCost(l.cost)}`}
                   {l.failure && (
                     <>

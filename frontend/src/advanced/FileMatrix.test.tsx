@@ -130,6 +130,107 @@ describe('TraceTimeline steps', () => {
   });
 });
 
+describe('TraceTimeline steps on the real stages (AD-125)', () => {
+  // shapes of the #535 sample (2026-11-15): identify and normalise steps whose dids the stage's line joins, and
+  // the second count's checks, sent with 0 ms (not timed)
+  const identify: StageTrace = {
+    stage: 'identify',
+    did: 'a photo of a drawing (1920x1080 px); triage: a floor plan (P(plan) 0.35)',
+    ms: 21,
+    output: 'raster_photo',
+    failure: null,
+    cost_usd: 0,
+    steps: [
+      step({
+        id: 'probe',
+        label: 'Content probe',
+        did: 'a photo of a drawing (1920x1080 px)',
+        ms: 20,
+      }),
+      step({
+        id: 'classifier',
+        label: 'Triage: is it a floor plan?',
+        did: 'a floor plan (P(plan) 0.35)',
+        at_ms: 20,
+        ms: 0.6,
+      }),
+    ],
+  };
+  const normalise: StageTrace = {
+    stage: 'normalise',
+    did: 'rectified by page flattening: 1691x1015 px; 1 page, page 1 is 1691 x 1015 px',
+    ms: 153,
+    output: '',
+    failure: null,
+    cost_usd: 0,
+    steps: [
+      step({
+        id: 'rectifier',
+        label: 'Photo rectifier',
+        did: 'paper seen straight on: 1691x1015 px',
+        ms: 152,
+      }),
+      step({
+        id: 'pages',
+        label: 'Page size',
+        did: '1 page, page 1 is 1691 x 1015 px',
+        at_ms: 152,
+        ms: 1,
+      }),
+    ],
+  };
+  const second: StageTrace = {
+    stage: 'second_count',
+    did: '28 quantities measured twice, 1 conflict',
+    ms: 224,
+    output: '',
+    failure: null,
+    cost_usd: 0,
+    steps: [
+      step({
+        id: 'scale_check',
+        label: 'Scale: printed text vs scale bar',
+        did: '1 quantity compared: 1 agree, 0 conflicts',
+        found: { agree: 1, conflict: 0 },
+      }),
+      step({
+        id: 'room_areas',
+        label: 'Room areas: printed vs measured',
+        did: '27 quantities compared: 26 agree, 1 conflict',
+        found: { agree: 26, conflict: 1 },
+      }),
+    ],
+  };
+  const rows = (stage: string) =>
+    within(screen.getByRole('list', { name: `Steps of ${stage}` })).getAllByRole('listitem');
+
+  it("a step's did the stage's line already says is not said again; its own did stays", () => {
+    render(<TraceTimeline stages={[identify, normalise]} />);
+    for (const row of rows('Identify')) expect(row.querySelector('.tl-step-did')).toBeNull();
+    const [rectifier, pages] = rows('Normalise');
+    expect(must(rectifier).querySelector('.tl-step-did')?.textContent).toBe(
+      'paper seen straight on: 1691x1015 px',
+    );
+    expect(must(pages).querySelector('.tl-step-did')).toBeNull();
+    expect(must(pages).textContent).toContain('Page size');
+    expect(screen.getAllByText(/1 page, page 1 is 1691 x 1015 px/)).toHaveLength(1);
+  });
+
+  it('second-count checks: no made-up time or bar; a check that found a conflict is marked', () => {
+    render(<TraceTimeline stages={[second]} />);
+    const [scale, rooms] = rows('Second count');
+    for (const row of [must(scale), must(rooms)]) {
+      expect(row.querySelector('.tl-ms')?.textContent).toBe('');
+      expect(row.querySelector('.tl-track')).toBeNull();
+    }
+    expect(within(must(scale)).getByRole('img').getAttribute('aria-label')).toBe('done');
+    expect(within(must(rooms)).getByRole('img', { name: 'found a conflict' }).textContent).toBe(
+      '!',
+    );
+    expect(must(rooms).textContent).toContain('27 quantities compared: 26 agree, 1 conflict');
+  });
+});
+
 describe('FileMatrix', () => {
   it('AD-110 every file is a row opening its trace, with route, state, time and what it found', () => {
     render(

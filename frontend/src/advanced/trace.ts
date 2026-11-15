@@ -115,6 +115,29 @@ export function stepRows(steps: readonly Step[], ms: number): StepRow[] {
   return rows;
 }
 
+/**
+ * True when the stage's did line already says a step's did (AD-125): the same line, or one of its parts, standing
+ * at the start or after "; " or ": " and ending the line or a "; " part ("1 page, …" in a normalise did of
+ * "rectified …; 1 page, …"). A did found mid-sentence ("1 plan" in "26 rooms, 1 plan, …") is not a repeat.
+ */
+export function saidByStage(stepDid: string, stageDid: string): boolean {
+  const did = stepDid.trim();
+  if (!did) return false;
+  for (let at = stageDid.indexOf(did); at >= 0; at = stageDid.indexOf(did, at + 1)) {
+    const before = stageDid.slice(0, at);
+    const after = stageDid.slice(at + did.length);
+    if ((at === 0 || /(; |: )$/.test(before)) && (after === '' || after.startsWith(';')))
+      return true;
+  }
+  return false;
+}
+
+/** A step the server did not time: done with 0 ms exactly (the second count's checks today). */
+export const untimed = (s: Step): boolean => s.state === 'done' && s.ms === 0;
+
+/** The conflicts a check step found (`found.conflict`, the second count's steps); 0 for any other step. */
+export const conflictsOf = (s: Step): number => s.found?.conflict ?? 0;
+
 /** "31 doors, 12 windows" from a step's counts, largest first; "" with none. */
 export function foundLine(found: Readonly<Record<string, number>> | undefined): string {
   return Object.entries(found ?? {})
