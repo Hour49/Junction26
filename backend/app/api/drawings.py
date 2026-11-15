@@ -9,7 +9,7 @@ from fastapi.responses import Response
 
 from app.adapters.evidence_render import render as render_evidence
 from app.adapters.page_render import render_png
-from app.api.ask import QUESTION_CHARS, asked_on, no_reader_of, shown_value
+from app.api.ask import QUESTION_CHARS, asked_on, file_of, no_reader_of, shown_value
 from app.api.deps import (
     AnsweringDep,
     Credits,
@@ -27,6 +27,7 @@ from app.composition import readers
 from app.core.drawing.model import Drawing
 from app.core.errors import InvalidInputError
 from app.core.ingest.model import DrawingInfo, FileStatus, split_from
+from app.core.ingest.triage import symbols_refused
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import SUGGESTIONS, Asked, suggestions
 from app.core.review.model import Suggestion
@@ -95,13 +96,18 @@ def drawing(
     found = ingest.drawing(drawing_id)
     info = ingest.drawing_info(drawing_id)
     named = as_uploaded(ingest, info, project)  # that project's names, not the cache's
+    file = file_of(ingest, named)
+    services = file is not None and symbols_refused(file.triage) is not None
     return DrawingView(
         id=drawing_id,
         file=found.file if project is None else named.path,
         reader=reader_of(named, found.conflicts is not None, readers(settings)),
         credit=credit_of(named, ingest, credits),
         pages=page_views(drawing_id, found, info.normalised),
-        suggestions=list(
+        # a sure services plan offers no floor-plan questions (R1 services-second S3)
+        suggestions=[]
+        if services
+        else list(
             suggestions(known_quantities(found), answering.parser, SUGGESTIONS, found.tables or ())
         ),
     )

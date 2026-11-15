@@ -1,9 +1,16 @@
 """R1 services-second S3 (2026-11-15): on a sheet triage is sure is a services plan, a refusal
 offered floor-plan questions ("How many halls are there?", net floor area) as what it can
-answer. A services sheet offers no floor-plan chips."""
+answer, and the drawing's own suggestions (the drawing Ask's chips and the project chat's
+starters) were floor-plan ones too. A services sheet offers no floor-plan chips."""
+
+from pathlib import Path
+
+from test_api_sheet_kind import PIPING_PNG, PLAN_PNG, files_of, seeded
+from test_api_triage import project
+from test_review_core import BOX_A, BOX_B, SERVICES_FLAG, asked_flagged, photo
 
 from app.core.drawing.model import Room
-from tests.api.test_review_core import BOX_A, BOX_B, SERVICES_FLAG, asked_flagged, photo
+from app.settings import Settings
 
 
 def test_a_refusal_on_a_services_plan_offers_no_floor_plan_questions() -> None:
@@ -18,3 +25,19 @@ def test_a_refusal_on_a_services_plan_offers_no_floor_plan_questions() -> None:
         no_symbols=SERVICES_FLAG,
     )  # fmt: skip
     assert services.refusal is not None and not services.refusal.can_answer
+
+
+def test_a_services_plan_suggests_no_floor_plan_questions(
+    settings: Settings, tmp_path: Path
+) -> None:
+    client = seeded(settings, tmp_path, sheet_kind_set_aside=False)
+    found = project(client, {"piping.png": PIPING_PNG, "plan.png": PLAN_PNG})
+    files = files_of(found)
+
+    def suggested(path: str) -> list[str]:
+        drawing_id = files[path]["drawing_id"]
+        body = client.get(f"/api/drawings/{drawing_id}", params={"project": found["id"]}).json()
+        return [suggestion["question"] for suggestion in body["suggestions"]]
+
+    assert "How many doors are there?" in suggested("plan.png")  # a floor plan keeps its chips
+    assert suggested("piping.png") == []  # sure services plan (mep_plan, 0.98)
