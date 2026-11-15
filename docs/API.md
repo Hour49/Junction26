@@ -2616,7 +2616,8 @@ that is not an evidence id. `description.detail` is a model's description no per
   `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
   (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
   (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the Carbon reader, whole sheet or things
-  drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `double_check`, `plans`,
+  drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `prior_scale` (the scale
+  estimated from door sizes, `skipped` when not made), `double_check`, `plans`,
   `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
   `room_areas`, `schedule_tags`, `second_count:<quantity>` (any other comparison) (second_count: `found` is
   `{"agree": n, "conflict": m}`); `judge`,
@@ -13109,6 +13110,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018): step id `prior_scale` in extract under `RASTER_SCALE=priors`, the scale
+  estimated from door sizes (`did`: the scale, or why none; `skipped` when not made). Reporting only: no reading
+  changes.
 - 2026-11-15, additive (QA R4-A9, decision 0010 amendment): `DrawingEntry.not_a_drawing` (left out when false):
   the sheet-kind step called the sheet not a drawing and it was read only under warn-only.
 - 2026-11-15, additive (decision 0018): `ProjectStatus.ran` (left out while empty): per route, the steps that ran

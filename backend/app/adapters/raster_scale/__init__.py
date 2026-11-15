@@ -7,9 +7,12 @@ that scale, `area_status` estimated. A sheet whose doors were not read, or where
 detected, keeps `no_scale` with a note saying why: area and length questions are then refused.
 A scale the inner reader found is kept as it is. An area printed in a room's label that is far
 from the room's outline at the estimated scale becomes a conflict (`label_area_checks`).
+The estimate is a `prior_scale` step after the inner reader's steps (decision 0018): the scale it
+found, or why none; `skipped` when it is not made (a scale was read, no page, doors not read). The
+step is reporting only: what the sheet is read as is the same with or without it.
 """
 
-from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.raster_scale import (
     door_sides,
@@ -17,6 +20,11 @@ from app.core.pipeline.raster_scale import (
     label_area_checks,
     rooms_with_areas,
 )
+from app.core.pipeline.steps import now_ms
+from app.core.wording import SCALE_WORDS
+
+STEP_ID = "prior_scale"  # stable (docs/API.md); the ingest screen's "scale from door sizes"
+LABEL = "Scale from door sizes"
 
 
 class PriorScale:
@@ -25,18 +33,24 @@ class PriorScale:
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found = self._inner.extract(source, sheet)
-        if found.scale.status != "no_scale" or not sheet.pages:
-            return found
+        if found.scale.status != "no_scale":
+            said = f"not needed: {SCALE_WORDS[found.scale.status]}"
+            return _with_step(found, _skipped(said))
+        if not sheet.pages:
+            return _with_step(found, _skipped("not made: the sheet has no page to measure"))
         if found.read is not None and "door" not in found.read:
             note = "scale estimate: not made, the doors were not read"
-            return found.model_copy(update={"notes": (*found.notes, note)})
+            found = found.model_copy(update={"notes": (*found.notes, note)})
+            return _with_step(found, _skipped("not made: the doors were not read"))
+        started = now_ms()
         scale = estimate_scale(door_sides(found.elements, sheet.pages))
         if scale is None:
             note = "scale estimate: not made, no door was detected"
-            return found.model_copy(update={"notes": (*found.notes, note)})
+            found = found.model_copy(update={"notes": (*found.notes, note)})
+            return _with_step(found, _step("no scale: no door was detected", started))
         rooms, refused = rooms_with_areas(found.rooms, scale, sheet.pages)
         checks, said = label_area_checks(found.rooms, scale, sheet.pages)
-        return found.model_copy(
+        estimated = found.model_copy(
             update={
                 "scale": scale,
                 "rooms": tuple(rooms),
@@ -44,3 +58,18 @@ class PriorScale:
                 "notes": (*found.notes, f"scale estimate: {scale.source}", *refused, *said),
             }
         )
+        return _with_step(estimated, _step(f"scale estimated: {scale.source}", started))
+
+
+def _step(did: str, started: float) -> StepTrace:
+    """The estimate as a step, from `started` (on `now_ms()`'s clock) to now."""
+    ms = now_ms() - started
+    return StepTrace(id=STEP_ID, label=LABEL, did=did, at_ms=started, ms=ms)
+
+
+def _skipped(did: str) -> StepTrace:
+    return StepTrace(id=STEP_ID, label=LABEL, did=did, at_ms=now_ms(), state="skipped")
+
+
+def _with_step(found: Extracted, step: StepTrace) -> Extracted:
+    return found.model_copy(update={"steps": (*found.steps, step)})
