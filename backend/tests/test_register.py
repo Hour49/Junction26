@@ -5,8 +5,8 @@ import time
 
 import numpy as np
 
-from app.core.services.model import Point2
 from app.core.services import register as register_module
+from app.core.services.model import Point2
 from app.core.services.register import Place, Refusal, Segment, register
 
 
