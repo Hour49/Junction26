@@ -8883,6 +8883,7 @@
           "state": {
             "default": "done",
             "enum": [
+              "running",
               "done",
               "failed",
               "skipped"

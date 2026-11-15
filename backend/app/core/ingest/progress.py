@@ -125,6 +125,18 @@ class Run:
             "ingest: %s %s %s in %.1f ms: %s", status.path, status.kind, state, status.ms, reason
         )
 
+    def index_step(self, step: StepTrace) -> None:
+        """Shows a step of the project's last phase: a new one is added, one with the same id (a
+        running step that ended) is replaced."""
+        with self._lock:
+            steps = list(self._status.index_steps)
+            at = next((i for i, given in enumerate(steps) if given.id == step.id), None)
+            if at is None:
+                steps.append(step)
+            else:
+                steps[at] = step
+            self._status = self._status.model_copy(update={"index_steps": tuple(steps)})
+
     def set_project(self, **changes: object) -> None:
         with self._lock:
             self._status = self._status.model_copy(update=changes)

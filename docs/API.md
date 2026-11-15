@@ -1079,7 +1079,8 @@ Ingest's project status, plus `drawings`:
   now ("Room reader (Gemini)", `rooms`; the step that started last when several run at once); left out when none
   is. `phase` on the project while it runs: `files` (reading the files) or `index` (the last phase:
   judging relevance, describing, the evidence index); null otherwise. `index_steps`: what ran in that last phase,
-  as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs.
+  as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs. Each step shows as it starts
+  (`state` `running`) and is replaced by the step that ended; the evidence index's step is added once it ends.
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
   `set_aside`: no screen polls it for ever.
 
@@ -2472,7 +2473,7 @@ that is not an evidence id. `description.detail` is a model's description no per
 - `steps` (decision 0018, additive): what ran inside the stage, in start order; `[]` where nothing is broken down
   yet. Each step: `id` (a stable machine id, below), `label` (plain words to show: "Symbol detector, 8 views"),
   `did` (one line of what it found, or the error when it failed), `at_ms` (when it began, ms after its stage
-  began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`) and
+  began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`; `running` for a step of `index_steps` that has started and not ended) and
   `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
   (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
   (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon`, `printed_scale`, `double_check`, `plans`,
@@ -12906,6 +12907,8 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018): `StepTrace.state` gains `running`; `ProjectStatus.index_steps` fills while the
+  last phase runs (a running step, then the step that ended).
 - 2026-11-15, additive (decision 0018, ingest trace steps): `StageTrace.steps` (a `StepTrace` list: `id`, `label`,
   `did`, `at_ms`, `ms`, `cost_usd`, `state`, `found`), `FileStatus.step` (left out when none), `FileStatus.step_id`, `ProjectStatus.phase`
   and `ProjectStatus.index_steps`. Old clients ignore them; fixtures regenerated.

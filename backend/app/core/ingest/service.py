@@ -67,10 +67,13 @@ from app.core.ingest.ports import (
 )
 from app.core.ingest.progress import Run, failed_stage
 from app.core.ingest.steps import (
+    DESCRIBE,
+    JUDGE,
     describe_step,
     evidence_step,
     judge_step,
     probe_step,
+    running,
     triage_step,
 )
 from app.core.ingest.triage import (
@@ -95,7 +98,7 @@ from app.core.ingest.triage import (
     triaged,
 )
 from app.core.pipeline.identify import sniff, sniff_raster
-from app.core.pipeline.model import DrawingFile, StepTrace
+from app.core.pipeline.model import DrawingFile
 from app.core.pipeline.steps import now_ms, shifted, timed
 from app.core.review.review import NotAllowedError
 from app.core.wording import kind_words
@@ -429,21 +432,23 @@ class IngestService:
             for path in run.unfinished():
                 run.finish(path, "set_aside", f"not ingested: {error}")
         run.set_project(phase="index")
-        began, steps = now_ms(), list[StepTrace]()
+        began = now_ms()  # each step shows as running when it starts, then as it ended
+        judging = self._triage is not None and self._triage.judge is not None and error is None
+        if judging:
+            run.index_step(running("judge", JUDGE, now_ms() - began))
         _, span = timed(lambda: self._judge(run, failed=error is not None))
-        if self._triage is not None and self._triage.judge is not None and error is None:
-            steps.append(judge_step(run.status().files, span))
+        if judging:
+            run.index_step(shifted([judge_step(run.status().files, span)], -began)[0])
         if error is None and self._evidence_steps is not None:
+            run.index_step(running("describe", DESCRIBE, now_ms() - began))
             _, span = timed(lambda: self._describe_for_index(run))
-            steps.append(describe_step(run.status().files, span))
+            run.index_step(shifted([describe_step(run.status().files, span)], -began)[0])
         ms = (self._clock() - started) * 1000
-        run.set_project(state=state, error=error, ms=ms, finished_at=self._now(), phase=None,
-                        index_steps=shifted(steps, -began))  # fmt: skip
+        run.set_project(state=state, error=error, ms=ms, finished_at=self._now(), phase=None)
         self._save(run)
         if self._evidence is not None:
             _, span = timed(lambda: self._index(run.status()))
-            steps.append(evidence_step(span))
-            run.set_project(index_steps=shifted(steps, -began))
+            run.index_step(shifted([evidence_step(span)], -began)[0])
             self._save(run)
         with self._lock:
             del self._live[run.id]

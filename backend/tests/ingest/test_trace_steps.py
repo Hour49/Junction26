@@ -1,5 +1,6 @@
 """Decision 0018: the steps inside an ingest stage, and the live step and phase of a project."""
 
+import threading
 from pathlib import Path
 
 from conftest import MakeService
@@ -12,7 +13,18 @@ from app.adapters.archive import ThreadRunner
 from app.adapters.evidence.store import SqliteEvidenceIndex
 from app.core.drawing.model import Conflict
 from app.core.evidence.chunks import passages
-from app.core.ingest.model import FileStatus, Normalised, ProjectStatus, StageTrace, StepTrace
+from app.core.ingest.model import (
+    Description,
+    FileStatus,
+    Normalised,
+    ProjectContext,
+    ProjectStatus,
+    Relevance,
+    StageTrace,
+    StepTrace,
+    TriageClass,
+    Unavailable,
+)
 from app.core.ingest.steps import frame_steps, second_count_steps, triage_step
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.steps import Span, starting
@@ -200,3 +212,42 @@ def test_the_route_stage_is_timed(make_service: MakeService) -> None:
     pdf = next(file for file in status.files if file.path == "plans/flat-a.pdf")
     stages = {stage.stage: stage for stage in ingest.trace(status.id, pdf.id).stages}
     assert stages["route"].ms > 0
+
+
+class HeldJudge(WordJudge):
+    """A judge that waits until the test lets it go, to look at a project mid-index."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered, self.release = threading.Event(), threading.Event()
+
+    def judge(
+        self, kind: TriageClass, description: Description | None, context: ProjectContext
+    ) -> Relevance | Unavailable:
+        self.entered.set()
+        assert self.release.wait(10)
+        return super().judge(kind, description, context)
+
+
+def test_a_project_mid_index_lists_the_step_running_now(make_service: MakeService) -> None:
+    judge = HeldJudge()
+    triage = steps(
+        FakeClassifier({SCAN: "other_drawing"}),
+        FakeDescriber({SCAN: ("the south elevation of a house", ("Küche",))}),
+        judge,
+    )
+    ingest = make_service(runner=ThreadRunner(), triage=triage, evidence_steps=on())
+    try:
+        project = ingest.start("p.zip", zipped({"plan.pdf": PLAN, "e.png": SCAN}))
+        assert judge.entered.wait(10)
+        mid = ingest.status(project)
+        assert mid.phase == "index"
+        assert [(s.id, s.label, s.state) for s in mid.index_steps] == [
+            ("judge", "Relevance judge", "running")
+        ]
+        judge.release.set()
+        done = ingest.wait(project, timeout=10)
+    finally:
+        judge.release.set()
+        ingest.close()
+    assert [(s.id, s.state) for s in done.index_steps] == [("judge", "done"), ("describe", "done")]

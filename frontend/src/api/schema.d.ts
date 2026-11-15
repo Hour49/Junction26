@@ -3660,7 +3660,7 @@ export interface components {
              * @default done
              * @enum {string}
              */
-            state: "done" | "failed" | "skipped";
+            state: "running" | "done" | "failed" | "skipped";
         };
         /** StoreyRow */
         StoreyRow: {

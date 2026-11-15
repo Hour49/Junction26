@@ -106,6 +106,15 @@ def second_count_steps(conflicts: Sequence[Conflict] | None) -> list[StepTrace]:
     return steps
 
 
+JUDGE = "Relevance judge"
+DESCRIBE = "Files for the evidence index"
+
+
+def running(step_id: str, label: str, at_ms: float) -> StepTrace:
+    """A step of the project's last phase that has started and not ended."""
+    return StepTrace(id=step_id, label=label, at_ms=max(0.0, at_ms), state="running")
+
+
 def judge_step(files: Sequence[FileStatus], span: Span) -> StepTrace:
     """The relevance judge over the files triage set aside (the project's last phase)."""
     judged = [f for f in files if f.triage is not None and f.triage.relevance is not None]
@@ -117,7 +126,7 @@ def judge_step(files: Sequence[FileStatus], span: Span) -> StepTrace:
     said = ", ".join(f"{n} {verdict}" for verdict, n in sorted(verdicts.items()))
     return StepTrace(
         id="judge",
-        label="Relevance judge",
+        label=JUDGE,
         did=f"{count(len(judged), 'file')} judged" + (f": {said}" if said else ""),
         at_ms=span.at_ms,
         ms=span.ms,
@@ -137,7 +146,7 @@ def describe_step(files: Sequence[FileStatus], span: Span) -> StepTrace:
     said = ", ".join(f"{n} {words[kind]}" for kind, n in sorted(how.items()))
     return StepTrace(
         id="describe",
-        label="Files for the evidence index",
+        label=DESCRIBE,
         did=f"{count(sum(how.values()), 'file')} indexed" + (f": {said}" if said else ""),
         at_ms=span.at_ms,
         ms=span.ms,

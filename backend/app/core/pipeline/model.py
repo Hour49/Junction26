@@ -89,7 +89,7 @@ class Measurement(Frozen):
     value: MeasuredValue
 
 
-StepState = Literal["done", "failed", "skipped"]
+StepState = Literal["running", "done", "failed", "skipped"]  # running: a live step
 
 
 class StepTrace(Frozen):
