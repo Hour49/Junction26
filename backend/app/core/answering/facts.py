@@ -146,7 +146,11 @@ _PICTURE_ROWS: tuple[tuple[str, str, str], ...] = (
     (r"toilets?|wcs?", "toilets", r"\bwc\b|toilet|water ?closet|klosett|inodoro"),
     (r"urinals?", "urinals", r"urinal|pissoir|urinoir|orinatoio|urinario|pisuaari"),
     (r"(?:wash)?basins?|lavator", "washbasins", _BASIN),
-    (r"sinks?", "sinks", rf"sink|spüle|tiskiallas|diskbänk|gootsteen|évier|fregadero|{_BASIN}"),
+    (
+        r"sinks?",
+        "sinks",
+        rf"sink|\bsp(?:ü|ue)le|tiskiallas|diskbänk|gootsteen|évier|fregadero|{_BASIN}",
+    ),
     (r"dampers?", "dampers", r"damper|klappe|pelti|spjäll|klep|clapet|serranda|compuerta"),
 )
 # A word that narrows what is asked, which the label must name too: a "fire damper"

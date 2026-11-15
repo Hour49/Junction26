@@ -70,6 +70,16 @@ def test_washbasins_one_word_or_two() -> None:
         assert len(answer.evidence) == 4
 
 
+def test_sinks_are_washbasins_and_kitchen_sinks_never_a_urinal_s_flush() -> None:
+    """review-694 M1: "spüle" inside "Druckspüler" (a urinal's flush) counted 6 urinals as sinks
+    (12, truth 6). A kitchen sink is "Spüle" at a word's start."""
+    rows = {**PLUMBING, "Spüle Geschirrspüler:140 x 60cm": 2}
+    answer = ask("How many sinks are there?", rows)
+    said = str(answer.answer)
+    assert said.startswith("Total sinks: 6\n"), said
+    assert "Urinal" not in said and "Spüle Geschirrspüler:140 x 60cm: 2" in said
+
+
 def test_fire_dampers_are_the_symbol_rows_naming_them() -> None:
     for text in ("How many fire dampers are there?", "How many dampers are there?"):
         answer = ask(text, VENTILATION, file="set/L-101 ventilation.jpg")
