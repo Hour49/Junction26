@@ -521,14 +521,20 @@ def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]
         raise ToolError(f"no element of kind {args.kind!r} in this model; its kinds: "
                         f"{', '.join(kinds) or 'none'}")  # fmt: skip
     listed = [e for e in listable if e.group != CONTROLLERS or args.kind is not None]
+
+    def scoped(e: Element) -> bool:
+        return (
+            (storey is None or e.storey == storey.id)
+            and (args.system is None or args.system in e.systems)
+            and (room is None or e.room == room.id)
+        )
+
     matched = [
-        e
-        for e in listed
-        if (storey is None or e.storey == storey.id)
-        and (args.system is None or args.system in e.systems)
-        and (room is None or e.room == room.id)
-        and (args.kind is None or args.kind in (e.kind, e.group))
+        e for e in listed if scoped(e) and (args.kind is None or args.kind in (e.kind, e.group))
     ]
+    # R2 services row 7: with no kind the valves and dampers stay out of the count (review-699)
+    # but are named with theirs, so a list of air terminals is never read as "0 dampers"
+    on_request = [e for e in listable if e.group == CONTROLLERS and args.kind is None and scoped(e)]
     if args.predefined is not None:  # R5: a WC, a basin and its frame are one IFC class
         wanted = {key.strip().upper() for key in args.predefined.split(",")}  # "SINK,WASHHANDBASIN"
         types = {
@@ -543,6 +549,7 @@ def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]
             )
         found["untyped"] = sum(e.predefined is None for e in matched)
         matched = [e for e in matched if (e.predefined or "untyped").upper() in wanted]
+        on_request = [e for e in on_request if (e.predefined or "untyped").upper() in wanted]
     items = [
         {
             "id": e.id,
@@ -557,24 +564,32 @@ def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]
         for e in matched
     ]
     found["count"] = len(items)
+    if on_request:  # the kinds a kind filter lists, by their counts in this scope
+        found["on_request"] = dict(Counter(e.kind for e in on_request).most_common())
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
     kinds, types = Counter(e.kind for e in matched), Counter(e.type for e in matched)
     predefined = Counter(e.predefined or "untyped" for e in matched)
     rooms = Counter(f"{e.room} {names.get(e.room, '')}".strip() if e.room else "no room"
                     for e in matched)  # fmt: skip
     top = MAX_GROUPS
-    while True:  # the groups count every match: items go first, then the smallest groups
+    while True:  # the groups count every match: items go first, then the smallest groups,
+        # then the last systems (systems_more counts them), so a model fits its share of a
+        # list of every model (R2 services row 7: three models were cut to their count)
         found["by_kind"], found["by_type"] = _groups(kinds, top), _groups(types, top)
         found["by_predefined"] = _groups(predefined, top)
         found["by_room"] = _groups(rooms, top)
-        short = len(json.dumps(found, ensure_ascii=False)) <= limit
-        if short or (top == 1 and not found["items"]):
+        if len(json.dumps(found, ensure_ascii=False)) <= limit:
             break
         if found["items"]:
             found["items"].pop()
             found["more"] += 1
-        else:
+        elif top > 1:
             top //= 2
+        elif found["systems"]:
+            found["systems"].pop()
+            found["systems_more"] += 1
+        else:
+            break
     return found
 
 
