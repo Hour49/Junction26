@@ -71,6 +71,7 @@ export function ChecksScreen({
   const [projectAnswer, setProject] = useState<Keyed<ProjectView> | null>(null);
   const [checksAnswer, setChecks] = useState<Keyed<ProjectChecks> | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [projectAttempt, setProjectAttempt] = useState(0);
   const [pickedAnswer, setPicked] = useState<{
     key: string;
     drawingId: string;
@@ -79,23 +80,24 @@ export function ChecksScreen({
   const [views, setViews] = useState<ReadonlyMap<string, Load<DrawingView>>>(new Map());
 
   const hasPack = pack !== null;
+  const projectKey = `${projectId}|${String(projectAttempt)}`;
   useEffect(() => {
     if (!hasPack) return;
     const abort = new AbortController();
     getProject(projectId, { signal: abort.signal }).then(
       (value) => {
-        setProject({ key: projectId, load: { state: 'ok', value } });
+        setProject({ key: projectKey, load: { state: 'ok', value } });
       },
       (error: unknown) => {
-        if (!abort.signal.aborted) setProject({ key: projectId, load: { state: 'error', error } });
+        if (!abort.signal.aborted) setProject({ key: projectKey, load: { state: 'error', error } });
       },
     );
     return () => {
       abort.abort();
     };
-  }, [projectId, hasPack]);
+  }, [projectId, hasPack, projectKey]);
   const project: Load<ProjectView> =
-    projectAnswer?.key === projectId ? projectAnswer.load : { state: 'loading' };
+    projectAnswer?.key === projectKey ? projectAnswer.load : { state: 'loading' };
 
   const finished = project.state === 'ok' && isFinished(project.value);
   const checksKey = `${projectId}|${pack ?? ''}|${String(attempt)}`;
@@ -154,7 +156,15 @@ export function ChecksScreen({
   if (!pack)
     return page(<p className={LINE}>Choose a country in the header to run its pre-check.</p>);
   if (project.state === 'loading') return page(<Loading label="Loading the checks…" />);
-  if (project.state === 'error') return page(<ErrorView error={project.error} />);
+  if (project.state === 'error')
+    return page(
+      <ErrorView
+        error={project.error}
+        onRetry={() => {
+          setProjectAttempt((n) => n + 1);
+        }}
+      />,
+    );
   const p = project.value;
 
   const head = () => (
