@@ -305,9 +305,12 @@ SIZE_FILTER_WORDS = re.compile(
 # a door; ...")
 FIRST_SENTENCE = re.compile(r"\?|(?<=[a-z0-9²)])\.\s")
 # Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
-# balconies" (EXCLUDING), a room's "longer side" (its length)
+# balconies" (EXCLUDING), a room's "longer side" (its length); and words that narrow nothing
+# (review-532): "over all", "only". Not "the apartment with number A": the parser reads that
+# name only as "apartment A", so it would answer for the whole sheet (review-539)
 APPLIED = re.compile(
     r"\b(?:without|excluding|except)\s+(?:the\s+|its\s+)?balcon\w*|\b(?:longer|shorter)\s+side\b"
+    r"|\bover\s+all\b|\bonly\b"
 )
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
