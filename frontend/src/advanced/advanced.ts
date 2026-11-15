@@ -376,12 +376,6 @@ export function pairsOf(takeoffs: readonly Takeoff[], project: ProjectView): Pai
   return [...pairs.filter((p) => p.disputed), ...pairs.filter((p) => !p.disputed)];
 }
 
-/** Elapsed: the run's `ms` once done or failed; now - `started_at` while it runs; null before it starts. */
-export function elapsedMs(project: ProjectView, now: number): number | null {
-  if (project.state === 'done' || project.state === 'failed') return project.ms;
-  return project.started_at ? Math.max(0, now - Date.parse(project.started_at)) : null;
-}
-
 /** The Identify chip for a page's scale as read (`PageView.scale`); null when there is nothing to say. */
 export function scaleChip(scale: DrawingView['pages'][number]['scale'] | undefined): string | null {
   if (!scale) return null;

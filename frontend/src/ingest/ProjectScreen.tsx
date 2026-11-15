@@ -15,7 +15,7 @@ import {
   uploadedKey,
 } from './ingest';
 import { ChatRow, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
-import { readDrawings } from './pipeline';
+import { readDrawings, unread } from './pipeline';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
 import { MUTED, PAGE, PANEL, TAP } from './ui';
@@ -148,7 +148,7 @@ export function whyRows(why: readonly { path: string; reason?: string | null }[]
   );
 }
 
-/** A done project with no drawings: every file and skipped entry with why it was not read (IN-72), entries with
+/** A done project with no drawing ready: every file and skipped entry with why it was not read (IN-72), entries with
  * the same reason grouped and the rows capped (IN-128). */
 function NothingRead({ projectId, project }: { projectId: string; project: ProjectView }) {
   const paths = new Set(project.files.map((f) => f.path));
@@ -161,7 +161,13 @@ function NothingRead({ projectId, project }: { projectId: string; project: Proje
   const more = rows.slice(NOTHING_ROWS).reduce((n, r) => n + r.paths.length, 0);
   return (
     <Card role="region" aria-label="Nothing read" className={cn(PANEL, 'grid gap-4')}>
-      <h2 className="v-h2">Nothing could be read from this upload</h2>
+      <h2 className="v-h2">
+        {/* files were read but none is a drawing (only sheets called not a drawing): said so, not "nothing could be
+        read" over rows saying what was read (QA ingest R1) */}
+        {project.drawings.some((d) => !unread(d, project.readers))
+          ? 'No drawing found in this upload'
+          : 'Nothing could be read from this upload'}
+      </h2>
       {why.length === 0 && <p>There were no files in it.</p>}
       {why.length > 0 && (
         <ul className="grid gap-3">

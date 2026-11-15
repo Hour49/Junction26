@@ -271,6 +271,12 @@ def test_a_room_area_sum_is_an_estimate_when_one_of_its_rooms_is_estimated() -> 
         == "1 of 2 room areas is measured on an estimated scale; the area may be off by about ±35%"
     )
     assert found[Query(measure="area", subject="room", name="K").key()].estimate is None
+    # R1 plans row 18: only a printed area is "as the drawing gives it"; a measured one says so
+    by_name = {name: found[Query(measure="area", subject="room", name=name).key()].rule
+               for name in ("OH", "K")}  # fmt: skip
+    text = {r.id: r.text for r in vars(rules).values() if isinstance(r, CountingRule)}
+    assert text[by_name["K"]] == "the room's net floor area as the drawing gives it"
+    assert text[by_name["OH"]] == "the room's net floor area, measured from its outline"
     # a printed (exact) area does not rest on the sheet's estimated scale; an unset one does
     guessed = Scale(status="estimated", m_per_unit=0.02, source="door widths")
     on_guess = known_quantities(drawing(scale=guessed, rooms=rooms))

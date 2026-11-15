@@ -104,6 +104,36 @@ it('CH-30 a sheet that is not a floor plan comes first, in the rows and the refe
   expect(refs()[0]?.textContent).toContain(LA);
 });
 
+it('big QA R1 (R3, R10, R32): the card opens on the drawing the text cites, first in the rows and references', () => {
+  // the text's [1] is flat B's: its card, not upload order's first drawing (flat A, another flat's room)
+  render(
+    <ChatAnswer
+      ask={projectAsk}
+      project={projectWith(null)}
+      projectId={project.id}
+      pack={null}
+      cited={[flatB.drawing_id]}
+    />,
+  );
+  expect(rows()[0]?.textContent).toContain(LB);
+  expect(refs()[0]?.textContent).toContain(LB);
+  expect(viewers.at(-1)?.file).toBe(flatB.name);
+  cleanup();
+  viewers.length = 0;
+  // a citation of no answering drawing: as before (CH-30's order, the first with a page)
+  render(
+    <ChatAnswer
+      ask={projectAsk}
+      project={projectWith(null)}
+      projectId={project.id}
+      pack={null}
+      cited={['0000000000000000']}
+    />,
+  );
+  expect(rows()[0]?.textContent).toContain(LA);
+  expect(viewers.at(-1)?.file).toBe(flatA.name);
+});
+
 it('CH-31 the lead: why_no_total without a total, never the refused drawings; a total with its note', () => {
   show();
   expect(screen.getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();

@@ -43,10 +43,12 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
+    NO_SUCH_STOREY,
     NOT_COUNTED,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SHARED_FLOOR,
     Answer,
@@ -174,6 +176,8 @@ TEXTS = {
     "policy": "On sheets like this one, our reader got this kind of question wrong too often when "
     "we measured it, so no number is given.",
 }
+# A refusal's pointer to its chips, left out when it offers none (a services plan, review-697 S1)
+TRY_THESE = re.compile(r"\s*Try one of these instead\.|;\s*try one of these\.")
 PARTS = {  # an unsupported count that would drop part of the question: which part
     SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
     "the whole drawing. Ask for each one on its own; try one of these.",
@@ -181,6 +185,8 @@ PARTS = {  # an unsupported count that would drop part of the question: which pa
     "drawing. Try one of these instead.",
     SEVERAL_ROOMS: "This question names more than one room, and I answer for one room at a time. "
     "Ask for each room on its own.",
+    SEVERAL_STOREYS: "This question names more than one storey, and I answer for one storey at a "
+    "time. Ask for each storey on its own.",
 }
 
 
@@ -383,7 +389,11 @@ def ask(
             code, words = "not-in-drawing", room_word_refusal(kind, unsaid[query])
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
-        can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
+        # a services plan (triage is sure): its rooms are the plan under the pipes, so no
+        # floor-plan question is offered (R1 services-second S3: "How many halls are there?")
+        can_answer = (
+            () if no_symbols is not None else suggestions(quantities, parser, SUGGESTIONS, tables)
+        )
         if code == "not-in-drawing" and isinstance(parsed, Query):
             rooms = rooms_of_type(parsed, drawing)
             if len(rooms) > 1 and (each := _room_areas(rooms, quantities, parser)):
@@ -427,6 +437,8 @@ def ask(
             words = _noun_refusal(noun, drawing)  # vocab-nouns P2
         if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
             words += _not_measured(parsed, drawing)  # review-349 S3
+        if not can_answer:
+            words = TRY_THESE.sub(lambda found: "." if found[0][0] == ";" else "", words)
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     level = None
@@ -591,10 +603,14 @@ def _flagged(
     is returned as `unread`, so any question on it is refused, its key in the takeoff or not
     (F4-4b). Every other quantity carries the flag as its estimate, so the answer says what it
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
-    page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
-    the classes it could not count (left out of `read`), so on a drawing whose elements are
-    Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
-    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b.
+    page can have 0 saunas, but not 0 rooms (F4-4). On any sheet, flagged or not, no element at
+    all is unread the same way when it has pages, a reader that read something and no building
+    model (else _refusal's own words: nothing read, a services model): a vector sheet whose
+    reader found 0 elements and 26 rooms answered "0 toilets" High (big QA R1 services row 12).
+    Except a class Carbon counted: Carbon names the classes it could not count (left out of
+    `read`), so on a drawing whose elements are Carbon's (CARBON_FLAG, which ingest sets only
+    then) a class it read with no element is a read 0, still flagged (brief r8 BD). A drawing
+    Carbon read only a part of keeps F4-4b.
     On a flagged page a room count with no located mark ("0 bathrooms", "37 bedrooms" with
     nothing marked) is a guess too: it is left out and returned in `unlocated` by key, so the
     question is refused the same way (brief r8 BM); a class Carbon read keeps its 0. A 0 of a
@@ -602,7 +618,8 @@ def _flagged(
     or more types besides "other": a page can have 0 saunas, F4-4) and a guess when it put every
     room under one type (the hotel photo: 37 "bedrooms", then 0 bathrooms; #285 review)."""
     empty: set[str] = set()
-    if flags and not drawing.elements:
+    read = bool(drawing.pages) and drawing.read != () and not drawing.model_objects
+    if not drawing.elements and (flags or read):  # unflagged: R1 services row 12
         empty.update(ELEMENT_CLASSES)
         if CARBON_FLAG in flags and drawing.read is not None:
             empty.difference_update(drawing.read)
@@ -665,9 +682,14 @@ def _symbols_text(flag: str) -> str:
 
 
 def _unread_text(query: str, flags: Sequence[str]) -> str:
-    if not flags:  # only rooms are unread on a page that wasn't flagged (_flagged)
-        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
     things = "rooms" if parse_key(query)[1].startswith("room") else "elements"
+    if not flags and things == "rooms":
+        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
+    if not flags:
+        return (
+            "The reader found no doors, windows or fixtures of any kind on this drawing, so 0 "
+            "would be a guess, not a count."
+        )
     return (
         f"This drawing was flagged at upload ({'; '.join(flags)}), and its reader found no "
         f"{things} on it, so 0 would be a guess, not a count."
@@ -1089,7 +1111,7 @@ def suggestions(
     return tuple(found)
 
 
-FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR)
+FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR, NO_SUCH_STOREY)
 
 
 def _floor_text(
@@ -1107,6 +1129,13 @@ def _floor_text(
     asked = "floor" if found is None else found.group().casefold()
     number = None if found is None else floor_number(found)
     named = storeys(drawing)
+    if reason == NO_SUCH_STOREY:  # "on P1" on the P2 sheet, "on P9" (big QA R1)
+        given = parser.parse(text)
+        storey = given.storey if isinstance(given, Query) else None
+        return (
+            f"This drawing's storeys are {', '.join(named)}; none of them is "
+            f"{storey or 'the storey asked'}, so it does not answer for that storey."
+        )
     if reason == GLUED_FLOOR and found is not None and number is not None:
         n = abs(number)
         if glued(found):
@@ -1435,4 +1464,9 @@ def _refusal(
                 f"Room {parsed.name} has no outline on this drawing, only a box around it, so I "
                 "can't tell what is inside it.",
             )
+    if parsed.storey is not None and not storeys(drawing):  # "on P1" on a plain plan (review-702)
+        return (
+            "not-in-drawing",
+            f"This drawing doesn't name its storeys, so I can't tell if it shows {parsed.storey}.",
+        )
     return "not-in-drawing", f"This drawing doesn't give the {label(query, drawing)}."

@@ -6,17 +6,19 @@ import {
   elapsedMs,
   formatCost,
   formatMs,
+  formatWait,
   isLive,
   percentDone,
   progressOf,
+  queueWaitMs,
   stepFiles,
 } from './ingest';
 import {
   PIPELINE_TIPS,
   busySteps,
+  drawingTally,
   headlineStep,
   projectPhase,
-  readDrawings,
   routeSummary,
   thingsFound,
   unread,
@@ -123,9 +125,11 @@ export function ProgressCard({
   const percent = percentDone(files);
   const { done, total } = progressOf(files);
   const elapsed = elapsedMs(project, now);
-  const expected = project.expected_drawings;
-  // a drawing on a route with no reader was not read: not ready (IN-116)
-  const ready = String(readDrawings(project).length);
+  const wait = queueWaitMs(project, now);
+  // a drawing on a route with no reader was not read: not ready (IN-116); one called not a drawing is out of both
+  // numbers, the summary names it (QA ingest R1)
+  const tally = drawingTally(project);
+  const ready = String(tally.ready);
   const status = (i: number) =>
     state === 'done' || i < low
       ? 'done'
@@ -147,9 +151,7 @@ export function ProgressCard({
             {state === 'done' ? 'Ready' : state === 'failed' ? 'Stopped' : STEPS[step - 1]?.name}
           </h2>
           {state === 'done' && (
-            <p className="ingest-summary text-[15px] text-text-2">
-              {routeSummary(files, project.readers)}
-            </p>
+            <p className="ingest-summary text-[15px] text-text-2">{routeSummary(project)}</p>
           )}
         </div>
         {state !== 'failed' && (
@@ -165,12 +167,22 @@ export function ProgressCard({
       </div>
       {actions}
       <dl className={STATS}>
-        <Stat label="Elapsed">{elapsed === null ? '—' : formatMs(elapsed)}</Stat>
+        <Stat label="Elapsed">
+          {elapsed === null ? '—' : formatMs(elapsed)}
+          {wait !== null && (
+            // Elapsed counts from the run's start: the time in the queue said apart (QA ingest R1)
+            <span className="ingest-wait block text-xs font-normal tracking-normal text-muted-foreground">
+              {elapsed === null && live
+                ? `waiting ${formatWait(wait)} for a free slot`
+                : `after ${formatWait(wait)} waiting for a free slot`}
+            </span>
+          )}
+        </Stat>
         <Stat label="Files through" tip={INGEST_TIPS.filesThrough}>
           {live && total === 0 ? '—' : `${String(done)} / ${String(total)}`}
         </Stat>
         <Stat label="Drawings ready" tip={INGEST_TIPS.drawingsReady}>
-          {expected === null ? ready : `${ready} / ${String(expected)}`}
+          {tally.of === null ? ready : `${ready} / ${String(tally.of)}`}
         </Stat>
         <Stat label="Things found" tip={PIPELINE_TIPS.thingsFound}>
           {live && done === 0 ? '—' : thingsFound(files)}

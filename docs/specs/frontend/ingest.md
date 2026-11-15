@@ -819,6 +819,22 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   end: the extension and the 8 characters before it stay ("site1000_bldg2082_flo…or3_plan.dxf"), so a DXF and its
   PDF of the same name stay apart, at 390 too. The file link is at least 24 px high (`min-h-6`), a tap target.
   [unit: `nameEnds`; component: two names with a long shared start; browser at 390, the link box measured]
+- IN-130 (QA ingest R1-1, a non-drawing image or a line grid flagged, not set aside): IN-72's "Nothing read" card
+  is headed "No drawing found in this upload" when a file was read but no drawing is ready (its only drawings are
+  ones called not a drawing, `not_a_drawing`), and "Nothing could be read from this upload" when nothing was read
+  (no drawing, or only drawings on a route with no reader, IN-116). [component]
+- IN-131 (QA ingest R1-2, the demo sample's "Drawings ready 6 / 7" and "Read ... 4 images" while all 7 open): one
+  rule (`drawingTally`) for the tile, the summary and the done line. "Drawings ready" is the drawings ready
+  (`readDrawings`) over `expected_drawings` less the drawings called not a drawing (never below the ready count),
+  so a site photo does not read as a drawing that failed; the summary's "Read <n> <kind>" counts the same drawings
+  by route, and names a sheet called not a drawing for what it is: "1 image is not a drawing (flagged)". The demo
+  sample: "6 / 6", "Read 1 IFC model, 3 drawn PDFs and 2 images; 1 image is not a drawing (flagged). 3 flagged
+  files need a look; 1 set aside.", "6 drawings ready." [unit: `drawingTally`, `routeSummary`; component, from the
+  demo sample's real status]
+- IN-132 (QA ingest R1-3, "Elapsed 1.1 s" after 65 s on the clock): Elapsed still counts from `started_at`, and when
+  the project waited 2 s or more for a free slot (`created_at` to `started_at`; still queued: to now) a short line
+  under it says so: "after 64 s waiting for a free slot", or while it is still queued "waiting 12 s for a free
+  slot" under "—". A wait from 2 min reads "3 min 5 s". [unit: `queueWaitMs`, `formatWait`; component]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
@@ -827,6 +843,10 @@ hairline facts, Route fact as `routeLabel`) stands.
 Changed on purpose (IN-116): IN-16, IN-68 and IN-76 count the drawings read, so on `project.json` (a no-keys run,
 `raster: hello`) "Drawings ready" is 4 / 6 and the done line "4 drawings ready.", and the golden path e2e on a
 no-keys backend sees 4 / 6 (its scan and photo are not read).
+
+Changed on purpose (IN-131): IN-126's "1 / 2" for a screenshot beside a real drawing is now "1 / 1": a drawing
+called not a drawing is out of the total too, as it is out of the ready count; IN-104's summary counts the drawings
+ready by route rather than the files with a drawing.
 
 Changed on purpose: IN-86 (Cost is back as the 8th total), IN-89's hint text, the golden path's "no file list on
 Ingest" (v3): file links now appear on Ingest, only inside the route lanes. "Showing `readers` and `counts` on these

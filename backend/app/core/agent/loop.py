@@ -82,6 +82,9 @@ UNBACKED = "I could not back that answer with what the drawings say."
 SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³", "ft2": " ft²", "ft": " ft"}
 # a lead that leaves the values to the answer card under it, as the prompt asks
 TO_THE_CARD = re.compile(r"\bbelow\b", re.I)
+# a room or flat code that starts with its digits ("1DER-COC", "2B"), not a number with its unit
+# ("156m2", "120mm"): no value of the text's own (ifc-r1 row 4)
+CODE = re.compile(r"\b\d+(?!(?:sq[a-z]*|mm|cm|dm|km|m|ft|in)(?:\b|\d|²|³))[a-z][\w-]*", re.I)
 # the show chip's label and message, one text (QA R4-E8); "show me" routes it (prompt, chat_rules)
 SHOW_THEM = "Show me where they are"
 AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
@@ -873,7 +876,10 @@ class _Run:
         number = {ev: n for n, ev in enumerate(dict.fromkeys([*cited, *shown]), start=1)}
         text = re.sub(r"\[?(ev_\d+)\]?", lambda found: f"[{number[found[1]]}]", answer.text)
         for drawing_id, file in self._files():  # a drawing by its plain name, not its file
-            text = text.replace(file, self.names.get(drawing_id) or file)
+            name = self.names.get(drawing_id) or file
+            text = text.replace(file, name)
+            # "Drawn plan 3 (plan.pdf)" became "Drawn plan 3 (Drawn plan 3)": said once (QA R1)
+            text = text.replace(f"{name} ({name})", name)
         text = _plain_ids(text)
         kind: TurnKind = answer.kind
         if kind == "dont_know" and self.reviewed_refusal and not self.asked:
@@ -902,8 +908,11 @@ class _Run:
             answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and (values := self._values_said(text, answers, cited)):
             text = f"{text.rstrip()} {values}"
+        if kind in ("dont_know", "needs_input"):
+            answers = self._refused_only(answers, cited)
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
+        answers = self._cited_first(answers, cited)  # the text's drawing on top (big QA R1)
         evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
         view = self._view(kind, cited, number, answer.proposal_id)
         return ChatTurn(
@@ -951,6 +960,43 @@ class _Run:
             out.append(Option(label=ask[:60], message=ask))
         return tuple(out[:3])
 
+    def _cited_first(self, answers: tuple[Json, ...], cited: list[str]) -> tuple[Json, ...]:
+        """`answers` with the parts of the drawings the text cites first, in the order it cites
+        them, the rest as they were: the first card is the drawing the text is about (big QA R1
+        row 13: the text's Drawn plan 2 over a card opening on Drawn plan 1)."""
+        places = {**self.known, **self.ledger}
+        drawings = [str(places[ev]["drawing_id"]) for ev in cited if ev in places]
+        order = list(dict.fromkeys(drawings))
+        if not order:
+            return answers
+
+        def rank(part: Any) -> int:
+            drawing = str(part.get("drawing_id")) if isinstance(part, dict) else ""  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            return order.index(drawing) if drawing in order else len(order)
+
+        out: list[Json] = []
+        for given in answers:
+            parts: Any = given.get("parts")
+            listed: list[Any] = parts if isinstance(parts, list) else []  # pyright: ignore[reportUnknownVariableType]
+            out.append({**given, "parts": sorted(listed, key=rank)} if listed else given)
+        return tuple(out)
+
+    def _refused_only(self, answers: tuple[Json, ...], cited: list[str]) -> tuple[Json, ...]:
+        """A refusal's ask_drawings answers with the drawings that refused (named with what each
+        lacks) and those its text cites; another drawing's answering card read as the answer
+        under "I don't know" (big QA R1 rows 7, 9, 10: the model's 68 doors by type)."""
+        places = {**self.known, **self.ledger}
+        about = {str(places[ev]["drawing_id"]) for ev in cited if ev in places}
+        out: list[Json] = []
+        for given in answers:
+            parts: list[Json] = given.get("parts") or []
+            kept = [
+                part for part in parts if _refusal(part) or str(part.get("drawing_id")) in about
+            ]
+            if kept:
+                out.append(given if len(kept) == len(parts) else {**given, "parts": kept})
+        return tuple(out)
+
     def _values_said(self, text: str, answers: tuple[Json, ...], cited: list[str]) -> str | None:
         """Each answering drawing's value of the ask_drawings answers the turn rests on, as the
         rules lead says them ("Drawn plan 1: 156 m²."), when `text` points at the card (the
@@ -964,7 +1010,7 @@ class _Run:
         labels = [str(places[ev]["label"]) for ev in cited if places.get(ev, {}).get("label")]
         for name in sorted([*self.names.values(), *labels], key=len, reverse=True):
             text = text.replace(name, " ")
-        if claims(re.sub(r"\[\d+\]", " ", text)):
+        if claims(CODE.sub(" ", re.sub(r"\[\d+\]", " ", text))):
             return None
         listed: list[Json] = []
         for given in answers:
@@ -1323,6 +1369,12 @@ def _part(part: Json, names: Mapping[str, str]) -> str:
     level: Json = answer.get("level") or {}
     said = f" ({level['level']})" if level.get("level") else ""
     return f"{name}: {answer['answer']}{unit}{said}"
+
+
+def _refusal(part: Json) -> bool:
+    """Whether a drawing's part of an ask_drawings result is a refusal."""
+    answer: Json = part.get("answer") or {}
+    return bool(answer.get("refusal"))
 
 
 def _refused(asked: Json) -> bool:

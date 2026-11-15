@@ -174,7 +174,7 @@ def test_the_pipeline_writes_the_readers_views_into_the_drawing_only_with_the_se
         counted_elements(drawing, "door"), reader_elements(drawing, "door"), noun="door", k=1
     )
     assert [(mark.mark_id, mark.box) for mark in found] == [("e2", B)]
-    assert found[0].readers == {"answer": "door, score 0.90", "m1": "nothing"}
+    assert found[0].readers == {"answer": "door", "m1": "nothing"}
 
 
 def test_the_setting_needs_the_composite_and_sources_that_build(

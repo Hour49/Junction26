@@ -223,7 +223,14 @@ export function TurnCard(props: {
       )}
       <Text turn={turn} projectId={projectId} pack={pack} onShow={onShow} />
       {answers.map((a, i) => (
-        <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
+        <ChatAnswer
+          key={i}
+          ask={a}
+          project={project}
+          projectId={projectId}
+          pack={pack}
+          cited={turn.evidence.map((e) => e.drawing_id)}
+        />
       ))}
       {refused.map((a, i) => (
         <RefusedLine

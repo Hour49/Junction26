@@ -404,7 +404,7 @@
         "path": "photos/site.jpg",
         "kind": "photo_plan",
         "state": "flagged",
-        "reason": "the sheet may not be a floor plan: it looks like not a drawing; a phone photo, rectified by page flattening: check the paper's corners; counted by Gemini Carbon, an AI reader: check its marks on the plan (0 elements, 0 rooms, no scale on the sheet)",
+        "reason": "the sheet may not be a drawing at all; a phone photo, rectified by page flattening: check the paper's corners; counted by Gemini Carbon, an AI reader: check its marks on the plan (0 elements, 0 rooms, no scale on the sheet)",
         "group": "photos/site",
         "route": "raster",
         "source": "photos/site.jpg",

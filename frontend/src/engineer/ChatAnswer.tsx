@@ -102,10 +102,14 @@ export function ChatAnswer(props: {
   project: ProjectView;
   projectId: string;
   pack: string | null;
+  /** The drawings the turn's text cites, in its order (its evidence): their cards come first and the card opens on
+   * the first of them with a page (big QA R1 R3/R10/R32: flat A's room under a question about flat B). */
+  cited?: readonly string[];
 }) {
-  const { ask, project, projectId } = props;
-  const parts = orderParts(ask.parts, project.files);
-  // The reference shown: the first with a page; a building model (no page) shows "No preview" when chosen.
+  const { ask, project, projectId, cited = [] } = props;
+  const parts = citedFirst(orderParts(ask.parts, project.files), cited);
+  // The reference shown: the first with a page (a cited one first, above); a building model (no page) shows "No
+  // preview" when chosen.
   const [at, setAt] = useState(() =>
     Math.max(
       0,
@@ -357,4 +361,16 @@ export function ChatAnswer(props: {
       )}
     </>
   );
+}
+
+/** `parts` with those of the cited drawings first, in citation order; the rest keep their order. */
+function citedFirst<P extends { drawing_id: string }>(parts: P[], cited: readonly string[]): P[] {
+  const rank = (p: P) => {
+    const at = cited.indexOf(p.drawing_id);
+    return at < 0 ? cited.length : at;
+  };
+  return parts
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i)
+    .map(({ p }) => p);
 }

@@ -17,6 +17,7 @@ from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
 from app.adapters.user_scale import ScaledIngest
 from app.api.views import drawings_of
+from app.core.agent.named import unnamed
 from app.core.agent.rooms import FIND_ROOMS, TOKEN, name_words
 from app.core.checks.model import RulePack
 from app.core.drawing.model import Scale
@@ -42,11 +43,13 @@ FIND_TOOLS: list[Json] = [
         "function": {
             "name": FIND_ROOMS,
             "description": (
-                "The rooms whose label printed on the drawings contains every word of `query` "
-                "(e.g. 'office', 'open office 102'), with their places (ev ids). Use it when "
-                "ask_drawings refuses a question that names a room: offer the printed labels "
-                "as options, or read the one room with get_plan_geometry. Labels only: only the "
-                "rooms a reader found and read a label for, never a count of all such rooms."
+                "The rooms whose printed label or room type contains every word of `query` "
+                "(e.g. 'office', 'open office 102', 'kitchen'), with their places (ev ids), and "
+                "`not_searched`: the drawings with no rooms to search (a building model, a "
+                "drawing not read). Use it when ask_drawings refuses a question that names a "
+                "room: offer the printed labels as options, or read the one room with "
+                "get_plan_geometry. Only the rooms a reader found and read a label for, never a "
+                "count of all such rooms."
             ),
             "parameters": {
                 "type": "object",
@@ -99,17 +102,23 @@ def project_toolbox(
     proposals: dict[str, Proposal],
     pack: RulePack | None = None,
     scales: Mapping[str, Scale] | None = None,
+    named: Mapping[str, str] | None = None,
 ) -> AgentToolbox:
     """The tools of `project_id` in `app` (create_app()'s state). `proposals`: the chat's
     proposals so far, so the plan tools number new ones after them. `pack`: the rule pack this
     turn's plan edits are checked against (LC-6), None: not checked. `scales`: USER_SCALE on,
-    the scales the chat's user gave by drawing id: every tool reads those drawings at them."""
-    pipeline = PipelineStore.of_app(app, project_id)
+    the scales the chat's user gave by drawing id: every tool reads those drawings at them.
+    `named`: the drawings this turn's message names (id → plain name): ask_drawings asks only
+    them, its question without their names (big QA R1 S2)."""
+    pipeline = replace(PipelineStore.of_app(app, project_id), only=frozenset(named or {}))
     if scales is not None:
         pipeline = replace(pipeline, ingest=ScaledIngest(pipeline.ingest, scales), user_scale=True)
     pipe: Runner = partial(run_pipeline_tool, pipeline)
     sets: list[tuple[list[Json], Runner]] = [
-        (PIPELINE_TOOLS, partial(_by_number, pipe)),
+        (
+            PIPELINE_TOOLS,
+            partial(_by_number, partial(_unnamed, pipe, list((named or {}).values()))),
+        ),
         (FIND_TOOLS, partial(_find_rooms, pipeline)),
     ]
     sets.append((COUNTING_TOOLS, run_counting_tool))  # read-only conventions, no project state
@@ -175,31 +184,44 @@ def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
         return _error("give the room's words as printed, e.g. 'office' or 'open office 102'")
     found: list[Json] = []
     read = unlabelled = 0
+    # the drawings with no room to search: an answer built on this list can't call it complete
+    # (demo walk r13: "Which drawings show a kitchen?" named 2 drawings of 9 as all of them)
+    not_searched: list[Json] = []
     for entry in drawings_of(store.ingest.status(store.project_id)):
         try:
             rooms = store.ingest.drawing(entry.drawing_id).rooms
         except DomainError:
-            continue  # not read
+            not_searched.append({"name": entry.name, "why": "it was not read"})
+            continue
+        if not rooms:
+            not_searched.append({"name": entry.name, "why": "no rooms were read on it"})
         read += len(rooms)
         unlabelled += sum(not room.label for room in rooms)
         for room in rooms:
             printed = _printed(room.label, room.attrs.get("number"))
-            if printed and _holds(printed, words):
+            # a room's type counts as its words: Drawn plan 1 prints its kitchens as "0.03",
+            # flat-b its bedrooms as "Zimmer" (R4)
+            if printed and _holds(printed, words, room.type):
                 place = {"drawing_id": entry.drawing_id, "page": room.page, "box": list(room.box)}
                 found.append({"room": room.id, "label": printed, "name": entry.name, **place})
     # what the list covers: a partial raster reading lists 2 of 8 classrooms (R4-A14)
     covers: Json = {"rooms_read": read, "unlabelled": unlabelled, "counts": FOUND_COVERS}
+    if not_searched:
+        covers["not_searched"] = not_searched
     if not found:
-        reason = f"no room label printed on the drawings holds {' '.join(sorted(words))}"
+        reason = f"no room on the drawings is labelled or typed {' '.join(sorted(words))}"
         return json.dumps({"status": "unknown", "reason": reason, **covers}, ensure_ascii=False)
     out: Json = {"status": "ok", "count": len(found), **covers, "rooms": found[:ROOMS_LISTED]}
     return json.dumps(out, ensure_ascii=False)
 
 
-def _holds(printed: str, words: set[str]) -> bool:
-    """Whether the printed label holds every word, a plural as its singular and back
-    ("classrooms" finds Secondary Classroom: R4-A14)."""
+def _holds(printed: str, words: set[str], kind: str = "other") -> bool:
+    """Whether the printed label, or the room's type, holds every word, a plural as its singular
+    and back ("classrooms" finds Secondary Classroom: R4-A14; "bedrooms" finds a Zimmer typed
+    bedroom); the type "other" says nothing."""
     tokens = {form for token in TOKEN.findall(printed.lower()) for form in _forms(token)}
+    if kind != "other":
+        tokens.add(kind)
     return all(_forms(word) & tokens for word in words)
 
 
@@ -239,6 +261,18 @@ def _by_number(run: Runner, name: str, arguments: str) -> str:
     question: Any = given.get("question") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     if name == "ask_drawings" and isinstance(question, str):
         arguments = json.dumps({**given, "question": room_by_number(question)})  # pyright: ignore[reportUnknownArgumentType]
+    return run(name, arguments)
+
+
+def _unnamed(run: Runner, names: list[str], name: str, arguments: str) -> str:
+    """ask_drawings without the names of the drawings it asks only (`names`; core.agent.named)."""
+    try:
+        given: Any = json.loads(arguments)
+    except json.JSONDecodeError:
+        return run(name, arguments)
+    question: Any = given.get("question") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if names and name == "ask_drawings" and isinstance(question, str):
+        arguments = json.dumps({**given, "question": unnamed(question, names) or question})  # pyright: ignore[reportUnknownArgumentType]
     return run(name, arguments)
 
 

@@ -82,7 +82,10 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         return None
     query, facts = _kind_of_sheet(query, sheet), _Facts(sheet.facts)
     picture = bool(sheet.facts) and all(_picture(fact) for fact in sheet.facts)
-    if picture and query.entity not in NOT_DRAWN and not facts.topics(f"{query.entity}."):
+    rows = _picture_rows(query, facts) if picture else None
+    unread = rows is None and query.entity not in NOT_DRAWN and not facts.topics(f"{query.entity}.")
+    if picture and (unread or (rows is not None and not rows.counted)):
+        noun = _plural(_noun(query.entity)) if rows is None else rows.name
         return Answer(
             id=question.id,
             answer=None,
@@ -92,7 +95,7 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
             cost_usd=0.0,
             latency_s=latency_s,
             abstain=True,
-            explanation=f"{NOT_READ}: its legend lists no {_plural(_noun(query.entity))}",
+            explanation=f"{NOT_READ}: its legend lists no {noun}",
         )
     floor = ""
     if picture and query.storey is not None and not _storeys_by_height(facts):
@@ -110,12 +113,16 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
                 explanation=refused,
             )
         query = query.model_copy(update={"storey": None})  # the picture is that floor
-    text = _written(query, facts)
+    text = _written(query, facts) if rows is None else rows.text()
     if text is None:
         return None
     if floor:
         text = f"This picture is {floor} by its file name.\n{text}"
-    asked = [fact for fact in facts.read if fact.topic.startswith(f"{query.entity}.")]
+    asked = (
+        [fact for fact in facts.read if fact.topic.startswith(f"{query.entity}.")]
+        if rows is None
+        else list(rows.counted)
+    )
     seen = dict.fromkeys((s.page, s.box) for fact in asked for s in fact.spots)
     return Answer(
         id=question.id,
@@ -128,6 +135,75 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         sure=False if picture else None,  # a picture's count is never certified (decision 0011)
         explanation=WHY,
     )
+
+
+# A picture's legend rows a question's word names (QA big services R1, P4/P8/P9): the words in
+# the dataset's languages. A picture has no PredefinedType (_KINDS below), and a symbol no IFC
+# kind names is kept as `symbol` (a fire damper: picture_facts.kind_of), so the rows' own labels
+# say what they are. (question word, what it is called, label words)
+_BASIN = r"wash ?basin|lavator|waschtisch|waschbecken|pesuallas|tvättställ|wastafel|lavabo"
+_PICTURE_ROWS: tuple[tuple[str, str, str], ...] = (
+    (r"toilets?|wcs?", "toilets", r"\bwc\b|toilet|water ?closet|klosett|inodoro"),
+    (r"urinals?", "urinals", r"urinal|pissoir|urinoir|orinatoio|urinario|pisuaari"),
+    (r"(?:wash)?basins?|lavator", "washbasins", _BASIN),
+    (
+        r"sinks?",
+        "sinks",
+        rf"sink|\bsp(?:ü|ue)le|tiskiallas|diskbänk|gootsteen|évier|fregadero|{_BASIN}",
+    ),
+    (r"dampers?", "dampers", r"damper|klappe|pelti|spjäll|klep|clapet|serranda|compuerta"),
+)
+# A word that narrows what is asked, which the label must name too: a "fire damper"
+_QUALIFIERS = {"fire": r"fire|brand|palo|feu\b|fuoco|incend|tule"}
+# A fixture's mounting frame, drawn and listed as its own row of the same fixtures: "Viega Eco
+# Plus-Urinal-Element" beside "Urinal UP Druckspüler" (6 and 6 for 6 urinals, P-101)
+_FRAME = re.compile(r"element\b", re.I)
+
+
+class _Rows:
+    def __init__(self, name: str, counted: list[Fact], frames: list[Fact]) -> None:
+        self.name, self.counted, self.frames = name, counted, frames
+
+    def text(self) -> str:
+        n = sum(int(fact.value) for fact in self.counted)
+        lines = [f"Total {self.name}: {n}", *(f"- {f.subject}: {_num(f)}" for f in self.counted)]
+        if self.frames:
+            said = ", ".join(f"{f.subject}: {_num(f)}" for f in self.frames)
+            lines.append(f"Not added, the mounting frames of the same fixtures: {said}")
+        return "\n".join(lines)
+
+
+def _picture_rows(query: FactQuery, facts: "_Facts") -> _Rows | None:
+    """The legend rows of a picture whose label names what the question's word names, as a
+    count; None when the word is none of _PICTURE_ROWS (the facts answer as before). A frame
+    row is left out when the fixture's own row is there; no row at all is a refusal."""
+    if "count" not in query.measures or query.by is not None:
+        return None
+    word = " ".join(query.named)
+    found = next(((n, w) for q, n, w in _PICTURE_ROWS if re.fullmatch(q, word, re.I)), None)
+    if found is None:
+        return None
+    name, label = found
+    storey = None  # the sheet-wide rows; a reading's storey has its copies (picture_facts)
+    if query.storey is not None and _storeys_by_height(facts):
+        storey = _storey_of(query.storey, facts)
+        if storey is None:
+            return None  # the facts say which storeys the picture has
+    narrow = [_QUALIFIERS[w] for w in query.words if w in _QUALIFIERS]
+    rows = [
+        fact
+        for topic in (f"{query.entity}.count", "symbol.count")
+        for fact in facts.by_topic.get(topic, ())
+        if fact.subject != "all"
+        and fact.system is None
+        and fact.storey == storey
+        and all(re.search(p, fact.subject, re.I) for p in (label, *narrow))
+    ]
+    own = [fact for fact in rows if not _FRAME.search(fact.subject)]
+    named = " ".join([*(w for w in query.words if w in _QUALIFIERS), name])
+    if own:
+        return _Rows(named, own, [fact for fact in rows if _FRAME.search(fact.subject)])
+    return _Rows(named, rows, [])
 
 
 def _picture_floor(asked: str, file: str) -> tuple[str, str | None]:
@@ -545,6 +621,28 @@ def _between(pair: tuple[str, str], facts: _Facts) -> str:
 # --- spaces ---------------------------------------------------------------------------------
 
 _HOW_MANY = re.compile(r"\s*how\s+many\b", re.I)
+# A question's room word and the room types it counts (space.room_type, the drawing path's
+# types). A WC and a bathroom are one family, as people and the dataset read them ("bathrooms/
+# toilets: 12"; review-663 M1)
+_ROOM_WORDS: tuple[tuple[frozenset[str], str], ...] = (
+    (frozenset({"bathroom", "wc"}), r"bath\w*|toilets?|wcs?|restrooms?|washrooms?|lavator\w*"),
+    (frozenset({"bedroom"}), r"bedrooms?"),
+    (frozenset({"kitchen"}), r"kitchens?"),
+)
+
+
+def _rooms_said(kinds: Iterable[str]) -> str:
+    return " or ".join("WC" if kind == "wc" else kind for kind in sorted(kinds))
+
+
+def _room_kinds(words: Sequence[str]) -> frozenset[str] | None:
+    """The room types a question's one room word counts ("bathrooms": bathroom and WC)."""
+    word = " ".join(words)
+    return next(
+        (kinds for kinds, pattern in _ROOM_WORDS if re.fullmatch(pattern, word, re.I)), None
+    )
+
+
 _SPACE_AREAS = ("space.stated_area", "space.net_floor_area", "space.area", "space.gross_floor_area")
 
 
@@ -574,6 +672,10 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     chosen = [name for name, at in names.items() if storey is None or at == storey]
     labelled = {name: f"{name} {long_name.get(name, '')}" for name in chosen}
     picked = _named(labelled.values(), query.words)
+    typed = {f.subject: str(f.value) for f in facts.get("space.room_type", anywhere=True)}
+    kinds = None if picked else _room_kinds(query.words)
+    if kinds is not None:  # no name holds the word: the spaces its room word types (R1 E6)
+        picked = {labelled[name] for name in chosen if typed.get(name) in kinds}
     if picked:
         chosen = [name for name in chosen if labelled[name] in picked]
         if query.measures == ("height",) and query.aggregate == "list":  # asked alone
@@ -618,11 +720,20 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     lines = [missing] if missing else []
     if len(query.words) == 1 and not picked and _HOW_MANY.match(query.asked):
         # "How many offices?" and no space is one: said, then every space
-        lines.insert(0, f"No space in this file is named '{query.words[0]}' (not available).")
+        typed_as = f" or typed as {_rooms_said(kinds)}" if kinds is not None and typed else ""
+        lines.insert(
+            0,
+            f"No space{where} in this file is named '{query.words[0]}'{typed_as} (not available).",
+        )
     if picked:  # how many spaces the question's words name: a count of the listed spaces
         n = len(chosen)  # with its noun: "8" before a line "M. TOILET" would read as 8 m
         matched = f"{n} {_plural('space', n)}"
-        lines.insert(0, f"Spaces matching '{' '.join(query.words)}'{where}: {matched}")
+        said = (
+            f"Spaces typed as {_rooms_said(kinds)} by their names"
+            if kinds is not None
+            else f"Spaces matching '{' '.join(query.words)}'"
+        )
+        lines.insert(0, f"{said}{where}: {matched}")
     else:
         lines.append(f"Spaces{where}: {total('all', storey)}")
     if query.aggregate in ("max", "min"):
@@ -799,6 +910,10 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
         and not facts.get(f"{entity}_type.count")
         and not runs
     ):
+        if _room_kinds(query.named) is not None and facts.get("space.room_type", anywhere=True):
+            # "toilets" and no fixture in the file: its WC rooms, never a type whose name holds
+            # the word ("Toilettentrennwand", a partition wall; big QA R1 E10)
+            return _spaces(query.model_copy(update={"words": query.named}), facts, storey)
         return _by_name(query, facts, storey)
     noun = _noun(entity)
     where = f" on {_label(storey, facts)}" if storey else ""
@@ -863,8 +978,8 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
     if types:
         lines.append(f"{_plural(noun).capitalize()} by type:")
         lines += types
-    if query.by == "storey" and storey is None:
-        lines += _per_storey(entity, part, facts)
+    if query.by == "storey" and storey is None:  # asked per floor: the storeys lead (R1 ifc E3)
+        lines = _per_storey(entity, part, facts) + lines
     if "fire_rating" in query.measures:
         lines += _fire(entity, facts)
     if "length" in query.measures:  # a picture's lengths are estimates (orchestrator 05:40)
@@ -966,7 +1081,8 @@ def _by_guid(query: FactQuery, facts: _Facts) -> str:
 _KINDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "sanitary_terminal": (
         (r"toilets?|wcs?", ("WCSEAT", "TOILETPAN")),
-        (r"basins?|lavator", ("WASHHANDBASIN",)),
+        (r"urinals?", ("URINAL",)),
+        (r"(?:wash)?basins?|lavator", ("WASHHANDBASIN",)),
         (r"sinks?", ("SINK", "WASHHANDBASIN")),  # a washbasin is a sink too (R4-C3)
     ),
 }
@@ -1295,7 +1411,7 @@ def _per_storey(entity: str, part: str, facts: _Facts) -> list[str]:
     counts = {name: facts.one(f"{entity}.count", part, name) for name in names}
     if not any(counts.values()):
         return []
-    return ["By storey:"] + [
+    return [f"{_plural(_noun(entity)).capitalize()} by storey:"] + [
         f"- {_label(name, facts)}: {'0' if fact is None else _num(fact)}"
         for name, fact in counts.items()
     ]

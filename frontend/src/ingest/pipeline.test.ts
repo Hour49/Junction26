@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
-import type { FileStatus } from '../api';
+import type { FileStatus, ProjectView } from '../api';
 import {
   chipCovers,
   chipHasStep,
@@ -9,6 +9,7 @@ import {
   chipStepsOf,
   busySteps,
   chipWords,
+  drawingTally,
   foundLine,
   groupReaders,
   headlineStep,
@@ -27,6 +28,13 @@ import {
 import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must, sampleRun } from './testing';
 
 const base = must(project.files[0]);
+type Drawing = ProjectView['drawings'][number];
+const drawing = (id: string, changes: Partial<Drawing>): Drawing => ({
+  ...must(project.drawings[0]),
+  drawing_id: id,
+  not_a_drawing: false,
+  ...changes,
+});
 const file = (id: string, changes: Partial<FileStatus>): FileStatus => ({
   ...base,
   id,
@@ -292,16 +300,62 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
       file('e', { route: 'bim', drawing_id: 'd4' }),
       file('f', { route: null, drawing_id: null, state: 'set_aside' }),
     ];
-    expect(routeSummary(files)).toBe(
+    const drawings = [
+      drawing('d1', { route: 'vector' }),
+      drawing('d2', { route: 'vector', state: 'flagged' }),
+      drawing('d3', { route: 'raster', state: 'flagged' }),
+      drawing('d4', { route: 'bim' }),
+    ];
+    expect(routeSummary({ files, drawings })).toBe(
       'Read 1 IFC model, 2 drawn PDFs and 1 image. 2 flagged files need a look; 1 set aside.',
     );
-    expect(routeSummary(files.slice(0, 1))).toBe('Read 1 drawn PDF.');
+    expect(routeSummary({ files: files.slice(0, 1), drawings: drawings.slice(0, 1) })).toBe(
+      'Read 1 drawn PDF.',
+    );
     // QA R2-A1: on a no-keys server the image route's reader is `hello`: its file was not read, nor counted as read
-    expect(routeSummary(files, { ...DEMO_READERS, raster: 'hello' })).toBe(
+    const readers = { ...DEMO_READERS, raster: 'hello' };
+    expect(routeSummary({ files, drawings, readers })).toBe(
       'Read 1 IFC model and 2 drawn PDFs. 1 flagged file needs a look; 1 not read; 1 set aside.',
     );
-    expect(routeSummary(files.slice(3, 4), { raster: 'hello' })).toBe('1 not read.');
-    expect(routeSummary([])).toBe('');
+    expect(
+      routeSummary({
+        files: files.slice(3, 4),
+        drawings: drawings.slice(2, 3),
+        readers: { raster: 'hello' },
+      }),
+    ).toBe('1 not read.');
+    expect(routeSummary({ files: [], drawings: [] })).toBe('');
+  });
+
+  it('QA ingest R1 the summary counts the drawings "Drawings ready" counts and names a sheet that is not a drawing', () => {
+    // the demo sample: 7 drawings open, the site photo among them is not a drawing; the scan's copy is the same one
+    const done = sampleRun('done');
+    expect(routeSummary(done)).toBe(
+      'Read 1 IFC model, 3 drawn PDFs and 2 images; 1 image is not a drawing (flagged). ' +
+        '3 flagged files need a look; 1 set aside.',
+    );
+    expect(drawingTally(done)).toEqual({ ready: 6, of: 6, notDrawings: 1 });
+    // two of them, and nothing read: the plural, and no "Read" part
+    const shots = done.drawings
+      .filter((d) => d.route === 'raster')
+      .slice(0, 2)
+      .map((d) => ({ ...d, not_a_drawing: true }));
+    expect(routeSummary({ files: [], drawings: shots, readers: done.readers })).toBe(
+      '2 images are not drawings (flagged).',
+    );
+  });
+
+  it('QA ingest R1 drawingTally: ready over expected less the sheets called not a drawing; unknown total, null', () => {
+    const d = (id: string, not_a_drawing = false) =>
+      drawing(id, { route: 'raster', not_a_drawing });
+    const tally = (drawings: ReturnType<typeof d>[], expected_drawings: number | null) =>
+      drawingTally({ drawings, readers: DEMO_READERS, expected_drawings });
+    expect(tally([d('a'), d('b', true)], 2)).toEqual({ ready: 1, of: 1, notDrawings: 1 });
+    // a drawing still to come stays in the total
+    expect(tally([d('a'), d('b', true)], 3)).toEqual({ ready: 1, of: 2, notDrawings: 1 });
+    expect(tally([d('a')], null)).toEqual({ ready: 1, of: null, notDrawings: 0 });
+    // never below what is ready (an old server's total)
+    expect(tally([d('a'), d('b'), d('c', true)], 2)).toEqual({ ready: 2, of: 2, notDrawings: 1 });
   });
 
   it('IN-111 the step named while it runs: where most files are read now; else the lowest waiting; Index last', () => {
