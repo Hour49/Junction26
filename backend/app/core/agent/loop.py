@@ -899,10 +899,12 @@ class _Run:
         UNRATED_TOOLS result of this turn gives it; no rated answer's value, earlier ones
         included, nor the user's message does), worded for the tools that gave it; None: no
         such number, or the text says so already. A label's number ("LOBBY 104") is a name, and
-        so is a drawing's ("Drawn plan 5": qa-a, "which drawing has no scale")."""
+        so is a drawing's ("Drawn plan 5": qa-a, "which drawing has no scale"), or its file's
+        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516)."""
         if SAID_UNRATED.search(text):
             return None
-        names = [*_labels([_json(found) for _, found in self.unrated]), *self.names.values()]
+        labels = _labels([_json(found) for _, found in self.unrated])
+        names = [*labels, *self.names.values(), *(file for _, file in self._files())]
         for label in sorted(names, key=len, reverse=True):  # "Drawn plan 10" before "... 1"
             text = re.sub(re.escape(label), " ", text, flags=re.I)
         rated = numbers(self.rated)

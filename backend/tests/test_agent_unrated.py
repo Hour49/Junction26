@@ -187,3 +187,25 @@ def test_a_longer_drawing_name_goes_first() -> None:
     names = {"1" * 16: "Drawn plan 1", DRAWING: "Drawn plan 10"}
     got = turn(model, Tools(get_plan_geometry=empty), names=names)
     assert got.text == "Drawn plan 10 has no scale."
+
+
+def test_a_drawings_file_name_is_a_name_not_a_number_from_geometry() -> None:
+    """review-516: the model may name a drawing by the file a result gives ("floor-2.pdf"); the
+    loop swaps it for the plain name, but its 2 was read as a number the geometry's page 2 backs."""
+    found: dict[str, Any] = {
+        "drawing_id": DRAWING, "name": "floor-2.pdf", "page": 2, "scale": None,
+        "rooms": [{"id": "R1", "label": "Hall", "area_m2": 5, "page": 2,
+                   "box": [0.1, 0.1, 0.3, 0.3]}],
+    }  # fmt: skip
+    model = Model(
+        step(call("get_plan_geometry", drawing_id=DRAWING, page=2)),
+        final(text="floor-2.pdf has no scale [ev_1].", evidence_ids=["ev_1"]),
+    )
+    got = turn(model, Tools(get_plan_geometry=found), names={DRAWING: "Drawn plan 1"})
+    assert got.text == "Drawn plan 1 has no scale [1]."
+    model = Model(
+        step(call("get_plan_geometry", drawing_id=DRAWING, page=2)),
+        final(text="The hall on floor-2.pdf is 5 m² [ev_1].", evidence_ids=["ev_1"]),
+    )
+    got = turn(model, Tools(get_plan_geometry=found), names={DRAWING: "Drawn plan 1"})
+    assert got.text == f"The hall on Drawn plan 1 is 5 m² [1]. {UNRATED}"
