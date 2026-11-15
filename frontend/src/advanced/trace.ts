@@ -305,10 +305,10 @@ const countRank = (k: string) => {
   return i < 0 ? COUNT_FIRST.length : i;
 };
 
-/** The takeoff's plain class counts ("5 rooms"), rooms, doors, windows first, then by name, at most 8 (AD-120). */
+/** The takeoff's plain class counts above zero ("5 rooms"), rooms, doors, windows first, then by name, at most 8 (AD-120). */
 export function keyCounts(takeoff: Readonly<Record<string, number>> | undefined): string[] {
   return Object.entries(takeoff ?? {})
-    .filter(([k]) => /^[a-z_]+$/.test(k))
+    .filter(([k, n]) => /^[a-z_]+$/.test(k) && n > 0)
     .sort(([a], [b]) => countRank(a) - countRank(b) || a.localeCompare(b))
     .slice(0, 8)
     .map(([k, n]) => plural(n, k.replaceAll('_', ' ')));

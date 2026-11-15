@@ -475,7 +475,7 @@ Acceptance criteria
   <source>" in its matrix row, "Read with <source>" as its route decision, and "read with <source> (<route>)" as
   its Route fact, never the route alone as if it were read itself. [unit, component]
 - AD-120 (review of #546): The file page's last card, "What it ends as", gives the takeoff's plain class counts
-  (rooms, doors, windows first, at most 8) and "See these on the drawing" (its engineer workspace); the full
+  above zero (zeros left out before the 8 are taken; rooms, doors, windows first, at most 8) and "See these on the drawing" (its engineer workspace); the full
   list stays folded under "What it ends as: N quantities". [unit `keyCounts`; component]
 
 ## Not in the API

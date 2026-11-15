@@ -215,6 +215,11 @@ describe('trace view v5', () => {
       }),
     ).toEqual(['5 rooms', '2 doors', '2 windows', '1 bathtub', '1 plan']);
     expect(keyCounts({ toilet_room: 2 })).toEqual(['2 toilet rooms']);
+    // zero counts are left out before the 8 are taken: they would hide the real ones (review of #552)
+    expect(keyCounts({ room: 5, shower: 0, sink: 1 })).toEqual(['5 rooms', '1 sink']);
+    expect(
+      keyCounts({ door: 0, window: 0, a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, toilet: 2 }),
+    ).toEqual(['2 toilets']);
     expect(keyCounts(undefined)).toEqual([]);
   });
 
