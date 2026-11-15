@@ -12212,7 +12212,11 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
 - Recount: the ingest value minus the rejected marks' values plus the added ones'. A sum with a mark of unknown
   value is not recounted: only `settle` changes it.
 - An edit changes that quantity only: rejecting a mark of `shower` does not change `shower+bathtub`, nor the same
-  door under `door|storey=1`.
+  door under `door|storey=1`. One exception for `settle`: a room's area settled on a row of that one room (its
+  number, name or label) is the room's area on its other rows (`area:room|label=küche`, `…|largest`) and is added
+  into each sum of rooms whose ingest value is its rooms' sum (`area:room|indoor`); those rows read `edited` with
+  that `settled`. A row a person edited keeps its own; so does a sum that is not its rooms' (an apartment's own
+  area) or that has its own conflict or estimate.
 - A signed-off quantity is not edited: 409 until the sign-off is undone (or the quantity reset).
 - Edits are kept on disk per drawing id and survive a restart; the same drawing in another project shows them.
 
