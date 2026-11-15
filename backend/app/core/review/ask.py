@@ -656,6 +656,11 @@ def which_room(
                         f"I can't tell which is {word}: {len(same)} rooms in the model are "
                         f"named {two[side]} ({shown}). Ask with its number."
                     )
+                if same and _no_area(same[0]):  # a void, a shaft: no room to rank (#479)
+                    return _not_compared(
+                        f"I can't tell which is {word}: {_space_shown(same[0])} has 0.00 m² in "
+                        "the model (a void or a shaft), so it is no room to compare."
+                    )
                 if same:
                     found, left = _space_asks(same, quantities, parser)
                     if left:
@@ -666,7 +671,7 @@ def which_room(
         word = (extreme["a"] or extreme["b"]).casefold()
         if not rooms and spaces:  # a building model asked on its own draws no room (QA B6)
             # a space of no area (a void, a shaft) is no room to rank: left out, named
-            empty = [item for item in spaces if round(item.quantities.get("area_m2", 1), 2) == 0]
+            empty = [item for item in spaces if _no_area(item)]
             ranked = [item for item in spaces if item not in empty]
             asks, unasked = _space_asks(ranked, quantities, parser)
             among = len(ranked)
@@ -791,6 +796,11 @@ def _space_asks(
         else:
             asks.append((_space_shown(space), found))
     return asks, left
+
+
+def _no_area(space: ModelObject) -> bool:
+    """A space the model states as 0.00 m² (a void, a shaft): no room to rank or compare."""
+    return round(space.quantities.get("area_m2", 1), 2) == 0
 
 
 def _spaces_named(spaces: Sequence[ModelObject], name: str) -> list[ModelObject]:
