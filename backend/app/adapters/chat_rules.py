@@ -245,8 +245,9 @@ def _services(turn: _Turn, words: str, kind: str | None = None) -> tuple[str, Js
                      if f" on {d.get('name')} page " in line), None)  # fmt: skip
 
     found.sort(key=lambda d: (selected(d) is None, d.get("kind") != "ifc"))
-    models = sum(1 for d in found if d.get("kind") == "ifc") if kind else 0
-    if len(listed) < min(max(TRIED, models), len(found)):
+    # with a kind, up to the last IFC file in this order: a selected sheet asked first counts too
+    models = max((i + 1 for i, d in enumerate(found) if d.get("kind") == "ifc"), default=0)
+    if len(listed) < min(max(TRIED, models if kind else 0), len(found)):
         drawing = found[len(listed)]
         args: Json = {"drawing_id": drawing["drawing_id"]}
         if kind:
