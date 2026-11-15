@@ -431,6 +431,26 @@ describe('ProjectScreen', () => {
     expect(screen.queryByText(/Step \d of 9/)).toBeNull();
   });
 
+  it('a restart mid-ingest: no 0 ms and no full ring, and a way on (upload again, what was read)', async () => {
+    // what the server leaves after a restart: no finished_at, ms 0, the files not reached set aside
+    mockApi({
+      [GET]: {
+        ...variants.failed,
+        finished_at: null,
+        ms: 0,
+        files: project.files.map((f, i) => (i < 2 ? f : { ...f, state: 'set_aside' })),
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Elapsed')).toBe('—');
+    expect(screen.queryByRole('img', { name: /percent done/ })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Upload again' }).getAttribute('href')).toBe('#/');
+    expect(
+      screen.getByRole('link', { name: 'See what was read in Documents' }).getAttribute('href'),
+    ).toBe(`#/p/${ID}/documents`);
+  });
+
   it('IN-44 strings from files render as text (the "Nothing read" card)', async () => {
     const evil = '<img src=x onerror=alert(1)>';
     mockApi({
