@@ -1,0 +1,113 @@
+"""dino_match: the template's sightings kept when they look like their own legend symbol."""
+
+import numpy as np
+import pytest
+from PIL import Image, ImageDraw
+
+from app.adapters.discipline_pictures import dino_match
+from app.core.errors import InvalidInputError, NotFoundError
+from app.core.ifc_facts import Spot
+from app.core.picture_facts import LegendEntry, PictureReading, Sighting
+
+W, H, S = 400, 200, 30  # page px, symbol px
+
+
+def circle(draw: ImageDraw.ImageDraw, x: int, y: int) -> None:
+    draw.ellipse((x, y, x + S, y + S), outline=0, width=3)
+
+
+def cross(draw: ImageDraw.ImageDraw, x: int, y: int) -> None:
+    draw.line((x, y, x + S, y + S), fill=0, width=3)
+    draw.line((x + S, y, x, y + S), fill=0, width=3)
+
+
+def ell(draw: ImageDraw.ImageDraw, x: int, y: int, turned: bool = False) -> None:
+    if turned:  # a quarter turn: the foot on the top right
+        draw.rectangle((x, y, x + S, y + 6), fill=0)
+        draw.rectangle((x + S - 6, y, x + S, y + S), fill=0)
+    else:
+        draw.rectangle((x, y, x + 6, y + S), fill=0)
+        draw.rectangle((x, y + S - 6, x + S, y + S), fill=0)
+
+
+def box(x: int, y: int, pad: int = 0) -> tuple[float, float, float, float]:
+    return ((x - pad) / W, (y - pad) / H, (x + S + pad) / W, (y + S + pad) / H)
+
+
+def page() -> tuple[np.ndarray, tuple[LegendEntry, ...], dict[str, tuple[int, int]]]:
+    """Legend on the left (circle, cross, ell); on the plan a circle, a cross, an ell turned a
+    quarter, and a blank spot."""
+    image = Image.new("L", (W, H), 255)
+    draw = ImageDraw.Draw(image)
+    legend = []
+    for i, (label, symbol) in enumerate((("light", circle), ("tap", cross), ("valve", ell))):
+        symbol(draw, 10, 10 + 60 * i)
+        legend.append(LegendEntry(label=label, group=None, line=False, box=box(10, 10 + 60 * i, 8)))
+    spots = {"circle": (200, 30), "cross": (300, 30), "ell": (200, 120), "blank": (300, 120)}
+    circle(draw, *spots["circle"])
+    cross(draw, *spots["cross"])
+    ell(draw, *spots["ell"], turned=True)
+    return np.asarray(image), tuple(legend), spots
+
+
+def reading(legend: tuple[LegendEntry, ...], seen: list[tuple[str, tuple[int, int]]]):
+    sightings = tuple(
+        Sighting(label=label, spot=Spot(page=1, box=box(*xy), reader="template"), score=0.8)
+        for label, xy in seen
+    )
+    return PictureReading(reader="template", legend=legend, read=None, sightings=sightings)
+
+
+class Thumbnails:
+    """A stand-in for DINOv2: every patch token is the crop's 8 x 8 thumbnail, centred."""
+
+    def run(self, output_names, input_feed):
+        batch = input_feed["pixel_values"]
+        assert batch.shape[1:] == (3, dino_match.SIDE, dino_match.SIDE)
+        grey = batch[:, 0].reshape(len(batch), 8, 14, 8, 14).mean(axis=(2, 4)).reshape(-1, 64)
+        grey = grey - grey.mean(axis=1, keepdims=True)
+        tokens = np.zeros((len(batch), 65, 384), np.float32)
+        tokens[:, :, :64] = grey[:, None, :]
+        return [tokens]
+
+
+def test_keeps_its_own_symbol_turned_and_drops_a_look_alike_and_a_blank() -> None:
+    gray, legend, at = page()
+    seen = [
+        ("light", at["circle"]),
+        ("light", at["cross"]),  # a tap read as a light
+        ("valve", at["ell"]),  # turned a quarter
+        ("light", at["blank"]),
+    ]
+    kept = dino_match.confirm(gray, reading(legend, seen), Thumbnails())
+    assert [(s.label, s.spot.box) for s in kept.sightings] == [
+        ("light", box(*at["circle"])),
+        ("valve", box(*at["ell"])),
+    ]
+    assert kept.notes == ("dino: dropped 2 of 4 sightings",)
+
+
+def test_a_label_without_a_legend_symbol_is_kept_and_nothing_seen_is_nothing_dropped() -> None:
+    gray, legend, at = page()
+    unknown = reading(legend, [("pump", at["blank"])])
+    assert dino_match.confirm(gray, unknown, Thumbnails()).sightings == unknown.sightings
+    empty = reading(legend, [])
+    assert dino_match.confirm(gray, empty, Thumbnails()) == empty
+
+
+def test_load_refuses_a_missing_or_different_model_file(tmp_path) -> None:
+    with pytest.raises(NotFoundError):
+        dino_match.load(tmp_path)
+    (tmp_path / dino_match.FILE).write_bytes(b"not the model")
+    with pytest.raises(InvalidInputError):
+        dino_match.load(tmp_path)
+
+
+@pytest.mark.skipif(
+    not (dino_match.MODEL / dino_match.FILE).is_file(), reason="dinov2-small not downloaded"
+)
+def test_the_real_model_keeps_the_circle_and_drops_the_cross() -> None:
+    gray, legend, at = page()
+    seen = [("light", at["circle"]), ("light", at["cross"])]
+    kept = dino_match.confirm(gray, reading(legend, seen), dino_match.load())
+    assert [s.spot.box for s in kept.sightings] == [box(*at["circle"])]
