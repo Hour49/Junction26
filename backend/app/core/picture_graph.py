@@ -4,6 +4,11 @@
 Pixels are the picture's: x right, y down. A system is the edges of one style (a legend line
 label) connected through nodes."""
 
+import itertools
+import math
+from collections import defaultdict
+from collections.abc import Sequence
+
 from app.core.model import Frozen
 
 Px = tuple[float, float]
@@ -30,3 +35,119 @@ class LineGraph(Frozen):
     edges: tuple[LineEdge, ...]
     px_per_m: float | None  # the scale the lengths were measured with
     size_px: tuple[int, int]  # width, height of the picture the px are in
+
+
+class Terminal(Frozen):
+    """A located terminal (radiator, air terminal, sanitary, valve) or a piece of equipment
+    (boiler, manifold, AHU, riser): a picture's Sighting at its centre in px."""
+
+    id: str
+    label: str
+    at: Px
+    equipment: bool = False  # where a system starts, when it is seen
+
+
+class Attached(Frozen):
+    terminal: str
+    equipment: bool
+    edge: str | None  # the nearest edge within the bound; None: refused
+    system: str | None  # the System it is on
+    distance_px: float | None
+    why: str | None = None  # refused: why
+
+
+class System(Frozen):
+    id: str  # "s1", ... in the order of the graph's edges
+    style: str
+    edges: tuple[str, ...]
+    length_m: float | None  # the edges' sum; None when one has no length
+    terminals: tuple[str, ...] = ()  # attached terminals, not equipment
+    sources: tuple[str, ...] = ()  # attached equipment: where the system starts, when seen
+
+
+def _components(graph: LineGraph) -> list[list[LineEdge]]:
+    """One style's edges joined through shared nodes, in the order of their first edge. Two
+    styles meeting at a node stay apart: a system is one line style."""
+    parent: dict[tuple[str, str], tuple[str, str]] = {}
+
+    def root(key: tuple[str, str]) -> tuple[str, str]:
+        while parent.setdefault(key, key) != key:
+            parent[key] = parent[parent[key]]
+            key = parent[key]
+        return key
+
+    for e in graph.edges:
+        parent[root((e.style, e.a))] = root((e.style, e.b))
+    groups: dict[tuple[str, str], list[LineEdge]] = {}
+    for e in graph.edges:
+        groups.setdefault(root((e.style, e.a)), []).append(e)
+    return list(groups.values())
+
+
+def _system_of(graph: LineGraph) -> tuple[list[System], dict[str, str]]:
+    found: list[System] = []
+    of_edge: dict[str, str] = {}
+    for n, edges in enumerate(_components(graph), start=1):
+        lengths = [e.length_m for e in edges]
+        known = [m for m in lengths if m is not None]
+        length = round(sum(known), 3) if len(known) == len(lengths) else None
+        made = System(id=f"s{n}", style=edges[0].style, edges=tuple(e.id for e in edges),
+                      length_m=length)  # fmt: skip
+        found.append(made)
+        of_edge.update((e.id, made.id) for e in edges)
+    return found, of_edge
+
+
+def systems(graph: LineGraph, attached: Sequence[Attached] = ()) -> tuple[System, ...]:
+    """The graph's systems, each with the terminals and equipment `attach` put on it."""
+    found, _ = _system_of(graph)
+    terminals: dict[str, list[str]] = defaultdict(list)
+    sources: dict[str, list[str]] = defaultdict(list)
+    for a in attached:
+        if a.system is not None:
+            (sources if a.equipment else terminals)[a.system].append(a.terminal)
+    return tuple(
+        s.model_copy(update={"terminals": tuple(terminals[s.id]), "sources": tuple(sources[s.id])})
+        for s in found
+    )
+
+
+def _to_segment(p: Px, a: Px, b: Px) -> float:
+    """The distance from `p` to the segment a..b."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    span = dx * dx + dy * dy
+    t = 0.0 if span == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / span))
+    return math.dist(p, (a[0] + t * dx, a[1] + t * dy))
+
+
+def _to_edge(p: Px, edge: LineEdge) -> float:
+    points = edge.points
+    if len(points) == 1:
+        return math.dist(p, points[0])
+    return min(_to_segment(p, a, b) for a, b in itertools.pairwise(points))
+
+
+def attach(graph: LineGraph, terminals: Sequence[Terminal], max_px: float) -> tuple[Attached, ...]:
+    """Each terminal on the nearest edge (a bridged one too) within `max_px` of its centre, and
+    the system of that edge; beyond the bound it is refused, never put on a far line."""
+    _, of_edge = _system_of(graph)
+    out: list[Attached] = []
+    for t in terminals:
+        near = min(((_to_edge(t.at, e), e.id) for e in graph.edges), default=None)
+        if near is None or near[0] > max_px:
+            why = f"no line within {max_px:g} px"
+            out.append(Attached(terminal=t.id, equipment=t.equipment, edge=None, system=None,
+                                distance_px=None, why=why))  # fmt: skip
+            continue
+        out.append(Attached(terminal=t.id, equipment=t.equipment, edge=near[1],
+                            system=of_edge[near[1]], distance_px=round(near[0], 4)))  # fmt: skip
+    return tuple(out)
+
+
+def connected(attached: Sequence[Attached], a: str, b: str) -> bool | None:
+    """Whether terminals `a` and `b` are on one system; None when either is not attached (not
+    known, which is not "no")."""
+    on = {x.terminal: x.system for x in attached}
+    if on.get(a) is None or on.get(b) is None:
+        return None
+    return on[a] == on[b]
