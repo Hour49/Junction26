@@ -137,6 +137,7 @@ class Unsupported(Frozen):
 # part of the question (R1-5-2).
 SEVERAL_THINGS = "a count that names more than one kind of thing"
 IN_ONE_ROOM = "a count within one room is not taken off"
+SIZE_FILTER = "a size or count filter on the items (larger than, at least...) is not applied"
 SEVERAL_ROOMS = "a question about one room that names more than one"
 # A printed room name several rooms carry ("How big is Bagno?"): review/ask.py lists them
 SEVERAL_PRINTED = "a room name several rooms carry"

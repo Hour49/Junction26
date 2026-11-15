@@ -44,6 +44,7 @@ from app.core.answering.model import (
     NOT_COUNTED,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
+    SIZE_FILTER,
     UNQUOTED_PLACE,
     Query,
     TableQuery,
@@ -279,6 +280,16 @@ PLACE = re.compile(
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
 )
+# A filter on the size of the items ("doors larger than 1 m", "windows at least 1 m wide", "rooms
+# with more than 2 windows"): the takeoff has whole classes only, so a question that carries one
+# is refused, not answered as the whole class (a confident wrong answer, fail-1 2026-11-15).
+# English only.
+SIZE_FILTER_WORDS = re.compile(
+    r"\b(?:larger|bigger|smaller|wider|narrower|taller|shorter|longer|higher|lower|deeper|thicker"
+    r"|thinner|greater|more|less|fewer)\s+than\b"
+    r"|\b(?:over|under|above|below|exceeding|at least|at most)\s+\d"
+    r"|\bwith\s+(?:a\s+)?(?:width|height|length|area|size|depth|thickness)\b"
+)
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
 IN_PLACE = re.compile(r"\b(?:in|inside|within|on) (?:the|this|that|a|an|one) ([^\W\d_]+)")
@@ -349,6 +360,8 @@ class TemplateParser:
             return Unsupported(reason="a breakdown or list is not one quantity")
         if PLACE.search(lower):
             return Unsupported(reason=UNQUOTED_PLACE)
+        if SIZE_FILTER_WORDS.search(lower):
+            return Unsupported(reason=SIZE_FILTER)
         if CONDITION.search(lower):
             return Unsupported(reason="a condition on the items (rooms that have...)")
         measure: Measure | None = next((m for m, cue in MEASURES if cue.search(lower)), None)
