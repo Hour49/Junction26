@@ -248,10 +248,10 @@ pics-edit-follow W1). Pure, one result per candidate sheet in the candidates' or
 the reason it is refused. Metadata first, cheapest first, then geometry:
 
 - The plan's own page: `same_page`, identity, "the plan's own page".
-- Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name with ZIP
-  folders: floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, first floor, L1 → 1;
+- Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name (not its
+  ZIP folders: a set's folder such as "B1/" is on every floor's sheet): floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, first floor, L1 → 1;
   UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1, read from the title's floor and from inside a file
-  name, never as a sheet number nor on an electrical sheet's file name, where E01 is its first sheet; DG, roof,
+  name, never as a sheet number nor as a file name's first word ("E01 Elektro.png" is the first electrical sheet); DG, roof,
   attic → roof) and the sheet number's part after its discipline letters
   (A-101 / H-101 → 101). A floor word both sides name agrees ("same floor: 'Floor 1' on both"), equal number parts
   agree ("sheet numbers A-101 / H-101"). Floor words that differ refuse ("another floor: 'Floor 2' against
@@ -362,6 +362,10 @@ Pairing (tests in `tests/test_services_pairing.py`):
 - **SFP-26** "Second Floor Plan" against "Heating Layout First Floor Plan" is refused "another floor: 'First Floor'
   against 'Second Floor'"; against a second floor heating layout it pairs `metadata`
   (`test_written_floor_ordinals_name_a_floor`).
+- **SFP-27** "B1/H-heating.png" against "B1/A-101 Floor 1 plan.pdf" names no floor (the folder is not read): `geometry`
+  with room names, refused without (`test_a_floor_word_in_a_folder_is_not_the_sheet_s_floor`); a DigitalHub
+  electrical "…_plan-03-e01-okrd.png" against the "…-e00-okrd" plan is refused "another floor: 'e01' against 'e00'"
+  (`test_a_level_code_inside_an_electrical_sheet_s_name_is_its_level`).
 
 **The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
 `picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the

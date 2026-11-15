@@ -286,16 +286,18 @@ def _metadata(plan: Sheet, sheet: Sheet) -> tuple[str, str]:
 
 
 def _floors(sheet: Sheet) -> dict[str, str]:
-    """The floors a sheet's title, sheet number and file name name: key -> the words as printed."""
+    """The floors a sheet's title, sheet number and file name name: key -> the words as printed.
+    Not its folders: a set's folder ("B1/") is on every floor's sheet (review-558 M1)."""
     found: dict[str, str] = {}
+    name = PurePosixPath(sheet.name).name if sheet.name else None
     for source, text in (("title", sheet.storey), ("number", sheet.sheet_number),
-                         ("name", sheet.name)):  # fmt: skip
+                         ("name", name)):  # fmt: skip
         if not text:
             continue
         spaced = text.replace("_", " ")
         for pattern, key in _FLOORS:
             for m in re.finditer(pattern, spaced, re.IGNORECASE):
-                if (pattern, key) == _LEVEL_CODE and not _level_code(sheet, source, m.start()):
+                if (pattern, key) == _LEVEL_CODE and not _level_code(source, m.start()):
                     continue
                 k = key.format(int(m.group(1))) if m.groups() else key
                 found.setdefault(k, m.group(0))
@@ -312,14 +314,11 @@ def _number(sheet: Sheet) -> tuple[str, str] | None:
     return None
 
 
-def _level_code(sheet: Sheet, source: str, at: int) -> bool:
+def _level_code(source: str, at: int) -> bool:
     """Whether an E00/E01 code found at `at` in a sheet's title floor, sheet number or file name
-    is a level: always in the title's floor, never as the sheet number, and in the file name
-    only inside it on a sheet not electrical (as the name's first word it is the number)."""
-    if source != "name":
-        return source == "title"
-    name = sheet.name or ""
-    return "electrical" not in sheet.disciplines and at != name.rfind("/") + 1
+    is a level: always in the title's floor, never as the sheet number, and in the file name only
+    inside it (as the name's first word it is the number: "E01 Elektro.png")."""
+    return source == "title" or (source == "name" and at != 0)
 
 
 def _by_discipline(folder: str) -> bool:

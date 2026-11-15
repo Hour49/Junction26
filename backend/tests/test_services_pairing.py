@@ -263,6 +263,24 @@ def test_two_floors_that_fit_alike_and_name_no_floor_are_both_refused() -> None:
     assert isinstance(named[1], Pairing) and named[1].paired_by == "metadata"
 
 
+def test_a_floor_word_in_a_folder_is_not_the_sheet_s_floor() -> None:
+    # the set's folder "B1" names no sheet's floor: a heating sheet naming none is no "same floor"
+    # (review-558 M1)
+    plan = PLAN.model_copy(update={"name": "B1/A-101 Floor 1 plan.pdf"})
+    found = one(plan, sheet(name="B1/H-heating.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    no_rooms = sheet(name="B1/H-heating.png", rooms=(), size_m=(10.0, 10.0))
+    found = one(plan.model_copy(update={"rooms": ()}), no_rooms)
+    assert found == "only 0 room names appear on both sheets (3 are needed)"
+
+
+def test_a_level_code_inside_an_electrical_sheet_s_name_is_its_level() -> None:
+    # a DigitalHub electrical export names its level inside the name like the others (review-558 M2)
+    plan = PLAN.model_copy(update={"name": "dh_arc_plan-02-e00-okrd.pdf"})
+    found = one(plan, sheet(name="dh_elt_plan-03-e01-okrd.png", disciplines=("electrical",)))
+    assert found == "another floor: 'e01' against 'e00'"
+
+
 def test_discipline_folders_are_one_set() -> None:
     # review-495 S1: folders by discipline are one delivery, not two sets
     plan = PLAN.model_copy(update={"name": "Architektur/A-101 Floor 1 plan.pdf"})
