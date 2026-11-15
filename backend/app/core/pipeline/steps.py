@@ -1,7 +1,11 @@
 """The steps a reader reports in `Extracted.steps` (decision 0018): what it found, in counts and
-words, the steps of an inner reader moved onto its caller's clock, and one call timed as a step
-(`timed`: when it began after `began`, how long it ran, what its model calls cost on its thread and
-how many of them got no answer, app/core/cost.py)."""
+words, and one call timed as a step (`timed`: when it began, how long it ran, what its model calls
+cost on its thread and how many of them got no answer, app/core/cost.py).
+
+Inside `Extracted.steps`, `at_ms` is on one clock for every reader, `now_ms()` (the process's
+`time.perf_counter`), so a wrapper passes its inner reader's steps on as they are, whatever
+waiting (a queue, a lock) came before them; ingest's `TimedExtractor` makes them relative to the
+extract stage."""
 
 import time
 from collections.abc import Callable, Iterable, Sequence
@@ -44,27 +48,31 @@ def found_words(found: dict[str, int]) -> str:
 
 
 def shifted(steps: Iterable[StepTrace], by_ms: float) -> tuple[StepTrace, ...]:
-    """`steps` with `at_ms` moved `by_ms` later: an inner reader's steps on its caller's clock."""
-    return tuple(step.model_copy(update={"at_ms": step.at_ms + by_ms}) for step in steps)
+    """`steps` with `at_ms` moved `by_ms` later (earlier when negative, never below 0)."""
+    return tuple(step.model_copy(update={"at_ms": max(0.0, step.at_ms + by_ms)}) for step in steps)
+
+
+def now_ms() -> float:
+    """The steps' clock, in ms."""
+    return time.perf_counter() * 1000
 
 
 class Span(NamedTuple):
-    at_ms: float  # when the call began, ms after `began`
+    at_ms: float  # when the call began, on `now_ms()`'s clock
     ms: float
     cost_usd: float  # its model calls on this thread
     faults: int  # its model calls that got no answer
 
 
-def timed[T](call: Callable[[], T], began: float) -> tuple[T, Span]:
-    """`call()`'s result and its span; `began` is the caller's `time.perf_counter()` at its own
-    start. An error of `call` is raised as it is."""
+def timed[T](call: Callable[[], T]) -> tuple[T, Span]:
+    """`call()`'s result and its span. An error of `call` is raised as it is."""
     paid, failed = cost.mark(), cost.faults()
-    started = time.perf_counter()
+    started = now_ms()
     found = call()
-    ended = time.perf_counter()
+    ended = now_ms()
     span = Span(
-        at_ms=max(0.0, (started - began) * 1000),
-        ms=(ended - started) * 1000,
+        at_ms=started,
+        ms=ended - started,
         cost_usd=cost.since(paid),
         faults=cost.faults_since(failed),
     )

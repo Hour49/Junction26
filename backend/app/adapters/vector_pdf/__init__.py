@@ -18,7 +18,6 @@ Its reading is one step of the result (`Extracted.steps`, decision 0018): the sh
 matched, what it found and how long it took.
 """
 
-import time
 from types import ModuleType
 
 from app.adapters.vector_pdf import frame, ifc_render, swiss
@@ -27,7 +26,7 @@ from app.adapters.vector_pdf.scale import read_bar, read_ratio, read_scale
 from app.core.drawing.model import Box, MeasuredValue, MeasureMethod, Scale, Subject
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles
-from app.core.pipeline.steps import found_of, found_words
+from app.core.pipeline.steps import found_of, found_words, now_ms
 from app.core.wording import SCALE_WORDS
 
 STYLES = (swiss, ifc_render)
@@ -40,7 +39,7 @@ class PdfVectorExtractor:
         self._files = files
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        began = time.perf_counter()
+        began = now_ms()
         found, style = self._read(source, sheet)
         label = "Drawn-PDF reader" + (f" ({STYLE_WORDS[style]})" if style else "")
         counted = found_of(
@@ -53,7 +52,8 @@ class PdfVectorExtractor:
             id="vector",
             label=label,
             did=did,
-            ms=(time.perf_counter() - began) * 1000,
+            at_ms=began,
+            ms=now_ms() - began,
             found=counted,
         )
         return found.model_copy(update={"steps": (*found.steps, step)})

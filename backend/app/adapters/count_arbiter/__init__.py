@@ -26,7 +26,6 @@ the second detector and the arbiter itself (L1 and the pick, with the counts it 
 """
 
 import json
-import time
 from collections.abc import Mapping, Sequence
 from io import BytesIO
 from pathlib import Path
@@ -47,7 +46,7 @@ from app.core.pipeline.count_arbiter import (
 )
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor
-from app.core.pipeline.steps import Span, found_of, found_words, shifted, timed
+from app.core.pipeline.steps import Span, found_of, found_words, timed
 
 ADDED: Mapping[str, ElementClass] = {
     "door": "door",
@@ -195,14 +194,13 @@ class ArbiterCountExtractor:
         self._files = files
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        began = time.perf_counter()
-        found, by_base = timed(lambda: self._base.extract(source, sheet), began)
-        second, by_second = timed(lambda: self._second.extract(source, sheet), began)
-        arbitrated, by_arbiter = timed(lambda: self._arbitrate(source, found, second), began)
+        found, by_base = timed(lambda: self._base.extract(source, sheet))
+        second, by_second = timed(lambda: self._second.extract(source, sheet))
+        arbitrated, by_arbiter = timed(lambda: self._arbitrate(source, found, second))
         steps = (
-            *shifted(found.steps, by_base.at_ms),
+            *found.steps,
             _step("detector", "Symbol detector (arbiter base)", by_base, found),
-            *shifted(second.steps, by_second.at_ms),
+            *second.steps,
             _step("detector", "Symbol detector (arbiter second read)", by_second, second),
             StepTrace(
                 id="arbiter",

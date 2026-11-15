@@ -13,7 +13,6 @@ is a `printed_scale` step after the inner reader's steps (decision 0018).
 """
 
 import io
-import time
 
 from PIL import Image
 
@@ -21,7 +20,7 @@ from app.adapters.beside import beside
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import PrintedSheet, trusted_dpi, with_printed
-from app.core.pipeline.steps import Span, shifted, timed
+from app.core.pipeline.steps import Span, timed
 from app.core.wording import SCALE_WORDS, count
 
 
@@ -34,14 +33,13 @@ class PrintedScale:
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if not sheet.pages:
             return self._inner.extract(source, sheet)
-        began = time.perf_counter()
-        (found, by_found), (printed, span) = beside(  # independent reads: at the same time
-            lambda: timed(lambda: self._inner.extract(source, sheet), began),
-            lambda: timed(lambda: self._reader.read(source, sheet), began),
+        (found, _), (printed, span) = beside(  # independent reads: at the same time
+            lambda: timed(lambda: self._inner.extract(source, sheet)),
+            lambda: timed(lambda: self._reader.read(source, sheet)),
         )
         dpi = trusted_dpi(stated_dpi(self._files.read(source.path)))
         result = with_printed(found, printed, sheet.pages, dpi)
-        steps = (*shifted(found.steps, by_found.at_ms), _step(printed, span, result))
+        steps = (*found.steps, _step(printed, span, result))
         return result.model_copy(update={"steps": steps})
 
 

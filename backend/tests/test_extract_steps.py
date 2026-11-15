@@ -27,6 +27,7 @@ from app.core.ingest.timing import StageClock, TimedExtractor, with_steps
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.printed import PrintedSheet
+from app.core.pipeline.steps import now_ms
 
 PLANS = (Plan(id="x", page=1, box=(0.0, 0.0, 1.0, 1.0)),)
 
@@ -147,10 +148,10 @@ def test_the_ifc_reader_is_one_step_on_a_sheet_and_on_the_model_itself() -> None
 
 
 class Stepped:
-    """An extractor that reports one step, `at_ms` 1 after its call began."""
+    """An extractor that reports one step that began 1 ms after its call, on the steps' clock."""
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        step = StepTrace(id="vector", label="v", at_ms=1, ms=2)
+        step = StepTrace(id="vector", label="v", at_ms=now_ms() + 1, ms=2)
         return Extracted(method="parser", scale=Scale(status="no_scale"), steps=(step,))
 
 
@@ -161,11 +162,33 @@ def test_a_second_extract_call_lists_its_steps_after_the_first() -> None:
     timed.extract(FILE, SHEET)
     timed.extract(FILE, SHEET)
     steps = timer.steps[FILE.path]["extract"]
-    assert [step.at_ms for step in steps] == [1, 11]
+    # 1 ms into each call (plus the few µs the call took to get there)
+    assert 1 <= steps[0].at_ms < 2 and 11 <= steps[1].at_ms < 12
     stage = StageTrace(stage="extract", did="read", ms=30)
     other = StageTrace(stage="takeoff", did="t", ms=1)
     traced = with_steps([stage, other], timer.steps[FILE.path])
     assert traced[0].steps == tuple(steps) and traced[1].steps == ()
+
+
+class Waiting:
+    """A wrapper that waits `ms` (a queue) before its inner reader runs, then passes its steps
+    on as they are."""
+
+    def __init__(self, inner: Extractor, ms: float) -> None:
+        self.inner, self.ms = inner, ms
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        until = now_ms() + self.ms
+        while now_ms() < until:
+            pass
+        return self.inner.extract(source, sheet)
+
+
+def test_a_step_after_a_wait_in_a_wrapper_begins_after_the_wait() -> None:
+    timer = StageClock(lambda: 0.0)
+    TimedExtractor(Waiting(Stepped(), 20), timer).extract(FILE, SHEET)
+    (step,) = timer.steps[FILE.path]["extract"]
+    assert step.at_ms >= 21  # the 20 ms wait, then 1 ms into the inner call
 
 
 class Paid(Fake):

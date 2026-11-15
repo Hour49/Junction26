@@ -28,7 +28,6 @@ Its reading is one step of the result (`Extracted.steps`, decision 0018): what i
 and how long it took.
 """
 
-import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -51,7 +50,7 @@ from app.core.drawing.model import (
 from app.core.errors import NotFoundError
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, SecondCounter
-from app.core.pipeline.steps import found_of, found_words
+from app.core.pipeline.steps import found_of, found_words, now_ms
 
 SAME_SHAPE = 0.01  # relative difference of width / height between the SVG frame and the page
 LOOKS_FOR: tuple[ReadClass, ...] = ("room", *CLASSES.values())
@@ -90,7 +89,7 @@ class IfcModelExtractor:
         self._files, self._models = files, models
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        began = time.perf_counter()
+        began = now_ms()
         found = self._read(source, sheet)
         if found.model_objects is not None and not sheet.pages:
             label = "IFC model reader"
@@ -108,7 +107,8 @@ class IfcModelExtractor:
             id="ifc",
             label=label,
             did=did,
-            ms=(time.perf_counter() - began) * 1000,
+            at_ms=began,
+            ms=now_ms() - began,
             found=counted,
         )
         return found.model_copy(update={"steps": (*found.steps, step)})

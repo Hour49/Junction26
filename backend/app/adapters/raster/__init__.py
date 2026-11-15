@@ -46,7 +46,6 @@ found; a source whose model calls got no answer is a failed step. The steps a so
 (the count arbiter's three reads) follow its own.
 """
 
-import time
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
@@ -69,7 +68,7 @@ from app.core.pipeline.disputed_marks import ANSWER
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.plan_rooms import floor_plans
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.steps import found_of, found_words, shifted
+from app.core.pipeline.steps import found_of, found_words, now_ms
 from app.core.wording import SCALE_WORDS, count
 
 RoomPolicy = Callable[[Sequence[Room]], Sequence[Room]]
@@ -183,8 +182,7 @@ class CompositeRasterExtractor:
         components = {c.name: c for c in self._components()}
         spent: dict[str, float] = {}  # what each source that ran paid for, failed or not
         failed: dict[str, int] = {}  # and how many of its model calls got no answer
-        spans: dict[str, tuple[float, float]] = {}  # when each began and ended, perf_counter s
-        began = time.perf_counter()
+        spans: dict[str, tuple[float, float]] = {}  # when each began and ended, on now_ms()
         try:
             with ThreadPoolExecutor(len(components), thread_name_prefix="raster") as pool:
                 pending = {
@@ -204,15 +202,14 @@ class CompositeRasterExtractor:
         read = {name: future.result() for name, future in pending.items()}
         steps: list[StepTrace] = []
         for name in sorted(read, key=lambda name: spans[name][0]):
-            step = self._step(name, read[name], began, spans[name], spent[name], failed[name])
-            steps += [step, *shifted(read[name].steps, step.at_ms)]  # and what ran inside it
+            step = self._step(name, read[name], spans[name], spent[name], failed[name])
+            steps += [step, *read[name].steps]  # and what ran inside it
         return merged.model_copy(update={"steps": (*merged.steps, *steps)})
 
     def _step(
         self,
         name: str,
         got: Extracted,
-        began: float,
         span: tuple[float, float],
         paid: float,
         faults: int,
@@ -239,8 +236,8 @@ class CompositeRasterExtractor:
             id=step_id,
             label=label,
             did="; ".join(said),
-            at_ms=max(0.0, (span[0] - began) * 1000),
-            ms=max(0.0, (span[1] - span[0]) * 1000),
+            at_ms=span[0],
+            ms=span[1] - span[0],
             cost_usd=paid,
             state="failed" if faults else "done",
             found=found,
@@ -370,13 +367,13 @@ def _charged(
     """The reader's result, read on this (worker) thread; what its calls cost goes in
     `spent[name]` also when it fails, when it began and ended in `spans[name]`."""
     before, faulted = cost.mark(), cost.faults()
-    started = time.perf_counter()
+    started = now_ms()
     try:
         return reader.extract(source, sheet)
     finally:
         spent[name] = cost.since(before)
         failed[name] = cost.faults_since(faulted)
-        spans[name] = (started, time.perf_counter())
+        spans[name] = (started, now_ms())
 
 
 # What a source name's kind (before its first ":") is, as a step: (id, label)

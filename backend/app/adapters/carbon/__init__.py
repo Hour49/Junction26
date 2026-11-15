@@ -13,7 +13,6 @@ did not need it.
 """
 
 import logging
-import time
 from collections.abc import Callable, Sequence
 
 from PIL import Image
@@ -23,7 +22,7 @@ from app.adapters.carbon.reader import CarbonClient, CarbonExtractor, CarbonRead
 from app.core.drawing.model import Box, CarbonCheck, Element, Plan, ReadClass
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.steps import Span, found_of, found_words, shifted, timed
+from app.core.pipeline.steps import Span, found_of, found_words, timed
 from app.core.wording import count
 
 __all__ = [
@@ -53,7 +52,7 @@ class CarbonSwitch:
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if not self._use_carbon(source.path):
             return self._other.extract(source, sheet)
-        found, span = timed(lambda: self._carbon.extract(source, sheet), time.perf_counter())
+        found, span = timed(lambda: self._carbon.extract(source, sheet))
         rooms = len(found.rooms) if found.read is None or "room" in found.read else None
         seen = found_of(found.elements, found.read, rooms=rooms, plans=len(found.plans))
         step = _carbon_step("Gemini Carbon reader (the whole sheet)", span, seen)
@@ -95,15 +94,14 @@ class CarbonThings:
         self._took = took
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        began = time.perf_counter()
         if self._use_carbon(source.path):  # known before reading: both at the same time
-            (shipped, by_shipped), (carbon, span) = beside(
-                lambda: timed(lambda: self._other.extract(source, sheet), began),
-                lambda: timed(lambda: self._carbon.extract(source, sheet), began),
+            (shipped, _), (carbon, span) = beside(
+                lambda: timed(lambda: self._other.extract(source, sheet)),
+                lambda: timed(lambda: self._carbon.extract(source, sheet)),
             )
         else:  # the few clause needs the shipped reader's count first: one after the other
-            shipped, by_shipped = timed(lambda: self._other.extract(source, sheet), began)
-            steps = shifted(shipped.steps, by_shipped.at_ms)
+            shipped, by_shipped = timed(lambda: self._other.extract(source, sheet))
+            steps = shipped.steps
             if len(shipped.elements) >= self._few:
                 ended = by_shipped.at_ms + by_shipped.ms
                 skipped = StepTrace(
@@ -120,7 +118,7 @@ class CarbonThings:
                     state="skipped",
                 )
                 return shipped.model_copy(update={"steps": (*steps, skipped)})
-            carbon, span = timed(lambda: self._carbon.extract(source, sheet), began)
+            carbon, span = timed(lambda: self._carbon.extract(source, sheet))
             if not carbon.plans and not carbon.read:  # Carbon read nothing (a failed call, a
                 # spent budget): the shipped reading stays, as before the clause
                 step = _read_nothing(_carbon_step(THINGS, span, {}), carbon.notes)
@@ -169,7 +167,7 @@ class CarbonThings:
             read=tuple(read),
             double_check=views or None,
             notes=(*notes, *shipped.notes),
-            steps=(*shifted(shipped.steps, by_shipped.at_ms), step),
+            steps=(*shipped.steps, step),
         )
 
 
@@ -187,17 +185,16 @@ class CarbonChecked:
         self._carbon = carbon
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        began = time.perf_counter()
-        (found, by_found), (check, span) = beside(  # independent reads: at the same time
-            lambda: timed(lambda: self._other.extract(source, sheet), began),
-            lambda: timed(lambda: self._check(source, sheet), began),
+        (found, _), (check, span) = beside(  # independent reads: at the same time
+            lambda: timed(lambda: self._other.extract(source, sheet)),
+            lambda: timed(lambda: self._check(source, sheet)),
         )
         rooms = len(check.rooms) if "room" in check.read else None
         seen = found_of(check.elements, check.read, rooms=rooms, plans=len(check.plans))
         step = _carbon_step("Gemini Carbon check (never counted)", span, seen)
         if check.failed is not None:
             step = step.model_copy(update={"did": check.failed, "state": "failed"})
-        steps = (*shifted(found.steps, by_found.at_ms), step)
+        steps = (*found.steps, step)
         return found.model_copy(update={"carbon_check": check, "steps": steps})
 
     def _check(self, source: DrawingFile, sheet: Sheet) -> CarbonCheck:

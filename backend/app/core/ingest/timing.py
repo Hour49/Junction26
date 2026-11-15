@@ -12,7 +12,7 @@ from app.core.ingest.model import Stage, StageTrace
 from app.core.ingest.ports import Clock
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor, PageReader, SecondCounter
-from app.core.pipeline.steps import shifted
+from app.core.pipeline.steps import now_ms, shifted
 
 
 @dataclass
@@ -59,11 +59,15 @@ class StageClock:
             usd = self.usd.setdefault(path, {})
             usd[stage] = usd.get(stage, 0.0) + paid
 
-    def add_steps(self, stage: Stage, path: str, steps: Sequence[StepTrace], at_ms: float) -> None:
-        """`steps` of a call to `stage` for `path` that began `at_ms` into the stage's time (a
-        stage called twice, as on a fallback, lists both calls' steps one after the other)."""
+    def add_steps(
+        self, stage: Stage, path: str, steps: Sequence[StepTrace], began: float, at_ms: float
+    ) -> None:
+        """`steps` of a call to `stage` for `path` that began at `began` on the steps' clock
+        (`now_ms`) and `at_ms` into the stage's time: a stage called twice, as on a fallback,
+        lists both calls' steps one after the other."""
         if steps:
-            self.steps.setdefault(path, {}).setdefault(stage, []).extend(shifted(steps, at_ms))
+            moved = shifted(steps, at_ms - began)
+            self.steps.setdefault(path, {}).setdefault(stage, []).extend(moved)
 
     def since_last(self, path: str) -> float:
         """When the last timed call for `path` returned (the start of the untimed stages)."""
@@ -89,9 +93,10 @@ class TimedExtractor:
         path = sheet.file.path
         before = self._timer.ms.get(path, {}).get("extract", 0.0)
         started = self._timer.start("extract", path)
+        began = now_ms()  # the steps' clock: they say when they began on it
         found = self._inner.extract(source, sheet)
         self._timer.stop("extract", path, started)
-        self._timer.add_steps("extract", path, found.steps, before)
+        self._timer.add_steps("extract", path, found.steps, began, before)
         return found
 
 
