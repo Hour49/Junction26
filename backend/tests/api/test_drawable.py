@@ -241,3 +241,25 @@ def test_the_samples_walled_plan_fails_no_rule(client: TestClient, pack: str) ->
         if result["status"] == "fail"
     ]
     assert failed == ([("plans/flat-b.pdf", "Zimmer 1.05")] if pack == "ch-zh" else [])
+
+
+def test_an_edit_on_the_samples_walled_plan_passes_the_finnish_window_rule(
+    client: TestClient,
+) -> None:
+    """fail-1's #427 review: flat-c had no window, so every edit's law check said "a bedroom or
+    living room has a window: still doesn't meet". Stanza's window passes it before and after."""
+    from app.adapters.plan_tools import PlanStore, run_plan_tool
+    from app.api.checks import find_pack
+
+    project = client.get(client.post("/api/projects/sample").json()["url"]).json()
+    drawing = next(d["drawing_id"] for d in project["drawings"] if d["file"] == "plans/flat-c.pdf")
+    packs = cast(Any, client.app).state.rule_packs
+    store = PlanStore.of_app(client.app, project["id"])
+    store = dataclasses.replace(store, pack=find_pack(packs, "fi"))
+    where = {"drawing_id": drawing, "page": 1}
+    walls = json.loads(run_plan_tool(store, "list_walls", where))
+    rooms = {room["label"]: room["id"] for room in walls["rooms"]}
+    removed = {**where, "room_a": rooms["Bagno 1.01"], "room_b": rooms["Stanza 1.02"]}
+    found = json.loads(run_plan_tool(store, "propose_remove_wall", removed))
+    [window] = [f for f in found["law"]["findings"] if f["rule_id"] == "fi-habitable-room-window"]
+    assert (window["before"]["status"], window["after"]["status"]) == ("pass", "pass")
