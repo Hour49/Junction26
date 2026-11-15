@@ -59,6 +59,20 @@ def test_printed_room_areas_that_agree_with_the_scale_flag_nothing(factor: float
     assert label_disputed(sheet(DOORS, factor)) is None
 
 
+@pytest.mark.parametrize("factor", [1.5, 1 / 1.5])
+def test_printed_room_areas_just_past_the_range_flag(factor: float) -> None:
+    assert label_disputed(sheet(RATIO, factor)) is not None
+    assert label_disputed(sheet(DOORS, factor)) is not None
+
+
+def test_one_misread_label_among_right_ones_flags_nothing() -> None:
+    """The median, not the mean: 3 labels agree, 1 lost its decimal comma (10x)."""
+    right = sheet(DOORS, factor=1.0)
+    outlier = label_room("m", BOXES[3], round(10 * right.rooms[0].area_m2, 2))
+    drawing = right.model_copy(update={"rooms": (*right.rooms[:3], outlier)})
+    assert label_disputed(drawing) is None
+
+
 def test_fewer_than_three_printed_rooms_flag_nothing() -> None:
     assert label_disputed(sheet(RATIO, factor=23.0, printed=2)) is None
 
