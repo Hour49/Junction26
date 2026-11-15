@@ -46,6 +46,11 @@ class PrintedScale:
 def _step(printed: PrintedSheet, span: Span, result: Extracted) -> StepTrace:
     """The printed read as a step: what it read, and the scale the sheet ends with."""
     said = [f"printed scale {printed.printed_scale}" if printed.printed_scale else "no scale"]
+    # why a read scale was not used ("...: read, not used (... no resolution to trust)", or "...
+    # more than 2x the scale estimated from the doors: not used, ..."), from with_printed's notes
+    why = next((n for n in result.notes if n.startswith("printed scale") and "not used" in n), None)
+    if printed.printed_scale and why is not None:
+        said[0] = why
     if printed.bars:
         said.append(count(len(printed.bars), "scale bar"))
     if printed.printed_facts:

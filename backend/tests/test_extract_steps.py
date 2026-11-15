@@ -270,7 +270,8 @@ def test_the_printed_scale_is_a_step_after_the_inner_readers() -> None:
     assert [step.id for step in got.steps] == ["detector", "printed_scale"]
     step = got.steps[1]
     assert step.label == "Printed scale and counts (Gemini Carbon)"
-    assert step.did.startswith("printed scale 1:100; the sheet's scale: ")
+    # no resolution to turn the ratio into metres per pixel: read, not used, and the step says so
+    assert step.did.startswith("printed scale 1:100: read, not used (")
 
 
 class PrintedFixed:
@@ -377,4 +378,17 @@ def test_carbon_says_it_replaces_the_shipped_things_and_what_it_found_none_of() 
     assert step.did.endswith(
         "replaces the shipped reading's things drawn (a large sheet); "
         "looked for, none found: door, sink"
+    )
+
+
+def test_a_printed_scale_read_and_not_used_says_why() -> None:
+    # a JPEG with no stated resolution: the printed ratio can't become metres per pixel
+    printed = PrintedSheet(printed_scale="1/100")
+    got = PrintedScale(Paid(plans=PLANS), PrintedFixed(printed), PrintedFiles()).extract(
+        FILE, SHEET
+    )
+    step = got.steps[-1]
+    assert step.did == (
+        "printed scale 1/100: read, not used (no scale bar was measured and the image states no "
+        "resolution to trust); the sheet's scale: no scale on the sheet"
     )
