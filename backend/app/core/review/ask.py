@@ -127,6 +127,7 @@ from app.core.review.review import (
     pluralise,
     row,
     storey_twins,
+    with_rejected_items,
     with_twins,
 )
 
@@ -327,7 +328,7 @@ def ask(
     elif isinstance(parsed, TableQuery):
         query = parsed.family()
     found = quantities.get(query) if query is not None and answer.method == TAKEOFF else None
-    shared = with_twins(state, twins)
+    shared = with_rejected_items(with_twins(state, twins), quantities)
     shown = None if found is None else row(found, drawing, shared, RULES)
     notes = [NOT_LOCATED] if found is not None and _unplaced(found, drawing) else []
     if found is not None and parse_key(found.key)[1] == "door" and CLOSET.search(text):
