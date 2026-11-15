@@ -21,6 +21,13 @@ from app.core.services.picture_follow import Sheet
 from app.core.services.register import Segment
 
 LONG = 2500  # px: the long side the picture is read at (Tudor's measure: walls() ~1-3 s there)
+CODE = "1"  # bump when walls(), the finder or this reading change: the kept parts are read again
+KEPT = 256  # sheets' parts kept per process before the memo starts again (a few KB each)
+
+# A sheet's file: its sha256 and how to load its bytes; None: the sheet has no file
+FileOf = Callable[[Sheet], tuple[str, Callable[[], bytes]] | None]
+Read = tuple[list[Crop], Point2] | str
+_KEPT: dict[tuple[str, str, int], Read] = {}  # (CODE, sha256, page) -> what was read
 
 
 def crops(image: np.ndarray) -> tuple[list[Crop], Point2]:
@@ -59,16 +66,34 @@ def decoded(data: bytes) -> np.ndarray | None:
     return image if image is not None and image.size else None
 
 
-def reader(image_of: Callable[[Sheet], np.ndarray | None]) -> SheetWalls:
-    """The sheet-walls reader over `image_of` (the sheet's picture, RGB or grey; None: none)."""
+def reader(file_of: FileOf, kept: dict[tuple[str, str, int], Read] | None = None) -> SheetWalls:
+    """The sheet-walls reader over `file_of`. Every proposal pairs every picture sheet, so what
+    a file's page gives (0.2-0.5 s a picture on the dev1 DigitalHub renders) is kept in `kept`
+    (default: this process's memo) by its sha256, page and `CODE`."""
+    memo = _KEPT if kept is None else kept
 
-    def read(sheet: Sheet) -> tuple[list[Crop], Point2] | str:
-        image = image_of(sheet)
-        if image is None or image.size == 0:
-            return "the services sheet is no picture file: its walls are not read"
-        parts, size = crops(image)
-        if not any(lines for _, lines in parts):
-            return "no wall lines were read on the services sheet"
-        return parts, size
+    def read(sheet: Sheet) -> Read:
+        found = file_of(sheet)
+        if found is None:
+            return NO_PICTURE
+        sha256, load = found
+        key = (CODE, sha256, sheet.page)
+        if key not in memo:
+            if len(memo) >= KEPT:
+                memo.clear()
+            memo[key] = _read(decoded(load()))
+        return memo[key]
 
     return read
+
+
+NO_PICTURE = "the services sheet is no picture file: its walls are not read"
+
+
+def _read(image: np.ndarray | None) -> Read:
+    if image is None:
+        return NO_PICTURE
+    parts, size = crops(image)
+    if not any(lines for _, lines in parts):
+        return "no wall lines were read on the services sheet"
+    return parts, size

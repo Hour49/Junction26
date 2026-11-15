@@ -375,12 +375,10 @@ def follower(app: Any, pipeline: PipelineStore) -> ServiceFollower:
     return made
 
 
-def _picture(pipeline: PipelineStore, sheet: Sheet) -> Any:
-    """The services sheet's uploaded picture (RGB pixels); None when its file is no picture."""
-    from app.adapters.discipline_pictures.sheet_walls import decoded
-
+def _picture(pipeline: PipelineStore, sheet: Sheet) -> tuple[str, Callable[[], bytes]] | None:
+    """The services sheet's uploaded file: its sha256 and how to load its bytes; None: none."""
     files = _done(pipeline, pipeline.project_id).files
-    file = next((f for f in files if f.drawing_id == sheet.drawing_id), None)
-    if file is None:
+    file = next((f for f in files if f.drawing_id == sheet.drawing_id and f.sha256), None)
+    if file is None or file.sha256 is None:
         return None
-    return decoded(pipeline.ingest.upload_bytes(pipeline.project_id, file.id))
+    return file.sha256, partial(pipeline.ingest.upload_bytes, pipeline.project_id, file.id)

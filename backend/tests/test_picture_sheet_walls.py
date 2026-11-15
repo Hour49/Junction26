@@ -24,9 +24,15 @@ def with_schedule(rgb: np.ndarray) -> np.ndarray:
     return out
 
 
+def stored(image: np.ndarray | None, sha: str = "sha-1"):
+    """A sheet's file as the follower finds it: its sha256 and how to load its bytes."""
+    data = b"%PDF-1.7 not a picture" if image is None else cv2.imencode(".png", image)[1].tobytes()
+    return lambda _: (sha, lambda: data)
+
+
 def test_a_picture_is_laid_over_its_plan_through_its_parts() -> None:
     image = with_schedule(sheet())
-    walls = by_walls([Segment(a=a, b=b) for a, b in PLAN], sheet_walls.reader(lambda _: image))
+    walls = by_walls([Segment(a=a, b=b) for a, b in PLAN], sheet_walls.reader(stored(image), {}))
     laid = walls(PLAN_SHEET, PICTURE)
     assert not isinstance(laid, str), laid
     to_plan, how = laid
@@ -55,7 +61,51 @@ def test_a_big_picture_is_read_shrunk_and_given_back_in_its_own_pixels() -> None
 
 
 def test_no_picture_or_no_lines_is_said() -> None:
-    read = sheet_walls.reader(lambda _: None)
-    assert read(PICTURE) == "the services sheet is no picture file: its walls are not read"
-    blank = sheet_walls.reader(lambda _: np.full((400, 600, 3), 255, np.uint8))
+    for file_of in (stored(None), lambda _: None):
+        read = sheet_walls.reader(file_of, {})
+        assert read(PICTURE) == "the services sheet is no picture file: its walls are not read"
+    blank = sheet_walls.reader(stored(np.full((400, 600, 3), 255, np.uint8)), {})
     assert blank(PICTURE) == "no wall lines were read on the services sheet"
+
+
+def test_a_sheet_s_parts_are_read_once_per_file_and_code_version(monkeypatch) -> None:
+    """Every proposal pairs every picture sheet: its parts (0.2-0.5 s a picture on the dev1
+    DigitalHub renders) are kept by the file's sha256, page and the reader's code version, so
+    the next proposal reads neither the file nor its walls again."""
+    calls = {"walls": 0, "load": 0}
+    real = sheet_walls.walls
+
+    def counted(image):
+        calls["walls"] += 1
+        return real(image)
+
+    monkeypatch.setattr(sheet_walls, "walls", counted)
+    data = cv2.imencode(".png", with_schedule(sheet()))[1].tobytes()
+
+    def file_of(sha: str):
+        def load() -> bytes:
+            calls["load"] += 1
+            return data
+
+        return lambda _: (sha, load)
+
+    kept: dict = {}
+    first = sheet_walls.reader(file_of("sha-1"), kept)(PICTURE)
+    reads = calls["walls"]
+    assert reads >= 1 and calls["load"] == 1
+    again = sheet_walls.reader(file_of("sha-1"), kept)(PICTURE)  # the next proposal's follower
+    assert again == first and calls == {"walls": reads, "load": 1}
+    sheet_walls.reader(file_of("sha-2"), kept)(PICTURE)  # another file
+    assert calls["load"] == 2
+    monkeypatch.setattr(sheet_walls, "CODE", "another")  # walls() or the finder changed
+    sheet_walls.reader(file_of("sha-1"), kept)(PICTURE)
+    assert calls["load"] == 3
+
+
+def test_the_kept_parts_are_bounded(monkeypatch) -> None:
+    monkeypatch.setattr(sheet_walls, "KEPT", 2)
+    kept: dict = {}
+    blank = cv2.imencode(".png", np.full((100, 100, 3), 255, np.uint8))[1].tobytes()
+    for i in range(5):
+        sheet_walls.reader(lambda _, i=i: (f"sha-{i}", lambda: blank), kept)(PICTURE)
+        assert len(kept) <= 2
