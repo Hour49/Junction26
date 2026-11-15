@@ -38,6 +38,7 @@ from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import PrintedSheet, trusted_dpi, with_printed
 from app.core.pipeline.printed_answer import printed_answers
 from app.core.pipeline.printed_ocr import Confirmation, OcrToken, checked, confirm_printed
+from app.core.pipeline.scale_signatures import Signatures
 from app.core.pipeline.steps import Span, cached_words, timed
 from app.core.wording import SCALE_WORDS, count
 
@@ -63,6 +64,7 @@ class PrintedScale:
         checker: PrintedChecker | None = None,
         gross_net: bool = False,
         door_units: bool = False,
+        signatures: Signatures = "off",
     ) -> None:
         self._inner = inner
         self._reader = reader
@@ -72,6 +74,7 @@ class PrintedScale:
         self._checker = checker  # PRINTED_OCR_CHECK=on; None: today's reading
         self._gross_net = gross_net
         self._door_units = door_units  # DOOR_PRIOR_UNITS=on
+        self._signatures: Signatures = signatures  # SCALE_SIGNATURES
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if not sheet.pages:
@@ -91,7 +94,7 @@ class PrintedScale:
             printed, second = checked(printed, confirmations)
         if self._door_units:
             found = imperial_doors(found, printed, sheet.pages)
-        result = with_printed(found, printed, sheet.pages, dpi)
+        result = with_printed(found, printed, sheet.pages, dpi, self._signatures)
         if second:
             result = result.model_copy(update={"printed": (*result.printed, *second)})
         # a fact OCR reads differently decides no answer, nor flags one
