@@ -103,3 +103,50 @@ def test_nothing_in_the_app_calls_it_yet() -> None:
                 names = [node.module + "." + a.name for a in node.names]
                 assert not any(n.endswith("discipline_pictures.walls") for n in names), path
                 assert not node.module.endswith("discipline_pictures.walls"), path
+
+
+def building(fill: float) -> tuple[np.ndarray, list]:
+    """A frame and a building whose outer walls span `fill` of the page, rooms inside."""
+    rgb = np.full((H, W, 3), 255, np.uint8)
+    cv2.rectangle(rgb, (4, 4), (W - 5, H - 5), (0, 0, 0), 2)
+    x0, y0 = round(W * (1 - fill) / 2), round(H * (1 - fill) / 2)
+    x1, y1 = W - x0, H - y0
+    lines = [
+        ((x0, y0), (x1, y0)),
+        ((x1, y0), (x1, y1)),
+        ((x1, y1), (x0, y1)),
+        ((x0, y1), (x0, y0)),
+        ((x0, 300), (600, 300)),  # touches the outer wall: one ink piece
+        ((600, y0), (600, 300)),
+    ]
+    for a, b in lines:
+        cv2.line(rgb, a, b, (120, 120, 120), 4)
+    return rgb, lines
+
+
+def test_a_building_filling_the_page_keeps_its_walls_and_the_frame_goes() -> None:
+    rgb, lines = building(0.92)
+    found = walls(rgb)
+    for line in lines:
+        assert any(on(s, line) for s in found), line
+    for s in found:
+        assert any(on(s, line) for line in lines), s
+
+
+def test_a_hatched_page_does_not_crash_and_keeps_its_frame_out() -> None:
+    rgb, _ = building(0.92)
+    for x in range(-H, W, 12):  # hatching across the building
+        cv2.line(rgb, (x, H), (x + H, 0), (90, 90, 90), 1)
+    for s in walls(rgb):
+        assert not (min(s.a[0], s.b[0]) < 8 and max(s.a[0], s.b[0]) < 8), s  # not the left frame
+
+
+def test_an_empty_image_has_no_walls() -> None:
+    assert walls(np.zeros((0, 0, 3), np.uint8)) == ()
+
+
+def test_grey_and_four_channel_pictures_give_the_same_walls() -> None:
+    rgb, _ = building(0.8)
+    want = walls(rgb)
+    assert walls(cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)) == want
+    assert walls(cv2.cvtColor(rgb, cv2.COLOR_RGB2RGBA)) == want

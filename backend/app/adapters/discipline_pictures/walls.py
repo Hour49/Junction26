@@ -4,8 +4,8 @@ picture over its floor plan when no room names are shared.
 On a services sheet the walls are the grey or thin background lines under the coloured runs. The
 coloured pixels (as `mask` tells a colour) are painted out first so a pipe never becomes a wall,
 the page is cleaned as a scan (`cleanup`: salt out, light evened; not straightened: `register`
-finds the turn), and the small ink pieces (letters, symbols) go, as do the frame and title
-block with any piece that spans most of the page.
+finds the turn), and the small ink pieces (letters, symbols) go, as does the frame (an ink
+piece along three or four page edges) with the title block drawn on it.
 Long straight lines are found by probabilistic Hough, kept when solid along their length (a row
 of dashes is not), and the parallel pieces one thick wall gives are fitted into one line.
 
@@ -23,7 +23,8 @@ from app.core.services.register import Segment
 
 INK = 235  # grey level below which a pixel is drawn: grey walls count (as cleanup's TURN_INK)
 RUN_PAD = 2  # px around a coloured pixel also painted out: a scan blurs a run's edges grey
-FRAME = 0.9  # an ink piece this wide or tall a share of the page is the frame (and title block)
+FRAME = 0.9  # a frame side runs along this share of its page edge ...
+EDGE = 0.02  # ... within this share of the page from it, on 3 sides or 4 (a building is inset)
 LONG = 0.03  # a wall line is at least this share of the page's long side
 GAP = 0.01  # share of the long side a wall line may be broken by (a run painted out over it)
 SOLID = 0.85  # share of a line's length on ink: a row of dashes or a chance line has gaps
@@ -32,13 +33,20 @@ MERGE_PX = 8.0  # ... this close side by side (a thick wall's two edges) ...
 JOIN = 0.01  # ... and this share of the long side apart end to end are one line
 
 
-def walls(rgb: np.ndarray) -> tuple[Segment, ...]:
-    """The wall lines of the picture `rgb` (H x W x 3), as segments in its pixels."""
-    channels = rgb.astype(np.int16)
-    colourful = (channels.max(axis=2) - channels.min(axis=2)) > COLOURFUL
-    colourful = cv2.dilate(colourful.astype(np.uint8), np.ones((2 * RUN_PAD + 1,) * 2, np.uint8))
-    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    gray[colourful > 0] = 255
+def walls(image: np.ndarray) -> tuple[Segment, ...]:
+    """The wall lines of the picture (H x W grey, RGB or RGBA), as segments in its pixels."""
+    if image.size == 0:
+        return ()
+    if image.ndim == 2:
+        gray = image.copy()
+    else:
+        rgb = image[..., :3]
+        channels = rgb.astype(np.int16)
+        colourful = (channels.max(axis=2) - channels.min(axis=2)) > COLOURFUL
+        kernel = np.ones((2 * RUN_PAD + 1,) * 2, np.uint8)
+        colourful = cv2.dilate(colourful.astype(np.uint8), kernel)
+        gray = cv2.cvtColor(np.ascontiguousarray(rgb), cv2.COLOR_RGB2GRAY)
+        gray[colourful > 0] = 255
     ink = (clean_page(gray, straighten=False).gray < INK).astype(np.uint8)
     side = max(ink.shape)
     long, gap = round(LONG * side), round(GAP * side)
@@ -48,10 +56,11 @@ def walls(rgb: np.ndarray) -> tuple[Segment, ...]:
     )
     if found is None:
         return ()
+    near = cv2.dilate(ink, np.ones((3, 3), np.uint8))
     pieces = [
         (float(x0), float(y0), float(x1), float(y1))
         for x0, y0, x1, y1 in found.reshape(-1, 4)
-        if _solid(ink, (x0, y0, x1, y1))
+        if _solid(near, (x0, y0, x1, y1))
     ]
     return tuple(
         Segment(a=(x0, y0), b=(x1, y1))
@@ -61,22 +70,39 @@ def walls(rgb: np.ndarray) -> tuple[Segment, ...]:
 
 
 def _long_pieces(ink: np.ndarray, long: int) -> np.ndarray:
-    """`ink` without its small pieces (letters, symbols) and those that span most of the page
-    (its frame, with the title block)."""
+    """`ink` without its small pieces (letters, symbols) and its frame (with the title block and
+    anything else drawn on it)."""
     _, labels, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     height, width = ink.shape
     w, h = stats[1:, cv2.CC_STAT_WIDTH], stats[1:, cv2.CC_STAT_HEIGHT]
-    kept = (np.maximum(w, h) >= long) & (w < FRAME * width) & (h < FRAME * height)
+    kept = np.maximum(w, h) >= long
+    wide = np.flatnonzero(kept & ((w >= FRAME * width) | (h >= FRAME * height)))
+    for i in wide:
+        if _framed(labels == i + 1):
+            kept[i] = False
     return np.isin(labels, np.flatnonzero(kept) + 1).astype(np.uint8)
 
 
-def _solid(ink: np.ndarray, line: tuple[int, int, int, int]) -> bool:
-    """Whether the line lies on ink (within a pixel) for at least `SOLID` of its length."""
+def _framed(piece: np.ndarray) -> bool:
+    """Whether the ink `piece` runs along at least three of the page's edges, near each: a
+    frame, not a building that fills the page (its outer walls are inset)."""
+    height, width = piece.shape
+    ey, ex = max(1, round(EDGE * height)), max(1, round(EDGE * width))
+    sides = (
+        piece[:ey].any(axis=0).mean(),
+        piece[-ey:].any(axis=0).mean(),
+        piece[:, :ex].any(axis=1).mean(),
+        piece[:, -ex:].any(axis=1).mean(),
+    )
+    return sum(float(side) >= FRAME for side in sides) >= 3
+
+
+def _solid(near: np.ndarray, line: tuple[int, int, int, int]) -> bool:
+    """Whether the line lies on `near` (the ink, one pixel wider) for `SOLID` of its length."""
     x0, y0, x1, y1 = line
     n = max(2, round(math.hypot(x1 - x0, y1 - y0)))
     xs = np.linspace(x0, x1, n).round().astype(int)
     ys = np.linspace(y0, y1, n).round().astype(int)
-    near = cv2.dilate(ink, np.ones((3, 3), np.uint8))
     return float(near[ys, xs].mean()) >= SOLID
 
 
