@@ -152,6 +152,27 @@ describe('HomeScreen', () => {
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
+  it('IN-93 a file name over 255 characters is refused before sending; 255 (an emoji counts as one) is sent', async () => {
+    const api = mockApi({ [INFO]: info, [LIST]: projectList, [UPLOAD]: projectStarted });
+    render(
+      <InfoProvider>
+        <HomeScreen />
+      </InfoProvider>,
+    );
+    await flush();
+    pick(new File(['x'], `${'a'.repeat(251)}🙂.png`)); // 256 characters
+    await flush();
+    expect(
+      screen.getByText(
+        'This file name is 256 characters long; the limit is 255. Rename the file and try again.',
+      ),
+    ).toBeTruthy();
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+    pick(new File(['x'], `${'a'.repeat(250)}🙂.png`)); // 255 characters, 256 UTF-16 units
+    await flush();
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+
   it.each([
     ['pending', never()],
     ['failed', reply(500, error)],
@@ -289,6 +310,16 @@ describe('upload: sending, received, failed', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(HeldXhr.sent).toBe(2);
+  });
+
+  it('the server down (a 502 from the proxy) is not called a refusal of the file; Retry is offered', async () => {
+    const xhr = held();
+    xhr.answer(502, { detail: 'the server answered 502', code: 'http-502' });
+    await flush();
+    const alert = screen.getByRole('alert').textContent;
+    expect(alert).not.toContain('refused');
+    expect(alert).toContain('The server could not take site.zip right now. Retry in a moment.');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
   it('a file the server refuses says the server refused it, with its detail; Retry is offered', async () => {

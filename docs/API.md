@@ -1010,7 +1010,7 @@ Ingest's project status, plus `drawings`:
     },
     {
       "path": "cad/detail.dxf",
-      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
+      "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image"
     }
   ],
   "expected_drawings": 6,
@@ -3909,7 +3909,7 @@ upload lists the files, instead of one request per file.
         "sha256": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
         "kind": "dxf",
         "state": "set_aside",
-        "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+        "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
         "group": "cad/detail",
         "route": "cad",
         "source": "cad/detail.dxf",
@@ -5405,10 +5405,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "Set aside at ingest: no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on.",
+      "why": "Set aside at ingest: this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image.",
       "quantity": null,
       "question": null,
-      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+      "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
       "check": null,
       "links": {
         "drawing": null,
@@ -8843,7 +8843,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   "chat_id": "c4a7c0000001",
   "turn": 1,
   "kind": "answer",
-  "text": "The drawings answer this below [1][2][3].",
+  "text": "The answer is below [1][2][3].",
   "evidence": [
     {
       "n": 1,
@@ -10498,34 +10498,50 @@ without wall fills) gets `dont_know` saying so.
         "polygon": [
           [
             0.3084,
+            0.32087
+          ],
+          [
+            0.3084,
+            0.34213
+          ],
+          [
+            0.3084,
+            0.37047
+          ],
+          [
+            0.3084,
+            0.39173
+          ],
+          [
+            0.3084,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.4626
+          ],
+          [
+            0.31407,
+            0.39173
+          ],
+          [
+            0.31407,
+            0.37047
+          ],
+          [
+            0.31407,
+            0.34213
+          ],
+          [
+            0.31407,
+            0.32087
+          ],
+          [
+            0.31407,
             0.25
           ],
           [
             0.3084,
-            0.32087
-          ],
-          [
-            0.3084,
-            0.39173
-          ],
-          [
-            0.3084,
-            0.4626
-          ],
-          [
-            0.31407,
-            0.4626
-          ],
-          [
-            0.31407,
-            0.39173
-          ],
-          [
-            0.31407,
-            0.32087
-          ],
-          [
-            0.31407,
             0.25
           ]
         ],
@@ -10729,34 +10745,50 @@ unchanged.
       "polygon": [
         [
           0.3084,
+          0.32087
+        ],
+        [
+          0.3084,
+          0.34213
+        ],
+        [
+          0.3084,
+          0.37047
+        ],
+        [
+          0.3084,
+          0.39173
+        ],
+        [
+          0.3084,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.4626
+        ],
+        [
+          0.31407,
+          0.39173
+        ],
+        [
+          0.31407,
+          0.37047
+        ],
+        [
+          0.31407,
+          0.34213
+        ],
+        [
+          0.31407,
+          0.32087
+        ],
+        [
+          0.31407,
           0.25
         ],
         [
           0.3084,
-          0.32087
-        ],
-        [
-          0.3084,
-          0.39173
-        ],
-        [
-          0.3084,
-          0.4626
-        ],
-        [
-          0.31407,
-          0.4626
-        ],
-        [
-          0.31407,
-          0.39173
-        ],
-        [
-          0.31407,
-          0.32087
-        ],
-        [
-          0.31407,
           0.25
         ]
       ],

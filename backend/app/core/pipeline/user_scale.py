@@ -42,7 +42,8 @@ HINT = (
 TAKES = ("no_scale", "estimated")  # the scale statuses a user scale replaces
 
 _NUMBER = r"(?P<value>\d+(?:[.,]\d+)?)"
-_ROOM = r"(?P<room>(?:[^\W\d_][\w'-]*\s+){0,4}?[^\W\d_][\w'-]*)"
+# a room's words, digits too ("Room 301", "Soba 2", "0.02": user-scale-2)
+_ROOM = r"(?P<room>(?:[^\W_][\w.'-]*\s+){0,4}?[^\W_][\w.'-]*)"
 _IS = r"\s+(?:is|=|has|measures|has an area of)\s+(?:about\s+|around\s+|roughly\s+)?"
 # A message is read clause by clause: after . ! ? ; and a space, or a comma and a space ("12,5"
 # and "4.2" stay whole); a clause that starts with a question word or ends with "?" asks

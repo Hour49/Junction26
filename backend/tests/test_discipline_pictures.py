@@ -6,10 +6,11 @@ import io
 import math
 import time
 
+import numpy as np
 from pdf_sheets import BLACK, Point, SheetPdf, rect, ring
 from PIL import Image, ImageDraw
 
-from app.adapters.discipline_pictures.mask import MaskReader
+from app.adapters.discipline_pictures.mask import MaskReader, read_runs
 from app.adapters.discipline_pictures.paths import PathsReader
 from app.adapters.discipline_pictures.template import TemplateReader
 from app.adapters.vector_pdf.objects import read_page
@@ -330,6 +331,21 @@ def test_mask_measures_a_coloured_run_within_three_percent() -> None:
     assert all(r.spots for r in reading.runs)
 
 
+def test_mask_measures_a_run_drawn_as_short_stubs() -> None:
+    """A run seen mostly from above (risers) is drawn as stubs a few widths long: measured."""
+    page = Image.new("RGB", (MW, MH), (255, 255, 255))
+    draw = ImageDraw.Draw(page)
+    for x in range(100, 700, 30):  # 20 stubs of 6 x 2 px: 1.20 m at 0.01 m/px
+        draw.rectangle((x, 300, x + 5, 301), fill=PIPE_RED)
+    draw.rectangle((40, 100, 52, 112), fill=PIPE_RED)  # a blob in the run's colour: not a run
+    draw.line((800, 550, 850, 550), fill=PIPE_RED, width=4)
+    legend = (LegendEntry(label="Heating flow", group="Heating", line=True,
+                          box=fractions(795, 540, 855, 560, MW, MH)),)  # fmt: skip
+    reading = read_runs(np.asarray(page), legend, M_PER_PX)
+    length = sum(r.length_m for r in reading.runs)
+    assert abs(length - 1.2) <= 0.1 * 1.2, length
+
+
 def test_mask_takes_a_run_s_size_from_its_legend_label() -> None:
     from app.adapters.discipline_pictures.mask import size_of
 
@@ -426,3 +442,18 @@ def test_mask_tells_a_dashed_run_from_a_solid_one_of_the_same_colour() -> None:
     back = [r.length_m for r in reading.runs if r.label == "Heating return"]
     assert len(flow) == 1 and abs(flow[0] - 4.0) <= 0.03 * 4.0, flow
     assert len(back) == 1 and abs(back[0] - 3.54) <= 0.03 * 3.54, back
+
+
+def test_template_reads_a_legend_symbol_of_256_px_or_more() -> None:
+    from app.adapters.discipline_pictures.template import read_symbols
+
+    page = Image.new("L", (1200, 900), 255)
+    draw = ImageDraw.Draw(page)
+    draw.ellipse((800, 50, 1100, 350), outline=0, width=6)  # the legend's 300 px symbol
+    draw.ellipse((100, 400, 400, 700), outline=0, width=6)  # one on the plan
+    legend = (LegendEntry(label="Tank", group=None, line=False,
+                          box=fractions(795, 45, 1105, 355, 1200, 900)),)  # fmt: skip
+    import numpy as np
+
+    reading = read_symbols(np.asarray(page), legend)
+    assert reading.read == ("Tank",) and len(reading.sightings) == 1

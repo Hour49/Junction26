@@ -310,6 +310,21 @@ describe('ChecksScreen', () => {
     expect(screen.getByRole('alert').textContent).toContain('Not found'); // ErrorView, no Retry on a 404
   });
 
+  it('CK-19 a project that fails to load (backend down) offers Retry; Retry asks again and shows the checks', async () => {
+    let tries = 0;
+    const { api } = await show('fi', {
+      [`GET /api/projects/${PID}`]: () =>
+        ++tries === 1 ? reply(502, '<html>Bad gateway</html>') : project,
+    });
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(checkCalls(api)).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await flush();
+    expect(tries).toBe(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(checkCalls(api)).toHaveLength(1);
+  });
+
   it('CK-15 a new pack asks again and shows only the new pack', async () => {
     const other = { ...checks, pack: 'ch', drawings: [] };
     const api = mockApi(

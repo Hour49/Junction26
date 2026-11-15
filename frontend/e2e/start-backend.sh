@@ -8,7 +8,7 @@ DATA=$(mktemp -d)
 uv run --locked python scripts/make_sample_archive.py --out "$DATA/sample-project.zip"
 # The environment beats a developer's backend/.env (pydantic-settings).
 export PROJECTS_DIR="$DATA/projects" SAMPLE_ARCHIVE="$DATA/sample-project.zip" \
-  CREDIT_DATASET="$DATA/none" CREDIT_PHOTOS="$DATA/none"
+  CREDIT_DATASET="$DATA/none" CREDIT_PHOTOS="$DATA/none" DISCIPLINE_PICTURES_CACHE_DIR="$DATA/discipline-pictures"
 if [[ "${E2E_DEMO:-}" == 1 ]]; then
   # E2E_DEMO=1: exactly the demo config (tools/qa-env.sh config, DEMO_ENV) with every key empty; nothing of its
   # own (review-494 M1: a setting the demo turns on goes into DEMO_ENV and this follows). The demo settings that
@@ -26,9 +26,12 @@ if [[ "${E2E_DEMO:-}" == 1 ]]; then
     SHEET_KIND=off TRIAGE_DESCRIBER=off EVIDENCE_SCOPE=set_aside CHAT_MODEL=rules
   exec uv run --locked uvicorn app.main:create_app --factory --host 127.0.0.1 --port "${E2E_API_PORT:-8010}"
 fi
-# Triage stays off unless the caller sets TRIAGE_CLASSIFIER=rules (e2e/triage.spec.ts, file-triage.md FT-21).
+# Triage stays off unless the caller sets TRIAGE_CLASSIFIER=rules (e2e/triage.spec.ts, file-triage.md FT-21); the
+# services pictures and their follow-up stay off unless it sets DISCIPLINE_PICTURES=template SERVICES_FOLLOW=on
+# (e2e/pics-follow.spec.ts).
 export EXTRACTOR_RASTER=hello RASTER_COMPONENTS= RECTIFIER=none \
   DECISIONS_KIND=false DECISIONS_CONFIDENCE=false ANSWER_PRIOR=none ANSWER_POLICY= \
   TRIAGE_CLASSIFIER="${TRIAGE_CLASSIFIER:-off}" TRIAGE_DESCRIBER=off TRIAGE_JUDGE=off \
-  MODEL_3D=1
+  DISCIPLINE_PICTURES="${DISCIPLINE_PICTURES:-off}" \
+  SERVICES_FOLLOW="${SERVICES_FOLLOW:-off}" MODEL_3D=1
 exec uv run --locked uvicorn app.main:create_app --factory --host 127.0.0.1 --port "${E2E_API_PORT:-8010}"

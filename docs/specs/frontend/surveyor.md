@@ -160,6 +160,8 @@ sticky header, no scroll box around the tables). The table keeps its three colum
 At 760px and narrower, selecting a row (click, Enter or a `?q=` change by the user) scrolls the detail into view
 (`scrollIntoView({block: "start"})`, `scroll-margin-top` clears the sticky site header): the detail sits under all
 the rows (63 on the sample), and the row order stays as on the desktop (pre-QA 2026-11-14, SV-53).
+Wider than 760px, a selection scrolls the takeoff column (its own scroll) so the detail sits under the column's
+sticky head; the page itself does not move (QA 2026-11-15: at 1440 the detail was 3781px down the column, unseen).
 
 Selection after an edit or sign-off: the row acted on stays selected, even when it leaves "To review" (it was the
 default selection), so its "Settled at …" / "Signed off by …" line shows (frontend-orch decision, pre-QA, SV-52).
@@ -294,7 +296,8 @@ Edits
 - SV-30: On a conflict row one "Keep" button per `conflict.values[]` entry sends `settle` with that value ("Keep B:
   30.00 m² (<methodName('printed_label')>)" sends `{"quantity":"area:room|name=1.01","action":"settle","value":30}`). [component] `takeoff.json`
 - SV-31: The Settle field sends `settle` with the typed number (`3` on `door` gives `review_requests.json[3]`); the
-  Settle button is disabled while the field is empty, not a number, or negative. [component]
+  Settle button is disabled while the field is empty, not a number, or negative, and on a count row (unit `count`)
+  while it is not a whole number (`2.5`); a count row's field steps by 1. [component]
 - SV-32: A row with `settled: {"value": 22.401, "at": "2026-11-14T01:30:00Z"}` shows "Settled at 22.40 m²
   (2026-11-14 01:30 UTC). A mark edit clears it." [component] derived
 - SV-33: "Reset this quantity" shows on a row with an edit (status `edited`, `settled` set, or a mark that is
