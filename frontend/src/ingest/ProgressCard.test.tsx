@@ -7,6 +7,7 @@ import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { LANE_ROWS, splitPath } from './RouteLanes';
 import { ProgressCard } from './ProgressCard';
+import type { RanStep } from './pipeline';
 import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
 
 beforeEach(stubResizeObserver);
@@ -42,6 +43,7 @@ const running: ProjectView = {
   conflicts_open: null,
   cost_usd: 0.031,
   readers: DEMO_READERS,
+  ran: undefined, // the fixture's is a finished upload's: here nothing has ended yet
   phase: 'files',
   files: [
     file('img', {
@@ -441,5 +443,141 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(lane('Drawn PDF').textContent).toContain('1 file · 1 drawing read');
     expect(lane('Image').textContent).toContain('1 file');
     expect(lane('Image').textContent).not.toContain('drawing read');
+  });
+
+  const chipsOf = (name: string) =>
+    within(within(lane(name)).getByRole('group', { name: 'Readers' }))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+  const ranStep = (id: string, counts: Partial<RanStep>): RanStep => ({
+    id,
+    label: id,
+    done: 0,
+    skipped: 0,
+    failed: 0,
+    ...counts,
+  });
+
+  it('IN-123 the running chip is found by the step id, the label only when no id is sent', () => {
+    const at = (step: string, step_id: string | null): ProjectView => ({
+      ...running,
+      files: running.files.map((f) => (f.id === 'img' ? { ...f, step, step_id } : f)),
+    });
+    // the arbiter's label begins "Symbol detector", its id is the count arbiter's
+    render(
+      <ProgressCard
+        project={at('Symbol detector, 8 views + count arbiter', 'arbiter')}
+        now={Date.now()}
+      />,
+    );
+    let chips = chipsOf('Image');
+    expect(chips).toContain('running: count arbiter');
+    expect(chips).toContain('symbol detector');
+    cleanup();
+    // Gemini Decisions over the detector: one step, both chips run in it
+    render(
+      <ProgressCard
+        project={at(
+          'Gemini Decisions count swap (1536 px) over Symbol detector, 8 views',
+          'decisions',
+        )}
+        now={Date.now()}
+      />,
+    );
+    chips = chipsOf('Image');
+    expect(chips).toContain('running: Gemini count decision');
+    expect(chips).toContain('running: symbol detector');
+    cleanup();
+    render(
+      <ProgressCard
+        project={at('Double-check reader m1: Symbol detector', 'double_check:m1')}
+        now={Date.now()}
+      />,
+    );
+    expect(chipsOf('Image')).toContain('running: double check by 2 more readers');
+    cleanup();
+    // an older server (no step_id): the label still finds it
+    render(
+      <ProgressCard project={at('Room reader (Gemini + region model)', null)} now={Date.now()} />,
+    );
+    expect(chipsOf('Image')).toContain('running: room reader');
+  });
+
+  it('IN-124 `ran` ticks what ran, also when done or reloaded; once the lane ends, the rest is dimmed', () => {
+    const img = file('img', { route: 'raster', state: 'ready', stage: 'write', drawing_id: 'd' });
+    const ran = {
+      raster: [
+        ranStep('rectifier', { done: 1 }),
+        ranStep('decisions', { done: 1 }),
+        ranStep('arbiter/pick', { failed: 1 }),
+        ranStep('rooms', { done: 1 }),
+        ranStep('carbon', { skipped: 1 }),
+        ranStep('double_check:l1', { done: 1 }),
+      ],
+    };
+    // a finished project opened fresh: nothing was seen running, `ran` says what ran
+    render(
+      <ProgressCard
+        project={{ ...project, readers: DEMO_READERS, files: [img], ran }}
+        now={Date.now()}
+      />,
+    );
+    expect(chipsOf('Image')).toEqual([
+      'photo flattening✓',
+      'printed scale (Gemini) · did not run',
+      'symbol detector✓', // inside Gemini Decisions
+      'Gemini count decision✓',
+      'count arbiter✓', // failed on a file: it ran
+      'room reader✓',
+      'Gemini cross-check · did not run',
+      'double check by 2 more readers✓',
+      'Gemini reader · not needed here', // only skipped: the sheet had enough symbols
+      'scale from door sizes', // no step of its own: nothing to tell
+    ]);
+    const dim = must(
+      within(lane('Image'))
+        .getAllByText(/did not run/)[0]
+        ?.closest('li'),
+    );
+    expect(dim.dataset.dimmed).toBe('true');
+    cleanup();
+    // while the lane still has a file to read: what has not run yet is not dimmed
+    const live: ProjectView = {
+      ...running,
+      files: [img, file('img2', { route: 'raster', state: 'running', stage: 'extract' })],
+      ran,
+    };
+    render(<ProgressCard project={live} now={Date.now()} />);
+    expect(chipsOf('Image')).toContain('room reader✓');
+    expect(chipsOf('Image')).toContain('printed scale (Gemini)');
+    expect(chipsOf('Image').join()).not.toMatch(/did not run|not needed here/);
+    cleanup();
+    // no `ran` (an older project): as before, no tick and nothing dimmed
+    render(
+      <ProgressCard
+        project={{ ...project, readers: DEMO_READERS, files: [img], ran: undefined }}
+        now={Date.now()}
+      />,
+    );
+    expect(chipsOf('Image').join()).not.toMatch(/did not run|not needed here|✓/);
+  });
+
+  it('IN-125 a running last-phase step reads as running, not as a bare label', () => {
+    const indexing: ProjectView = {
+      ...running,
+      phase: 'index',
+      files: running.files.map((f) => ({ ...f, state: 'ready', stage: 'write' })),
+      index_steps: [
+        step({ id: 'judge', label: 'Relevance judge', did: '0 files judged' }),
+        step({ id: 'describe', label: 'Files for the evidence index', did: '', state: 'running' }),
+      ],
+    };
+    render(<ProgressCard project={indexing} now={Date.now()} />);
+    const last = screen.getByRole('list', { name: 'Last phase' });
+    expect(
+      within(last)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Relevance judge: 0 files judged', 'Files for the evidence index … running']);
   });
 });

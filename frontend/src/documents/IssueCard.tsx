@@ -330,8 +330,21 @@ export function IssueCard(props: {
   onIssue: (issue: Issue) => void;
   /** The issue's 3D model (model-3d.md "More places" 2): its file and the checked element. */
   model?: { fileId: string; highlight: readonly Highlight[] } | null;
+  /** Answered before this visit (R4-B12): the why and the answer with Change and Undo, no picture. */
+  collapsed?: boolean;
 }) {
-  const { projectId, issue, n, drawing, file, onFile, pack, onIssue, model } = props;
+  const {
+    projectId,
+    issue,
+    n,
+    drawing,
+    file,
+    onFile,
+    pack,
+    onIssue,
+    model,
+    collapsed = false,
+  } = props;
   const [open3d, setOpen3d] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   const name = issue.drawing_name ?? issue.file;
@@ -380,8 +393,10 @@ export function IssueCard(props: {
           )}
         </div>
         <p className="text-base [overflow-wrap:anywhere]">{issue.why}</p>
-        {source && <SourceFigure sources={[source]} label={`Source of issue ${String(n)}`} />}
-        <ModelSaid projectId={projectId} issue={issue} />
+        {source && !collapsed && (
+          <SourceFigure sources={[source]} label={`Source of issue ${String(n)}`} />
+        )}
+        {!collapsed && <ModelSaid projectId={projectId} issue={issue} />}
         {isAnswerable(issue) &&
           (issue.kind === 'unrelated_file' ? (
             file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />

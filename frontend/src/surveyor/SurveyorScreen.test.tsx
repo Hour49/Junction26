@@ -103,6 +103,24 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('loading and routing', () => {
+  it('R4-B1 a link to a project or drawing that is gone: one plain message, a way back, no ids, no Retry', async () => {
+    const gone = (what: string) => reply(404, { detail: `no ${what}`, code: 'not-found' });
+    show('', {
+      [PATH.takeoff]: gone(`drawing ${did}`),
+      [PATH.drawing]: gone(`drawing ${did}`),
+      [PATH.review]: gone(`project ${pid}`),
+      [PATH.project]: gone(`project ${pid}`),
+    });
+    await screen.findByText('This project or drawing no longer exists.');
+    await waitFor(() => {
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+    });
+    expect(screen.getByRole('link', { name: 'Back to workspaces' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    expect(document.body.textContent).not.toContain(did);
+    expect(document.body.textContent).not.toContain(pid);
+  });
+
   it('SV-1 sends the four loads (the project for names) and shows loading until takeoff and drawing answer', async () => {
     const api = show('', { [PATH.takeoff]: never() });
     expect(screen.getByText('Loading the takeoff…')).toBeTruthy();
@@ -203,7 +221,7 @@ describe('table and detail', () => {
       (q) =>
         screen.getByRole('row', { name: new RegExp(q.label.replace(/[()]/g, '\\$&')) }).textContent,
     );
-    expect(nth(cells, 0)).toContain('Methods disagree');
+    expect(nth(cells, 0)).toContain('Settled by a rule'); // a rule decides its conflict (R4-B11)
     expect(nth(cells, 1)).toContain('One method');
     expect(nth(cells, 2)).toContain('One method');
   });
@@ -514,14 +532,37 @@ describe('edits', () => {
         name: 'Click the missed item on the drawing… (Esc to cancel)',
       }),
     ).toBeTruthy();
-    act(() => viewer.props?.onPick?.(1, [0.2, 0.5, 0.23, 0.53]));
+    // on the plan: inside the fixture's marks (R4-B8 refuses a click off the plan)
+    act(() => viewer.props?.onPick?.(1, [0.2, 0.3, 0.23, 0.33]));
     await waitFor(() => {
       expect(posted(api, PATH.edit)).toHaveLength(1);
     });
-    expect(nth(posted(api, PATH.edit), 0).body).toEqual(reviewRequests[2]);
+    expect(nth(posted(api, PATH.edit), 0).body).toEqual({
+      ...reviewRequests[2],
+      box: [0.2, 0.3, 0.23, 0.33],
+    });
     await waitFor(() => {
       expect(viewer.props?.onPick).toBeUndefined();
     });
+  });
+
+  it('R4-B8 a click off the plan adds nothing, says why and stays in add mode', async () => {
+    const api = show('q=door');
+    await ready();
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Add a missed one' }));
+    act(() => viewer.props?.onPick?.(1, [0.2, 0.8, 0.23, 0.83])); // below every room of the plan
+    expect(within(detail()).getByRole('alert').textContent).toBe(
+      'That spot is outside the plan. Click on the missed item on the drawing.',
+    );
+    expect(posted(api, PATH.edit)).toHaveLength(0);
+    expect(viewer.props?.onPick).toBeDefined();
+  });
+
+  it('R4-B13 a drawing without a page (a building model) offers no Add a missed one', async () => {
+    show('q=door', { [PATH.drawing]: { ...drawing, pages: [] } });
+    await ready();
+    expect(within(detail()).queryByRole('button', { name: 'Add a missed one' })).toBeNull();
+    expect(within(detail()).getByRole('button', { name: /^Sign off/ })).toBeTruthy();
   });
 
   it('SV-29 Escape or the button again leaves add mode without a request', async () => {
@@ -657,6 +698,23 @@ describe('sign-off', () => {
     expect(nth(posted(api, PATH.sign), 0).body).toEqual(signoffRequest);
   });
 
+  it('R4-B10 a sign-off refused because the value changed (409) shows the new value and its Sign off button', async () => {
+    const changed = derive('door', { value: 4 });
+    let reads = 0;
+    show('q=door', {
+      [PATH.takeoff]: () => (reads++ === 0 ? takeoff : changed),
+      [PATH.sign]: reply(409, { detail: 'the value changed', code: 'conflict' }),
+    });
+    await ready();
+    fireEvent.change(within(detail()).getByLabelText('Signing as'), { target: { value: 'Ana' } });
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Sign off 2' }));
+    const alert = await within(detail()).findByRole('alert');
+    expect(alert.textContent).toBe(
+      'The value changed to 4 since you opened it. Check it, then sign off again.',
+    );
+    expect(within(detail()).getByRole('button', { name: 'Sign off 4' })).toBeTruthy();
+  });
+
   it('SV-37 no sign-off while a person must settle; allowed when a rule decides', async () => {
     localStorage.setItem('countersign.surveyorName', 'Ana');
     show('', { [PATH.takeoff]: needsPerson });
@@ -771,7 +829,7 @@ describe('states', () => {
   it('SV-45 a 404 leads back to the projects; any other load error offers Retry', async () => {
     show('', { [PATH.takeoff]: reply(404, errorBody) });
     const notFound = await screen.findByRole('alert');
-    expect(notFound.textContent).toContain('no drawing 0123456789abcdef');
+    expect(notFound.textContent).toContain('This project or drawing no longer exists.'); // no raw id (R4-B1)
     expect(notFound.textContent).not.toContain('not-found');
     expect(
       within(notFound).getByRole('link', { name: 'Back to workspaces' }).getAttribute('href'),
@@ -945,6 +1003,31 @@ describe('pre-QA (2026-11-14)', () => {
       expect(column.scrollTop).not.toBe(0);
     });
     expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it('R4-E10 on a phone the detail sits right under the plan, before the lists; a selection scrolls to the plan', async () => {
+    // At 390 the detail was under all 81 rows, ~5,700 px below the plan with its numbered marks.
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q === '(max-width: 760px)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      show();
+      const table = await ready();
+      expect(
+        detail().compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      pick('door count');
+      await waitFor(() => {
+        expect(scroll).toHaveBeenCalledTimes(1);
+      });
+      expect(scroll.mock.contexts[0]).toBe(screen.getByTestId('viewer'));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('SV-54 a settled conflict marks the value in use in its list', async () => {

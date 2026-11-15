@@ -271,7 +271,8 @@ Home and upload
   without it the API's 422 read "query.name: String should have at most 255 characters". [component]
 - IN-5: With `/api/info` not loaded (pending or failed), a file of any size is uploaded and the server decides.
   [component]
-- IN-6: Dropping two files shows "Drop one file or one zip at a time." and sends no request; dropping one file
+- IN-6: Dropping two files shows "Drop one file at a time. To send several, such as a DXF or SVG with its PDF, put
+  them in one .zip." (QA R4-G3) and sends no request; dropping one file
   uploads it as IN-3. [component]
 - IN-7: While an upload or sample request is in flight, the box shows the upload's progress (IN-89) or "Starting
   the sample…", both controls are disabled, and a second click sends nothing. [component, pending promise]
@@ -287,7 +288,8 @@ Home and upload
   `{name, bytes}` in sessionStorage `uploaded:<id>`; the project screen then shows "Uploaded: <name>, <MB> MB,
   received by the server." and "Unpacking…" until the server lists files, then "<n> files found.". Failures, with
   a Retry that sends the file again: no answer, "The connection was lost while sending <name> (at <p>%)."; an
-  HTTP error, "The server refused <name>: <detail>". [component `HomeScreen.test.tsx`, `ProjectScreen.test.tsx`,
+  HTTP error, "The server refused <name>: <detail>". A 4xx about the file itself (empty, too large, not a drawing)
+  has no Retry, since the same file would be refused again; 408 and 429 (busy) keep it (QA R4-G6). [component `HomeScreen.test.tsx`, `ProjectScreen.test.tsx`,
   unit `client.test.ts`; e2e `upload.spec.ts` 1440 and 390]
 
 Project list
@@ -768,6 +770,25 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
 - IN-122 (QA R3-G8, flag reason cut at 390): a finished file's row note in the lanes (what it found and why it is
   flagged or set aside) is shown whole, wrapping over as many lines as it needs; a queued or running file's note
   stays at 2 lines. [component; browser: screenshot at 390]
+- IN-123 (decision 0018, step ids): each reader chip knows the step ids it stands for. The image route's component
+  chips take theirs from `readers.raster_components` as the backend names its sources (`SOURCE_STEPS`): a
+  `decisions*` source adds `decisions` to its inner reader's chip (the detector reads inside that step) and gives
+  "Gemini count decision" `decisions`; `arbiter-t1` gives "symbol detector" arbiter/base, arbiter/second and "count
+  arbiter" arbiter, arbiter/pick; a detector source `detector`, Gemini rooms `rooms`, `exp`/`dir`/`verda` `reader`.
+  The rest are fixed: "double check by n more readers" ← double_check:*; "second count" ← second_count:*,
+  ifc_vs_sheet, schedule_tags, scale_check, room_areas; "Gemini cross-check" ← carbon_check; "Gemini reader" / "for
+  sheets with few symbols" ← carbon; "printed scale (Gemini)" ← printed_scale; "photo flattening" ← rectifier;
+  "schedule tables" ← tables; "drawn-PDF reader" ← vector; "IFC model reader" ← ifc. The chip running now is found
+  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("scale
+  from door sizes", "tiles for big sheets": no step of their own). [unit: `chipStepsOf`, `chipSteps`,
+  `chipHasStep`, `chipCovers`; component]
+- IN-124 (`ProjectStatus.ran`): a chip one of whose ids ended done or failed on a file of its route gets its "ran"
+  tick, also on a finished project opened fresh (nothing seen running). Once every file of the lane has ended, a
+  chip with known ids none of which ran is dimmed and says why: "not needed here" (its steps only skipped) or "did
+  not run" (none appeared). While a lane still has files to read nothing is dimmed; without `ran` (an older
+  project) the chips are as before. [unit: `chipRan`; component]
+- IN-125: in the Index row, a `running` step of `index_steps` reads "<label> … running" in the running tone, not
+  as a bare label. [component]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
