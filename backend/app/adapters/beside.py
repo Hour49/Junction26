@@ -23,18 +23,9 @@ log = logging.getLogger(__name__)
 
 
 def beside[A, B](here: Callable[[], A], there: Callable[[], B]) -> tuple[A, B]:
-    spent = [0.0]
-    failed = [0]
-
-    def run() -> B:
-        before, faulted = cost.mark(), cost.faults()
-        try:
-            return there()
-        finally:
-            spent[0], failed[0] = cost.since(before), cost.faults_since(faulted)
-
+    carried = cost.Carry()
     pool = ThreadPoolExecutor(1, thread_name_prefix="beside")
-    future = pool.submit(run)
+    future = pool.submit(carried.run, there)
     try:
         first = here()
     except BaseException:
@@ -42,12 +33,10 @@ def beside[A, B](here: Callable[[], A], there: Callable[[], B]) -> tuple[A, B]:
         future.add_done_callback(_log_dropped)
         pool.shutdown(wait=False)
         if future.done() and not future.cancelled():
-            cost.charge(spent[0])
-            cost.fail(failed[0])
+            carried.hand_back()
         raise
     pool.shutdown(wait=True)
-    cost.charge(spent[0])
-    cost.fail(failed[0])
+    carried.hand_back()
     return first, future.result()
 
 

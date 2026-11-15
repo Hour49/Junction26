@@ -11,7 +11,7 @@ module makes the calls:
   Any failure (HTTP error, timeout, budget used up, not JSON) is a `GeminiError`.
 - `CarbonReader.read(image)`: the page call (the whole page) and the tile calls (`tile_plan`; a
   page of at most TILE px is one tile, asked at the same time as the page call; a larger page
-  waits for the page call's plan boxes, then its tiles run WORKERS at a time). Each reply is
+  waits for the page call's plan boxes, then its tiles run `workers` at a time). Each reply is
   cached under the contract's `cache_name` (the pixel sha256 of the image as decoded, for a tile
   of its crop) as the whole reply, and only once it passes `check_page` / `check_tile`; a cached
   file that does not parse is a miss. A failed call is not cached and is a `None` reply for
@@ -53,13 +53,21 @@ from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles
 from app.core.spend import SpendGuard
 
-WORKERS = 4  # calls in flight at once for one read (contract 1.1)
+WORKERS = 4  # calls in flight at once for one read (contract 1.1): CARBON_READ_WORKERS's default
 # Carbon calls in flight at once in this process, whatever asks them (the page and tile calls of
 # every sheet read at the same time, the printed-scale reader): ingest reads several drawings at
-# once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under this
-CALLS_IN_FLIGHT = 8
+# once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under CARBON_CALLS_IN_FLIGHT
+CALLS_IN_FLIGHT = 8  # its default
 NO_ANSWER = "call got no answer"  # in a reason: no reply (or a refused budget), not a bad reply
-_in_flight = threading.BoundedSemaphore(CALLS_IN_FLIGHT)
+_slots: dict[int, threading.BoundedSemaphore] = {}  # by the cap: one per process, shared by clients
+_slots_guard = threading.Lock()
+
+
+def _in_flight(cap: int) -> threading.BoundedSemaphore:
+    with _slots_guard:
+        return _slots.setdefault(cap, threading.BoundedSemaphore(cap))
+
+
 SPENT_AS = "carbon reader"  # its name in the spend guard's ledger
 
 Form = dict[str, Any]
@@ -75,12 +83,19 @@ class CarbonModel(Protocol):
 
 
 class CarbonClient:
-    def __init__(self, api_key: str, timeout_s: float, budget: SpendGuard | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        timeout_s: float,
+        budget: SpendGuard | None = None,
+        in_flight: int = CALLS_IN_FLIGHT,
+    ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: the Carbon reader needs a key")
         self._key = api_key
         self._timeout = timeout_s
         self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
+        self._in_flight = _in_flight(in_flight)  # CARBON_CALLS_IN_FLIGHT, process-wide
 
     def __repr__(self) -> str:
         return f"CarbonClient({contract.MODEL}/{contract.THINKING})"
@@ -88,8 +103,6 @@ class CarbonClient:
     def generate(
         self, jpeg: bytes, prompt: str, schema: dict[str, Any], max_tokens: int
     ) -> dict[str, Any]:
-        if self._budget is not None and (refused := self._budget.exhausted()):
-            raise NoAnswerError(refused)
         body = contract.request_body(base64.b64encode(jpeg).decode(), prompt, schema, max_tokens)
         request = urllib.request.Request(
             f"{URL}/{contract.MODEL}:generateContent",
@@ -97,8 +110,11 @@ class CarbonClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with _in_flight, gemini_http.urlopen(request, timeout=self._timeout) as response:
-                answer = json.load(response)
+            with self._in_flight:  # the budget is checked when it is this call's turn (review-422)
+                if self._budget is not None and (refused := self._budget.exhausted()):
+                    raise NoAnswerError(refused)
+                with gemini_http.urlopen(request, timeout=self._timeout) as response:
+                    answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise NoAnswerError(f"HTTP {error.code} {_status(error)}".strip()) from None
         except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets
@@ -133,15 +149,16 @@ def jpeg(image: Image.Image) -> bytes:
 class CarbonReader:
     name = contract.SOURCE
 
-    def __init__(self, model: CarbonModel, cache_dir: Path | None) -> None:
+    def __init__(self, model: CarbonModel, cache_dir: Path | None, workers: int = WORKERS) -> None:
         self._model = model
         self._cache = cache_dir
+        self._workers = workers  # CARBON_READ_WORKERS: one read's calls at once, under the cap
 
     def read(self, image: Image.Image) -> Extracted:
         page = eight_bit(image)  # jpeg and pixel_digest convert what they send, a cut at a time
         page.load()  # the pool's threads share it
         width, height = page.size
-        with ThreadPoolExecutor(WORKERS, thread_name_prefix="carbon") as pool:
+        with ThreadPoolExecutor(self._workers, thread_name_prefix="carbon") as pool:
             if max(width, height) <= contract.TILE:  # one tile, the page: both calls at once
                 pending = [pool.submit(self._ask, kind, page) for kind in ("page", "tile")]
                 (form, why, usd), tile = (job.result() for job in pending)

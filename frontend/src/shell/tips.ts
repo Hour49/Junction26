@@ -4,7 +4,7 @@ import { statusTip } from '../engineer/format';
 
 export const TIPS = {
   // Home / upload
-  sample: 'A small made-up flat with 11 files. Click it to see Vellum work from start to finish.',
+  sample: 'A small made-up flat with 12 files. Click it to see Vellum work from start to finish.',
   offline:
     'No AI key is set, so Vellum uses its built-in readers only. Scans and photos may stay unread.',
   formats:
@@ -43,7 +43,7 @@ export const TIPS = {
   secondScore:
     'How much a second, independent reader agrees. Higher is better; it is not a probability.',
   flagged: 'Vellum read this drawing, but something looks off. Check the answer against the plan.',
-  photo: 'Add a photo of a plan (png or jpeg) and ask about it.',
+  photo: 'Add a photo of a plan (png, jpeg, tiff or webp) and ask about it.',
   sendBusy: 'Wait for the answer to this question first.',
   sendTooLong: 'The question is too long. Shorten it to send it.',
   sendDrawing: 'Finish drawing on the plan first, then ask.',
@@ -63,8 +63,7 @@ export const TIPS = {
     single: statusTip('single'),
   },
   // Documents
-  issues:
-    'Something Vellum could not decide alone. Answer it; notes are only for your information.',
+  issues: 'What Vellum could not decide alone and needs your answer now.',
 } as const;
 
 /** The tip for a file's state word ("" for a state without one: no tip is shown). */

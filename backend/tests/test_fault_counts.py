@@ -203,3 +203,22 @@ def test_each_gemini_client_rides_out_one_503(monkeypatch: pytest.MonkeyPatch, w
     }[which]
     call()
     assert Once.calls == 2
+
+
+def test_carry_hands_a_threads_dollars_and_failed_calls_to_the_caller() -> None:
+    import threading
+
+    carried = cost.Carry()
+
+    def work() -> str:
+        cost.charge(0.25)
+        cost.fail(2)
+        return "done"
+
+    before, faulted = cost.mark(), cost.faults()
+    thread = threading.Thread(target=lambda: carried.run(work))
+    thread.start()
+    thread.join()
+    assert (cost.since(before), cost.faults_since(faulted)) == (0.0, 0)  # still on its own thread
+    carried.hand_back()
+    assert (cost.since(before), cost.faults_since(faulted)) == (0.25, 2)

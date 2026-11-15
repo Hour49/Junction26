@@ -223,6 +223,9 @@ class Groups:
                 reason = (
                     f"another rendering of {members.key}; its drawing is read from {source.path}"
                 )
+            if file.path in run.cut and state != "set_aside":
+                last, pages = run.cut[file.path]
+                reason += f"; read pages 1-{last} of {pages}; the rest were not read"
             run.add_stages(file.path, stages)
             failed = timer.faults.get(file.path, 0)
             degraded = failed > 0

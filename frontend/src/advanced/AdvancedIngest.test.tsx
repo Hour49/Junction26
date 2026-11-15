@@ -338,11 +338,11 @@ describe('AdvancedIngest', () => {
     expect(stat('Rooms').textContent).toContain('10');
     expect(stat('Doors').textContent).toContain('4');
     expect(stat('Windows').textContent).toContain('4');
-    expect(stat('Drawings ready').textContent).toContain('5 / 5');
+    expect(stat('Drawings ready').textContent).toContain('6 / 6');
     cleanup();
     await show({ ...project, expected_drawings: null });
     await pick(/^Extract/);
-    expect(stat('Drawings ready').querySelector('dd')?.textContent).toBe('5');
+    expect(stat('Drawings ready').querySelector('dd')?.textContent).toBe('6');
   });
 
   it('a room pill names its room_type in its title', async () => {
@@ -398,7 +398,7 @@ describe('AdvancedIngest', () => {
     expect(scroll).toHaveBeenCalledTimes(1);
     expect(document.activeElement).toBe(target);
     target.remove();
-    expect(stat('Conflicts').textContent).toContain('5'); // one per drawing, 5 drawings
+    expect(stat('Conflicts').textContent).toContain('6'); // one per drawing, 6 drawings
     expect(stat('Agree').textContent).toContain('0');
   });
 
@@ -555,7 +555,7 @@ describe('AdvancedIngest', () => {
     });
     expect(api.calls.some((c) => c.url.endsWith('/takeoff'))).toBe(false);
     await pick(/^Extract/);
-    expect(api.calls.filter((c) => c.url.endsWith('/takeoff'))).toHaveLength(5);
+    expect(api.calls.filter((c) => c.url.endsWith('/takeoff'))).toHaveLength(6);
     expect(screen.getByText(/Could not load the takeoff of/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });

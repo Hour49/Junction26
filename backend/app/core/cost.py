@@ -9,6 +9,7 @@ charged before: with dollars as a float, 0.002 + 0.001 charged after 0.0123 read
 trace shows each call's cost, and a Decisions call of 0.0003151 USD would read 0.000315."""
 
 import threading
+from collections.abc import Callable
 
 PICO = 10**12  # per dollar; any total under 9,000 USD stays an exact float when multiplied
 
@@ -38,6 +39,29 @@ def faults() -> int:
 
 def faults_since(before: int) -> int:
     return faults() - before
+
+
+class Carry:
+    """What a call run on another thread paid and saw fail, to hand back to the calling thread.
+
+    `run(call)` on the worker thread records the dollars and failed calls of `call` (also when it
+    raises); `hand_back()` on the caller adds them to the caller's own counts, so the stage that
+    asked sees them (`beside`, and any helper that runs a read on a thread of its own)."""
+
+    def __init__(self) -> None:
+        self.usd = 0.0
+        self.failed = 0
+
+    def run[T](self, call: "Callable[[], T]") -> T:
+        before, faulted = mark(), faults()
+        try:
+            return call()
+        finally:
+            self.usd, self.failed = since(before), faults_since(faulted)
+
+    def hand_back(self) -> None:
+        charge(self.usd)
+        fail(self.failed)
 
 
 def since(before: int) -> float:

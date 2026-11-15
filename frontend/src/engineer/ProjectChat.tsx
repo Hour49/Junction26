@@ -12,7 +12,7 @@ import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
 import { Loading } from '../shell/Loading';
 import { AnswerCard, type Turn } from './AnswerCard';
-import { ChatAnswer } from './ChatAnswer';
+import { ChatAnswer, RefusedLine } from './ChatAnswer';
 import { AskBox } from './AskBox';
 import { Suggestions } from './DrawingHeader';
 import { usePhotoAdd } from './photoAdd';
@@ -162,20 +162,24 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
             answer: (refused as NonNullable<typeof refused>).answer,
           }
         : turn;
+    // K7: when every drawing refuses, each is named under the one refusal with what it lacks. The wrapper is the
+    // thread's turn (.en-turn-group: .en-turn's scroll margins and gap, the class not nested), as the scroll to the newest turn takes the last child.
     return (
-      <AnswerCard
-        key={turn.id}
-        turn={shown}
-        projectId={projectId}
-        file={`${String(n)} drawings`}
-        credit={null}
-        place={null}
-        busy={busy}
-        onAsk={ask}
-        onRetry={retry}
-        refusalFrom="these drawings"
-        onChanged={() => undefined} // only refusal, pending and error turns come here: no DoubleCheck
-      />
+      <div key={turn.id} className="en-turn-group">
+        <AnswerCard
+          turn={shown}
+          projectId={projectId}
+          file={`${String(n)} drawings`}
+          credit={null}
+          place={null}
+          busy={busy}
+          onAsk={ask}
+          onRetry={retry}
+          refusalFrom="these drawings"
+          onChanged={() => undefined} // only refusal, pending and error turns come here: no DoubleCheck
+        />
+        {turn.status === 'done' && <RefusedLine parts={turn.ask.parts} project={project} />}
+      </div>
     );
   };
 
