@@ -21,6 +21,7 @@ import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { useDrawingNames } from './drawingNames';
 import { ProjectReviewSide } from './ProjectReviewSide';
+import { onPlan } from './outline';
 import { usePhone } from './phone';
 import { signoffBody } from './signoff';
 import { QuantityDetail } from './QuantityDetail';
@@ -241,6 +242,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       name={name}
       onName={setName}
       addMode={addMode}
+      canAdd={drawing.pages.length > 0}
       onToggleAdd={() => {
         setAddMode((on) => !on);
       }}
@@ -274,6 +276,15 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
         onPick={
           addMode && row
             ? (page, box) => {
+                if (!onPlan(takeoff, page, box)) {
+                  // R4-B8: a click on blank paper adds nothing; add mode stays for the next click
+                  setEditError(
+                    new Error(
+                      'That spot is outside the plan. Click on the missed item on the drawing.',
+                    ),
+                  );
+                  return;
+                }
                 edit({ quantity: row.key, action: 'add', page, box });
               }
             : undefined

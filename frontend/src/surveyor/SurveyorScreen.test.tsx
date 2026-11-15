@@ -514,14 +514,37 @@ describe('edits', () => {
         name: 'Click the missed item on the drawing… (Esc to cancel)',
       }),
     ).toBeTruthy();
-    act(() => viewer.props?.onPick?.(1, [0.2, 0.5, 0.23, 0.53]));
+    // on the plan: inside the fixture's marks (R4-B8 refuses a click off the plan)
+    act(() => viewer.props?.onPick?.(1, [0.2, 0.3, 0.23, 0.33]));
     await waitFor(() => {
       expect(posted(api, PATH.edit)).toHaveLength(1);
     });
-    expect(nth(posted(api, PATH.edit), 0).body).toEqual(reviewRequests[2]);
+    expect(nth(posted(api, PATH.edit), 0).body).toEqual({
+      ...reviewRequests[2],
+      box: [0.2, 0.3, 0.23, 0.33],
+    });
     await waitFor(() => {
       expect(viewer.props?.onPick).toBeUndefined();
     });
+  });
+
+  it('R4-B8 a click off the plan adds nothing, says why and stays in add mode', async () => {
+    const api = show('q=door');
+    await ready();
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Add a missed one' }));
+    act(() => viewer.props?.onPick?.(1, [0.2, 0.8, 0.23, 0.83])); // below every room of the plan
+    expect(within(detail()).getByRole('alert').textContent).toBe(
+      'That spot is outside the plan. Click on the missed item on the drawing.',
+    );
+    expect(posted(api, PATH.edit)).toHaveLength(0);
+    expect(viewer.props?.onPick).toBeDefined();
+  });
+
+  it('R4-B13 a drawing without a page (a building model) offers no Add a missed one', async () => {
+    show('q=door', { [PATH.drawing]: { ...drawing, pages: [] } });
+    await ready();
+    expect(within(detail()).queryByRole('button', { name: 'Add a missed one' })).toBeNull();
+    expect(within(detail()).getByRole('button', { name: /^Sign off/ })).toBeTruthy();
   });
 
   it('SV-29 Escape or the button again leaves add mode without a request', async () => {
