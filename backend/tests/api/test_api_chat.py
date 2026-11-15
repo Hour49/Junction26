@@ -47,7 +47,7 @@ def test_ac11_ac22_an_answer_turn_with_sources_and_steps(client: TestClient) -> 
     assert [step["tool"] for step in turn["steps"]] == ["ask_drawings"]
     cited = set(re.findall(r"\[(\d+)\]", turn["text"]))
     assert {str(e["n"]) for e in turn["evidence"]} == cited  # only what the text cites
-    assert turn["text"] == "The answer is below [1][2]."
+    assert turn["text"] == "The answer is below [1][2][3]."
     [answer] = turn["answers"]  # the project ask result, as POST /api/projects/{id}/ask gives it
     asked = client.post(
         f"/api/projects/{project}/ask", json={"question": "How many doors are there?"}
@@ -70,7 +70,9 @@ def test_ac11_dont_know_turns(client: TestClient) -> None:
 
 
 def test_ac11_an_edit_is_refused_on_a_sheet_without_wall_fills(client: TestClient) -> None:
-    turn = ask(client, sample(client), "Remove the wall between the bathroom and the bedroom")
+    # flat-a draws no wall fills; the sample's flat-c does (it is the sheet edits work on)
+    message = "Remove the wall between the bathroom and the bedroom on plans/flat-a.pdf"
+    turn = ask(client, sample(client), message)
     assert turn["kind"] == "dont_know" and turn["edit"] is None
     assert turn["text"].startswith("I can't edit this plan")
 

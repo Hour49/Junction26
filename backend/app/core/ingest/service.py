@@ -455,7 +455,8 @@ class IngestService:
                     run.split.add(path)
                     self._page_file(run, path, page, first_of, frames, drawings)
 
-        with ThreadPoolExecutor(PROBES_IN_FLIGHT, thread_name_prefix="probe") as pool:
+        probes = max(PROBES_IN_FLIGHT, self._groups_in_flight)  # as many files as groups at once
+        with ThreadPoolExecutor(probes, thread_name_prefix="probe") as pool:
             while True:
                 started = self._clock()
                 entry = next(entries, None)
@@ -486,7 +487,7 @@ class IngestService:
                 run.stage(entry.path, "unpack", f"path checked, {entry.size} bytes",
                           unpacked + self._ms(started), output=entry.path)  # fmt: skip
                 probing.append((entry.path, entry.data, pool.submit(self._probed, entry.data)))
-                if len(probing) >= PROBES_IN_FLIGHT:
+                if len(probing) >= probes:
                     identify_next()
             while probing:
                 identify_next()

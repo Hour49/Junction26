@@ -24,6 +24,7 @@ from app.api.deps import (
 )
 from app.api.questions import AskedQuestion, record
 from app.api.views import View, drawings_of
+from app.core.answering.facts import FACTS
 from app.core.answering.model import Unit
 from app.core.drawing.model import Drawing
 from app.core.ingest.model import Highlight, Model3d, ProjectStatus
@@ -208,8 +209,13 @@ def _total(parts: list[ProjectAnswerPart], drawing_of: Callable[[str], Drawing])
     rows = [view.quantity for view in answered]
     found = [row for row in rows if row is not None]
     many = _drawings(len(answered))
-    if any(isinstance(view.answer, str) for view in answered):  # "Which room is the largest?"
-        return _no_total(f"{many} answered with a room's name, so there is no total", left_out)
+    worded = [view for view in answered if isinstance(view.answer, str)]
+    if worded:  # "Which room is the largest?", or an IFC fact sheet's text (IFC_FACTS)
+        how = "in words" if any(view.method == FACTS for view in worded) else "with a room's name"
+        which = (
+            many if len(worded) == len(answered) else f"{_drawings(len(worded))} of {len(answered)}"
+        )
+        return _no_total(f"{which} answered {how}, so there is no total", left_out)
     if len(found) < len(rows):
         return _no_total(f"{many} answered from a printed table, so there is no total", left_out)
     if len(found) > 1:

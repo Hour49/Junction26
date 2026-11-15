@@ -162,6 +162,26 @@ def test_sv15_remove_takes_the_radiator_and_its_branches_and_closes_the_tees() -
     assert _pipe_m(after) == pytest.approx(_pipe_m(model) - branches)  # the tees leave no gap
 
 
+def _without_port_places(model: ServicesModel) -> ServicesModel:
+    """The model as an IFC2X3 export gives it: connected ports, none with a position."""
+    doc = model.model_dump(mode="json", by_alias=True)
+    for e in doc["elements"]:
+        e["ports"] = [{**p, "at": None} for p in e["ports"]]
+    return ServicesModel.model_validate(doc)
+
+
+def test_edits_that_draw_runs_are_refused_when_the_ports_have_no_positions() -> None:
+    model = _without_port_places(two_rooms())
+    words = r"^The file gives no positions for the pipe and duct ends"
+    with pytest.raises(EditRefusedError, match=words):
+        move_terminal(model, "E2", "SW2", "centre")
+    with pytest.raises(EditRefusedError, match=words):
+        add_terminal(model, "E2", "SW2", "centre")
+    with pytest.raises(EditRefusedError, match=words):
+        remove_element(model, "E2")  # closing its tees draws a straight piece between two ends
+    assert resize(model, "E10", "DN20").patch  # a resize draws nothing
+
+
 # --- SV-16 add ----------------------------------------------------------------------------------
 
 

@@ -30,7 +30,7 @@ from app.core.errors import NotFoundError
 from app.core.ifc_facts import FactSheet
 from app.core.ingest.model import DrawingInfo, FileStatus
 from app.core.ingest.triage import sheet_doubt, sheet_flag
-from app.core.review.ask import Asked, ask
+from app.core.review.ask import Asked, ask, user_scaled
 from app.core.review.check import Check, Level
 from app.core.review.model import (
     MarkView,
@@ -169,7 +169,7 @@ def asked_on(
     named = as_uploaded(ingest, info, project_id)
     found = file_of(ingest, named)
     flag = None if found is None else sheet_flag(found.triage)
-    return ask(
+    asked = ask(
         question,
         drawing,
         parser=answering.parser,
@@ -190,6 +190,7 @@ def asked_on(
         room_words=answering.room_words,
         facts=facts_of(answering, ingest, named, found),
     )
+    return user_scaled(asked, drawing)  # USER_SCALE: a no-op on a drawing at its own scale
 
 
 def file_of(ingest: Ingest, named: DrawingInfo) -> FileStatus | None:
