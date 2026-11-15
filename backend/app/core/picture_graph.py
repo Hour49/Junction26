@@ -6,9 +6,10 @@ label) connected through nodes."""
 
 import itertools
 import math
-from collections import defaultdict
-from collections.abc import Sequence
+from collections import Counter, defaultdict
+from collections.abc import Mapping, Sequence
 
+from app.core.ifc_facts import Discipline, Fact, Spot
 from app.core.model import Frozen
 
 Px = tuple[float, float]
@@ -151,3 +152,46 @@ def connected(attached: Sequence[Attached], a: str, b: str) -> bool | None:
     if on.get(a) is None or on.get(b) is None:
         return None
     return on[a] == on[b]
+
+
+def names(found: Sequence[System]) -> dict[str, str]:
+    """Each system's name: its style, numbered when the style has several pieces ("Supply 2")."""
+    of_style = Counter(s.style for s in found)
+    seen: Counter[str] = Counter()
+    out: dict[str, str] = {}
+    for s in found:
+        seen[s.style] += 1
+        out[s.id] = s.style if of_style[s.style] == 1 else f"{s.style} {seen[s.style]}"
+    return out
+
+
+def graph_facts(
+    found: Sequence[System],
+    terminals: Sequence[Terminal],
+    spots: Mapping[str, Spot],
+    *,
+    discipline: Discipline,
+    source: str,
+) -> list[Fact]:
+    """What connects to what as facts: per system its terminals (`system.terminal_count`) and its
+    length (`system.length`, when every piece has one), per attached terminal its system
+    (`terminal.system`, text). `spots`: each terminal's mark on the page, by terminal id."""
+    label = {t.id: t.label for t in terminals}
+    named = names(found)
+    facts: list[Fact] = []
+    for s in found:
+        marks = tuple(spots[t] for t in s.terminals if t in spots)
+        count = len(s.terminals)
+        facts.append(Fact(topic="system.terminal_count", subject=named[s.id], value=count,
+                          unit="count", system=named[s.id], discipline=discipline, source=source,
+                          spots=marks))  # fmt: skip
+        if s.length_m is not None:
+            facts.append(Fact(topic="system.length", subject=named[s.id], value=s.length_m,
+                              unit="m", system=named[s.id], discipline=discipline,
+                              source=source))  # fmt: skip
+        for t in s.terminals:
+            facts.append(Fact(topic="terminal.system", subject=f"{label[t]} ({t})",
+                              value=named[s.id], unit=None, system=named[s.id],
+                              discipline=discipline, source=source,
+                              spots=(spots[t],) if t in spots else ()))  # fmt: skip
+    return facts

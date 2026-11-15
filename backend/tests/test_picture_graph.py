@@ -1,6 +1,7 @@
 """What connects to what on a services picture (app/core/picture_graph.py): terminals attached to
 the line graph's edges, systems as one style's connected edges."""
 
+from app.core.ifc_facts import Spot
 from app.core.picture_graph import (
     LineEdge,
     LineGraph,
@@ -8,6 +9,7 @@ from app.core.picture_graph import (
     Terminal,
     attach,
     connected,
+    graph_facts,
     systems,
 )
 
@@ -101,3 +103,27 @@ def test_a_system_lists_its_terminals_and_its_source_equipment() -> None:
     found = {s.style: s for s in systems(graph(), attached)}
     assert found["Supply"].terminals == ("t1",) and found["Supply"].sources == ("b1",)
     assert found["Return"].terminals == ("t3",) and found["Return"].sources == ()
+
+
+def test_facts_give_each_system_its_terminals_and_length_and_each_terminal_its_system() -> None:
+    terminals = [Terminal(id="t1", label="radiator", at=(205, 3)),
+                 Terminal(id="t2", label="radiator", at=(104, 90)),
+                 Terminal(id="t3", label="radiator", at=(150, 55))]  # fmt: skip
+    g = graph()
+    g = g.model_copy(
+        update={"edges": (*g.edges, edge("e7", "n7", "n8", "Supply", (0, 190), (9, 190)))}
+    )
+    found = systems(g, attach(g, terminals, 15.0))
+    spot = Spot(page=1, box=(0.6, 0.0, 0.7, 0.05), reader="template")
+    facts = graph_facts(
+        found, terminals, {"t1": spot}, discipline="heating", source="picture graph"
+    )
+    said = {(f.topic, f.subject): f for f in facts}
+    assert said[("system.terminal_count", "Supply 1")].value == 2  # two supply pieces: numbered
+    assert said[("system.terminal_count", "Supply 1")].spots == (spot,)
+    assert said[("system.terminal_count", "Supply 2")].value == 0
+    assert said[("system.length", "Supply 1")].value == 30.0
+    assert ("system.length", "Supply 2") not in said  # e7 has no length
+    assert said[("system.terminal_count", "Return")].value == 1
+    assert said[("terminal.system", "radiator (t3)")].value == "Return"
+    assert said[("terminal.system", "radiator (t1)")].spots == (spot,)
