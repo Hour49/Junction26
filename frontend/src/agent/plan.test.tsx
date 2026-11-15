@@ -469,3 +469,84 @@ describe('the plan beside the chat, from the step stream (chat-ux #2, contract C
     expect(await within(pane()).findByText('Bagno 1.01, as answered')).toBeTruthy();
   });
 });
+
+describe('the Files panel collapses to a rail (Bogdan, 2026-11-15)', () => {
+  const KEY = 'agent-chat:files-hidden';
+  afterEach(() => {
+    localStorage.clear();
+  });
+  const split = () => document.querySelector('.ag-split') as HTMLElement;
+
+  it('Hide files collapses the panel and widens the chat; Show files brings it back as it was', async () => {
+    open(viewTurn);
+    await waitFor(() => {
+      expect(within(row('Drawn plan 1')).getByTestId('viewer')).toBeTruthy();
+    });
+    fireEvent.click(nameButton('Drawn plan 2')); // the user opens a second file
+    const viewer2 = within(row('Drawn plan 2')).getByTestId('viewer');
+    fireEvent.click(within(pane()).getByRole('button', { name: 'Hide files' }));
+    expect(screen.queryByRole('complementary', { name: 'Plan' })).toBeNull();
+    expect(split().classList.contains('ag-split--hidden')).toBe(true);
+    const rail = screen.getByRole('button', { name: 'Show files' });
+    expect(rail.textContent).toBe('Files (6)');
+    expect(document.activeElement).toBe(rail);
+    expect(localStorage.getItem(KEY)).toBe('1');
+    fireEvent.click(rail);
+    expect(split().classList.contains('ag-split--hidden')).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull();
+    expect(nameButton('Drawn plan 1').getAttribute('aria-expanded')).toBe('true');
+    expect(nameButton('Drawn plan 2').getAttribute('aria-expanded')).toBe('true');
+    expect(within(row('Drawn plan 2')).getByTestId('viewer')).toBe(viewer2); // kept mounted, not reloaded
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('a source [n] while collapsed expands the panel at that place', async () => {
+    open(viewTurn);
+    await send('Where is Bagno 1.01?');
+    await within(pane()).findByText('Bagno 1.01 on the plan');
+    fireEvent.click(within(pane()).getByRole('button', { name: 'Hide files' }));
+    expect(screen.queryByRole('complementary', { name: 'Plan' })).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: /^Source 1:/ }));
+    expect(within(pane()).getByText('Bagno 1.01 on the plan')).toBeTruthy();
+    expect(viewer().marks.map((m) => m.n)).toEqual([1]);
+    expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull();
+  });
+
+  it('the choice is remembered per viewer: a new page opens collapsed', async () => {
+    localStorage.setItem(KEY, '1');
+    open(viewTurn);
+    expect(await screen.findByRole('button', { name: 'Show files' })).toBeTruthy();
+    expect(screen.queryByRole('complementary', { name: 'Plan' })).toBeNull();
+  });
+
+  it('storage that throws: the panel shows, and hides and shows again', async () => {
+    const boom = () => {
+      throw new Error('blocked');
+    };
+    vi.stubGlobal('localStorage', {
+      getItem: boom,
+      setItem: boom,
+      removeItem: boom,
+      clear: vi.fn(),
+    });
+    open(viewTurn);
+    await waitFor(() => {
+      expect(within(pane()).getByTestId('viewer')).toBeTruthy();
+    });
+    fireEvent.click(within(pane()).getByRole('button', { name: 'Hide files' }));
+    expect(screen.queryByRole('complementary', { name: 'Plan' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show files' }));
+    expect(pane()).toBeTruthy();
+  });
+
+  it('a narrow window keeps its sheet: no Hide files, no rail', async () => {
+    localStorage.setItem(KEY, '1');
+    wide = false;
+    open(viewTurn);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show the plan' }));
+    const sheet = screen.getByRole('dialog', { name: 'The plan' });
+    expect(within(sheet).getByRole('complementary', { name: 'Plan' })).toBeTruthy();
+    expect(within(sheet).queryByRole('button', { name: 'Hide files' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull();
+  });
+});

@@ -232,12 +232,28 @@ export function PlanPane(props: {
   onClose?: () => void;
   /** The sheet's own pen (R4-F3): the sheet covers the ask bar's pen. Set only with `onClose`, when drawable. */
   onPen?: () => void;
+  /** Set when the pane is beside the chat: a button in its head collapses it to a rail (Bogdan, 2026-11-15). */
+  onHide?: () => void;
+  /** Collapsed: kept mounted (open files, scroll, loaded pages stay) but out of sight. */
+  hidden?: boolean;
 }) {
   const { files, drawn, reveal } = props;
   return (
-    <aside className="ag-pane" aria-label="Plan">
+    <aside className="ag-pane" aria-label="Plan" hidden={props.hidden}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="m-0 text-[17px] font-semibold">Files</h2>
+        {props.onHide && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="pill-sm"
+            aria-label="Hide files"
+            title="Hide files"
+            onClick={props.onHide}
+          >
+            Hide <span aria-hidden="true">›</span>
+          </Button>
+        )}
         {props.onClose && (
           <span className="flex gap-2">
             {props.onPen && (
