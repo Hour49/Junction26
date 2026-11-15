@@ -63,6 +63,7 @@ from app.adapters.hello import (
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
 from app.adapters.ifc_model.facts_source import IfcFactSource
+from app.adapters.ifc_model.facts_store import StoredFacts
 from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
@@ -129,6 +130,7 @@ from app.core.drawing.model import Room
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
+from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import reading_flags
 from app.core.ingest.model import CarbonRead, ContentKind, ProjectStatus
 from app.core.ingest.model import Sheet as SheetKind
@@ -658,6 +660,9 @@ class Answering:
     resolver: Resolver | None = None  # RESOLVER; None: off
     carbon_ladder: bool = False  # CARBON_LEVELS=ladder: a Medium answer Carbon reads alike is High
     room_words: RoomWords = no_room_words  # what a room's printed label names (room_word_doubt)
+    # IFC_FACTS: a file's stored fact sheet by (sha256, path, its bytes when a build must start),
+    # never parsed in this process (adapters/ifc_model/facts_store.py). None: off
+    facts: Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None = None
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -690,7 +695,18 @@ def build_answering(settings: Settings) -> Answering:
         resolver=_resolver(settings),
         carbon_ladder=settings.carbon_levels == "ladder",
         room_words=room_word,
+        facts=_chat_facts(settings),
     )
+
+
+def _chat_facts(
+    settings: Settings,
+) -> Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None:
+    if not settings.ifc_facts:
+        return None
+    if settings.ifc_facts_cache:
+        return StoredFacts(Path(settings.ifc_facts_cache)).facts
+    return StoredFacts(settings.projects_dir.parent / "cache" / "facts").facts
 
 
 def _scan_confidence(
@@ -958,7 +974,7 @@ def _raster(
                     _composite("RASTER_PHOTO_COMPONENTS", photo, built, policy, checks),
                     kind_of,
                 )
-            shipped = OneAtATime(shipped)  # one local reading in memory at a time (groups.py)
+            shipped = OneAtATime(shipped, settings.ingest_local_in_flight)  # held in memory at once
             shipped = _scaled(settings, shipped)  # PriorScale's door constants fit the detector
             if settings.carbon_reader == "advanced" and settings.sheet_kind == "off":
                 raise InvalidInputError(
@@ -1044,7 +1060,12 @@ def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extra
             return inner
         case "carbon":
             key = settings.gemini_api_key.get_secret_value()
-            client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
+            client = CarbonClient(
+                key,
+                settings.carbon_timeout_s,
+                budget=spend_guard(settings),
+                in_flight=settings.carbon_calls_in_flight,
+            )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
             return PrintedScale(inner, reader, files)
 
@@ -1143,8 +1164,14 @@ def _carbon(
     """The Carbon reader (app/adapters/carbon/) on the process's spend guard. `policy`: ROOM_POLICY
     when it reads a drawing on its own (as a composite's source, the composite applies it)."""
     key = settings.gemini_api_key.get_secret_value()
-    client = CarbonClient(key, settings.carbon_timeout_s, budget=spend_guard(settings))
-    return CarbonExtractor(files, CarbonReader(client, settings.carbon_cache_dir), policy)
+    client = CarbonClient(
+        key,
+        settings.carbon_timeout_s,
+        budget=spend_guard(settings),
+        in_flight=settings.carbon_calls_in_flight,
+    )
+    reader = CarbonReader(client, settings.carbon_cache_dir, settings.carbon_read_workers)
+    return CarbonExtractor(files, reader, policy)
 
 
 def _names_carbon(settings: Settings) -> bool:

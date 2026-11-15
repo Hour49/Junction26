@@ -6,7 +6,8 @@ file is in the project's evidence index (report 7.1-7.4).
 - a text document (`pdf_text`, `text`): its own text (`text`), no model;
 - a file nothing reads (DWG, office, archive, encrypted PDF, IFC, an unknown non-image, a refused
   entry): listed by name (`listed`), its passage says why its content is not read;
-- DXF and SVG: not a source (no render for a kind call; most are copies of a sheet that has one).
+- DXF and SVG: not a source (no render for a kind call; most are copies of a sheet that has one);
+- a second file at a path the upload already used: not a source (set aside at a free name).
 
 Text and listed files carry a `Description` made by rule, so the tools' JSON keeps its shape.
 The text itself is not kept: the index reads it again from the stored file."""
@@ -16,7 +17,14 @@ from collections.abc import Callable
 from app.core.evidence.chunks import KIND_WORDS
 from app.core.evidence.file_sources import TextSource, listed_piece, name_words
 from app.core.evidence.pictures import EvidenceSteps, is_picture, picture_evidence
-from app.core.ingest.model import TEXT_KINDS, ContentKind, Description, FileEvidence, FileStatus
+from app.core.ingest.model import (
+    SECOND_PATH,
+    TEXT_KINDS,
+    ContentKind,
+    Description,
+    FileEvidence,
+    FileStatus,
+)
 
 PDF_PICTURES: frozenset[ContentKind] = frozenset({"pdf_vector", "pdf_scan"})
 LISTED: frozenset[ContentKind] = frozenset(
@@ -36,7 +44,9 @@ def file_evidence(
     read only when needed."""
     if file.triage is not None and file.triage.class_ != "floor_plan":
         return None
-    if file.state in ("queued", "running"):  # not a finished record (a path given twice)
+    if file.state in ("queued", "running"):  # not a finished record
+        return None
+    if file.state == "set_aside" and file.reason == SECOND_PATH:  # at a name the user never gave
         return None
     kind = file.kind
     if kind in ("dxf", "svg"):

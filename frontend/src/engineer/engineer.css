@@ -16,7 +16,8 @@
   flex-direction: column;
   gap: 20px;
 }
-.en-turn {
+.en-turn,
+.en-turn-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -282,6 +283,13 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+/* A text answer (an IFC model's fact answer): its lines as written, at reading size */
+.en-value--text {
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  white-space: pre-line;
+}
 .en-noun {
   font-size: 17px;
   color: var(--v-muted);
@@ -304,28 +312,8 @@
   gap: 6px;
   font-size: 14px;
 }
-.en-pillwrap {
-  position: relative;
-}
 .en-pill {
   cursor: default;
-}
-.en-tip {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 4;
-  width: max-content;
-  max-width: 240px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--v-text);
-  color: var(--v-surface);
-  font-size: 12.5px;
-  line-height: 1.4;
-}
-.en-tip[hidden] {
-  display: none;
 }
 .en-bar {
   display: flex;
@@ -557,6 +545,8 @@ button.en-ref:hover,
   background: transparent;
   color: var(--v-text);
   font: inherit;
+  /* a long placeholder ends in an ellipsis instead of being cut mid-word beside the pen and paperclip */
+  text-overflow: ellipsis;
 }
 .en-send {
   flex: none;
@@ -692,7 +682,8 @@ button.en-ref:hover,
 }
 .en-chatcard {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  /* W2: one column; the one drawing card sits under its image, not in a half-empty side column */
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
 }
 .en-chatcard p {
@@ -711,28 +702,25 @@ button.en-ref:hover,
   font-size: 14px;
   font-weight: 600;
 }
-button.en-nav {
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-}
 .en-lead--why {
   font-size: 14px;
   color: var(--v-muted);
 }
-/* "Show it on <file>": the demo's accent link, no underline until hover or focus (CH-39) */
-.en-show {
-  display: inline-flex;
+.en-chathead {
+  display: flex;
   align-items: center;
-  min-height: 44px;
-  color: var(--v-accent);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
+  justify-content: space-between;
+  gap: 8px;
 }
-.en-show:hover,
-.en-show:focus-visible {
-  text-decoration: underline;
+/* ui-bugs 6: a reference with no page (a building model) chosen: its card right, this in the image's place */
+.en-nopreview {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  border-radius: 12px;
+  background: var(--v-fill);
+  color: var(--v-muted);
+  font-size: 14px;
 }
 .en-crefsbox {
   display: flex;
@@ -797,7 +785,11 @@ button.en-cref {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 15px;
+  font-size: 14px;
+}
+.en-chatcard .en-side {
+  padding: 0;
+  gap: 10px;
 }
 .en-parts li {
   display: flex;
@@ -808,7 +800,7 @@ button.en-cref {
   border-top: 1px solid var(--v-line);
 }
 .en-parts li > span:first-child {
-  flex: 1 1 200px;
+  flex: 1 1 100%;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -827,7 +819,8 @@ button.en-cref {
 }
 /* CH-43/CH-44: why and the estimate, each a full row under the value */
 .en-parts .en-why,
-.en-parts .en-estimate {
+.en-parts .en-estimate,
+.en-parts .en-whybox {
   flex-basis: 100%;
   margin: 0;
 }
@@ -879,4 +872,10 @@ button.en-cref {
   .en-chat--empty {
     padding-top: 24px;
   }
+}
+/* K7: the drawings left out of the answer */
+.en-refused {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--v-muted);
 }

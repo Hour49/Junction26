@@ -8,6 +8,11 @@ import { answerTurn, dontKnowTurn, model, needsInputTurn } from './fixtures';
 
 const PID = project.id;
 const CHAT = `POST /api/projects/${PID}/chat`;
+/** The project as the backend now sends it: the drawn PDFs are `drawable`; scans, photos and models say why not. */
+const drawable = {
+  ...project,
+  drawings: project.drawings.map((d) => ({ ...d, drawable: d.route === 'vector' })),
+};
 const drawings: Record<string, unknown> = Object.fromEntries<unknown>(
   project.drawings.flatMap((d) => [
     [`GET /api/drawings/${d.drawing_id}`, drawing],
@@ -24,7 +29,7 @@ afterEach(() => {
 });
 
 function open(chat: unknown, query?: string) {
-  const api = mockApi({ [`GET /api/projects/${PID}`]: project, ...drawings, [CHAT]: chat });
+  const api = mockApi({ [`GET /api/projects/${PID}`]: drawable, ...drawings, [CHAT]: chat });
   render(<AgentChat projectId={PID} query={new URLSearchParams(query)} />);
   return api;
 }
@@ -72,12 +77,15 @@ it('AC-30 a failed turn says why and can be sent again', async () => {
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
 });
 
-/** Opens the pointer on Drawn plan 1 and returns the page stage, sized 600 × 400 px. */
+/** Puts the pen down on Drawn plan 1 (open first, in the sheet on this narrow window); its stage, 600 × 400 px. */
 async function pointer() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Point at the plan' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Drawn plan 1' }));
+  const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
+  await waitFor(() => {
+    expect(pen.getAttribute('aria-disabled')).toBeNull(); // drawable once its pages have come
+  });
+  fireEvent.click(pen);
   const frame = await waitFor(() => {
-    const f = document.querySelector('.vw-frame');
+    const f = document.querySelector('.ag-drawing .vw-frame');
     if (!f) throw new Error('no page yet');
     return f as HTMLElement;
   });
@@ -86,12 +94,13 @@ async function pointer() {
   return frame.parentElement as HTMLElement;
 }
 
-it('AC-33 Point at the plan: a dragged area goes with the next message as a chip, then is cleared', async () => {
+it('AC-33 the pen: a dragged area goes with the next message as a chip, then is cleared', async () => {
   const api = open(answerTurn);
   const stage = await pointer();
   fireEvent.pointerDown(stage, { clientX: 60, clientY: 40, pointerType: 'mouse', button: 0 });
   fireEvent.pointerUp(stage, { clientX: 240, clientY: 120, pointerType: 'mouse', button: 0 });
   expect(await screen.findByText('Area on Drawn plan 1, page 1')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Draw on the plan' })); // pen down: typing back
   await send('Put a storage room here');
   await screen.findByText(/is 7.56 m²/);
   const [body] = posts(api);
@@ -113,6 +122,7 @@ it('AC-33 a click on a room sends its model id and the chip names it', async () 
   fireEvent.pointerDown(stage, { clientX: 120, clientY: 80, pointerType: 'mouse', button: 0 });
   fireEvent.pointerUp(stage, { clientX: 120, clientY: 80, pointerType: 'mouse', button: 0 });
   expect(await screen.findByText('Room Bagno 1.01')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Draw on the plan' }));
   await send('Make this room larger');
   await screen.findByText(/is 7.56 m²/);
   expect(posts(api)[0]?.selection).toEqual([
@@ -184,12 +194,101 @@ it("LC-11 every turn sends the route's ?pack=; none without one", async () => {
   expect(posts(bare)[0]).not.toHaveProperty('pack');
 });
 
-it('chat-ux #8 the empty chat says what was read from the drawings; the first turn replaces it', async () => {
+it('ui-bugs 2g no "What I read" on the empty chat; the project name stays as its title', async () => {
   open(answerTurn);
-  expect(await screen.findByRole('region', { name: 'What I read' })).toBeTruthy();
-  await send('How big is the bathroom?');
-  expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
+  expect(await screen.findByRole('heading', { level: 1, name: project.name })).toBeTruthy();
+  await screen.findByRole('button', { name: 'Draw on the plan' });
   expect(screen.queryByRole('region', { name: 'What I read' })).toBeNull();
+  expect(screen.queryByText('What I read')).toBeNull();
+});
+
+it('ui-bugs 1 no "Point at the plan" chip; pen on: typing and sending wait; Escape: typing back, chips kept', async () => {
+  open(answerTurn);
+  const stage = await pointer();
+  expect(screen.queryByRole('button', { name: 'Point at the plan' })).toBeNull();
+  const input = screen.getByLabelText('Question');
+  expect(input).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', { name: 'Ask' })).toHaveProperty('disabled', true);
+  fireEvent.pointerDown(stage, { clientX: 60, clientY: 40, pointerType: 'mouse', button: 0 });
+  fireEvent.pointerUp(stage, { clientX: 240, clientY: 120, pointerType: 'mouse', button: 0 });
+  expect(await screen.findByText('Area on Drawn plan 1, page 1')).toBeTruthy();
+  fireEvent.keyDown(document.body, { key: 'Escape' });
+  expect(input).toHaveProperty('disabled', false);
+  expect(
+    screen.getByRole('button', { name: 'Draw on the plan' }).getAttribute('aria-pressed'),
+  ).toBe('false');
+  expect(screen.getByText('Area on Drawn plan 1, page 1')).toBeTruthy();
+  expect(document.querySelector('.ag-drawing')).toBeNull();
+});
+
+it('W4 after the first message the project name still shows, above the thread', async () => {
+  open(answerTurn);
+  await send('How big is the bathroom?');
+  await screen.findByText(/is 7.56 m²/);
+  const title = screen.getByRole('heading', { level: 1, name: project.name });
+  expect(title.className).not.toContain('en-sr'); // visible, not only for screen readers
+});
+
+it('ui-bugs 1 the pen click again puts it down too', async () => {
+  open(answerTurn);
+  await pointer();
+  const pen = screen.getByRole('button', { name: 'Draw on the plan' });
+  expect(pen.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(pen);
+  expect(pen.getAttribute('aria-pressed')).toBe('false');
+  expect(screen.getByLabelText('Question')).toHaveProperty('disabled', false);
+});
+
+it('ui-bugs 1 with no reason from the backend the pen says the generic sentence', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const bare = {
+    ...project,
+    drawings: project.drawings
+      .filter((d) => d.route === 'raster')
+      .map((d) => ({ ...d, not_drawable_reason: null })),
+  };
+  mockApi({ [`GET /api/projects/${PID}`]: bare, ...drawings, [CHAT]: answerTurn });
+  render(<AgentChat projectId={PID} />);
+  const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
+  fireEvent.click(pen);
+  expect((await screen.findByRole('tooltip')).textContent).toContain(
+    "You can't draw on this plan: it is a photo/scan.",
+  );
+  vi.unstubAllGlobals();
+});
+
+it('ui-bugs 1 on a photo or scan the pen is greyed out and says why on focus; a tap does not draw', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const photos = { ...project, drawings: project.drawings.filter((d) => d.route === 'raster') };
+  const reason = photos.drawings[0]?.not_drawable_reason ?? '';
+  expect(reason).not.toBe('');
+  mockApi({ [`GET /api/projects/${PID}`]: photos, ...drawings, [CHAT]: answerTurn });
+  render(<AgentChat projectId={PID} />);
+  const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
+  await new Promise((r) => setTimeout(r, 0));
+  expect(pen.getAttribute('aria-disabled')).toBe('true');
+  fireEvent.click(pen);
+  // the backend's own reason, not the generic sentence
+  const tip = (await screen.findByRole('tooltip')).textContent;
+  expect(tip).toContain(reason);
+  expect(tip).not.toContain('Drawing works on drawn PDF plans');
+  expect(screen.getByLabelText('Question')).toHaveProperty('disabled', false);
+  expect(document.querySelector('.ag-drawing')).toBeNull();
+  vi.unstubAllGlobals();
 });
 
 it('CH-18 agent chat: a photo read as a plan makes a project with no askable drawing askable', async () => {
@@ -218,3 +317,13 @@ it('CH-18 agent chat: a photo read as a plan makes a project with no askable dra
   await send('How many doors are there?');
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
 }, 8000);
+
+it('#425 the photo picker takes TIFF and WebP too, by type and by extension', async () => {
+  open(answerTurn);
+  const accept = ((await screen.findByTestId('photo-input')).getAttribute('accept') ?? '').split(
+    ',',
+  );
+  for (const kind of ['image/png', 'image/jpeg', 'image/tiff', 'image/webp'])
+    expect(accept).toContain(kind);
+  for (const ext of ['.tif', '.tiff', '.webp']) expect(accept).toContain(ext);
+});

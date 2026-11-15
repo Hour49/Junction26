@@ -167,15 +167,15 @@ reference *n*.
   - **Left, the current reference** (`<figure aria-label="Reference <i> of <n>">`): the reference's page drawn by the
     shared viewer with that part's answer (`PageViewer` through `Plan`: `file` = the part's `name`, so its name sits
     above the image; `pages`, `marks`, `unit`, `legend` from `answer`; no `credit` line, rule 4). Starts at reference 1.
-  - **Arrows on the image's sides**: "Previous reference" / "Next reference", round 44 px buttons over the left and
-    right edge, vertically centred (the engineer's `.en-nav` look); they wrap around; shown only with two or more
-    references that have a page.
-  - **Right**: one row per answering part, "<name>: <value>" (value via `formatValue`), the status pill (the
-    engineer's status words, EN-31; "Sure" when `line.sure`), and "Show it on <name>" (CH-16 href, unchanged); then
-    "References" (13 px 600) and a numbered list: each reference a button (number badge, the file name mono 600, a
-    muted line "<kind words> · <route words>", `kindName` / `routeLabel`), `aria-pressed` on the current one; a click
-    shows it on the left. A part with no page (a building model) is listed as plain text with "· no preview" and is
-    skipped by the arrows.
+  - (ui-bugs 4-9, 2026-11-15) **No arrows.** Under the image, in the left column: "References" (13 px 600) and a
+    numbered list: each reference a button (number badge, the name 600, a muted line "<kind words> · <route words>",
+    "· no preview" for a part with no page), `aria-pressed` on the current one; a click shows it on the left. A part
+    with no page (a building model) shows "No preview for this file" in the image's place.
+  - Above the image, its name and, on the right, a round "3D" button (`aria-label` "View in 3D: <label>", tip "Open
+    the 3D model"): the shown part's model, else the answer's building model; none without a model.
+  - **Right** (260 px): only the shown part's card: "<name>: <value>", one pill, the estimate line, `check.reason`
+    when there is one, and a "Why?" toggle (`aria-expanded`, closed by default) for `level.text`. No "Show it on"
+    link: a drawing's workspace is reached by its URL `#/p/<id>/d/<did>/engineer[?ask=]`.
 - No plan of a refused drawing, no refused drawing's line, no credit or source line on the card (#204). The
   all-refused case keeps its one refusal card (CH-6).
 
@@ -200,19 +200,18 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   2 shows "2" in bold with test id `answer-value`, the Sure badge only when `total_sure` (CH-13 kept). [component]
 - CH-32 The figure shows reference 1: `figure` named "Reference 1 of 2", the viewer gets the part's `name`, `pages`,
   `marks` and `legend`, and no credit text shows in the turn. [component, `PageViewer` spy]
-- CH-33 Arrows: with 2 references "Next reference" shows reference 2 ("Reference 2 of 2"), "Next" again wraps to 1,
-  "Previous reference" from 1 goes to 2; with one reference (or one with a page) no arrows. Each arrow is a `button`,
-  44x44 at 390. [component; browser]
+- CH-33 (ui-bugs 4, 2026-11-15; replaces the arrows) No "Previous/Next reference" buttons. The References list sits
+  inside the figure, after the image; clicking reference 2 shows "Reference 2 of 2". [component; browser]
 - CH-34 References list: numbered buttons in the CH-30 order with the file name and "<kind words> · <route words>";
-  the current one `aria-pressed="true"`; clicking reference 2 shows it on the left. A part with empty `pages` is plain
-  text with "no preview" and no button. [component]
-- CH-35 Rows: "<name>: <value>", the status pill in words, "Show it on <name>" (CH-16 href) per answering part; no
-  row, line or picture for a refused part; no "Credit" text anywhere in the turn. [component, `project_ask.json`]
+  the current one `aria-pressed="true"`; clicking reference 2 shows it on the left. A part with empty `pages` is a
+  button too, with "no preview"; chosen, it shows its card and "No preview for this file" (ui-bugs 6). [component]
+- CH-35 (ui-bugs 6/8) One row, the shown part's: "<name>: <value>", the status pill in words; choosing another
+  reference swaps it; no "Show it on" link; no row, line or picture for a refused part; no "Credit" text anywhere in the turn. [component, `project_ask.json`]
 - CH-36 Follow-ups: after an answer to "How many doors are there?", the group "Follow-up questions" shows up to 3
   questions from the drawings' suggestions, none of them the asked one; clicking one asks it; after a refusal the
   group is hidden and the refusal's chips show once; with every suggestion asked, no group. [unit `followUps` +
   component]
-- CH-37 Layout: two columns at 1440 (figure left ~1.4 : 1), one column at 390 with the figure first; no sideways
+- CH-37 Layout (ui-bugs 9): two columns at 1440 (figure `minmax(0, 1fr)`, card 260 px), one column at 390 with the figure first; no sideways
   scroll; the ask bar band still clears the card (EN-71). [unit on the CSS text; browser 1440 and 390]
 - CH-38 (preqa parity sweep) The chat column is the demo's 820 px (`.en-chat` `max-width: 868px` with the page's
   24 px gutters); once the thread starts the project-name `h1` stays for screen readers only (`.en-sr`, the demo shows
@@ -222,10 +221,9 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
     part's `quantity.noun` when it has one) and the Sure badge; no `total_note`. Without one, `why_no_total`
     (`total_note` when null) as a smaller muted sentence (`.en-lead--why`, 14 px). No quantity label line.
   - Left: the viewer gets `bare` (fe-viewer: no class line, zoom toolbar, page meta or legend; the mono file name
-    above the image stays), the side arrows stay.
+    above the image stays); no arrows (CH-33).
   - Right, per answering drawing, ONE row: a sentence "<name>: <b>value[ noun]</b>", ONE pill ("Sure" when
-    `line.sure`, else the status word), and "Show it on <name>" as an accent 600-weight link without underline
-    (`.en-show`; underline on hover/focus only), min 44 px tall. Href unchanged (CH-16).
+    `line.sure`, else the status word). The "Show it on <name>" link is removed (ui-bugs 8, 2026-11-15).
   [component with a `PageViewer` spy; unit on the CSS text; browser 1440 and 390]
 - CH-40 (#224, orch 18:05) Where the card names a DRAWING it shows `drawingLabel(d)` (shared.md: the
   backend's plain `name`, "Drawn plan 1", else the file name) for the part's `project.drawings[]` entry (a part
@@ -270,6 +268,11 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   backend's explanation and double-check reason (the row's "why" line) already name the missing rooms, so they show
   once. Nothing when `partial` is absent or false. The engineer's answer card shows the same tag (EN-90). [unit
   `partialTip`; component; browser 1440/390 with the fixture's fields and the backend's sentence]
+- CH-50 (QA 2026-11-15, amends CH-43) A part whose two methods disagree (`quantity.status` "conflict") and that has
+  no `check.reason` prints the backend's `explanation` as its why ("two methods disagree (the room outlines at the
+  sheet's scale 22.401, the printed room areas 30); kept 30: ..."): its "Methods disagree" pill says the reason is
+  below. Before: nothing was below, so the chat never said which value was kept or why. [component,
+  `answer_conflict.json`]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 

@@ -57,3 +57,38 @@ def test_without_a_services_picture_the_follow_up_is_as_before() -> None:
     services, _ = run({})
     assert {d.status for d in services.disciplines} == {"no_model"}
     assert services.unknowns == ()
+
+
+def test_a_plan_drawn_from_a_model_is_not_given_picture_lanes() -> None:
+    status = project().ingest.status("p")
+    listed = tuple(f.model_copy(update={"route": "bim"}) for f in status.files)
+    modelled = SimpleNamespace(
+        project_id="p",
+        ingest=SimpleNamespace(status=lambda _: status.model_copy(update={"files": listed})),
+    )
+    follower = ServiceFollower(modelled, ServiceFiles(), pictures={PLAN: heating()}.get)  # pyright: ignore[reportArgumentType]
+    before = follower._follow(Proposal(proposal_id="p1", drawing_id=PLAN, page=1, removed=(WALL,)))  # pyright: ignore[reportPrivateUsage]
+    proposal = Proposal(proposal_id="p1", drawing_id=PLAN, page=1, removed=(WALL,))
+    after = follower._with_pictures(proposal, before)  # pyright: ignore[reportPrivateUsage]
+    assert after == before
+
+
+def test_a_picture_that_cannot_be_read_leaves_the_model_lanes_and_their_wording() -> None:
+    seen, _ = run({PLAN: heating()})  # a followed result with a checked heating lane
+
+    class Follower(ServiceFollower):
+        def _follow(self, proposal: Proposal) -> Any:
+            return seen
+
+    def broken(_: str) -> FactSheet:
+        raise RuntimeError("an unreadable picture sheet")
+
+    follower = Follower(project(), ServiceFiles(), pictures=broken)
+    services, shown = follower.run(
+        Proposal(proposal_id="p1", drawing_id=PLAN, page=1, removed=(WALL,))
+    )
+    assert {d.discipline: d.status for d in services.disciplines}["heating"] == "checked"
+    assert "could not be read" not in shown["text"]
+    assert all(
+        d.reason is None or "could not be read" not in d.reason for d in services.disciplines
+    )

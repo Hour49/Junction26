@@ -71,7 +71,7 @@ describe('AccountScreen list', () => {
     const item = must(items()[0]);
     expect(item.textContent).toContain('sample-project.zip');
     expect(item.textContent).toContain('Ready');
-    expect(item.textContent).toContain('Archive · 11 files · 5 drawings');
+    expect(item.textContent).toContain('Archive · 12 files · 6 drawings');
     expect(item.textContent).toContain('2026-11-14 08:00 UTC');
   });
 

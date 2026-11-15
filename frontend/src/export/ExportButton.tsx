@@ -4,6 +4,8 @@ import { fileName, scanRows, toCsv } from './csv';
 import { loadScan } from './scan';
 import { CheckIcon, DownloadIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tip } from '@/components/ui/tip';
+import { TIPS } from '../shell/tips';
 import { cn } from '@/lib/utils';
 
 /** How long "Exported" stays on the button (export.md EX-12). */
@@ -72,28 +74,25 @@ export function ExportButton({ projectId, pack }: { projectId: string; pack: str
   return (
     // order 4 in the compact header (shell.css, max-width 1100px), next to the country pill.
     <span className="relative flex-none max-[1100px]:order-4">
-      <Button
-        className={cn(PILL, TONE[state.at])}
-        data-state={state.at}
-        aria-label="Export scan as CSV"
-        aria-disabled={busy || undefined}
-        aria-busy={busy || undefined}
-        title={
-          busy
-            ? "Loading the scan's data"
-            : state.at === 'failed'
-              ? state.detail
-              : 'Download everything the scan read as one CSV'
-        }
-        onClick={run}
+      <Tip
+        text={busy ? "Loading the scan's data" : state.at === 'failed' ? state.detail : TIPS.export}
       >
-        {state.at === 'done' ? (
-          <CheckIcon className="size-[18px]" aria-hidden="true" />
-        ) : (
-          <DownloadIcon className="size-[18px]" aria-hidden="true" />
-        )}
-        <span className="max-[720px]:hidden">{label}</span>
-      </Button>
+        <Button
+          className={cn(PILL, TONE[state.at])}
+          data-state={state.at}
+          aria-label="Export scan as CSV"
+          aria-disabled={busy || undefined}
+          aria-busy={busy || undefined}
+          onClick={run}
+        >
+          {state.at === 'done' ? (
+            <CheckIcon className="size-[18px]" aria-hidden="true" />
+          ) : (
+            <DownloadIcon className="size-[18px]" aria-hidden="true" />
+          )}
+          <span className="max-[720px]:hidden">{label}</span>
+        </Button>
+      </Tip>
       <span className="sr-only" role="status">
         {state.at === 'done' ? `Exported ${state.name}` : ''}
       </span>

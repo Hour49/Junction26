@@ -192,3 +192,42 @@ def test_another_sheet_is_not_laid_over_without_three_room_names_a_scale_or_the_
         h = lane(picture_follow(proposal, plan, [(sheet, heating(CROSSING))]), "heating")
         assert (h.status, h.reason) == ("not_aligned", reason), reason
         assert h.line == f"Heating: not checked, {reason}."
+
+
+# --- every action says what a picture cannot tell ---------------------------------------------
+
+
+def _actions(proposal: Proposal, *spots: Spot) -> dict[str, str]:
+    """The labels of the heating lane's actions, by code (one per code in these scenes)."""
+    h = lane(picture_follow(proposal, PLAN, [(PLAN, heating(*spots))]), "heating")
+    return {a.code: a.label for a in h.actions}
+
+
+def test_every_action_says_what_a_picture_cannot_tell() -> None:
+    removed = Proposal(proposal_id="p1", drawing_id="d1", page=1, removed=(WALL,))
+    added_wall = Item(id="N1", polygon=WALL.polygon, label="New partition, 4.00 m")
+    added = Proposal(proposal_id="p1", drawing_id="d1", page=1, added=(added_wall,))
+    gone = _actions(removed, CROSSING, ALONG)
+    new = _actions(added, CROSSING)  # heating() always adds the radiators, against the wall
+    new_run = _actions(added, ALONG)
+    assert "not shown on a picture" in gone["reseat"]  # where to and how to reconnect
+    assert CANNOT in gone["in_wall"] and CANNOT in gone["through"]
+    assert CANNOT in new["opening"]
+    assert "a picture shows no heights" in new["under"]  # the symbols against the new wall
+    assert CANNOT in new_run["under"]  # a run along it
+    assert "shows no heights" not in new_run["under"]
+
+
+def test_two_sheets_whose_room_names_are_far_apart_are_not_laid_over_each_other() -> None:
+    plan = PLAN.model_copy(update={"rooms": ROOMS})
+    far = tuple((name, (x, y + 0.3 * i)) for i, (name, (x, y)) in enumerate(other().rooms))
+    h = lane(
+        picture_follow(
+            Proposal(proposal_id="p1", drawing_id="d1", page=1, removed=(WALL,)),
+            plan,
+            [(other(rooms=far), heating(CROSSING))],
+        ),
+        "heating",
+    )
+    assert h.status == "not_aligned"
+    assert h.reason is not None and "miss each other by up to" in h.reason

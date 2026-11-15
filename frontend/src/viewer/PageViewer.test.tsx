@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   answer,
   answerArea,
@@ -16,6 +16,9 @@ import type { AnswerView, MarkView, QuantityConflict, Row } from '../api/types';
 type LegendEntry = AnswerView['proof']['legend'][number];
 import { methodName } from '../api/format';
 import { PageViewer, type Tone } from './PageViewer';
+import { stubResizeObserver } from '../test/resizeObserver';
+
+beforeEach(stubResizeObserver);
 
 const badges = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.vw-badge')];
 const frameOf = (c: HTMLElement) => c.querySelector<HTMLElement>('.vw-frame');
@@ -293,6 +296,21 @@ describe('PageViewer: conflict readings', () => {
     expect(legend).toContain(`B: ${methodName('printed_label')} read 30.00 m²`);
   });
 
+  it('K2 tag B moves right of tag A when both boxes start at the same corner', () => {
+    const [ax0, ay0] = conflict.values[0]?.box ?? [0, 0];
+    const same: QuantityConflict = {
+      ...conflict,
+      values: conflict.values.map((v, i) =>
+        i === 1 && v.box ? { ...v, box: [ax0, ay0, v.box[2], v.box[3]] } : v,
+      ),
+    };
+    const { container } = viewer(answerArea, { marks: [], conflict: same, unit: 'm2' });
+    const [a, b] = [...container.querySelectorAll<HTMLElement>('.vw-tag')];
+    expect(a?.style.left).toBe(`${(ax0 * 100).toFixed(1)}%`);
+    expect(b?.style.left).toBe(`calc(${(ax0 * 100).toFixed(1)}% + 24px)`);
+    expect(b?.style.top).toBe(a?.style.top);
+  });
+
   it('R3 VW-19 conflict readings name the method in words, never the API id', () => {
     const { container } = viewer(answerArea, { marks: conflictRow.marks, conflict, unit: 'm2' });
     const legend = container.querySelector('.vw-legend')?.textContent ?? '';
@@ -454,6 +472,22 @@ describe('PageViewer: selection, highlight, keyboard', () => {
     expect(onHover).toHaveBeenLastCalledWith('m1');
     fireEvent.blur(b1);
     expect(onHover).toHaveBeenLastCalledWith(null);
+  });
+
+  it('ui-tips P1 a numbered mark says what a mark is, on hover and on keyboard focus', async () => {
+    const { container } = viewer(answer);
+    const b1 = badgeOf(container, '1') as HTMLElement;
+    fireEvent.pointerMove(b1, { pointerType: 'mouse' });
+    expect((await screen.findByRole('tooltip')).textContent).toContain(
+      'One thing Vellum counted. The number matches the list of marks.',
+    );
+    fireEvent.pointerLeave(b1, { pointerType: 'mouse' });
+    fireEvent.pointerMove(document.body, { clientX: 900, clientY: 900 }); // out of Radix's grace area
+    await waitFor(() => {
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+    b1.focus();
+    expect((await screen.findByRole('tooltip')).textContent).toContain('One thing Vellum counted.');
   });
 });
 

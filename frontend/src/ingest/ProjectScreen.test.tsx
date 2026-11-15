@@ -88,7 +88,9 @@ describe('ProjectScreen', () => {
       [...document.querySelectorAll('.ingest-stats dt')].map((d) => d.textContent),
     ).not.toContain('Cost');
     // IN-85: the Simple/Advanced segment on its own row under the h1
-    expect(must(document.querySelector('.ingest-head')).className).toContain('ingest-head--stack');
+    expect(must(document.querySelector('.ingest-head')).className).toContain(
+      'flex-col items-start',
+    ); // ingest-head--stack
   });
 
   it('IN-86 Set aside counts the files set aside', async () => {
@@ -162,6 +164,34 @@ describe('ProjectScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     await flush();
     expect(screen.getByRole('heading', { name: project.name })).toBeTruthy();
+  });
+
+  it('a lone DXF set aside: the Nothing-read card says to upload it with its PDF or PNG in one zip', async () => {
+    const f = must(project.files[0]);
+    mockApi({
+      [GET]: {
+        ...variants.noDrawings,
+        files: [{ ...f, path: 'floor3.dxf', kind: 'dxf', state: 'set_aside', drawing_id: null }],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(panel.textContent).toContain(
+      'A DXF is read with the PDF or PNG of the same name: put both in one .zip and upload that.',
+    );
+  });
+
+  it('no DXF hint when the set-aside files are not DXF', async () => {
+    mockApi({
+      [GET]: {
+        ...variants.noDrawings,
+        files: project.files.map((f) => ({ ...f, state: 'set_aside' as const, drawing_id: null })),
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.queryByText(/A DXF is read with/)).toBeNull();
   });
 
   it('IN-72 a done project with no drawings: "Nothing could be read", reasons, no ring, no conflicts link', async () => {
@@ -429,6 +459,26 @@ describe('ProjectScreen', () => {
     expect(screen.queryByText(/Step \d of 9/)).toBeNull();
   });
 
+  it('a restart mid-ingest: no 0 ms and no full ring, and a way on (upload again, what was read)', async () => {
+    // what the server leaves after a restart: no finished_at, ms 0, the files not reached set aside
+    mockApi({
+      [GET]: {
+        ...variants.failed,
+        finished_at: null,
+        ms: 0,
+        files: project.files.map((f, i) => (i < 2 ? f : { ...f, state: 'set_aside' })),
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Elapsed')).toBe('—');
+    expect(screen.queryByRole('img', { name: /percent done/ })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Upload again' }).getAttribute('href')).toBe('#/');
+    expect(
+      screen.getByRole('link', { name: 'See what was read in Documents' }).getAttribute('href'),
+    ).toBe(`#/p/${ID}/documents`);
+  });
+
   it('IN-44 strings from files render as text (the "Nothing read" card)', async () => {
     const evil = '<img src=x onerror=alert(1)>';
     mockApi({
@@ -469,7 +519,7 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     const card = screen.getByRole('region', { name: 'Progress' });
-    expect(card.textContent).toContain('5 drawings ready.');
+    expect(card.textContent).toContain('6 drawings ready.');
     const list = screen.getByText('the conflicts list');
     const chat = screen.getByRole('button', { name: 'Start a new chat' });
     expect(card.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -492,7 +542,7 @@ describe('ProjectScreen', () => {
     act(() => {
       must(props.onCounts)({ total: 2, needsPerson: 0 });
     });
-    expect(card.textContent).toContain('5 drawings ready. Conflicts are below.');
+    expect(card.textContent).toContain('6 drawings ready. Conflicts are below.');
     expect(card.contains(screen.getByRole('link', { name: 'Start a new chat' }))).toBe(true);
     expect(card.contains(screen.getByRole('link', { name: 'Open the workspace' }))).toBe(true);
   });

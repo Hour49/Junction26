@@ -123,7 +123,7 @@ def test_takeoff_and_csv_name_the_drawing_as_each_project_uploaded_it(client: Te
         signed = client.post(f"{url}/signoff", params=at, json={**door, "undo": True})
         assert signed.json()["file"] == name
         sheet = client.get(f"{url}/takeoff.csv", params=at)
-        assert sheet.text.splitlines()[1].startswith(f"{name},")
+        assert sheet.content.decode("utf-8-sig").splitlines()[1].startswith(f"{name},")
         stem = name.removesuffix(".pdf")
         assert sheet.headers["content-disposition"] == f'attachment; filename="{stem}-takeoff.csv"'
     other = upload(client, b"site notes", "notes.txt")
@@ -450,7 +450,7 @@ def test_a_missing_sample_archive_is_built_on_the_first_click(
     response = client.post("/api/projects/sample")
     assert response.status_code == 202
     assert settings.sample_archive.read_bytes() == build_archive()
-    assert len(client.get(response.json()["url"]).json()["files"]) == 11
+    assert len(client.get(response.json()["url"]).json()["files"]) == 12
 
 
 def test_a_sample_that_cannot_be_built_is_refused_in_plain_words(

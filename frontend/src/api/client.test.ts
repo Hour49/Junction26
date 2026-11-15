@@ -138,12 +138,35 @@ describe('API client', () => {
     expect(error.message).toBe(`${fx.error.detail} (not-found)`);
   });
 
-  it('SH-33 a non-JSON error body gives http-<status>', async () => {
-    mockApi({ 'GET /api/info': reply(502, '<html>Bad gateway</html>') });
+  it('SH-33 a non-JSON error body gives http-<status>; a gateway down or a lapsed access code says so', async () => {
+    const offline = 'The server is not answering right now. Try again in a minute.';
+    const bodies: [number, unknown][] = [
+      [502, '<html>Bad gateway</html>'],
+      [503, '<html>Service unavailable</html>'],
+      [504, ''],
+      [524, '<html>A timeout occurred</html>'], // Cloudflare: the backend took over 100 s (hung)
+      [530, '<html>Origin unreachable</html>'],
+      [502, { error: 'the app is offline' }], // the access gate's own reply (site/src/index.js)
+    ];
+    for (const [status, body] of bodies) {
+      mockApi({ 'GET /api/info': reply(status, body) });
+      await expect(getInfo()).rejects.toMatchObject({
+        status,
+        code: `http-${String(status)}`,
+        detail: offline,
+      });
+    }
+    mockApi({ 'GET /api/info': reply(401, { error: 'an access code is needed for the app' }) });
     await expect(getInfo()).rejects.toMatchObject({
-      status: 502,
-      code: 'http-502',
-      detail: 'the server answered 502',
+      status: 401,
+      code: 'http-401',
+      detail: 'The access code has expired. Reload the page to enter it again.',
+    });
+    mockApi({ 'GET /api/info': reply(418, '<html>teapot</html>') });
+    await expect(getInfo()).rejects.toMatchObject({
+      status: 418,
+      code: 'http-418',
+      detail: 'the server answered 418',
     });
   });
 

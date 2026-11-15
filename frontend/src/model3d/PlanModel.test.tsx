@@ -62,14 +62,15 @@ describe('the plan pane', () => {
   const pane = (model: { fileId: string; highlight: Highlight[] } | null) => (
     <PlanPane
       projectId={PID}
-      pack={null}
-      drawings={[{ drawing_id: D, label: 'Building model 1' }]}
-      drawingId={D}
-      drawing={undefined}
+      files={[{ drawing_id: D, label: 'Building model 1', model, drawable: false }]}
+      open={[D]}
+      drawn={null}
       view={null}
       focus={null}
-      onDrawing={vi.fn()}
-      model={model}
+      reveal={null}
+      drawMode={false}
+      onToggle={vi.fn()}
+      onPick={vi.fn()}
     />
   );
 

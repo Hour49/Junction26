@@ -7,10 +7,11 @@ import {
   postReview,
   type ProjectReview,
 } from '../api';
-import { ConflictCard, type DrawingLoad } from './ConflictCard';
+import { BTN, ConflictCard, type DrawingLoad } from './ConflictCard';
 import { useDrawingNames } from './drawingNames';
 import { conflictCount, keyOf, ordered, progressText, subLine, type Answer } from './conflicts';
 import './conflicts.css';
+import { Button } from '@/components/ui/button';
 
 type Load = { review: ProjectReview } | { error: unknown } | null;
 export interface ConflictCounts {
@@ -99,16 +100,17 @@ export function ConflictsList({
     body = (
       <div role="alert" className="cf-error">
         <p>{errorText(load.error).detail}</p>
-        <button
-          type="button"
-          className="cf-btn"
+        <Button
+          variant="secondary"
+          size="pill"
+          className={BTN}
           onClick={() => {
             setLoad(null);
             setAttempt((n) => n + 1);
           }}
         >
           Retry
-        </button>
+        </Button>
       </div>
     );
   else {

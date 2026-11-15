@@ -1,10 +1,12 @@
-import { useLayoutEffect, useRef, type KeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, type KeyboardEvent } from 'react';
+import { flushSync } from 'react-dom';
 import type { Highlight } from '../api';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ModelView } from './ModelView';
 
-/** The 3D view in a modal (model-3d.md part 2), as fe-viewer's SourcePreview: Esc and Close close it, Tab stays
- * inside; the opener puts focus back. */
+/** The 3D view in a modal (model-3d.md part 2): Esc, Close and a click outside close it, Tab stays inside (Radix);
+ * the opener puts focus back. */
 export function ModelDialog({
   projectId,
   fileId,
@@ -18,59 +20,45 @@ export function ModelDialog({
   highlight: readonly Highlight[];
   onClose: () => void;
 }) {
-  const card = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    card.current?.querySelector<HTMLElement>('.vw-modal-close')?.focus();
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = overflow;
-    };
-  }, []);
-
+  const [open, setOpen] = useState(true);
+  // a portal's key events bubble through the React tree: keep them from the plan sheet's own Esc/Tab handling
   const onKeyDown = (e: KeyboardEvent) => {
-    // a portal's key events bubble through the React tree: keep them from the plan sheet's own Esc/Tab handling
     if (e.key === 'Escape' || e.key === 'Tab') e.stopPropagation();
-    if (e.key === 'Escape') onClose();
-    else if (e.key === 'Tab') {
-      const items = [
-        ...(card.current?.querySelectorAll<HTMLElement>('button, [tabindex="0"]') ?? []),
-      ];
-      const k = items.indexOf(document.activeElement as HTMLElement);
-      const to = e.shiftKey ? (k <= 0 ? items.length - 1 : k - 1) : (k + 1) % items.length;
-      e.preventDefault();
-      items[to]?.focus();
-    }
   };
-
-  return createPortal(
-    <div
-      className="vw-modal"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next) return;
+        // closed first, so Radix's focus trap is off when the opener puts focus back (its onClose)
+        flushSync(() => {
+          setOpen(false);
+        });
+        onClose();
       }}
     >
-      <div
-        ref={card}
-        className="vw-modal-card m3-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`3D view: ${label}`}
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
         onKeyDown={onKeyDown}
+        // the opener has put focus back: Radix must not move it to what was focused before the dialog
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+        }}
+        className="flex max-h-[calc(100dvh-32px)] w-[min(1100px,calc(100%-32px))] max-w-none flex-col gap-3 overflow-auto rounded-[20px] border-0 bg-card p-5 text-foreground sm:max-w-none [&_.m3-stage]:h-[min(70vh,640px)]"
       >
-        <div className="vw-modal-head">
-          <span className="m3-dialog-name">{label}</span>
-          <button
-            type="button"
-            className="v-btn v-btn--secondary v-press vw-btn-soft vw-modal-close"
-            onClick={onClose}
-          >
-            Close
-          </button>
+        <div className="flex items-center justify-between gap-3">
+          <DialogTitle className="min-w-0 text-base font-semibold [overflow-wrap:anywhere]">
+            <span className="sr-only">3D view:</span> {label}
+          </DialogTitle>
+          <DialogClose asChild>
+            <Button variant="secondary" size="pill" className="v-press font-medium">
+              Close
+            </Button>
+          </DialogClose>
         </div>
         <ModelView projectId={projectId} fileId={fileId} name={label} highlight={highlight} />
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

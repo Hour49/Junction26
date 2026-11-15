@@ -32,6 +32,7 @@ from app.core.review.review import (
     disputes,
     reset,
     review_queue,
+    room_names_of,
     row,
     settle_and_sign,
     sheet_row,
@@ -100,7 +101,8 @@ def takeoff_rows(
         file, project = named.path, named.project_id
     quantities = known_quantities(drawing)
     state = with_twins(reviews.get(project, drawing_id), storey_twins(quantities))
-    rows = [row(found, drawing, state, RULES) for found in quantities.values()]
+    names = room_names_of(drawing)  # once for the drawing, not per row
+    rows = [row(found, drawing, state, RULES, names) for found in quantities.values()]
     if not zeros:
         rows = [found for found in rows if found.value != 0 or found.status != "single"]
     return Takeoff(
@@ -205,7 +207,7 @@ def takeoff_csv(
         writer.writerow([_cell(cell) for cell in cells])
     stem = re.sub(r"[^A-Za-z0-9._-]", "_", PurePosixPath(found.file).stem) or "drawing"
     return Response(
-        content=out.getvalue(),
+        content="\ufeff" + out.getvalue(),  # a BOM, so Excel reads UTF-8 (umlauts, names)
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{stem}-takeoff.csv"'},
     )

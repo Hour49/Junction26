@@ -196,6 +196,12 @@ def test_a_path_given_twice_gives_one_source_from_the_finished_record(
     assert [(source.path, source.how) for source in found] == [("docs/spec.pdf", "text")]
     unfinished = [file for file in status.files if file.state in ("queued", "running")]
     assert all(file.evidence is None for file in unfinished)
+    # fix/dup-path: the copy is set aside at a name of its own, and that name is not a source
+    assert [(file.path, file.state) for file in status.files] == [
+        ("docs/spec.pdf", "text_only"),
+        ("docs/spec-2.pdf", "set_aside"),
+    ]
+    assert status.files[1].evidence is None
 
 
 def test_a_changed_text_rule_re_cuts_an_index_already_built(

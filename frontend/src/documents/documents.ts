@@ -15,12 +15,12 @@ export function documentIssues(issues: readonly Issue[]): Row[] {
 export const isAnswerable = (i: Issue) =>
   i.kind !== 'conflict' && (i.kind === 'unrelated_file' || i.severity !== 'note');
 
-/** The one count rule (DOC-12): answerable, still open, no `Issue.answer`, notes excluded. Badge and done line use it. */
-export const needsYou = (issues: readonly Issue[]) =>
-  issues.filter(
-    (i) =>
-      (isAnswerable(i) || !!i.resolved) && i.severity !== 'note' && i.state === 'open' && !i.answer,
-  ).length;
+/** The one count rule (DOC-12): answerable, still open, no `Issue.answer`, notes excluded. Badge, done line and
+ * the "Issues on demand" list use it. */
+export const waitsForYou = (i: Issue) =>
+  (isAnswerable(i) || !!i.resolved) && i.severity !== 'note' && i.state === 'open' && !i.answer;
+
+export const needsYou = (issues: readonly Issue[]) => issues.filter(waitsForYou).length;
 
 export function pillOf(issue: Issue): { word: string; tone: '' | 'warn' | 'ok' } {
   if (isAnswerable(issue) && (issue.answer || issue.state !== 'open'))

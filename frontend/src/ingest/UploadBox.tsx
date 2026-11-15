@@ -4,14 +4,23 @@ import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
 import { uploadTooLarge } from '../shell/limits';
 import { amount, sizeText, uploadedKey } from './ingest';
+import { PANEL } from './ui';
+import { Alert } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS } from '../shell/tips-ingest';
 
 const ACCEPT = '.zip,.pdf,.png,.jpg,.jpeg,.ifc,.dxf,.svg,image/*';
-// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader.
+// What a route reads today; no DWG (no reader). A scanned PDF goes to the raster reader. A DXF or SVG alone is set
+// aside (no page to place its model on, API.md), so its chip says it needs its PDF.
 const FORMATS = [
   'IFC models',
-  'DXF',
+  'DXF with its PDF',
   'PDF, drawn or scanned',
-  'SVG',
+  'SVG with its PDF',
   'PNG · JPG scans and photos',
   'ZIP archives',
 ];
@@ -26,8 +35,13 @@ const percent = (s: Sending) => (s.total > 0 ? Math.round((100 * s.sent) / s.tot
 /** What failed and where (Bogdan 2026-11-15): lost while sending, or refused by the server with its detail. */
 function failedLine(f: Failed): string {
   const name = f.file.name;
-  if (f.error instanceof ApiError && f.error.status > 0)
-    return `The server refused ${name}: ${f.error.detail}`;
+  if (f.error instanceof ApiError && f.error.status > 0) {
+    // the server's detail may name the file itself ("site.zip: the upload is empty"): say it once
+    const detail = f.error.detail.startsWith(`${name}: `)
+      ? f.error.detail.slice(name.length + 2)
+      : f.error.detail;
+    return `The server refused ${name}: ${detail}`;
+  }
   if (f.error instanceof ApiError)
     return `The connection was lost while sending ${name} (at ${String(f.at)}%).`;
   return `Could not send ${name}: ${errorText(f.error).detail}`;
@@ -66,6 +80,7 @@ export function UploadBox() {
   function upload(files: FileList | null) {
     const file = files?.[0];
     if (!files || !file) return;
+    setFailed(null); // a new try replaces the last failed upload's line
     if (files.length > 1) {
       setNote('Drop one file or one zip at a time.');
       return;
@@ -122,30 +137,37 @@ export function UploadBox() {
   }
 
   return (
-    <section
-      className="v-card v-card--hero ingest-drop"
+    <Card
+      role="region"
+      className={cn(
+        PANEL,
+        'grid w-full max-w-[760px] gap-6 rounded-[calc(var(--v-radius)+4px)] px-8 py-12 max-[720px]:p-5',
+      )}
       aria-label="Drop drawings or an archive"
       onDragOver={(e) => {
         e.preventDefault();
       }}
       onDrop={onDrop}
     >
-      <div className="ingest-zone">
-        <svg className="ingest-upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <div className="grid justify-items-center gap-4 rounded-[20px] border-2 border-dashed border-border px-6 py-10">
+        <svg
+          className="size-12 rounded-2xl bg-accent fill-none stroke-primary stroke-2 p-3 [stroke-linecap:round] [stroke-linejoin:round]"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
           <path d="M12 16V4m0 0-5 5m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
         </svg>
         <p className="v-h3">Drop a drawing or a .zip here</p>
-        <div className="ingest-actions">
-          <button
-            type="button"
-            className="v-btn v-press"
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button
+            size="pill"
             disabled={busy !== null || sending !== null}
             onClick={() => {
               picker.current?.click();
             }}
           >
             Choose a file
-          </button>
+          </Button>
           <input
             ref={picker}
             type="file"
@@ -157,16 +179,19 @@ export function UploadBox() {
               e.target.value = '';
             }}
           />
-          <button
-            type="button"
-            className="v-btn v-btn--secondary v-press"
-            disabled={busy !== null || sending !== null}
-            onClick={() => {
-              void start('Starting the sample…', () => startSample({ fresh: true }));
-            }}
-          >
-            Try the sample project
-          </button>
+          <Tip text={INGEST_TIPS.sample} wrap={busy !== null || sending !== null}>
+            <Button
+              variant="secondary"
+              size="pill"
+              className="font-medium"
+              disabled={busy !== null || sending !== null}
+              onClick={() => {
+                void start('Starting the sample…', () => startSample({ fresh: true }));
+              }}
+            >
+              Try the sample project
+            </Button>
+          </Tip>
         </div>
         <p className="v-caption">The sample starts from scratch each time.</p>
         {busy && (
@@ -180,35 +205,52 @@ export function UploadBox() {
               {`Sent ${sending.name} (${sizeText(sending.total)}): waiting for the server…`}
             </p>
           ) : (
-            <div role="status" aria-live="polite" className="ingest-sending">
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex w-[min(100%,420px)] flex-col items-center gap-2"
+            >
               <p>{`Sending ${sending.name}: ${amount(sending.sent, sending.total)} of ${sizeText(sending.total)} (${String(percent(sending))}%)`}</p>
-              <progress aria-label="Upload" max={100} value={percent(sending)} />
+              <progress
+                className="h-2 w-full accent-primary"
+                aria-label="Upload"
+                max={100}
+                value={percent(sending)}
+              />
             </div>
           ))}
         {failed && (
-          <div role="alert" className="ingest-failed">
+          <Alert className="flex w-auto flex-wrap items-center justify-center gap-x-3 gap-y-2 border-0 bg-transparent p-0 text-[length:inherit]">
             <p>{failedLine(failed)}</p>
-            <button
-              type="button"
-              className="v-btn v-btn--secondary v-press"
+            <Button
+              variant="secondary"
+              size="pill"
+              className="font-medium"
               onClick={() => {
                 send(failed.file);
               }}
             >
               Retry
-            </button>
-          </div>
+            </Button>
+          </Alert>
         )}
         {note && <p role="alert">{note}</p>}
         {error !== null && <ErrorView error={error} />}
       </div>
-      <ul className="ingest-chips" aria-label="Formats">
-        {FORMATS.map((f) => (
-          <li key={f} className="v-pill">
-            {f}
-          </li>
-        ))}
-      </ul>
-    </section>
+      <Tip text={INGEST_TIPS.formats}>
+        <ul className="flex flex-wrap justify-center gap-2" tabIndex={0} aria-label="Formats">
+          {FORMATS.map((f) => (
+            <Badge
+              asChild
+              key={f}
+              variant="secondary"
+              className="px-[11px] py-[5px] text-xs text-text-2"
+            >
+              <li>{f}</li>
+            </Badge>
+          ))}
+        </ul>
+      </Tip>
+    </Card>
   );
 }
