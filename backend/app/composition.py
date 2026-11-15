@@ -95,6 +95,7 @@ from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
 from app.adapters.raster_scale.carbon_doors import CarbonDoorScale
+from app.adapters.raster_scale.label import LabelScale
 from app.adapters.rectifier import R3Rectifier
 from app.adapters.rectifier.uvdoc import OnnxUvdoc
 from app.adapters.resolver.carbon import CarbonClient as ResolverClient
@@ -285,13 +286,15 @@ def build_pipeline(
     kinds: Callable[[str], str | None] | None = None,
     advanced: Callable[[str], bool] | None = None,
     sheets: Callable[[str], SheetKind | None] | None = None,
+    rectified: Callable[[str], bool] | None = None,
 ) -> Pipeline:
     """`dataset` is the folder that the drawings' paths (`data/<source>/<name>`) are relative to.
     `kinds` gives the content kind ingest identified a file as, by its path; None: the content
     probe is asked (the CLI reads the dataset's files as they are). `advanced`: whether the
     sheet-kind step called a file advanced, by its path (CARBON_READER=advanced); None: none
     was. `sheets`: the sheet-kind step's reply for a file, by its path (DISCIPLINE_PICTURES
-    routes on its discipline); None: no file has one (the CLI)."""
+    routes on its discipline); None: no file has one (the CLI). `rectified`: whether the rectifier
+    straightened a file (LABEL_SCALE); None: none was (the CLI keeps no frame)."""
     files = DatasetFiles(dataset)
     unruled = _unruled(settings)
     as_image = _as_image(unruled)  # the PDFs the raster route reads: scans, and unruled ones
@@ -323,11 +326,16 @@ def build_pipeline(
                 settings,
                 _tables(
                     settings.tables,
-                    _printed(
+                    _labelled(
                         settings,
-                        _raster(settings, scans, decisions, kind_of, use_carbon, took),
-                        scans,
+                        _printed(
+                            settings,
+                            _raster(settings, scans, decisions, kind_of, use_carbon, took),
+                            scans,
+                            kind_of,
+                        ),
                         kind_of,
+                        rectified or (lambda path: False),
                     ),
                     files,
                 ),
@@ -564,6 +572,18 @@ def _stored_kinds(store: DiskProjectStore, project_id: str) -> Callable[[str], s
         return next((file.kind for file in status.files if file.path == path), None)
 
     return kind_of
+
+
+def _stored_rectified(store: DiskProjectStore, project_id: str) -> Callable[[str], bool]:
+    """Whether the rectifier straightened a project's file (its frame, saved before the readers
+    run)."""
+
+    def rectified(path: str) -> bool:
+        status, _ = store.load_project(project_id)
+        file = next((file for file in status.files if file.path == path), None)
+        return file is not None and file.normalised is not None and file.normalised.rectified
+
+    return rectified
 
 
 def _probe(settings: Settings) -> ContentProbe:
@@ -949,6 +969,7 @@ def build_ingest(
             _stored_kinds(store, project_id),
             _stored_advanced(store, project_id),
             _stored_sheets(store, project_id),
+            _stored_rectified(store, project_id),
         ),
         reader_names=names,
         runner=ThreadRunner() if background else InlineRunner(),
@@ -1097,6 +1118,20 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
                 )
             carbon = SOURCE if settings.door_prior_boxes == "on" else None  # Carbon's boxes
             return PriorScale(inner, carbon)
+
+
+def _labelled(
+    settings: Settings,
+    inner: Extractor,
+    kind_of: Callable[[str], str | None],
+    rectified: Callable[[str], bool],
+) -> Extractor:
+    """LABEL_SCALE=on: the areas printed in room labels give a raster sheet's scale."""
+    match settings.label_scale:
+        case "off":
+            return inner
+        case "on" | "always":
+            return LabelScale(inner, kind_of, rectified, settings.label_scale == "always")
 
 
 def _printed(

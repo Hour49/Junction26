@@ -105,11 +105,27 @@ schedule or a detector.
 | floor area (raster, gross printed) | `summed_rooms` (indoor rooms, net) | `printed_total` (gross) | net/gross 0.60-1.02 | no rule: inside the band only a note; outside it both values on the indoor area answer, held for a person; a net question never gets the gross number (`GROSS_NET_CHECK`) |
 | scale | `scale_text` | `scale_bar` or `dimension_lines` | 2% | measured value over text; text found next to a detail drawing is ignored (see below) |
 | scale (raster) | `detector` (door estimate) | `scale_bar` or `scale_text` | 10% | the printed scale; the estimate stays as the other value (`RASTER_PRINTED_SCALE`); over 2x apart only a bar wins, and flags the areas |
+| scale (raster) | `detector` (door estimate) | `printed_label` (room-label areas) | the two 68% bands | `LABEL_SCALE=on`: the label scale when the bands do not overlap, else the estimate; `always`: the label scale (§ below) |
 | element or room count (raster) | the reader's (`detector`...) | `printed_total` | 0 | no rule: show both (`RASTER_PRINTED_SCALE`). With `PRINTED_TOTAL_ANSWERS=on` (default `off`), a printed count of exactly the entry's subject, of the floor the sheet shows, with one value ("SECOND FLOOR = 48 DORMS" on a second-floor plan) is reported; the count read stays as the other value and the entry stays a conflict |
 | room count | `plan_drawing` | `ifc_model` | 0 | keep spaces of the sheet's storey (foreign spaces are greyed) |
 | element count | `plan_drawing` | `ifc_model` | 0 | count what the sheet draws of its storey; an element of another storey seen through the cut is left out, listed with why (the sheet's count is its storey's, so the plain question carries the conflict too) |
 | element count | `plan_drawing` | `schedule` | 0 | no rule: show both |
 | element count | `detector` | `parser` | 0 | no rule yet; the parser wins on vector sheets, the detector is the only source on raster |
+
+Label scale (2026-11-15, accuracy round task 4, `LABEL_SCALE=off|on|always`, default off;
+`app/core/pipeline/label_scale.py`, `app/adapters/raster_scale/label.py`): a raster sheet whose scale is the door
+estimate or none, and that is not a camera photo the rectifier left as it was, takes its scale from the areas printed
+in its room labels ("KH 9.7 m²"): per room sqrt(label m² / outline px²), the outline its polygon, else its box over
+`BOX_RATIO`; at least 3 rooms (as #620's sheet-wide check); the median, a room more than half of log `LABEL_RANGE` off
+it (a lost decimal comma) and a label-sized box left out; band = the median's standard error from the rooms' robust
+spread, at least 7.9% (floorplan2bim with recognised rooms). A scale bar or a trusted printed ratio (`scaled`) is
+never replaced. With no scale the label scale is used; next to a door estimate `on` replaces it only when the two
+bands do not overlap, `always` whenever it is made; the estimate stays the other value of a `scale` conflict. The
+sheet-wide label check (`takeoff.label_disputed`, #620) is skipped on a label scale (the labels agree with a scale
+made from them); the per-room label checks stay. Measured (`scripts/label_scale_bench.py`, cached Carbon replies of
+10 Swiss dev scans that print room areas, known scale): label scale 1.9% median off, 10/10 inside its band; the
+Carbon door estimate 4.1%, 9/10; `on` changed none of them, `always` all 10. T1-T4 (QA round 3): no change (T1-T3
+have a measured bar, T4 prints no room areas). Golden v2 not run (not on that machine).
 
 Raster printed scale and facts (2026-11-14, r8 AY, `RASTER_PRINTED_SCALE=off|carbon`, default off;
 `app/core/pipeline/printed.py`): the scale is metres per page unit. A scale bar gives it (its labelled length over

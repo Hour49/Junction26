@@ -54,6 +54,7 @@ ProviderName = Literal["gemini", "eu"]
 RasterScaleName = Literal["off", "priors"]
 # on: a sheet whose detector found no door takes the door estimate from Carbon's door boxes
 ScaleCarbonDoorsName = Literal["off", "on"]
+LabelScaleName = Literal["off", "on", "always"]
 # off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
 # its estimated scale and check its counts (app/adapters/printed_scale/)
 RasterPrintedScaleName = Literal["off", "carbon"]
@@ -121,6 +122,12 @@ class Settings(BaseSettings):
     # its source saying so; its door width is not fitted on Carbon's boxes yet
     # (app/adapters/raster_scale/carbon_doors.py)
     scale_carbon_doors: ScaleCarbonDoorsName = "off"
+    # on: a raster sheet whose scale is the door estimate or none takes the scale the areas printed
+    # in 3 or more room labels give (a rectified photo or a scan; an unrectified photo is left as
+    # it is): with no scale always, next to the door estimate when their bands do not overlap, the
+    # estimate kept as a conflict value; always: it replaces the door estimate whenever it is made
+    # (app/core/pipeline/label_scale.py)
+    label_scale: LabelScaleName = "off"
     # carbon: the printed scale (a bar, or a ratio at a resolution the file states) replaces the
     # estimate, kept as a conflict value, and printed counts are checked against the read ones.
     # Off by default; carbon asks gemini-4-carbon (GEMINI_API_KEY, the spend guard, cached in
