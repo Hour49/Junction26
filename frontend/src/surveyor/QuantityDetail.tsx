@@ -45,7 +45,9 @@ export function QuantityDetail(props: Props) {
   const signed = row.signed;
   const locked = saving || signed !== null;
   const settleValue = typed.trim() === '' ? NaN : Number(typed);
-  const canSettle = Number.isFinite(settleValue) && settleValue >= 0;
+  const count = row.unit === 'count'; // the backend stores a count as an integer, so 2.5 would become 2
+  const canSettle =
+    Number.isFinite(settleValue) && settleValue >= 0 && (!count || Number.isInteger(settleValue));
   const conflict = row.conflict;
   const signLocked = saving || row.needs_person || name.trim() === '';
   const err = props.error === null ? null : errorText(props.error);
@@ -118,7 +120,7 @@ export function QuantityDetail(props: Props) {
             className={`${FIELD} w-[8em]`}
             type="number"
             min={0}
-            step="any"
+            step={count ? 1 : 'any'}
             value={typed}
             disabled={locked}
             onChange={(e) => {

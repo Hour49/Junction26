@@ -132,3 +132,34 @@ def test_ac18_a_region_outside_the_rooms_is_refused() -> None:
 def test_ac18_a_region_across_a_wall_is_refused() -> None:
     with pytest.raises(EditRefusedError, match="crosses a wall"):
         place_room(page(), "p1", frac(1.5, 0.5, 4.5, 2.5), "Storage")
+
+
+def test_qa_a_wall_thinner_than_the_gap_between_its_rooms_still_merges_them() -> None:
+    """QA 2026-11-15 (DigitalHub ground floor, 11 of 43 walls): the room outlines stop 0.035 m
+    short of the wall's faces, so the 0.08 m mass alone left the rooms apart and a listed wall
+    was refused as 'not on two sides of one inside wall'."""
+    a, b = box(0, 0, 3, 3), box(3.15, 0, 7, 3)
+    mass = box(-0.2, -0.2, 7.2, 3.2).difference(a.buffer(0.035, join_style="mitre"))
+    mass = mass.difference(b.buffer(0.035, join_style="mitre"))
+    assert isinstance(mass, Polygon)
+    thin = PlanPage(
+        drawing_id="d" * 16,
+        page=1,
+        width_m=10,
+        height_m=10,
+        rooms=(
+            PlanRoom("r1", "Office 1", "office", ring(a)),
+            PlanRoom("r2", "Office 2", "office", ring(b)),
+        ),
+        mass=(
+            (
+                ring(mass),
+                tuple(tuple((x / 10, y / 10) for x, y in h.coords[:-1]) for h in mass.interiors),
+            ),
+        ),
+        openings=(),
+    )
+    (wall,) = walls_of(thin)
+    assert wall.thickness_m == pytest.approx(0.08, abs=0.02)
+    (merged,) = remove_wall(thin, "p1", wall_id=wall.id).rooms
+    assert merged.area_after_m2 == pytest.approx(9 + 3.85 * 3 + 0.15 * 3, abs=0.05)
