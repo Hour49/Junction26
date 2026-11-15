@@ -2617,7 +2617,8 @@ that is not an evidence id. `description.detail` is a model's description no per
   `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
   (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
   (normalise); `local_slot` (the wait for the one local reading slot, `INGEST_LOCAL_IN_FLIGHT`, before the
-  readers' steps; only when it waited 10 ms or more), `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the
+  readers' steps; only when it waited 10 ms or more; it is also the file's live `step_id` while it waits, when
+  the slot was taken), `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the
   Carbon reader, whole sheet or things drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `prior_scale` (the scale
   estimated from door sizes, `skipped` when not made), `double_check`, `plans`,
   `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
