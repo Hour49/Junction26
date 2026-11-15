@@ -291,6 +291,16 @@ describe('upload: sending, received, failed', () => {
     expect(HeldXhr.sent).toBe(2);
   });
 
+  it('the server down (a 502 from the proxy) is not called a refusal of the file; Retry is offered', async () => {
+    const xhr = held();
+    xhr.answer(502, { detail: 'the server answered 502', code: 'http-502' });
+    await flush();
+    const alert = screen.getByRole('alert').textContent;
+    expect(alert).not.toContain('refused');
+    expect(alert).toContain('The server could not take site.zip right now. Retry in a moment.');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  });
+
   it('a file the server refuses says the server refused it, with its detail; Retry is offered', async () => {
     const xhr = held();
     xhr.answer(413, { detail: 'the upload is over 200 MB', code: 'too-large' });
