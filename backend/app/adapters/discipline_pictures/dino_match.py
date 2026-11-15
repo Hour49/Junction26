@@ -19,7 +19,8 @@ The model file is local only (data/models/dinov2-small/, gitignored), checked by
 """
 
 import hashlib
-from collections.abc import Mapping, Sequence
+import re
+from collections.abc import Collection, Mapping, Sequence
 from functools import cache
 from pathlib import Path
 from typing import Any, Protocol
@@ -43,6 +44,15 @@ CONTEXT = 0.25  # share of the box's long side added around it
 # 0.11 -> 0.60 at recall 0.92 and lights 0.06 -> 0.79 at recall 0.82.
 KEEP = 0.70
 KEEPS: dict[str, float] = {"light_fixture": 0.75, "sanitary_terminal": 0.70}
+# The IFC kinds (`kind_of`) that are confirmed. Tudor's re-measure on the bench tune half:
+# confirming hurts clean pages (sanitary clean precision 1.00 -> 0.25) and lights need more
+# data; on scans and photos air terminals gain (precision/recall 0.80/0.93 -> 0.91/0.86).
+# A label of no kind is not confirmed by itself: on the bench it was mostly a valve or a fixture
+# under a Dutch or brand name ('regelklep', 'kraan', 'Grohe_Rapid_SL'; 1,075 of 1,085 valves).
+CONFIRM_KINDS: frozenset[str] = frozenset({"air_terminal"})
+# ... unless its label or legend heading has air words: then it is an air terminal the kind
+# words miss ('toevoer rooster', a symbol under a 'Ventilatie' heading).
+AIR_WORDS = re.compile(r"rooster|lucht|ventilat|\bair\b|ilma|luft|grille|diffus", re.I)
 MARGIN = 0.0  # how much closer another legend symbol may be before the sighting is dropped
 INK = 200  # grey level below which a pixel is drawn (as the template reader)
 PAD = 2  # pixels kept around a legend symbol's ink (as the template reader)
@@ -79,21 +89,42 @@ def confirm(
     keep: float = KEEP,
     keeps: Mapping[str, float] = KEEPS,
     margin: float = MARGIN,
+    kinds: Collection[str] | None = CONFIRM_KINDS,
 ) -> PictureReading:
-    """`reading` (the template reader's, on the grey page `gray`) without the sightings that do
-    not look like their legend symbol. This is the one call the picture lane makes, after
-    `template.read_symbols`."""
-    own, other = similarities(gray, reading, session)
+    """`reading` (the template reader's, on the grey page `gray`) without the sightings of the
+    confirmed `kinds` (None: every label), or of no kind but with air words in the label or
+    its legend heading, that do not look like their legend symbol; the others
+    stay exactly as the template read them. This is the one call the picture lane makes, after
+    `template.read_symbols`, and only on scanned or photographed pages: the caller gates the
+    page kind (on a clean page the template is already 0.98-0.99 precise, and confirming hurt)."""
     groups = {entry.label: entry.group for entry in reading.legend or ()}
 
-    def needs(label: str) -> float:
-        kind = kind_of(label, groups.get(label))
-        return keeps.get(kind[0], keep) if kind else keep
+    def kind(label: str) -> str | None:
+        found = kind_of(label, groups.get(label))
+        return found[0] if found else None
 
+    def needs(label: str) -> float:
+        k = kind(label)
+        return keep if k is None else keeps.get(k, keep)
+
+    def checks(label: str) -> bool:
+        if kinds is None:
+            return True
+        k = kind(label)
+        if k is not None:
+            return k in kinds
+        return "air_terminal" in kinds and bool(
+            AIR_WORDS.search(f"{label} {groups.get(label) or ''}")
+        )
+
+    checked = [checks(s.label) for s in reading.sightings]
+    if not any(checked):
+        return reading
+    own, other = similarities(gray, reading, session)
     kept = tuple(
         s
-        for s, o, b in zip(reading.sightings, own, other, strict=True)
-        if o >= needs(s.label) and b <= o + margin
+        for s, o, b, c in zip(reading.sightings, own, other, checked, strict=True)
+        if not c or (o >= needs(s.label) and b <= o + margin)
     )
     dropped = len(reading.sightings) - len(kept)
     notes = (

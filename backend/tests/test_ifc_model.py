@@ -25,8 +25,9 @@ from app.adapters.ifc_model import (
     IfcModelExtractor,
     IfcModels,
     IfcSecondCounter,
+    _typed,
 )
-from app.adapters.ifc_model.objects import read_model
+from app.adapters.ifc_model.objects import IfcObject, read_model
 from app.adapters.ifc_model.svg import read_svg
 from app.adapters.question_templates import TemplateParser
 from app.adapters.vector_pdf.ifc_render import ROOM_WORDS, room_type
@@ -514,13 +515,30 @@ def test_a_listed_space_has_its_solids_footprint_and_the_room_it_is_drawn_as() -
     assert (kitchen.name, kitchen.storey, kitchen.element) == ("1.2", "Level 1", "r1")
     # 5 x 4 m in the model, whatever the sheet's outline measures (rooms[0].area_m2)
     assert kitchen.quantities == pytest.approx({"area_m2": 20.0})
-    assert kitchen.attrs == {"source_class": "IfcSpace"}
+    # its room type, from its names as a drawn space's label gives it (qa-a: an .ifc alone counts
+    # its bedrooms and kitchens); a space no room word names has none
+    assert kitchen.attrs == {"source_class": "IfcSpace", "room_type": "kitchen"}
+    assert spaces["Corridor"].attrs["room_type"] == "hall"
+    assert "room_type" not in spaces["Void"].attrs
     assert (spaces["Store"].element, spaces["Store"].quantities) == (
         None,
         pytest.approx({"area_m2": 4.0}),
     )
     assert (spaces["Void"].storey, spaces["Void"].element) == ("Level 2", "r3")
     assert spaces["Corridor"].element == "r2"
+
+
+def test_a_space_s_room_type_is_what_its_names_say() -> None:
+    """A space's room type is what its names say (qa-a: the vitoria .ifc's "4IZQ-HAB1")."""
+
+    def space(name: str, long_name: str | None) -> IfcObject:
+        return IfcObject(guid="g", source_class="IfcSpace", storey="L1", parts=(), name=name,
+                         long_name=long_name, quantities={})  # fmt: skip
+
+    assert _typed("space", space("A202", "Bedroom 1")) == {"room_type": "bedroom"}
+    assert _typed("space", space("4IZQ-HAB1", None)) == {"room_type": "bedroom"}
+    assert _typed("space", space("A101", "Foyer")) == {"room_type": "hall"}
+    assert _typed("space", space("X", "Void")) == {}
 
 
 def test_every_drawn_item_is_named_by_exactly_one_listed_object() -> None:
@@ -913,6 +931,7 @@ def test_a_listed_space_says_how_many_windows_it_has_and_which() -> None:
     assert (listed[first].element, listed[second].element) == (None, None)
     assert spaces["Bedroom"].attrs == {
         "source_class": "IfcSpace",
+        "room_type": "bedroom",
         "windows": 2,
         "window_ids": f"{listed[first].id} {listed[second].id}",
     }

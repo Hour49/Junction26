@@ -4,6 +4,7 @@ model is the two-room fixture (radiators E2 in SR1 and E3 in SR2 on the south wa
 
 import gzip
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
@@ -22,9 +23,10 @@ from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.services.stored import ServicesModel
 from app.main import create_app
 from app.settings import Settings
-from tests.services_fixtures import two_rooms
+from tests.services_fixtures import WC_ROOM, two_rooms, wc_room
 
 PROJECT, MODELLED = "a" * 12, "0123456789abcdef"
+RAW_IFC = re.compile(r"_terminal|TOILETPAN|WASHHANDBASIN|SANITARYFOUNTAIN|URINAL|\bSINK\b|IFC type")
 
 
 class _Ingest:
@@ -479,7 +481,7 @@ def test_in_a_project_of_ifc_files_only_a_room_question_reaches_the_services_too
     doc["rooms"][0]["name"] = "1-3 Küche"
     radiator = next(e for e in doc["elements"] if e["id"] == "E2")
     sink = {**radiator, "id": "E20", "ref": {"guid": "sink"}, "kind": "sanitary_terminal",
-            "type": "Spüle", "label": "Spüle", "ports": []}  # fmt: skip
+            "type": "Spüle", "label": "Spüle", "ports": [], "predefined": "SINK"}  # fmt: skip
     model = ServicesModel.model_validate({**doc, "elements": [*doc["elements"], sink]})
     client = _client(settings, tmp_path, ingest=_AllIfc(), model=model)
     found = _rules(client, "How many sinks are there in Küche 1-3?")
@@ -531,11 +533,14 @@ class _FourIfc(_Ingest):
 
 
 def _stored_as(model: ServicesModel, sha256: str, kinds: dict[str, str]) -> ServicesModel:
-    """`model` stored for another file: its elements of `kinds` turned into another kind."""
+    """`model` stored for another file: its elements of `kinds` turned into another kind (a
+    sanitary terminal a sink, by its PredefinedType)."""
     doc = model.model_dump(mode="json", by_alias=True)
     doc["source"]["sha256"] = sha256
     for element in doc["elements"]:
         element["kind"] = kinds.get(element["id"], element["kind"])
+        if element["kind"] == "sanitary_terminal":
+            element["predefined"] = "SINK"
     return ServicesModel.model_validate(doc)
 
 
@@ -566,3 +571,61 @@ def test_a_room_count_asks_the_model_that_holds_that_kind_however_many_ifc_files
     found = _rules(client, message)
     assert found["kind"] == "answer", found
     assert found["text"].startswith(answer) and "E2" in found["text"], found
+
+
+@pytest.mark.parametrize(
+    ("message", "answer"),
+    [
+        ("How many toilets are in 13 WC Damen Ost - EG?", f"3 toilets in {WC_ROOM}: "),
+        ("How many washbasins are in 13 WC Damen Ost - EG?", f"2 washbasins in {WC_ROOM}: "),
+        ("How many toilets are in 2 Bedroom?", "0 toilets in 2 Bedroom."),
+    ],
+)
+def test_a_sanitary_word_counts_its_ifc_type_not_every_sanitary_terminal(
+    settings: Settings, tmp_path: Path, message: str, answer: str
+) -> None:
+    """R5 (live check on main 26cc6433, 2026-11-15): "10 toilets in 13 WC Damen Ost - EG" counted
+    its WCs, basins and their mounting frames, every IfcSanitaryTerminal (truth 3)."""
+    found = _rules(_client(settings, tmp_path, model=wc_room()), message)
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith(answer), found
+    if answer.startswith("3"):
+        assert "E301" in found["text"] and "E304" not in found["text"], found
+
+
+def test_a_sanitary_word_is_not_counted_where_the_model_types_no_terminal(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """R5: a model whose sanitary terminals carry no PredefinedType can't tell a WC from a basin,
+    so the count is refused, not "0 toilets"."""
+    found = _rules(_client(settings, tmp_path, model=wc_room(untyped=10)),
+                   "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
+    assert found["kind"] == "dont_know", found
+    assert "0 toilet" not in found["text"] and "no type in the model" in found["text"], found
+    assert not RAW_IFC.search(found["text"]), found
+
+
+def test_typed_matches_beside_untyped_fixtures_are_at_least_their_count(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """R5 (orchestrator, 2026-11-15 03:52): typed WCs plus fixtures that carry no type in the
+    same room is "at least N" with how many carry none, never a silent undercount."""
+    found = _rules(_client(settings, tmp_path, model=wc_room(untyped=2)),
+                   "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith(f"At least 3 toilets in {WC_ROOM}"), found
+    assert "2 more sanitary fixtures there have no type in the model" in found["text"], found
+    assert not RAW_IFC.search(found["text"]), found
+
+
+def test_a_sanitary_word_whose_type_the_model_lacks_is_not_counted(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """#559 review S1: the model types its fixtures but has no URINAL anywhere: "I can't tell"
+    with the types it has, not "0 urinals"."""
+    found = _rules(_client(settings, tmp_path, model=wc_room()),
+                   "How many urinals are in 13 WC Damen Ost - EG?")  # fmt: skip
+    assert found["kind"] == "dont_know", found
+    assert "0 urinal" not in found["text"], found
+    assert "no fixture typed as a urinal" in found["text"] and "3 toilets" in found["text"], found
+    assert not RAW_IFC.search(found["text"]), found  # qa-a nit: plain words, not IFC names

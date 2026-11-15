@@ -138,7 +138,11 @@ export const STEPS: readonly { name: string; hint: string; stages: readonly (Sta
     hint: 'one drawing model per drawing, with its marks',
     stages: ['write'],
   },
-  { name: 'Index', hint: 'every file made searchable for questions', stages: [] },
+  {
+    name: 'Index',
+    hint: 'judging what was set aside, describing the rest, indexing it all for the chat',
+    stages: [],
+  },
 ];
 
 /** The step (1-8) a stage belongs to; no stage yet is step 1. No stage is in Index (9). */

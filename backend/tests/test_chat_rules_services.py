@@ -229,3 +229,35 @@ def test_sv26_an_empty_list_of_one_model_goes_on_to_the_next_model() -> None:
     name, args = plan(message, listing, none, empty, pdf)
     assert name == "final_answer"
     assert args["text"] == "I found no socket in the services model to move."
+
+
+def test_a_selected_sheet_does_not_take_the_last_ifc_files_turn() -> None:
+    """review-531 nit: the selected drawing is asked first, so a cap of "the number of IFC files"
+    left the 4th IFC (the heating model) unasked and the radiator move said none was found."""
+    arc, lft, san, hzg = ("a" * 16, "b" * 16, "c" * 16, "d" * 16)
+    models = ((arc, "arc"), (lft, "lft"), (san, "san"), (hzg, "hzg"))
+    ifcs = [{"drawing_id": d, "name": f"m/{n}.ifc", "kind": "ifc"} for d, n in models]
+    drawings = [{"drawing_id": PDF, "name": "plan.pdf", "kind": "pdf"}, *ifcs]
+    none = {"error": "drawing has no services model; the project's services models: lft, san, hzg"}
+    empty = {"items": [], "more": 0}
+    done: list[Done] = [
+        ("list_drawings", {}, drawings),
+        (
+            "list_services",
+            {"drawing_id": PDF, "kind": "space_heater", "selection_id": "sel_1"},
+            none,
+        ),
+        ("list_services", {"drawing_id": arc, "kind": "space_heater"}, none),
+        (
+            "list_services",
+            {"drawing_id": lft, "kind": "space_heater"},
+            {**empty, "drawing_id": lft},
+        ),
+        (
+            "list_services",
+            {"drawing_id": san, "kind": "space_heater"},
+            {**empty, "drawing_id": san},
+        ),
+    ]
+    message = "move the radiator\nsel_1: region on plan.pdf page 1, no room"
+    assert plan(message, *done) == ("list_services", {"drawing_id": hzg, "kind": "space_heater"})
