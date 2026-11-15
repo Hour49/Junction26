@@ -23,6 +23,7 @@ import { Tip } from '@/components/ui/tip';
 import { INGEST_TIPS } from '../shell/tips-ingest';
 import { Decisions, TraceTimeline } from '../advanced/TraceTimeline';
 import { disagreements, keyCounts, readWith, type Disagreement } from '../advanced/trace';
+import { calledNotADrawing } from '../advanced/advanced';
 
 /** The file page as the demo's (files.js traceScreen): mono 28 px path (22 px on a phone), hairline facts (IN-83). */
 const FILE_PAGE = cn(
@@ -125,6 +126,13 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
         )}
       </TitleRow>
       {file.reason && <p>{file.reason}</p>}
+      {file.drawing_id && calledNotADrawing(file) && (
+        // QA R4-A9: read only because the sheet-kind step warns; no drawing ready (API.md `not_a_drawing`)
+        <p className="text-muted-foreground">
+          The sheet-kind step called this not a drawing: it was read, but it is not counted as a
+          drawing ready.
+        </p>
+      )}
       {file.reused && (
         <p>
           <Tip text={INGEST_TIPS.reused} wrap>

@@ -9,6 +9,7 @@ import {
   currentStep,
   defaultStep,
   elapsedMs,
+  notDrawings,
   pairsOf,
   planCounts,
   quantityCount,
@@ -27,6 +28,8 @@ import { Button } from '@/components/ui/button';
 interface Stat {
   label: string;
   value: string;
+  /** A muted line under the value. */
+  note?: string;
 }
 
 const STEP_VIEW_FIRST = { heading: '', visual: 'files', explain: '' } as const;
@@ -140,13 +143,20 @@ export function AdvancedIngest({
           },
         ];
       }
-      case 'ready':
+      case 'ready': {
+        // every drawing kept, as the pipeline did; the ones called not a drawing say so (QA R4-A9)
+        const notDrawing = notDrawings(project);
         return [
           elapsed(),
-          { label: 'Drawings', value: String(project.drawings.length) },
+          {
+            label: 'Drawings',
+            value: String(project.drawings.length),
+            note: notDrawing ? `${String(notDrawing)} not a drawing` : undefined,
+          },
           { label: 'Questions ready', value: String(quantityCount(project)) },
           { label: 'Cost', value: formatCost(project.cost_usd) },
         ];
+      }
     }
   };
 
@@ -299,7 +309,10 @@ export function AdvancedIngest({
           {stats().map((s) => (
             <div key={s.label}>
               <dt>{s.label}</dt>
-              <dd>{s.value}</dd>
+              <dd>
+                {s.value}
+                {s.note && <small className="adv-stat-note">{s.note}</small>}
+              </dd>
             </div>
           ))}
         </dl>
