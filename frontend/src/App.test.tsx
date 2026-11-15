@@ -518,9 +518,8 @@ describe('shell', () => {
     });
     render(<App screens={stubs} />);
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain(
-      'The server did not answer: no drawing 0123456789abcdef (not-found)',
-    );
+    expect(alert.textContent).toContain('The server did not answer: no drawing 0123456789abcdef');
+    expect(alert.textContent).not.toContain('not-found'); // R2-C5
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await screen.findByText(OFFLINE);
     expect(api.calls.filter((c) => c.url === '/api/info')).toHaveLength(2);

@@ -23,6 +23,9 @@ is there, so such a sheet stays on the vector route.
 sheet's storey, per element class and for rooms. The extraction's side is what the sheet draws.
 It also passes on what the sheet's own PDF says a second time (its scale bar), and a sheet that
 has no model goes to that counter alone.
+
+Its reading is one step of the result (`Extracted.steps`, decision 0018): what it found, by class,
+and how long it took.
 """
 
 from collections.abc import Mapping, Sequence
@@ -45,8 +48,9 @@ from app.core.drawing.model import (
     Subject,
 )
 from app.core.errors import NotFoundError
-from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, SecondCounter
+from app.core.pipeline.steps import found_of, found_words, now_ms, starting
 
 SAME_SHAPE = 0.01  # relative difference of width / height between the SVG frame and the page
 LOOKS_FOR: tuple[ReadClass, ...] = ("room", *CLASSES.values())
@@ -85,6 +89,32 @@ class IfcModelExtractor:
         self._files, self._models = files, models
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        began = now_ms()
+        starting("ifc", "IFC model reader")
+        found = self._read(source, sheet)
+        if found.model_objects is not None and not sheet.pages:
+            label = "IFC model reader"
+            counted: dict[str, int] = {}
+            for listed in found.model_objects:
+                counted[listed.class_] = counted.get(listed.class_, 0) + 1
+            did = f"{len(found.model_objects)} model objects: {found_words(counted)}"
+        else:
+            label = "IFC model placed on the sheet (SVG twin)"
+            counted = found_of(
+                found.elements, found.read, rooms=len(found.rooms) if found.rooms else None
+            )
+            did = found_words(counted) if found.read else found.notes[-1]
+        step = StepTrace(
+            id="ifc",
+            label=label,
+            did=did,
+            at_ms=began,
+            ms=now_ms() - began,
+            found=counted,
+        )
+        return found.model_copy(update={"steps": (*found.steps, step)})
+
+    def _read(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if source.kind == "ifc" and not sheet.pages:  # the model itself is asked about
             return Extracted(
                 method="ifc_model",

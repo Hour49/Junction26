@@ -305,8 +305,9 @@
     height: 22px;
   }
 }
-.sv-detail {
-  scroll-margin-top: 88px; /* the shell's sticky header: the scrolled-to detail is not hidden under it */
+.sv-detail,
+.sv-work > .vw {
+  scroll-margin-top: 88px; /* the shell's sticky header: the scrolled-to detail (or plan, R4-E10) is not hidden under it */
 }
 /* K3: on a phone the drawings and conflicts fold behind one toggle with both counts, so the drawing starts above
    the fold; wider screens never show the toggle */
@@ -343,5 +344,51 @@
   }
   .sv-side[data-open='true'] .sv-side-body {
     padding-bottom: 8px;
+  }
+}
+/* R3-G9: on a phone each quantity is a card (name on top, value and state under it); the 84/140 px columns left
+   the name ~66 px (R3-B8). The column heads stay for screen readers only. */
+@media (max-width: 640px) {
+  .sv-table,
+  .sv-table caption,
+  .sv-table tbody {
+    display: block;
+  }
+  .sv-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .sv-table tbody tr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0 10px;
+    padding: 4px 6px 6px;
+    border-top: 1px solid var(--v-line);
+  }
+  .sv-table tbody tr > th,
+  .sv-table tbody tr > td {
+    border-top: 0;
+    padding: 0 4px;
+  }
+  .sv-table tbody tr > th {
+    grid-column: 1 / -1;
+  }
+  .sv-table tbody tr > th small {
+    padding-left: 8px;
+  }
+  .sv-table tbody tr > .sv-num {
+    padding-left: 12px; /* under the name: the name's button has 8 px of its own */
+    text-align: left;
+    font-weight: 600;
+  }
+  .sv-table tbody tr > td[colspan] {
+    grid-column: 1 / -1;
+  }
+  .sv-table tbody tr > td:last-child:not([colspan]) {
+    justify-self: end;
   }
 }

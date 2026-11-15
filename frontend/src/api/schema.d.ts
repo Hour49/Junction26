@@ -1549,6 +1549,11 @@ export interface components {
             kind: string | null;
             /** Name */
             name: string;
+            /**
+             * Not A Drawing
+             * @default false
+             */
+            not_a_drawing: boolean;
             /** Not Drawable Reason */
             not_drawable_reason?: string | null;
             /** Other Renderings */
@@ -1912,6 +1917,8 @@ export interface components {
             state: "queued" | "running" | "ready" | "flagged" | "text_only" | "set_aside";
             /** Step */
             step?: string | null;
+            /** Step Id */
+            step_id?: string | null;
             /** Takeoff */
             takeoff?: {
                 [key: string]: number;
@@ -2743,6 +2750,10 @@ export interface components {
             not_plans?: number | null;
             /** Phase */
             phase?: ("files" | "index") | null;
+            /** Ran */
+            ran?: {
+                [key: string]: components["schemas"]["RanStep"][];
+            };
             /** Readers */
             readers?: {
                 [key: string]: string;
@@ -2844,6 +2855,32 @@ export interface components {
             value_marks: components["schemas"]["ValueMark"][][];
             /** Values */
             values: components["schemas"]["MeasuredValue"][];
+        };
+        /**
+         * RanStep
+         * @description One step that ran on a route's files in this upload (decision 0018): its id and label, and
+         *     on how many files it ended done, skipped or failed (each file counted once per id).
+         */
+        RanStep: {
+            /**
+             * Done
+             * @default 0
+             */
+            done: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped: number;
         };
         /**
          * ReadAsPlan
@@ -3526,6 +3563,10 @@ export interface components {
         SignOffRequest: {
             /** By */
             by: string;
+            /** Expected Unit */
+            expected_unit?: string | null;
+            /** Expected Value */
+            expected_value?: number | null;
             /** Quantity */
             quantity: string;
             /** Settle */
@@ -3621,7 +3662,7 @@ export interface components {
         /**
          * StepTrace
          * @description One thing that ran inside a stage (a reader, a check, a model call), or in the project's
-         *     last phase (decision 0017). Readers that run at the same time have overlapping
+         *     last phase (decision 0018). Readers that run at the same time have overlapping
          *     [at_ms, at_ms + ms) spans.
          */
         StepTrace: {
@@ -3658,7 +3699,7 @@ export interface components {
              * @default done
              * @enum {string}
              */
-            state: "done" | "failed" | "skipped";
+            state: "running" | "done" | "failed" | "skipped";
         };
         /** StoreyRow */
         StoreyRow: {

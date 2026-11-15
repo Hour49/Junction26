@@ -5,7 +5,7 @@ import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ConflictsList } from '../surveyor/ConflictsScreen';
-import { formatMs } from './ingest';
+import { formatMs, nameParts } from './ingest';
 import { ProjectScreen } from './ProjectScreen';
 import { flush, must, triaged, variants } from './testing';
 
@@ -99,6 +99,9 @@ describe('ProjectScreen', () => {
     const h1 = screen.getByRole('heading', { level: 1, name });
     expect(h1.getAttribute('title')).toBe(name);
     expect(h1.className).toContain('line-clamp-3');
+    // IN-121: a break opportunity after each of its separators, so it wraps there before inside a word
+    expect(h1.querySelectorAll('wbr')).toHaveLength(nameParts(name).length - 1);
+    expect(must(h1.querySelector('wbr')).previousSibling?.textContent).toBe('Bauprojekt_');
     cleanup();
     // the upload line cuts it in the middle, the extension kept; its title is the whole name
     sessionStorage.setItem(`uploaded:${ID}`, JSON.stringify({ name, bytes: 2048 }));
@@ -165,7 +168,7 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(error.code, { exact: false })).toBeNull(); // R2-C5: no raw code (shared ErrorView)
     expect(screen.getByRole('link', { name: 'Back to workspaces' }).getAttribute('href')).toBe(
       '#/workspaces',
     );
@@ -179,7 +182,7 @@ describe('ProjectScreen', () => {
     );
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(screen.getByText('network', { exact: false })).toBeTruthy();
+    expect(screen.getByText('cannot reach the server', { exact: false })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     await flush();
     expect(screen.getByRole('heading', { name: project.name })).toBeTruthy();
@@ -231,6 +234,53 @@ describe('ProjectScreen', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
     expect(screen.queryByRole('img', { name: '100 percent done' })).toBeNull();
     expect(screen.queryByText(/drawings? ready/)).toBeNull();
+  });
+
+  it('IN-126 (QA R4-A9) done, its only drawing a screenshot read only to warn: the Nothing-read card, no chat or workspace', async () => {
+    const f = must(project.files[0]);
+    const why = 'This looks like a screenshot of a web page, not a building drawing.';
+    const drawing = must(project.drawings.find((d) => d.route === 'vector'));
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 1,
+        files: [{ ...f, path: 'page.png', state: 'flagged', reason: why }],
+        drawings: [{ ...drawing, file: 'page.png', not_a_drawing: true }],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(panel.textContent).toContain(why); // the backend's flag reason says why
+    expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
+    expect(screen.queryByText(/drawings? ready/)).toBeNull();
+    expect(screen.queryByText('Start a new chat')).toBeNull();
+    expect(screen.queryByText('Open the workspace')).toBeNull();
+  });
+
+  it('IN-126 (QA R4-A9) a screenshot beside a real drawing: 1 ready, and the workspace opens on the real one', async () => {
+    const [f1, f2] = [must(project.files[0]), must(project.files[1])];
+    const [real, shot] = project.drawings.filter((d) => d.route === 'vector');
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 2,
+        files: [f1, { ...f2, state: 'flagged' }],
+        // the screenshot first: the workspace link must still skip it
+        drawings: [{ ...must(shot), not_a_drawing: true }, must(real)],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Drawings ready')).toBe('1 / 2');
+    const card = screen.getByRole('region', { name: 'Progress' });
+    expect(card.textContent).toContain('1 drawing ready.');
+    act(() => {
+      must(must(vi.mocked(ConflictsList).mock.lastCall)[0].onCounts)({ total: 0, needsPerson: 0 });
+    });
+    expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
+      `#/p/${ID}/d/${must(real).drawing_id}/engineer`,
+    );
   });
 
   it('no DXF hint when the set-aside files are not DXF', async () => {
@@ -441,7 +491,10 @@ describe('ProjectScreen', () => {
   });
 
   it('IN-89 every file finished while the project runs: Step 9 of 9, Index working, no file bar', async () => {
-    mockApi({ [GET]: { ...variants.running, files: project.files } });
+    // every file finished while it runs: the server is in its last phase, which lists its steps when it ends
+    mockApi({
+      [GET]: { ...variants.running, files: project.files, phase: 'index', index_steps: [] },
+    });
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText('Step 9 of 9')).toBeTruthy();

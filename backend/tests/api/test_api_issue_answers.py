@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from conftest import upload
 from fastapi.testclient import TestClient
-from test_api_issues import listed, sample
+from test_api_issues import listed, sample, waits_for_you
 from test_review_core import BOX_A, disputed, quantity
 
 from app.api import issue_answers, takeoff
@@ -128,24 +128,39 @@ def test_the_sample_issues_get_chips_and_a_label_by_kind(client: TestClient) -> 
     assert found["reading_flag"]["label"] == "How it was read"
 
 
-def test_the_project_get_has_the_lists_open_counts_and_an_answer_lowers_to_answer(
+def test_the_project_get_has_the_lists_open_counts_as_the_client_counts_them(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     window_conflict(monkeypatch)
     project = sample(client)
     open_ones = [issue for issue in listed(client, project["id"]) if issue["state"] == "open"]
-    to_answer = [issue for issue in open_ones if issue["severity"] != "note"]
+    to_answer = [issue for issue in open_ones if waits_for_you(issue)]
+    conflicts = [i for i in open_ones if i["kind"] == "conflict" and i["severity"] != "note"]
     counts = ("conflicts_open", "issues_open", "issues_to_answer")
     (summary,) = client.get("/api/projects").json()["projects"]
     assert [project[key] for key in counts] == [summary[key] for key in counts]
-    assert [project[key] for key in counts] == [len(to_answer), len(open_ones), len(to_answer)]
-    assert len(to_answer) > 0
-    said = {"text": "Check it on site", "by": "Ana"}
-    assert answer(client, project["id"], to_answer[0]["id"], said).status_code == 200
-    after = client.get(f"/api/projects/{project['id']}").json()
-    (listed_after,) = client.get("/api/projects").json()["projects"]
-    expected = [len(to_answer), len(open_ones), len(to_answer) - 1]  # still open: an answer
-    assert [after[key] for key in counts] == [listed_after[key] for key in counts] == expected
+    assert [project[key] for key in counts] == [len(conflicts), len(open_ones), len(to_answer)]
+    assert conflicts  # open conflicts nobody looked at: on Ingest, not to answer on Documents
+
+
+def test_an_open_conflict_no_model_looked_at_is_not_counted_to_answer(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, plan_pdf: bytes
+) -> None:
+    """QA R3-G1: the badge said "1 issue in Documents needs you" while Documents (which lists no
+    conflict without `resolved`, DOC-3) said "Nothing needs your answer"."""
+    window_conflict(monkeypatch)
+    project_id = upload(client, plan_pdf)
+    (issue,) = listed(client, project_id)
+    assert (issue["kind"], issue["severity"], issue["state"]) == (
+        "conflict",
+        "needs_person",
+        "open",
+    )
+    assert "resolved" not in issue and not waits_for_you(issue)
+    counts = ("conflicts_open", "issues_open", "issues_to_answer")
+    (summary,) = client.get("/api/projects").json()["projects"]
+    project = client.get(f"/api/projects/{project_id}").json()
+    assert [project[key] for key in counts] == [summary[key] for key in counts] == [1, 1, 0]
 
 
 def test_a_running_project_has_no_counts(

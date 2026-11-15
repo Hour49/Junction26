@@ -53,7 +53,7 @@ from app.core.errors import (
     UnknownPackError,
     UnsupportedFileError,
 )
-from app.core.review.review import NotAllowedError
+from app.core.review.review import NotAllowedError, ValueChangedError
 from app.settings import Settings
 
 # The only place a domain error becomes an HTTP status. An unmapped one stays a 500, like any bug.
@@ -67,6 +67,7 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
 CODE_BY_ERROR: dict[type[DomainError], str] = {
     UnknownPackError: "unknown-pack",
     NotTriagedError: "not-triaged",
+    ValueChangedError: "value-changed",
 }
 CODES = {
     404: "not-found",
@@ -90,7 +91,8 @@ def _error(
 def domain_error_response(request: Request, exc: Exception) -> JSONResponse:
     status = next(code for error, code in STATUS_BY_ERROR.items() if isinstance(exc, error))
     code = next((code for error, code in CODE_BY_ERROR.items() if isinstance(exc, error)), None)
-    return _error(status, str(exc), code or CODES[status])
+    errors = exc.errors if isinstance(exc, ValueChangedError) else None
+    return _error(status, str(exc), code or CODES[status], errors)
 
 
 def http_error_response(request: Request, exc: Exception) -> JSONResponse:

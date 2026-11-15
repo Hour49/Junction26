@@ -233,7 +233,8 @@ class ServiceFollower:
     def _sheet(self, file: FileStatus, page: int, facts: FactSheet | None) -> Sheet:
         """Where a drawing's page lies: its size in metres when it has a scale, its room names
         at their boxes' centres, the floor its services facts name, and what pairing reads:
-        the upload's path, the sheet number triage read, the lanes its picture marks."""
+        the upload's path, the sheet number and discipline triage read, the lanes its picture
+        marks."""
         drawing_id = file.drawing_id or ""
         drawing = self.pipeline.ingest.drawing(drawing_id)
         read = file.triage.sheet if file.triage else None
@@ -251,6 +252,7 @@ class ServiceFollower:
             ),
             name=file.path or None,
             sheet_number=read.sheet_number if read else None,
+            discipline=read.discipline if read else None,
             disciplines=tuple(
                 lane
                 for lane in LANES
@@ -365,8 +367,23 @@ def follower(app: Any, pipeline: PipelineStore) -> ServiceFollower:
     credits = getattr(app.state, "credits", None)
     made = ServiceFollower(pipeline, files, credits.of if credits is not None else lambda *_: None)
     if pipeline.settings.discipline_pictures != "off":  # the picture lane's kept sheets
-        from app.adapters.discipline_pictures.lane import PictureSheets
+        from app.adapters.discipline_pictures.lane import PictureSheets, kept_in
 
-        kept = PictureSheets(None, pipeline.settings.discipline_pictures_cache_dir)
+        settings = pipeline.settings
+        kept = PictureSheets(
+            None, kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
+        )
         made.pictures = kept.of_drawings(lambda: _done(pipeline, pipeline.project_id).files)
+        from app.adapters.discipline_pictures import sheet_walls  # the pictures' wall lines
+
+        made.sheet_walls = sheet_walls.reader(partial(_picture, pipeline))
     return made
+
+
+def _picture(pipeline: PipelineStore, sheet: Sheet) -> tuple[str, Callable[[], bytes]] | None:
+    """The services sheet's uploaded file: its sha256 and how to load its bytes; None: none."""
+    files = _done(pipeline, pipeline.project_id).files
+    file = next((f for f in files if f.drawing_id == sheet.drawing_id and f.sha256), None)
+    if file is None or file.sha256 is None:
+        return None
+    return file.sha256, partial(pipeline.ingest.upload_bytes, pipeline.project_id, file.id)

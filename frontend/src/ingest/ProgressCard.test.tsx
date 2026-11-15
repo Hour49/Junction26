@@ -7,6 +7,7 @@ import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { LANE_ROWS, splitPath } from './RouteLanes';
 import { ProgressCard } from './ProgressCard';
+import type { RanStep } from './pipeline';
 import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
 
 beforeEach(stubResizeObserver);
@@ -42,6 +43,7 @@ const running: ProjectView = {
   conflicts_open: null,
   cost_usd: 0.031,
   readers: DEMO_READERS,
+  ran: undefined, // the fixture's is a finished upload's: here nothing has ended yet
   phase: 'files',
   files: [
     file('img', {
@@ -84,12 +86,24 @@ describe('ProgressCard: pipeline view v5', () => {
         .getAllByRole('heading', { level: 3 })
         .map((h) => h.textContent),
     ).toEqual(['How each file is read', 'Drawn PDF route', 'Image route', 'Not routed yet']);
-    const chips = within(lane('Image')).getByRole('list', { name: 'Readers' });
+    const chips = within(lane('Image')).getByRole('group', { name: 'Readers' });
     expect(
       within(chips)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(RASTER_CHIPS.map((c) => (c === 'symbol detector' ? `running: ${c}` : c)));
+    ).toEqual([
+      // by what they do, in the order the groups run (IN-120)
+      'photo flattening',
+      'printed scale (Gemini)',
+      'running: symbol detector',
+      'Gemini count decision',
+      'count arbiter',
+      'room reader',
+      'Gemini cross-check',
+      'double check by 2 more readers',
+      'Gemini reader',
+      'scale from door sizes',
+    ]);
     expect(
       within(lane('Drawn PDF'))
         .getAllByRole('listitem')
@@ -128,6 +142,14 @@ describe('ProgressCard: pipeline view v5', () => {
       <ProgressCard project={flagged('a phone photo read without correction')} now={Date.now()} />,
     );
     expect(lane('Image').textContent).toContain('2 doors. a phone photo read without correction');
+    // IN-122 (QA R3-G8): the reason is shown whole, not cut at 2 lines; a running file's note stays at 2
+    const note = must(lane('Image').querySelector('.ingest-note'));
+    expect(note.className).not.toContain('line-clamp');
+    cleanup();
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const live = must(lane('Image').querySelector('.ingest-note'));
+    expect(live.textContent).toBe('Extract: Symbol detector, 8 views');
+    expect(live.className).toContain('line-clamp-2');
     cleanup();
     render(<ProgressCard project={flagged('')} now={Date.now()} />);
     expect(lane('Image').textContent).toContain('2 doors');
@@ -144,7 +166,7 @@ describe('ProgressCard: pipeline view v5', () => {
     render(<ProgressCard project={old} now={Date.now()} />);
     expect(lane('Image').textContent).toContain('Extract');
     expect(lane('Image').textContent).not.toContain('Symbol detector');
-    expect(within(lane('Image')).queryByRole('list', { name: 'Readers' })).toBeNull();
+    expect(within(lane('Image')).queryByRole('group', { name: 'Readers' })).toBeNull();
     // no record of the readers: nothing said about them either way
     expect(lane('Image').textContent).not.toContain('No reader for this route');
     expect(screen.getByText('Step 5 of 9')).toBeTruthy(); // IN-111: where the running file is, not the queued one
@@ -164,13 +186,13 @@ describe('ProgressCard: pipeline view v5', () => {
       files: next.files.map((f) => (f.id === 'img' ? { ...f, step: 'Wall tracer' } : f)),
     };
     rerender(<ProgressCard project={after} now={Date.now()} />);
-    const chips = within(within(lane('Image')).getByRole('list', { name: 'Readers' }))
+    const chips = within(within(lane('Image')).getByRole('group', { name: 'Readers' }))
       .getAllByRole('listitem')
       .map((li) => li.textContent);
     expect(chips).toContain('symbol detector✓');
     expect(chips).toContain('room reader✓');
     expect(chips).toContain('running: Wall tracer');
-    expect(chips).toContain('Gemini for sheets with few symbols'); // configured, not seen: no tick
+    expect(chips).toContain('Gemini reader'); // configured (if few symbols), not seen: no tick
   });
 
   it("IN-118 a live file's real steps tick their reader chips; none becomes a chip of its own", () => {
@@ -185,20 +207,66 @@ describe('ProgressCard: pipeline view v5', () => {
           now={Date.now()}
         />,
       );
-    const chips = within(within(lane('Image')).getByRole('list', { name: 'Readers' }))
+    const chips = within(within(lane('Image')).getByRole('group', { name: 'Readers' }))
       .getAllByRole('listitem')
       .map((li) => li.textContent);
     expect(chips).toHaveLength(RASTER_CHIPS.length);
     for (const c of [
       'printed scale (Gemini)✓',
-      'Gemini cross-check (not counted)✓',
+      'Gemini cross-check✓',
       'Gemini count decision✓',
       'count arbiter✓',
       'room reader✓',
-      'double check by 2 more readers (not counted)✓',
-      'running: Gemini for sheets with few symbols',
+      'double check by 2 more readers✓',
+      'running: Gemini reader',
     ])
       expect(chips).toContain(c);
+  });
+
+  it('IN-120 each lane with more than one kind of reader shows them in labelled groups, in run order', () => {
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const groups = (name: string) =>
+      within(within(lane(name)).getByRole('group', { name: 'Readers' }))
+        .getAllByRole('list')
+        .map((ul) => [
+          ul.getAttribute('aria-label'),
+          within(ul)
+            .getAllByRole('listitem')
+            .map((li) => li.textContent),
+        ]);
+    expect(groups('Image')).toEqual([
+      ['Prepare', ['photo flattening', 'printed scale (Gemini)']],
+      [
+        'Count',
+        ['running: symbol detector', 'Gemini count decision', 'count arbiter', 'room reader'],
+      ],
+      ['Checks, not counted', ['Gemini cross-check', 'double check by 2 more readers']],
+      ['If few symbols', ['Gemini reader']],
+      ['Scale', ['scale from door sizes']],
+    ]);
+    // the label is shown with its chips
+    for (const label of ['Prepare', 'Count', 'Checks, not counted', 'If few symbols', 'Scale'])
+      expect(within(lane('Image')).getByText(label).tagName).toBe('P');
+    expect(groups('Drawn PDF')).toEqual([
+      ['Count', ['drawn-PDF reader', 'schedule tables']],
+      ['Checks, not counted', ['second count']],
+    ]);
+  });
+
+  it('IN-120 a lane with one kind of reader: its chips with no group label', () => {
+    render(
+      <ProgressCard
+        project={{ ...running, readers: { ...DEMO_READERS, second_counter: 'hello' } }}
+        now={Date.now()}
+      />,
+    );
+    const readers = within(lane('Drawn PDF')).getByRole('group', { name: 'Readers' });
+    expect(
+      within(readers)
+        .getAllByRole('list')
+        .map((ul) => ul.getAttribute('aria-label')),
+    ).toEqual(['Readers']);
+    expect(within(readers).queryByText('Count')).toBeNull();
   });
 
   it('IN-119 the sorting every file goes through before its route, from the recorded triage', () => {
@@ -321,6 +389,9 @@ describe('ProgressCard: pipeline view v5', () => {
     );
     const link = within(lane('Image')).getByRole('link', { name: long }); // the full path is still its name
     expect(link.getAttribute('title')).toBe(long);
+    // jsdom joins the two spans with no space; Chromium puts one between the flex items ("…/ Grundriss_OG3.png"),
+    // so the name is set on the link itself (detail's FileMatrix, #593)
+    expect(link.getAttribute('aria-label')).toBe(long);
     expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
     expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');
@@ -372,5 +443,141 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(lane('Drawn PDF').textContent).toContain('1 file · 1 drawing read');
     expect(lane('Image').textContent).toContain('1 file');
     expect(lane('Image').textContent).not.toContain('drawing read');
+  });
+
+  const chipsOf = (name: string) =>
+    within(within(lane(name)).getByRole('group', { name: 'Readers' }))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+  const ranStep = (id: string, counts: Partial<RanStep>): RanStep => ({
+    id,
+    label: id,
+    done: 0,
+    skipped: 0,
+    failed: 0,
+    ...counts,
+  });
+
+  it('IN-123 the running chip is found by the step id, the label only when no id is sent', () => {
+    const at = (step: string, step_id: string | null): ProjectView => ({
+      ...running,
+      files: running.files.map((f) => (f.id === 'img' ? { ...f, step, step_id } : f)),
+    });
+    // the arbiter's label begins "Symbol detector", its id is the count arbiter's
+    render(
+      <ProgressCard
+        project={at('Symbol detector, 8 views + count arbiter', 'arbiter')}
+        now={Date.now()}
+      />,
+    );
+    let chips = chipsOf('Image');
+    expect(chips).toContain('running: count arbiter');
+    expect(chips).toContain('symbol detector');
+    cleanup();
+    // Gemini Decisions over the detector: one step, both chips run in it
+    render(
+      <ProgressCard
+        project={at(
+          'Gemini Decisions count swap (1536 px) over Symbol detector, 8 views',
+          'decisions',
+        )}
+        now={Date.now()}
+      />,
+    );
+    chips = chipsOf('Image');
+    expect(chips).toContain('running: Gemini count decision');
+    expect(chips).toContain('running: symbol detector');
+    cleanup();
+    render(
+      <ProgressCard
+        project={at('Double-check reader m1: Symbol detector', 'double_check:m1')}
+        now={Date.now()}
+      />,
+    );
+    expect(chipsOf('Image')).toContain('running: double check by 2 more readers');
+    cleanup();
+    // an older server (no step_id): the label still finds it
+    render(
+      <ProgressCard project={at('Room reader (Gemini + region model)', null)} now={Date.now()} />,
+    );
+    expect(chipsOf('Image')).toContain('running: room reader');
+  });
+
+  it('IN-124 `ran` ticks what ran, also when done or reloaded; once the lane ends, the rest is dimmed', () => {
+    const img = file('img', { route: 'raster', state: 'ready', stage: 'write', drawing_id: 'd' });
+    const ran = {
+      raster: [
+        ranStep('rectifier', { done: 1 }),
+        ranStep('decisions', { done: 1 }),
+        ranStep('arbiter/pick', { failed: 1 }),
+        ranStep('rooms', { done: 1 }),
+        ranStep('carbon', { skipped: 1 }),
+        ranStep('double_check:l1', { done: 1 }),
+      ],
+    };
+    // a finished project opened fresh: nothing was seen running, `ran` says what ran
+    render(
+      <ProgressCard
+        project={{ ...project, readers: DEMO_READERS, files: [img], ran }}
+        now={Date.now()}
+      />,
+    );
+    expect(chipsOf('Image')).toEqual([
+      'photo flattening✓',
+      'printed scale (Gemini) · did not run',
+      'symbol detector✓', // inside Gemini Decisions
+      'Gemini count decision✓',
+      'count arbiter✓', // failed on a file: it ran
+      'room reader✓',
+      'Gemini cross-check · did not run',
+      'double check by 2 more readers✓',
+      'Gemini reader · not needed here', // only skipped: the sheet had enough symbols
+      'scale from door sizes', // no step of its own: nothing to tell
+    ]);
+    const dim = must(
+      within(lane('Image'))
+        .getAllByText(/did not run/)[0]
+        ?.closest('li'),
+    );
+    expect(dim.dataset.dimmed).toBe('true');
+    cleanup();
+    // while the lane still has a file to read: what has not run yet is not dimmed
+    const live: ProjectView = {
+      ...running,
+      files: [img, file('img2', { route: 'raster', state: 'running', stage: 'extract' })],
+      ran,
+    };
+    render(<ProgressCard project={live} now={Date.now()} />);
+    expect(chipsOf('Image')).toContain('room reader✓');
+    expect(chipsOf('Image')).toContain('printed scale (Gemini)');
+    expect(chipsOf('Image').join()).not.toMatch(/did not run|not needed here/);
+    cleanup();
+    // no `ran` (an older project): as before, no tick and nothing dimmed
+    render(
+      <ProgressCard
+        project={{ ...project, readers: DEMO_READERS, files: [img], ran: undefined }}
+        now={Date.now()}
+      />,
+    );
+    expect(chipsOf('Image').join()).not.toMatch(/did not run|not needed here|✓/);
+  });
+
+  it('IN-125 a running last-phase step reads as running, not as a bare label', () => {
+    const indexing: ProjectView = {
+      ...running,
+      phase: 'index',
+      files: running.files.map((f) => ({ ...f, state: 'ready', stage: 'write' })),
+      index_steps: [
+        step({ id: 'judge', label: 'Relevance judge', did: '0 files judged' }),
+        step({ id: 'describe', label: 'Files for the evidence index', did: '', state: 'running' }),
+      ],
+    };
+    render(<ProgressCard project={indexing} now={Date.now()} />);
+    const last = screen.getByRole('list', { name: 'Last phase' });
+    expect(
+      within(last)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Relevance judge: 0 files judged', 'Files for the evidence index … running']);
   });
 });

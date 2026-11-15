@@ -66,7 +66,8 @@ describe('FileTraceScreen', () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    const items = [...document.querySelectorAll('.ingest-trace li')];
+    // the stage rows only: each stage's steps are list items nested inside its row
+    const items = [...document.querySelectorAll('.ingest-trace > li')];
     expect(items).toHaveLength(trace.stages.length);
     trace.stages.forEach((s, i) => {
       const item = must(items[i]);
@@ -105,7 +106,7 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(error.code, { exact: false })).toBeNull(); // R2-C5: no raw code
     expect(screen.getByRole('link', { name: 'Back to Documents' }).getAttribute('href')).toBe(
       `#/p/${PID}/documents`,
     );

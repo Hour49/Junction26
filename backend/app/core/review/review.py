@@ -48,6 +48,17 @@ class NotAllowedError(DomainError):
     """An edit the review's state forbids now (a signed-off quantity, an unsettled conflict)."""
 
 
+class ValueChangedError(NotAllowedError):
+    """A sign-off of a value that is no longer the quantity's (R4-B10): `errors` gives the
+    current value and unit, so the client can show it."""
+
+    def __init__(self, detail: str, current: float, unit: str) -> None:
+        super().__init__(detail)
+        self.errors: list[dict[str, object]] = [
+            {"loc": ["body", "expected_value"], "current_value": current, "unit": unit}
+        ]
+
+
 def parse_key(key: str) -> tuple[Measure, str, Scope]:
     """The measure, subject and filters of a takeoff key (takeoff.py quantity_key)."""
     head, *filters = key.split("|")

@@ -109,7 +109,7 @@ describe('HomeScreen', () => {
     fireEvent.click(sampleButton());
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(code, { exact: false })).toBeNull(); // R2-C5: no raw code
     expect((sampleButton() as HTMLButtonElement).disabled).toBe(false);
     expect(input().disabled).toBe(false);
   });
@@ -322,13 +322,21 @@ describe('upload: sending, received, failed', () => {
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
-  it('a file the server refuses says the server refused it, with its detail; Retry is offered', async () => {
+  it('a file the server refuses says the server refused it, with its detail; no Retry: the file is the problem (QA R4-G6)', async () => {
     const xhr = held();
     xhr.answer(413, { detail: 'the upload is over 200 MB', code: 'too-large' });
     await flush();
     expect(screen.getByRole('alert').textContent).toContain(
       'The server refused site.zip: the upload is over 200 MB',
     );
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  it('a busy server (429) is not the file: Retry is offered', async () => {
+    const xhr = held();
+    xhr.answer(429, { detail: '3 projects are still being ingested; try again', code: 'busy' });
+    await flush();
+    expect(screen.getByRole('alert').textContent).toContain('still being ingested');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
@@ -340,6 +348,7 @@ describe('upload: sending, received, failed', () => {
       'The server refused site.zip: the upload is empty',
     );
     expect(screen.getByRole('alert').textContent).not.toContain('site.zip: site.zip');
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull(); // QA R4-G6: an empty file stays empty
   });
 
   it('a new mistake replaces the last failed upload: no stale failure beside the new note', async () => {
@@ -349,7 +358,11 @@ describe('upload: sending, received, failed', () => {
     fireEvent.drop(screen.getByRole('region', { name: 'Drop drawings or an archive' }), {
       dataTransfer: { files: [new File(['a'], 'a.pdf'), new File(['b'], 'b.pdf')] },
     });
-    expect(screen.getByText('Drop one file or one zip at a time.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Drop one file at a time. To send several, such as a DXF or SVG with its PDF, put them in one .zip.',
+      ),
+    ).toBeTruthy();
     expect(screen.queryByText(/The server refused/)).toBeNull();
   });
 });

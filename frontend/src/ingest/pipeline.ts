@@ -3,6 +3,9 @@
 import type { FileStatus, ProjectView } from '../api';
 import { STEPS, activeStep, isFinished, plural, stepOf } from './ingest';
 
+/** One step that ran on a route's files in this upload (`ProjectStatus.ran`, decision 0018). */
+export type RanStep = NonNullable<ProjectView['ran']>[string][number];
+
 export type RouteId = 'bim' | 'cad' | 'vector' | 'raster';
 /** The routes in the backend's order of preference (ingest.md v4, step 3): model, CAD, drawn PDF, image. */
 export const ROUTES: readonly RouteId[] = ['bim', 'cad', 'vector', 'raster'];
@@ -28,9 +31,13 @@ export function unread(
   return item.route != null && readers?.[item.route] === NOTHING;
 }
 
-/** The drawings something was read off: what "Drawings ready" and the done line count (IN-116). */
+/**
+ * The drawings something was read off: what "Drawings ready" and the done line count (IN-116). A sheet the
+ * sheet-kind step called not a drawing at all (a screenshot) is read only because the step warns: not a drawing
+ * ready either (QA R4-A9, API.md `not_a_drawing`, left out when false).
+ */
 export function readDrawings(project: Pick<ProjectView, 'drawings' | 'readers'>) {
-  return project.drawings.filter((d) => !unread(d, project.readers));
+  return project.drawings.filter((d) => !unread(d, project.readers) && !d.not_a_drawing);
 }
 
 /** The reader a RASTER_COMPONENTS part is, by part (backend app/adapters/raster/__init__.py `GROUPS`). */
@@ -57,33 +64,53 @@ const LABELS: Record<string, string[]> = {
 /** The double-check readers' chip starts so: "double check by 2 more readers (not counted)". */
 const DOUBLE_CHECK = 'double check';
 
-/** The readers one `part=source` pair stands for (backend app/composition.py `_raster_component`). */
-function sourceReaders(part: string, source: string): string[] {
+/** The step id a source kind runs as, when it is not one of the cases below (backend raster `SOURCE_STEPS`). */
+const SOURCE_ID: Record<string, string> = { photo: 'detector', region: 'detector' };
+
+/**
+ * The readers one `part=source` pair stands for (backend app/composition.py `_raster_component`), each with the
+ * step ids it runs as (decision 0018, backend app/adapters/raster `SOURCE_STEPS`).
+ */
+function sourceSteps(part: string, source: string): [string, string[]][] {
   const at = source.indexOf(':');
   const kind = at < 0 ? source : source.slice(0, at);
   const inner = at < 0 ? '' : source.slice(at + 1);
   const own = PART[part] ?? part;
   switch (kind) {
     case 'decisions':
-    case 'decisions-s1536': // the inner source reads, Gemini Decisions picks each count
-      return [...sourceReaders(part, inner), 'Gemini count decision'];
+    case 'decisions-s1536': // the inner source reads, Gemini Decisions picks each count: one step for both
+      return [
+        ...sourceSteps(part, inner).map(([c, ids]): [string, string[]] => [
+          c,
+          [...ids, 'decisions'],
+        ]),
+        ['Gemini count decision', ['decisions']],
+      ];
     case 'arbiter-t1': // the symbol detector read twice, a model picks between the counts
-      return ['symbol detector', 'count arbiter'];
+      return [
+        ['symbol detector', ['arbiter/base', 'arbiter/second']],
+        ['count arbiter', ['arbiter', 'arbiter/pick']],
+      ];
     case 'detector':
     case 'detector-v2':
     case 'detector-v4':
     case 'detector-v8': // one model finds the symbols and the plans
-      return ['symbol detector'];
+      return [['symbol detector', ['detector']]];
     case 'carbon':
-      return ['Gemini reader'];
+      return [['Gemini reader', ['carbon']]];
     case 'gemini':
     case 'regionrooms':
-      return ['room reader'];
+      return [['room reader', ['rooms']]];
     case 'one-plan':
-      return ['whole page as one plan'];
+      return [['whole page as one plan', ['plans']]];
     default: // region, photo, verda, exp, dir: the part's own reader
-      return [own];
+      return [[own, [SOURCE_ID[kind] ?? 'reader']]];
   }
+}
+
+/** The readers one `part=source` pair stands for. */
+function sourceReaders(part: string, source: string): string[] {
+  return sourceSteps(part, source).map(([c]) => c);
 }
 
 function parts(spec: string | undefined): [string, string][] {
@@ -224,6 +251,130 @@ export function stepMatches(label: string, reader: string): boolean {
   return [reader, ...starts].some((s) => l.startsWith(s.toLowerCase()));
 }
 
+/**
+ * The step ids each chip that is not a RASTER_COMPONENTS part stands for (decision 0018's stable ids, backend
+ * core/ingest/steps.py). An id ending in ":" stands for every id it begins. The double-check chip is matched by its
+ * start (`chipSteps`).
+ */
+const CHIP_STEPS: Record<string, readonly string[]> = {
+  'IFC model reader': ['ifc'],
+  'drawn-PDF reader': ['vector'],
+  'schedule tables': ['tables'],
+  'second count': ['second_count:', 'ifc_vs_sheet', 'schedule_tags', 'scale_check', 'room_areas'],
+  'photo flattening': ['rectifier'],
+  'printed scale (Gemini)': ['printed_scale'],
+  'Gemini cross-check (not counted)': ['carbon_check'],
+  'photo detector': ['detector'],
+  'Gemini for sheets with few symbols': ['carbon'],
+  'Gemini reader': ['carbon'],
+};
+
+/** Each reader chip's step ids on this project. */
+export type ChipSteps = ReadonlyMap<string, readonly string[]>;
+
+/** Each chip's step ids: the RASTER_COMPONENTS parts as this project configured them, then the fixed ones. */
+export function chipStepsOf(readers: Record<string, string> | undefined): ChipSteps {
+  const ids = new Map<string, string[]>(Object.entries(CHIP_STEPS).map(([c, x]) => [c, [...x]]));
+  for (const [part, source] of parts(readers?.raster_components))
+    for (const [chip, more] of sourceSteps(part, source))
+      ids.set(chip, [...new Set([...(ids.get(chip) ?? []), ...more])]);
+  return ids;
+}
+
+/** The step ids a chip stands for (IN-123). Empty: none known (matched by label only, never dimmed). */
+export function chipSteps(chip: string, known: ChipSteps): readonly string[] {
+  if (chip.startsWith(DOUBLE_CHECK)) return ['double_check:'];
+  return known.get(chip) ?? [];
+}
+
+/** Whether a step id is one the chip stands for. */
+export function chipHasStep(chip: string, id: string, known: ChipSteps): boolean {
+  return chipSteps(chip, known).some((s) => (s.endsWith(':') ? id.startsWith(s) : id === s));
+}
+
+/** A step seen running: its stable id when the server sends one (`FileStatus.step_id`), and its label. */
+export type SeenStep = { id: string | null; label: string };
+
+/** Whether the chip stands for a step: by id when the step has one and the chip has ids, else by label. */
+export function chipCovers(chip: string, step: SeenStep, known: ChipSteps): boolean {
+  return step.id !== null && chipSteps(chip, known).length > 0
+    ? chipHasStep(chip, step.id, known)
+    : stepMatches(step.label, chip);
+}
+
+/**
+ * What the upload's `ran` (`ProjectStatus.ran[route]`) says of a chip (IN-124): "ran" when one of its steps ended
+ * done or failed on a file, "skipped" when its steps only appeared skipped, "absent" when none appeared. null:
+ * nothing to tell (no `ran` from this server or not yet, or a chip with no known id).
+ */
+export function chipRan(
+  chip: string,
+  ran: readonly RanStep[] | undefined,
+  known: ChipSteps,
+): 'ran' | 'skipped' | 'absent' | null {
+  if (!ran || chipSteps(chip, known).length === 0) return null;
+  const mine = ran.filter((s) => chipHasStep(chip, s.id, known));
+  if (mine.some((s) => s.done + s.failed > 0)) return 'ran';
+  return mine.length > 0 ? 'skipped' : 'absent';
+}
+
+/** What a reader does, in the order the groups run (IN-120). */
+export type ReaderGroup = 'prepare' | 'count' | 'checks' | 'few' | 'scale' | 'other';
+const GROUP_ORDER: readonly ReaderGroup[] = ['prepare', 'count', 'checks', 'few', 'scale', 'other'];
+export const GROUP_LABEL: Record<ReaderGroup, string> = {
+  prepare: 'Prepare',
+  count: 'Count',
+  checks: 'Checks, not counted',
+  few: 'If few symbols',
+  scale: 'Scale',
+  other: 'Also ran',
+};
+/** The readers that do not count (every other configured reader does: `count`). */
+const GROUP_OF: Record<string, ReaderGroup> = {
+  'photo flattening': 'prepare',
+  'printed scale (Gemini)': 'prepare',
+  'tiles for big sheets': 'prepare',
+  'Gemini cross-check (not counted)': 'checks',
+  'second count': 'checks',
+  'Gemini for sheets with few symbols': 'few',
+  'scale from door sizes': 'scale',
+  'scale reader': 'scale',
+};
+
+/** The group a configured reader (a `routeReaders` name) is in, by what it is, not where it sits. */
+export function readerGroup(reader: string): ReaderGroup {
+  if (reader.startsWith(DOUBLE_CHECK)) return 'checks';
+  return GROUP_OF[reader] ?? 'count';
+}
+
+/**
+ * A lane's readers by what they do, groups in the order they run, readers in theirs. `extra`: step labels the
+ * server ran that no reader name covers ("Also ran"). One group: no label (the chips say it all).
+ */
+export function groupReaders(
+  readers: readonly string[],
+  extra: readonly string[] = [],
+): { group: ReaderGroup; label: string | null; readers: string[] }[] {
+  const of = (r: string) => (extra.includes(r) ? 'other' : readerGroup(r));
+  const all = [...readers, ...extra];
+  const groups = GROUP_ORDER.map((group) => ({
+    group,
+    label: GROUP_LABEL[group],
+    readers: all.filter((r) => of(r) === group),
+  })).filter((g) => g.readers.length > 0);
+  return groups.length === 1 ? groups.map((g) => ({ ...g, label: null })) : groups;
+}
+
+/**
+ * A chip's words under its group's label: what the label already says is left out ("Gemini cross-check" under
+ * "Checks, not counted", "Gemini reader" under "If few symbols"). With no label, the reader's full name.
+ */
+export function chipWords(reader: string, labelled: boolean): string {
+  if (!labelled) return reader;
+  if (readerGroup(reader) === 'few') return 'Gemini reader';
+  return reader.replace(/ \(not counted\)$/, '');
+}
+
 export type Lane = {
   id: RouteId | 'waiting' | 'other';
   name: string;
@@ -285,6 +436,14 @@ const ROUTE_PLURAL: Record<RouteId, [string, string]> = {
   raster: ['image', 'images'],
 };
 
+/** Flagged files a person should look at; one on a route with no reader counts as "not read" instead (IN-116). */
+export const flaggedCount = (files: readonly FileStatus[], readers?: Record<string, string>) =>
+  files.filter((f) => f.state === 'flagged' && !unread(f, readers)).length;
+
+/** "2 flagged files need a look": the finished screen's words, which Documents repeats (R4-E15). */
+export const needALook = (n: number) =>
+  `${plural(n, 'flagged file')} ${n === 1 ? 'needs' : 'need'} a look`;
+
 /**
  * The finished screen's sentence: what was read by which route, then what needs a person. "Read 3 drawn PDFs and
  * 1 image. 2 flagged files need a look; 1 not read; 1 set aside." Each drawing once (another rendering is not
@@ -310,10 +469,10 @@ export function routeSummary(
     read.length > 1
       ? `${read.slice(0, -1).join(', ')} and ${read[read.length - 1] ?? ''}`
       : read[0];
-  const flagged = files.filter((f) => f.state === 'flagged' && !unread(f, readers)).length;
+  const flagged = flaggedCount(files, readers);
   const aside = files.filter((f) => f.state === 'set_aside').length;
   const person = [
-    flagged ? `${plural(flagged, 'flagged file')} ${flagged === 1 ? 'needs' : 'need'} a look` : '',
+    flagged ? needALook(flagged) : '',
     notRead ? `${String(notRead)} not read` : '',
     aside ? `${String(aside)} set aside` : '',
   ].filter(Boolean);

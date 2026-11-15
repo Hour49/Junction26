@@ -29,7 +29,7 @@ from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
 from app.core.ifc_facts import FactSheet
 from app.core.ingest.model import DrawingInfo, FileStatus
-from app.core.ingest.triage import sheet_doubt, sheet_flag
+from app.core.ingest.triage import sheet_doubt, sheet_flag, symbols_refused
 from app.core.review.ask import Asked, ask, user_scaled
 from app.core.review.check import Check, Level
 from app.core.review.model import (
@@ -195,6 +195,7 @@ def asked_on(
         carbon_ladder=answering.carbon_ladder,
         room_words=answering.room_words,
         facts=facts_of(answering, ingest, named, found),
+        no_symbols=None if found is None else symbols_refused(found.triage),
     )
     asked = user_scaled(asked, drawing)  # USER_SCALE: a no-op on a drawing at its own scale
     sha256 = None if found is None else found.sha256

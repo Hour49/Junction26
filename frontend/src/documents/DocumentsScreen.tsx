@@ -10,6 +10,7 @@ import {
 } from '../api';
 import { keepPolling, plural } from '../ingest/ingest';
 import { usePoll } from '../ingest/usePoll';
+import { flaggedCount, needALook } from '../ingest/pipeline';
 import { issuesChanged } from '../shell/issueCount';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
@@ -57,11 +58,15 @@ export function DocumentsScreen({
 
   const list = issues && 'list' in issues ? issues.list : null;
   // Issues on demand: what waits for the person's answer now, the answerable notes still open (the call on a file
-  // triage set aside: answerable, not counted, documents.md DOC-7), and what they answered on this visit
+  // triage set aside: answerable, not counted, documents.md DOC-7), what they answered on this visit, and what was
+  // answered before (kept by the server, R4-B12: listed collapsed so it can still be seen, changed or undone)
   const answerableOpen = (i: Issue) => isAnswerable(i) && i.state === 'open' && !i.answer;
+  const answeredBefore = (i: Issue) => isAnswerable(i) && !!i.answer && !answeredHere.has(i.id);
   const rows = list
     ? documentIssues(
-        list.filter((i) => waitsForYou(i) || answerableOpen(i) || answeredHere.has(i.id)),
+        list.filter(
+          (i) => waitsForYou(i) || answerableOpen(i) || answeredHere.has(i.id) || answeredBefore(i),
+        ),
       )
     : [];
   // one getDrawing per drawing with a located issue; a failure shows that drawing's cards with no picture
@@ -112,6 +117,7 @@ export function DocumentsScreen({
     issuesChanged(projectId); // the header badge asks again
   };
   const left = list ? needsYou(list) : 0;
+  const flagged = flaggedCount(project.files, project.readers);
   const failed = issues && 'error' in issues ? errorText(issues.error) : null;
 
   return (
@@ -141,7 +147,7 @@ export function DocumentsScreen({
           <p className={MUTED}>The issues are listed once the project is read.</p>
         ) : failed ? (
           <p role="alert" className="text-danger">
-            {failed.detail} ({failed.code}){' '}
+            {failed.detail}{' '}
             <Button
               variant="secondary"
               size="pill"
@@ -172,9 +178,16 @@ export function DocumentsScreen({
                 onFile={onFile}
                 pack={pack}
                 onIssue={onIssue}
+                collapsed={answeredBefore(issue)}
               />
             ))}
           </ol>
+        )}
+        {done && flagged > 0 && (
+          // R4-E15: the ingest page's "N flagged files need a look", and where to see why
+          <p className={MUTED}>
+            {`${needALook(flagged)}: why is on ${flagged === 1 ? 'its row' : 'each row'} under Files.`}
+          </p>
         )}
       </section>
       <DocumentLists project={project} />

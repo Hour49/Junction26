@@ -106,7 +106,8 @@ export function ChatRow({
   if (!finished(project)) return null;
   // locked until the list has said nothing needs a person (IN-77)
   const locked = counts === null || counts.needsPerson > 0;
-  const first = project.drawings[0];
+  // the workspace opens on a drawing that was read, never a screenshot read only to warn (QA R4-A9)
+  const first = readDrawings(project)[0];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
       {locked ? (

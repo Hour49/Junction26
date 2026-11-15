@@ -2,11 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
 import type { FileStatus } from '../api';
 import {
+  chipCovers,
+  chipHasStep,
+  chipRan,
+  chipSteps,
+  chipStepsOf,
   busySteps,
+  chipWords,
   foundLine,
+  groupReaders,
   headlineStep,
   lanes,
   readDrawings,
+  readerGroup,
   routeReaders,
   routeSummary,
   stepMatches,
@@ -103,6 +111,51 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     ).toBe(true);
   });
 
+  it('IN-120 groupReaders: the readers by what they do, groups in run order, each from the reader itself', () => {
+    const raster = routeReaders(DEMO_READERS).raster;
+    const shape = (g: ReturnType<typeof groupReaders>) => g.map((x) => [x.label, x.readers]);
+    expect(shape(groupReaders(raster))).toEqual([
+      ['Prepare', ['photo flattening', 'printed scale (Gemini)']],
+      ['Count', ['symbol detector', 'Gemini count decision', 'count arbiter', 'room reader']],
+      [
+        'Checks, not counted',
+        ['Gemini cross-check (not counted)', 'double check by 2 more readers (not counted)'],
+      ],
+      ['If few symbols', ['Gemini for sheets with few symbols']],
+      ['Scale', ['scale from door sizes']],
+    ]);
+    // the group comes from the reader, not its position: reversed, the same groups in the same order
+    expect(groupReaders([...raster].reverse()).map((g) => g.label)).toEqual(
+      groupReaders(raster).map((g) => g.label),
+    );
+    expect(shape(groupReaders(routeReaders(DEMO_READERS).vector))).toEqual([
+      ['Count', ['drawn-PDF reader', 'schedule tables']],
+      ['Checks, not counted', ['second count']],
+    ]);
+    // one group: no label
+    expect(shape(groupReaders(['IFC model reader']))).toEqual([[null, ['IFC model reader']]]);
+    // a step the server ran that no reader covers: last, "Also ran"
+    expect(shape(groupReaders(['IFC model reader'], ['Wall tracer']))).toEqual([
+      ['Count', ['IFC model reader']],
+      ['Also ran', ['Wall tracer']],
+    ]);
+    expect(groupReaders([])).toEqual([]);
+    // CARBON_READER=all reads every sheet: it counts
+    expect(readerGroup('Gemini reader')).toBe('count');
+  });
+
+  it('IN-120 chipWords leaves out what the group label says; with no label, the full name', () => {
+    expect(chipWords('Gemini cross-check (not counted)', true)).toBe('Gemini cross-check');
+    expect(chipWords('double check by 2 more readers (not counted)', true)).toBe(
+      'double check by 2 more readers',
+    );
+    expect(chipWords('Gemini for sheets with few symbols', true)).toBe('Gemini reader');
+    expect(chipWords('symbol detector', true)).toBe('symbol detector');
+    expect(chipWords('Gemini cross-check (not counted)', false)).toBe(
+      'Gemini cross-check (not counted)',
+    );
+  });
+
   it('IN-119 triageReaders: what sorts every file before its route, from the recorded triage', () => {
     expect(triageReaders(DEMO_READERS)).toEqual([
       'scan or photo (Gemini)',
@@ -118,6 +171,60 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     ).toEqual(['plan or not (rules)']);
     expect(triageReaders(project.readers)).toEqual([]);
     expect(triageReaders(undefined)).toEqual([]);
+  });
+
+  it('IN-123 each chip knows its step ids, from the components as configured', () => {
+    const known = chipStepsOf(DEMO_READERS);
+    // Gemini Decisions over the detector: the detector reads inside the decisions step
+    expect(chipSteps('symbol detector', known)).toEqual([
+      'detector',
+      'decisions',
+      'arbiter/base',
+      'arbiter/second',
+    ]);
+    expect(chipSteps('count arbiter', known)).toEqual(['arbiter', 'arbiter/pick']);
+    expect(chipSteps('Gemini count decision', known)).toEqual(['decisions']);
+    expect(chipSteps('room reader', known)).toEqual(['rooms']);
+    expect(chipSteps('double check by 2 more readers (not counted)', known)).toEqual([
+      'double_check:',
+    ]);
+    expect(
+      chipHasStep('double check by 2 more readers (not counted)', 'double_check:m1', known),
+    ).toBe(true);
+    expect(chipHasStep('second count', 'second_count:door', known)).toBe(true);
+    expect(chipHasStep('Gemini cross-check (not counted)', 'carbon_check', known)).toBe(true);
+    expect(chipHasStep('Gemini for sheets with few symbols', 'carbon_check', known)).toBe(false);
+    expect(chipHasStep('Gemini for sheets with few symbols', 'carbon', known)).toBe(true);
+    // a precomputed rooms reading runs as `reader`
+    expect(chipSteps('room reader', chipStepsOf({ raster_components: 'rooms=exp:ocr/x' }))).toEqual(
+      ['reader'],
+    );
+    // the id wins over a label that begins with another chip's name; no id: the label
+    const arbiter = { id: 'arbiter', label: 'Symbol detector, 8 views + count arbiter' };
+    expect(chipCovers('symbol detector', arbiter, known)).toBe(false);
+    expect(chipCovers('count arbiter', arbiter, known)).toBe(true);
+    expect(
+      chipCovers('symbol detector', { id: null, label: 'Symbol detector, 8 views' }, known),
+    ).toBe(true);
+    // a chip with no known id (or a step label as a chip): label only
+    expect(chipSteps('scale from door sizes', known)).toEqual([]);
+    expect(chipCovers('Wall tracer', { id: 'walls', label: 'Wall tracer' }, known)).toBe(true);
+  });
+
+  it('IN-124 chipRan: ran when done or failed on a file, skipped when only skipped, absent, or nothing to tell', () => {
+    const known = chipStepsOf(DEMO_READERS);
+    const r = (id: string, done = 0, skipped = 0, failed = 0) => ({
+      id,
+      label: id,
+      done,
+      skipped,
+      failed,
+    });
+    expect(chipRan('Gemini reader', [r('carbon', 0, 0, 1)], known)).toBe('ran');
+    expect(chipRan('Gemini reader', [r('carbon', 0, 2)], known)).toBe('skipped');
+    expect(chipRan('Gemini reader', [r('probe', 3)], known)).toBe('absent');
+    expect(chipRan('Gemini reader', undefined, known)).toBeNull(); // an older project
+    expect(chipRan('scale from door sizes', [r('probe', 3)], known)).toBeNull(); // no known id
   });
 
   it('IN-102 things found: plain counts only, each drawing once (not its other renderings)', () => {
@@ -237,5 +344,17 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
       'bim',
     ]);
     expect(readDrawings({ ...project, readers: DEMO_READERS })).toHaveLength(6);
+  });
+
+  it('IN-126 (QA R4-A9) a sheet the sheet-kind step called not a drawing is not among the drawings read', () => {
+    const [real, shot] = [must(project.drawings[0]), must(project.drawings[1])];
+    const screenshot = { ...shot, not_a_drawing: true };
+    const readers = DEMO_READERS;
+    expect(readDrawings({ drawings: [screenshot], readers })).toEqual([]);
+    expect(readDrawings({ drawings: [real, screenshot], readers })).toEqual([real]);
+    // left out when false (API.md): an old or a plain drawing counts
+    expect(readDrawings({ drawings: [{ ...shot, not_a_drawing: false }], readers })).toHaveLength(
+      1,
+    );
   });
 });

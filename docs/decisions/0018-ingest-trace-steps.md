@@ -16,9 +16,20 @@ we are doing right now in the actual pipeline."
 - `StepTrace`: `id` (stable machine id, listed in docs/API.md), `label` (plain words for the screen), `did` (what it
   found, or the error), `at_ms` (start, ms after its stage began), `ms`, `cost_usd`, `state`
   (`done` / `failed` / `skipped`), `found` (counts by class, `{}` when it counts nothing).
-- `FileStatus.step: str | None`: the label of the step running now, left out of the JSON when None.
+- `FileStatus.step: str | None` and `FileStatus.step_id: str | None`: the label and id of the step running
+  now, left out of the JSON when None.
 - `ProjectStatus.phase: "files" | "index" | None` and `ProjectStatus.index_steps`: the project's last phase (judge,
   describe, evidence index) as steps.
+
+- `ProjectStatus.ran: dict[Route, tuple[RanStep, ...]]` (added 2026-11-15 04:45, left out of the JSON while
+  empty): per route, the step ids that ran on this upload's finished files, each `RanStep {id, label, done,
+  skipped, failed}` (file counts). The run adds a file's steps when the file finishes (no recomputation over the
+  traces per request), so a running project shows it live and a done one keeps it. The Simple view's route lanes
+  tick the readers that ran: `ProjectView.readers` is only what is configured (QA round 3: "detector" shown when
+  no detector ran).
+- Step ids are stable, never order-dependent: one per reader. The Carbon check is `carbon_check` and the Carbon
+  reader `carbon` (before: `carbon` and `carbon-2` when both ran); a comparison with no id of its own is
+  `second_count:<quantity>`. A numbered suffix (`detector-2`) is left only for the same id met twice in a stage.
 
 Readers run in parallel, so steps overlap: `at_ms` and `ms` give each one's span inside its stage, and a screen can
 draw them as a timeline. The stage's own `ms` and `cost_usd` stay the totals they were.

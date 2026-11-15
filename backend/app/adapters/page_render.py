@@ -9,6 +9,7 @@ import math
 import pypdfium2
 from PIL import Image, ImageOps
 
+from app.adapters.archive.raster import too_large
 from app.adapters.eight_bit import on_white
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.errors import InvalidInputError, NotFoundError
@@ -47,7 +48,9 @@ def render_upload(data: bytes, kind: str, width: int) -> bytes:
                 found.load()
                 image = on_white(ImageOps.exif_transpose(found) or found).convert("RGB")
             image = image.resize(fitted(image.width, image.height, width), Image.Resampling.LANCZOS)
-    except (OSError, Image.DecompressionBombError, pypdfium2.PdfiumError) as error:
+    except Image.DecompressionBombError as error:
+        raise InvalidInputError(f"the upload has no preview: {too_large(error)}") from error
+    except (OSError, pypdfium2.PdfiumError) as error:
         raise InvalidInputError(
             f"the upload cannot be decoded, so it has no preview: {error}"
         ) from error

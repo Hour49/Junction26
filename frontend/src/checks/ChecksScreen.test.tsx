@@ -202,7 +202,7 @@ describe('ChecksScreen', () => {
     await flush();
     const dialog = screen.getByRole('dialog', { name: fileOf(D2) });
     expect(
-      within(dialog).getByRole('button', { name: 'Mark 1: Door f, fails the rule' }),
+      within(dialog).getByRole('button', { name: 'Mark 1: Door f, 0.75 m, fails the rule' }),
     ).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     await flush();
@@ -263,7 +263,7 @@ describe('ChecksScreen', () => {
         (c) => c.url.startsWith(`/api/drawings/${D2}`) && !c.url.includes('/pages/'),
       ),
     ).toHaveLength(1);
-    const badge = screen.getByRole('button', { name: 'Mark 1: Door f, fails the rule' });
+    const badge = screen.getByRole('button', { name: 'Mark 1: Door f, 0.75 m, fails the rule' });
     expect(badge.className).toContain('vw-badge--fail');
     cleanup();
     const d2c = must(checks.drawings[1]);

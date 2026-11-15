@@ -427,3 +427,10 @@ issue settled in place; 2 `by` as a sign-off's, `undo` as unsettle; 3 codes `not
 stage; 6 plain words; 7 `Triage.note` and its cases; 8 `unsure` is `needs_person`; 9 `not_plans`; 10 `plans[]`
 within the project; 11 costs counted, no personal data in descriptions; 12 the reserved `/triage` route. Each is
 written into the sections above.
+
+QA R4-A9 (trace, 2026-11-15): under warn-only (`SHEET_KIND_SET_ASIDE=false`, Bogdan 2026-11-14) a sheet the
+sheet-kind step calls `not_a_drawing` is read and flagged like any doubt, so a screenshot of a web page counted as
+"Drawings ready 1 / 1". The warn-only policy stays (3 real plans, wall signs with a small plan, were called
+`not_a_drawing` in sheet-kind-live), and the drawing stays so "Read it as a floor plan" works; the project's
+`drawings[]` entry says `not_a_drawing: true` (`triage.not_a_drawing`), and the screens count only the others as
+drawings ready.

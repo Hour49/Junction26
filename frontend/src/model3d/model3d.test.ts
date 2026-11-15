@@ -20,7 +20,7 @@ describe('model3d', () => {
       retry: false,
     });
     expect(failure(new ApiError(500, 'internal', 'boom'))).toEqual({
-      reason: 'boom (internal)',
+      reason: 'boom',
       retry: true,
     });
     expect(failure(new Error('this browser cannot draw 3D'))).toEqual({

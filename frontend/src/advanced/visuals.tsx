@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   pageUrl,
   previewUrl,
@@ -12,11 +12,13 @@ import {
   formatSize,
   isFinished,
   kindLabel,
+  nameParts,
   normalisedSteps,
   plural,
   routeLabel,
 } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
+import { splitPath } from '../ingest/RouteLanes';
 import { CONFLICTS_ID } from '../ingest/IngestFinished';
 import { drawingFiles, previewNote, scaleChip, type Pair } from './advanced';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,35 @@ import { Button } from '@/components/ui/button';
 /** The pair's 'Show the conflict': an outline pill in the verdict's own colour, 44 px tall. */
 export const VERDICT_BUTTON =
   'v-press min-h-11 border-current bg-card px-3.5 text-[length:inherit] font-normal text-inherit hover:bg-card hover:text-inherit';
+
+/** Text with a line break allowed after each of its own separators (`nameParts`, IN-121); nothing is added to it. */
+function withBreaks(text: string) {
+  return nameParts(text).map((p, i) => (
+    <Fragment key={String(i)}>
+      {i > 0 && <wbr />}
+      {p}
+    </Fragment>
+  ));
+}
+
+/**
+ * A path inside running text (AD-125, AD-126): the folder muted, a line may break after each of its separators; the
+ * file name is one box, whole on its line, and only a name wider than the line itself breaks, after a "_", "-" or
+ * "." of its own (`nameParts`). `end` (the ":" after it) stays with the name. The text is the path as it is, and
+ * the title is the full path.
+ */
+export function PathText({ path, end = '' }: { path: string; end?: string }) {
+  const [folder, name] = splitPath(path);
+  return (
+    <span className="adv-path-text" title={path}>
+      {folder && <span className="adv-folder">{withBreaks(folder)}</span>}
+      <span className="adv-name">
+        {withBreaks(name)}
+        {end}
+      </span>
+    </span>
+  );
+}
 
 /** An image that says so when it cannot load, instead of a broken icon. */
 function Img({ src, alt, missing }: { src: string; alt: string; missing: string }) {
@@ -79,7 +110,9 @@ export function FileStrip({
         {files.map((f) => (
           <li key={f.id} className={f.id === working?.id ? 'adv-card framed' : 'adv-card'}>
             <Preview projectId={projectId} file={f} width={400} />
-            <span className="adv-path">{f.path}</span>
+            <span className="adv-path">
+              <PathText path={f.path} />
+            </span>
             <span>
               {formatSize(f.size)} · {kindLabel(f.kind)}
             </span>
@@ -400,7 +433,10 @@ export function CheckPairs({ pairs, done }: { pairs: readonly Pair[]; done: bool
   );
 }
 
-/** Index: per drawing, how many questions are ready to ask (one per quantity) and the ones it suggests. */
+/**
+ * Index: the drawings with questions ready to ask (one per quantity) and the ones each suggests, then one line for
+ * the rest; a row per drawing read "0 questions ready to ask" on 12 of 13 real drawings (AD-124).
+ */
 export function ReadyList({
   project,
   views,
@@ -410,18 +446,25 @@ export function ReadyList({
 }) {
   const files = drawingFiles(project);
   if (!project.drawings.length) return <p className="adv-missing">No drawing to ask yet.</p>;
+  const rows = project.drawings.map((d) => {
+    const file = files.find((f) => f.path === d.file);
+    return { d, n: Object.keys(file?.takeoff ?? {}).length };
+  });
+  const asked = rows.filter((r) => r.n > 0);
+  const rest = rows.length - asked.length;
   return (
     <div className="adv-visual adv-ready">
       <strong>Questions ready to ask</strong>
       <ul>
-        {project.drawings.map((d) => {
-          const file = files.find((f) => f.path === d.file);
-          const n = Object.keys(file?.takeoff ?? {}).length;
+        {asked.map(({ d, n }) => {
           const ready = d.state === 'ready' || d.state === 'flagged';
           return (
             <li key={d.drawing_id}>
               <span className={ready ? 'adv-dot on' : 'adv-dot'} aria-hidden="true" />
-              <span className="adv-path">{d.file}</span>: {plural(n, 'question')} ready to ask
+              <span className="adv-path">
+                <PathText path={d.file} end=":" />
+              </span>{' '}
+              {plural(n, 'question')} ready to ask
               <ul>
                 {(views.get(d.drawing_id)?.suggestions ?? []).map((s) => (
                   <li key={s.quantity}>{s.label}</li>
@@ -430,6 +473,11 @@ export function ReadyList({
             </li>
           );
         })}
+        {rest > 0 && (
+          <li className="adv-ready-rest">
+            {plural(rest, 'drawing')} {rest === 1 ? 'has' : 'have'} none yet
+          </li>
+        )}
       </ul>
     </div>
   );

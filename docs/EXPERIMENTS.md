@@ -6,6 +6,7 @@ changed, what it scored, whether it shipped, and what it cost. It is the "how we
 [GOLDEN.md](GOLDEN.md) points at. Sections 1 to 13 are final as of 2026-11-14 09:14 (every track closed, the last arm, integ-5, at 08:59). Section 14
 covers the later round "local" (from 09:42) and is a draft. Section 15 covers the evening of 14 November (17:40 to
 midnight) and section 16 the night of 14-15 November (midnight to 03:00), one short entry per measured round.
+Section 17 covers services on pictures from 03:00 to 04:30.
 
 ## Protocol
 
@@ -1326,7 +1327,7 @@ fitted on the test split or on the eval half of golden v2.
 
 ### 16.5 Robustness
 
-- **Gemini faults** (`gemini-faults.md`, PR #439, open). Every Gemini call answered with 429, 503, 402, a timeout, a
+- **Gemini faults** (`gemini-faults.md`, PR #439, merged). Every Gemini call answered with 429, 503, 402, a timeout, a
   reset or a non-JSON body, on a small upload and a chat, with seven lines written first. Before the fix two failed: a
   file read with failed calls said it held nothing, and that empty reading was reused on the next upload of the same
   file, even after Gemini recovered. No Gemini adapter retried a 429 or 503. After: all seven hold; a persistent 503
@@ -1342,6 +1343,44 @@ fitted on the test split or on the eval half of golden v2.
   all-on chat arm; ingest round 2 (#453). The evening of 14 November is section 15.
 - Fixes without an experiment (TIFF and WebP uploads, the services-only IFC, the evidence-index lock, set-aside
   wording) are in their PRs, not here.
+
+## 17. Services on pictures: symbol readers, pairing and laying over (2026-11-15 03:00-04:35)
+
+All of it is behind `DISCIPLINE_PICTURES` (any of its readers), off in the demo. The numbers are from the PR
+bodies and the handoff comments named in each entry; the logs are on the machines that ran them.
+
+- **Symbol readers** (PR #579, merged). On a held-out rendered building (DigitalHub, 36 pages, 1,155 symbols;
+  glyphs was trained on the clinic only), the template reader with its OCR legend got P 0.07, R 0.29 and counts within
+  10% on 8 of 54. The rule was written before any arm ran. `gemini` (one Carbon call a page reads the legend and
+  the symbols, $0.030 a page) got P 0.95, R 0.92, 46 of 54, and passes. `glyphs` (a YOLO glyph detector on the
+  CPU) got P 0.92, R 0.38, 9 of 54 with the OCR legend and misses by one count unit (air terminals). The OCR
+  legend holds both local readers back on scans. The bench is one synthetic building whose legend is always
+  printed, so this is not a pass on real sheets, and the facts stay Low.
+
+- **Wall register hardening** (PR #538, merged; Tudor's bench in his handoff on #281). Rendered DigitalHub pairs:
+  other-floor sheets laid wrong 17 of 72 times with #498, 8 of 72 with #538 (5 on the identical twin storeys E00/E01,
+  3 turned half round); same floor 14 right, 3 wrong, 19 refused, 0.3 s. Real USCG Building 407 pairs: all 4
+  refused, which is right by eye.
+- **Half-turn guard** (PR #554, merged). `FLIP_MARGIN` 1.5 was set before any run. The dev1 DigitalHub bench then
+  showed 1.5 refusing right lays at ratios 1.39 and 1.45 (one is the pairing test's floor), while the one wrong lay
+  it caught was at 1.02, so it was set to the quarter turns' 1.3 after the fact. On outline-heavy synthetic floors
+  1.3 gives the same results as #538 alone, 0 wrong.
+- **Pairing by floor words** (PR #558, merged). On 20 USCG units (buildings 407, 877, 110), right / wrong / refused
+  other floor / refused same floor: main 8 / 2 / 7 / 3; #558 as pre-registered 4 / 0 / 9 / 7; #558 after a post-hoc
+  change 9 / 0 / 9 / 2. Confirmation on 4,610 unseen units from 34 other Governors Island buildings, line "0 wrong"
+  written first, each arm run once: main 371 / 602 / 2,665 / 972; #558 603 / **10** / 3,257 / 740. **Line failed.**
+- **Listed and ranged floors** (PR #575, merged). Fixes the causes of those 10. On the same 4,610 units, after the
+  fact: 630 right, 0 wrong (12 rights became refusals). Its pre-registered out-of-sample confirmation (Commons
+  categories outside Governors Island, 13,451 titles) left 6 units after the hand reading, under the minimum of 10:
+  **inconclusive**. Both arms gave 2 / 0 / 3 / 1 there.
+- **Laying over by walls per plan view** (PR #580, merged; register + plan-view finder #557 wired into pairing). dev1
+  DigitalHub bench, 108 rows: same floor 3 right, 0 wrong, 33 refused (the bench's plan side has no outer walls);
+  other floor 0 wrong of 72. Without the crop-scale rule the finder arm had 1 wrong same-floor lay.
+- **DINO symbol check, kinds** (PR #551, merged, not called yet). Tudor's bench on #543: a label of no kind caught
+  1,075 of 1,085 valve symbols and 205 of 245 sanitary ones (valve recall on scans .36 to .20, sanitary photo
+  precision .47 to .02). #551 confirms only air terminals and air-worded labels; not measured again.
+- Gaps: no end-to-end run of the wired walls path yet (#580 lists it); the 4,610-unit set is one archive series and
+  its post-hoc 0 wrong is not a confirmation.
 
 ---
 

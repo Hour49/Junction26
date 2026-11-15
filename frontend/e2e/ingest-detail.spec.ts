@@ -44,6 +44,19 @@ test('AD-110 AD-100 AD-106 AD-115: files by stage, then one file on its time axi
   await expect(matrix.getByRole('img', { name: /^Unpack / }).first()).toBeVisible();
   await shot(page, testInfo, 'detail-advanced', offline);
   await full('detail-advanced-full');
+  // AD-125: a path in the panel's running text (live line, log, Questions ready) keeps its file name on one line
+  const names = page.locator('.adv-panel .adv-name');
+  await expect(names.first()).toBeVisible();
+  // lines a name's text takes: distinct tops of its text's boxes (the name is one inline-block box)
+  const lines = await names.evaluateAll((els) =>
+    els.map((e) => {
+      const range = document.createRange();
+      range.selectNodeContents(e);
+      const tops = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+      return [e.textContent, tops.size];
+    }),
+  );
+  expect(lines.filter(([, n]) => n !== 1)).toEqual([]);
 
   await matrix.getByRole('link', { name: 'plans/flat-b.pdf' }).click();
   await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}\/f\/f\d+$/);

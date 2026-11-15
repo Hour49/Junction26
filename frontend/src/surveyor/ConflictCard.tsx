@@ -428,11 +428,16 @@ export function ConflictCard({
               Modify
             </Button>
           )}
-          {!signed && state === 'yours' && mode === 'idle' && c.conflict.resolution && (
-            <Button variant="secondary" size="pill" className={BTN} onClick={useRule}>
-              Use the rule&apos;s value
-            </Button>
-          )}
+          {/* no "use the rule's value" when the value kept is the rule's (R4-B11) */}
+          {!signed &&
+            state === 'yours' &&
+            mode === 'idle' &&
+            c.conflict.resolution &&
+            c.conflict.resolution.value !== c.value && (
+              <Button variant="secondary" size="pill" className={BTN} onClick={useRule}>
+                Use the rule&apos;s value
+              </Button>
+            )}
           {!signed &&
             state === 'yours' &&
             mode === 'idle' &&

@@ -2399,6 +2399,11 @@
             "title": "Name",
             "type": "string"
           },
+          "not_a_drawing": {
+            "default": false,
+            "title": "Not A Drawing",
+            "type": "boolean"
+          },
           "not_drawable_reason": {
             "anyOf": [
               {
@@ -3706,6 +3711,17 @@
               }
             ],
             "title": "Step"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
           },
           "takeoff": {
             "additionalProperties": {
@@ -6405,6 +6421,24 @@
             ],
             "title": "Phase"
           },
+          "ran": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/RanStep"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "enum": [
+                "bim",
+                "cad",
+                "vector",
+                "raster"
+              ]
+            },
+            "title": "Ran",
+            "type": "object"
+          },
           "readers": {
             "additionalProperties": {
               "type": "string"
@@ -6721,6 +6755,44 @@
           "resolution"
         ],
         "title": "QuantityConflict",
+        "type": "object"
+      },
+      "RanStep": {
+        "additionalProperties": false,
+        "description": "One step that ran on a route's files in this upload (decision 0018): its id and label, and\non how many files it ended done, skipped or failed (each file counted once per id).",
+        "properties": {
+          "done": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Done",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "skipped": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "RanStep",
         "type": "object"
       },
       "ReadAsPlan": {
@@ -8617,6 +8689,29 @@
             "title": "By",
             "type": "string"
           },
+          "expected_unit": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit"
+          },
+          "expected_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Value"
+          },
           "quantity": {
             "minLength": 1,
             "title": "Quantity",
@@ -8829,7 +8924,7 @@
       },
       "StepTrace": {
         "additionalProperties": false,
-        "description": "One thing that ran inside a stage (a reader, a check, a model call), or in the project's\nlast phase (decision 0017). Readers that run at the same time have overlapping\n[at_ms, at_ms + ms) spans.",
+        "description": "One thing that ran inside a stage (a reader, a check, a model call), or in the project's\nlast phase (decision 0018). Readers that run at the same time have overlapping\n[at_ms, at_ms + ms) spans.",
         "properties": {
           "at_ms": {
             "default": 0,
@@ -8872,6 +8967,7 @@
           "state": {
             "default": "done",
             "enum": [
+              "running",
               "done",
               "failed",
               "skipped"

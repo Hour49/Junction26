@@ -72,7 +72,7 @@ from app.settings import Settings  # noqa: E402
 PROJECT_ID = "5e0c1a2b3d4f"
 CREATED_AT = "2026-11-14T08:00:00+00:00"
 EDITED_AT = "2026-11-14T08:05:00Z"
-DURATIONS = {"ms": 12.5, "latency_s": 0.002}
+DURATIONS = {"ms": 12.5, "latency_s": 0.002, "at_ms": 2.5}
 PHOTO_SIZE = 2000  # file_added.json: the added photo's size, the same on every platform
 FIXTURES = BACKEND / "tests" / "fixtures" / "api_v1"
 DOC = BACKEND.parent / "docs" / "API.md"
