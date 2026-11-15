@@ -11344,7 +11344,7 @@ without wall fills) gets `dont_know` saying so.
   "chat_id": "c4a7c0000002",
   "turn": 1,
   "kind": "edit",
-  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 2.5 m, 0.1 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
+  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 3.0 m, 0.12 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
   "evidence": [
     {
       "n": 1,
@@ -11421,7 +11421,7 @@ without wall fills) gets `dont_know` saying so.
             0.25
           ]
         ],
-        "label": "Wall W1, 2.5 m, 0.1 m thick"
+        "label": "Wall W1, 3.0 m, 0.12 m thick"
       },
       {
         "id": "e1",
@@ -11668,7 +11668,7 @@ unchanged.
           0.25
         ]
       ],
-      "label": "Wall W1, 2.5 m, 0.1 m thick"
+      "label": "Wall W1, 3.0 m, 0.12 m thick"
     },
     {
       "id": "e1",
