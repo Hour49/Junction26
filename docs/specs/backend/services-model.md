@@ -258,8 +258,9 @@ with a plain reason. The input model is never mutated (test: its hash before and
   urinal URINAL); a 0 where the room's sanitary terminals carry no type is "I can't tell", and a count beside
   untyped ones is "at least N" with how many carry none (R5); a type the model has nowhere is "I can't tell" with
   the types it has, in plain words (toilets, washbasins), never IFC names (#559 review), only when the project's
-  drawings besides the services model are IFC files (or none: an IFC set aside); with a plan or a picture beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the
-  drawings answer as before (2026-11-15, QA #430, #491 review, #430 R3).
+  drawings besides the services model are IFC files (or none: an IFC set aside); with a plan or a picture
+  beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the drawings answer as
+  before (2026-11-15, QA #430, #491 review, #430 R3).
 - SV-27 Cost: no model call beyond the chat's own steps. *Sourced*: at $1.50 in / $7.50 out per million tokens a
   four-step turn is about $0.03-0.06, inside `AGENT_TURN_USD` 0.10. The six tool schemas together stay under
   1,500 tokens (test: a character count).
