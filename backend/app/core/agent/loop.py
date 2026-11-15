@@ -904,6 +904,7 @@ class _Run:
             text = f"{text.rstrip()} {values}"
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
+        answers = self._cited_first(answers, cited)  # the text's drawing on top (big QA R1)
         evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
         view = self._view(kind, cited, number, answer.proposal_id)
         return ChatTurn(
@@ -950,6 +951,27 @@ class _Run:
             ask = f"How big is {named[0]}?"
             out.append(Option(label=ask[:60], message=ask))
         return tuple(out[:3])
+
+    def _cited_first(self, answers: tuple[Json, ...], cited: list[str]) -> tuple[Json, ...]:
+        """`answers` with the parts of the drawings the text cites first, in the order it cites
+        them, the rest as they were: the first card is the drawing the text is about (big QA R1
+        row 13: the text's Drawn plan 2 over a card opening on Drawn plan 1)."""
+        places = {**self.known, **self.ledger}
+        drawings = [str(places[ev]["drawing_id"]) for ev in cited if ev in places]
+        order = list(dict.fromkeys(drawings))
+        if not order:
+            return answers
+
+        def rank(part: Any) -> int:
+            drawing = str(part.get("drawing_id")) if isinstance(part, dict) else ""  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            return order.index(drawing) if drawing in order else len(order)
+
+        out: list[Json] = []
+        for given in answers:
+            parts: Any = given.get("parts")
+            listed: list[Any] = parts if isinstance(parts, list) else []  # pyright: ignore[reportUnknownVariableType]
+            out.append({**given, "parts": sorted(listed, key=rank)} if listed else given)
+        return tuple(out)
 
     def _values_said(self, text: str, answers: tuple[Json, ...], cited: list[str]) -> str | None:
         """Each answering drawing's value of the ask_drawings answers the turn rests on, as the
