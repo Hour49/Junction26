@@ -388,8 +388,8 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     ),
     (
         "propose_move_terminal",
-        "Propose moving a terminal (radiator, air terminal) to another wall of its room "
-        "(wall_id, or the user's selection_id), its pipes rerouted along the walls." + _CHANGES,
+        "Propose moving a terminal (radiator, basin; not a frame) to another wall of its room "
+        "(wall_id or selection_id), pipes rerouted along walls." + _CHANGES,
         _MoveArgs,
     ),
     (
