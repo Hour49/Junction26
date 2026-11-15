@@ -234,7 +234,7 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
 - The plan's own page: `same_page`, identity, "the plan's own page".
 - Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name with ZIP
   folders: floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, L1 → 1;
-  UG, KG, basement, B1 → -1; DG, roof, attic → roof) and the sheet number's part after its discipline letters
+  UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1; DG, roof, attic → roof) and the sheet number's part after its discipline letters
   (A-101 / H-101 → 101). A floor word both sides name agrees ("same floor: 'Floor 1' on both"), equal number parts
   agree ("sheet numbers A-101 / H-101"). Floor words that differ refuse ("another floor: 'Floor 2' against
   'Floor 1'"); number parts that differ refuse only when no floor word agrees.
@@ -245,6 +245,14 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
   sheets have a scale and the same size within 2 %: `metadata`, score 0.7, laid over page to page. Metadata agrees
   and neither: refused, "same floor (…), but it cannot be laid over the plan: <why>". No hint either way and laid
   over: `geometry`, score 0.6. No hint and not laid over: refused with the register's reason.
+- One set only: when both upload paths sit in a top-level folder and the folders differ, the sheet is refused
+  ("another set: folder 'B' against 'A'"); a file at the top of the upload says nothing either way.
+- Laid over by walls (`by_walls`, around `register` in `app/core/services/register.py`): the plan's wall lines are
+  the centre lines of its drawn wall mass in metres (each pair of parallel faces 3–60 cm apart, outer walls
+  included); the sheet's come from the sheet-walls reader in its own pixels with its page size. The map is
+  `register`'s rotation, scale and shift turned into page fractions, and its words are `register`'s ("walls match:
+  41 of 47 within 0.2 m after rotation 0.3 deg"). The follower tries room names first, then walls; a refusal of
+  both gives both reasons. Without a sheet-walls reader only room names are tried.
 - Several sheets paired for one discipline: the highest score wins (the plan's own page first, then the candidates'
   order); its reason names the others; each other is refused "another <discipline> picture was taken: <name>".
 
@@ -300,3 +308,10 @@ Pairing (tests in `tests/test_services_pairing.py`):
 - **SFP-16** `ServiceFollower` follows only on the pictures `pair` keeps: a heating picture of another floor in the
   project leaves the lane `not_aligned` with the floor reason
   (`test_a_heating_picture_of_another_floor_is_not_followed`).
+- **SFP-17** "A/plan.pdf" and "B/heating.png" are refused as another set; "plan.pdf" and "B/heating.png" are not
+  (`test_sheets_of_two_folders_are_two_sets`).
+- **SFP-18** A sheet drawn turned a quarter at 50 px a metre, its walls in pixels: `by_walls` gives the map that puts its
+  corners back on the plan's page fractions and `register`'s words; with no room names the follower's register
+  (room names, then walls) pairs it `geometry`; both refusing gives both reasons
+  (`test_walls_lay_a_turned_half_size_sheet_over_the_plan`).
+- **SFP-19** The wall mass of a 0.2 m walled box gives its four centre lines (`test_the_plans_wall_lines_are_centre_lines`).

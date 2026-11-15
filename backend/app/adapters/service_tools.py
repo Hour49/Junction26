@@ -31,7 +31,7 @@ from app.adapters.pipeline_tools import (
     _done,  # pyright: ignore[reportPrivateUsage]
     _entry,  # pyright: ignore[reportPrivateUsage]
 )
-from app.adapters.plan_tools import plan_page
+from app.adapters.plan_tools import CannotEditError, plan_page
 from app.api.views import drawings_of
 from app.core.errors import DomainError
 from app.core.ifc_facts import Discipline, FactSheet
@@ -48,7 +48,15 @@ from app.core.services.model import (
     ServicesFollow,
     fit_frame,
 )
-from app.core.services.pairing import pair
+from app.core.services.pairing import (
+    Register,
+    SheetWalls,
+    by_room_names,
+    by_walls,
+    either,
+    pair,
+    plan_wall_lines,
+)
 from app.core.services.picture_follow import Sheet, picture_follow
 
 log = logging.getLogger(__name__)
@@ -75,6 +83,9 @@ class ServiceFollower:
     credit_of: Callable[[int, str], str | None] = lambda size, sha256: None  # a file's credit
     # A drawing's services fact sheet read from its picture, by drawing id; None: it has none
     pictures: Callable[[str], FactSheet | None] = lambda drawing_id: None
+    # A picture's wall lines in its pixels and its page size (the sheet-walls reader); None: a
+    # picture is laid over the plan by room names only
+    sheet_walls: SheetWalls | None = None
 
     def run(self, proposal: Proposal) -> tuple[ServicesFollow, dict[str, Any]]:
         """The follow-up for the proposal and what the model reads of it."""
@@ -177,7 +188,7 @@ class ServiceFollower:
             id="", path="", size=0, drawing_id=proposal.drawing_id
         )
         plan = self._sheet(plan_file, proposal.page, self.pictures(proposal.drawing_id))
-        pairings = pair(plan, [sheet for sheet, _ in sheets])
+        pairings = pair(plan, [sheet for sheet, _ in sheets], self._register(proposal))
         seen = picture_follow(proposal, plan, sheets, pairings=pairings)
         lanes = tuple(
             mine if mine.status != "no_model" else theirs
@@ -190,6 +201,17 @@ class ServiceFollower:
                 "unknowns": (*followed.unknowns, *seen.unknowns),
             }
         )
+
+    def _register(self, proposal: Proposal) -> Register:
+        """Room names first, then the plan's walls when a sheet-walls reader is given."""
+        if self.sheet_walls is None:
+            return by_room_names
+        try:
+            page = plan_page(self.pipeline, proposal.drawing_id, proposal.page)
+        except (CannotEditError, DomainError) as error:  # no wall geometry: room names only
+            log.info("no plan walls to lay pictures by: %s", error)
+            return by_room_names
+        return either(by_room_names, by_walls(plan_wall_lines(page), self.sheet_walls))
 
     def _sheet(self, file: FileStatus, page: int, facts: FactSheet | None) -> Sheet:
         """Where a drawing's page lies: its size in metres when it has a scale, its room names

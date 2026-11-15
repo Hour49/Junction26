@@ -4,18 +4,29 @@ then geometry (the sheet laid over the plan by a register). Pure; every pairing 
 words, and every refusal says why not, so a wrong pairing is visible and can be refused.
 """
 
+import math
 import re
 from collections.abc import Callable, Sequence
 from pathlib import PurePosixPath
 
-from app.core.services.model import Affine, Pairing
+from shapely.geometry import LineString, Point
+
+from app.core.plan_edit.walls import PlanPage
+from app.core.services.model import Affine, Pairing, Point2
 from app.core.services.picture_follow import Sheet, align
+from app.core.services.register import Place, Segment, register
 
 # A register lays a sheet over the plan: the map and how it was found, or why it cannot. The
 # wall-line fit (rotation and scale, Madalina's side) plugs in here.
 Register = Callable[[Sheet, Sheet], tuple[Affine, str] | str]
 
+# A sheet's wall lines in its own units (pixels) and its page's size in them, or why none.
+SheetWalls = Callable[[Sheet], tuple[Sequence[Segment], Point2] | str]
+
 SCORE_BOTH, SCORE_PAGE, SCORE_GEOMETRY = 0.9, 0.7, 0.6
+FACES_M = (0.03, 0.6)  # two parallel faces of the wall mass this far apart are one wall
+FACE_MIN_M = 0.3  # shorter faces (door reveals, wall ends) give no wall line
+PARALLEL_DEG = 3.0
 SAME_SIZE = 0.02  # two sheets this close in metres are taken to share their frame
 
 # Floor words -> one key per floor ("0" ground, "1" first upper, "-1" basement, "roof").
@@ -26,7 +37,8 @@ _FLOORS: tuple[tuple[str, str], ...] = (
     (r"\b(?:dg|dachgeschoss|roof|attic|ullakko)\b", "roof"),
     (r"\b(?:ug|kg|untergeschoss|kellergeschoss|keller|kellari|basement|cellar)\b", "-1"),
     (r"\b(\d)f\b", "{}"),
-    (r"\bb(\d)\b", "-{}"),
+    (r"\bb(\d{1,2})\b", "-{}"),  # B1, B01
+    (r"\be(\d{2})\b", "{}"),  # level codes E00, E01 (the DigitalHub sheets)
     (r"\b(\d{1,2})\s*\.?\s*(?:og|obergeschoss|krs|kerros|etage|stock)\b", "{}"),
     (
         r"\b(?:og|floor|fl|level|storey|story|etage|niveau|lvl|l|krs|kerros)\s*[-.]?\s*(\d{1,2})\b",
@@ -46,6 +58,77 @@ def by_room_names(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
         return place
     n = len(_printed_once(plan) & _printed_once(sheet))
     return place, f"laid over by the {n} room names both sheets print"
+
+
+def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register:
+    """The wall-line register (`register`): the sheet's lines laid on the plan's walls (metres),
+    the result as a map of page fractions with `register`'s words."""
+
+    def laid(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
+        if plan.size_m is None:
+            return "the plan has no scale"
+        found = sheet_walls(sheet)
+        if isinstance(found, str):
+            return found
+        lines, size = found
+        placed = register(plan_walls, lines)
+        if not isinstance(placed, Place):
+            return placed.reason
+        return _fractions(placed, size, plan.size_m), placed.reason
+
+    return laid
+
+
+def either(*registers: Register) -> Register:
+    """The first register that lays the sheet over; else all their reasons."""
+
+    def laid(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
+        why: list[str] = []
+        for one in registers:
+            found = one(plan, sheet)
+            if not isinstance(found, str):
+                return found
+            why.append(found)
+        return "; ".join(why)
+
+    return laid
+
+
+def plan_wall_lines(page: PlanPage) -> list[Segment]:
+    """The plan's walls as centre lines in metres: each two parallel faces of the drawn wall
+    mass a wall's thickness apart, outer walls included, along the stretch they share."""
+    faces: list[tuple[Point2, Point2]] = []
+    for outer, holes in page.mass:
+        for ring in (outer, *holes):
+            pts = [(x * page.width_m, y * page.height_m) for x, y in ring]
+            faces += [
+                (a, b)
+                for a, b in zip(pts, pts[1:] + pts[:1], strict=True)
+                if math.dist(a, b) >= FACE_MIN_M
+            ]
+    out: list[Segment] = []
+    for i, (a, b) in enumerate(faces):
+        ux, uy = (b[0] - a[0]) / math.dist(a, b), (b[1] - a[1]) / math.dist(a, b)
+        for c, d in faces[i + 1 :]:
+            vx, vy = (d[0] - c[0]) / math.dist(c, d), (d[1] - c[1]) / math.dist(c, d)
+            if abs(ux * vy - uy * vx) > math.sin(math.radians(PARALLEL_DEG)):
+                continue
+            gap = abs((c[0] - a[0]) * -uy + (c[1] - a[1]) * ux)  # c's distance off a-b's line
+            if not FACES_M[0] <= gap <= FACES_M[1]:
+                continue
+            along = sorted(((c[0] - a[0]) * ux + (c[1] - a[1]) * uy,
+                            (d[0] - a[0]) * ux + (d[1] - a[1]) * uy))  # fmt: skip
+            lo, hi = max(0.0, along[0]), min(math.dist(a, b), along[1])
+            if hi - lo < FACE_MIN_M:
+                continue
+            other = LineString([c, d])
+            ends: list[Point2] = []
+            for t in (lo, hi):  # halfway to the other face
+                p = Point(a[0] + ux * t, a[1] + uy * t)
+                q = other.interpolate(other.project(p))
+                ends.append(((p.x + q.x) / 2, (p.y + q.y) / 2))
+            out.append(Segment(a=ends[0], b=ends[1]))
+    return out
 
 
 def pair(
@@ -103,6 +186,9 @@ def _pair(plan: Sheet, sheet: Sheet, register: Register) -> Pairing | str:
 
     if (sheet.drawing_id, sheet.page) == (plan.drawing_id, plan.page):
         return made("same_page", "the plan's own page", None, Affine())
+    mine, theirs = _folder(plan), _folder(sheet)
+    if mine and theirs and mine != theirs:
+        return f"another set: folder '{theirs}' against '{mine}'"
     hints, refused = _metadata(plan, sheet)
     if refused:
         return refused
@@ -166,6 +252,27 @@ def _number(sheet: Sheet) -> tuple[str, str] | None:
         if m:
             return m.group(0), m.group(2)
     return None
+
+
+def _fractions(placed: Place, size: Point2, plan_m: Point2) -> Affine:
+    """`register`'s similarity (sheet units -> plan metres) as page fractions to page fractions."""
+    (w, h), (pw, ph) = size, plan_m
+    t = math.radians(placed.rotation_deg)
+    cos, sin, s = math.cos(t), math.sin(t), placed.scale
+    return Affine(
+        a=s * cos * w / pw,
+        b=-s * sin * h / pw,
+        c=placed.shift[0] / pw,
+        d=s * sin * w / ph,
+        e=s * cos * h / ph,
+        f=placed.shift[1] / ph,
+    )
+
+
+def _folder(sheet: Sheet) -> str | None:
+    """The upload's top-level folder (one set of drawings); None at the top."""
+    parts = PurePosixPath(sheet.name).parts if sheet.name else ()
+    return parts[0] if len(parts) > 1 else None
 
 
 def _same_size(plan: Sheet, sheet: Sheet) -> bool:

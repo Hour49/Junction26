@@ -2,9 +2,11 @@
 `pair` reads the sheets' floor words, sheet numbers and file names first, then lays the sheet over
 the plan by its register (the room-name shift by default)."""
 
+from app.core.plan_edit.walls import PlanPage
 from app.core.services.model import Affine, Pairing
-from app.core.services.pairing import pair
+from app.core.services.pairing import by_room_names, by_walls, either, pair, plan_wall_lines
 from app.core.services.picture_follow import Sheet
+from app.core.services.register import Segment
 
 ROOMS = (("Office 1", (0.3, 0.3)), ("Office 2", (0.7, 0.3)), ("Kitchen", (0.5, 0.8)))
 MOVED = tuple((name, ((x * 10 + 1) / 12, (y * 10 + 1) / 12)) for name, (x, y) in ROOMS)
@@ -124,8 +126,78 @@ def test_floor_words_of_several_languages() -> None:
     cases = {
         "EG": "0", "Erdgeschoss": "0", "Ground floor": "0", "1. OG": "1", "OG1": "1",
         "Level 02": "2", "2nd floor": "2", "3F": "3", "2. krs": "2", "KRS1": "1", "Kellari": "-1",
-        "B1": "-1", "ullakko": "roof", "A-101 plan.pdf": None,
+        "B1": "-1", "ullakko": "roof",
+        "plan-02-e00-okrd": "0", "E01_OKRD": "1", "B01": "-1", "A-101 plan.pdf": None,
     }  # fmt: skip
     for words, key in cases.items():
         found = _floors(Sheet(drawing_id="d", page=1, storey=words))
         assert (next(iter(found)) if found else None) == key, words
+
+
+def test_sheets_of_two_folders_are_two_sets() -> None:
+    plan = PLAN.model_copy(update={"name": "A/plan.pdf"})
+    assert one(plan, sheet(name="B/heating.png")) == "another set: folder 'B' against 'A'"
+    plain = PLAN.model_copy(update={"name": "plan.pdf"})
+    found = one(plain, sheet(name="B/heating.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+
+
+# --- laid over by walls (SFP-18, SFP-19) -------------------------------------------------------
+
+# A floor 10 m x 8 m on a 12 m x 10 m page, walls as centre lines in metres; no symmetry.
+WALLS_M = (
+    ((0, 0), (10, 0)), ((10, 0), (10, 8)), ((10, 8), (0, 8)), ((0, 8), (0, 0)),
+    ((4, 0), (4, 8)), ((4, 5), (10, 5)), ((7, 5), (7, 8)), ((0, 3), (2, 3)),
+)  # fmt: skip
+PAGE_PX = (500.0, 600.0)
+
+
+def on_sheet(p: tuple[float, float]) -> tuple[float, float]:
+    """The services sheet draws the floor turned a quarter, 50 px a metre."""
+    return (450 - 50 * p[1], 50 + 50 * p[0])
+
+
+def segments(lines: object) -> list[Segment]:
+    return [Segment(a=a, b=b) for a, b in lines]  # type: ignore[union-attr]
+
+
+def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in WALLS_M)
+    walls = by_walls(segments(WALLS_M), lambda _: (drawn, PAGE_PX))
+    laid = walls(plan, picture)
+    assert not isinstance(laid, str), laid
+    to_plan, how = laid
+    assert how.startswith("walls match: 8 of 8 within 0.2 m after rotation")
+    for corner in ((0, 0), (10, 0), (10, 8), (4, 5)):
+        x, y = on_sheet(corner)
+        fx, fy = to_plan.apply((x / PAGE_PX[0], y / PAGE_PX[1]))
+        assert abs(fx - corner[0] / 12) < 0.005 and abs(fy - corner[1] / 10) < 0.005, corner
+    # the follower's register: room names first, then walls
+    [found] = pair(plan, [picture], register=either(by_room_names, walls))
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+    assert found.reason == how
+    blind = by_walls(segments(WALLS_M), lambda _: "no wall lines were read on the sheet")
+    [found] = pair(plan, [picture], register=either(by_room_names, blind))
+    assert found == ("the services picture has no scale; no wall lines were read on the sheet")
+
+
+def test_the_plans_wall_lines_are_centre_lines() -> None:
+    w, h = 12.0, 10.0
+
+    def ring(x0: float, y0: float, x1: float, y1: float) -> tuple[tuple[float, float], ...]:
+        return ((x0 / w, y0 / h), (x1 / w, y0 / h), (x1 / w, y1 / h), (x0 / w, y1 / h))
+
+    page = PlanPage(
+        drawing_id="d1", page=1, width_m=w, height_m=h, rooms=(),
+        mass=((ring(0, 0, 10, 8), (ring(0.2, 0.2, 9.8, 7.8),)),),
+    )  # fmt: skip
+    found = {
+        frozenset((tuple(round(v, 2) for v in s.a), tuple(round(v, 2) for v in s.b)))
+        for s in plan_wall_lines(page)
+    }
+    assert found == {
+        frozenset(((0.2, 0.1), (9.8, 0.1))), frozenset(((9.9, 0.2), (9.9, 7.8))),
+        frozenset(((0.2, 7.9), (9.8, 7.9))), frozenset(((0.1, 0.2), (0.1, 7.8))),
+    }  # fmt: skip
