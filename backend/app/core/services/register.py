@@ -139,7 +139,7 @@ def register(
     if len(ranked) > 1:  # judged on the lines that tell the two turns apart (as FLIP_MARGIN)
         other, _ = _inliers(plan, sheet, *ranked[1][1:])
         mine, theirs = _apart_share(length, on, other)
-        if theirs * MARGIN > mine:
+        if theirs * MARGIN > mine or mine < DECIDE:  # 0% vs 0%: nothing tells them apart
             return Refusal(
                 reason=f"wall lines match two ways ({share:.0%} and {ranked[1][0]:.0%} of their "
                 f"length; {mine:.0%} and {theirs:.0%} on the lines that tell them apart): the "

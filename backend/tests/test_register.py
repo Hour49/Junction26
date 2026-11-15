@@ -305,3 +305,27 @@ def test_an_outline_dominated_asymmetric_floor_is_placed() -> None:
     out = register(plan, sheet)
     assert isinstance(out, Place), out
     assert abs(out.rotation_deg) < 0.5 and math.dist(out.shift, (1.0, 1.0)) < 0.1
+
+
+def test_a_quarter_turn_tie_on_no_telling_lines_is_refused(monkeypatch) -> None:
+    """Review #554 nit: a square floor that is the same turned a quarter gives the runner-up
+    turn 0% vs 0% on the lines that tell them apart; the quarter-turn check needs DECIDE too,
+    not only the half-turn check (here its refit misses, as the search can)."""
+    walls = [((0, 0), (20, 0)), ((20, 0), (20, 20)), ((20, 20), (0, 20)), ((0, 20), (0, 0))]
+    for a, b in (
+        ((10, 0), (10, 6)),
+        ((20, 10), (14, 10)),
+        ((10, 20), (10, 14)),
+        ((0, 10), (6, 10)),
+    ):
+        walls.append((a, b))
+    for a, b in (((4, 4), (8, 4)), ((16, 4), (16, 8)), ((16, 16), (12, 16)), ((4, 16), (4, 12))):
+        walls.append((a, b))
+    plan = [Segment(a=a, b=b) for a, b in walls]
+    monkeypatch.setattr(
+        register_module, "_flipped_on", lambda plan, sheet, *_: np.zeros(len(sheet), bool)
+    )
+    sheet = onto_sheet(plan, deg=0.0, scale=0.02, shift=(1.0, 1.0), drop=0.0)[:-8]
+    out = register(plan, sheet)
+    assert isinstance(out, Refusal), out
+    assert "two ways" in out.reason

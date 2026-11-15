@@ -227,7 +227,7 @@ def test_a_crop_is_laid_with_its_corner_added_back() -> None:
     """The plan-view finder's crop (the plan without the sheet's legend): its lines are in the
     crop's pixels, the map is the page's."""
     plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
-    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    picture = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))  # a bar that agrees
     drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
     box = (40.0, 30.0, 480.0, 580.0)
     walls = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
@@ -239,7 +239,7 @@ def test_two_crops_that_lay_the_sheet_two_ways_are_refused_unless_one_clearly_wi
     """Twin views (DigitalHub E01's two wings): two crops each fit somewhere; when neither fits
     clearly better (MARGIN of the wall lines) the lay is a guess and refused."""
     plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
-    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    picture = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))  # a bar that agrees
     drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
     right, twin = (40.0, 30.0, 480.0, 580.0), (240.0, 30.0, 500.0, 600.0)  # same lines, other place
     both = by_walls(
@@ -272,6 +272,55 @@ def test_a_crop_laid_off_the_sheets_own_scale_is_refused() -> None:
     laid_with(walls, plan, agrees)
     off = walls(plan, sheet(name="scan.png", rooms=(), size_m=(12.0, 14.4)))
     assert isinstance(off, str) and "its scale says 24.0 mm a pixel" in off, off
+
+
+def test_a_part_of_a_sheet_with_no_scale_is_laid_only_with_the_whole_page_agreeing() -> None:
+    """Review #580 SHOULD 2: a cut-out part has no page to fill (register's cover check sees the
+    part only). With a scale bar its scale is checked against the bar; without one the whole
+    page's own lay is the only check: the part is laid when the whole page lays within
+    SCALE_SLACK of its scale, else refused (the bench's one wrong part was 15% off)."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    alone = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    refused = alone(plan, picture)
+    assert isinstance(refused, str) and "no scale" in refused, refused
+    page = by_walls(
+        segments(RICH),
+        lambda _: ([(WHOLE, drawn), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    to_plan, _ = laid_with(page, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+    big = [Segment(a=(s.a[0] * 1.2, s.a[1] * 1.2), b=(s.b[0] * 1.2, s.b[1] * 1.2)) for s in drawn]
+    off = by_walls(  # the whole page lays at another scale than the part: one of them is wrong
+        segments(RICH),
+        lambda _: ([(WHOLE, big), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    got = off(plan, picture)
+    assert isinstance(got, str), got
+
+
+def test_a_part_whose_whole_page_lays_at_another_scale_is_refused() -> None:
+    """Review #590 MUST: the part clearly wins the wall lines (14 against the page's 8, past
+    CROPS_MARGIN, so the twin-view rule lets it through), but the whole page lays 10% larger:
+    without a scale bar one of the two sizes is wrong, so neither is laid."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    middle = (PAGE_PX[0] / 2, PAGE_PX[1] / 2)
+
+    def larger(p: tuple[float, float]) -> tuple[float, float]:
+        return (middle[0] + 1.1 * (p[0] - middle[0]), middle[1] + 1.1 * (p[1] - middle[1]))
+
+    page = [Segment(a=larger(on_sheet(a)), b=larger(on_sheet(b))) for a, b in WALLS_M]
+    box = (40.0, 30.0, 480.0, 580.0)
+    both = by_walls(
+        segments(RICH),
+        lambda _: ([(WHOLE, page), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    got = both(plan, picture)
+    assert isinstance(got, str) and "its whole page at" in got, got
 
 
 def test_the_plans_wall_lines_are_centre_lines() -> None:
