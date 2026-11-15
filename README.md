@@ -35,8 +35,8 @@ from.
 
 ## What it does
 
-- It reads drawn PDFs, IFC building models and images: scans, photos of paper plans, PNG or JPEG exports. A zip of
-  a whole project works too. A file that is not a drawing is set aside with a reason and kept.
+- It reads drawn PDFs, IFC building models and images: scans, photos of paper plans, PNG, JPEG, TIFF or WebP
+  exports. A zip of a whole project works too. A file that is not a drawing is set aside with a reason and kept.
 - A question in plain words (11 languages) gets a value with its unit, numbered marks on the plan for everything
   that was counted, the method that produced it, and the cost and time of the answer.
 - Every answer is rated High, Medium or Low, and each level states how often answers rated that way were exact on

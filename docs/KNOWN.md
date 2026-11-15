@@ -8,12 +8,15 @@ per entry; an entry goes when its fix is merged.
   corner (flat-b room 1.01) (Sat 05:05)
 - K3 · minor · frontend · On a phone the surveyor's drawings and conflicts list is not collapsed; the drawing starts
   below the fold (Sat 05:05)
-- K5 · minor · backend · An estimated raster area (RASTER_SCALE=priors) can be far off while printing a narrow band
-  when the detector finds the wrong doors: golden colorful-10706 living room +74% at ±24% (13 doors),
-  high_quality-17 +100% at ±40% (1 door), colorful-7513 kitchen −37% at ±24% (10 doors, QA R3, before #347). The
-  band is a 68% one, honest on val overall. #347 widens it to a fitted ±14.2% only on pages with 5 or more doors
-  whose widths disagree (spread >= 0.20); every other door-count group, 1-door pages included, keeps the old band,
-  and doors that agree on a wrong width are not caught (Sat 06:45; Sun 01:30)
+- K5 · minor · backend · An estimated raster area (RASTER_SCALE=priors) is off by more than its printed 68% band
+  more often on one CubiCasa drawing style (`high_quality`: page scale inside its band on 43% of 70 val pages and
+  32% of 19 golden dev pages; other styles 73-90%): the doors there read smaller than the 0.794 m prior. Door count
+  and door-width spread don't predict it (a refit per door count and spread failed on the held-out half,
+  2026-11-15), and neither do image-wide traits (door size against the page, ink, colour, image size,
+  anti-aliasing): the best, anti-aliasing, flagged 11.9% of the other styles' pages on the held-out half (limit 10%)
+  and missed 23 of 35 of the style's pages. #347's ±14.2% band for 5 or more doors whose widths disagree stays.
+  Golden colorful-10706 living room +74%, high_quality-17 +100%, colorful-7513 kitchen −37% (QA R3) (Sat 06:45;
+  Sun 02:10)
 - K6 · minor · backend · An IFC uploaded with its PDF sheets but without their SVG renderings is not linked to
   them: no sheet-vs-model conflicts (vitoria plan-02-p1.pdf: 4 conflicts beside its SVG, none without; QA R6-c-2).
   Measured 2026-11-15: from the PDF alone the wall, column, slab, railing, beam and stair counts cannot be told
@@ -58,5 +61,5 @@ per entry; an entry goes when its fix is merged.
 - The pen (draw mode) is greyed out on a drawing that cannot be drawn on, with the reason: a scan or photo, a
   building model with no drawn plan, a sheet with no scale, rooms without outlines or no wall geometry (#407, #416).
 - A scan with no detected door gets no area scale from Carbon's door boxes (SCALE_CARBON_DOORS stays off), and
-  services drawn on a scan or photo are not read (the picture readers are not switched on). The measured reasons
+  services drawn on a scan or photo are not read (DISCIPLINE_PICTURES stays off). The measured reasons
   are in [PIPELINE.md §4](PIPELINE.md#4-settings-the-demo-config-and-what-stays-off).
