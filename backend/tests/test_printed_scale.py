@@ -79,6 +79,15 @@ BAR = ScaleBar(page=1, start=(0.1, 0.9), end=(0.225, 0.9), length_m=5.0, text="0
         ('6" = 1\'-0"', 2.0),  # half size
         ('12" = 1\'-0"', None),  # more than 6" of paper to the foot
         ('6" = 0\'-3"', None),  # a drawing larger than the building
+        # QA R3-C1, the 1937 USCG Building 407 sheet ("SIZE \u00bc\"=1'-0\""): a fraction glyph,
+        # prime marks and abbreviations with a full stop are how old sheets print it
+        ('SIZE \u00bc" = 1\'-0"', 48.0),
+        ("SCALE \u215b\u2033=1\u2032-0\u2033", 96.0),
+        ('1\u00bd" = 1\'-0"', 8.0),
+        ('1\u20444" = 1\'-0"', 48.0),  # a fraction slash
+        ("\u00bc IN. = 1 FT.", 48.0),
+        ("1/4 IN.=1 FT.-0 IN.", 48.0),
+        ("\u00be\u2033 = 1\u2032-0\u2033", 16.0),
     ],
 )
 def test_a_printed_ratio_is_read_in_metric_and_imperial(
