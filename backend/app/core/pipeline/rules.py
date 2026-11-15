@@ -35,8 +35,7 @@ ROOMS_TOTAL = CountingRule(
 # Shafts, lifts and stairwells stay in because the dataset's answers keep them.
 INDOOR_TOTAL = CountingRule(
     id="indoor-rooms-total",
-    text="every room that is not outdoor; shafts, lifts and stairwells are counted in, "
-    "though the question says shafts are left out",
+    text="every room that is not outdoor; shafts, lifts and stairwells are counted in",
 )
 APARTMENT_AREA = CountingRule(
     id="apartment-area",
