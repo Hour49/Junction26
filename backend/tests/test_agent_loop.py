@@ -446,3 +446,24 @@ def test_tudor_nit_a_measured_area_reaches_the_model_as_the_card_shows_it() -> N
     got = turn(model, Tools(ask_drawings=shown))
     assert "7.557" not in model.sent[1][-1]["content"]
     assert got.text == "The kitchen is 7.56 m²."  # 7.557 is no longer backed
+
+
+def test_every_answering_drawing_reaches_the_model_though_parts_are_cut() -> None:
+    """qa-a demo walk: 'which drawing has the largest floor area' on 6 drawings: the model's copy
+    kept 1 part of 6, so it could not compare them. `answered` lists each one that answered."""
+    marks = [{"id": f"m{k}", "page": 1, "box": [0.1, 0.2, 0.3, 0.4], "label": f"Room {k} " * 9}
+             for k in range(25)]  # fmt: skip
+    parts = [{"drawing_id": f"{n:016x}", "name": f"plan-{n}.pdf",
+              "answer": {"answer": 10.0 + n, "unit": "m2", "marks": marks}}
+             for n in range(5)]  # fmt: skip
+    refused = {"drawing_id": f"{9:016x}", "name": "scan.png",
+               "answer": {"answer": None, "refusal": {"text": "Not read."}}}  # fmt: skip
+    asked = {"question": "What is the total floor area?", "parts": [*parts, refused]}
+    model = Model(step(call("ask_drawings", question="What is the total floor area?")),
+                  final(kind="dont_know", text="No."))  # fmt: skip
+    turn(model, Tools(ask_drawings=asked))
+    seen = json.loads(model.sent[1][-1]["content"])
+    assert seen["parts_more"] >= 1  # the cut this is about
+    assert [(a["drawing"], a["answer"], a["unit"]) for a in seen["answered"]] == [
+        (f"plan-{n}.pdf", 10.0 + n, "m2") for n in range(5)]  # fmt: skip
+    assert [a["ev"] for a in seen["answered"]] == [f"ev_{1 + 25 * n}" for n in range(5)]

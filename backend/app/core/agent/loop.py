@@ -594,7 +594,10 @@ class _Run:
                                status="error" if bad else "ok", ms=ms))  # fmt: skip
         summary = _summary(name, found, self.names)
         self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": summary})
-        self._reply(call, text if isinstance(found, str) else _for_model(found))
+        if isinstance(found, str):
+            self._reply(call, text)
+        else:
+            self._reply(call, _ask_for_model(found) if name == ASK else _for_model(found))
 
     def _show(self, call: Json, arguments: str) -> None:
         """show_on_plan (contract B): the places this turn shows, or the model is told why not."""
@@ -1202,18 +1205,58 @@ def _too_long(arguments: str) -> str | None:
     return text if isinstance(text, str) and len(text) > TEXT_CHARS else None
 
 
-def _for_model(found: Any) -> str:
+def _ask_for_model(found: Any) -> str:
+    """An ask_drawings result as the model reads it: `answered` first, one short line per drawing
+    that answered (its value as shown, unit and first place), then the result cut as
+    `_for_model` cuts it. `parts` is cut to fit the window (1 of 13 drawings reached the model on
+    the demo project), so without `answered` no planner could compare the drawings ("which
+    drawing has the largest floor area", qa-a demo walk). `answered` is never cut."""
+    answered = _answered(found)
+    if not answered or not isinstance(found, dict):
+        return _for_model(found)
+    head = _compact({"answered": answered})
+    rest = _for_model(found, TOOL_CHARS - len(head))
+    if not rest.startswith("{") or rest == "{}":
+        return head
+    return f"{head[:-1]},{rest[1:]}"
+
+
+def _answered(found: Any) -> list[Json]:
+    """Each answering drawing of an ask result: {drawing, answer, unit, ev} (ev: the first place
+    of its answer's marks, else of its takeoff row's, when one was minted)."""
+    given: Json = found if isinstance(found, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+    parts: list[Any] = given.get("parts") or []
+    out: list[Json] = []
+    for part in parts:
+        each: Json = part if isinstance(part, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+        line: Json = each.get("answer") or {}
+        if line.get("refusal") or line.get("answer") is None:
+            continue
+        row: Json = line.get("quantity") or {}
+        marks: list[Any] = [*(line.get("marks") or []), *(row.get("marks") or [])]
+        firsts: list[Any] = [m.get("ev") for m in marks if isinstance(m, dict)]  # pyright: ignore[reportUnknownMemberType]
+        ev = next((found_ev for found_ev in firsts if found_ev), None)
+        shown: Json = {
+            "drawing": each.get("name"),
+            "answer": line["answer"],
+            "unit": line.get("unit"),
+        }
+        out.append({**shown, "ev": ev} if ev else shown)
+    return out
+
+
+def _for_model(found: Any, limit: int = TOOL_CHARS) -> str:
     """A tool result as the model reads it: compact JSON without geometry or empty fields. Until
-    it fits TOOL_CHARS the longest list is halved, keeping its first items as they are; how many
+    it fits `limit` the longest list is halved, keeping its first items as they are; how many
     were cut goes beside it as `<key>_more` (a cut top-level list becomes {items, items_more}).
     Still too long: cut as text with a note."""
     slim = _slim(found)
     keeps: dict[tuple[Any, ...], int] = {}
     text = _compact(_cut(slim, keeps))
-    while len(text) > TOOL_CHARS:
+    while len(text) > limit:
         longest = _longest(slim, keeps)
         if longest is None:
-            return text[:TOOL_CHARS] + '\n{"truncated": true}'
+            return text[:limit] + '\n{"truncated": true}'
         path, kept = longest
         keeps[path] = kept // 2
         text = _compact(_cut(slim, keeps))
