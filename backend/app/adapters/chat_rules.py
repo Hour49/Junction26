@@ -700,9 +700,13 @@ def _answer(found: Json) -> tuple[str, Json]:
         more: Json = {"options": options} if options and related else {}
         return _final("dont_know", dont_know(why), **more)
     # The turn carries the ask_drawings result, shown in full under the text: one sentence that
-    # cites each answering drawing's first mark
-    evidence = [marks[0]["ev"] for p in answering[:12] if (marks := [
+    # cites each answering drawing's first mark. `answered` (the loop's) lists every one; `parts`
+    # may be cut for the window (#466)
+    listed: list[Json] = [a for a in found.get("answered") or [] if isinstance(a, dict)]
+    firsts = [marks[0]["ev"] for p in answering[:12] if (marks := [
         m for m in p["answer"].get("marks", []) if isinstance(m, dict) and "ev" in m])]  # fmt: skip
+    evidence = [str(a["ev"]) for a in listed if a.get("ev")][:12] or firsts
     cites = "".join(f"[{ev}]" for ev in evidence)
-    them = "drawings answer" if len(answering) > 1 else "drawing answers"
-    return _final("answer", f"The {them} this below{' ' + cites if cites else ''}.", evidence)
+    # No count of drawings in the sentence: the card under it lists every drawing's value, and
+    # a sentence that says "the drawing" or "the drawings" is wrong for some turn (#430).
+    return _final("answer", f"The answer is below{' ' + cites if cites else ''}.", evidence)

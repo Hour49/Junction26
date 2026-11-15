@@ -178,7 +178,7 @@ def test_sv25_a_project_without_a_services_model_says_so(
         stored.unlink()
     model = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
     _turn(client, monkeypatch, model)
-    assert "no services model" in model.results[0]
+    assert "has been read into a services model yet" in model.results[0]
 
 
 SIX = {"list_services", "ask_services", "propose_move_terminal", "propose_add_terminal",

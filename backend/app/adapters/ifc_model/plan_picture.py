@@ -9,7 +9,10 @@ What is drawn, and what the truth is:
 - Terminals, equipment, valves and the rest: one symbol per legend label (the type name) at
   the centre of the element's plan bounding box. Fittings are not drawn (they are part of
   the runs). Segments: a line along the plan axis of the segment's body, coloured and dashed
-  per system, with the size printed by runs longer than 2 m.
+  per system type (the system's name less its instance number: "M524 103" -> "M524"; past
+  STYLES types the ones with the least drawn length share a grey OTHER), with the size printed
+  by runs longer than 2 m. A segment in several systems is drawn, and counted, once: under its
+  first system's type.
 - Background: the walls of the building's architectural model whose height spans the cut
   (1.2 m above the storey), in light grey, when the two models share coordinates: a storey at
   the same elevation and the plans' boxes overlapping.
@@ -18,9 +21,10 @@ What is drawn, and what the truth is:
 - An element the kernel cannot build is not drawn and is left out of the truth (`undrawn`).
 
 Variants (the spec's): `clean`; `scan`, greyscaled, rotated up to 1.5°, blurred, salted and
-saved as JPEG quality 60; `photo`, a perspective warp of up to 5% of the side and uneven light,
+saved as JPEG quality 60; `scan-colour`, the same in colour with hue and saturation jittered;
+`photo`, a perspective warp of up to 5% of the side and uneven light,
 JPEG quality 85; `no-legend` and `no-scale`, clean without the legend or the scale bar. The
-truth's points move with the picture. A seed fixes every random choice, so the same
+truth's points and legend boxes move with the picture. A seed fixes every random choice, so the same
 arguments give the same bytes. Structural plans draw columns, footings and piles as symbols.
 """
 
@@ -41,8 +45,8 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from app.adapters.ifc_model.facts_mep import MepElement, _element, mep_elements
 from app.adapters.ifc_model.objects import _unit_scales
 
-Variant = Literal["clean", "scan", "photo", "no-legend", "no-scale"]
-VARIANTS: tuple[Variant, ...] = ("clean", "scan", "photo", "no-legend", "no-scale")
+Variant = Literal["clean", "scan", "scan-colour", "photo", "no-legend", "no-scale"]
+VARIANTS: tuple[Variant, ...] = ("clean", "scan", "scan-colour", "photo", "no-legend", "no-scale")
 STRUCTURAL = ("IfcColumn", "IfcFooting", "IfcPile")  # drawn as symbols on a structural plan
 RATIOS = (50, 100, 200, 500)  # the first whose plan fits PAPER_M on paper
 PAPER_M = 0.8  # the plan's longer side on paper, at most: an A1 sheet less its margins
@@ -56,6 +60,9 @@ SHAPES = ("circle", "square", "triangle", "diamond", "cross", "hexagon", "x", "b
 FILLS = ("outline", "solid", "dot")
 COLOURS = ("#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#e377c2", "#17becf")
 DASHES: tuple[tuple[int, int] | None, ...] = (None, (14, 6), (4, 4))
+STYLES = len(COLOURS) * len(DASHES)  # past this many system types, the shortest share OTHER
+OTHER, OTHER_COLOUR = "other systems", "#7f7f7f"
+SCAN_NOISE = (1.0, 0.002, 60)  # a scan's blur sigma (px), share of salted pixels, JPEG quality
 NOT_SYMBOLS = ("flow_segment", "flow_fitting")  # groups drawn as lines, or not at all
 
 
@@ -87,9 +94,11 @@ def render_model(
     dpi: int = 150,
     variant: Variant = "clean",
     seed: int = 0,
+    noise: tuple[float, float, int] = SCAN_NOISE,
 ) -> list[Path]:
     """`read_plans` and `draw_plans` in one: the pictures of one model in one look."""
-    return draw_plans(read_plans(model_path, background), out, dpi=dpi, variant=variant, seed=seed)
+    sheets = read_plans(model_path, background)
+    return draw_plans(sheets, out, dpi=dpi, variant=variant, seed=seed, noise=noise)
 
 
 def read_plans(model_path: Path, background: Path | None = None) -> list[PlanSheet]:
@@ -126,11 +135,20 @@ def read_plans(model_path: Path, background: Path | None = None) -> list[PlanShe
 
 
 def draw_plans(
-    sheets: list[PlanSheet], out: Path, *, dpi: int = 150, variant: Variant = "clean", seed: int = 0
+    sheets: list[PlanSheet],
+    out: Path,
+    *,
+    dpi: int = 150,
+    variant: Variant = "clean",
+    seed: int = 0,
+    noise: tuple[float, float, int] = SCAN_NOISE,
 ) -> list[Path]:
-    """Writes `<model>--<storey>--<discipline>.png` (`.jpg` for `scan` and `photo`) and its
+    """Writes `<model>--<storey>--<discipline>.png` (`.jpg` for the scans and `photo`) and its
     truth `.json` into `out` per sheet. Returns the pictures. Each picture's random choices
-    come from `seed` and its name, so a rebuild gives the same bytes."""
+    come from `seed` and its name, so a rebuild gives the same bytes. `noise` is the scans'
+    (blur sigma, salted share, JPEG quality)."""
+    blur, salt, quality = noise
+    scanned = variant in ("scan", "scan-colour")
     out.mkdir(parents=True, exist_ok=True)
     pictures = []
     for sheet in sheets:
@@ -144,16 +162,15 @@ def draw_plans(
             f"{sheet.storey} — {sheet.discipline}",
         )
         rng = np.random.default_rng([seed, zlib.crc32(name.encode())])
-        if variant == "scan":
-            image, truth = _scan(image, truth, rng)
+        if scanned:
+            image, truth = _scan(image, truth, rng, variant == "scan-colour", blur, salt)
+            truth["noise"] = {"blur": blur, "salt": salt, "quality": quality}
         elif variant == "photo":
             image, truth = _photo(image, truth, rng)
         truth["size_px"] = list(image.size)
-        jpeg = variant in ("scan", "photo")
+        jpeg = variant in ("scan", "scan-colour", "photo")
         picture = out / f"{name}.{'jpg' if jpeg else 'png'}"
-        image.save(picture, quality=60 if variant == "scan" else 85) if jpeg else image.save(
-            picture
-        )
+        image.save(picture, quality=quality if scanned else 85) if jpeg else image.save(picture)
         truth |= {
             "picture": picture.name,
             "model": sheet.model,
@@ -300,8 +317,14 @@ def _draw(
     symbols = [d for d in drawn if d.element.group not in NOT_SYMBOLS]
     labels = sorted({(d.element.kind, d.element.type_name) for d in symbols})
     glyph = {name: i for i, (_, name) in enumerate(labels)}
-    systems = sorted({d.element.systems[0] if d.element.systems else "" for d in drawn})
-    style = {s: i for i, s in enumerate(systems)}
+    drawn_m: dict[str, float] = defaultdict(float)
+    for d in drawn:
+        drawn_m[_type_of(d.element)] += math.dist(d.a, d.b)
+    by_length = sorted(drawn_m, key=lambda s: (-drawn_m[s], s))
+    capped = by_length[STYLES - 1 :] if len(by_length) > STYLES else []
+    system_of = {s: OTHER if s in capped else s for s in by_length}
+    systems = sorted(set(by_length) - set(capped)) + ([OTHER] if capped else [])
+    style = {s: -1 if s == OTHER else i for i, s in enumerate(systems)}
     rows = len(glyph) + 2 * len(systems) + 2 if legend else 0
     plan_w = math.ceil((x_max - x_min + 2 * MARGIN_M) * k)
     plan_h = math.ceil((y_max - y_min + 2 * MARGIN_M) * k)
@@ -318,15 +341,14 @@ def _draw(
         e = d.element
         if e.length_m is None:
             continue
-        system = e.systems[0] if e.systems else ""
+        system = system_of[_type_of(e)]
         _line(pen, px(d.a), px(d.b), style[system], max(2, round(0.35 * mm)))
         plan_m = math.dist(d.a, d.b)
         if plan_m > SIZE_PRINTED_M and e.size:
             mid = px(((d.a[0] + d.b[0]) / 2, (d.a[1] + d.b[1]) / 2))
             pen.text((mid[0] + 3, mid[1] + 3), e.size, fill="black", font=font)
-        for s in e.systems or (None,):
-            runs[(s, e.size)][0] += e.length_m
-            runs[(s, e.size)][1] += plan_m
+        runs[(system or None, e.size)][0] += e.length_m
+        runs[(system or None, e.size)][1] += plan_m
     size = SYMBOL_MM * mm
     spots = []
     for d in symbols:
@@ -336,18 +358,18 @@ def _draw(
             {
                 "label": d.element.type_name,
                 "kind": d.element.kind,
-                "system": d.element.systems[0] if d.element.systems else None,
+                "system": system_of[_type_of(d.element)] or None,
                 "x": round(x, 2),
                 "y": round(y, 2),
             }
         )
-    entries = []
+    entries, lines = [], []
     if legend:
         x0, y = plan_w + line // 2, line
         found: dict[tuple[str, str], Counter[str]] = defaultdict(Counter)
         for d in symbols:
             e = d.element
-            found[(e.kind, e.type_name)][e.systems[0] if e.systems else ""] += 1
+            found[(e.kind, e.type_name)][system_of[_type_of(e)]] += 1
         by_system: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for label, among in found.items():  # one entry per label, under its usual system
             by_system[among.most_common(1)[0][0]].append(label)
@@ -357,12 +379,18 @@ def _draw(
                 y += line
             if any(r[0] == system or (r[0] is None and not system) for r in runs):
                 _line(pen, (x0, y + line / 2), (x0 + 4 * line, y + line / 2), style[system], 3)
-                pen.text((x0 + 5 * line, y), system or "pipes, ducts", fill="black", font=font)
+                text = system or "pipes, ducts"
+                pen.text((x0 + 5 * line, y), text, fill="black", font=font)
+                box = [x0, y, x0 + 5 * line + font.getlength(text), y + line]
+                lines.append({"label": text, "system": system or None, "box": _rounded(box)})
                 y += line
             for kind, name in sorted(by_system[system]):
                 _glyph(pen, (x0 + line, y + line / 2), glyph[name], size, font)
                 pen.text((x0 + 3 * line, y), name, fill="black", font=font)
-                entries.append({"label": name, "kind": kind, "system": system or None})
+                box = [x0, y, x0 + 3 * line + font.getlength(name), y + line]
+                entries.append(
+                    {"label": name, "kind": kind, "system": system or None, "box": _rounded(box)}
+                )
                 y += line
     pen.text((line, line / 2), title, fill="black", font=font)
     if scale_bar:
@@ -382,6 +410,7 @@ def _draw(
         "origin_m": [round(origin[0], 6), round(origin[1], 6)],
         "size_px": list(image.size),
         "legend": entries,
+        "legend_lines": lines,
         "symbols": spots,
         "counts": dict(sorted(counts.items())),
         "runs": [
@@ -392,8 +421,23 @@ def _draw(
             s: round(sum(m for (t, _), (m, _) in runs.items() if t == s), 3)
             for s in sorted({s for s, _ in runs if s})
         },
+        "system_plan_m": {
+            s: round(sum(p for (t, _), (_, p) in runs.items() if t == s), 3)
+            for s in sorted({s for s, _ in runs if s})
+        },
+        "styles_capped": len(capped),
     }
     return image, truth
+
+
+def _type_of(element: MepElement) -> str:
+    """The type of the element's first system: its name less a trailing instance number."""
+    name = element.systems[0] if element.systems else ""
+    return re.sub(r"\s*\d+$", "", name) or name
+
+
+def _rounded(box: list[float]) -> list[float]:
+    return [round(v, 2) for v in box]
 
 
 def _font(size: int) -> Any:
@@ -407,6 +451,8 @@ def _line(
     pen: ImageDraw.ImageDraw, a: tuple[float, float], b: tuple[float, float], i: int, w: int
 ) -> None:
     colour, dash = COLOURS[i % len(COLOURS)], DASHES[i // len(COLOURS) % len(DASHES)]
+    if i < 0:
+        colour, dash = OTHER_COLOUR, None
     if dash is None:
         pen.line([a, b], fill=colour, width=w)
         return
@@ -456,15 +502,29 @@ def _glyph(
 
 
 def _scan(
-    image: Image.Image, truth: dict[str, Any], rng: np.random.Generator
+    image: Image.Image,
+    truth: dict[str, Any],
+    rng: np.random.Generator,
+    colour: bool = False,
+    blur: float = SCAN_NOISE[0],
+    salt_share: float = SCAN_NOISE[1],
 ) -> tuple[Image.Image, dict]:
     angle = float(rng.uniform(-1.5, 1.5))
-    grey = image.convert("L").rotate(
-        angle, resample=Image.Resampling.BICUBIC, expand=True, fillcolor=255
+    if colour:  # another scanner's colours: hue turned up to ±4%, saturation ±10%
+        hsv = np.array(image.convert("HSV"), dtype=np.float32)
+        hsv[..., 0] = (hsv[..., 0] + rng.uniform(-10, 10)) % 256
+        hsv[..., 1] = np.clip(hsv[..., 1] * rng.uniform(0.9, 1.1), 0, 255)
+        image = Image.fromarray(hsv.astype(np.uint8), "HSV").convert("RGB")
+    grey = (image if colour else image.convert("L")).rotate(
+        angle,
+        resample=Image.Resampling.BICUBIC,
+        expand=True,
+        fillcolor=(255, 255, 255) if colour else 255,
     )  # expanded: the corners (title, legend) stay on the page
-    pixels = np.array(grey.filter(ImageFilter.GaussianBlur(1)))
-    salt = rng.random(pixels.shape) < 0.002
-    pixels[salt] = rng.choice(np.array([0, 255], dtype=np.uint8), size=int(salt.sum()))
+    pixels = np.array(grey.filter(ImageFilter.GaussianBlur(blur)))
+    salt = rng.random(pixels.shape[:2]) < salt_share
+    dots = rng.choice(np.array([0, 255], dtype=np.uint8), size=int(salt.sum()))
+    pixels[salt] = dots[:, None] if colour else dots
     cx, cy = image.width / 2, image.height / 2
     nx, ny = grey.width / 2, grey.height / 2  # the centre stays the centre
     cos, sin = math.cos(math.radians(angle)), math.sin(math.radians(angle))
@@ -512,12 +572,27 @@ def _homography(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
 
 
 def _moved(truth: dict[str, Any], to: np.ndarray) -> dict[str, Any]:
-    """The truth with its symbols' points mapped through the 3x3 matrix `to`."""
+    """The truth with its symbols' points mapped through the 3x3 matrix `to`, and each legend
+    box as the upright box around its four mapped corners."""
+
+    def at(x: float, y: float) -> tuple[float, float]:
+        u, v, w = to @ (x, y, 1.0)
+        return float(u / w), float(v / w)
+
+    def box(row: dict[str, Any]) -> dict[str, Any]:
+        x0, y0, x1, y1 = row["box"]
+        xs, ys = zip(*(at(x, y) for x in (x0, x1) for y in (y0, y1)), strict=True)
+        return row | {"box": _rounded([min(xs), min(ys), max(xs), max(ys)])}
+
     symbols = []
     for s in truth["symbols"]:
-        x, y, z = to @ (s["x"], s["y"], 1.0)
-        symbols.append(s | {"x": round(float(x / z), 2), "y": round(float(y / z), 2)})
-    return truth | {"symbols": symbols}
+        x, y = at(s["x"], s["y"])
+        symbols.append(s | {"x": round(x, 2), "y": round(y, 2)})
+    return truth | {
+        "symbols": symbols,
+        "legend": [box(r) for r in truth["legend"]],
+        "legend_lines": [box(r) for r in truth["legend_lines"]],
+    }
 
 
 def _slug(text: str) -> str:
