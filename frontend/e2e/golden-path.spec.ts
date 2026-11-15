@@ -182,8 +182,17 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     ).toHaveAttribute('aria-current', 'page');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: 'sample-project.zip' })).toBeVisible();
-    // Empty (chat.md): the heading, the ask bar and 3 suggestion chips; no plan, image or marks.
-    await expect(main.locator('img, figure, canvas, svg image')).toHaveCount(0);
+    // Empty (chat.md): the heading, the ask bar and 3 suggestion chips; no plan, image or marks in the chat.
+    // At 1200 px and wider the plan pane sits beside it (agent-chat.md AC-36) with its first file open and no
+    // marks; it loads after the chat, so it is waited for, never raced.
+    const pane = main.getByRole('complementary', { name: 'Plan' });
+    if ((page.viewportSize()?.width ?? 0) >= 1200) {
+      await expect(pane.getByRole('img', { name: /^Page 1 of / })).toBeVisible();
+      await expect(pane.locator('.vw-badge')).toHaveCount(0);
+    } else {
+      await expect(pane).toHaveCount(0);
+    }
+    await expect(main.locator('.en-chat').locator('img, figure, canvas, svg image')).toHaveCount(0);
     await expect(main.getByRole('textbox', { name: 'Question' })).toBeVisible();
     await expect(main.getByRole('button', { name: 'Ask' })).toBeVisible();
     const chips = main.getByRole('group', { name: 'Suggested questions' }).getByRole('button');

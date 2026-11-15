@@ -98,6 +98,17 @@ describe('the edit card with a services change (SV-30)', () => {
     expect(container.querySelector('.sc-overlay')).toBeTruthy();
   });
 
+  it('a services change says what was not checked for services, with no empty Changes list (QA)', () => {
+    card();
+    expect(
+      screen.getByText(
+        'Proposed from the services model in the IFC file. Structure, flow, pressure and permits are not checked.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Structure, services and permits are not checked/)).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Changes' })).toBeNull();
+  });
+
   it('says so when there is no picture', () => {
     card({ ...servicesProposal, services_change: { ...moved, picture: null } });
     expect(screen.getByText('The storey picture is not available for this change.')).toBeTruthy();
