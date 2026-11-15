@@ -30,10 +30,10 @@ const FILE_PAGE = cn(
   PAGE,
   '[&_h1]:font-mono! [&_h1]:text-[28px]! [&_h1]:leading-[1.2]! max-[720px]:[&_h1]:text-[22px]!',
 );
-/** The hairline grid: 1 px gaps on the fill colour. */
+/** The hairline grid: 1 px gaps on the fill colour; an odd last fact spans the row, so no empty cell shows. */
 const FACTS = cn(
   PANEL,
-  'ingest-facts m-0 grid grid-cols-2 gap-px overflow-hidden bg-muted p-0 max-[720px]:grid-cols-1 max-[720px]:p-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-0.5 [&>div]:bg-card [&>div]:px-5 [&>div]:py-3.5 [&_dt]:text-xs [&_dt]:font-medium [&_dt]:text-muted-foreground [&_dd]:m-0 [&_dd]:text-[15px] [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere]',
+  'ingest-facts m-0 grid grid-cols-2 gap-px overflow-hidden bg-muted p-0 [&>div:last-child:nth-child(odd)]:col-span-2 max-[720px]:grid-cols-1 max-[720px]:p-0 [&>div]:flex [&>div]:flex-col [&>div]:gap-0.5 [&>div]:bg-card [&>div]:px-5 [&>div]:py-3.5 [&_dt]:text-xs [&_dt]:font-medium [&_dt]:text-muted-foreground [&_dd]:m-0 [&_dd]:text-[15px] [&_dd]:font-semibold [&_dd]:[overflow-wrap:anywhere]',
 );
 
 const live = (t: FileTrace) => !isFinished(t.file);
@@ -108,7 +108,8 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
     ['Group', file.group],
     ['sha256', file.sha256?.slice(0, 12)],
     ['Time', formatMs(file.ms)],
-    ['Cost', formatCost(file.cost_usd)],
+    // no paid call, no line (AD-122): "$0.00" is not a fact worth a row
+    ['Cost', file.cost_usd > 0 ? formatCost(file.cost_usd) : null],
   ];
   return (
     <div className={FILE_PAGE}>

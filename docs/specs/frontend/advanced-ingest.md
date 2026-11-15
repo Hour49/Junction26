@@ -477,6 +477,16 @@ Acceptance criteria
 - AD-120 (review of #546): The file page's last card, "What it ends as", gives the takeoff's plain class counts
   above zero (zeros left out before the 8 are taken; rooms, doors, windows first, at most 8) and "See these on the drawing" (its engineer workspace); the full
   list stays folded under "What it ends as: N quantities". [unit `keyCounts`; component]
+- AD-121 (real traces, 2026-11-15): A stage's steps are cut where none was running. Steps whose times overlap are one
+  run under a note "Side by side, <from> to <to>: N steps[, up to M at once]", each drawn on the run's own axis (its
+  first start to its last end), so the overlap shows even in the last tenth of a 21 s stage; a lone step keeps the
+  stage axis. A stretch with no step running of at least 1 s and a tenth of the stage is its own note: "The first
+  step began at <t>" before the first step, else "No step ran from <a> to <b>"; no reason is given for the wait (the
+  data names none). Notes are `role="presentation"`, so the steps stay the list's only items. [unit `stepRows`;
+  component `FileMatrix.test.tsx`; screenshots of the four real traces at 1440 and 390]
+- AD-122 (real traces, 2026-11-15): The file page's Cost fact shows only a cost above zero; a file with no paid call
+  has no Cost row (was "$0.00" on every file, IN-32), and an odd last fact spans the grid row. [component
+  `FileTraceScreen.test.tsx`]
 
 ## Not in the API
 

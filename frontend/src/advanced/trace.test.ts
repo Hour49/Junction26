@@ -14,6 +14,7 @@ import {
   repeats,
   sideBySide,
   stageSpans,
+  stepRows,
   stepSpans,
   stepsOf,
 } from './trace';
@@ -67,6 +68,80 @@ describe('trace view v5', () => {
     expect(sideBySide(steps)).toBe(2);
     expect(sideBySide([step({ at_ms: 0, ms: 10 }), step({ at_ms: 10, ms: 10 })])).toBe(1);
     expect(sideBySide([])).toBe(0);
+  });
+
+  // the shape of a real raster extract (sample trace f14, 2026-11-15): two Carbon reads at once, 15.7 s with no step
+  // running, six readers starting together with two after them inside the arbiter's time, then a skipped reader
+  const real = [
+    step({ id: 'printed_scale', at_ms: 1.3, ms: 359.3 }),
+    step({ id: 'carbon', at_ms: 4.4, ms: 368.1 }),
+    step({ id: 'decisions', at_ms: 16031.7, ms: 4494 }),
+    step({ id: 'arbiter', at_ms: 16031.8, ms: 5128.4 }),
+    step({ id: 'detector', at_ms: 16031.8, ms: 4486.7 }),
+    step({ id: 'rooms', at_ms: 16031.9, ms: 1369.7 }),
+    step({ id: 'double_check', at_ms: 16032, ms: 793.6 }),
+    step({ id: 'double_check', at_ms: 16032.2, ms: 542.4 }),
+    step({ id: 'detector', at_ms: 20518.5, ms: 89.6 }),
+    step({ id: 'arbiter', at_ms: 20608.2, ms: 551.9 }),
+    step({ id: 'carbon', at_ms: 21161.5, ms: 0, state: 'skipped' }),
+  ];
+
+  it('AD-121 stepRows: runs side by side under a head on their own axis, a long idle stretch said, lone steps kept', () => {
+    const rows = stepRows(real, 21168.7);
+    expect(rows.map((r) => (r.kind === 'step' ? r.step.id : r.kind))).toEqual([
+      'together',
+      'printed_scale',
+      'carbon',
+      'idle',
+      'together',
+      'decisions',
+      'arbiter',
+      'detector',
+      'rooms',
+      'double_check',
+      'double_check',
+      'detector',
+      'arbiter',
+      'carbon',
+    ]);
+    expect(rows[0]).toMatchObject({ kind: 'together', from: 1.3, count: 2, peak: 2 });
+    expect(rows[3]).toEqual({ kind: 'idle', from: 372.5, to: 16031.7 });
+    const run = rows[4];
+    expect(run).toMatchObject({ kind: 'together', from: 16031.7, count: 8, peak: 6 });
+    expect(run?.kind === 'together' && run.to).toBeCloseTo(21160.2, 1);
+    // on the run's own axis: the arbiter spans it, its second detector read starts 87 % in
+    const span = (i: number) => {
+      const r = rows[i];
+      return r?.kind === 'step' ? r.span : undefined;
+    };
+    expect(span(6)?.width).toBeCloseTo(1, 3);
+    expect(span(11)?.left).toBeCloseTo(0.875, 2);
+    // the skipped reader after the run is lone, on the stage axis
+    expect(rows[13]).toMatchObject({ kind: 'step', together: false });
+    expect(span(13)?.left).toBeCloseTo(21161.5 / 21168.7, 4);
+  });
+
+  it('AD-121 the wait before the first step is its own row; short gaps and back-to-back steps are not', () => {
+    const late = stepRows(
+      [step({ at_ms: 16000, ms: 4000 }), step({ at_ms: 16000, ms: 2000 })],
+      20000,
+    );
+    expect(late[0]).toEqual({ kind: 'idle', from: 0, to: 16000 });
+    expect(late[1]).toMatchObject({ kind: 'together', count: 2, peak: 2 });
+    // a drawn PDF: two readers one after the other, 0.02 ms apart: two lone steps on the stage axis
+    const vector = stepRows(
+      [step({ at_ms: 0, ms: 93.25 }), step({ id: 'tables', at_ms: 93.27, ms: 3424.4 })],
+      3517.7,
+    );
+    expect(vector.map((r) => r.kind)).toEqual(['step', 'step']);
+    expect(vector.every((r) => r.kind === 'step' && !r.together)).toBe(true);
+    // 900 ms idle in a 2 s stage is under the 1 s floor: no row
+    expect(
+      stepRows([step({ at_ms: 0, ms: 100 }), step({ at_ms: 1000, ms: 1000 })], 2000).map(
+        (r) => r.kind,
+      ),
+    ).toEqual(['step', 'step']);
+    expect(stepRows([], 0)).toEqual([]);
   });
 
   it('AD-104 an old server sends no steps: none are drawn', () => {

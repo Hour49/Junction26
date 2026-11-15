@@ -61,6 +61,60 @@ export function sideBySide(steps: readonly Step[]): number {
   return peak;
 }
 
+/** One row of a stage's step list (AD-121): a step, the head of steps that ran side by side, or a time no step ran. */
+export type StepRow =
+  | { kind: 'step'; step: Step; span: Span | null; together: boolean }
+  | { kind: 'together'; from: number; to: number; count: number; peak: number }
+  | { kind: 'idle'; from: number; to: number };
+
+/**
+ * A stage's steps in their order, cut where no step was running (AD-121). Steps whose times overlap are one run
+ * "side by side", headed by its time and drawn on its own axis (from its first start to its last end), so overlaps
+ * show at any stage length; a lone step keeps the stage axis. A stretch with no step running, at least 1 s and a
+ * tenth of the stage, gets its own row: "the first step began at …" before the first, else "no step ran …". The
+ * data names no reason for the wait, so neither does the row.
+ */
+export function stepRows(steps: readonly Step[], ms: number): StepRow[] {
+  const end = (s: Step) => s.at_ms + (s.state === 'skipped' ? 0 : Math.max(0, s.ms));
+  const runs: { steps: Step[]; spans: (Span | null)[]; from: number; to: number }[] = [];
+  const onStage = stepSpans(steps, ms);
+  steps.forEach((s, i) => {
+    const run = runs.at(-1);
+    if (run && s.at_ms < run.to) {
+      run.steps.push(s);
+      run.spans.push(onStage[i] ?? null);
+      run.to = Math.max(run.to, end(s));
+    } else runs.push({ steps: [s], spans: [onStage[i] ?? null], from: s.at_ms, to: end(s) });
+  });
+  const axis = Math.max(ms, ...steps.map(end));
+  const idleAt = Math.max(1000, axis / 10);
+  const rows: StepRow[] = [];
+  let ran = 0;
+  for (const run of runs) {
+    if (run.from - ran >= idleAt) rows.push({ kind: 'idle', from: ran, to: run.from });
+    const peak = sideBySide(run.steps);
+    const width = run.to - run.from;
+    if (peak > 1 && width > 0) {
+      rows.push({ kind: 'together', from: run.from, to: run.to, count: run.steps.length, peak });
+      for (const s of run.steps)
+        rows.push({
+          kind: 'step',
+          step: s,
+          together: true,
+          span: {
+            left: Math.min(1, (s.at_ms - run.from) / width),
+            width: Math.min(1, (end(s) - s.at_ms) / width),
+          },
+        });
+    } else
+      run.steps.forEach((s, k) => {
+        rows.push({ kind: 'step', step: s, together: false, span: run.spans[k] ?? null });
+      });
+    ran = Math.max(ran, run.to);
+  }
+  return rows;
+}
+
 /** "31 doors, 12 windows" from a step's counts, largest first; "" with none. */
 export function foundLine(found: Readonly<Record<string, number>> | undefined): string {
   return Object.entries(found ?? {})
