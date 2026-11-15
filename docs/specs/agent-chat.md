@@ -167,8 +167,8 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   Reject. After a decision the buttons give way to "Accepted" / "Rejected".
 - AC-33 (ui-bugs 1, 2026-11-15) The pen: a pen button in the ask bar next to the paperclip. Pen on: the question
   box and Ask are disabled, and on each open file in the files list (AC-36) whose drawing can be drawn on, click a
-  room → selection `room`, drag a rectangle (the viewer's pick mode) → selection `region`. Pen again or Escape
-  (outside the viewer) → typing back. Chips above the ask bar ("Room Bagno 1.01 ×", "Area on Drawn plan 1 ×") stay,
+  room → selection `room`, drag a rectangle (the viewer's pick mode) → selection `region`. A finished click or drag puts the pen down by
+  itself (R4-F1: the box was left disabled with no hint); pen again or Escape (outside the viewer) → typing back. Chips above the ask bar ("Room Bagno 1.01 ×", "Area on Drawn plan 1 ×") stay,
   go with the next message and are cleared after it. A drawing can be drawn on when `canDraw` says so
   (`engineer/projectAsk.ts`: not `raster`, read with pages; to become the backend's field, board #404). With no
   open drawable file the pen is greyed out and hover, focus or a tap shows "You can't draw on this plan: it is a

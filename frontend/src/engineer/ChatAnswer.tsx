@@ -256,6 +256,22 @@ export function ChatAnswer(props: {
                     </PlanSheet>
                   )}
                 </>
+              ) : model3d ? (
+                // R4-F6: a building model has no page; its evidence is the 3D view, so the box opens it
+                <div className="en-nopreview">
+                  <Button
+                    type="button"
+                    className="min-h-11"
+                    onClick={(e) => {
+                      opener.current = e.currentTarget;
+                      setModel(model3d);
+                    }}
+                  >
+                    {typeof model3d.answer.answer === 'number'
+                      ? `See the ${value(model3d)} in 3D`
+                      : 'See it in 3D'}
+                  </Button>
+                </div>
               ) : (
                 <p className="en-nopreview">No preview for this file</p>
               )}

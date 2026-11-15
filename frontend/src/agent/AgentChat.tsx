@@ -370,6 +370,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         setOpened(openIds.includes(id) ? openIds.filter((x) => x !== id) : [...openIds, id]);
       }}
       onPick={(sel, chip) => {
+        setDrawMode(false); // R4-F1: a finished click or drag puts the pen down, so typing is back at once
         setPointed((ps) => [
           ...ps,
           { sel: { ...sel, id: `sel_${String(nextSel.current++)}` }, chip },

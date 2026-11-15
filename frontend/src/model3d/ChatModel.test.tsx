@@ -69,7 +69,7 @@ describe('3D view from the chat answer', () => {
     show([ifc(a), b, c]); // b is shown first (it has a page) and has no model: no button
     expect(screen.queryAllByRole('button', { name: /in 3D/ })).toHaveLength(0);
     choose(a);
-    expect(screen.getAllByRole('button', { name: /in 3D/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^View.* in 3D/ })).toHaveLength(1);
     const open = fig().getByRole('button', { name: `View in 3D: ${label(a)}` });
     expect(open.textContent).toBe('3D');
     expect(
@@ -79,7 +79,7 @@ describe('3D view from the chat answer', () => {
     ).toBeNull();
     cleanup();
     show([ifc(a), ifc(b)]); // two models: still one button, the shown one's (the first, as neither has a page)
-    expect(screen.getAllByRole('button', { name: /in 3D/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^View.* in 3D/ })).toHaveLength(1);
     expect(fig().getByRole('button', { name: `View in 3D: ${label(a)}` })).toBeTruthy();
     cleanup();
     // a 2D drawing linked to the building's model: the button names the building model
