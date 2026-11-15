@@ -20,6 +20,7 @@ from app.core.answering.model import Answer, Evidence, Question
 from app.core.discipline import SYSTEM_DISCIPLINE, system_from_question
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
+from app.core.services.pairing import file_floors, floors_in
 
 FACTS = "facts"  # `method` of an answer read from the fact sheet
 WHY = "read from the file's fact sheet; not yet measured, so confidence is Low"
@@ -93,9 +94,27 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
             abstain=True,
             explanation=f"{NOT_READ}: its legend lists no {_plural(_noun(query.entity))}",
         )
+    floor = ""
+    if picture and query.storey is not None and not _storeys_by_height(facts):
+        floor, refused = _picture_floor(query.storey, question.file)
+        if refused is not None:
+            return Answer(
+                id=question.id,
+                answer=None,
+                unit=None,
+                evidence=(),
+                method="refused:not-in-drawing",
+                cost_usd=0.0,
+                latency_s=latency_s,
+                abstain=True,
+                explanation=refused,
+            )
+        query = query.model_copy(update={"storey": None})  # the picture is that floor
     text = _written(query, facts)
     if text is None:
         return None
+    if floor:
+        text = f"This picture is {floor} by its file name.\n{text}"
     asked = [fact for fact in facts.read if fact.topic.startswith(f"{query.entity}.")]
     seen = dict.fromkeys((s.page, s.box) for fact in asked for s in fact.spots)
     return Answer(
@@ -109,6 +128,30 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         sure=False if picture else None,  # a picture's count is never certified (decision 0011)
         explanation=WHY,
     )
+
+
+def _picture_floor(asked: str, file: str) -> tuple[str, str | None]:
+    """A picture whose reading names no floor, asked about `asked`: the floor its file name
+    names, as pairing reads it ("H-101 E00 heating.png" is E00, the ground floor; the sheet
+    number H-101 is no floor), and why it is refused when that is not the floor asked or no
+    floor is named (live 2026-11-15: "No storey 'ground floor' ... 0 storeys: none")."""
+    mine, wanted = file_floors(file), floors_in(asked)
+    if not mine:
+        return (
+            "",
+            f"this picture's floor is not stated (not in its reading or its file name), so {asked}"
+            " cannot be told",
+        )
+    word = " / ".join(dict.fromkeys(mine.values()))
+    if len(mine) == 1 and set(wanted) == set(mine):
+        return word, None
+    if not wanted:
+        return (
+            "",
+            f"'{asked}' names no floor a picture can be matched to; this picture is {word} by its"
+            " file name",
+        )
+    return "", f"this picture is {word} by its file name, not {asked}"
 
 
 def _picture(fact: Fact) -> bool:
