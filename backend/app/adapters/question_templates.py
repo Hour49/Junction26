@@ -321,7 +321,8 @@ _SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
 # outward", "toilets only for staff": R4-C2). Not "the apartment with number A": the parser reads
 # that name only as "apartment A", so it would answer for the whole sheet (review-539)
 APPLIED = re.compile(
-    r"\b(?:without|excluding|except)\s+(?:the\s+|its\s+)?balcon\w*|\b(?:longer|shorter)\s+side\b"
+    r"\b(?:without|excluding|except|not counting|leaving out)\s+(?:the\s+|its\s+)?balcon\w*"
+    r"|\b(?:longer|shorter)\s+side\b"
     r"|\bover\s+all\b|\bonly\s*$"
     rf"|\b(?:{_SHEET_WORDS})\s+only\b"
     rf"|\bonly\s+(?:in|on|within)\s+(?:the|this|that)\s+(?:{_SHEET_WORDS})\b"
@@ -377,6 +378,12 @@ class TemplateParser:
         return parsed
 
     def _parse(self, raw: str) -> Query | TableQuery | Unsupported:
+        found = self._read(raw)
+        if isinstance(found, Query) and _unapplied_exclusion(raw.casefold(), found.subject):
+            return Unsupported(reason="a condition on the items (rooms that have...)")
+        return found
+
+    def _read(self, raw: str) -> Query | TableQuery | Unsupported:
         quoted = _quoted(raw)
         bare = QUOTED.sub(" _ ", raw)  # the question without its quoted names
         lower = bare.casefold()
@@ -554,6 +561,39 @@ def _quoted(raw: str) -> list[_Quoted]:
             role = "storey"
         found.append(_Quoted(text=inner, role=role))
     return found
+
+
+# The English exclusions R4-C12 refuses when not applied; the other languages' ones in golden are
+# the indoor net area's outdoor spaces and hint sentences the parser does apply (extras: 3)
+ENGLISH_EXCLUDING = re.compile(
+    r"\b(?:excluding|except|not counting|leaving out|without|other than)\b"
+)
+
+
+def _unapplied_exclusion(lower: str, subject: str) -> bool:
+    """The question's own sentence leaves out a part of what it counts or measures ("doors except
+    the entrance", "rooms leaving out the storage rooms") or something no subject names ("except
+    the entrance"): the takeoff has whole classes only, so it can't be applied (R4-C12). Leaving
+    out another class ("bathrooms, leaving out separate WC rooms") changes nothing, and an
+    apartment's balconies are applied (APPLIED)."""
+    sentence = FIRST_SENTENCE.split(PARENTHESES.sub(" ", lower), maxsplit=1)[0]
+    for clause in CLAUSES.split(sentence):
+        if (excluding := ENGLISH_EXCLUDING.search(clause)) is None or APPLIED.search(clause):
+            continue
+        after = clause[excluding.end() :]
+        left_out = after if WORD.search(after) else clause[: excluding.start()]
+        named = [found for found, pattern in _SUBJECTS if pattern.search(left_out)]
+        if not named or any(_overlaps(subject, found) for found in named):
+            return True
+    return False
+
+
+def _overlaps(counted: str, left_out: str) -> bool:
+    """Whether a thing left out is (a part of) the counted one: the same class, a room type of
+    all rooms or of an apartment, or one of a sum's classes ("shower+bathtub")."""
+    if counted in ("room", "apartment") and left_out.split(":", 1)[0] == "room":
+        return True
+    return bool(set(counted.split("+")) & set(left_out.split("+")))
 
 
 def _subjects(lower: str) -> tuple[str, list[tuple[int, str]]]:

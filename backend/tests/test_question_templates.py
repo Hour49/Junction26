@@ -741,3 +741,34 @@ def test_r4_c2_only_inside_the_question_still_narrows_the_thing(text: str) -> No
 def test_r4_c2_only_at_the_end_or_by_the_sheet_narrows_nothing(text: str, subject: str) -> None:
     found = PARSE(text)
     assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are there except the entrance?",
+        "How many doors are there, excluding the entrance door?",
+        "How many windows are there other than the kitchen window?",
+        "How many doors, not counting the front door?",
+        "How many rooms are there leaving out the storage rooms?",
+    ],
+)
+def test_r4_c12_an_exclusion_the_parser_cannot_apply_is_refused(text: str) -> None:
+    """R4-C12 (Tudor's QA round 4): "How many doors are there except the entrance?" answered 2,
+    every door on sample flat-b: EXCLUDING only keeps the left-out nouns from being the subject,
+    and nothing applied or refused the exclusion. Only an apartment's balconies are applied
+    (APPLIED); any other exclusion is a condition on the items."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sum the rooms of apartment B without balconies; area in m²?",
+        "What is the floor area of the apartment in m², not counting the balcony?",
+        "What is the floor area of the apartment, excluding balconies?",
+        "What is the floor area of the apartment except the balcony?",
+    ],
+)
+def test_r4_c12_an_apartment_without_its_balconies_is_still_answered(text: str) -> None:
+    assert isinstance(PARSE(text), Query), text
