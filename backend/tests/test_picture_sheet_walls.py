@@ -49,6 +49,16 @@ def test_a_picture_is_laid_over_its_plan_through_its_parts() -> None:
         assert abs(fx * 40 - corner[0]) < 0.3 and abs(fy * 30 - corner[1]) < 0.3, (corner, how)
 
 
+def test_with_no_scale_bar_a_sheet_laid_only_by_its_part_is_refused() -> None:
+    """Review #590 SHOULD: the same picture without its scale bar read. Its whole page (title
+    block, schedule, frame) does not lay; its plan view does, but nothing checks that part's
+    size: refused, said why."""
+    image = with_schedule(sheet())
+    walls = by_walls([Segment(a=a, b=b) for a, b in PLAN], sheet_walls.reader(stored(image), {}))
+    got = walls(PLAN_SHEET, PICTURE.model_copy(update={"size_m": None}))
+    assert isinstance(got, str) and "the sheet has no scale and its whole page does not lay" in got
+
+
 def test_a_big_picture_is_read_shrunk_and_given_back_in_its_own_pixels() -> None:
     image = cv2.resize(sheet(), None, fx=3, fy=3, interpolation=cv2.INTER_NEAREST)  # 3000 px
     parts, size = sheet_walls.crops(image)

@@ -301,6 +301,28 @@ def test_a_part_of_a_sheet_with_no_scale_is_laid_only_with_the_whole_page_agreei
     assert isinstance(got, str), got
 
 
+def test_a_part_whose_whole_page_lays_at_another_scale_is_refused() -> None:
+    """Review #590 MUST: the part clearly wins the wall lines (14 against the page's 8, past
+    CROPS_MARGIN, so the twin-view rule lets it through), but the whole page lays 10% larger:
+    without a scale bar one of the two sizes is wrong, so neither is laid."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    middle = (PAGE_PX[0] / 2, PAGE_PX[1] / 2)
+
+    def larger(p: tuple[float, float]) -> tuple[float, float]:
+        return (middle[0] + 1.1 * (p[0] - middle[0]), middle[1] + 1.1 * (p[1] - middle[1]))
+
+    page = [Segment(a=larger(on_sheet(a)), b=larger(on_sheet(b))) for a, b in WALLS_M]
+    box = (40.0, 30.0, 480.0, 580.0)
+    both = by_walls(
+        segments(RICH),
+        lambda _: ([(WHOLE, page), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    got = both(plan, picture)
+    assert isinstance(got, str) and "its whole page at" in got, got
+
+
 def test_the_plans_wall_lines_are_centre_lines() -> None:
     w, h = 12.0, 10.0
 
