@@ -37,8 +37,8 @@ def test_r4_f5_an_area_after_an_accepted_edit_says_as_drawn_and_with_the_edit(
     assert turn["kind"] == "answer"
     assert "9 m²" in turn["text"]  # the drawing's own answer stays: it is what the drawing says
     assert (
-        "As drawn. Your accepted edit p1 is not applied to answers; with it, Bagno 1.01 is part of "
-        "Bagno 1.01 + Stanza 1.02: 21.02 m²."
+        "As drawn; the plan edit you accepted (Bagno 1.01 + Stanza 1.02) isn't applied to answers; "
+        "with it, Bagno 1.01 is part of Bagno 1.01 + Stanza 1.02: 21.02 m²."
     ) in turn["text"]
     # kept with the chat: the turn reads the same when the chat is opened again
     project = chat.split("/")[3]
@@ -51,12 +51,33 @@ def test_r4_f5_no_note_for_an_edit_only_proposed_or_rejected(client: TestClient)
     for decision in (None, "reject"):
         chat, chat_id = edited(client, decision)
         turn = ask(client, chat, chat_id, AREA)
-        assert "accepted edit" not in turn["text"], decision
+        assert "plan edit you accepted" not in turn["text"], decision
 
 
-def test_r4_f5_another_answer_on_the_edited_drawing_says_it_reads_it_as_drawn(
+def test_r4_f5_the_number_of_rooms_on_the_edited_drawing_says_as_drawn(
     client: TestClient,
 ) -> None:
     chat, chat_id = edited(client, "accept")
+    turn = ask(client, chat, chat_id, "How many rooms are there?")
+    assert turn["kind"] == "answer", turn["text"]
+    assert turn["text"].endswith(
+        "As drawn; the plan edit you accepted (Bagno 1.01 + Stanza 1.02) isn't applied to answers."
+    )
+
+
+def test_r4_f5_the_area_of_a_room_the_edit_does_not_change_gets_no_note(
+    client: TestClient,
+) -> None:
+    chat, chat_id = edited(client, "accept")
+    turn = ask(client, chat, chat_id, "What is the area of Balcone 1.03?")
+    assert turn["kind"] == "answer", turn["text"]
+    assert "plan edit you accepted" not in turn["text"]
+
+
+def test_r4_f5_a_door_count_on_the_edited_drawing_gets_no_note(client: TestClient) -> None:
+    """Orchestrator 05:19: only a quantity the edit can change (rooms, walls) carries it, so a
+    later answer about doors, windows or fixtures reads as before."""
+    chat, chat_id = edited(client, "accept")
     turn = ask(client, chat, chat_id, "How many doors are there?")
-    assert "As drawn. Your accepted edit p1 is not applied to answers." in turn["text"]
+    assert turn["kind"] == "answer", turn["text"]
+    assert "plan edit you accepted" not in turn["text"]
