@@ -91,7 +91,8 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
     picture = bool(sheet.facts) and all(_picture(fact) for fact in sheet.facts)
     if picture:  # its systems are its runs: "each pipe system" is their length by system
         query = _per_system(query, facts)
-    if picture and query.place is not None:  # a picture's facts are whole-sheet counts only
+    if query.place is not None and (picture or _counted_in_one_room(query)):
+        # a picture's facts are whole-sheet counts; a model's count by type and storey, not room
         return Answer(
             id=question.id,
             answer=None,
@@ -744,6 +745,28 @@ _FLAT_NAMED = re.compile(
     rf"\b(?:{_FLAT})\s+(?:no\.?\s*|number\s+|#\s*)?(?P<id>[a-z]|\d+[a-z]?|[a-z]\d+)\b(?![.,]\d)",
     re.I,
 )
+
+
+# A place that is one room: a room word, or a room type ("in the kitchen", "in room 1-2"). "In this
+# house", "in the structural walls", "in the roof construction" are not (the golden set's models)
+_ONE_ROOM = re.compile(
+    "|".join(
+        (
+            r"rooms?|spaces?|offices?|corridors?|halls?|hallways?|cafeterias?|canteens?|lobby|"
+            r"foyers?|entrances?|storage|stores?|garages?|laundry|utility|dining|study|küche|flur",
+            *(words for _, words in _ROOM_WORDS),
+        )
+    ),
+    re.I,
+)
+
+
+def _counted_in_one_room(query: FactQuery) -> bool:
+    """A model's count of things inside one room ("How many radiators are in the kitchen?"): its
+    facts count by type and storey, never by room (sample services-mep: the heating model's 63
+    radiators were given for the kitchen). A room's own facts are not refused."""
+    room = any(_ONE_ROOM.fullmatch(word) for word in (query.place or "").split())
+    return query.how_many and query.entity not in ("space", "storey") and room
 
 
 def _flat_unplaced(asked: str, facts: _Facts) -> bool:
