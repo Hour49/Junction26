@@ -21,6 +21,8 @@ type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
 
 const NOTE = 'Proposed from the drawn geometry. Structure, services and permits are not checked.';
+const SERVICES_NOTE =
+  'Proposed from the services model in the IFC file. Structure, flow, pressure and permits are not checked.';
 
 /** The legend's swatch: the same stroke, dash and fill as on the plan (colour never alone). */
 function Swatch({
@@ -320,12 +322,16 @@ export function EditCard(props: {
         <EditPlan p={p} projectId={projectId} hot={hot} reveal={props.reveal ?? 0} />
       )}
       <div className="ag-side">
-        <h4 className="en-label">Changes</h4>
-        <ul className="ag-changes">
-          {changeLines(p).map((l) => (
-            <li key={l}>{l}</li>
-          ))}
-        </ul>
+        {changeLines(p).length > 0 && (
+          <>
+            <h4 className="en-label">Changes</h4>
+            <ul className="ag-changes">
+              {changeLines(p).map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+          </>
+        )}
         <LawSection
           law={p.law}
           onPick={(subject, ev, ref) => {
@@ -352,7 +358,7 @@ export function EditCard(props: {
             </ul>
           </>
         )}
-        <p className="en-small">{NOTE}</p>
+        <p className="en-small">{p.services_change ? SERVICES_NOTE : NOTE}</p>
         {p.state === 'proposed' ? (
           <div className="ag-decide">
             <button
