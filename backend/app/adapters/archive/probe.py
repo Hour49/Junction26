@@ -144,7 +144,7 @@ def _pdf(data: bytes) -> Probed:
 
 class _PageNotLoadedError(Exception):
     def __init__(self, number: int, error: pypdfium2.PdfiumError) -> None:
-        super().__init__(f"page {number} does not load ({error})")
+        super().__init__(f"page {number} does not load")  # not pdfium's text (QA R2-C2)
 
 
 def _pdf_unlocked(data: bytes) -> Probed:
@@ -153,7 +153,8 @@ def _pdf_unlocked(data: bytes) -> Probed:
     except pypdfium2.PdfiumError as error:
         if "password" in str(error).lower():
             return Probed(kind="pdf_encrypted", did="an encrypted PDF that no empty password opens")
-        return Probed(kind="unknown", did=f"a PDF that cannot be opened: {error}")
+        # The reason a user reads, not pdfium's "Data format error" (QA R2-C2)
+        return Probed(kind="unknown", did="a damaged or cut-off PDF that cannot be opened")
     try:
         if len(document) == 0:
             return Probed(kind="unknown", did="a PDF with no pages")
