@@ -20,8 +20,22 @@ from app.core.services.model import Point2
 
 MIN_WALLS = 6  # fewer sheet lines than this cannot pin a rotation, scale and shift apart
 TOL_M = 0.2  # a sheet line within this of a plan wall (all along) lies on it: a wall's thickness
-MIN_SHARE = 0.4  # services lines (pipes, ducts) are no walls: 40% of the sheet's lines on walls
+MIN_SHARE = 0.5  # services lines (pipes, ducts) are no walls: half the sheet's line LENGTH
+# on walls; by length, since many short stubs fit some wall of a dense plan at a wrong pose
+QUADRANTS = 3  # the matched lines lie in this many of the sheet's quarters: not one corner
+TURN_DEG = 3.0  # the pose's turn agrees with the direction histograms' (mod 90) this closely
 MARGIN = 1.3  # the best pose must beat another quarter turn's by this, or it is a guess
+FLIP_MARGIN = 1.5  # ... and, on the lines that tell the pose from the same pose turned half
+# round (refitted from there), beat the turned pose by this: a near-symmetric floor fits both
+# ways. Lines on a wall in both poses (an outline that maps onto itself) decide nothing and are
+# left out (review #554: an outline-dominated right lay was refused). Tudor's bench (#538): 3 of
+# 8 wrong other-floor lays and 2 of 3 wrong same-floor lays were 180 deg flips. Set before runs.
+DECIDE = 0.1  # ... and those lines are at least this share of the sheet's line length
+COVER = (0.75, 1.33)  # the placed sheet spans this share of the plan's extent: a sheet of the
+# same floor draws the same building; a wrong scale shrinks it onto part of a dense plan
+NUDGES = (0.94, 0.96, 0.98, 1.02, 1.04, 1.06)  # the best pose restarted at these scales:
+# ICP stops in a local fit a few % off when walls slide along themselves
+PRIOR = np.exp(np.linspace(math.log(0.8), math.log(1.25), 23))  # around a caller's scale
 SCALES = np.exp(np.linspace(math.log(0.5), math.log(2.0), 71))  # around the extents' ratio, 2%
 VOTE_M = 0.5  # shift vote bin: wide enough for a 2% scale step across a floor
 POSES = 3  # poses refined by ICP per quarter turn
@@ -61,38 +75,103 @@ class Refusal(Frozen):
     reason: str
 
 
-def register(plan_walls: Sequence[Segment], sheet_walls: Sequence[Segment]) -> Place | Refusal:
+def register(
+    plan_walls: Sequence[Segment],
+    sheet_walls: Sequence[Segment],
+    expected_scale: float | None = None,
+    expected_rotation_deg: float | None = None,
+) -> Place | Refusal:
     """How the sheet's lines land on the plan's walls, or why they cannot be laid over. Lines
     with a point that is not a finite number are left out; of the rest, the `LONGEST` longest
-    of each side are used (`of_total` counts the sheet's used lines)."""
+    of each side are used (`of_total` counts the sheet's used lines). `expected_scale` (plan
+    units per sheet unit, e.g. from both printed scales and the dpi) keeps the scale within
+    -20%/+25% of it. `expected_rotation_deg` (e.g. both sheets' north arrows) keeps only the
+    quarter turn nearest it; without it a pose that fits nearly as well turned half round (or a
+    quarter) is refused, since geometry alone cannot tell them apart."""
+    if expected_rotation_deg is not None and not math.isfinite(expected_rotation_deg):
+        return Refusal(reason=f"the expected rotation {expected_rotation_deg} is not a number")
+    if expected_scale is not None and not (math.isfinite(expected_scale) and expected_scale > 0):
+        return Refusal(reason=f"the expected scale {expected_scale} is not a positive number")
     plan, sheet = _ends(plan_walls), _ends(sheet_walls)
+    if len(sheet) and float(_lengths(sheet).max()) <= 0.0:
+        return Refusal(reason="the services sheet's wall lines have no length")
     if len(sheet) < MIN_WALLS:
         return Refusal(
             reason=f"only {len(sheet)} wall lines on the services sheet ({MIN_WALLS} needed)"
         )
     if len(plan) < MIN_WALLS:
         return Refusal(reason=f"only {len(plan)} walls on the plan ({MIN_WALLS} needed)")
-    needed = max(MIN_WALLS, math.ceil(MIN_SHARE * len(sheet)))
-    best: dict[int, tuple[int, float, float, np.ndarray]] = {}  # turn -> pose, scored
+    length = _lengths(sheet)
+    best: dict[int, tuple[float, float, float, np.ndarray]] = {}  # turn -> (share, pose)
     base = _rotation(plan, sheet)
     for turn in range(4):
         deg = base + 90.0 * turn
-        guesses, searched = _guesses(plan, sheet, deg)
+        if expected_rotation_deg is not None and _apart(deg, expected_rotation_deg) > 45.0:
+            continue
+        guesses, searched = _guesses(plan, sheet, deg, expected_scale)
         for scale, shift in guesses:
             pose = _icp(plan, sheet, deg, scale, shift, searched)
-            hits, _ = _inliers(plan, sheet, *pose)
-            if turn not in best or hits > best[turn][0]:
-                best[turn] = (hits, *pose)
+            on, _ = _inliers(plan, sheet, *pose)
+            share = float(length[on].sum() / max(length.sum(), 1e-12))
+            if turn not in best or share > best[turn][0]:
+                best[turn] = (share, *pose)
     ranked = sorted(best.values(), key=lambda p: -p[0])
-    hits, deg, scale, shift = ranked[0]
-    if hits < needed:
-        return Refusal(reason=f"only {hits} of {len(sheet)} wall lines match ({needed} needed)")
-    if ranked[1][0] * MARGIN > hits:
-        return Refusal(
-            reason=f"wall lines match two ways ({hits} and {ranked[1][0]} of {len(sheet)}): "
-            "the sheet's turn is a guess"
+    share, deg, scale, shift = ranked[0]
+    for nudge in NUDGES:
+        pose = _icp(plan, sheet, deg, scale * nudge, shift, (scale * 0.9, scale * 1.1))
+        on, _ = _inliers(plan, sheet, *pose)
+        nudged = float(length[on].sum() / max(length.sum(), 1e-12))
+        if nudged > share:
+            share, (deg, scale, shift) = nudged, pose
+    on, _ = _inliers(plan, sheet, deg, scale, shift)
+    if on.sum() >= MIN_WALLS:  # polish on the matched lines alone, each point alike: precise
+        deg, scale, shift = _icp(
+            plan, sheet[on], deg, scale, shift, (scale * 0.98, scale * 1.02), weighted=False
         )
-    hits, rms = _inliers(plan, sheet, deg, scale, shift)
+    ranked[0] = (share, deg, scale, shift)
+    on, rms = _inliers(plan, sheet, deg, scale, shift)
+    hits = int(on.sum())
+    if share < MIN_SHARE or hits < MIN_WALLS:
+        return Refusal(
+            reason=f"only {hits} of {len(sheet)} wall lines match ({share:.0%} of their length; "
+            f"{MIN_SHARE:.0%} and {MIN_WALLS} lines needed)"
+        )
+    if len(ranked) > 1:  # judged on the lines that tell the two turns apart (as FLIP_MARGIN)
+        other, _ = _inliers(plan, sheet, *ranked[1][1:])
+        mine, theirs = _apart_share(length, on, other)
+        if theirs * MARGIN > mine:
+            return Refusal(
+                reason=f"wall lines match two ways ({share:.0%} and {ranked[1][0]:.0%} of their "
+                f"length; {mine:.0%} and {theirs:.0%} on the lines that tell them apart): the "
+                "sheet's turn is a guess"
+            )
+    cover = _extent(_place(_points(sheet), deg, scale, shift)) / max(_extent(_points(plan)), 1e-12)
+    if not COVER[0] <= cover <= COVER[1]:
+        return Refusal(
+            reason=f"laid over, the sheet would span {cover:.0%} of the plan's size "
+            f"({COVER[0]:.0%}-{COVER[1]:.0%} needed): another floor or a wrong scale"
+        )
+    off = abs((deg - base + 45.0) % 90.0 - 45.0)
+    if off > TURN_DEG:
+        return Refusal(
+            reason=f"the fitted turn is {off:.1f} deg off the wall directions' (a forced fit)"
+        )
+    spread = _quadrants(sheet, on)
+    if spread < QUADRANTS:
+        return Refusal(
+            reason=f"the matching wall lines lie in {spread} of the sheet's 4 quarters "
+            f"({QUADRANTS} needed)"
+        )
+    if expected_rotation_deg is None:
+        mine, flipped = _apart_share(
+            length, on, _flipped_on(plan, sheet, length, deg, scale, shift)
+        )
+        if mine < DECIDE or flipped * FLIP_MARGIN > mine:
+            return Refusal(
+                reason=f"turned half round the sheet fits nearly as well: of the lines that "
+                f"tell the two apart ({mine + flipped:.0%} of its length) {mine:.0%} fit and "
+                f"{flipped:.0%} fit turned; a near-symmetric floor, its turn is a guess"
+            )
     deg = (deg + 180.0) % 360.0 - 180.0
     return Place(
         rotation_deg=deg,
@@ -102,6 +181,48 @@ def register(plan_walls: Sequence[Segment], sheet_walls: Sequence[Segment]) -> P
         of_total=len(sheet),
         rms_m=rms,
     )
+
+
+def _apart(a: float, b: float) -> float:
+    """How far apart two turns are (deg, 0..180)."""
+    return abs((a - b + 180.0) % 360.0 - 180.0)
+
+
+def _apart_share(length: np.ndarray, on: np.ndarray, other: np.ndarray) -> tuple[float, float]:
+    """The shares of the sheet's line length on a wall in one lay and not the other, both ways:
+    a line on a wall in both (an outline that maps onto itself) decides nothing."""
+    total = max(float(length.sum()), 1e-12)
+    return float(length[on & ~other].sum()) / total, float(length[other & ~on].sum()) / total
+
+
+def _flipped_on(
+    plan: np.ndarray,
+    sheet: np.ndarray,
+    length: np.ndarray,
+    deg: float,
+    scale: float,
+    shift: np.ndarray,
+) -> np.ndarray:
+    """Which sheet lines lie on a wall when the pose is turned half round about the middle of
+    the plan's extent or of the placed sheet's and refitted from there (the quarter-turn search
+    may never have tried that shift), of the turn that matches the most line length. A
+    symmetric floor turns about its middle; a sheet's own middle is off it where services lines
+    or missing walls lean one way."""
+    turned = deg + 180.0
+    best, most = np.zeros(len(sheet), bool), -1.0
+    for middle in (_middle(_points(plan)), _middle(_place(_points(sheet), deg, scale, shift))):
+        # p' = scale R(deg + 180) q + shift' with the middle staying put: shift' = 2 middle - shift
+        pose = _icp(plan, sheet, turned, scale, 2.0 * middle - shift, (scale * 0.9, scale * 1.1))
+        on, _ = _inliers(plan, sheet, *pose)
+        if float(length[on].sum()) > most:
+            best, most = on, float(length[on].sum())
+    return best
+
+
+def _middle(points: np.ndarray) -> np.ndarray:
+    """The middle of the set's extent between the `SPREAD` percentiles."""
+    lo, hi = np.percentile(points, SPREAD, axis=0)
+    return (lo + hi) / 2.0
 
 
 def _ends(walls: Sequence[Segment]) -> np.ndarray:
@@ -147,23 +268,33 @@ def _points(ends: np.ndarray, n: int = 3) -> np.ndarray:
 
 
 def _guesses(
-    plan: np.ndarray, sheet: np.ndarray, deg: float
+    plan: np.ndarray, sheet: np.ndarray, deg: float, expected: float | None = None
 ) -> tuple[list[tuple[float, np.ndarray]], tuple[float, float]]:
     """The `POSES` (scale, shift) pairs with the most votes at this turn, and the scale range
     searched. Votes are counted per occupied cell, so a far point costs no memory."""
     p = plan.reshape(-1, 2)  # line ends vote; corners are what two floors' walls share
     q = sheet.reshape(-1, 2) @ _turn(deg).T
-    ratio = _extent(p) / max(_extent(q), 1e-12)
-    found: list[tuple[int, float, np.ndarray]] = []
-    for scale in ratio * SCALES:
+    weight = np.repeat(_lengths(sheet), 2)  # a long line's ends weigh more than a stub's
+    weight = np.tile(weight / max(float(weight.mean()), 1e-12), len(p))
+    ratio, steps = (
+        (_extent(p) / max(_extent(q), 1e-12), SCALES)
+        if expected is None
+        else (
+            expected,
+            PRIOR,
+        )
+    )
+    found: list[tuple[float, float, np.ndarray]] = []
+    for scale in ratio * steps:
         diffs = (p[:, None, :] - scale * q[None, :, :]).reshape(-1, 2)
         cells = np.clip(np.floor(diffs / VOTE_M), -(2.0**30), 2.0**30).astype(np.int64)
-        keys, counts = np.unique((cells[:, 0] << 32) + cells[:, 1], return_counts=True)
-        i = int(np.argmax(counts))
+        keys, index = np.unique((cells[:, 0] << 32) + cells[:, 1], return_inverse=True)
+        votes = np.bincount(index.ravel(), weights=weight)
+        i = int(np.argmax(votes))
         cell = np.array([(keys[i] + 2**31) >> 32, ((keys[i] + 2**31) & 0xFFFFFFFF) - 2**31])
-        found.append((int(counts[i]), float(scale), (cell + 0.5) * VOTE_M))
+        found.append((float(votes[i]), float(scale), (cell + 0.5) * VOTE_M))
     found.sort(key=lambda f: -f[0])
-    return [(s, t) for _, s, t in found[:POSES]], (ratio * SCALES[0], ratio * SCALES[-1])
+    return [(s, t) for _, s, t in found[:POSES]], (ratio * steps[0], ratio * steps[-1])
 
 
 def _nearest(points: np.ndarray, walls: np.ndarray) -> np.ndarray:
@@ -188,44 +319,66 @@ def _icp(
     scale: float,
     shift: np.ndarray,
     searched: tuple[float, float],
+    weighted: bool = True,
 ) -> tuple[float, float, np.ndarray]:
     """The pose (deg, scale, shift) refined by trimmed ICP with Umeyama's similarity, its scale
     kept in the `searched` range (left alone, ICP on lines that match nothing shrinks the sheet
     toward a point, where every line lies on a wall)."""
     q = _points(sheet, SAMPLES)
+    # a long wall pulls more than a stub (finding the pose); alike (polishing it)
+    weight = np.repeat(_lengths(sheet), SAMPLES) if weighted else np.ones(len(sheet) * SAMPLES)
     size = _extent(q) * scale
     moved = _place(q, deg, scale, shift)
     for _ in range(ICP_STEPS):
         target = _nearest(moved, plan)
         err = np.hypot(*(moved - target).T)
         keep = err <= np.quantile(err, TRIM)
-        deg, fitted, shift = _umeyama(q[keep], target[keep])
+        deg, fitted, shift = _umeyama(q[keep], target[keep], weight[keep])
         scale = min(max(fitted, searched[0]), searched[1])
         if scale != fitted:  # the shift that goes with the clamped scale
-            shift = (target[keep] - _place(q[keep], deg, scale, np.zeros(2))).mean(0)
+            gap = target[keep] - _place(q[keep], deg, scale, np.zeros(2))
+            shift = np.average(gap, axis=0, weights=weight[keep])
         before, moved = moved, _place(q, deg, scale, shift)
         if np.abs(moved - before).max() <= SETTLED * size:
             break
     return deg, scale, shift
 
 
-def _umeyama(src: np.ndarray, dst: np.ndarray) -> tuple[float, float, np.ndarray]:
-    """The similarity (deg, scale, shift) taking `src` closest to `dst` (no mirror)."""
-    ms, md = src.mean(0), dst.mean(0)
+def _lengths(ends: np.ndarray) -> np.ndarray:
+    d = ends[:, 1] - ends[:, 0]
+    return np.hypot(d[:, 0], d[:, 1])
+
+
+def _umeyama(
+    src: np.ndarray, dst: np.ndarray, weight: np.ndarray
+) -> tuple[float, float, np.ndarray]:
+    """The similarity (deg, scale, shift) taking `src` closest to `dst`, by `weight` (no
+    mirror)."""
+    w = weight / max(float(weight.sum()), 1e-24)
+    ms, md = w @ src, w @ dst
     s, d = src - ms, dst - md
-    u, sv, vt = np.linalg.svd(d.T @ s / len(src))
+    u, sv, vt = np.linalg.svd((d * w[:, None]).T @ s)
     sign = np.diag([1.0, np.sign(np.linalg.det(u @ vt)) or 1.0])
     r = u @ sign @ vt
-    scale = float(np.trace(np.diag(sv) @ sign) / max((s * s).sum() / len(src), 1e-24))
+    scale = float(np.trace(np.diag(sv) @ sign) / max(float(w @ (s * s).sum(1)), 1e-24))
     return math.degrees(math.atan2(r[1, 0], r[0, 0])), scale, md - scale * r @ ms
+
+
+def _quadrants(sheet: np.ndarray, on: np.ndarray) -> int:
+    """In how many quarters of the sheet (split at its lines' median middle) the `on` lines'
+    middles lie."""
+    middle = sheet.mean(axis=1)
+    centre = np.median(middle, axis=0)
+    right, below = middle[on, 0] >= centre[0], middle[on, 1] >= centre[1]
+    return len(set(zip(right.tolist(), below.tolist(), strict=True)))
 
 
 def _inliers(
     plan: np.ndarray, sheet: np.ndarray, deg: float, scale: float, shift: np.ndarray
-) -> tuple[int, float]:
-    """Sheet lines lying on a plan wall all along, and the rms of their points (m)."""
+) -> tuple[np.ndarray, float]:
+    """Which sheet lines lie on a plan wall all along, and the rms of their points (m)."""
     moved = _place(_points(sheet, SAMPLES), deg, scale, shift)
     err = np.hypot(*(moved - _nearest(moved, plan)).T).reshape(len(sheet), SAMPLES)
     on = (err <= TOL_M).all(axis=1)
     rms = float(np.sqrt((err[on] ** 2).mean())) if on.any() else 0.0
-    return int(on.sum()), rms
+    return on, rms

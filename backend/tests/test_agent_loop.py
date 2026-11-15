@@ -461,7 +461,7 @@ def test_466_the_lead_cites_every_drawing_the_card_shows_though_parts_are_cut() 
     model = RulesChatModel()
     got = turn(model, Tools(ask_drawings={"question": "how many doors", "parts": parts}))  # pyright: ignore[reportArgumentType]
     assert len(got.answers[0]["parts"]) == 4  # the card
-    assert got.text == "The answer is below [1][2][3][4]."  # one cite per drawing on the card
+    assert got.text == "1.pdf: 30 [1]; 2.pdf: 30 [2]; 3.pdf: 30 [3]; 4.pdf: 30 [4]."  # each drawing
 
 
 def test_every_answering_drawing_reaches_the_model_though_parts_are_cut() -> None:

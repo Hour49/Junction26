@@ -248,12 +248,17 @@ pics-edit-follow W1). Pure, one result per candidate sheet in the candidates' or
 the reason it is refused. Metadata first, cheapest first, then geometry:
 
 - The plan's own page: `same_page`, identity, "the plan's own page".
-- Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name with ZIP
-  folders: floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, L1 → 1;
-  UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1; DG, roof, attic → roof) and the sheet number's part after its discipline letters
+- Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name (its ZIP
+  folders only refuse: a set's folder such as "B1/" is on every floor's sheet, so floor words in folders that
+  differ refuse, as "OG 1/" against "EG/", and equal ones agree on nothing): floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, first floor, L1 → 1;
+  UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1, read from the title's floor and from inside a file
+  name, never as a sheet number nor as a file name's first word ("E01 Elektro.png" is the first electrical sheet); DG, roof,
+  attic → roof) and the sheet number's part after its discipline letters
   (A-101 / H-101 → 101). A floor word both sides name agrees ("same floor: 'Floor 1' on both"), equal number parts
   agree ("sheet numbers A-101 / H-101"). Floor words that differ refuse ("another floor: 'Floor 2' against
-  'Floor 1'"); number parts that differ refuse only when no floor word agrees.
+  'Floor 1'"), also when another floor word both name agrees (a building folder "B1/" shared by every floor of the
+  set): each naming a floor the other doesn't is a difference. Number parts that differ refuse only when no floor
+  word agrees. A year is no sheet number ("KOY_2019" is the project's).
 - Then the sheet is laid over the plan by `register(plan, sheet)`: an affine map with the words of how
   ("laid over by 3 room names"), or why not. The default is the room-name shift above; the wall-line fit
   (rotation and scale, Madalina's side) plugs in here.
@@ -262,7 +267,10 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
   and neither: refused, "same floor (…), but it cannot be laid over the plan: <why>". No hint either way and laid
   over: `geometry`, score 0.6. No hint and not laid over: refused with the register's reason.
 - One set only: when both upload paths sit in a top-level folder and the folders differ, the sheet is refused
-  ("another set: folder 'B' against 'A'"); a file at the top of the upload says nothing either way.
+  ("another set: folder 'B' against 'A'"), unless both folders are named by discipline (Architektur, HVAC, LVI,
+  Elektro, ...: one delivery); a file at the top of the upload says nothing either way. Years refuse nothing: on
+  real sets a floor's services sheets are often drawn years after or before its plan (USCG building 110: plan as
+  built 1965, heating 1958, electrical 1981; 4 right pairings lost to a years rule, pics-answer 2026-11-15).
 - Laid over by walls (`by_walls`, around `register` in `app/core/services/register.py`): the plan's wall lines are
   the centre lines of its drawn wall mass in metres (each pair of parallel faces 3–60 cm apart, outer walls
   included); the sheet's come from the sheet-walls reader in its own pixels with its page size. The map is
@@ -272,6 +280,10 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
   both gives both reasons. Without a sheet-walls reader only room names are tried.
 - Several sheets paired for one discipline: the highest score wins (the plan's own page first, then the candidates'
   order); its reason names the others; each other is refused "another <discipline> picture was taken: <name>".
+  When the best is `geometry` and other sheets of that discipline are laid over by geometry alike, none naming a
+  floor, all of them are refused ("2 heating pictures fit this plan alike and none names its floor (a.png, b.png):
+  which one is this floor is not known"): the floors of a building print the same room names, so upload order
+  would pick the floor.
 
 **Unknowns** (when any lane was checked): a services picture shows where things are drawn, not how they connect
 (what a run feeds and whether it can be rerouted); a picture shows no heights (what is on a wall's line may run in
@@ -336,6 +348,28 @@ Pairing (tests in `tests/test_services_pairing.py`):
   (`PictureFactSheet.scale`, #511: `width_px × m_per_px` by `height_px × m_per_px`): same floor and size, laid page to
   page and checked; without it, refused "… the services picture has no scale" unless the walls lay it over
   (`test_a_picture_without_a_drawing_scale_is_sized_by_its_readers_scale`).
+- **SFP-21** "B1/A-101 Floor 1 plan.pdf" against "B1/H-102 Floor 2 heating.png": refused "another floor: 'Floor 2'
+  against 'Floor 1'", with or without room names; a sheet adding no floor word of its own pairs
+  (`test_floor_words_that_differ_refuse_even_when_one_is_shared`).
+- **SFP-22** "E01 Elektro.png" (electrical) and an E01 sheet number name no floor; "…-e00-okrd" inside a file name
+  and "E01_OKRD" as the title's floor still do (`test_an_electrical_sheet_number_is_not_a_level_code`).
+- **SFP-23** A plan naming no floor and two heating sheets laid over alike by room names: both refused, the reason
+  names both; a sheet naming the plan's floor still wins over one by geometry
+  (`test_two_floors_that_fit_alike_and_name_no_floor_are_both_refused`).
+- **SFP-24** "Architektur/…" and "Heizung/…" are one set (`test_discipline_folders_are_one_set`); a basement plan
+  of 1965 and its heating sheet of 1958 pair (`test_sheets_drawn_years_apart_still_pair`).
+- **SFP-25** "KOY_2019 plan.pdf" and "KOY_2019 heating.png" share no sheet number: with no rooms they are refused
+  with the register's reason, not laid page to page (`test_a_project_year_is_not_a_sheet_number`).
+- **SFP-26** "Second Floor Plan" against "Heating Layout First Floor Plan" is refused "another floor: 'First Floor'
+  against 'Second Floor'"; against a second floor heating layout it pairs `metadata`
+  (`test_written_floor_ordinals_name_a_floor`).
+- **SFP-27** "B1/H-heating.png" against "B1/A-101 Floor 1 plan.pdf" names no floor (the folder is not read): `geometry`
+  with room names, refused without (`test_a_floor_word_in_a_folder_is_not_the_sheet_s_floor`); a DigitalHub
+  electrical "…_plan-03-e01-okrd.png" against the "…-e00-okrd" plan is refused "another floor: 'e01' against 'e00'"
+  (`test_a_level_code_inside_an_electrical_sheet_s_name_is_its_level`).
+- **SFP-28** "Projekt/OG 1/Grundriss.pdf" against "Projekt/EG/Heizung.png" is refused "another floor: 'EG' against
+  'OG 1'"; against "Projekt/OG 1/Heizung.png" it pairs by `geometry`, not by the folder
+  (`test_floor_words_in_folders_refuse_when_they_differ`).
 
 **The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
 `picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the

@@ -1,0 +1,475 @@
+/* Trace view v5: one file's stages on a time axis, the decisions, and the files-by-stage matrix (AD-1xx).
+   Colours only through the --v-* tokens. */
+.tl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--v-surface);
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  padding: 24px 28px;
+  color: var(--v-text);
+  font-family: var(--v-font);
+}
+.tl-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tl-title h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.tl-ms {
+  font-family: var(--v-mono);
+  font-size: 12px;
+  color: var(--v-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tl-list,
+.tl-steps,
+.tl-decisions,
+.fm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Stages */
+.tl-stage {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+}
+.tl-stage + .tl-stage {
+  border-top: 1px solid var(--v-line);
+}
+.tl-icon,
+.tl-dec-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  background: var(--v-accent);
+  color: var(--v-surface);
+}
+.tl-stage.failed .tl-icon {
+  background: var(--v-danger);
+}
+.tl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.tl-body p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.tl-body .output {
+  color: var(--v-muted);
+  font-size: 13px;
+}
+.tl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.tl-failure {
+  color: var(--v-danger);
+  font-weight: 600;
+}
+
+/* A time axis: the span sits at its share of the whole */
+.tl-track {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--v-fill);
+  overflow: hidden;
+}
+.tl-span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--l);
+  width: max(var(--w), 3px);
+  border-radius: 4px;
+  background: var(--v-accent);
+  transform-origin: left center;
+  animation: tl-grow 500ms ease-out both;
+}
+@keyframes tl-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+/* Five phases, five fills apart in hue and lightness: grey, outlined pale, green, amber, blue. Each bar also says its
+   stages in words (aria-label, "Longest: …"); a failure is said in text. */
+.phase-open {
+  background: var(--v-line);
+}
+.phase-page {
+  background: var(--v-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--v-accent);
+}
+.phase-read {
+  background: var(--v-accent);
+}
+.phase-check {
+  background: var(--v-warn-mark);
+}
+.phase-store {
+  background: var(--v-3d-moved);
+}
+.tl-stage.failed .tl-span,
+.fm-seg.failed {
+  background: var(--v-danger);
+}
+
+/* Steps inside a stage: one row each on the stage's own axis, so readers that ran together overlap */
+.tl-steps-note {
+  margin-top: 6px !important;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tl-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--v-bg);
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+.tl-step {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon label ms'
+    'icon track track'
+    'icon did did';
+  column-gap: 8px;
+  row-gap: 3px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.tl-step + .tl-step {
+  border-top: 1px solid var(--v-line);
+}
+.tl-step-icon {
+  grid-area: icon;
+  font-size: 12px;
+  color: var(--v-ok);
+}
+.tl-step.failed .tl-step-icon,
+.tl-step.failed .tl-step-label {
+  color: var(--v-danger);
+}
+.tl-step.skipped {
+  color: var(--v-muted);
+}
+.tl-step.skipped .tl-step-icon {
+  color: var(--v-muted);
+}
+.tl-step-label {
+  grid-area: label;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.tl-step .tl-ms {
+  grid-area: ms;
+}
+.tl-step .tl-track {
+  grid-area: track;
+  height: 6px;
+}
+.tl-step .tl-span.step {
+  background: var(--v-accent);
+}
+.tl-step.failed .tl-span.step {
+  background: var(--v-danger);
+}
+/* AD-121: a run of steps side by side hangs off a rule under its head; a stretch with no step running is a note */
+.tl-steps-together,
+.tl-steps-idle {
+  padding: 8px 0 4px;
+  font-size: 12px;
+  color: var(--v-muted);
+  overflow-wrap: anywhere;
+}
+.tl-steps-together {
+  font-weight: 600;
+  color: var(--v-text-2);
+}
+.tl-steps-idle {
+  font-style: italic;
+  border-top: 1px dashed var(--v-line);
+  border-bottom: 1px dashed var(--v-line);
+  margin: 4px 0;
+}
+.tl-step.together {
+  padding-left: 12px;
+  box-shadow: inset 2px 0 0 var(--v-accent-soft);
+}
+.tl-step-did {
+  grid-area: did;
+  margin: 0;
+  color: var(--v-text-2);
+  overflow-wrap: anywhere;
+}
+
+/* What it ends as */
+.tl-ends {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tl-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tl-counts li {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--v-fill);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tl-link {
+  align-self: flex-start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--v-accent);
+  font-weight: 600;
+}
+
+/* Decisions */
+.tl-decisions {
+  display: flex;
+  flex-direction: column;
+}
+.tl-dec {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+}
+.tl-dec + .tl-dec {
+  border-top: 1px solid var(--v-line);
+}
+.tl-dec > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tl-dec p {
+  margin: 0;
+  color: var(--v-text-2);
+  overflow-wrap: anywhere;
+}
+.tl-where {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tl-dec.ok .tl-dec-icon {
+  background: var(--v-ok);
+}
+.tl-dec.warn .tl-dec-icon {
+  background: var(--v-warn-soft);
+  color: var(--v-warn);
+  box-shadow: inset 0 0 0 1px var(--v-warn);
+}
+.tl-dec.bad .tl-dec-icon {
+  background: var(--v-danger);
+}
+.tl-dec.info .tl-dec-icon {
+  background: var(--v-fill);
+  color: var(--v-text-2);
+}
+
+/* Files by stage (the Advanced view's overview) */
+.fm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 13fr) minmax(0, 17fr) minmax(0, 11fr);
+  grid-template-areas: 'file bar facts';
+  align-items: center;
+  gap: 6px 20px;
+  padding: 12px 0;
+}
+.fm-row + .fm-row {
+  border-top: 1px solid var(--v-line);
+}
+.fm-file {
+  grid-area: file;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.fm-file a {
+  font-family: var(--v-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v-text);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  min-height: 24px;
+}
+.fm-file a:hover {
+  color: var(--v-accent);
+  text-decoration: underline;
+}
+.fm-file a:focus-visible {
+  outline: 2px solid var(--v-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.fm-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--v-muted);
+}
+.fm-bar {
+  grid-area: bar;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.fm-segs {
+  display: flex;
+  gap: 1px;
+  height: 12px;
+  min-width: 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  transform-origin: left center;
+  animation: tl-grow 500ms ease-out both;
+}
+.fm-seg {
+  flex: var(--g) 1 0;
+  min-width: 3px; /* its colour is its phase's (.phase-*) */
+}
+.fm-seg.now {
+  animation: fm-pulse 1.6s ease-in-out infinite;
+}
+@keyframes fm-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.fm-bar-note {
+  font-size: 12px;
+  color: var(--v-muted);
+  overflow-wrap: anywhere;
+}
+.fm-facts {
+  grid-area: facts;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  text-align: right;
+  min-width: 0;
+}
+.fm-facts .tl-ms {
+  font-size: 13px;
+  color: var(--v-text);
+}
+.fm-found {
+  color: var(--v-text-2);
+  overflow-wrap: anywhere;
+}
+.fm-why {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--v-text-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.fm-fail {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--v-danger);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.fm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--v-muted);
+}
+.fm-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fm-swatch {
+  width: 12px;
+  height: 8px;
+  border-radius: 3px;
+}
+.fm-sum {
+  margin: 0;
+  color: var(--v-text-2);
+  font-size: 14px;
+}
+
+@media (max-width: 760px) {
+  .tl-card {
+    padding: 20px;
+  }
+  .fm-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'file'
+      'bar'
+      'facts';
+  }
+  .fm-facts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-span,
+  .fm-segs,
+  .fm-seg.now {
+    animation: none;
+  }
+}

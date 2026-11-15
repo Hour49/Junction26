@@ -305,9 +305,12 @@ SIZE_FILTER_WORDS = re.compile(
 # a door; ...")
 FIRST_SENTENCE = re.compile(r"\?|(?<=[a-z0-9²)])\.\s")
 # Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
-# balconies" (EXCLUDING), a room's "longer side" (its length)
+# balconies" (EXCLUDING), a room's "longer side" (its length); and words that narrow nothing
+# (review-532): "over all", "only". Not "the apartment with number A": the parser reads that
+# name only as "apartment A", so it would answer for the whole sheet (review-539)
 APPLIED = re.compile(
     r"\b(?:without|excluding|except)\s+(?:the\s+|its\s+)?balcon\w*|\b(?:longer|shorter)\s+side\b"
+    r"|\bover\s+all\b|\bonly\b"
 )
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
@@ -322,7 +325,10 @@ INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen in
     r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"
     r"|\by compris\b|\bincluid\w*|\bcompres[aoie]\b|\binclus\w*|\btogether\b|\bzusammen\b"
 )
-BUILDING = re.compile(r"\bbuilding\b|\bproject\b")  # the whole model, not this sheet
+# The whole model, not this sheet. "project" is not the model: the project chat asks each drawing
+# the question as written, so "in this project" or "does the project have" is that drawing's own
+# quantity, as "in the whole project" is (EACH_SHEET; review-529 S1)
+BUILDING = re.compile(r"\bbuilding\b")
 # In English the counted thing comes right after these words ("how many X-ray rooms" is not a
 # count of rooms); the words in FILLER may come between.
 ENGLISH_COUNT = re.compile(r"\b(?:how many|number of|count of|count the|count)\s+")

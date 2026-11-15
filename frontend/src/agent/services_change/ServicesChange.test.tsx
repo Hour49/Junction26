@@ -4,7 +4,7 @@ import { project } from '../../api/fixtures';
 import { mockApi } from '../../test/mockApi';
 import { EditCard } from '../EditCard';
 import { editTurn } from '../fixtures';
-import { checkLine, factLine, shownRuns } from './change';
+import { checkLine, factLine, shownRuns, zoomBox, type ServicesChange } from './change';
 import { moved, PICTURE, servicesProposal } from './fixtures';
 
 afterEach(cleanup);
@@ -34,6 +34,23 @@ describe('services change helpers (SV-30)', () => {
     ]);
   });
 
+  it('the close-up is a square of the page around everything that changed, inside the page', () => {
+    const box = zoomBox(moved, shownRuns(moved));
+    expect(box.s).toBeCloseTo(0.2); // a 0.07 change, 0.05 margin a side, at least a fifth of the page
+    expect([box.x, box.y].map((v) => Math.round(v * 1000))).toEqual([335, 245]);
+    const one = { id: 'E12', label: 'Radiator' };
+    const edge: ServicesChange = {
+      ...moved,
+      moved: [{ ...one, from: [0.97, 0.98], to: [0.99, 0.99] }],
+    };
+    const corner = zoomBox(edge, { removed: [], added: [] });
+    expect([corner.x + corner.s, corner.y + corner.s].map((v) => Math.round(v * 1000))).toEqual([
+      1000, 1000,
+    ]);
+    const wide: ServicesChange = { ...moved, moved: [{ ...one, from: [0, 0], to: [1, 1] }] };
+    expect(zoomBox(wide, { removed: [], added: [] })).toEqual({ x: 0, y: 0, s: 1 });
+  });
+
   it('a halved main is neither removed nor added; the rerouted branch is both', () => {
     const runs = shownRuns(moved);
     expect(runs.removed.map((r) => r.id)).toEqual(['E31']);
@@ -49,8 +66,40 @@ describe('the edit card with a services change (SV-30)', () => {
     expect(calls.some((c) => c.url.includes('/api/drawings/'))).toBe(false);
   });
 
+  it('opens close up on the change, the whole floor one tap away (#566)', () => {
+    const { container } = card();
+    const view = screen.getByRole('group', { name: 'Picture' });
+    const close = within(view).getByRole('button', { name: 'Close-up' });
+    expect(close.getAttribute('aria-pressed')).toBe('true');
+    const img = screen.getByRole('img', { name: /storey L2, with the proposed change, close up/ });
+    expect(img.style.transform).toBe('scale(5) translate(-33.5%, -24.5%)');
+    const from = container.querySelector('.sc-from'); // (0.41 - 0.335) / 0.2 of the close-up
+    expect([from?.getAttribute('cx'), from?.getAttribute('cy')]).toEqual(['37.5%', '37.5%']);
+    fireEvent.click(within(view).getByRole('button', { name: 'Whole floor' }));
+    expect(img.style.transform).toBe('');
+    expect(container.querySelector('.sc-from')?.getAttribute('cx')).toBe('41%');
+  });
+
+  it('marks the new runs to draw on and the new place to slide from the old one (#566)', () => {
+    const { container } = card();
+    const added = container.querySelectorAll('.sc-overlay .sc-added line');
+    expect([...added].every((l) => l.getAttribute('pathLength') === '1')).toBe(true);
+    // a removed run keeps its own length: pathLength would stretch its dashes into a solid line
+    expect(
+      container.querySelector('.sc-overlay .sc-removed line')?.hasAttribute('pathLength'),
+    ).toBe(false);
+    const to = container.querySelector<SVGElement>('.sc-to');
+    expect([to?.style.getPropertyValue('--dx'), to?.style.getPropertyValue('--dy')]).toEqual([
+      '-30%',
+      '-30%',
+    ]);
+    expect(container.querySelector('.sc-ring')).toBeTruthy(); // a ring, not colour alone
+    expect(screen.getByText(/New place \(filled mark with a ring\)/)).toBeTruthy();
+  });
+
   it('draws removed runs dashed, added runs thick and the moved terminal as a hollow mark with an arrow', () => {
     const { container } = card();
+    fireEvent.click(screen.getByRole('button', { name: 'Whole floor' }));
     expect(ids(container, '.sc-overlay .sc-removed')).toEqual(['E31']);
     expect(ids(container, '.sc-overlay .sc-added')).toEqual(['N1']);
     expect(container.querySelectorAll('[data-id="E31"] line')).toHaveLength(1);

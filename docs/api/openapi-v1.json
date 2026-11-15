@@ -3696,6 +3696,17 @@
             "title": "State",
             "type": "string"
           },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
           "takeoff": {
             "additionalProperties": {
               "anyOf": [
@@ -6328,6 +6339,14 @@
             "title": "Id",
             "type": "string"
           },
+          "index_steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StepTrace"
+            },
+            "title": "Index Steps",
+            "type": "array"
+          },
           "issues_open": {
             "anyOf": [
               {
@@ -6370,6 +6389,21 @@
               }
             ],
             "title": "Not Plans"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "enum": [
+                  "files",
+                  "index"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
           },
           "readers": {
             "additionalProperties": {
@@ -8702,6 +8736,14 @@
             ],
             "title": "Stage",
             "type": "string"
+          },
+          "steps": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StepTrace"
+            },
+            "title": "Steps",
+            "type": "array"
           }
         },
         "required": [
@@ -8783,6 +8825,66 @@
           "ms"
         ],
         "title": "Step",
+        "type": "object"
+      },
+      "StepTrace": {
+        "additionalProperties": false,
+        "description": "One thing that ran inside a stage (a reader, a check, a model call), or in the project's\nlast phase (decision 0017). Readers that run at the same time have overlapping\n[at_ms, at_ms + ms) spans.",
+        "properties": {
+          "at_ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "At Ms",
+            "type": "number"
+          },
+          "cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "did": {
+            "default": "",
+            "title": "Did",
+            "type": "string"
+          },
+          "found": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Found",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Ms",
+            "type": "number"
+          },
+          "state": {
+            "default": "done",
+            "enum": [
+              "done",
+              "failed",
+              "skipped"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "StepTrace",
         "type": "object"
       },
       "StoreyRow": {

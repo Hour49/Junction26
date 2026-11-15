@@ -144,6 +144,43 @@ def test_a_model_count_that_is_not_what_the_objects_give_shows_no_list() -> None
     assert (found.objects, found.arithmetic) == (None, None)
 
 
+def test_a_typed_space_count_lists_the_spaces_it_counted_in_words() -> None:
+    """#527 review (N1, S2): duplex-m lists each room twice and the count keeps one, but the proof
+    took every space of the type, so the list (3 for 2) never matched the count and was hidden;
+    and its sentence read "24 room:bedroom objects in the model" (vitoria)."""
+
+    def space(at: int, name: str, long_name: str, kind: str, storey: str = "L2") -> ModelObject:
+        return ModelObject.model_validate(
+            {"id": f"o{at}", "class": "space", "storey": storey, "global_id": f"G{at}",
+             "name": name, "long_name": long_name, "attrs": {"room_type": kind}}
+        )  # fmt: skip
+
+    objects = (
+        space(1, "A202", "Bedroom 1", "bedroom"),
+        space(2, "A202", "Bedroom 1", "bedroom"),  # the same room listed again
+        space(3, "A202-M", "Bedroom 1 MEP Space", "bedroom"),  # its services copy
+        space(4, "A203", "Bedroom 2", "bedroom"),
+        space(5, "A103", "Kitchen", "kitchen", "L1"),
+    )
+    model = Drawing(file="m.ifc", pages=(), scale=Scale(status="no_scale"), model_objects=objects)
+    found = takeoff_proof(
+        a_row("room:bedroom", "count", "room:bedroom", 2, "count", rule="model-space-types"), model
+    )
+    assert [item.global_id for item in found.objects or ()] == ["G1", "G4"]
+    assert found.arithmetic == "2 spaces in the model whose names say bedroom"
+    on_l2 = takeoff_proof(
+        a_row("room:bedroom|storey=l2", "count", "room:bedroom", 2, "count",
+              rule="model-space-types", scope=Scope(storey="l2")),
+        model,
+    )  # fmt: skip
+    assert on_l2.arithmetic == "2 spaces in the model whose names say bedroom, on L2"
+    # one space is one space (#555 nit: "1 spaces in the model whose names say kitchen")
+    kitchen = takeoff_proof(
+        a_row("room:kitchen", "count", "room:kitchen", 1, "count", rule="model-space-types"), model
+    )
+    assert kitchen.arithmetic == "1 space in the model whose name says kitchen"
+
+
 def test_a_schedule_answer_shows_its_rows_cells_and_how_many_of_the_table() -> None:
     rows = tuple(
         TableRow(cells=(f"10{at}", kind), box=(0.1, 0.1 * at, 0.5, 0.1 * at + 0.05))
