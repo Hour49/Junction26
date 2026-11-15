@@ -69,7 +69,7 @@ def test_each_source_is_a_step_and_parallel_sources_overlap() -> None:
     detector, rooms, plans = by_id["detector"], by_id["rooms"], by_id["plans"]
     assert detector.label == "Symbol detector, 8 views"
     assert detector.found == {"door": 2, "window": 1}
-    assert detector.did.startswith("read for door, window") and "2 doors, 1 window" in detector.did
+    assert detector.did == "read for 14 element classes; 2 doors, 1 window"
     assert (rooms.label, rooms.found) == ("Room reader (Gemini)", {"room": 1})
     assert rooms.cost_usd == 0.004
     assert plans.found == {"plan": 1}
@@ -297,3 +297,18 @@ def test_the_count_arbiter_lists_its_three_reads_in_order() -> None:
     assert got.steps[0].found == {"toilet": 1} and got.steps[1].found == {"toilet": 2}
     assert got.steps[2].did.startswith("toilet 1 -> 2 (P = ")
     assert got.steps[0].at_ms <= got.steps[1].at_ms <= got.steps[2].at_ms
+
+
+def test_a_source_counts_only_the_classes_it_gives() -> None:
+    both = [element("door", LEFT), element("window", RIGHT)]
+    readers: dict[str, Extractor] = {
+        "detector:A": Fake(elements=both, read=["door", "window"]),
+        "detector:B": Fake(elements=[*both, element("door", RIGHT)], read=["door", "window"]),
+        "one-plan": Fake(plans=PLANS),
+    }
+    got = composite(
+        {"elements": "detector:A", "door": "detector:B", "plans": "one-plan"}, readers
+    ).extract(FILE, SHEET)
+    by_did = {step.did.split(";")[0]: step.found for step in got.steps}
+    assert by_did["read for door"] == {"door": 2}
+    assert by_did["read for 13 element classes"] == {"window": 1}

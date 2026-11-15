@@ -223,8 +223,19 @@ class CompositeRasterExtractor:
             label = f"Double-check reader {', '.join(checks)}: {label}"
         rooms = len(got.rooms) if "rooms" in parts and _looked_for(got.read, "room") else None
         plans = len(got.plans) if "plans" in parts else None
-        found = found_of(got.elements, got.read, rooms=rooms, plans=plans)
-        said = [f"read for {', '.join(parts)}" if parts else "never counted"]
+        # a part's source counts only the classes it gives; a double-check reader all it saw
+        classes: list[ReadClass] = [
+            kind for kind in ELEMENT_CLASSES if kind in parts and _looked_for(got.read, kind)
+        ]
+        found = found_of(got.elements, classes if parts else got.read, rooms=rooms, plans=plans)
+        kinds = [part for part in parts if part in ELEMENT_CLASSES]
+        other = [part for part in parts if part not in ELEMENT_CLASSES]
+        given = (
+            [count(len(kinds), "element class", "element classes"), *other]
+            if len(kinds) > 4
+            else parts
+        )
+        said = [f"read for {', '.join(given)}" if parts else "never counted"]
         if checks and parts:
             said.append(f"also double-check reader {', '.join(checks)}")
         said.append(found_words(found))
