@@ -246,12 +246,15 @@ NOT_NET = re.compile(r"\bgross\b|\bfootprint\b|\bbrutto")
 # area of the offices" → 798.81 m², truth 210.81). English only, as FLOOR_TOTAL.
 TOTAL_NOUN = re.compile(
     r"\btotal (?P<before>[^\W\d_]+)(?= area\b)"
-    r"|\barea (?:of|for) (?:the |all (?:of )?(?:the )?|every |its |this )?(?P<of>[^\W\d_]+)"
+    r"|\barea (?:of|for) (?:the |all (?:of )?(?:the )?|both (?:of )?(?:the )?|every |its |this )?"
+    # a number before the noun says how many, not which ("the two bedrooms", "all 3 kitchens")
+    r"(?:(?:\d+|two|three|four|five|six|seven|eight|nine|ten) )?(?P<of>[^\W\d_]+)"
 )
 TOTAL_WORDS = frozenset(
     """
     floor floors plan drawing sheet page storey level layout apartment flat dwelling unit house
     room rooms space spaces indoor interior internal numbered net usable this these whole entire
+    living habitable heated residential home property main
     """.split()  # noqa: SIM905 (a word list reads better as text)
 )
 # A room label named without quotes, as the question's last word ("rooms labelled Büro?"): read as

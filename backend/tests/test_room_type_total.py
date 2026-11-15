@@ -8,7 +8,7 @@ import pytest
 
 from app.adapters.question_templates import TemplateParser
 from app.core.answering.answer import answer_question
-from app.core.answering.model import Prior, Question
+from app.core.answering.model import Prior, Query, Question
 from app.core.drawing.model import Drawing, Page, Room, RoomType, Scale
 from app.core.pipeline.takeoff import known_quantities
 
@@ -81,3 +81,38 @@ def test_a_total_by_a_room_word_without_a_type_is_refused_not_every_room(text: s
 )
 def test_a_label_named_without_quotes_sums_the_rooms_printed_so(text: str, total: float) -> None:
     assert answered(text) == pytest.approx(total)
+
+
+# review-754 point 3: a number or "both" before the room word says how many, not which, and
+# "living", "habitable", "heated", "the home", "the main floor" name the sheet's rooms as before
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("What is the total area of the two bedrooms?", "room:bedroom"),
+        ("What is the total area of both bathrooms?", "room:bathroom"),
+        ("What is the total area of the 2 bedrooms?", "room:bedroom"),
+        ("What is the total area of all three kitchens?", "room:kitchen"),
+    ],
+)
+def test_a_count_before_a_room_type_keeps_the_type(text: str, subject: str) -> None:
+    assert TemplateParser().parse(text) == Query(measure="area", subject=subject)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total living area?",
+        "What is the total habitable area?",
+        "What is the total heated area?",
+        "What is the total residential area?",
+        "What is the total area of the home?",
+        "What is the total area of the property?",
+        "What is the total area of the main floor?",
+    ],
+)
+def test_the_sheet_total_in_other_words_is_its_indoor_total(text: str) -> None:
+    assert answered(text) == pytest.approx(SHEET_TOTAL)
+
+
+def test_a_count_before_an_unknown_room_word_is_still_refused() -> None:
+    assert answered("What is the total area of the two offices?") is None

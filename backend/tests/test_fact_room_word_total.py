@@ -64,6 +64,7 @@ def test_a_total_by_a_room_word_no_space_has_is_refused(text: str) -> None:
         "What is the total net floor area of the building?",
         "What is the total area of all spaces?",
         "What is the total area of the clinic?",  # the model's own name
+        "What is the total area of the home?",  # review-754 point 3
     ],
 )
 def test_a_total_of_the_model_or_its_spaces_is_answered_as_before(text: str) -> None:
@@ -78,3 +79,9 @@ def test_a_total_of_the_model_or_its_spaces_is_answered_as_before(text: str) -> 
 def test_a_space_named_by_the_word_is_answered(text: str) -> None:
     answer = _answer(text)
     assert answer is not None and answer.method == FACTS and "19.18" in str(answer.answer), answer
+
+
+def test_a_count_before_the_room_word_names_the_word_not_the_count() -> None:
+    answer = _answer("What is the total area of the two offices?")
+    assert answer is not None and answer.answer is None, answer
+    assert "named 'offices'" in str(answer.explanation), answer.explanation
