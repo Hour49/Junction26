@@ -7,7 +7,6 @@ import {
   STEP_VIEW,
   currentStep,
   defaultStep,
-  elapsedMs,
   pairsOf,
   planCounts,
   previewNote,
@@ -372,14 +371,6 @@ describe('advanced.ts', () => {
       ),
     };
     expect(pairsOf([t], p).map((x) => x.file)).toEqual(['drawings/mine.pdf']);
-  });
-
-  it('elapsedMs: done -> project.ms; running -> now - started_at; not started -> null', () => {
-    expect(elapsedMs(project, 0)).toBe(project.ms);
-    const now = Date.parse('2026-11-14T08:00:10Z');
-    const running = { ...variants.running, started_at: '2026-11-14T08:00:00Z' };
-    expect(elapsedMs(running, now)).toBe(10000);
-    expect(elapsedMs({ ...running, started_at: null }, now)).toBeNull();
   });
 
   it('scaleChip: the read scale in words, from drawing.json and each status', () => {
