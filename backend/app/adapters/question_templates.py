@@ -44,6 +44,7 @@ from app.core.answering.model import (
     NOT_COUNTED,
     ONE_VIEW,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SIZE_FILTER,
     UNQUOTED_PLACE,
@@ -309,6 +310,28 @@ FIRST_SENTENCE = re.compile(r"\?|(?<=[a-z0-9²)])\.\s")
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
 IN_PLACE = re.compile(r"\b(?:in|inside|within|on) (?:the|this|that|a|an|one) ([^\W\d_]+)")
+# A storey named without quotes by the file's own code or name (big QA R1, local-dec): "on P1",
+# "on level P1", "on floor OG2", "on the P1 plan", "on the Erdgeschoss". A code mixes letters and
+# a number (P1, OG2, E01, 1OG) or is two or three capitals (EG, UG); a name is one capitalised
+# word after "on the" that is no counted thing, sheet or floor word (PLACE: "the Ground floor"
+# stays a floor). The drawing resolves it (answer.RoomByType._storey):
+# a storey it lacks is refused, as a quoted one is, never answered as the whole file.
+STOREY_CODE = (
+    r"[A-Za-z]{1,3}\d{1,2}[A-Za-z]?|\d{1,2}(?!st\b|nd\b|rd\b|th\b)[A-Za-z]{1,3}|(?-i:[A-Z]{2,3})"
+)
+STOREY_AT = re.compile(
+    rf"\bon\s+(?:the\s+)?(?:(?:level|floor|storey|story)\s+)?(?P<code>{STOREY_CODE})\b"
+    r"(?:\s+(?:floor\s+)?(?:plan|sheet|drawing)\b)?"
+    r"|\bon\s+the\s+(?P<name>[A-ZÄÖÜ][^\W\d_]{2,})\b(?!\s+(?:floor|level|storey|story)\b)",
+    re.IGNORECASE,
+)
+# A second storey joined to the first ("on P1 and P2", "P1, P2", "level P1 to P3", "EG & OG1"):
+# one storey at a time, never the first one's count for both (review-702 M1)
+STOREY_ALSO = re.compile(
+    r"\s*(?:,|&|-|\u2013|\b(?:and|or|to|through)\b)\s*(?:the\s+)?(?:(?:level|floor|storey|story)\s+)?"
+    rf"(?:{STOREY_CODE}|(?-i:[A-ZÄÖÜ][^\W\d_]{{2,}}))\b",
+    re.IGNORECASE,
+)
 SHEET = frozenset(
     """
     floor plan floorplan drawing sheet page model storey story level layout image picture map
@@ -403,6 +426,11 @@ class TemplateParser:
     def _read(self, raw: str) -> Query | TableQuery | Unsupported:
         quoted = _quoted(raw)
         bare = QUOTED.sub(" _ ", raw)  # the question without its quoted names
+        if not any(q.role == "storey" for q in quoted) and (at := _storey_at(bare)) is not None:
+            if STOREY_ALSO.match(bare, at.end()):
+                return Unsupported(reason=SEVERAL_STOREYS)
+            quoted.append(_Quoted(text=at.group("code") or at.group("name"), role="storey"))
+            bare = f"{bare[: at.start()]} _ {bare[at.end() :]}"  # as if it were quoted
         lower = bare.casefold()
         if is_table_question(raw):
             return parse_table(raw)
@@ -567,6 +595,23 @@ def _room_numbers(bare: str) -> list[re.Match[str]]:
         if not MEASURE_AFTER.match(bare, found.end())
         and not MEASURE_BEFORE.search(bare, 0, found.start())
     ]
+
+
+def _storey_at(bare: str) -> re.Match[str] | None:
+    """The storey the question names without quotes (STOREY_AT), or None: a name must be no
+    counted thing, sheet or floor word ("on the Balcony", "on the Plan" stay what they were), and
+    a code must have a capital or follow a storey word ("on p1" alone may be a typo)."""
+    for found in STOREY_AT.finditer(bare):
+        if (name := found.group("name")) is not None:
+            word = name.casefold()
+            if not name[0].isupper() or word in SHEET or PLACE.search(word) or _subjects(word)[1]:
+                continue
+        elif not any(c.isupper() for c in found.group("code")) and not re.search(
+            r"\b(?:level|floor|storey|story)\s", found.group(), re.IGNORECASE
+        ):
+            continue
+        return found
+    return None
 
 
 def _quoted(raw: str) -> list[_Quoted]:

@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawing, error, project, takeoff, trace } from '../api/fixtures';
 import type { FileTrace, ProjectView } from '../api';
 import { formatSize, nameParts } from '../ingest/ingest';
-import { flush, variants, must } from '../ingest/testing';
+import { ProgressCard } from '../ingest/ProgressCard';
+import { flush, must, sampleRun, variants } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
 import { VERDICT_BUTTON } from './visuals';
@@ -255,6 +256,50 @@ describe('AdvancedIngest', () => {
     expect(stat('Elapsed').textContent).toContain('–');
   });
 
+  it('AD-133 Elapsed says the wait for a free slot under it, as the Simple view (IN-132)', async () => {
+    const created = Date.parse('2026-11-15T03:00:00Z');
+    const at = (s: number) => new Date(created + s * 1000).toISOString();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      // done: 1.1 s of reading after 64 s in the queue
+      const done = {
+        ...project,
+        created_at: at(0),
+        started_at: at(64),
+        finished_at: at(65.1),
+        ms: 1100,
+      };
+      vi.setSystemTime(created + 70_000);
+      await show(done);
+      await pick(/^Unpack/);
+      expect(stat('Elapsed').querySelector('dd')?.textContent).toBe(
+        '1.1 safter 64 s waiting for a free slot',
+      );
+      cleanup();
+      // still queued: "–" and how long it has waited so far
+      const queued = {
+        ...variants.running,
+        state: 'queued' as const,
+        created_at: at(0),
+        started_at: null,
+      };
+      vi.setSystemTime(created + 12_000);
+      await show(queued);
+      await pick(/^Unpack/);
+      expect(stat('Elapsed').querySelector('dd')?.textContent).toBe(
+        '–waiting 12 s for a free slot',
+      );
+      cleanup();
+      // no real wait: Elapsed alone
+      vi.setSystemTime(created + 70_000);
+      await show({ ...done, started_at: at(1) });
+      await pick(/^Unpack/);
+      expect(stat('Elapsed').querySelector('dd')?.textContent).toBe('1.1 s');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('AV-14 the file strip lists every file and scrolls by keyboard', async () => {
     await show();
     await pick(/^Unpack/);
@@ -356,6 +401,21 @@ describe('AdvancedIngest', () => {
     expect(stat('Drawings ready').textContent).toContain('1 / 6'); // the IFC alone
   });
 
+  it('AD-133 Drawings ready is the number on the Simple tile for the demo sample (a sheet not a drawing)', async () => {
+    const p = sampleRun('done');
+    render(<ProgressCard project={p} now={Date.now()} />);
+    const simple = must(
+      [...document.querySelectorAll('.ingest-stats dt')].find(
+        (d) => d.textContent === 'Drawings ready',
+      ),
+    ).nextElementSibling?.textContent;
+    cleanup();
+    expect(simple).toBe('6 / 6');
+    await show(p);
+    await pick(/^Extract/);
+    expect(stat('Drawings ready').querySelector('dd')?.textContent).toBe(simple);
+  });
+
   it('AD-127 (QA R4-A9) a drawing called not a drawing is kept and read, tagged, never shown as ready', async () => {
     // flat-b: flagged, read only because the sheet-kind step warns (API.md `not_a_drawing`)
     const p: ProjectView = {
@@ -388,8 +448,9 @@ describe('AdvancedIngest', () => {
     expect([...select.options].map((o) => o.textContent)).toContain(
       'plans/flat-b.pdf · not a drawing',
     );
-    // readDrawings leaves it out (IN-126): of the 4 read (the 2 raster ones have no reader), 3 are ready
-    expect(stat('Drawings ready').textContent).toContain('3 / 6');
+    // drawingTally (IN-126, AD-133): of the 4 read (the 2 raster ones have no reader), 3 are ready, out of the 5
+    // drawings left once the sheet called not a drawing is named apart (was "3 / 6": Simple's tile said 3 / 5)
+    expect(stat('Drawings ready').textContent).toContain('3 / 5');
     expect(document.querySelector('.adv-visual .adv-tag')).toBeNull(); // flat-a is shown first
     fireEvent.change(select, { target: { value: must(p.drawings[1]).drawing_id } });
     await flush();
