@@ -17,7 +17,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import Protocol
 
 from app.core.answering.model import Answer, Evidence, Question
-from app.core.discipline import SYSTEM_DISCIPLINE
+from app.core.discipline import SYSTEM_DISCIPLINE, system_from_question
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
 
@@ -27,6 +27,22 @@ UNAVAILABLE = "This information is not available in the file"
 # A picture's sheet holds facts only of what its legend lists (discipline-pictures.md Outputs)
 NOT_READ = "not read on this picture"
 PICTURE_ROUTES = ("picture", "vector")  # a Fact.source's route, before its colon
+# A picture's run length is an estimate: what each run reader scored on held-out DigitalHub v2
+# renders, within 10% of the model's length per system (32 runs per variant; .agents/exp/
+# pics-runs.md, scored once at 04:34). Said under every picture length (orchestrator 05:40).
+MASK_SPREAD = (
+    "Estimate from the drawing's line colours, not measured: on held-out test drawings this"
+    " reader's length per system was within 10% for 18 of 32 clean, 4 of 32 photographed and"
+    " 0 of 32 scanned runs."
+)
+GRAPH_SPREAD = (
+    "Estimate from the drawing's line colours, not measured: on held-out test drawings this"
+    " reader's length per system was within 10% for 21 of 32 clean, 12 of 32 photographed and"
+    " 0 of 32 scanned runs."
+)
+# Only the colour readers: `paths` reads a drawn PDF's lines exactly, and an unscored reader's
+# answer is Low with a double-check anyway (review/ask.py FACTS_LEVEL).
+_SPREADS = {"mask": MASK_SPREAD, "graph": GRAPH_SPREAD}
 # a radiator is an IfcSpaceHeater in a model too; a picture names a switch's kind as IFC does
 SAME_KIND = {"heat_exchanger": "space_heater", "switch": "switching_device"}
 # What a question asks about that is not a drawn thing: never refused as not read
@@ -196,6 +212,15 @@ class _Facts:
     def one(self, topic: str, subject: str, storey: str | None = None) -> Fact | None:
         found = self.get(topic, subject, storey)
         return found[0] if found else None
+
+    def of_systems(self, topic: str, storey: str | None) -> list[Fact]:
+        """A topic's facts of one system each, subject "all" (a picture's runs by line style).
+        Not counted as read: the caller reads the ones it says."""
+        return [
+            f
+            for f in self.by_topic.get(topic, ())
+            if f.system is not None and f.subject == "all" and f.storey == storey
+        ]
 
     def topics(self, prefix: str) -> list[str]:
         return [topic for topic in self.by_topic if topic.startswith(prefix)]
@@ -716,6 +741,8 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
     entity = query.entity
     if query.guid is not None:
         return _by_guid(query, facts)
+    if "length" in query.measures and (said := _runs_by_system(query, facts, storey)) is not None:
+        return said
     runs = facts.get(f"{entity}.length", "all", storey)  # a picture's runs: lengths, no count
     if (
         not facts.get(f"{entity}.count", "all", storey)
@@ -790,7 +817,64 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
         lines += _per_storey(entity, part, facts)
     if "fire_rating" in query.measures:
         lines += _fire(entity, facts)
+    if "length" in query.measures:  # a picture's lengths are estimates (orchestrator 05:40)
+        runs = [f for f in facts.get(f"{entity}.length", part, storey) if _picture(f)]
+        if runs:
+            lines += _spread(runs)
     return "\n".join(lines)
+
+
+def _runs_by_system(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
+    """A picture's run length of each system the question names ("rainwater": S_Regenwasser, by
+    the system words in the line style's name or the name itself), or of every system when it
+    asks per system; never the sheet's total as one system's (orchestrator 05:40). None: the
+    question names no system, or the sheet has no picture runs by system."""
+    systems = [f for f in facts.of_systems(f"{query.entity}.length", storey) if _picture(f)]
+    if not systems:
+        return None
+    named = [
+        f
+        for f in systems
+        if f.system is not None
+        and (
+            (
+                query.system is not None
+                and system_from_question(f.system.replace("_", " ")) == query.system
+            )
+            or re.search(rf"(?<![^\W_]){re.escape(f.system)}(?![^\W_])", query.asked, re.I)
+        )
+    ]
+    if named:
+        facts.read += named
+        lines = [f"{f.system}: {_num(f)}" for f in named]
+    elif query.system is not None or query.by == "system":
+        facts.read += systems
+        lines = [f"- {f.system}: {_num(f)}" for f in systems]
+        # a system that is a whole discipline ("heating") asked of a sheet all of that
+        # discipline means every run on it, whatever its styles are named (review-652 M1);
+        # "cold water" on a plumbing sheet does not: it is one of several systems there
+        discipline = SYSTEM_DISCIPLINE.get(query.system)  # type: ignore[call-overload]
+        whole = query.system is not None and discipline == query.system
+        if query.system is not None and not (
+            whole and all(f.discipline == query.system for f in systems)
+        ):
+            asked = query.system.replace("_", " ")
+            head = (
+                f"No run on this sheet is labelled as {asked} (not available); its runs by system:"
+            )
+            lines.insert(0, head)
+        elif (total := facts.one(f"{query.entity}.length", "all", storey)) is not None:
+            lines.append(f"Total length: {_num(total)}")
+    else:
+        return None
+    return "\n".join([*lines, *_spread(systems)])
+
+
+def _spread(runs: Sequence[Fact]) -> list[str]:
+    """The estimate sentence of the colour reader that measured a picture's runs (the first
+    reader its source names); none for another reader."""
+    reader = runs[0].source.split(":")[1].split("+")[0] if ":" in runs[0].source else ""
+    return [_SPREADS[reader]] if reader in _SPREADS else []
 
 
 def _by_guid(query: FactQuery, facts: _Facts) -> str:
