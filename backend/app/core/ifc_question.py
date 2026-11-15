@@ -120,9 +120,7 @@ _BY: tuple[tuple[By, str], ...] = (
     ("storey", r"(?:by|per|each|every|on\s+each)\s+(?:building\s+)?(?:level|floor|storey|story)"
      r"|by\s+storey|grouped\s+by\s+(?:level|floor)"
      r"|distribut\w*\s+(?:by|across|over)\s+(?:the\s+)?(?:building\s+)?(?:level|floor)"),
-    ("system", r"(?:by|per|each)\s+(?:(?:mep|hvac|pipe|piping|plumbing|drainage|sanitary|heating"
-     r"|cooling|ventilation|duct|ductwork|water|waste\s*water|sprinkler)\s+)?system"
-     r"|system\s+types?|systems?\s+they\s+belong"),  # "each pipe system" too (R2 services N1)
+    ("system", r"(?:by|per|each)\s+(?:mep\s+)?system|system\s+types?|systems?\s+they\s+belong"),
     ("category", r"categor"),
     ("type", r"\btypes?\b|\bkinds?\b|which\s+\w+s\b|breakdown|distinct|different"),
 )  # fmt: skip
@@ -281,10 +279,8 @@ def parse_ifc_question(text: str) -> FactQuery | None:
     )
     if entity is None:
         return None
-    measures = tuple(name for name, words in _MEASURES if re.search(words, rest)) or ("count",)
-    if entity == "system" and "length" in measures:  # a system's length is its runs' (R2 N1)
-        entity = "duct_segment" if base.discipline == "ventilation" else "pipe_segment"
     own = dict(_ENTITIES).get(entity)
+    measures = tuple(name for name, words in _MEASURES if re.search(words, rest)) or ("count",)
     if entity == "space" and "size" in measures:
         measures = ("area", *measures)
     return base.model_copy(
