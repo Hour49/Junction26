@@ -4,6 +4,7 @@ model is the two-room fixture (radiators E2 in SR1 and E3 in SR2 on the south wa
 
 import gzip
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
@@ -25,6 +26,7 @@ from app.settings import Settings
 from tests.services_fixtures import WC_ROOM, two_rooms, wc_room
 
 PROJECT, MODELLED = "a" * 12, "0123456789abcdef"
+RAW_IFC = re.compile(r"_terminal|TOILETPAN|WASHHANDBASIN|SANITARYFOUNTAIN|URINAL|\bSINK\b|IFC type")
 
 
 class _Ingest:
@@ -599,7 +601,8 @@ def test_a_sanitary_word_is_not_counted_where_the_model_types_no_terminal(
     found = _rules(_client(settings, tmp_path, model=wc_room(untyped=10)),
                    "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
     assert found["kind"] == "dont_know", found
-    assert "0 toilet" not in found["text"] and "IFC type" in found["text"], found
+    assert "0 toilet" not in found["text"] and "no type in the model" in found["text"], found
+    assert not RAW_IFC.search(found["text"]), found
 
 
 def test_typed_matches_beside_untyped_fixtures_are_at_least_their_count(
@@ -611,7 +614,8 @@ def test_typed_matches_beside_untyped_fixtures_are_at_least_their_count(
                    "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
     assert found["kind"] == "answer", found
     assert found["text"].startswith(f"At least 3 toilets in {WC_ROOM}"), found
-    assert "2 more sanitary terminals there carry no IFC type" in found["text"], found
+    assert "2 more sanitary fixtures there have no type in the model" in found["text"], found
+    assert not RAW_IFC.search(found["text"]), found
 
 
 def test_a_sanitary_word_whose_type_the_model_lacks_is_not_counted(
@@ -622,4 +626,6 @@ def test_a_sanitary_word_whose_type_the_model_lacks_is_not_counted(
     found = _rules(_client(settings, tmp_path, model=wc_room()),
                    "How many urinals are in 13 WC Damen Ost - EG?")  # fmt: skip
     assert found["kind"] == "dont_know", found
-    assert "0 urinal" not in found["text"] and "TOILETPAN" in found["text"], found
+    assert "0 urinal" not in found["text"], found
+    assert "no fixture typed as a urinal" in found["text"] and "3 toilets" in found["text"], found
+    assert not RAW_IFC.search(found["text"]), found  # qa-a nit: plain words, not IFC names
