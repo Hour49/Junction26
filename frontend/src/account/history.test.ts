@@ -38,6 +38,12 @@ describe('workspacePill', () => {
     expect(workspacePill('done').word).toBe('Ready');
     expect(workspacePill('failed').word).toBe('Failed');
   });
+
+  it('QA R4-A12: a done workspace with no drawing read is "Nothing read" (warn), not "Ready"', () => {
+    expect(workspacePill('done', 0)).toEqual({ word: 'Nothing read', tone: 'warn' });
+    expect(workspacePill('done', 1)).toEqual({ word: 'Ready', tone: 'ok' });
+    expect(workspacePill('running', 0).word).toBe('Reading');
+  });
 });
 
 describe('workspaceStats', () => {

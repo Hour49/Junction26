@@ -16,6 +16,8 @@ interface Props {
   name: string;
   onName: (name: string) => void;
   addMode: boolean;
+  /** false on a drawing with no page to click on (a building model, R4-B13) */
+  canAdd: boolean;
   onToggleAdd: () => void;
   selectedMark: string | null;
   highlightedMark: string | null;
@@ -163,7 +165,7 @@ export function QuantityDetail(props: Props) {
         }}
       />
       <div className="sv-tools">
-        {row.unit === 'count' && (
+        {row.unit === 'count' && props.canAdd && (
           <Button
             variant="secondary"
             className={DETAIL}

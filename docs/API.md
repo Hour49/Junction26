@@ -85,6 +85,7 @@ has `errors`, FastAPI's list, with `detail` joining its messages. An unexpected 
 | A body that does not fit the request model (no `name` on an upload, an empty question, an unknown action, a `note` on an edit other than `settle`, an empty `note` or one over 280 characters) | 422 `validation` |
 | Sign-off of a conflict no rule decides and nobody settled; an edit of a signed-off quantity; a relevance call or a read as a floor plan before the project is `done` or while one of its files is read again; reading a file as a floor plan twice | 409 `not-allowed` |
 | A project's questions or building-code checks while its ingest is not `done` | 409 `not-allowed` |
+| A sign-off whose `expected_value` or `expected_unit` is no longer the quantity's (the current value in `errors`) | 409 `value-changed` |
 | Upload over 200 MB | 413 `too-large` |
 | A file added to a project (`POST …/files`) that is not a png or jpeg | 415 `unsupported` |
 | An upload while 3 projects are still being ingested | 429 `busy` |
@@ -1152,6 +1153,11 @@ Ingest's project status, plus `drawings`:
   runs, a number can still move (a drawing read before an earlier file is counted first). `credit` on each
   drawing: the licence credit of `file`, the same as `GET /api/drawings/{id}` gives (a page has the credit of the
   PDF it was split from), or null for a file that is not from the dataset, the Commons photos or the sample.
+- `not_a_drawing` on a drawing (additive, QA R4-A9; left out when false): `true` when the sheet-kind step called
+  its sheet not a drawing at all (a screenshot, a photo of a room) and it was read only because the step warns
+  instead of setting aside (`SHEET_KIND_SET_ASIDE=false`: the file is `flagged`). The drawing stays, so a person
+  can still have it read as a floor plan (that clears it), but a screen does not count it as a drawing ready. A
+  sheet doubted as another kind of drawing (a piping plan, an elevation) is a drawing: no field.
 - `stage`: the stage a running file is in, or the last one it finished, so the ingest screen needs no trace
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
@@ -12188,6 +12194,28 @@ sign-off.
 "Looks right" button: a conflict no rule decides is signed in one call, with no `needs_person` 409. The 409 for a
 signed-off quantity is the same; `settle` together with `undo` is 422 `invalid`.
 
+`"expected_value"` and `"expected_unit"` (optional, R4-B10): the value and unit the client showed when the person
+signed (the row's `value` and `unit` as the last takeoff gave them). When the quantity's value or unit is now another
+one (someone settled or edited it since), nothing is signed: 409 `value-changed`, the current value and unit in
+`errors`. Left out, the value in use is signed, as before.
+
+```json
+{
+  "quantity": "door",
+  "by": "Ana",
+  "expected_value": 2,
+  "expected_unit": "count"
+}
+```
+
+```json
+{
+  "detail": "door count is now 3 count, not the 2 count shown: nothing was signed. Look at it again before you sign it off.",
+  "code": "value-changed",
+  "errors": [{"loc": ["body", "expected_value"], "current_value": 3, "unit": "count"}]
+}
+```
+
 <!-- fixture: signoff_settle_request.json -->
 ```json
 {
@@ -13081,6 +13109,8 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (QA R4-A9, decision 0010 amendment): `DrawingEntry.not_a_drawing` (left out when false):
+  the sheet-kind step called the sheet not a drawing and it was read only under warn-only.
 - 2026-11-15, additive (decision 0018): `ProjectStatus.ran` (left out while empty): per route, the steps that ran
   on this upload's finished files with file counts (`RanStep`: `id`, `label`, `done`, `skipped`, `failed`). Step
   ids are stable: the Carbon check is `carbon_check` (was `carbon`, or `carbon-2` beside the Carbon reader), an

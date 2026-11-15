@@ -22,7 +22,7 @@ from app.core.ingest.model import (
     Normalised,
     ProjectStatus,
 )
-from app.core.ingest.triage import is_not_plan
+from app.core.ingest.triage import is_not_plan, not_a_drawing
 from app.core.pipeline.model import Route
 
 # The kinds a drawing is read from: a sheet (stage 7 places the drawing model on its page) or a
@@ -158,6 +158,9 @@ class DrawingEntry(View):
     # GET /api/projects/{id}; other lists leave the defaults
     drawable: bool = False
     not_drawable_reason: str | None = None
+    # True: the sheet-kind step called its sheet not a drawing (a screenshot, a photo), read only
+    # because it warns (triage.not_a_drawing); it counts as no drawing ready. Left out when false
+    not_a_drawing: bool = Field(default=False, exclude_if=lambda value: not value)
 
 
 class Skipped(View):
@@ -308,6 +311,7 @@ def drawings_of(
                 ],
                 name=f"{words} {numbers[words]}" + (f", page {page[1]}" if page else ""),
                 credit=credit_of(primary.path),
+                not_a_drawing=not_a_drawing(primary.triage),
             )
         )
     return tuple(listed)

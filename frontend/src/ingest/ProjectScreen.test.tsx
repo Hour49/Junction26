@@ -236,6 +236,53 @@ describe('ProjectScreen', () => {
     expect(screen.queryByText(/drawings? ready/)).toBeNull();
   });
 
+  it('IN-126 (QA R4-A9) done, its only drawing a screenshot read only to warn: the Nothing-read card, no chat or workspace', async () => {
+    const f = must(project.files[0]);
+    const why = 'This looks like a screenshot of a web page, not a building drawing.';
+    const drawing = must(project.drawings.find((d) => d.route === 'vector'));
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 1,
+        files: [{ ...f, path: 'page.png', state: 'flagged', reason: why }],
+        drawings: [{ ...drawing, file: 'page.png', not_a_drawing: true }],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(panel.textContent).toContain(why); // the backend's flag reason says why
+    expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
+    expect(screen.queryByText(/drawings? ready/)).toBeNull();
+    expect(screen.queryByText('Start a new chat')).toBeNull();
+    expect(screen.queryByText('Open the workspace')).toBeNull();
+  });
+
+  it('IN-126 (QA R4-A9) a screenshot beside a real drawing: 1 ready, and the workspace opens on the real one', async () => {
+    const [f1, f2] = [must(project.files[0]), must(project.files[1])];
+    const [real, shot] = project.drawings.filter((d) => d.route === 'vector');
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 2,
+        files: [f1, { ...f2, state: 'flagged' }],
+        // the screenshot first: the workspace link must still skip it
+        drawings: [{ ...must(shot), not_a_drawing: true }, must(real)],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Drawings ready')).toBe('1 / 2');
+    const card = screen.getByRole('region', { name: 'Progress' });
+    expect(card.textContent).toContain('1 drawing ready.');
+    act(() => {
+      must(must(vi.mocked(ConflictsList).mock.lastCall)[0].onCounts)({ total: 0, needsPerson: 0 });
+    });
+    expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
+      `#/p/${ID}/d/${must(real).drawing_id}/engineer`,
+    );
+  });
+
   it('no DXF hint when the set-aside files are not DXF', async () => {
     mockApi({
       [GET]: {

@@ -7,7 +7,7 @@ import type {
   ProjectView,
   Takeoff,
 } from '../api';
-import { methodName } from '../api';
+import { formatValue, methodName } from '../api';
 
 export const COLUMNS = [
   'kind',
@@ -79,7 +79,8 @@ function conflictStatus(c: ConflictEntry): string {
 
 function conflictDetail(c: ConflictEntry): string {
   const values = c.conflict.values.map((v) =>
-    [methodName(v.method), String(v.value), v.unit].filter(Boolean).join(' '),
+    // the value as the screens show it: 2 decimals, m² (QA R4-B6)
+    [methodName(v.method), formatValue(v.value, v.unit ?? null)].filter(Boolean).join(' '),
   );
   const rule = c.conflict.resolution ? `; ${c.conflict.resolution.rule}` : '';
   return values.join(' vs ') + rule;

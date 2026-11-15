@@ -4,6 +4,7 @@ screen replaces its state instead of merging one row."""
 
 import csv
 import io
+import math
 import re
 from pathlib import PurePosixPath
 from typing import Annotated, Any
@@ -28,6 +29,7 @@ from app.core.review.ask import RULES
 from app.core.review.model import Edit, ReviewState, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.review import (
+    ValueChangedError,
     apply,
     disputes,
     reset,
@@ -82,6 +84,11 @@ class SignOffRequest(View):
     # No default in the schema, so a generated client type keeps `settle` optional and the
     # bodies written before it still type-check
     settle: bool = Field(default=False, json_schema_extra=lambda field: _no_default(field))
+    # The value (and unit) the client showed when the person signed (R4-B10): a quantity whose
+    # value is now another one is not signed (409 value-changed, the current value in `errors`).
+    # Left out: the value in use is signed, as before
+    expected_value: float | None = None
+    expected_unit: str | None = Field(default=None, min_length=1)
 
 
 def takeoff_rows(
@@ -167,13 +174,32 @@ def signoff(
     else:
         at = now()
         signing = settle_and_sign if body.settle else sign
+        twins = storey_twins(quantities)
 
-        def signed(state: ReviewState) -> ReviewState:  # the value the row shows (R4-B2)
-            shown = with_rejected_items(state, quantities)
+        def signed(state: ReviewState) -> ReviewState:
+            # the row as the takeoff shows it: twins' edits, and an item rejected on its sheet row
+            # no room's (R4-B2); checked against what the client showed (R4-B10), then signed
+            shown = with_rejected_items(with_twins(state, twins), quantities)
+            if body.expected_value is not None or body.expected_unit is not None:
+                _still_shown(row(found, drawing, shown, RULES), body)
             return signing(state, found, drawing, body.by, at, shown=shown)
 
         reviews.update(owner, drawing_id, signed)
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
+
+
+def _still_shown(current: Row, body: SignOffRequest) -> None:
+    """Raises ValueChangedError when the row's value or unit is not the one the client showed."""
+    value = body.expected_value if body.expected_value is not None else current.value
+    unit = body.expected_unit or current.unit
+    if math.isclose(current.value, value, rel_tol=1e-9, abs_tol=1e-9) and unit == current.unit:
+        return
+    raise ValueChangedError(
+        f"{current.label} is now {current.value:g} {current.unit}, not the {value:g} {unit} "
+        "shown: nothing was signed. Look at it again before you sign it off.",
+        current.value,
+        current.unit,
+    )
 
 
 @router.get(

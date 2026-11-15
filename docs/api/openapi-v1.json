@@ -2399,6 +2399,11 @@
             "title": "Name",
             "type": "string"
           },
+          "not_a_drawing": {
+            "default": false,
+            "title": "Not A Drawing",
+            "type": "boolean"
+          },
           "not_drawable_reason": {
             "anyOf": [
               {
@@ -8683,6 +8688,29 @@
             "minLength": 1,
             "title": "By",
             "type": "string"
+          },
+          "expected_unit": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Unit"
+          },
+          "expected_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Value"
           },
           "quantity": {
             "minLength": 1,

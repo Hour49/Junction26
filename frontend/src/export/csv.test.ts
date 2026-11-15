@@ -90,10 +90,10 @@ describe('scan CSV', () => {
     });
     const conflict = rows.find((r) => r.kind === 'conflict');
     expect(conflict?.status).toBe('settled by rule');
-    expect(conflict?.detail).toContain('22.401');
+    expect(conflict?.detail).not.toContain('22.401'); // QA R4-B6: formatted as the screens are
     // QA R2-E9: method ids in words, as the conflict card names them
     expect(conflict?.detail).not.toMatch(/polygon_x_scale|printed_label/);
-    expect(conflict?.detail).toContain('room outlines × sheet scale 22.401 m2');
+    expect(conflict?.detail).toContain('room outlines × sheet scale 22.40 m²');
     expect(scanRows({ ...scan, checks: null }).some((r) => r.kind === 'check')).toBe(false);
   });
 

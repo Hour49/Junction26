@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 from pydantic import SecretStr
 from test_api_triage import project, read_as_plan
-from test_sheet_kind import PIPING, PLAN, STRUCTURAL_UNSURE, reply
+from test_sheet_kind import PIPING, PLAN, STRUCTURAL_UNSURE, form, reply
 from test_vector_pdf import swiss_sheet
 
 from app.adapters.extraction_v1 import ExtractionV1Writer
@@ -36,6 +36,8 @@ NOT_COUNTED = (
     'floor plan, use "Read it as a floor plan" on its file.'
 )
 ROOF = "What colour is the roof?"
+# A screenshot of a web page, as the sheet-kind step calls it (QA R4-A9)
+NOT_DRAWING = form("not_a_drawing", False, False, 0.95)
 
 
 def sheet(shade: int) -> bytes:
@@ -348,4 +350,26 @@ def test_list_drawings_gives_the_chat_what_the_sheet_kind_step_called_each_sheet
     plan = listed["plan.png"]["triage"]["sheet"]
     assert plan["looks_like"] == "a floor plan" and plan["flag"] is None
     assert plan["printed_scale"] == "1:100" and plan["decision"] == "read"
+    assert network == []
+
+
+def test_a_warn_only_sheet_called_not_a_drawing_is_no_drawing_ready(
+    settings: Settings, tmp_path: Path, network: list[str]
+) -> None:
+    """QA R4-A9 (Tudor, round 4): a screenshot of a web page was read under warn-only, flagged
+    "it looks like not a drawing", and the ingest card said "Drawings ready 1 / 1" with chat and
+    workspace. Its drawing stays (the person may still have it read as a floor plan) and says it
+    is not a drawing; a sheet doubted as another kind of drawing (piping) does not."""
+    client = seeded(settings, tmp_path, sheet_kind_set_aside=False)
+    screenshot = sheet(50)
+    name = f"sheetkind-{hashlib.sha256(screenshot).hexdigest()}-{PROMPT_SHA[:12]}-{MODEL}.json"
+    (tmp_path / "sheet-kind" / name).write_text(json.dumps(reply(NOT_DRAWING)))
+    found = project(client, {"doubt.png": screenshot, "piping.png": PIPING_PNG})
+    assert files_of(found)["doubt.png"]["state"] == "flagged"
+    drawings = {entry["file"]: entry for entry in found["drawings"]}
+    assert drawings["doubt.png"]["not_a_drawing"] is True
+    assert "not_a_drawing" not in drawings["piping.png"]  # left out when false
+    assert read_as_plan(client, found, "doubt.png").status_code == 202
+    found = client.get(f"/api/projects/{found['id']}").json()
+    assert all("not_a_drawing" not in entry for entry in found["drawings"])  # the person's call
     assert network == []

@@ -1549,6 +1549,11 @@ export interface components {
             kind: string | null;
             /** Name */
             name: string;
+            /**
+             * Not A Drawing
+             * @default false
+             */
+            not_a_drawing: boolean;
             /** Not Drawable Reason */
             not_drawable_reason?: string | null;
             /** Other Renderings */
@@ -3558,6 +3563,10 @@ export interface components {
         SignOffRequest: {
             /** By */
             by: string;
+            /** Expected Unit */
+            expected_unit?: string | null;
+            /** Expected Value */
+            expected_value?: number | null;
             /** Quantity */
             quantity: string;
             /** Settle */

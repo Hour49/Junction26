@@ -2,13 +2,16 @@
 (Tudor's QA round 4, R4-B2): an edit was kept under its own row's key only, and a room's door row
 is another key over the same doors. Synthetic: one kitchen with two doors in its walls."""
 
+from collections.abc import Callable
 from typing import Any
 
-from app.api.takeoff import takeoff_rows
+import pytest
+
+from app.api.takeoff import SignOffRequest, signoff, takeoff_rows
 from app.core.drawing.model import Drawing, Element, Page, Room, Scale
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.model import Edit, ReviewState
-from app.core.review.review import apply, sign, with_rejected_items
+from app.core.review.review import ValueChangedError, apply, sign, with_rejected_items
 
 KITCHEN = ((0.1, 0.1), (0.5, 0.1), (0.5, 0.5), (0.1, 0.5))  # page fractions
 DOORS = (
@@ -48,6 +51,11 @@ class Store:
 
     def get(self, project: str | None, drawing_id: str) -> ReviewState:
         return self.state
+
+    def update(
+        self, project: str | None, drawing_id: str, change: Callable[[ReviewState], ReviewState]
+    ) -> None:
+        self.state = change(self.state)
 
 
 def rejected(key: str, element: Element) -> ReviewState:
@@ -91,3 +99,16 @@ def test_the_rooms_row_signs_off_the_count_it_shows() -> None:
     signed = sign(state, quantity, drawing(), "Tudor", "2026-11-15T05:31:00Z", shown=shown)
     assert signed.signed[ROOM_DOORS].value == 1
     assert signed.rejected == state.rejected  # what is shown is derived, never stored
+
+
+def test_a_rooms_row_signs_off_with_the_value_the_client_showed() -> None:
+    """With R4-B10's expected value (#634): the room's row shows 1 after its door was rejected on
+    the sheet row, so a sign-off of 1 is the value shown and 2 is a stale one."""
+    store: Any = Store(rejected("door", DOORS[0]))
+    stale = SignOffRequest(quantity=ROOM_DOORS, by="Tudor", expected_value=2, expected_unit="count")
+    with pytest.raises(ValueChangedError):
+        signoff("d1", stale, store, store)
+    assert ROOM_DOORS not in store.state.signed
+    seen = SignOffRequest(quantity=ROOM_DOORS, by="Tudor", expected_value=1, expected_unit="count")
+    signoff("d1", seen, store, store)
+    assert store.state.signed[ROOM_DOORS].value == 1
