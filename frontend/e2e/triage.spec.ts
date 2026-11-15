@@ -3,13 +3,16 @@
 // skips itself and the other specs see the sample as before.
 import { expect, test } from '@playwright/test';
 import { noKeys, sampleDone, shot, watchErrors } from './support';
+import { VERDICT_LABEL } from '../src/ingest/triage';
 
+// backend/app/core/ingest/triage.py NOTE_NO_DESCRIBER / NOTE_NO_DESCRIBER_JUDGED: with a judge, it is judged anyway
 const NOTE = 'not described: no description model is set up, so it is not judged';
+const NOTE_JUDGED = 'not described: no description model is set up';
 
 interface FileRow {
   id: string;
   path: string;
-  triage: unknown;
+  triage: { verdict: 'related' | 'unrelated' | 'unsure' | null } | null;
 }
 
 test('FT-21: the site photo is set aside as not a floor plan, its trace and issue, then read as a plan', async ({
@@ -33,7 +36,10 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
   await expect(files).toContainText('1 not a floor plan: kept, not read');
   const row = files.locator(`a[href$="/f/${fid}"]`);
   await expect(row).toContainText('Not a floor plan: not a drawing');
-  await expect(row).toContainText('– Not judged');
+  // the judge's verdict as the row words it: "– Not judged" without a judge, the rules judge's with TRIAGE_JUDGE=rules
+  // (the demo config)
+  const verdict = VERDICT_LABEL[site?.triage?.verdict ?? 'none'].pill;
+  await expect(row).toContainText(verdict);
   await expect(row).not.toContainText('P(plan)');
   await row.scrollIntoViewIfNeeded();
   await shot(page, testInfo, 'ft-row', offline);
@@ -57,10 +63,11 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
   await expect(
     card.getByRole('heading', { name: 'Not a floor plan: not a drawing' }),
   ).toBeVisible();
-  await expect(card.getByText(NOTE, { exact: true })).toHaveCount(1);
+  const note = site?.triage?.verdict ? NOTE_JUDGED : NOTE;
+  await expect(card.getByText(note, { exact: true })).toHaveCount(1);
   // FT-22 (parity): no "Does it belong to this project?" block and no verdict pill on the file page.
   await expect(card.getByText('Does it belong to this project?')).toHaveCount(0);
-  await expect(card.getByText('– Not judged')).toHaveCount(0);
+  await expect(card.getByText(verdict)).toHaveCount(0);
   // FT-5 (#183) and FT-23: an undescribed non-plan gets the call too, under "Your call".
   await expect(card.getByRole('heading', { name: 'Your call' })).toBeVisible();
   await expect(card.getByRole('button', { name: /^It is (not )?related$/ })).toHaveCount(2);

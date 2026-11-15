@@ -120,7 +120,8 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   tools say it is being built meanwhile;
   a file with no distribution element stores only a marker, `<sha256>.services.none.b<builder>`, so it is tried
   once, and the tools then say it has no services model; a build that times out or runs out of memory is not
-  started again until the backend restarts; 2026-11-15, QA B4 and review of #475). `<builder>` is `services_model.BUILDER_VERSION`,
+  started again until the backend restarts; 2026-11-15, QA B4 and review of #475). `<builder>` is `services_model.BUILDER_VERSION` (2 since 2026-11-15:
+  a model of portless proxies only, a building model's parking marks and trees, is no services model; #503),
   bumped on any change to what the builder writes (also stored as `source.builder`): a model an older builder wrote
   is not served but rebuilt with the saved id map, so a deploy picks up builder fixes and ids survive.
   *Measured*: 1,795 elements → 1.2 MB JSON, 111 KB gzipped, build 15.7 s (10.5 s of it door and window geometry),
@@ -221,9 +222,14 @@ with a plain reason. The input model is never mutated (test: its hash before and
   store resolves it to a room, the nearest wall and a point on it. The model never writes a coordinate or a
   distance.
 - SV-23 `list_services(drawing_id, storey?, system?, room_id?, kind?)` → storeys, systems (name, discipline, element
-  counts, length), `connectivity`, and the terminals and equipment that match (`id`, kind, label, room, system),
-  at most 60 with a `more` count. With `room_id`: that room's walls (`id`, length, free length, openings, what is
-  mounted on it) and whether a main is in reach. The whole result stays under 4,000 characters.
+  counts, length), `connectivity`, and the terminals and equipment that match (`id`, kind, label, room, room_name,
+  system), at most 60 with a `more` count. With `room_id`: that room's walls (`id`, length, free length, openings,
+  what is mounted on it) and whether a main is in reach. The whole result stays under 4,000 characters. `room_id`
+  is an id or a room's name, in any case and word order ("küche 1-3" is "1-3 Küche"), else the one room whose
+  name holds all its words; several or none is an error naming the rooms (2026-11-15, QA #430). `by_type` and
+  `by_room` ("<id> <name>") count every match even when the items are cut, the 30 largest groups and the rest under
+  "and K more groups" (fewer when the result would pass 4,000 characters); breakdowns are answered from them
+  (2026-11-15, #430 R2).
 - SV-24 `ask_services(drawing_id, op, element_id?, to_element_id?, system?, storey?, kind?, size?)` with `op` a
   closed list of SV-10's operations → the value, the elements behind it (ids with boxes, at most 30), or
   `{status: "unknown", reason}`.
@@ -234,7 +240,11 @@ with a plain reason. The input model is never mutated (test: its hash before and
   no rooms, connectivity `none`). One proposal per turn, as 0013.
 - SV-26 The rules model (`chat_rules.py`) gets keyword rules so the no-keys mode and the e2e work: move / relocate
   + radiator, socket, outlet, air terminal, diffuser → `list_services` → `propose_move_terminal`; "what feeds",
-  "what does … serve", "what is cut off" → `ask_services`.
+  "what does … serve", "what is cut off" → `ask_services`; how many / which + a terminal (also sink, basin,
+  toilet) + "in <room>" → `list_services(room_id=<room>, kind)` and the count with the items, or the tool's
+  error, only when the project's drawings besides the services model are IFC files (or none: an IFC set aside);
+  with a plan or a picture beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the
+  drawings answer as before (2026-11-15, QA #430, #491 review, #430 R3).
 - SV-27 Cost: no model call beyond the chat's own steps. *Sourced*: at $1.50 in / $7.50 out per million tokens a
   four-step turn is about $0.03-0.06, inside `AGENT_TURN_USD` 0.10. The six tool schemas together stay under
   1,500 tokens (test: a character count).

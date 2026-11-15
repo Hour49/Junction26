@@ -1036,11 +1036,16 @@ Ingest's project status, plus `drawings`:
   - `text_only`: text and no drawing (a spec PDF, a .txt).
   - `set_aside`: not ingested (unsafe path, zip bomb, not a drawing, a photo not of a plan, a DXF or SVG with no
     sheet next to it, a stage that failed).
+  - A file read while model calls got no answer (HTTP 429 or 5xx, a timeout, a reset, or the Gemini budget used up)
+    keeps its state, and its `reason` ends "; <n> model calls got no answer (or the Gemini budget was used up), so
+    this reading is partial and is asked again on the next upload". Such a reading is never reused (#439).
 - `route`: `bim`, `cad`, `vector`, `raster`, or null. `source`: the file the drawing was read from.
 - A multi-page PDF: page 1 is read with the file itself, as before. Each later page that holds a drawing (up to 50
   after page 1) is listed as a file of its own, `<name>#p<n>.pdf` next to the PDF (e.g. `plans/set#p3.pdf`), later
   in the list, with its own group, route and drawing; its first stage (`unpack`) says "page 3 of plans/set.pdf, as a
-  PDF of its own". The PDF's `reason` (or its `identify` stage) names those pages. Text pages are not split.
+  PDF of its own". The PDF's `reason` (or its `identify` stage) names those pages. Text pages are not split. A
+  PDF of more than 51 pages is looked at up to page 51: its `reason` ends "; read pages 1-51 of <m>; the rest were
+  not read", and its `identify` stage notes "pages after 51 of <m> were not looked at" (#434).
 - `drawings`: one entry per plan, for the workspace's list. The files of one plan (same folder and name: a PDF and
   its PNG) are one group; its entry is the sheet the drawing was read from when that is a sheet, else PDF before
   PNG before JPEG; the group's other drawings are `other_renderings`. A copy of the same content under another
@@ -1242,9 +1247,10 @@ the `identify` stage's line.
   `doubt`: it is read; with a non-plan kind, in either mode (an unsure one with `SHEET_KIND_SET_ASIDE=true` too), the
   file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; "), none of
   its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
-  issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
-  drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
-  plan."; `read`: also a camera photo (`photo_plan`) it calls no floor plan while `takeoff_possible` is true, under
+  issue; the flag follows the project's triage, also when the reading is reused from the cache (a partial reading is
+  never reused, #439), and `POST …/triage` drops it; with a plan kind every answer with a value ends its
+  `explanation` with "This sheet may not be a floor plan."; `read`: also a camera photo (`photo_plan`) it calls no
+  floor plan while `takeoff_possible` is true, under
   the cut: a posted fire exit plan keeps the kind it was given and gets no sheet-kind doubt (the photo's own reading
   flag stays)), `takeoff_possible`, `confidence` (of a floor plan on the
   sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
@@ -8812,6 +8818,11 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 `label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
+The proposal's `services` (with `SERVICES_FOLLOW=on`; else null) is the follow-up through the project's services
+models or pictures, specified in [services-follow.md § API](specs/backend/services-follow.md#api-additive-to-v1). A
+lane a services picture checked has `picture`: the discipline sheet (`drawing_id`, `page`), its `pairing` (why that
+sheet is taken to be the plan's floor: `paired_by`, `reason`, `score`) and the edit's strips and the lane's marks in
+that sheet's page fractions; every other lane has `picture: null`.
 
 Levels only where measured (added 2026-11-14): when a number in an `answer` or `conflict` turn's `text` comes only from
 `get_plan_geometry`, `get_takeoff` or `list_walls` (no confidence level) and from no `ask_drawings` answer or the
