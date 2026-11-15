@@ -76,7 +76,8 @@ Triage = {
   (#152 item 6).
 - `verdict` is the one value the file row, the trace and the issue use. It is null while the file is not judged.
 - `note` is set whenever `description` or `relevance` is null (#152 item 7):
-  - a floor plan: "a floor plan: it is read, so it is not described or judged";
+  - a floor plan: "read as a floor plan, so triage does not describe or judge it" (until 2026-11-15: "a floor
+    plan: it is read, so it is not described or judged"; the evidence index may still describe it);
   - no describer set up (the offline demo): "not described: no description model is set up, so it is not judged";
   - the describer refused or failed: "not described: <why>";
   - described, project still running: "not judged yet: the project is still being read";
