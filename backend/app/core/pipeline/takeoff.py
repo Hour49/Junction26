@@ -31,6 +31,7 @@ from app.core.drawing.model import (
     DOOR_SHAPES_NOTE,
     ELEMENT_CLASSES,
     PLAN,
+    ROOM_TYPES,
     Attr,
     Conflict,
     Drawing,
@@ -356,7 +357,10 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
         if not drawing.pages:  # the model file itself: its spaces of each room type (qa-a)
-            for kind, same in sorted(typed_spaces(items).items()):
+            typed = typed_spaces(items)
+            if _all_typed(items):  # a type no space has is 0, not unknown (R4-C4)
+                typed = {kind: [] for kind in ROOM_TYPES if kind != "other"} | typed
+            for kind, same in sorted(typed.items()):
                 for model in (True, False):
                     key = quantity_key("count", f"room:{kind}", storey=storey, model=model)
                     _put(found, key, "count", len(same), marks(same), MODEL_SPACE_TYPES)
@@ -379,6 +383,19 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
 
 
 MEP_TWIN = re.compile(r"\bMEP Space\b", re.IGNORECASE)  # a room's services copy (duplex-mep)
+
+
+def _all_typed(items: Iterable[ModelObject]) -> bool:
+    """Every space of `items` (a services copy left out) has a room type from its names, and
+    there is one: then a type none has is a count of 0. One untyped space ("Raum 12") could be
+    of any type, so a missing type stays unknown."""
+    spaces = [
+        item
+        for item in items
+        if item.class_ == SPACE
+        and not any(MEP_TWIN.search(name) for name in (item.name, item.long_name) if name)
+    ]
+    return bool(spaces) and all(isinstance(item.attrs.get("room_type"), str) for item in spaces)
 
 
 def typed_spaces(items: Iterable[ModelObject]) -> dict[str, list[ModelObject]]:
