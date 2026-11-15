@@ -1219,6 +1219,23 @@ def test_which_of_two_spaces_of_a_model_file_is_larger() -> None:
     assert "Kitchen (A103)" in shared.refusal.text and "Kitchen (B103)" in shared.refusal.text
 
 
+def test_a_model_space_of_no_area_is_not_compared_with_another() -> None:
+    """review-513: "Which is smaller, the Void (A2) or the Kitchen (B103)?" on a model file said
+    "Void (A2) (0.00 m²) is smaller". A space of 0.00 m² (a void, a shaft) is no room to rank
+    (#479); compared by name, it is refused and named, not called the smaller room."""
+    drawing = model_file(
+        space("m1", "Level 1", "B103", "Kitchen", 12.95),
+        space("m2", "Level 1", "A2", "Void", 0.0),
+    )
+    for question in (
+        "Which is smaller, the Void (A2) or the Kitchen (B103)?",
+        "Which is larger, the Kitchen or the Void?",
+    ):
+        got = asked(question, drawing)
+        assert got.refusal is not None, got.answer.explanation
+        assert "Void (A2)" in got.refusal.text and "0.00 m²" in got.refusal.text
+
+
 def test_a_schedule_s_largest_room_is_left_to_the_schedule() -> None:
     """golden 89437 asks the finish room schedule which room is largest: not the rooms drawn."""
     drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
