@@ -417,11 +417,16 @@ class RoomByType:
     answers when that is an area (R2-2-3, R3-qa-1-1, R3-qa-5-2)."""
 
     def __init__(
-        self, parser: QuestionParser, drawing: Drawing, quantities: Mapping[str, Quantity]
+        self,
+        parser: QuestionParser,
+        drawing: Drawing,
+        quantities: Mapping[str, Quantity],
+        name_type: Callable[[str], str | None] = lambda name: None,
     ) -> None:
         self._parser = parser
         self._drawing = drawing
         self._quantities = quantities
+        self._name_type = name_type  # the room type a printed room name names ("Bagno": bathroom)
 
     def parse(self, text: str) -> Query | TableQuery | Unsupported:
         parsed = self._parser.parse(text)
@@ -494,9 +499,10 @@ class RoomByType:
         """A room asked by its name and its number ("Bagno 1.01") that this drawing numbers so but
         names otherwise (flat-a's Küche 1.01): not this drawing's room, refused (NOT_CALLED). The
         parser keys the room by its number alone, so every drawing with a room 1.01 answered
-        (big QA R1 edits S1). The word before the number names the room when the room answers to
-        it, or when it is a room type the room has ("bathroom 1.01"); a number alone ("room
-        1.01"), or one no room here carries, is left as it was."""
+        (big QA R1 edits S1). The word before the number is a name only when it names a room type:
+        a parser's room word ("bathroom 1.01") or a printed room name (`name_type`: "Bagno 1.01");
+        the room answers when it carries the word or has that type. Any other word ("von 1.01",
+        "flat 1.01", review-701), or a number alone ("room 1.01"), is left as it was."""
         name = parsed.name
         if name is None or not BARE_NUMBER.fullmatch(name):
             return None
@@ -512,11 +518,17 @@ class RoomByType:
         if not rooms:
             return None
         typed = self._parser.parse(f"What is the area of the {word}?")
-        kind = typed.subject.removeprefix("room:") if isinstance(typed, Query) else None
+        kind = (
+            typed.subject.removeprefix("room:")
+            if isinstance(typed, Query) and typed.subject.startswith("room:")
+            else self._name_type(word)
+        )
+        if kind is None:
+            return None  # names no room type: not a name ("von 1.01", "flat 1.01")
         for room in rooms:
             words = {w for n in room_names(room) for w in WORD.findall(n)}
-            if normalised(word) in words or (kind is not None and room.type in (kind, "other")):
-                return None  # its name, or a type word and a room of that type (or untyped)
+            if normalised(word) in words or room.type in (kind, "other"):
+                return None  # its name, or a room of the type the word names (or untyped)
         return Unsupported(
             reason=f"{NOT_CALLED} {word} {name}: its room {name} is "
             f"{' / '.join(room.label or name for room in rooms)}."

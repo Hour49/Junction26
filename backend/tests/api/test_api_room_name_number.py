@@ -58,3 +58,24 @@ def test_a_room_word_in_any_language_before_the_number_is_not_a_name(client: Tes
             question,
             parts["plans/flat-a.pdf"],
         )
+
+
+def test_a_word_that_names_no_room_type_is_no_name_and_the_number_answers(
+    client: TestClient,
+) -> None:
+    """review-701 M1: "von 1.01", "de 1.01", "huoneen 1.01", "flat 1.01", "unit 1.01" and
+    "Kuche 1.01" (no umlaut) were read as room names, so every drawing refused ("No room on this
+    drawing is von 1.01"). A word is a room's name only when it names a room type (the parser's
+    room words, or a printed room name such as Bagno or Küche); any other word leaves the number
+    alone to name the room, as before."""
+    for question in (
+        "Wie groß ist die Fläche von 1.01?",
+        "Quelle est la surface de 1.01 ?",
+        "Mikä on huoneen 1.01 pinta-ala?",
+        "What is the area of flat 1.01?",
+        "Area of unit 1.01?",
+        "What is the area of Kuche 1.01?",
+    ):
+        parts = asked(client, question)
+        for name in ("plans/flat-a.pdf", "plans/flat-b.pdf", "plans/flat-c.pdf"):
+            assert parts[name]["answer"] is not None, (question, name, parts[name])

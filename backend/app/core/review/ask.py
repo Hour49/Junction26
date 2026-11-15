@@ -321,7 +321,11 @@ def ask(
 
     if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
         return compared
-    once = _Once(RoomByType(parser, drawing, quantities))
+
+    def name_type(word: str) -> str | None:  # a printed room name's type: Bagno, bathroom
+        return None if (found := room_words(word)) is None else found.kind
+
+    once = _Once(RoomByType(parser, drawing, quantities, name_type))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
