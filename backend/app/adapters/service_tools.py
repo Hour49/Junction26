@@ -353,4 +353,18 @@ def follower(app: Any, pipeline: PipelineStore) -> ServiceFollower:
 
         kept = PictureSheets(None, pipeline.settings.discipline_pictures_cache_dir)
         made.pictures = kept.of_drawings(lambda: _done(pipeline, pipeline.project_id).files)
+        from app.adapters.discipline_pictures import sheet_walls  # the pictures' wall lines
+
+        made.sheet_walls = sheet_walls.reader(partial(_picture, pipeline))
     return made
+
+
+def _picture(pipeline: PipelineStore, sheet: Sheet) -> Any:
+    """The services sheet's uploaded picture (RGB pixels); None when its file is no picture."""
+    from app.adapters.discipline_pictures.sheet_walls import decoded
+
+    files = _done(pipeline, pipeline.project_id).files
+    file = next((f for f in files if f.drawing_id == sheet.drawing_id), None)
+    if file is None:
+        return None
+    return decoded(pipeline.ingest.upload_bytes(pipeline.project_id, file.id))
