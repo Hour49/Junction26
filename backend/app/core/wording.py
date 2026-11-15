@@ -1,6 +1,8 @@
 """Words for the text a person reads in a trace or a reason (not for any machine field): a count
 with its noun in the right number, a content kind and a scale status in plain words."""
 
+import re
+
 from app.core.drawing.model import ConflictQuantity, ScaleStatus
 from app.core.pipeline.model import Route
 
@@ -60,3 +62,14 @@ def kind_words(kind: str) -> str:
 def route_words(route: Route) -> str:
     """ "drawn PDF route": a route in the words a person reads; the field `route` keeps the id."""
     return f"{ROUTE_WORDS[route]} route"
+
+
+_EXPORT_ID = re.compile(r"\s*#[0-9a-z]{4,12}#", re.IGNORECASE)  # "Viega 704070 #6bfeid6#"
+_DEFAULT_VARIANT = re.compile(r"\s*:\s*standard\s*$", re.IGNORECASE)  # "...:Standard"
+
+
+def type_words(name: str) -> str:
+    """An IFC type name as a person reads it, without the exporter's id ("#6bfeid6#") and the
+    default variant (":Standard"): "Urinal UP Druckspüler:Standard" is "Urinal UP Druckspüler"
+    (R1 edits 10b). Only for text a person reads: counts and keys keep the name as filed."""
+    return _DEFAULT_VARIANT.sub("", _EXPORT_ID.sub("", name)).strip() or name
