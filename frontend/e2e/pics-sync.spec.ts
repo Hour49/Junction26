@@ -1,6 +1,6 @@
 // The plan edit followed onto a real-looking floor's services pictures (brief pics/pic-sync): a ZIP made by
 // backend/scripts/pics_demo_zip.py from the DigitalHub models (partner data: never in git, so the ZIP is passed by
-// path). Run: `DISCIPLINE_PICTURES=template SERVICES_FOLLOW=on PICS_ZIP=<zip> npx playwright test
+// path). Run: `DISCIPLINE_PICTURES=template (or gemini, with GEMINI_API_KEY) SERVICES_FOLLOW=on PICS_ZIP=<zip> npx playwright test
 // e2e/pics-sync.spec.ts`; PICS_REMOVE overrides the wall asked for. Skips itself without them. Screenshots in
 // screenshots/<project>/pics-sync-*.png.
 import { readFileSync } from 'node:fs';
@@ -9,15 +9,18 @@ import { noKeys, shot, watchErrors } from './support';
 
 const ZIP = process.env.PICS_ZIP ?? '';
 test.skip(
-  process.env.DISCIPLINE_PICTURES !== 'template' || process.env.SERVICES_FOLLOW !== 'on' || !ZIP,
-  'run with DISCIPLINE_PICTURES=template SERVICES_FOLLOW=on PICS_ZIP=<zip>',
+  !['template', 'gemini'].includes(process.env.DISCIPLINE_PICTURES ?? '') ||
+    process.env.SERVICES_FOLLOW !== 'on' ||
+    !ZIP,
+  'run with DISCIPLINE_PICTURES=template|gemini SERVICES_FOLLOW=on PICS_ZIP=<zip>',
 );
 
 // With the rooms' numbers: the rules planner (no keys) matches a multi-word name only with its number
-// (chat_rules._named); without them it asks which wall.
+// (chat_rules._named); without them it asks which wall. W36: plumbing runs inside it and a radiator sits on it
+// (offline probe with DISCIPLINE_PICTURES=gemini), so every sheet has marks.
 const REMOVE =
   process.env.PICS_REMOVE ??
-  'Remove the wall between WC Herren West - EG 1.16 and Eingangsbereich / Flur 1.1';
+  'Remove the wall between WC Damen West - EG 1.15 and WC Herren West - EG 1.16';
 
 test('sync: a wall removed on the plan, then each discipline sheet with the edit on it', async ({
   page,
