@@ -88,7 +88,8 @@ def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register
     """The wall-line register (`register`): each part of the sheet's lines laid on the plan's
     walls (metres), the part's corner added back; the best lay as a map of page fractions with
     `register`'s words. Two parts that lay the sheet two ways with no clear winner are refused
-    (twin views), as is a cut-out part laid off the sheet's own scale (it has no page to fill)."""
+    (twin views), as is a cut-out part laid off the sheet's own scale (it has no page to fill);
+    with no scale bar a part is laid only when the whole page lays too, at its scale."""
 
     def laid(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
         if plan.size_m is None:
@@ -118,6 +119,18 @@ def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register
                 return (
                     f"two parts of the sheet lay it two ways ({placed.inliers} and "
                     f"{other.inliers} wall lines match): which view is the plan is a guess"
+                )
+        if not whole and sheet.size_m is None:  # a part has no page to fill: its page lay checks it
+            page = next((p for p, w in places if w), None)
+            if page is None:
+                return (
+                    "a part of the sheet matches the walls, but the sheet has no scale and its "
+                    "whole page does not lay: the part's size is unchecked, not laid"
+                )
+            if abs(placed.scale / page.scale - 1) > SCALE_SLACK:
+                return (
+                    f"a part of the sheet lays at {placed.scale * 1000:.1f} mm a pixel, its whole "
+                    f"page at {page.scale * 1000:.1f} mm: not laid"
                 )
         how = placed.reason
         if sheet.size_m is not None:  # its own scale (a scale bar): say when the walls disagree

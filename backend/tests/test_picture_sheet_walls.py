@@ -11,7 +11,13 @@ from app.core.services.register import Segment
 from tests.test_picture_walls import PLAN, PX_PER_M, px, sheet
 
 PLAN_SHEET = Sheet(drawing_id="plan", page=1, size_m=(40.0, 30.0), name="plan.pdf")
-PICTURE = Sheet(drawing_id="pic", page=1, name="heating.png", disciplines=("heating",))
+PICTURE = Sheet(  # its scale bar read: 30 px a metre on a 1000 x 700 px page
+    drawing_id="pic",
+    page=1,
+    name="heating.png",
+    disciplines=("heating",),
+    size_m=(1000 / PX_PER_M, 700 / PX_PER_M),
+)
 
 
 def with_schedule(rgb: np.ndarray) -> np.ndarray:
