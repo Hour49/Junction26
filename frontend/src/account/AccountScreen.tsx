@@ -90,8 +90,8 @@ export function AccountScreen() {
           </a>
         </p>
       ) : (
-        <div className="flex items-start gap-6 max-[720px]:flex-col max-[720px]:items-stretch">
-          <ul className="account-list m-0 grid max-w-[400px] min-w-0 flex-[1_1_320px] list-none gap-3 p-0 max-[720px]:max-w-none max-[720px]:flex-none">
+        <div className="flex items-start gap-6 max-[900px]:flex-col max-[900px]:items-stretch">
+          <ul className="account-list m-0 grid max-w-[400px] min-w-0 flex-[1_1_320px] list-none gap-3 p-0 max-[900px]:max-w-none max-[900px]:flex-none">
             {projects.map((p) => (
               <li key={p.id}>
                 <Item

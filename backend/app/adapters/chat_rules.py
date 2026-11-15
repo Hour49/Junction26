@@ -218,16 +218,19 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     return _answer(found)
 
 
-def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
-    """This turn's first list_services that worked (narrowed by the terminal word and the
-    selection) and, when a terminal word narrows it, found one; or the next call to find the
-    drawing with a services model: list_drawings, then list_services per drawing, a drawing a
-    selection names first, then IFC files (TRIED). Each IFC file is its own model, so an empty
-    list of one goes on to the next; when all are empty, the first."""
+def _services(turn: _Turn, words: str, kind: str | None = None) -> tuple[str, Json] | Json:
+    """This turn's first list_services that worked (narrowed by the terminal kind and the
+    selection) and, when a kind narrows it, found one; or the next call to find the drawing with
+    a services model: list_drawings, then list_services per drawing, a drawing a selection names
+    first, then IFC files. Each IFC file is its own model, so an empty list of one goes on to the
+    next: with a kind, every IFC file is asked (review-521: the heating model listed 4th was never
+    asked under TRIED), else TRIED drawings; when all are empty, the first. `kind`: the one a
+    room question counts (IN_ROOM_TERMINALS), else the terminal word's."""
     listed = [(a, f) for n, a, f in turn.done if n == "list_services" and "room_id" not in a]
     worked = [f for _, f in listed if isinstance(f, dict) and "error" not in f]
     word = TERMINAL.search(words)
-    ok = next((f for f in worked if f.get("items") or not word), None)
+    kind = kind or (TERMINALS[word[1]] if word else None)
+    ok = next((f for f in worked if f.get("items") or not kind), None)
     if ok is not None:
         return ok
     drawings = turn.result("list_drawings")
@@ -242,11 +245,12 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
                      if f" on {d.get('name')} page " in line), None)  # fmt: skip
 
     found.sort(key=lambda d: (selected(d) is None, d.get("kind") != "ifc"))
-    if len(listed) < min(TRIED, len(found)):
+    models = sum(1 for d in found if d.get("kind") == "ifc") if kind else 0
+    if len(listed) < min(max(TRIED, models), len(found)):
         drawing = found[len(listed)]
         args: Json = {"drawing_id": drawing["drawing_id"]}
-        if word:
-            args["kind"] = TERMINALS[word[1]]
+        if kind:
+            args["kind"] = kind
         if sel := selected(drawing):
             args["selection_id"] = sel
         return "list_services", args
@@ -254,7 +258,7 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
         return worked[0]
     if not any(d.get("kind") == "ifc" for d in found) and all("drawing_id" in a for a, _ in listed):
         # an IFC set aside at upload is in no drawing list: the project's only services model
-        return "list_services", {"kind": TERMINALS[word[1]]} if word else {}
+        return "list_services", {"kind": kind} if kind else {}
     why = next((str(f.get("error")) for _, f in listed if isinstance(f, dict)), None)
     return _final("dont_know", f"I can't find the building's services: {why or 'no drawings'}.")
 
@@ -262,7 +266,7 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
 def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] | None:
     """The terminals of one kind in the room the message names, by its name or id
     (list_services' room_id); None when the project has no services model to list."""
-    found = _services(turn, words)
+    found = _services(turn, words, IN_ROOM_TERMINALS[word])
     if isinstance(found, tuple):
         return None if found[0] == "final_answer" else found
     if _beside(turn, found["drawing_id"]):  # #491 review: the drawings answer, as before

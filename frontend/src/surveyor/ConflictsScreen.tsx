@@ -120,7 +120,12 @@ export function ConflictsList({
       <>
         <div className="cf-head">
           <h2>{conflictCount(k)}</h2>
-          <p className="cf-sub">{subLine(conflicts)}</p>
+          <p className="cf-sub">
+            {subLine(
+              conflicts,
+              load.review.drawings.reduce((n, d) => n + d.quantities, 0),
+            )}
+          </p>
         </div>
         {k > 0 && (
           <div className="cf-progress">

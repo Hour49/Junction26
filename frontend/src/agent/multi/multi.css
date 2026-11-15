@@ -16,7 +16,7 @@
   padding: 1px 6px;
   border-radius: 980px;
   background: var(--v-warn-mark);
-  color: #fff;
+  color: var(--v-text); /* white on the orange is 2.85:1 (R2-D2) */
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;

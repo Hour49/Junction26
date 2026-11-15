@@ -229,7 +229,9 @@ with a plain reason. The input model is never mutated (test: its hash before and
   name holds all its words; several or none is an error naming the rooms (2026-11-15, QA #430). `by_type` and
   `by_room` ("<id> <name>") count every match even when the items are cut, the 30 largest groups and the rest under
   "and K more groups" (fewer when the result would pass 4,000 characters); breakdowns are answered from them
-  (2026-11-15, #430 R2).
+  (2026-11-15, #430 R2). `by_kind` counts them per kind (the IFC class: a water heater, a roof drain or a filter is
+  no `sanitary_terminal`), and `kind` narrows the count and every group to that kind (2026-11-15, #430
+  c6887184725).
 - SV-24 `ask_services(drawing_id, op, element_id?, to_element_id?, system?, storey?, kind?, size?)` with `op` a
   closed list of SV-10's operations → the value, the elements behind it (ids with boxes, at most 30), or
   `{status: "unknown", reason}`.

@@ -505,3 +505,64 @@ def test_a_sanitary_count_the_services_model_cannot_make_is_left_to_the_architec
     assert "0 sink" not in found["text"] and "0 toilet" not in found["text"], found
     assert "no room named" not in found["text"], found
     assert "ask the drawings" in found["text"] or "drawings" in found["text"], found
+
+
+class _FourIfc(_Ingest):
+    """IFC files only, as the services demo without its sheet: an architecture model (no
+    services model), a ventilation and a plumbing model, and the heating model listed 4th."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        done = super().status(project_id)
+        heating = done.files[0]
+        others = tuple(
+            FileStatus(
+                id=f"f{n}",
+                path=f"m/{name}.ifc",
+                size=1,
+                sha256=str(n) * 64,
+                kind="ifc",
+                state="ready",
+                route="bim",
+                drawing_id=f"{n}" * 16,
+            )
+            for n, name in ((2, "arc"), (3, "lft"), (4, "san"))
+        )
+        return done.model_copy(update={"files": (*others, heating)})
+
+
+def _stored_as(model: ServicesModel, sha256: str, kinds: dict[str, str]) -> ServicesModel:
+    """`model` stored for another file: its elements of `kinds` turned into another kind."""
+    doc = model.model_dump(mode="json", by_alias=True)
+    doc["source"]["sha256"] = sha256
+    for element in doc["elements"]:
+        element["kind"] = kinds.get(element["id"], element["kind"])
+    return ServicesModel.model_validate(doc)
+
+
+@pytest.mark.parametrize(
+    ("message", "answer"),
+    [
+        ("How many radiators are in 1 Living?", "1 radiator in 1 Living: "),
+        ("How many sinks are there in 1 Living?", "1 sink in 1 Living: "),
+    ],
+)
+def test_a_room_count_asks_the_model_that_holds_that_kind_however_many_ifc_files(
+    settings: Settings, tmp_path: Path, message: str, answer: str
+) -> None:
+    """review-521 MUST (2026-11-15): with 4 IFC files the rules tried 3 (TRIED, the plan rule)
+    and counted the room in the first model that listed anything: "0 radiators in 1-2 Cafeteria"
+    from the ventilation model, the heating model never asked (truth 4), and "0 sinks" the same."""
+    client = _client(settings, tmp_path, ingest=_FourIfc())
+    cache = tmp_path / "services"
+    air = {"E2": "air_terminal", "E3": "air_terminal"}
+    for sha256, kinds in (
+        ("3" * 64, air),
+        ("4" * 64, {"E2": "sanitary_terminal", "E3": "air_terminal"}),
+    ):
+        stored = _stored_as(two_rooms(), sha256, kinds)
+        ServicesStore(cache).path(sha256).write_bytes(
+            gzip.compress(stored.model_dump_json().encode())
+        )
+    found = _rules(client, message)
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith(answer) and "E2" in found["text"], found
