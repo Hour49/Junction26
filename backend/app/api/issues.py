@@ -74,6 +74,7 @@ NOT_ABOUT_THE_DRAWING = "unsupported-question"
 CSV_COLUMNS = (
     "id", "kind", "severity", "state", "file", "file_id", "drawing_id", "floor", "page",
     "x0", "y0", "x1", "y1", "mark_id", "why", "quantity", "question", "reason", "check",
+    "answer", "answered_by", "answered_at",
 )  # fmt: skip
 SEVERITY_WORDS: dict[Severity, str] = {
     "fails_rule": "fails a rule", "needs_person": "needs a person", "note": "note",
@@ -276,6 +277,7 @@ def _csv(found: list[Issue], numbered: bool) -> str:
             issue.id, issue.kind, issue.severity, issue.state, issue.file, issue.file_id,
             issue.drawing_id, issue.floor, issue.page, x0, y0, x1, y1, issue.mark_id, issue.why,
             issue.quantity, issue.question, issue.reason, issue.check,
+            *((said.text, said.by, said.at) if (said := issue.answer) else (None, None, None)),
         )  # fmt: skip
         row = ["" if cell is None else csv_cell(cell) for cell in cells]
         writer.writerow(([n] if numbered else []) + row)

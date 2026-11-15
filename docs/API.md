@@ -5207,7 +5207,8 @@ The sample after a door question on its scan (no reader in no-keys mode):
 #### `GET /api/projects/{project_id}/issues.csv?pack=`
 
 The same issues as CSV (`text/csv; charset=utf-8`, starting with a UTF-8 BOM so Excel reads it as UTF-8), saved as `<project name>-issues[-<pack>].csv`. Columns:
-`id,kind,severity,state,file,file_id,drawing_id,floor,page,x0,y0,x1,y1,mark_id,why,quantity,question,reason,check`.
+`id,kind,severity,state,file,file_id,drawing_id,floor,page,x0,y0,x1,y1,mark_id,why,quantity,question,reason,check,answer,answered_by,answered_at`
+(the last three: a person's answer, empty when none; an answer does not change `state`).
 A missing value is an empty cell, and the polygon is left out. A text cell starting with `=`, `+`, `-` or `@` is
 written with a leading `'`, as in the takeoff CSV.
 
