@@ -34,8 +34,13 @@ const percent = (s: Sending) => (s.total > 0 ? Math.round((100 * s.sent) / s.tot
 /** What failed and where (Bogdan 2026-11-15): lost while sending, or refused by the server with its detail. */
 function failedLine(f: Failed): string {
   const name = f.file.name;
-  if (f.error instanceof ApiError && f.error.status > 0)
-    return `The server refused ${name}: ${f.error.detail}`;
+  if (f.error instanceof ApiError && f.error.status > 0) {
+    // the server's detail may name the file itself ("site.zip: the upload is empty"): say it once
+    const detail = f.error.detail.startsWith(`${name}: `)
+      ? f.error.detail.slice(name.length + 2)
+      : f.error.detail;
+    return `The server refused ${name}: ${detail}`;
+  }
   if (f.error instanceof ApiError)
     return `The connection was lost while sending ${name} (at ${String(f.at)}%).`;
   return `Could not send ${name}: ${errorText(f.error).detail}`;
@@ -74,6 +79,7 @@ export function UploadBox() {
   function upload(files: FileList | null) {
     const file = files?.[0];
     if (!files || !file) return;
+    setFailed(null); // a new try replaces the last failed upload's line
     if (files.length > 1) {
       setNote('Drop one file or one zip at a time.');
       return;
