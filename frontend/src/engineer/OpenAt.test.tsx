@@ -1,5 +1,5 @@
 // engineer.md "Opening at a question or a place": ?ask= asks on open, ?page=&box= focuses the opening viewer.
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup as unmount, fireEvent, render, screen, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
@@ -7,6 +7,12 @@ import { answer, answerRefused, drawing, error, project } from '../api/fixtures'
 import { mockApi, never } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
 import { EngineerPage } from './EngineerPage';
+
+/** A fresh page: unmounted, and no engineer thread kept in the tab (R3-L2). */
+function cleanup() {
+  unmount();
+  sessionStorage.clear();
+}
 
 type ViewerProps = ComponentProps<typeof PageViewer> & { focus?: unknown };
 const viewers: ViewerProps[] = [];
