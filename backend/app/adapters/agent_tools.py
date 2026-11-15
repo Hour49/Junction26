@@ -38,10 +38,12 @@ FIND_TOOLS: list[Json] = [
         "function": {
             "name": FIND_ROOMS,
             "description": (
-                "The rooms whose label printed on the drawings contains every word of `query` "
-                "(e.g. 'office', 'open office 102'), with their places (ev ids). Use it when "
-                "ask_drawings refuses a question that names a room: offer the printed labels "
-                "as options, or read the one room with get_plan_geometry. Labels only."
+                "The rooms whose printed label or room type contains every word of `query` "
+                "(e.g. 'office', 'open office 102', 'kitchen'), with their places (ev ids), and "
+                "`not_searched`: the drawings with no rooms to search (a building model, a "
+                "drawing not read). Use it when ask_drawings refuses a question that names a "
+                "room: offer the printed labels as options, or read the one room with "
+                "get_plan_geometry."
             ),
             "parameters": {
                 "type": "object",
@@ -169,21 +171,34 @@ def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
     if not words:
         return _error("give the room's words as printed, e.g. 'office' or 'open office 102'")
     found: list[Json] = []
+    # the drawings with no room to search: an answer built on this list can't call it complete
+    # (demo walk r13: "Which drawings show a kitchen?" named 2 drawings of 9 as all of them)
+    not_searched: list[Json] = []
     for entry in drawings_of(store.ingest.status(store.project_id)):
         try:
             rooms = store.ingest.drawing(entry.drawing_id).rooms
         except DomainError:
-            continue  # not read
+            not_searched.append({"name": entry.name, "why": "it was not read"})
+            continue
+        if not rooms:
+            not_searched.append({"name": entry.name, "why": "no rooms were read on it"})
         for room in rooms:
             printed = _printed(room.label, room.attrs.get("number"))
-            if printed and words <= set(TOKEN.findall(printed.lower())):
+            # a room's type counts as its words: Drawn plan 1 prints its kitchens as "0.03"
+            if printed and words <= {*TOKEN.findall(printed.lower()), *_type_words(room.type)}:
                 place = {"drawing_id": entry.drawing_id, "page": room.page, "box": list(room.box)}
                 found.append({"room": room.id, "label": printed, "name": entry.name, **place})
+    scope: Json = {"not_searched": not_searched} if not_searched else {}
     if not found:
-        reason = f"no room label printed on the drawings holds {' '.join(sorted(words))}"
-        return json.dumps({"status": "unknown", "reason": reason}, ensure_ascii=False)
-    out: Json = {"status": "ok", "count": len(found), "rooms": found[:ROOMS_LISTED]}
+        reason = f"no room on the drawings is labelled or typed {' '.join(sorted(words))}"
+        return json.dumps({"status": "unknown", "reason": reason, **scope}, ensure_ascii=False)
+    out: Json = {"status": "ok", "count": len(found), "rooms": found[:ROOMS_LISTED], **scope}
     return json.dumps(out, ensure_ascii=False)
+
+
+def _type_words(kind: str) -> set[str]:
+    """A room type as words a query may use: "kitchen" and "kitchens"; "other" says nothing."""
+    return set() if kind == "other" else {kind, f"{kind}s"}
 
 
 def _printed(label: str | None, number: Any) -> str | None:
