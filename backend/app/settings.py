@@ -62,6 +62,8 @@ RasterPrintedScaleName = Literal["off", "carbon"]
 PrintedTotalAnswersName = Literal["off", "on"]
 # on: an OCR engine reads the printed digits again (app/core/pipeline/printed_ocr.py)
 PrintedOcrCheckName = Literal["off", "on"]
+# on: a printed gross floor area against the rooms found summed (with RASTER_PRINTED_SCALE)
+GrossNetCheckName = Literal["off", "on"]
 RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # raster: a drawn PDF the vector reader has no sheet style for goes to the raster route
 VectorFallbackName = Literal["off", "raster"]
@@ -130,6 +132,11 @@ class Settings(BaseSettings):
     # reads differently gets a note and, for a count, a second value with OCR's reading, and a
     # scale text it reads differently is not used (app/adapters/raster_ocr/tiles.py). off: today's
     printed_ocr_check: PrintedOcrCheckName = "off"
+    # on (needs RASTER_PRINTED_SCALE=carbon, no extra call): a gross floor area the sheet prints
+    # ("TOTAL SECOND FLOOR = 26,562 SF") is checked against the indoor rooms found summed; a net/
+    # gross ratio outside 0.60-1.02 puts both on the indoor area answer, held for a person
+    # (app/core/pipeline/gross_net.py)
+    gross_net_check: GrossNetCheckName = "off"
     # auto: a raster page whose long side is over 4000 px is read by every detector source of
     # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
     # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.

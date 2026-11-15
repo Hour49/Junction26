@@ -87,6 +87,7 @@ class Measurement(Frozen):
     quantity: ConflictQuantity
     subject: Subject
     value: MeasuredValue
+    note: str | None = None  # why the values differ, for the entry (`Conflict.note`)
 
 
 StepState = Literal["running", "done", "failed", "skipped"]  # running: a live step

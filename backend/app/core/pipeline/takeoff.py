@@ -607,6 +607,12 @@ def _conflict_keys(
                     storeys = dict.fromkeys((None, own))  # ordered, unlike a set
                     keys += [quantity_key("area", "room", name=name, storey=s) for s in storeys]
             return keys
+        case "floor_area", "sheet":  # a printed gross (gross_net.py): the rooms' net totals
+            return [
+                quantity_key("area", "room", storey=scope, indoor=indoor)
+                for indoor in (True, False)
+                for scope in scopes
+            ]
         case "apartment_area", "apartment":
             labels = [a.label for a in drawing.apartments if a.id == ref and a.label is not None]
             return [quantity_key("area", "apartment", apartment=label) for label in labels]

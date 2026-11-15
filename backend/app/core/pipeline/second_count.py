@@ -44,6 +44,7 @@ METHODS = {
     "printed_label": "the printed room areas",
     "polygon_x_scale": "the room outlines at the sheet's scale",
     "printed_total": "the total printed on the sheet",
+    "summed_rooms": "the rooms found, summed",
 }
 
 COUNTS: frozenset[ConflictQuantity] = frozenset({"room_count", "element_count", "storey_count"})
@@ -183,8 +184,11 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
     are in the order of `second`, with ids c1, c2..."""
     firsts = {(one.quantity, one.subject): one.value for one in first}
     groups: dict[tuple[ConflictQuantity, Subject], list[MeasuredValue]] = {}
+    notes: dict[tuple[ConflictQuantity, Subject], str] = {}
     for again in second:
         key = (again.quantity, again.subject)
+        if again.note is not None:
+            notes.setdefault(key, again.note)
         values = groups.setdefault(key, [firsts[key]] if key in firsts else [])
         if any(value.method == again.value.method for value in values):
             raise ValueError(
@@ -210,6 +214,7 @@ def second_count(first: Iterable[Measurement], second: Iterable[Measurement]) ->
                 tolerance=tolerance,
                 values=tuple(values),
                 resolution=_resolution(quantity, subject, values, apart),
+                note=notes.get((quantity, subject)),
             )
         )
     return entries

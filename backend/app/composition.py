@@ -898,6 +898,8 @@ def build_ingest(
         names["printed_total_answers"] = settings.printed_total_answers
     if settings.printed_ocr_check != "off" and settings.raster_printed_scale != "off":  # the same
         names["printed_ocr_check"] = settings.printed_ocr_check
+    if settings.gross_net_check != "off" and settings.raster_printed_scale != "off":  # the same
+        names["gross_net_check"] = settings.gross_net_check
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -1113,8 +1115,9 @@ def _printed(
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
             answers = settings.printed_total_answers == "on"
             checker = PrintedOcr(_ocr(), files) if settings.printed_ocr_check == "on" else None
+            gross_net = settings.gross_net_check == "on"
             return PrintedScale(  # kind: no camera dpi
-                inner, reader, files, kind_of, answers, checker
+                inner, reader, files, kind_of, answers, checker, gross_net
             )
 
 

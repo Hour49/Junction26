@@ -15,6 +15,9 @@ is a `printed_scale` step after the inner reader's steps (decision 0018).
 With a `checker` (PRINTED_OCR_CHECK=on: app/adapters/raster_ocr/tiles.py), an OCR engine reads the
 places of the printed values again, and a value it reads differently does not decide silently
 (app/core/pipeline/printed_ocr.py).
+
+`gross_net` (GROSS_NET_CHECK=on): a printed gross floor area is then checked against the rooms
+found summed (app/core/pipeline/gross_net.py).
 """
 
 import io
@@ -24,6 +27,7 @@ from typing import Protocol
 from PIL import Image
 
 from app.adapters.beside import beside
+from app.core.pipeline.gross_net import gross_net_checked
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import PrintedSheet, trusted_dpi, with_printed
@@ -52,6 +56,7 @@ class PrintedScale:
         kind_of: Callable[[str], str | None] = lambda path: None,
         answers: bool = False,
         checker: PrintedChecker | None = None,
+        gross_net: bool = False,
     ) -> None:
         self._inner = inner
         self._reader = reader
@@ -59,6 +64,7 @@ class PrintedScale:
         self._kind_of = kind_of  # the content kind ingest gave a file, by its path
         self._answers = answers  # PRINTED_TOTAL_ANSWERS: an exactly matching count is reported
         self._checker = checker  # PRINTED_OCR_CHECK=on; None: today's reading
+        self._gross_net = gross_net
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if not sheet.pages:
@@ -79,10 +85,13 @@ class PrintedScale:
         result = with_printed(found, printed, sheet.pages, dpi)
         if second:
             result = result.model_copy(update={"printed": (*result.printed, *second)})
-        if self._answers:  # a fact OCR reads differently decides no answer
-            doubted = {c.index for c in confirmations or () if c.outcome == "disagrees"}
-            facts = [f for i, f in enumerate(printed.printed_facts) if i not in doubted]
+        # a fact OCR reads differently decides no answer, nor flags one
+        doubted = {c.index for c in confirmations or () if c.outcome == "disagrees"}
+        facts = [f for i, f in enumerate(printed.printed_facts) if i not in doubted]
+        if self._answers:
             result = printed_answers(result, facts)
+        if self._gross_net:
+            result = gross_net_checked(result, facts)
         steps = (*found.steps, _step(read, span, result, confirmations))
         return result.model_copy(update={"steps": steps})
 
