@@ -217,3 +217,18 @@ def test_the_samples_lone_model_still_cannot_tell(client: TestClient) -> None:
     (model,) = [drawing for drawing in found["drawings"] if drawing["file"].endswith(".ifc")]
     assert model["status"] == "cannot_tell"
     assert model["rules"][0]["why"] == "The drawing is a building model with no sheet to check."
+
+
+def test_tudor_b3_the_samples_door_rule_names_the_doors_it_leaves_out(client: TestClient) -> None:
+    """GET /api/projects/<pid>/checks?pack=fi said flat-a and flat-b show no door to a bedroom,
+    living room or kitchen; their doors (Küche and Zimmer, both into the bathroom Bad) are there
+    and left out by the rule (fi.json: no door that also meets a bathroom)."""
+    sample = client.get(client.post("/api/projects/sample").json()["url"]).json()
+    found = get(client, f"/api/projects/{sample['id']}/checks", pack="fi")
+    for file in ("plans/flat-a.pdf", "plans/flat-b.pdf"):
+        drawing = next(d for d in found["drawings"] if d["file"] == file)
+        [door] = [r for r in drawing["rules"] if r["rule_id"] == "fi-door-clear-width"]
+        assert door["status"] == "not_applicable"
+        assert "shows no door" not in door["why"]
+        assert '"Küche 1.01"' in door["why"] and '"Zimmer 1.05"' in door["why"]
+        assert "also open into a bathroom" in door["why"]

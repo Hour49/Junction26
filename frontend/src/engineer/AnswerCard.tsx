@@ -75,6 +75,9 @@ function cameFrom(r: Reader): string {
   return `${readerName(r.extractor)} read ${r.source ?? 'no file'} (${routeLabel(r.route)}), ${second}`;
 }
 
+/** EN-91: mark-list rows shown before "Show all". */
+const MARK_ROWS = 12;
+
 function MarkList(props: {
   marks: MarkView[];
   unit: string | null;
@@ -83,34 +86,54 @@ function MarkList(props: {
 }) {
   const { marks, unit, selected, onHover } = props;
   const sum = unit !== 'count' && unit !== null;
+  // EN-91: at most MARK_ROWS rows until asked; a badge picked past them shows the whole list
+  const [all, setAll] = useState(false);
+  const long = marks.length > MARK_ROWS;
+  const whole = all || marks.findIndex((m) => m.id === selected) >= MARK_ROWS;
   return (
-    <ol className="en-marks">
-      {marks.map((m) => {
-        const words = stateWords(m);
-        const counts = m.state === 'counted' || m.state === 'added';
-        const leave = () => {
-          onHover(null);
-        };
-        const enter = () => {
-          onHover(m.id);
-        };
-        return (
-          <li
-            key={m.id}
-            tabIndex={0}
-            aria-selected={m.id === selected}
-            onMouseEnter={enter}
-            onMouseLeave={leave}
-            onFocus={enter}
-            onBlur={leave}
-          >
-            <span className="en-sign">{sign(m)}</span> {m.label ?? 'item'}
-            {sum && counts && m.value !== null && ` ${formatValue(m.value, unit)}`}
-            {words && ` ${words}`}
-          </li>
-        );
-      })}
-    </ol>
+    <>
+      <ol className="en-marks">
+        {(whole ? marks : marks.slice(0, MARK_ROWS)).map((m) => {
+          const words = stateWords(m);
+          const counts = m.state === 'counted' || m.state === 'added';
+          const leave = () => {
+            onHover(null);
+          };
+          const enter = () => {
+            onHover(m.id);
+          };
+          return (
+            <li
+              key={m.id}
+              tabIndex={0}
+              aria-selected={m.id === selected}
+              onMouseEnter={enter}
+              onMouseLeave={leave}
+              onFocus={enter}
+              onBlur={leave}
+            >
+              <span className="en-sign">{sign(m)}</span> {m.label ?? 'item'}
+              {sum && counts && m.value !== null && ` ${formatValue(m.value, unit)}`}
+              {words && ` ${words}`}
+            </li>
+          );
+        })}
+      </ol>
+      {long && (
+        <Button
+          type="button"
+          variant="link"
+          size="xs"
+          className="h-auto self-start px-0"
+          aria-expanded={all}
+          onClick={() => {
+            setAll((a) => !a);
+          }}
+        >
+          {all ? 'Show fewer' : `Show all ${String(marks.length)}`}
+        </Button>
+      )}
+    </>
   );
 }
 
