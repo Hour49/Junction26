@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { drawing, fileReadAsPlan, project } from '../api/fixtures';
 import { mockApi, never } from '../test/mockApi';
+import { KEPT_VERSION } from '../shell/kept';
 import { AgentChat } from './AgentChat';
 import type { ChatRequest } from './agent';
 import { answerTurn, dontKnowTurn, model, needsInputTurn } from './fixtures';
@@ -102,7 +103,11 @@ it('AC-33 the pen: a dragged area goes with the next message as a chip, then is 
   fireEvent.pointerDown(stage, { clientX: 60, clientY: 40, pointerType: 'mouse', button: 0 });
   fireEvent.pointerUp(stage, { clientX: 240, clientY: 120, pointerType: 'mouse', button: 0 });
   expect(await screen.findByText('Area on Drawn plan 1, page 1')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Draw on the plan' })); // pen down: typing back
+  // R4-F1: the finished drag put the pen down by itself, so typing is back
+  expect(
+    screen.getByRole('button', { name: 'Draw on the plan' }).getAttribute('aria-pressed'),
+  ).toBe('false');
+  expect(screen.getByLabelText<HTMLInputElement>('Question').disabled).toBe(false);
   await send('Put a storage room here');
   await screen.findByText(/is 7.56 m²/);
   const [body] = posts(api);
@@ -123,8 +128,7 @@ it('AC-33 a click on a room sends its model id and the chip names it', async () 
   const stage = await pointer();
   fireEvent.pointerDown(stage, { clientX: 120, clientY: 80, pointerType: 'mouse', button: 0 });
   fireEvent.pointerUp(stage, { clientX: 120, clientY: 80, pointerType: 'mouse', button: 0 });
-  expect(await screen.findByText('Room Bagno 1.01')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Draw on the plan' }));
+  expect(await screen.findByText('Room Bagno 1.01')).toBeTruthy(); // the click put the pen down (R4-F1)
   await send('Make this room larger');
   await screen.findByText(/is 7.56 m²/);
   expect(posts(api)[0]?.selection).toEqual([
@@ -343,4 +347,27 @@ it('QA G2 a thread kept over a reload scrolls to its last turn once the project 
     expect(scrolled).toHaveBeenCalled();
   });
   Element.prototype.scrollIntoView = vi.fn();
+});
+
+it('R4-C13 a thread kept by an older build (no version, or a turn missing what the card reads) is dropped, not a blank page', async () => {
+  const key = `agent-chat:${PID}`;
+  const row = {
+    id: 1,
+    status: 'done',
+    message: 'How many doors?',
+    chips: [],
+    turn: { kind: 'answer' },
+  };
+  for (const value of [
+    { rows: [row] },
+    { rows: [{ ...row, turn: answerTurn }] },
+    { v: KEPT_VERSION, rows: [row] },
+  ]) {
+    sessionStorage.setItem(key, JSON.stringify(value));
+    open(never());
+    expect(await screen.findByLabelText('Question')).toBeTruthy();
+    expect(screen.queryByText('How many doors?')).toBeNull();
+    expect(sessionStorage.getItem(key)).toBeNull(); // dropped, so the next reload starts clean too
+    cleanup();
+  }
 });

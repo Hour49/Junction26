@@ -11,6 +11,7 @@ import {
   type ProjectView,
 } from '../api';
 import { ErrorView } from '../shell/ErrorView';
+import { dropKept, hasKeys, readKept, writeKept } from '../shell/kept';
 import { Loading } from '../shell/Loading';
 import { AnswerCard, type Turn } from './AnswerCard';
 import { AskBox } from './AskBox';
@@ -40,14 +41,41 @@ type Done = Extract<Turn, { status: 'done' }>;
 
 // R3-L2: the answered turns outlive a reload of this tab (pending and failed ones are not kept).
 const keyOf = (projectId: string, drawingId: string) => `engineer-thread:${projectId}:${drawingId}`;
+// What the answer card reads of a kept answer (AnswerView's required fields): one missing, the thread is dropped.
+const ANSWER_KEYS = [
+  'answer',
+  'check',
+  'confidence',
+  'cost_usd',
+  'drawing_id',
+  'explanation',
+  'file',
+  'latency_s',
+  'level',
+  'line',
+  'marks',
+  'method',
+  'pages',
+  'proof',
+  'quantity',
+  'question',
+  'reader',
+  'refusal',
+  'unit',
+];
+const isDone = (t: unknown): t is Done =>
+  hasKeys(t, ['id', 'question', 'status', 'answer']) &&
+  t.status === 'done' &&
+  typeof t.id === 'number' &&
+  typeof t.question === 'string' &&
+  hasKeys(t.answer, ANSWER_KEYS);
 export function keptTurns(projectId: string, drawingId: string): Done[] {
-  try {
-    const raw = sessionStorage.getItem(keyOf(projectId, drawingId));
-    const turns: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(turns) ? (turns as Done[]) : [];
-  } catch {
-    return []; // no storage (private mode) or a bad value: start empty
-  }
+  const key = keyOf(projectId, drawingId);
+  const kept = readKept(key);
+  if (kept === null) return [];
+  if (Array.isArray(kept.turns) && kept.turns.every(isDone)) return kept.turns;
+  dropKept(key); // QA R4-C13: a stale shape starts empty instead of a blank page
+  return [];
 }
 
 /** The engineer workspace (docs/specs/frontend/engineer.md). The shell mounts it keyed by route path, so a
@@ -61,7 +89,7 @@ export function EngineerPage(props: {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [turns, setTurns] = useState<Turn[]>(() => keptTurns(projectId, drawingId));
   const nextId = useRef(Math.max(0, ...turns.map((t) => t.id)) + 1);
-  const keptLast = useRef(turns.at(-1)?.question);
+  const keptAsked = useRef(new Set(turns.map((t) => t.question)));
   const pending = useRef(false);
   const thread = useRef<HTMLElement>(null);
   // Not blocking: until it arrives, or if it fails, no position, arrows or original picture.
@@ -105,8 +133,8 @@ export function EngineerPage(props: {
       (drawing) => {
         if (abort.signal.aborted) return; // StrictMode's first run: only the live load asks
         setLoad({ state: 'ready', drawing });
-        // a reload keeps `?ask=`: not again when the kept thread already ends with it
-        if (openAsk && keptLast.current !== openAsk) ask(openAsk);
+        // a reload keeps `?ask=`: not again when the kept thread already holds it (QA R4-C1)
+        if (openAsk && !keptAsked.current.has(openAsk)) ask(openAsk);
       },
       (error: unknown) => {
         if (!abort.signal.aborted) setLoad({ state: 'error', error });
@@ -121,11 +149,7 @@ export function EngineerPage(props: {
   useEffect(() => {
     const done = turns.filter((t): t is Done => t.status === 'done');
     if (done.length === 0) return;
-    try {
-      sessionStorage.setItem(keyOf(projectId, drawingId), JSON.stringify(done));
-    } catch {
-      // full or blocked storage: the thread just isn't kept
-    }
+    writeKept(keyOf(projectId, drawingId), { turns: done });
   }, [turns, projectId, drawingId]);
 
   // Again when the answer arrives: the card is taller than the pending line. CSS scroll-margin keeps it

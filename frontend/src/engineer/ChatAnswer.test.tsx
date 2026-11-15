@@ -523,7 +523,16 @@ it('W3 the round "3D" button only when the shown drawing has a model; a 2D drawi
   const open = screen.getByRole('button', { name: `View in 3D: ${LB}` });
   expect(open.textContent).toBe('3D');
   expect(open.closest('.en-chathead')).toBeTruthy();
-  fireEvent.click(open);
+  // R4-F6: no grey "No preview" box; the box says what the 3D view shows and opens it
+  expect(screen.queryByText('No preview for this file')).toBeNull();
+  const see = screen.getByRole('button', { name: /^See the .+ in 3D$/ });
+  expect(see.closest('.en-nopreview')).toBeTruthy();
+  fireEvent.click(see);
+  expect(screen.getByRole('dialog', { name: `3D: ${LB}` })).toBeTruthy();
+  cleanup();
+  show({ ...projectAsk, parts: [flatA, bim] }, proj);
+  fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
+  fireEvent.click(screen.getByRole('button', { name: `View in 3D: ${LB}` }));
   expect(screen.getByRole('dialog', { name: `3D: ${LB}` })).toBeTruthy();
   cleanup();
   // a 2D drawing linked to the building's model: the button says it is the building model
