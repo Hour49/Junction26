@@ -245,7 +245,9 @@ class Reads:
         return self.reading
 
 
-def checked_lane(first: Reads, second: Reads, tmp_path: Path) -> PictureSheets:
+def checked_lane(
+    first: Reads, second: Reads, tmp_path: Path, sheet_of: Any = lambda path: None
+) -> PictureSheets:
     sheets = PictureSheets(Files(), tmp_path / "sheets")  # type: ignore[arg-type]
     legend = SimpleNamespace(
         legend=lambda source, sheet: None,
@@ -254,7 +256,7 @@ def checked_lane(first: Reads, second: Reads, tmp_path: Path) -> PictureSheets:
     PictureLane(
         Inner(),  # type: ignore[arg-type]
         Files(),  # type: ignore[arg-type]
-        lambda path: None,
+        sheet_of,
         sheets,
         legend,  # type: ignore[arg-type]
         first,
@@ -284,3 +286,22 @@ def test_a_count_the_second_reader_disputes_or_did_not_read_is_held(tmp_path: Pa
         counts = [f for f in kept.facts if f.topic == "valve.count" and f.subject == "Valve"]
         assert counts and all(f.source.endswith(HELD) for f in counts)
         assert not [f for f in kept.facts if f.subject == "Ventil X"]  # the check adds no facts
+
+
+def test_the_lane_gives_a_label_that_names_no_discipline_the_sheets_discipline(
+    tmp_path: Path,
+) -> None:
+    def valves(sheets: PictureSheets) -> set[str]:
+        kept = sheets.sheet("1" * 64)
+        assert kept is not None
+        return {f.discipline for f in kept.facts if f.topic == "valve.count"}
+
+    # no sheet-kind reply: "H-101 heating.png" names heating
+    by_name = checked_lane(Reads("vlm", "Valve", BOXES), Reads("t", "Valve", BOXES), tmp_path / "a")
+    assert valves(by_name) == {"heating"}
+    # triage's discipline wins over the file name
+    plumbing = SimpleNamespace(discipline="plumbing", decision="read", title=None)
+    by_triage = checked_lane(
+        Reads("vlm", "Valve", BOXES), Reads("t", "Valve", BOXES), tmp_path / "b", lambda _: plumbing
+    )
+    assert valves(by_triage) == {"plumbing"}
