@@ -268,6 +268,10 @@ def test_the_adapter_builds_a_sheet_once_and_keeps_it_on_disk(tmp_path: Path) ->
     again = IfcFactSource(files, tmp_path).facts(FILE)  # from the JSON, not the IFC
     assert again == sheet
     assert IfcFactSource(files).facts("data/x/plan.pdf") is None
+    # each space's room type from its names, the drawing path's room words (big QA R1 E6)
+    assert [(f.subject, f.value) for f in sheet.facts if f.topic == "space.room_type"] == [
+        ("1", "hall")
+    ]
     assert [p.suffix for p in tmp_path.iterdir()] == [".json"]  # written whole, no temp left
 
 
@@ -851,3 +855,63 @@ def test_a_guid_of_a_class_not_listed_one_by_one_is_not_called_missing() -> None
         "This file's facts do not list spaces by GlobalId, so a space cannot be found by it here"
         " (not available)."
     )
+
+
+# The demo IFC's P1 (bimspeed-vitoria): spaces numbered by Name, their room in LongName ("BAÑ" a
+# bathroom); the reader types each space by the drawing path's room words (space.room_type)
+ROOMS = FactSheet(
+    model="rooms_arc",
+    disciplines=["architecture"],
+    facts=[
+        fact("storey.elevation", "P0", 0.0, "m", storey="P0"),
+        fact("storey.elevation", "P1", 4.4, "m", storey="P1"),
+        fact("storey.elevation", "P2", 7.4, "m", storey="P2"),
+        fact("space.long_name", "01.19", "1IZQ-BAÑ", None, storey="P1"),
+        fact("space.long_name", "01.28", "1DER-BAÑ", None, storey="P1"),
+        fact("space.long_name", "01.20", "1IZQ-COC", None, storey="P1"),
+        fact("space.long_name", "01.36", "2IZQ-BAÑ", None, storey="P2"),
+        fact("space.room_type", "01.19", "bathroom", None, storey="P1"),
+        fact("space.room_type", "01.28", "bathroom", None, storey="P1"),
+        fact("space.room_type", "01.20", "kitchen", None, storey="P1"),
+        fact("space.room_type", "01.36", "bathroom", None, storey="P2"),
+        fact("space.count", "all", 3, "count", storey="P1"),
+    ],
+)
+
+
+def test_a_room_word_counts_the_spaces_of_that_room_type_on_a_storey() -> None:
+    """Big QA R1 E6: "How many bathrooms are there on Level 1?" on the demo IFC said "No space
+    in this file is named 'bathrooms'": the words met the spaces' names only, and no name says
+    "bathroom" ("1IZQ-BAÑ"). The room words type them as the drawing path does."""
+    query = parse_ifc_question("How many bathrooms are there on Level 1?")
+    assert query is not None
+    said = fact_text(query, ROOMS)
+    assert said is not None and "is named 'bathrooms'" not in said, said
+    assert said.splitlines()[0].endswith(": 2 spaces"), said
+    assert "1IZQ-BAÑ" in said and "1DER-BAÑ" in said and "COC" not in said and "2IZQ" not in said
+
+
+def test_toilets_with_no_fixture_in_the_file_are_its_wc_rooms_never_a_wall_type() -> None:
+    """Big QA R1 E10: digital_hub "How many toilets are there?" answered "Basiswand:GK 75 -
+    Toilettentrennwand (wall type): 16": no sanitary terminal in the file, so the word was looked
+    up among type names and met the toilet partition walls. Its 8 WC rooms are the toilets."""
+    sheet = FactSheet(
+        model="hub_arc",
+        disciplines=["architecture"],
+        facts=[
+            fact("storey.elevation", "E00", 0.0, "m", storey="E00"),
+            fact("space.long_name", "1-15", "WC Damen West - EG", None, storey="E00"),
+            fact("space.long_name", "1-16", "WC Herren West - EG", None, storey="E00"),
+            fact("space.long_name", "1-4", "Gruppenbüro 1", None, storey="E00"),
+            fact("space.room_type", "1-15", "wc", None, storey="E00"),
+            fact("space.room_type", "1-16", "wc", None, storey="E00"),
+            fact("wall.count", "all", 40, "count"),
+            fact("wall_type.count", "Basiswand:GK 75 - Toilettentrennwand", 16, "count"),
+        ],
+    )
+    query = parse_ifc_question("How many toilets are there?")
+    assert query is not None
+    said = fact_text(query, sheet)
+    assert said is not None and "Toilettentrennwand" not in said, said
+    assert said.splitlines()[0].endswith(": 2 spaces"), said
+    assert "WC Damen West" in said and "Gruppenbüro" not in said

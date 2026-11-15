@@ -40,6 +40,25 @@ export function readDrawings(project: Pick<ProjectView, 'drawings' | 'readers'>)
   return project.drawings.filter((d) => !unread(d, project.readers) && !d.not_a_drawing);
 }
 
+/**
+ * "Drawings ready" and what it is out of: the drawings ready (`readDrawings`) over `expected_drawings` less the
+ * sheets called not a drawing, which are named apart rather than read as a drawing that failed (QA ingest R1: the
+ * sample's "6 / 7" while all 7 open). `of` is null while the server does not know the total yet. One rule for the
+ * card's tile, its summary and the done line.
+ */
+export function drawingTally(
+  project: Pick<ProjectView, 'drawings' | 'readers' | 'expected_drawings'>,
+): { ready: number; of: number | null; notDrawings: number } {
+  const ready = readDrawings(project).length;
+  const notDrawings = project.drawings.filter((d) => d.not_a_drawing).length;
+  const expected = project.expected_drawings;
+  return {
+    ready,
+    of: expected === null ? null : Math.max(ready, expected - notDrawings),
+    notDrawings,
+  };
+}
+
 /** The reader a RASTER_COMPONENTS part is, by part (backend app/adapters/raster/__init__.py `GROUPS`). */
 const PART: Record<string, string> = {
   elements: 'symbol detector',
@@ -501,29 +520,31 @@ export const needALook = (n: number) =>
 
 /**
  * The finished screen's sentence: what was read by which route, then what needs a person. "Read 3 drawn PDFs and
- * 1 image. 2 flagged files need a look; 1 not read; 1 set aside." Each drawing once (another rendering is not
- * counted). A flagged file on a route with no reader (`unread`) is counted as "not read", not as read or flagged
- * (IN-116).
+ * 1 image; 1 image is not a drawing (flagged). 2 flagged files need a look; 1 not read; 1 set aside." The drawings
+ * read are the ones "Drawings ready" counts (`readDrawings`: each drawing once, never one on a route with no reader
+ * or one called not a drawing), so the sentence and the tile agree (QA ingest R1). A flagged file on a route with
+ * no reader (`unread`) is counted as "not read", not as read or flagged (IN-116).
  */
-export function routeSummary(
-  files: readonly FileStatus[],
-  readers?: Record<string, string>,
-): string {
+export function routeSummary(project: Pick<ProjectView, 'files' | 'drawings' | 'readers'>): string {
+  const { files, readers } = project;
   const notRead = files.filter((f) => f.state === 'flagged' && unread(f, readers)).length;
-  const read = ROUTES.map(
-    (id) =>
-      [
-        id,
-        files.filter((f) => f.route === id && f.drawing_id && readsItself(f) && !unread(f, readers))
-          .length,
-      ] as const,
-  )
-    .filter(([, n]) => n > 0)
-    .map(([id, n]) => plural(n, ...ROUTE_PLURAL[id]));
+  const byRoute = (drawings: readonly ProjectView['drawings'][number][]) =>
+    ROUTES.map((id) => [id, drawings.filter((d) => d.route === id).length] as const).filter(
+      ([, n]) => n > 0,
+    );
+  const read = byRoute(readDrawings(project)).map(([id, n]) => plural(n, ...ROUTE_PLURAL[id]));
   const list =
     read.length > 1
       ? `${read.slice(0, -1).join(', ')} and ${read[read.length - 1] ?? ''}`
       : read[0];
+  // a sheet the sheet-kind step called not a drawing (a site photo): named for what it is, not counted as read
+  const not = byRoute(project.drawings.filter((d) => d.not_a_drawing))
+    .map(([id, n]) =>
+      n === 1
+        ? `1 ${ROUTE_PLURAL[id][0]} is not a drawing (flagged)`
+        : `${String(n)} ${ROUTE_PLURAL[id][1]} are not drawings (flagged)`,
+    )
+    .join(', ');
   const flagged = flaggedCount(files, readers);
   const aside = files.filter((f) => f.state === 'set_aside').length;
   const person = [
@@ -531,7 +552,8 @@ export function routeSummary(
     notRead ? `${String(notRead)} not read` : '',
     aside ? `${String(aside)} set aside` : '',
   ].filter(Boolean);
-  return [list ? `Read ${list}.` : '', person.length ? `${person.join('; ')}.` : '']
+  const head = [list ? `Read ${list}` : '', not].filter(Boolean).join('; ');
+  return [head ? `${head}.` : '', person.length ? `${person.join('; ')}.` : '']
     .filter(Boolean)
     .join(' ');
 }

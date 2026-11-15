@@ -43,10 +43,10 @@ def test_a_counted_mark_a_reader_does_not_see_is_disputed_under_its_id() -> None
             box=B,
             why="Counted as a door, but 1 of the 3 other readers sees nothing here.",
             readers={
-                "answer": "door, score 0.90",
-                "L one view": "door, score 0.80",
+                "answer": "door",
+                "L one view": "door",
                 "M": "nothing",
-                "seg": "door, score 0.80",
+                "seg": "door",
             },
         ),
     )
@@ -66,7 +66,7 @@ def test_a_place_a_reader_sees_and_the_answer_did_not_count_has_no_mark_id() -> 
             page=1,
             box=B,
             why="Not counted, but 1 of the 2 other readers sees a sauna stove here.",
-            readers={"answer": "nothing", "M": "nothing", "seg": "sauna stove, score 0.72"},
+            readers={"answer": "nothing", "M": "nothing", "seg": "sauna stove"},
         ),
     )
 
@@ -154,7 +154,7 @@ def test_a_mark_the_detector_saw_in_some_of_its_views_says_so() -> None:
         "Counted as a door, but 1 of the 2 other readers sees nothing here"
         " and the detector saw it in 3 of its 8 views."
     )
-    assert found[0].readers["answer"] == "door, score 0.41, 3 of 8 views"
+    assert found[0].readers["answer"] == "door"  # the views are in the reason, no score
 
 
 def test_a_mark_seen_in_every_view_does_not_mention_views_in_the_reason() -> None:
