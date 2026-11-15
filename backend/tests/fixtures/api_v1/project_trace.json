@@ -1317,7 +1317,7 @@
         "sha256": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
         "kind": "dxf",
         "state": "set_aside",
-        "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+        "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
         "group": "cad/detail",
         "route": "cad",
         "source": "cad/detail.dxf",
