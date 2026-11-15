@@ -47,6 +47,17 @@ ROOM_WORDS = {
     "storage": "storage", "closet": "storage", "sauna": "sauna", "balcony": "balcony",
 }  # fmt: skip
 ROOM_WORD = re.compile(r"\b(" + "|".join(ROOM_WORDS) + r")s?\b")
+# "Which drawing has the largest floor area?": the drawings answer one drawing at a time, so it is
+# asked as each drawing's total and the top one is named from the loop's `answered` list
+WHICH = re.compile(
+    r"\bwhich\s+(?:drawing|plan|sheet|file)s?\b.*?\b(?P<word>largest|biggest|smallest|most|fewest"
+    r"|least)\b(?P<what>[^?]*)"
+)
+BIGGER = {"largest": "largest", "biggest": "largest", "smallest": "smallest"}
+NUMBER_OF = re.compile(r"^(?:total\s+)?(?:number|count|amount)\s+of\s+(?P<things>.+)$")
+# an answer in feet is compared in metres (review-483); the unit said after the winning value
+METRIC = {"ft2": ("m2", 0.09290304), "ft": ("m", 0.3048)}
+SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³"}
 LOAD = (
     "These drawings do not say which walls carry load. A structural drawing, a building model "
     "that marks load-bearing walls, or a structural engineer would settle it."
@@ -191,9 +202,12 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         return _sure(turn)
     if SHOW.search(words) and "show_on_plan" in offered:
         return _show(turn)
+    which = _which(words)
     found = turn.result("ask_drawings")
     if found is None:
-        return "ask_drawings", {"question": turn.message[:500]}
+        return "ask_drawings", {"question": which[0] if which else turn.message[:500]}
+    if which and found.get("answered"):
+        return _compared(found["answered"], which[1], which[2])
     words = name_words(turn.message)
     if "find_rooms" in offered and words and _refused_room(found):
         rooms = turn.result("find_rooms")
@@ -690,6 +704,65 @@ def _option(suggestion: Json) -> Json:
     quantity = str(suggestion["quantity"])
     label = f"Room {quantity[len(ONE_ROOM) :]}" if quantity.startswith(ONE_ROOM) else None
     return {"label": (label or suggestion["label"])[:60], "message": suggestion["question"][:300]}
+
+
+def _which(words: str) -> tuple[str, str, bool] | None:
+    """A question comparing the drawings: (each drawing's question, what the answer names, whether
+    the largest/most wins), or None. A room word after a size word ("the largest kitchen") is a
+    room question, asked as said; "most"/"fewest" need a thing to count."""
+    found = WHICH.search(words)
+    if found is None:
+        return None
+    word = found["word"]
+    what = re.sub(r"^\s*(?:the\s+)?|\s+$", "", found["what"])
+    top = word in ("largest", "biggest", "most")
+    said = BIGGER.get(word, word)
+    if number := NUMBER_OF.match(what):
+        things = number["things"]
+        return f"How many {things}?", f"the {said} number of {things}", top
+    if "area" in what:
+        what = re.sub(r"^total\s+", "", what)
+        return f"What is the total {what}?", f"the {said} {what}", top
+    if word in BIGGER:
+        if ROOM_WORD.search(what):
+            return None
+        return "What is the total floor area?", f"the {said} floor area", top
+    if not what:
+        return None
+    return f"How many {what}?", f"the {word} {what}", top
+
+
+def _compared(answered: list[Json], named: str, top: bool) -> tuple[str, Json]:
+    """The drawing (or tied drawings) with the largest or smallest answer, cited."""
+    given = [_metric(a) for a in answered if isinstance(a.get("answer"), (int, float))]
+    if not given:
+        return _final("dont_know", "No drawing gives a number for it.")
+    units = sorted({str(a.get("unit")) for a in given})
+    if len(units) > 1:
+        return _final("dont_know", f"The drawings answer in different units ({', '.join(units)}).")
+    best = (max if top else min)(a["answer"] for a in given)
+    winners = [a for a in given if a["answer"] == best]
+    named_all = [str(a["drawing"]) for a in winners]
+    names = (
+        named_all[0] if len(named_all) == 1 else f"{', '.join(named_all[:-1])} and {named_all[-1]}"
+    )
+    verb = "have" if len(winners) > 1 else "has"
+    unit = SAID_UNIT.get(str(winners[0].get("unit")), "")
+    evidence = [str(a["ev"]) for a in winners if a.get("ev")]
+    cites = "".join(f"[{ev}]" for ev in evidence)
+    text = f"{names} {verb} {named}: {best:g}{unit}{' ' + cites if cites else ''}."
+    if len(given) == 1:
+        text += " It is the only drawing that answers."
+    return _final("answer", text, evidence)
+
+
+def _metric(answered: Json) -> Json:
+    """An `answered` line in metres: ft² and ft converted, rounded as the card shows them."""
+    unit = str(answered.get("unit"))
+    if unit not in METRIC:
+        return answered
+    metric, factor = METRIC[unit]
+    return {**answered, "answer": round(answered["answer"] * factor, 2), "unit": metric}
 
 
 def _answer(found: Json) -> tuple[str, Json]:

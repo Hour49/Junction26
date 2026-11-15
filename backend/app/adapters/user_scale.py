@@ -108,9 +108,10 @@ def _target(
     only: str | None = None,
 ) -> tuple[str, Drawing, Room | None] | str:
     """The drawing (and room) the scale is for, or why none is: the drawing the message names
-    (`only`), else the selection's drawing, else the one drawing that takes a scale and fits
-    (the room named, or any for a ratio)."""
-    if only is not None:
+    (`only`; its selection, when it has one), else the selection's drawing, else the one
+    drawing that takes a scale and fits (the room named, or any for a ratio)."""
+    on_it = [s for s in selection if s.drawing_id == only]  # review-480 S2: "this room on ..."
+    if only is not None and not on_it:
         drawing = _drawing(ingest, only)
         if drawing is None:
             return f"{names.get(only, only)} was not read"
@@ -119,6 +120,7 @@ def _target(
         if given.kind == "ratio":
             return only, drawing, None
         return _named(given, [(only, drawing)], names)
+    selection = on_it or selection
     chosen = [s for s in selection if s.kind == "room"] or list(selection)
     if chosen:
         pick = chosen[0]
