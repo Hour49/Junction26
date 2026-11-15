@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 
 from pydantic import Field
 
+from app.adapters.discipline_pictures import gemini as gemini_module
 from app.adapters.discipline_pictures import legend as legend_module
 from app.adapters.discipline_pictures import mask as mask_module
 from app.adapters.discipline_pictures import runs_graph as runs_graph_module
@@ -41,22 +42,17 @@ from app.core.pipeline.ports import DrawingFiles, Extractor, PictureReader
 log = logging.getLogger(__name__)
 ROUTED = frozenset({"plumbing", "heating", "ventilation", "electrical", "fire", "structural"})
 # The lane's version: a change to a reader, to the facts or to this lane reads the pages again
+# (the Gemini reader's replies stay cached, so a change to how one is read costs no call)
+HASHED = (
+    legend_module,
+    template_module,
+    mask_module,
+    runs_graph_module,
+    gemini_module,
+    picture_facts_module,
+)
 CODE = hashlib.sha256(
-    b"".join(
-        [
-            *(
-                Path(m.__file__ or "").read_bytes()
-                for m in (
-                    legend_module,
-                    template_module,
-                    mask_module,
-                    runs_graph_module,
-                    picture_facts_module,
-                )
-            ),
-            Path(__file__).read_bytes(),
-        ]
-    )
+    b"".join([*(Path(m.__file__ or "").read_bytes() for m in HASHED), Path(__file__).read_bytes()])
 ).hexdigest()[:12]
 SheetOf = Callable[[str], SheetKind | None]  # triage's sheet-kind reply for a file, by path
 # In a fact's `source` after its readers: the discipline was the file name's (no sheet-kind reply)

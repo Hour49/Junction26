@@ -26,6 +26,7 @@ from app.composition import chat_caps, chat_model, spend_guard
 from app.core.agent import model
 from app.core.agent.accepted_edits import with_accepted_edits
 from app.core.agent.loop import run_turn
+from app.core.agent.named import named_drawings
 from app.core.agent.prompt import COUNTRY, NO_COUNTRY, SERVICES
 from app.core.checks.model import RulePack
 from app.core.errors import InvalidInputError, NotFoundError, UnknownPackError
@@ -187,8 +188,9 @@ def _turn_runner(
                 keep = partial(held.put, found.chat_id)
                 said = take_scale(body.message, body.selection, ingest, status, names, keep)
                 scales = held.of(found.chat_id)
+            named = {d: names[d] for d in named_drawings(body.message, names)}  # big QA R1 S2
             tools = project_toolbox(
-                request.app, project_id, body.selection, current.proposals, pack, scales
+                request.app, project_id, body.selection, current.proposals, pack, scales, named
             )
             # the rules planner is free: the Gemini budget never stops it (QA robust-3)
             guard = SpendGuard() if settings.chat_model == "rules" else spend_guard(settings)

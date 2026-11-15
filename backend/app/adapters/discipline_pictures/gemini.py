@@ -39,6 +39,10 @@ symbol by its exact shape and fill as drawn in its legend row (outline, solid, w
 number beside it). Give the box of every occurrence under its row's label; a symbol with none
 gets an empty list. Boxes are box_2d [ymin, xmin, ymax, xmax] normalised to 0-1000 of the image.
 If the page has no legend, return an empty legend."""
+# A C1 control character (U+0080-U+009F) is never text: the model wrote a letter as its cp437
+# byte (P-101's legend prints "Druckspüler", the reply said "Drucksp\u0081ler";
+# .agents/exp/umlauts.md), so it is read as that letter
+CONTROL = re.compile("[\x80-\x9f]")
 BOX = {"type": "array", "items": {"type": "integer"}}
 SCHEMA = {
     "type": "object",
@@ -121,6 +125,9 @@ def reading_of(answer: dict[str, Any]) -> PictureReading:
         found = contract_json("".join(p.get("text", "") for p in parts if not p.get("thought")))
     except (KeyError, IndexError, TypeError, ValueError):
         raise ValueError("the reply is not the asked JSON") from None
+    for row in (*(found.get("legend") or []), *(found.get("symbols") or [])):
+        if isinstance(row, dict) and isinstance(label := row.get("label"), str):
+            row["label"] = CONTROL.sub(lambda c: bytes([ord(c[0])]).decode("cp437"), label)
     legend: list[LegendEntry] = []
     for row in found.get("legend") or []:
         label = str(row.get("label", "")).strip()
