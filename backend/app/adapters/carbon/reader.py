@@ -71,7 +71,8 @@ def _in_flight(cap: int) -> threading.BoundedSemaphore:
 SPENT_AS = "carbon reader"  # its name in the spend guard's ledger
 
 Form = dict[str, Any]
-Asked = tuple[Form | None, str | None, float]  # the checked reply or None, why not, dollars
+Asked = tuple[Form | None, str | None, float, bool]  # the checked reply or None, why not, dollars,
+# and whether the reply was the cached file (the step says so: cost.hit)
 
 
 class CarbonModel(Protocol):
@@ -161,25 +162,26 @@ class CarbonReader:
         with ThreadPoolExecutor(self._workers, thread_name_prefix="carbon") as pool:
             if max(width, height) <= contract.TILE:  # one tile, the page: both calls at once
                 pending = [pool.submit(self._ask, kind, page) for kind in ("page", "tile")]
-                (form, why, usd), tile = (job.result() for job in pending)
+                (form, why, usd, hit), tile = (job.result() for job in pending)
                 tiles: list[contract.Px] | None = [(0, 0, width, height)]
                 asked = [tile]
             else:  # the tiles need the page call's plan boxes
-                form, why, usd = pool.submit(self._ask, "page", page).result()
+                form, why, usd, hit = pool.submit(self._ask, "page", page).result()
                 tiles = None if form is None else contract.tile_plan(width, height, _plans(form))
                 asked = list(pool.map(lambda box: self._ask("tile", page.crop(box)), tiles or []))
-        cost.charge(usd + sum(paid for _, _, paid in asked))  # paid on the pool's threads
-        said = [why, *(said for _, said, _ in asked)]
+        cost.charge(usd + sum(paid for _, _, paid, _ in asked))  # paid on the pool's threads
+        cost.hit(hit + sum(cached for _, _, _, cached in asked))  # read there from the cache
+        said = [why, *(said for _, said, _, _ in asked)]
         cost.fail(sum(1 for line in said if line is not None and NO_ANSWER in line))
         found = contract.assemble(
             width,
             height,
             form,
             tiles if form is not None else None,
-            [checked for checked, _, _ in asked] if form is not None else [],
+            [checked for checked, _, _, _ in asked] if form is not None else [],
             why,
         )
-        failed = [said for _, said, _ in asked if said is not None]
+        failed = [said for _, said, _, _ in asked if said is not None]
         if form is not None and failed:  # assemble counts them; say the first reason too
             found["notes"].append(f"carbon: {failed[0]}")
         return _extracted(found)
@@ -195,7 +197,8 @@ class CarbonReader:
             check = contract.check_page if kind == "page" else contract.check_tile
             if path is not None and path.is_file():
                 try:
-                    return check(json.loads(reply_text(json.loads(path.read_text())))), None, 0.0
+                    cached = check(json.loads(reply_text(json.loads(path.read_text()))))
+                    return cached, None, 0.0, True  # a hit only once it parses
                 except (ValueError, GeminiError, AttributeError, TypeError, KeyError, IndexError):
                     pass  # a cached file that does not parse is a miss
             prompt, schema, tokens = (
@@ -207,17 +210,17 @@ class CarbonReader:
                 answer = self._model.generate(jpeg(image), prompt, schema, tokens)
                 form = check(json.loads(reply_text(answer)))
             except NoAnswerError as error:
-                return None, f"the {kind} {NO_ANSWER}: {error}", cost.since(before)
+                return None, f"the {kind} {NO_ANSWER}: {error}", cost.since(before), False
             except GeminiError as error:
-                return None, f"the {kind} call failed: {error}", cost.since(before)
+                return None, f"the {kind} call failed: {error}", cost.since(before), False
             except ValueError as error:  # not JSON, or not the form (contract.ReplyError)
-                return None, f"the {kind} reply is not the form: {error}", cost.since(before)
+                return None, f"the {kind} reply is not the form: {error}", cost.since(before), False
             except (AttributeError, TypeError, KeyError, IndexError) as error:  # an odd envelope
                 said = type(error).__name__
-                return None, f"the {kind} reply is not the form: {said}", cost.since(before)
+                return None, f"the {kind} reply is not the form: {said}", cost.since(before), False
             if path is not None:
                 write_whole(path, json.dumps(answer, ensure_ascii=False))
-            return form, None, cost.since(before)
+            return form, None, cost.since(before), False
 
 
 def _plans(form: Form) -> list[contract.Frac]:
