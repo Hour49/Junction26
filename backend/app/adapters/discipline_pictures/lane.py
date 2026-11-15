@@ -33,7 +33,7 @@ from app.core.ifc_facts import Fact, FactSheet
 from app.core.ingest.model import FileStatus
 from app.core.ingest.model import Sheet as SheetKind
 from app.core.model import Frozen
-from app.core.picture_facts import Checked, picture_facts, storey_of_title
+from app.core.picture_facts import Checked, double_check, picture_facts, storey_of_title
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles, Extractor, PictureReader
 
@@ -139,6 +139,7 @@ class PictureLane:
         sheets: PictureSheets,
         legend: OcrLegend,
         symbols: PictureReader | None = None,
+        check: PictureReader | None = None,
     ) -> None:
         self._inner = inner
         self._sheet_of = sheet_of
@@ -146,6 +147,9 @@ class PictureLane:
         self._legend = legend
         # the symbols' reader: `template` unless another is given (DISCIPLINE_PICTURES=glyphs)
         self._template = symbols or TemplateReader(files, legend.legend)
+        # a second symbols reader (DISCIPLINE_PICTURES=gemini: template): a label whose count it
+        # confirms (`double_check`) is not held; it adds no facts of its own
+        self._check = check
         self._mask = MaskReader(files, legend.legend, legend.scale)
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
@@ -173,9 +177,13 @@ class PictureLane:
             reading.model_copy(update={"storey": storey})
             for reading in (self._template.read(source, sheet), self._mask.read(source, sheet))
         )
-        facts = picture_facts(
-            sheet.file.sha256[:16], Checked(readings=readings, agreed={}, disputed=())
-        )
+        checked = Checked(readings=readings, agreed={}, disputed=())
+        if self._check is not None:
+            second = double_check(readings[0], self._check.read(source, sheet))
+            checked = checked.model_copy(
+                update={"agreed": second.agreed, "disputed": second.disputed}
+            )
+        facts = picture_facts(sheet.file.sha256[:16], checked)
         if not facts.facts:
             notes = [note for reading in readings for note in reading.notes]
             said = "; ".join(notes)

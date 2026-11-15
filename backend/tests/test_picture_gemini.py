@@ -16,7 +16,7 @@ from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets
 from app.adapters.raster_ocr.gemini import GeminiError, NoAnswerError
 from app.core.drawing.model import Page
 from app.core.ifc_facts import Spot
-from app.core.picture_facts import LegendEntry, PictureReading, Run
+from app.core.picture_facts import HELD, LegendEntry, PictureReading, Run, Sighting
 from app.core.pipeline.model import DrawingFile, Sheet
 
 
@@ -226,3 +226,61 @@ def test_a_reply_with_no_legend_reads_nothing_and_is_not_cached(tmp_path: Path) 
     reader(client, tmp_path).read(*sheet())
     assert client.calls == 2
     assert not list((tmp_path / "replies").glob("*.json"))
+
+
+class Reads:
+    """A fake reader: the given sightings of one label."""
+
+    def __init__(self, reader: str, label: str, boxes: list[tuple[float, float, float, float]]):
+        self.reading = PictureReading(
+            reader=reader,
+            legend=None,
+            read=(label,),
+            sightings=tuple(
+                Sighting(label=label, spot=Spot(page=1, box=b, reader=reader)) for b in boxes
+            ),
+        )
+
+    def read(self, source: Any, sheet: Any) -> PictureReading:
+        return self.reading
+
+
+def checked_lane(first: Reads, second: Reads, tmp_path: Path) -> PictureSheets:
+    sheets = PictureSheets(Files(), tmp_path / "sheets")  # type: ignore[arg-type]
+    legend = SimpleNamespace(
+        legend=lambda source, sheet: None,
+        scale=lambda source, sheet: SimpleNamespace(m_per_unit=None),
+    )
+    PictureLane(
+        Inner(),  # type: ignore[arg-type]
+        Files(),  # type: ignore[arg-type]
+        lambda path: None,
+        sheets,
+        legend,  # type: ignore[arg-type]
+        first,
+        check=second,
+    ).extract(*named_sheet())
+    return sheets
+
+
+BOXES = [(0.1, 0.1, 0.12, 0.12), (0.5, 0.5, 0.52, 0.52)]
+
+
+def test_a_count_the_second_reader_confirms_is_not_held(tmp_path: Path) -> None:
+    sheets = checked_lane(Reads("vlm", "Valve", BOXES), Reads("template", "Valve", BOXES), tmp_path)
+    kept = sheets.sheet("1" * 64)
+    assert kept is not None
+    counts = [f for f in kept.facts if f.topic == "valve.count" and f.subject == "Valve"]
+    assert counts and not any(f.source.endswith(HELD) for f in counts)
+
+
+def test_a_count_the_second_reader_disputes_or_did_not_read_is_held(tmp_path: Path) -> None:
+    for n, second in enumerate(
+        (Reads("template", "Valve", BOXES[:1]), Reads("template", "Ventil X", BOXES))
+    ):
+        sheets = checked_lane(Reads("vlm", "Valve", BOXES), second, tmp_path / str(n))
+        kept = sheets.sheet("1" * 64)
+        assert kept is not None
+        counts = [f for f in kept.facts if f.topic == "valve.count" and f.subject == "Valve"]
+        assert counts and all(f.source.endswith(HELD) for f in counts)
+        assert not [f for f in kept.facts if f.subject == "Ventil X"]  # the check adds no facts

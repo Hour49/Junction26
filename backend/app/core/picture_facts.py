@@ -81,16 +81,23 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"diffuseur|bouche|grille d'air|diffusore|bocchetta|difusor|rejilla|õhujaotur|"
         r"sissepuhke|väljatõmbe",
     ),
-    (
+    (  # a radiator's valve, before the radiator: "Radiator valve", "Heizkörperventil"
         "valve",
-        ("plumbing", "heating", "fire"),
-        r"valve|venttiili|ventil|afsluiter|klep|vanne|robinet|valvola|válvula|ventiil",
+        ("heating",),
+        r"radiator valve|thermostatic valve|heizk[öo]rperventil|thermostatventil|"
+        r"patteriventtiili|termostaattiventtiili|radiatorventil|radiatorkraan",
     ),
     (
         "space_heater",
         ("heating",),
         r"radiator|heizk[öo]rper|lämpöpatteri|patteri|konvektor|convector|radiateur|"
         r"radiatore|radiador|radiaator|värmeelement",
+    ),
+    (
+        "valve",
+        ("plumbing", "heating", "fire"),
+        r"valve|venttiili|ventil(?!at)|\w+ventil(?!at)|afsluiter|klep|vanne|"
+        r"robinet|valvola|válvula|ventiil",
     ),
     (
         "fire_suppression_terminal",
@@ -153,7 +160,11 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"cable tray|cable ladder|kaapelihylly|kaapelihyllyt|kabeltrasse|kabelrinne|kabelstege|"
         r"kabelgoot|chemin de câbles|passerella|bandeja|kaablirenn",
     ),
-    ("pump", ("plumbing", "heating", "fire"), r"pump|pumppu|pumpe|pomp|pompe|pompa|bomba"),
+    (
+        "pump",
+        ("plumbing", "heating", "fire"),
+        r"pump|pumppu|pumpe|\w+pumpe\b|pomp|pompe|pompa|bomba",
+    ),
     ("fan", ("ventilation",), r"fan\b|puhallin|ventilator|fläkt|ventilateur|ventilatore"),
     (
         "column",
