@@ -718,6 +718,10 @@ def test_review_539_a_thing_named_after_with_stays_refused(text: str) -> None:
         "How many toilets are only for staff?",
         "How many windows only open inward?",
         "How many doors are there only in the kitchen?",
+        # review-616 must: "only" by a sheet word, then a verb it narrows
+        "How many doors on this plan only open outward?",
+        "How many doors in this drawing only open outward?",
+        "How many doors only on this drawing open outward?",
     ],
 )
 def test_r4_c2_only_inside_the_question_still_narrows_the_thing(text: str) -> None:
@@ -736,6 +740,9 @@ def test_r4_c2_only_inside_the_question_still_narrows_the_thing(text: str) -> No
         ("How many windows are there in this plan only?", "window"),
         ("How many toilets are there only on this sheet?", "toilet"),
         ("How many doors only?", "door"),
+        ("How many doors only.", "door"),
+        ("How many doors are there only on this floor plan?", "door"),
+        ("How many doors are there on this sheet only, not the elevations?", "door"),
     ],
 )
 def test_r4_c2_only_at_the_end_or_by_the_sheet_narrows_nothing(text: str, subject: str) -> None:
@@ -751,6 +758,12 @@ def test_r4_c2_only_at_the_end_or_by_the_sheet_narrows_nothing(text: str, subjec
         "How many windows are there other than the kitchen window?",
         "How many doors, not counting the front door?",
         "How many rooms are there leaving out the storage rooms?",
+        # review-616 S1, S2: the same in other words, and in parentheses
+        "How many doors are there apart from the entrance?",
+        "How many doors are there besides the front door?",
+        "How many doors are there, not including the front door?",
+        "How many windows are there minus the skylights?",
+        "How many doors are there (except the entrance)?",
     ],
 )
 def test_r4_c12_an_exclusion_the_parser_cannot_apply_is_refused(text: str) -> None:
@@ -772,3 +785,22 @@ def test_r4_c12_an_exclusion_the_parser_cannot_apply_is_refused(text: str) -> No
 )
 def test_r4_c12_an_apartment_without_its_balconies_is_still_answered(text: str) -> None:
     assert isinstance(PARSE(text), Query), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many water closets are drawn in enlarged plan 6A 'Restrooms'?",
+        "How many doors are in plan 3?",
+    ],
+)
+def test_r4_d3_one_view_of_a_sheet_is_refused_as_one_view(text: str) -> None:
+    """R4-D3 (pic-det, .agents/exp/r4-d3.md): "water closets in enlarged plan 6A" on A-701 is
+    rightly refused (we count whole sheets: 5 WCs, 6A has 2), but its reason named "ground floor,
+    north facade". A view's name gets its own reason; no new answers."""
+    from app.core.answering.model import ONE_VIEW, UNQUOTED_PLACE
+
+    assert PARSE(text) == Unsupported(reason=ONE_VIEW)
+    assert PARSE("How many doors are on the ground floor plan 3?") == Unsupported(
+        reason=UNQUOTED_PLACE
+    )  # a floor too: the floor's reason, as before

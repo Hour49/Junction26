@@ -42,6 +42,7 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     NOT_COUNTED,
+    ONE_VIEW,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
     SIZE_FILTER,
@@ -288,6 +289,7 @@ PLACE = re.compile(
     rf"|{FLOOR.pattern}",
     re.IGNORECASE,
 )
+VIEW = re.compile(r"plan \d+[a-z]?")  # PLACE's view of a sheet ("plan 6A")
 CONDITION = re.compile(  # "rooms that have...": a subset we can't pick
     r"\b(?:rooms?|spaces?|doors?|windows?|walls?)\s+(?:have|has|with|that|containing)\b"
 )
@@ -323,9 +325,11 @@ _SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
 APPLIED = re.compile(
     r"\b(?:without|excluding|except|not counting|leaving out)\s+(?:the\s+|its\s+)?balcon\w*"
     r"|\b(?:longer|shorter)\s+side\b"
-    r"|\bover\s+all\b|\bonly\s*$"
-    rf"|\b(?:{_SHEET_WORDS})\s+only\b"
-    rf"|\bonly\s+(?:in|on|within)\s+(?:the|this|that)\s+(?:{_SHEET_WORDS})\b"
+    # "only" ends the question or its clause; with the sheet before it ("on this floor plan
+    # only") or after it ("only on this drawing"): "doors on this plan only open outward" narrows
+    # the verb (review-616 must)
+    r"|\bover\s+all\b|\bonly\s*[.!]?\s*(?:,|$)"
+    rf"|\bonly\s+(?:in|on|within)\s+(?:the|this|that)\s+(?:(?:{_SHEET_WORDS})\s*)+[.!]?\s*(?:,|$)"
 )
 INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen included")
     r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"
@@ -395,8 +399,10 @@ class TemplateParser:
             return Unsupported(reason="a superlative (longest, largest...) is not a takeoff")
         if BREAKDOWN.search(lower):
             return Unsupported(reason="a breakdown or list is not one quantity")
-        if PLACE.search(lower):
-            return Unsupported(reason=UNQUOTED_PLACE)
+        if place := PLACE.search(lower):
+            # "enlarged plan 6A": one view of the sheet, not a floor or a side (R4-D3)
+            view = VIEW.fullmatch(place.group()) and not FLOOR.search(lower)
+            return Unsupported(reason=ONE_VIEW if view else UNQUOTED_PLACE)
         if SIZE_FILTER_WORDS.search(lower):
             return Unsupported(reason=SIZE_FILTER)
         if CONDITION.search(lower):
@@ -566,7 +572,12 @@ def _quoted(raw: str) -> list[_Quoted]:
 # The English exclusions R4-C12 refuses when not applied; the other languages' ones in golden are
 # the indoor net area's outdoor spaces and hint sentences the parser does apply (extras: 3)
 ENGLISH_EXCLUDING = re.compile(
-    r"\b(?:excluding|except|not counting|leaving out|without|other than)\b"
+    r"\b(?:excluding|except|excepting|not counting|not including|leaving out|without|other than"
+    r"|apart from|aside from|besides|minus|save for)\b"
+)
+# A parenthesis that is an exclusion ("(except the entrance)") is read, not dropped (review-616 S2)
+NOT_EXCLUSION = re.compile(
+    r"\((?!\s*(?:excluding|except|not counting|leaving out|apart from))[^()]*\)"
 )
 
 
@@ -576,7 +587,7 @@ def _unapplied_exclusion(lower: str, subject: str) -> bool:
     the entrance"): the takeoff has whole classes only, so it can't be applied (R4-C12). Leaving
     out another class ("bathrooms, leaving out separate WC rooms") changes nothing, and an
     apartment's balconies are applied (APPLIED)."""
-    sentence = FIRST_SENTENCE.split(PARENTHESES.sub(" ", lower), maxsplit=1)[0]
+    sentence = FIRST_SENTENCE.split(NOT_EXCLUSION.sub(" ", lower), maxsplit=1)[0]
     for clause in CLAUSES.split(sentence):
         if (excluding := ENGLISH_EXCLUDING.search(clause)) is None or APPLIED.search(clause):
             continue
