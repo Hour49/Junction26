@@ -265,6 +265,7 @@ def test_room_types_and_rooms_named_as_included_still_count() -> None:
 
 def test_a_question_about_the_building_is_about_the_model_not_the_sheet() -> None:
     assert PARSE("How many doors are there in this building?") == Query(subject="door", model=True)
+    assert PARSE("How many doors in the entire building?") == Query(subject="door", model=True)
 
 
 def test_the_largest_room_of_a_label_or_type_by_area() -> None:
@@ -519,6 +520,10 @@ def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
         ("How many doors are there in the whole project?", "How many doors are there?"),
         ("How many doors are there in the project?", "How many doors are there?"),
         ("How many windows across the entire project?", "How many windows?"),
+        # review-529 S1: near phrasings read "project" as the building model and refused on a sheet
+        ("How many doors are there in this project?", "How many doors are there?"),
+        ("How many doors does the project have?", "How many doors are there?"),
+        ("How many windows does this project have?", "How many windows are there?"),
     ],
 )
 def test_each_drawing_is_the_whole_drawing_not_a_breakdown(text: str, same_as: str) -> None:
@@ -657,3 +662,50 @@ def test_a_hint_sentence_after_the_question_is_no_qualifier() -> None:
     )
     assert PARSE(text) == PARSE("How many doors are shown on this floor plan?")
     assert isinstance(PARSE(text), Query)
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("How many windows are there in the plan, over all?", "window"),
+        ("How many windows are there overall?", "window"),
+        ("How many doors are shown on this floor plan only?", "door"),
+    ],
+)
+def test_review_532_words_that_do_not_narrow_the_thing_are_no_qualifier(
+    text: str, subject: str
+) -> None:
+    """review-532 should 1: "over all" and "only" don't narrow what is counted, so they are not
+    refused as a condition on the items."""
+    found = PARSE(text)
+    assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many rooms above the garage?",
+        "How many windows under the roof?",
+        "How many rooms over the garage?",
+        "How many toilets on the floor below?",
+    ],
+)
+def test_a_place_after_over_under_above_below_still_narrows_the_thing(text: str) -> None:
+    """A bare over/under/above/below names a place ("rooms above the garage"); answered, it
+    would be the count of every room, so it stays refused."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total floor area of the apartment with number A?",
+        "What is the total floor area of the apartment with the name A?",
+        "How many rooms are in the apartment with the label B?",
+    ],
+)
+def test_review_539_a_thing_named_after_with_stays_refused(text: str) -> None:
+    """review-539 must: let through, "the apartment with number A" lost its A and answered for
+    the whole sheet ("the apartment", apartment=None). The parser reads the name only as
+    "apartment A", so this wording stays refused, as on main."""
+    assert isinstance(PARSE(text), Unsupported)

@@ -383,6 +383,19 @@ def discipline_from_sheet(
     return _KIND_DISCIPLINE.get(kind) or named
 
 
+def sheet_discipline(
+    said: Discipline, title: str | None, sheet_number: str | None
+) -> Discipline | None:
+    """A 2D sheet's discipline: the one the sheet-kind model said from what is drawn, cross-checked
+    against the title and number. When they name disciplines by a strong word or a code (as
+    `discipline_from_sheet` reads them: "HEATING PLAN", "S-201", not "PIPING" or "ELECTRICAL ROOM")
+    and the model's is not among them, the sheet's discipline is not known: None, which nothing
+    routes."""
+    text = " ".join(part for part in (title, sheet_number) if part)
+    named = _strong_in(_SERVICE_ROOM.sub(" ", text), codes=True)
+    return said if not named or said in named else None
+
+
 # A service named only as a room ("ELECTRICAL ROOM", "Sähköhuone", "Heizraum") is a room on the
 # plan, not a service drawing. Not "riser" or "shaft": a riser diagram is a service drawing.
 # shortcut: EN room nouns and FI/DE/SV compounds only; add other languages' if titles need them.

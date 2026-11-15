@@ -461,3 +461,14 @@ def test_an_ifc_type_the_model_lacks_is_an_error_naming_its_types() -> None:
     assert loose["count"] == 2 and {i["id"] for i in loose["items"]} == {"E309", "E310"}, loose
     empty = _run(store, "list_services", drawing_id="d1", predefined="")
     assert "predefined" in empty["error"], empty
+
+
+def test_566_moving_a_washbasin_is_a_refusal_not_a_failure() -> None:
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    e2 = next(e for e in doc["elements"] if e["id"] == "E2")
+    e2["ports"].append({"id": "E2.p3", "at": (2.5, 0.1, 0.1), "flow": "source"})
+    found = _run(_store(ServicesModel.model_validate(doc)), "propose_move_terminal",
+                 drawing_id="d1", element_id="E2", wall_id="SW2")  # fmt: skip
+    assert found["status"] == "refused" and "3 pipe connections" in found["reason"], found
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "propose_move_terminal")
+    assert "frame" in listing["function"]["description"]

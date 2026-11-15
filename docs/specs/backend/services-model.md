@@ -193,8 +193,13 @@ with a plain reason. The input model is never mutated (test: its hash before and
   model."; "It is already on that wall."; "This wall is too short for it." (shorter than its body plus 0.1 m each
   side); "No free place on this wall: a door or another terminal is in the way."; "Another terminal is already
   there."; "Both ways round this room pass a door."; "No pipe of this circuit in or next to this room." (duct,
-  cable by discipline); "Its branch does not end at a junction: a valve or equipment is in the way."; "Supply and
-  return would cross." (anywhere but at the terminal's ports).
+  cable by discipline); "Its branch does not end at a junction: a valve or equipment is in the way." (an open end;
+  a valve or equipment met on the branch is named: "...: Water heater 3 kW (E4) is in the way."); "Supply
+  and return would cross." (anywhere but at the terminal's ports). A move or add of a terminal with more than two
+  ports: "Washbasin 60x60 (E2) has 3 pipe connections; a terminal with more than two is not moved or copied yet."
+  plus the first named branch refusal; of one with none: "Basin mounting frame (E50) has no pipe
+  connections (likely a mounting frame): choose the fixture that has them." (2026-11-15, #566; a washbasin's cold,
+  hot and waste legs and a waste fall are not routed yet).
 - SV-20 **Flags**: `long_reroute` when the added length is more than three times the removed length plus 2 m
   ("Long reroute: 12.40 m of new pipe replaces 0.50 m."; *measured* old branches: median 0.32 m, 90th percentile
   6.84 m); `through_wall` ("The connection goes through a wall: it needs a core drill."); `crossover` ("Supply

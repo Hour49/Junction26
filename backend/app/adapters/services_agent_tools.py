@@ -331,7 +331,7 @@ class _ListArgs(_Args):
     )
     kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
     predefined: str | None = Field(
-        default=None, min_length=1, max_length=40, description="a by_predefined key or untyped"
+        default=None, min_length=1, max_length=40, description="by_predefined key or untyped"
     )
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
@@ -391,7 +391,7 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     ),
     (
         "propose_move_terminal",
-        "Propose moving a terminal (radiator, air terminal) to another wall of its room "
+        "Propose moving a terminal (radiator, basin; not a frame) to another wall of its room "
         "(wall_id or selection_id), pipes rerouted along walls." + _CHANGES,
         _MoveArgs,
     ),

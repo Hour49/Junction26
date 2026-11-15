@@ -9,7 +9,16 @@ import {
   routeLabel,
 } from '../ingest/ingest';
 import { StateBadge } from '../ingest/ProjectScreen';
-import { PHASE_LABEL, foundOf, longest, phaseRuns, stepsAfter, type Phase } from './trace';
+import {
+  PHASE_LABEL,
+  foundOf,
+  longest,
+  phaseRuns,
+  readWith,
+  reasonLines,
+  stepsAfter,
+  type Phase,
+} from './trace';
 import { StepList } from './TraceTimeline';
 import './trace.css';
 
@@ -50,7 +59,13 @@ function FileRow({
         <a href={`#/p/${projectId}/f/${file.id}`}>{file.path}</a>
         <span className="fm-meta">
           <StateBadge state={file.state} />
-          <span>{file.route ? routeLabel(file.route) : 'not routed'}</span>
+          <span>
+            {readWith(file)
+              ? `read with ${readWith(file) ?? ''}`
+              : file.route
+                ? routeLabel(file.route)
+                : 'not routed'}
+          </span>
           {file.reused && <span>read before</span>}
         </span>
       </div>
@@ -92,7 +107,7 @@ function FileRow({
         {file.cost_usd > 0 && <span className="tl-ms">{formatCost(file.cost_usd)}</span>}
       </div>
       {!found && isFinished(file) && file.state !== 'ready' && file.reason && (
-        <p className="fm-why">{file.reason}</p>
+        <p className="fm-why">{reasonLines(file.reason).join(' ')}</p>
       )}
       {failed && (
         <p className="fm-fail">

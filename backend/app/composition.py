@@ -105,6 +105,7 @@ from app.adapters.triage.rules import RulesClassifier
 from app.adapters.triage.rules_judge import RulesJudge
 from app.adapters.triage.sheet_kind import (
     ADVANCED_LONG_SIDE,
+    CONTRACTS,
     GeminiSheetKindClient,
     SheetKindClassifier,
     SheetKindReader,
@@ -581,12 +582,14 @@ def _triage(settings: Settings) -> TriageSteps | None:
 
 def _sheet_kind_reader(settings: Settings) -> SheetKindReader:
     """The sheet-kind model of SHEET_KIND and of the evidence step: one cache, one guard."""
+    contract = CONTRACTS[settings.sheet_discipline]
     client = GeminiSheetKindClient(
         settings.gemini_api_key.get_secret_value(),
         settings.gemini_timeout_s,
         budget=spend_guard(settings),
+        contract=contract,
     )
-    return SheetKindReader(client, settings.sheet_kind_cache_dir)
+    return SheetKindReader(client, settings.sheet_kind_cache_dir, contract)
 
 
 def _describer(settings: Settings) -> Describer | None:

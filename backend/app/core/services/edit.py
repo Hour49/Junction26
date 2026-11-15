@@ -56,6 +56,13 @@ TAKEN = "Another terminal is already there."
 DOORS = "Both ways round this room pass a door."
 NO_RUN = "No {run} of this circuit in or next to this room."
 NO_JUNCTION = "Its branch does not end at a junction: a valve or equipment is in the way."
+IN_THE_WAY = "Its branch does not end at a junction: {name} is in the way."
+MANY_PORTS = (
+    "{name} has {n} pipe connections; a terminal with more than two is not moved or copied yet."
+)
+NO_PORTS = (
+    "{name} has no pipe connections (likely a mounting frame): choose the fixture that has them."
+)
 CROSS = "Supply and return would cross."
 NOT_ITS_WALL = "This wall is not a wall of its room."
 NO_SIZE = "No element of this system has that size."
@@ -178,6 +185,7 @@ def move_terminal(
     its old height, turned to the wall; its branches rerouted by SV-18."""
     work = _Work(model)
     term = work.terminal(element_id)
+    _two_legs(model, term)
     room = _room_of(model, term)
     storey = _storey(model, term)
     _put(work, model, term, room, room, wall_id, position)
@@ -201,6 +209,7 @@ def add_terminal(
     system types."""
     work = _Work(model)
     like = work.terminal(like_element_id)
+    _two_legs(model, like)
     like_room = _room_of(model, like)
     wall = next((w for w in model.walls if w.id == wall_id), None)
     if room_id is None and wall is not None:
@@ -285,6 +294,25 @@ def _at(port: dict[str, Any]) -> Point3:
     if port["at"] is None:
         raise EditRefusedError(NO_PLACES)
     return port["at"]
+
+
+def _two_legs(model: ServicesModel, term: dict[str, Any]) -> None:
+    """#566: the reroute draws one or two legs; a terminal with none (a mounting frame) or more
+    (a washbasin's cold, hot and waste) is refused, with what blocks a branch when one is."""
+    name = f"{term['label']} ({term['id']})"
+    if not term["ports"]:
+        raise EditRefusedError(NO_PORTS.format(name=name))
+    if len(term["ports"]) > 2:
+        said = MANY_PORTS.format(name=name, n=len(term["ports"]))
+        probe = _Work(model)
+        for port in term["ports"]:
+            try:
+                probe.chain(port["id"])
+            except EditRefusedError as error:
+                if str(error) != NO_JUNCTION:
+                    said += f" {error}"
+                    break
+        raise EditRefusedError(said)
 
 
 def _supply_first(ports: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -391,8 +419,11 @@ class _Work:
         while True:
             other = self.peer.get(current)
             element = self.el.get(_owner(other)) if other else None
-            if other is None or element is None or element["group"] not in RUN_GROUPS:
+            if other is None or element is None:
                 raise EditRefusedError(NO_JUNCTION)
+            if element["group"] not in RUN_GROUPS:  # #566: say which valve or equipment
+                name = f"{element['label']} ({element['id']})"
+                raise EditRefusedError(IN_THE_WAY.format(name=name))
             if len(element["ports"]) >= 3:
                 return out, other
             if len(element["ports"]) != 2 or element["id"] in out:
