@@ -139,8 +139,8 @@ agent chat's next turn sees the new drawing because the backend reads the projec
 - CH-21 A poll that fails after the post succeeded is retried on the next tick (the file is added either way); after
   180 polls (3 minutes) still queued or running: "plan.jpg is still being read. Reload later to ask about it.", the
   paperclip freed. Leaving the chat while a photo is read stops the polling. [component]
-- CH-22 On a phone (`max-width: 480px`) the chats' ask bar reads "Ask about the drawings", so the paperclip does not
-  cut the placeholder; the engineer page's ask bar (no `short`) is unchanged. [component]
+- CH-22 On a phone (`max-width: 480px`) the chats' ask bar reads "Ask a question", so the paperclip and pen do not
+  cut the placeholder ("Ask about the drawings" was cut to "Ask about the drawin", QA G2); the engineer page's ask bar (no `short`) is unchanged. [component]
 
 ## Demo parity (Tudor 16:25, brief `fe-demo-parity.md`)
 
