@@ -7,6 +7,7 @@ when the parser maps it back to that row's key, so asking a suggestion is never 
 """
 
 import re
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 
 from app.core.answering.answer import (
@@ -587,7 +588,7 @@ def which_room(
     if SCHEDULE_WORD.search(text):
         return None
     rooms = [room for room in drawing.rooms if not room.outdoor]
-    among = len(rooms)
+    among, aside = len(rooms), ""
     if (two := WHICH_OF_TWO.match(text)) is not None:
         word = two["more"].casefold()
         asks = [(two[side], f"What is the area of the {two[side]}?") for side in ("x", "y")]
@@ -595,10 +596,17 @@ def which_room(
         word = (extreme["a"] or extreme["b"]).casefold()
         spaces = [item for item in drawing.model_objects or () if item.class_ == SPACE]
         if not rooms and spaces:  # a building model asked on its own draws no room (QA B6)
-            asks, unasked = _space_asks(spaces, quantities, parser)
-            among = len(spaces)
+            # a space of no area (a void, a shaft) is no room to rank: left out, named
+            empty = [item for item in spaces if round(item.quantities.get("area_m2", 1), 2) == 0]
+            ranked = [item for item in spaces if item not in empty]
+            asks, unasked = _space_asks(ranked, quantities, parser)
+            among = len(ranked)
+            if empty:
+                aside = "leaving out " + ", ".join(
+                    f"{_space_shown(item)}, 0.00 m²" for item in empty
+                )
             if unasked or len(asks) < 2:
-                why = _unasked_why(unasked, spaces, asks)
+                why = _unasked_why(unasked, ranked, asks)
                 return _not_compared(f"I can't tell which room is the {word}: {why}.")
         else:
             asks, left = _extreme_asks(rooms, quantities, parser, largest=word != "smallest")
@@ -644,6 +652,8 @@ def which_room(
             f"{first_name} ({_m2(first)}) is the {word} of the {among} rooms; next is "
             f"{second_name} ({_m2(second)})"
         )
+        if aside:
+            said += f"; {aside}"
     compared = [found for _, found in ordered]
     levels = [found.level for found in compared]
     level = None if any(lv is None for lv in levels) else min(
@@ -725,12 +735,29 @@ def _space_shown(space: ModelObject) -> str:
 def _unasked_why(
     left: Sequence[ModelObject], spaces: Sequence[ModelObject], asks: Sequence[tuple[str, str]]
 ) -> str:
+    """Why the spaces `left` can't be ranked, each group with its own reason (review-479)."""
     if not left:
         return f"the model has {len(asks)} room{'' if len(asks) == 1 else 's'} to compare"
-    named = ", ".join(_space_shown(space) for space in left[:4])
-    if all("area_m2" not in space.quantities for space in left):
-        return f"{len(left)} of its {len(spaces)} rooms ({named}) have no area in the model"
-    return f"{len(left)} of its {len(spaces)} rooms ({named}) have no name or storey to ask by"
+    reasons: dict[str, list[ModelObject]] = defaultdict(list)
+    for space in left:
+        if "area_m2" not in space.quantities:
+            reasons["has no area in the model"].append(space)
+        elif not space.storey:
+            reasons["has no storey"].append(space)
+        elif not (space.name or space.long_name):
+            reasons["has no name"].append(space)
+        else:  # named, on a storey, with an area: another space there has its name
+            reasons[f"on {space.storey} can't be told apart by name"].append(space)
+    parts: list[str] = []
+    for why, same in reasons.items():
+        shown = [_space_shown(space) for space in same[:4]]
+        named = " and ".join(shown) if len(shown) == 2 else ", ".join(shown)
+        if why.startswith("on "):
+            parts.append(f"{named} {why}")
+        else:
+            verb = why if len(same) == 1 else why.replace("has ", "have ", 1)
+            parts.append(f"{named} {verb}")
+    return f"{len(left)} of its {len(spaces)} rooms can't be compared: " + "; ".join(parts)
 
 
 def _key(parser: QuestionParser, text: str) -> str | None:
