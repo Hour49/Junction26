@@ -7,11 +7,17 @@ from typing import Any
 
 import pytest
 
-from app.api.takeoff import SignOffRequest, signoff, takeoff_rows
+from app.api.takeoff import SignOffRequest, review, signoff, takeoff_rows
 from app.core.drawing.model import Drawing, Element, Page, Room, Scale
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.model import Edit, ReviewState
-from app.core.review.review import ValueChangedError, apply, sign, with_rejected_items
+from app.core.review.review import (
+    NotAllowedError,
+    ValueChangedError,
+    apply,
+    sign,
+    with_rejected_items,
+)
 
 KITCHEN = ((0.1, 0.1), (0.5, 0.1), (0.5, 0.5), (0.1, 0.5))  # page fractions
 DOORS = (
@@ -112,3 +118,47 @@ def test_a_rooms_row_signs_off_with_the_value_the_client_showed() -> None:
     seen = SignOffRequest(quantity=ROOM_DOORS, by="Tudor", expected_value=1, expected_unit="count")
     signoff("d1", seen, store, store)
     assert store.state.signed[ROOM_DOORS].value == 1
+
+
+def door_mark(key: str, element: Element) -> str:
+    found = known_quantities(drawing())[key]
+    return f"m{next(n for n, mark in enumerate(found.marks, 1) if mark.box == element.box)}"
+
+
+def test_a_sheet_reject_is_refused_while_a_room_row_it_would_change_is_signed() -> None:
+    """review-640 M1: the room's row signed at 2 must not show 1 under its sign-off."""
+    store: Any = Store(ReviewState())
+    signoff("d1", SignOffRequest(quantity=ROOM_DOORS, by="Tudor"), store, store)
+    reject = Edit(quantity="door", action="reject", mark=door_mark("door", DOORS[0]))
+    with pytest.raises(NotAllowedError, match="door\\|name=kitchen is signed off by Tudor"):
+        review("d1", reject, store, store)
+    found = rows(store.state)
+    assert (found["door"].value, found[ROOM_DOORS].value) == (2, 2)
+    assert found[ROOM_DOORS].signed is not None and found[ROOM_DOORS].signed.value == 2
+
+
+def test_a_looks_right_room_row_holds_the_sheet_restore_until_it_is_unsettled() -> None:
+    """review-640 S1: reject on the sheet, "looks right" on the room (settled and signed 1),
+    unsign, restore on the sheet: the room must not keep a settled 1 over two counted doors."""
+    store: Any = Store(ReviewState())
+    mark = door_mark("door", DOORS[0])
+    review("d1", Edit(quantity="door", action="reject", mark=mark), store, store)
+    signoff("d1", SignOffRequest(quantity=ROOM_DOORS, by="Tudor", settle=True), store, store)
+    signoff("d1", SignOffRequest(quantity=ROOM_DOORS, by="Tudor", undo=True), store, store)
+    restore = Edit(quantity="door", action="restore", mark=mark)
+    with pytest.raises(NotAllowedError, match="has a settled value"):
+        review("d1", restore, store, store)
+    review("d1", Edit(quantity=ROOM_DOORS, action="unsettle"), store, store)
+    review("d1", restore, store, store)
+    found = rows(store.state)
+    assert (found["door"].value, found[ROOM_DOORS].value) == (2, 2)
+
+
+def test_a_settled_room_row_holds_the_sheet_reject_until_it_is_unsettled() -> None:
+    """review-640 nit: a settled 2 with one of its marks shown rejected contradicts itself."""
+    store: Any = Store(ReviewState())
+    review("d1", Edit(quantity=ROOM_DOORS, action="settle", value=2), store, store)
+    reject = Edit(quantity="door", action="reject", mark=door_mark("door", DOORS[0]))
+    with pytest.raises(NotAllowedError, match="has a settled value"):
+        review("d1", reject, store, store)
+    assert rows(store.state)[ROOM_DOORS].value == 2

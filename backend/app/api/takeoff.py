@@ -30,7 +30,7 @@ from app.core.review.model import Edit, ReviewState, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.review import (
     ValueChangedError,
-    apply,
+    apply_on_takeoff,
     disputes,
     reset,
     review_queue,
@@ -148,9 +148,14 @@ def review(
         reviews.update(owner, drawing_id, lambda state: reset(state, None))
     else:
         drawing = ingest.drawing(drawing_id)
-        found = sheet_row(known_quantities(drawing), edit.quantity)
+        quantities = known_quantities(drawing)
+        found = sheet_row(quantities, edit.quantity)
         at = now()
-        reviews.update(owner, drawing_id, lambda state: apply(state, edit, found, drawing, at))
+
+        def edited(state: ReviewState) -> ReviewState:  # never under another row's sign-off
+            return apply_on_takeoff(state, edit, found, drawing, at, quantities)
+
+        reviews.update(owner, drawing_id, edited)
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 

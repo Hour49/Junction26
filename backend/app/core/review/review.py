@@ -603,6 +603,36 @@ def apply(
     )
 
 
+def apply_on_takeoff(
+    state: ReviewState,
+    edit: Edit,
+    quantity: Quantity,
+    drawing: Drawing,
+    at: str,
+    quantities: Mapping[str, Quantity],
+) -> ReviewState:
+    """`apply`, refused when it would change another row a person decided: a mark rejected or
+    restored on a sheet-wide row changes the rows that show the same item (`with_rejected_items`),
+    and a row signed off or settled is not changed under that decision (review-640: a room's door
+    row signed at 2 showed 1 under its sign-off). Undo the sign-off or unsettle that row first."""
+    after = apply(state, edit, quantity, drawing, at)
+    before, shown = with_rejected_items(state, quantities), with_rejected_items(after, quantities)
+    for key in sorted(quantities):
+        if key == quantity.key or before.rejected.get(key) == shown.rejected.get(key):
+            continue
+        if (signed := state.signed.get(key)) is not None:
+            raise NotAllowedError(
+                f"{key} is signed off by {signed.by}, and this edit would change it; undo that "
+                "sign-off first"
+            )
+        if key in state.settled:
+            raise NotAllowedError(
+                f"{key} has a settled value, and this edit would change its marks; unsettle it "
+                "first"
+            )
+    return after
+
+
 def sign(
     state: ReviewState,
     quantity: Quantity,
