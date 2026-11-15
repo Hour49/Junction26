@@ -88,6 +88,10 @@ BAR = ScaleBar(page=1, start=(0.1, 0.9), end=(0.225, 0.9), length_m=5.0, text="0
         ("\u00bc IN. = 1 FT.", 48.0),
         ("1/4 IN.=1 FT.-0 IN.", 48.0),
         ("\u00be\u2033 = 1\u2032-0\u2033", 16.0),
+        # a glyph right after a digit is that many inches and the fraction (review-612 S1)
+        ('1\u00bc" = 1\'-0"', 9.6),
+        ('2\u00bd" = 1\'-0"', 4.8),
+        ("1\u00be\u2033=1\u2032-0\u2033", 12 / 1.75),
     ],
 )
 def test_a_printed_ratio_is_read_in_metric_and_imperial(

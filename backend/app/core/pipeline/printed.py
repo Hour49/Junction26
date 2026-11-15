@@ -130,6 +130,23 @@ _GLYPHS = str.maketrans(
         "\u2033": '"',  # double prime
     }
 )
+# A glyph right after a digit is that many inches and more: 1\u00bc" is 1.25" (review-612 S1)
+_AFTER_DIGIT = re.compile("(\\d+)([\u00bc\u00bd\u00be\u215b\u215c\u215d\u215e])")
+
+
+def _plain(text: str) -> str:
+    """`text` with its fraction glyphs, fraction slash and primes as `_IMPERIAL` reads them."""
+    mixed = _AFTER_DIGIT.sub(
+        lambda m: f"{int(m.group(1)) + _fraction(_GLYPHS[ord(m.group(2))]):g}", text
+    )
+    return mixed.translate(_GLYPHS)
+
+
+def _fraction(text: str) -> float:
+    numerator, denominator = text.split("/")
+    return float(numerator) / float(denominator)
+
+
 _IMPERIAL = re.compile(
     rf"{_FRACTION}\s*{_INCHES}\s*=\s*(\d+(?:\.\d+)?)\s*{_FEET}(?:\s*-?\s*(\d+(?:\.\d+)?)\s*{_INCHES})?",
     re.IGNORECASE,
@@ -145,7 +162,7 @@ def ratio_of(text: str | None) -> float | None:
         grouped, plain = found.groups()
         ratio = float(re.sub(_GROUPED, "", grouped) if grouped else plain.replace(",", "."))
         return ratio if ratio > 0 else None
-    if (found := _IMPERIAL.search(text.translate(_GLYPHS))) is not None:
+    if (found := _IMPERIAL.search(_plain(text))) is not None:
         return _imperial_ratio(found)
     return None
 
@@ -154,7 +171,7 @@ def imperial_scales(text: str) -> list[tuple[float, str]]:
     """Every imperial scale `text` prints, as `ratio_of` reads it, with the scale as printed:
     "1/4\" = 1'-0\"" is (48, "1/4\" = 1'-0\""). The text should be one label: a 1 before 1/2" is
     read as a whole inch, so a view number 1 next to a 1/2" scale would be."""
-    plain = text.translate(_GLYPHS)
+    plain = _plain(text)
     found = ((_imperial_ratio(m), m.group(0).strip()) for m in _IMPERIAL.finditer(plain))
     return [(ratio, printed) for ratio, printed in found if ratio is not None]
 
