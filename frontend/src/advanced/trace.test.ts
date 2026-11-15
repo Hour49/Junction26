@@ -93,8 +93,6 @@ describe('trace view v5', () => {
   it('AD-106 triage, read-from, cache, conflicts with their values, flagged reasons, failure', () => {
     const t: FileTrace = {
       ...traceVariants.cache,
-      // testing.ts's cache stage predates StageTrace.steps
-      stages: traceVariants.cache.stages.map((s) => ({ steps: [], ...s })),
       second_count: { measured: 5, conflicts: 1 },
       file: {
         ...traceVariants.cache.file,
