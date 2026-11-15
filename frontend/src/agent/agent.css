@@ -417,6 +417,31 @@
   box-shadow: var(--v-shadow);
   min-width: 0;
 }
+.ag-pane[hidden] {
+  display: none; /* collapsed: the panel stays mounted, out of sight */
+}
+/* The Files panel collapsed (Bogdan, 2026-11-15): the chat takes the width, centred as without the panel; a slim
+   rail at the right edge brings the panel back. */
+.ag-split--hidden {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.ag-split--hidden > .en-chat {
+  max-width: 868px;
+  margin: 0 auto;
+}
+.ag-rail {
+  position: sticky;
+  top: calc(var(--v-header-h) + 16px);
+  margin-top: 16px;
+  writing-mode: vertical-rl;
+  height: auto;
+  min-height: 0;
+  padding: 16px 8px;
+  border-radius: var(--v-radius);
+  box-shadow: var(--v-shadow);
+  font-size: 15px;
+  font-weight: 600;
+}
 .ag-pane-view {
   max-height: 70dvh; /* an open file leaves room for the next names in the list */
   overflow: auto;

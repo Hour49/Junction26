@@ -9,6 +9,7 @@ import {
   type ProjectView,
   type Suggestion,
 } from '../api';
+import { Button } from '@/components/ui/button';
 import { AskBox } from '../engineer/AskBox';
 import { Suggestions } from '../engineer/DrawingHeader';
 import { usePhotoAdd } from '../engineer/photoAdd';
@@ -110,6 +111,24 @@ function useWide(): boolean {
   return wide;
 }
 
+// The Files panel beside the chat collapsed to a rail (Bogdan, 2026-11-15), remembered per viewer.
+const FILES_HIDDEN = 'agent-chat:files-hidden';
+function readHidden(): boolean {
+  try {
+    return localStorage.getItem(FILES_HIDDEN) === '1';
+  } catch {
+    return false; // no storage (private mode, blocked): the panel shows
+  }
+}
+function writeHidden(hidden: boolean) {
+  try {
+    if (hidden) localStorage.setItem(FILES_HIDDEN, '1');
+    else localStorage.removeItem(FILES_HIDDEN);
+  } catch {
+    // blocked storage: the choice just isn't remembered
+  }
+}
+
 const withId = (ids: readonly string[], id: string) => (ids.includes(id) ? [...ids] : [...ids, id]);
 
 /** The newest kept turn's view, so a thread restored after "Show it" opens the plan where it was. */
@@ -134,6 +153,13 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const [drawn, setDrawn] = useState<Record<string, DrawingView> | null>(null);
   const wide = useWide();
   const [shown, setShown] = useState<Shown | null>(() => lastShown(start.rows));
+  // Wide: the Files panel collapsed to a rail, so the chat has the whole width.
+  const [hidden, setHiddenState] = useState(readHidden);
+  const setHidden = useCallback((h: boolean) => {
+    setHiddenState(h);
+    writeHidden(h);
+  }, []);
+  const railFocus = useRef(false);
   // Under 1200 px the plan opens as a full-screen sheet over the chat (chat-ux #9).
   const [sheet, setSheet] = useState(false);
   // Widening closes the sheet (the pane shows instead), so narrowing again does not bring it back unasked.
@@ -343,6 +369,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     setOpened((o) => withId(o ?? openIds, id));
     setReveal((r) => ({ drawingId: id, n: (r?.n ?? 0) + 1 }));
     if (!wide) setSheet(true);
+    else setHidden(false); // the place opens where the user can see it
   };
   const turns = rows.flatMap((r) => (r.status === 'done' ? [r.turn] : []));
   const files: PaneFile[] = askable(project.drawings).map((d) => {
@@ -373,7 +400,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       )?.not_drawable_reason ?? null,
     onToggle: () => {
       setDrawMode((d) => !d);
-      if (!drawMode && !wide) setSheet(true); // narrow: the files to draw on are in the sheet
+      // The files to draw on: in the sheet when narrow, in the panel (expanded) when wide.
+      if (!drawMode && !wide) setSheet(true);
+      if (!drawMode && wide) setHidden(false);
     },
   };
   const plan = first && (
@@ -404,15 +433,47 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
             }
       }
       onPen={wide || !pen.can ? undefined : pen.onToggle}
+      onHide={
+        wide
+          ? () => {
+              railFocus.current = true;
+              setHidden(true);
+            }
+          : undefined
+      }
+      hidden={wide && hidden}
     />
   );
   const pane = wide && plan;
+  const collapsed = pane && hidden;
   // The plan beside the chat (chat-ux #1) where the window has room for it.
   // Narrower: the same plan as a sheet over the chat, while it is open. The chat keeps one parent at every width:
   // a new parent remounted every card on a resize, back to its Plan tab and After (big QA R1 edits).
   const split = (chat: ReactNode) => (
-    <div className={pane ? 'ag-split' : 'ag-nosplit'}>
+    <div className={pane ? (collapsed ? 'ag-split ag-split--hidden' : 'ag-split') : 'ag-nosplit'}>
       {chat}
+      {collapsed && (
+        <Button
+          type="button"
+          variant="secondary"
+          className="ag-rail"
+          aria-label="Show files"
+          title="Show files"
+          aria-expanded={false}
+          ref={(el) => {
+            // Focus follows the panel: Hide leaves it on the rail, not on the page.
+            if (el && railFocus.current) {
+              railFocus.current = false;
+              el.focus();
+            }
+          }}
+          onClick={() => {
+            setHidden(false);
+          }}
+        >
+          Files ({files.length})
+        </Button>
+      )}
       {pane ||
         (sheet && plan && (
           <PlanSheet
