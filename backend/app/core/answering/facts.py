@@ -13,7 +13,7 @@ level is Low (decision 0011): `sure` stays None and the explanation says so.
 
 import re
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Protocol
 
 from app.core.answering.model import Answer, Evidence, Question
@@ -416,20 +416,55 @@ def _storeys(query: FactQuery, facts: _Facts) -> str | None:
     storeys = _storeys_by_height(facts)
     if not storeys:
         return None
-    lines = [f"{len(storeys)} storeys:"]
-    for name, _ in storeys:
-        said = [
-            f"{label} {_num(fact)}"
-            for topic, label in (
-                ("storey.elevation", "elevation"),
-                ("storey.height", "floor-to-floor height"),
-                ("storey.gross_height", "gross height"),
-                ("storey.gross_floor_area", "gross floor area"),
-            )
-            if (fact := facts.one(topic, name, name)) is not None
-        ]
-        lines.append(f"- {_label(name, facts)}: {', '.join(said)}")
-    return "\n".join(lines)
+    if query.between is not None:
+        return _between(query.between, facts)
+    return "\n".join([f"{len(storeys)} storeys:", *(_storey_line(n, facts) for n, _ in storeys)])
+
+
+def _storey_line(name: str, facts: _Facts) -> str:
+    said = [
+        f"{label} {_num(fact)}"
+        for topic, label in (
+            ("storey.elevation", "elevation"),
+            ("storey.height", "floor-to-floor height"),
+            ("storey.gross_height", "gross height"),
+            ("storey.gross_floor_area", "gross floor area"),
+        )
+        if (fact := facts.one(topic, name, name)) is not None
+    ]
+    return f"- {_label(name, facts)}: {', '.join(said)}"
+
+
+def _between(pair: tuple[str, str], facts: _Facts) -> str:
+    """The floor-to-floor height between two storeys the question names: the lower one's
+    `storey.height` when they are one apart, else what the file states of each storey between.
+    Named beside the ground floor, "first floor" counts from it (one above the ground)."""
+    storeys = _storeys_by_height(facts)
+    names = [name for name, _ in storeys]
+    ground = names.index(_ground(storeys))
+    numbers = [storey_number(phrase) for phrase in pair]
+    found: list[str] = []
+    for phrase, number in zip(pair, numbers, strict=True):
+        if 0 in numbers and number is not None and number > 0:
+            at = ground + number
+            name = names[at] if at < len(names) else None
+        else:
+            name = _storey_of(phrase, facts)
+        if name is None:
+            said = f"it has {len(names)} {_plural('storey', len(names))}: {_storey_list(facts)}"
+            return f"No storey '{phrase}' in this file; {said}."
+        found.append(name)
+    low, high = sorted(found, key=names.index)
+    span = f"{_label(low, facts)} to {_label(high, facts)}"
+    if names.index(high) == names.index(low) + 1:
+        if (height := facts.one("storey.height", low, low)) is not None:
+            return f"Floor-to-floor height from {span}: {_num(height)}"
+        head = f"The file states no floor-to-floor height from {span} (not available); it states:"
+    else:
+        apart = f"{_label(low, facts)} and {_label(high, facts)}"
+        head = f"{apart} are not one storey apart; the file states:"
+    between = names[names.index(low) : names.index(high) + 1]
+    return "\n".join([head, *(_storey_line(name, facts) for name in between)])
 
 
 # --- spaces ---------------------------------------------------------------------------------
@@ -448,6 +483,11 @@ def _area_topics(query: FactQuery) -> tuple[str, ...]:
 
 
 def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
+    if query.guid is not None:  # pic-reg S1: never the all-spaces total for one space's GUID
+        return (
+            "This file's facts do not list spaces by GlobalId, so a space cannot be found by it"
+            " here (not available)."
+        )
     names = {fact.subject: fact.storey for fact in facts.get("space.long_name", anywhere=True)}
     for topic in _SPACE_AREAS:
         for fact in facts.get(topic, anywhere=True):
@@ -461,6 +501,8 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     picked = _named(labelled.values(), query.words)
     if picked:
         chosen = [name for name in chosen if labelled[name] in picked]
+        if query.measures == ("height",) and query.aggregate == "list":  # asked alone
+            return _heights(query, facts, chosen, names, long_name)
     topics = _area_topics(query)
     missing = None
     if topics[0] != _SPACE_AREAS[0] and not facts.get(topics[0], anywhere=True):
@@ -475,8 +517,7 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
                 break
 
     def line(name: str) -> str:
-        said = long_name.get(name)
-        label = f"Space {name}" if said is None or said == name else f"{said} (Space {name})"
+        label = _space_label(name, long_name)
         text = f"- {label}: {_value(area[name], 'm2')}" if name in area else f"- {label}"
         if "height" in query.measures and (high := facts.one("space.height", name, names[name])):
             text += f"{',' if name in area else ':'} height {_num(high)}"
@@ -558,6 +599,54 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     return "\n".join(lines + tail)
 
 
+CUT = "its shape is cut (a sloped or clipped ceiling), so its height varies"
+
+
+def _space_label(name: str, long_name: Mapping[str, str]) -> str:
+    said = long_name.get(name)
+    return f"Space {name}" if said is None or said == name else f"{said} (Space {name})"
+
+
+def _heights(
+    query: FactQuery,
+    facts: _Facts,
+    chosen: Sequence[str],
+    storey_of: Mapping[str, str | None],
+    long_name: Mapping[str, str],
+) -> str:
+    """The height of the spaces a question names, and no count or area: what was asked
+    (Tudor R4-H1). A space whose height the file does not state is said to have none."""
+    high = {
+        name: fact
+        for name in chosen
+        if (fact := facts.one("space.height", name, storey_of[name])) is not None
+    }
+    top = {
+        name: fact
+        for name in chosen
+        if name not in high
+        and (fact := facts.one("space.height_up_to", name, storey_of[name])) is not None
+    }
+
+    def said(name: str) -> str:
+        if name in high:
+            return _num(high[name])
+        if name in top:  # pic-reg M1: a clipped room has no single height
+            return f"up to {_num(top[name])}; {CUT}"
+        return "the file states no height (not available)"
+
+    if len(chosen) == 1:
+        label = _space_label(chosen[0], long_name)
+        if chosen[0] in high:
+            return f"Height of {label}: {_num(high[chosen[0]])}"
+        if chosen[0] in top:
+            return f"{label}: {said(chosen[0])}"
+        return f"The file states no height for {label} (not available)."
+    lines = [f"Heights of the {len(chosen)} spaces named '{' '.join(query.words)}':"]
+    lines += [f"- {_space_label(name, long_name)}: {said(name)}" for name in chosen]
+    return "\n".join(lines)
+
+
 def _space_extras(
     query: FactQuery, facts: _Facts, storey: str | None, topics: tuple[str, ...]
 ) -> list[str]:
@@ -625,6 +714,8 @@ _LISTED = {  # per type: the measures a question's words ask for
 
 def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     entity = query.entity
+    if query.guid is not None:
+        return _by_guid(query, facts)
     runs = facts.get(f"{entity}.length", "all", storey)  # a picture's runs: lengths, no count
     if (
         not facts.get(f"{entity}.count", "all", storey)
@@ -700,6 +791,33 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
     if "fire_rating" in query.measures:
         lines += _fire(entity, facts)
     return "\n".join(lines)
+
+
+def _by_guid(query: FactQuery, facts: _Facts) -> str:
+    """The asked measures of the one element whose GlobalId the question names (Tudor R4-H2),
+    never a count of its class; a GUID the file lacks, or a measure it does not state, is said."""
+    guid, noun = query.guid, _noun(query.entity)
+    listed = facts.get(f"{query.entity}.global_id", anywhere=True)
+    if not listed:  # pic-reg M2: the class has no one-by-one facts, so no GUIDs to look in
+        return (
+            f"This file's facts do not list {_plural(noun)} one by one, so a {noun} cannot be"
+            " found by its GlobalId here (not available)."
+        )
+    held = [f for f in listed if f.value == guid]
+    if not held:
+        return f"No {noun} in this file has GlobalId {guid} (not available)."
+    element = held[0]
+    head = f"{noun.capitalize()} {element.subject} (GlobalId {guid})"
+    asked = [t for m in query.measures for t in _LISTED.get(m, ())] or list(_LISTED["size"])
+    said = [
+        f"{t.replace('_', ' ')} {_num(fact)}"
+        for t in dict.fromkeys(asked)
+        if (fact := facts.one(f"{query.entity}.{t}", element.subject, element.storey)) is not None
+    ]
+    if said:
+        return f"{head}: {', '.join(said)}"
+    words = " or ".join(dict.fromkeys(m.replace("_", " ") for m in query.measures))
+    return f"{head}: the file states no {words} for it (not available)."
 
 
 # The PredefinedTypes a word names, per class: "toilets" are some of the sanitary fixtures
