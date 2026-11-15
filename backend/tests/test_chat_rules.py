@@ -49,12 +49,12 @@ def test_ac11_a_question_asks_the_drawings_then_answers_from_them() -> None:
         "marks": [{"ev": "ev_1"}, {"ev": "ev_2"}]}}]}  # fmt: skip
     name, args = plan("How many doors?", ("ask_drawings", {}, asked))
     assert name == "final_answer"
-    assert args == {"kind": "answer", "text": "The drawing answers this below [ev_1].",
+    assert args == {"kind": "answer", "text": "The answer is below [ev_1].",
                     "evidence_ids": ["ev_1"]}  # fmt: skip
     model = {"drawing_id": DRAWING, "name": "b.ifc", "answer": {"answer": 2, "marks": []}}
     asked["parts"].append(model)
     _, args = plan("How many doors?", ("ask_drawings", {}, asked))
-    assert args["text"] == "The drawings answer this below [ev_1]."
+    assert args["text"] == "The answer is below [ev_1]."
 
 
 def test_ac11_all_refused_is_dont_know_with_the_reason() -> None:
@@ -294,6 +294,16 @@ def test_edits_5_a_second_drawn_area_is_said_unused() -> None:
     assert args["kind"] == "edit" and args["text"].endswith(OTHER_AREAS)
 
 
+def test_qa_a_wall_a_door_splits_in_two_is_named_once() -> None:
+    message = "Remove wall W18"
+    wall = {"id": "W18", "label": "Wall W18, 6.92 m, 0.2 m thick"}
+    door = {"label": "door, no longer needed"}
+    removed = [wall, {**wall, "id": "W18.2"}, door]
+    proposal = {"status": "ok", "proposal": {"proposal_id": "p1", "rooms": [], "removed": removed}}
+    _, args = plan(message, ("propose_remove_wall", {"wall_id": "W18"}, proposal))
+    assert "Removed: Wall W18, 6.92 m, 0.2 m thick; door, no longer needed." in args["text"]
+
+
 LAW_TOOLS = [*TOOLS, {"type": "function", "function": {"name": "search_law"}}]
 
 
@@ -412,3 +422,13 @@ def test_review_361_must_a_tie_offers_each_file_and_picking_one_edits_it() -> No
     picked = args["options"][1]["message"]
     assert plan(picked, ("list_drawings", {}, twins)) == (
         "list_walls", {"drawing_id": other, "page": 1})  # fmt: skip
+
+
+def test_the_lead_sentence_does_not_count_the_drawings() -> None:
+    """Mada's #430 look-check: "The drawing answers this below" with four drawings answering."""
+    parts = [{"drawing_id": f"{DRAWING[:-1]}{n}", "name": f"{n}.pdf", "answer": {
+        "answer": n, "unit": "count", "quantity": {"noun": "doors"},
+        "marks": [{"ev": f"ev_{n}"}]}} for n in range(1, 5)]  # fmt: skip
+    _, args = plan("How many doors?", ("ask_drawings", {}, {"parts": parts}))
+    assert args["text"] == "The answer is below [ev_1][ev_2][ev_3][ev_4]."
+    assert "drawing" not in args["text"]

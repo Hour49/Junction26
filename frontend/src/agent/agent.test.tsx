@@ -83,6 +83,14 @@ describe('helpers', () => {
     ]);
     expect(signedArea(0.001)).toBe('±0.00 m²');
   });
+  it('QA: a wall a door splits in two pieces is one change line', () => {
+    const [wall] = proposal.removed;
+    if (!wall) throw new Error('fixture has a removed wall');
+    const split = { ...proposal, removed: [wall, { ...wall, id: 'W4.2' }] };
+    expect(changeLines(split).filter((l) => l.startsWith('Removed:'))).toEqual([
+      'Removed: Wall W4, 2.87 m, 0.12 m thick',
+    ]);
+  });
   it('AC-32 the plan zooms to the change: extent of every polygon, zoom 4 / 2 / 1', () => {
     expect(extentOf(proposal)).toEqual([0.3, 0.2, 0.52, 0.3]);
     expect(zoomFor([0.3, 0.2, 0.45, 0.3])).toBe(4);

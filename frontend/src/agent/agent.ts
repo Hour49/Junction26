@@ -105,8 +105,9 @@ export function areaChange(r: RoomChange): string {
 /** One line per removed and added item and per room, rooms with the difference (AC-32 change list). */
 export function changeLines(p: Proposal): string[] {
   return [
-    ...p.removed.map((g) => `Removed: ${g.label}`),
-    ...p.added.map((g) => `New: ${g.label}`),
+    // a wall a door splits is one item per piece, all with its label: one line each
+    ...new Set(p.removed.map((g) => `Removed: ${g.label}`)),
+    ...new Set(p.added.map((g) => `New: ${g.label}`)),
     ...p.rooms.map((r) =>
       r.area_before_m2 === 0
         ? `${r.label}: ${areaChange(r)}`
