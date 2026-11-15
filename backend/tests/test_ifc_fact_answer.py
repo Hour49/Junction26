@@ -359,6 +359,13 @@ def test_a_ceiling_height_is_the_rooms_height() -> None:
     assert text("What is the height of the ceiling in room 002?") == said
 
 
+def test_a_room_asked_its_area_and_height_keeps_both() -> None:
+    """Tudor's sweep on #628: the height-only path took a question that asks the area too."""
+    assert "Bedroom (Space 002): 14.00 m², height 2.60 m" in text(
+        "What is the area and height of room 002?"
+    )
+
+
 def test_a_room_whose_height_the_file_does_not_state_is_refused_in_words() -> None:
     said = text("What is the height of the ceiling in room 001?")
     assert said == "The file states no height for Kitchen (Space 001) (not available)."

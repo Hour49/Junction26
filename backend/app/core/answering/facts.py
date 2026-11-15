@@ -496,7 +496,7 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     picked = _named(labelled.values(), query.words)
     if picked:
         chosen = [name for name in chosen if labelled[name] in picked]
-        if "height" in query.measures and query.aggregate == "list":
+        if query.measures == ("height",) and query.aggregate == "list":  # asked alone
             return _heights(query, facts, chosen, names, long_name)
     topics = _area_topics(query)
     missing = None
