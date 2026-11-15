@@ -831,3 +831,44 @@ def test_r4_besides_an_apartment_without_its_balconies_still_answers(word: str) 
     for text in (f"What is the floor area of the apartment, {word} the balconies?",
                  f"What is the floor area of the apartment ({word} the balconies)?"):  # fmt: skip
         assert isinstance(PARSE(text), Query), text
+
+
+@pytest.mark.parametrize(
+    ("text", "storey"),
+    [
+        ("How many doors are there on P1?", "P1"),
+        ("How many doors are there on level P1?", "P1"),
+        ("How many doors are there on floor P1?", "P1"),
+        ("How many windows are shown on the P1 plan?", "P1"),
+        ("How many doors are there on OG2?", "OG2"),
+        ("How many doors are there on EG?", "EG"),
+        ("How many doors are there on E00?", "E00"),
+        ("How many doors are there on 1OG?", "1OG"),
+        ("How many doors are there on the Erdgeschoss?", "Erdgeschoss"),
+        ("How many doors are there on 'P1'?", "P1"),  # as before
+    ],
+)
+def test_r1_a_storey_named_by_its_code_or_name_without_quotes(text: str, storey: str) -> None:
+    """Big QA R1 (local-dec): only a quoted storey was read, so "on P1" counted the whole file
+    and "on the Erdgeschoss" was read as a room; the drawing then resolves the name (answer.py)."""
+    parsed = PARSE(text)
+    assert isinstance(parsed, Query) and parsed.storey == storey, parsed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are on this floor plan?",
+        "How many doors are there on the plan?",
+        "How many doors are on it?",
+        "How many doors are on the ground floor?",  # a floor word: RoomByType._floor, as before
+        "How many doors are on 3rd floor?",
+        "How many doors are on floor 2?",
+        "How many doors are there on the Balcony?",  # a room, not a storey
+        "How many doors are there in the kitchn?",
+        "How many windows are on the North facade?",
+    ],
+)
+def test_r1_sheet_floor_and_room_words_are_no_storey_code(text: str) -> None:
+    parsed = PARSE(text)
+    assert not (isinstance(parsed, Query) and parsed.storey is not None), parsed

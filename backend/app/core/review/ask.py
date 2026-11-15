@@ -42,6 +42,7 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
+    NO_SUCH_STOREY,
     NOT_COUNTED,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
@@ -1086,7 +1087,7 @@ def suggestions(
     return tuple(found)
 
 
-FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR)
+FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR, NO_SUCH_STOREY)
 
 
 def _floor_text(
@@ -1104,6 +1105,13 @@ def _floor_text(
     asked = "floor" if found is None else found.group().casefold()
     number = None if found is None else floor_number(found)
     named = storeys(drawing)
+    if reason == NO_SUCH_STOREY:  # "on P1" on the P2 sheet, "on P9" (big QA R1)
+        given = parser.parse(text)
+        storey = given.storey if isinstance(given, Query) else None
+        return (
+            f"This drawing's storeys are {', '.join(named)}; none of them is "
+            f"{storey or 'the storey asked'}, so it does not answer for that storey."
+        )
     if reason == GLUED_FLOOR and found is not None and number is not None:
         n = abs(number)
         if glued(found):
