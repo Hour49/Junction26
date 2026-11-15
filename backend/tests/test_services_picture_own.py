@@ -97,3 +97,17 @@ def test_a_pairing_given_by_the_caller_is_the_one_shown() -> None:
         "not this floor",
         None,
     )
+
+
+def test_through_the_follower_the_picture_lane_has_its_picture_and_no_picture_none() -> None:
+    """ServiceFollower.run end to end; with no pictures (DISCIPLINE_PICTURES off gives none)
+    every lane's picture is null and the API dump is as before plus `picture: None`."""
+    from test_service_tools_pictures import run
+
+    services, shown = run({"d1": heating(CROSSING)})
+    h = lane(services, "heating")
+    assert h.picture is not None and h.picture.pairing.paired_by == "same_page"
+    assert all("picture" not in d for d in shown["disciplines"])  # the model reads no geometry
+    before, _ = run({})
+    assert all(d.picture is None for d in before.disciplines)
+    assert all(d["picture"] is None for d in before.model_dump()["disciplines"])
