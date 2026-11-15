@@ -220,7 +220,8 @@ def test_carbon_on_a_large_sheet_keeps_the_shipped_steps_and_adds_its_own() -> N
     assert [step.id for step in got.steps] == ["rooms", "carbon"]
     step = got.steps[1]
     assert (step.label, step.state, step.cost_usd) == (THINGS, "done", 0.02)
-    assert step.found == {"door": 1, "plan": 1} and step.did == "1 door, 1 plan"
+    assert step.found == {"door": 1, "plan": 1}
+    assert step.did == "1 door, 1 plan; replaces the shipped reading's things drawn (a large sheet)"
     # both met at the barrier, so Carbon ran beside the shipped reader
 
 
@@ -360,3 +361,20 @@ def test_a_sources_own_steps_are_nested_under_its_id_and_heard_so() -> None:
     assert {"arbiter", "arbiter/base", "arbiter/pick", "plans"} == set(ids)
     assert ids.index("arbiter") + 1 == ids.index("arbiter/base")  # right after its parent
     assert "arbiter/pick" in heard and len(ids) == len(set(ids))
+
+
+def test_carbon_says_it_replaces_the_shipped_things_and_what_it_found_none_of() -> None:
+    shipped = Fake(elements=[element("door", LEFT)], plans=PLANS, read=["door", "room"])
+    carbon = Fake(elements=[element("window", LEFT)], plans=PLANS, read=["door", "window", "sink"])
+    few = CarbonThings(shipped, carbon, lambda _: False, few=3).extract(FILE, SHEET)
+    step = next(step for step in few.steps if step.id == "carbon")
+    assert step.did == (
+        "1 plan, 1 window; replaces the shipped reading's things drawn (1 element, fewer than 3); "
+        "looked for, none found: door, sink"
+    )
+    large = CarbonThings(shipped, carbon, lambda _: True).extract(FILE, SHEET)
+    step = next(step for step in large.steps if step.id == "carbon")
+    assert step.did.endswith(
+        "replaces the shipped reading's things drawn (a large sheet); "
+        "looked for, none found: door, sink"
+    )

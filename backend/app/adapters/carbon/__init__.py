@@ -95,6 +95,7 @@ class CarbonThings:
         self._took = took
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        why = "a large sheet"  # why Carbon's things drawn replace the shipped reader's
         if self._use_carbon(source.path):  # known before reading: both at the same time
             (shipped, _), (carbon, span) = beside(
                 lambda: timed(lambda: self._other.extract(source, sheet)),
@@ -128,10 +129,16 @@ class CarbonThings:
                 return shipped.model_copy(update={"steps": (*steps, step)})
             if self._took is not None:
                 self._took.add(source.path)
+            why = f"{count(len(shipped.elements), 'element')}, fewer than {self._few}"
         seen = found_of(carbon.elements, carbon.read, plans=len(carbon.plans))
         step = _carbon_step(THINGS, span, seen)
         if not carbon.plans:
             step = step.model_copy(update={"did": f"{step.did}; no plan read"})
+        none = [kind for kind in carbon.read or () if kind != "room" and kind not in seen]
+        said = f"{step.did}; replaces the shipped reading's things drawn ({why})"
+        if none:
+            said += f"; looked for, none found: {', '.join(k.replace('_', ' ') for k in none)}"
+        step = step.model_copy(update={"did": said})
         notes = list(carbon.notes)
         plans = carbon.plans
         if not plans:
