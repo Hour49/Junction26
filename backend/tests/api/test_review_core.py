@@ -1575,11 +1575,12 @@ def test_a_printed_name_with_more_than_the_type_word_answers_among_any_type() ->
     assert found.refusal is None and found.answer.answer == 288.0, found.refusal
 
 
-def test_the_largest_room_refusal_names_the_unmeasured_room_not_a_missing_name() -> None:
+@pytest.mark.parametrize("word", ["largest", "smallest"])
+def test_the_largest_room_refusal_names_the_unmeasured_room_not_a_missing_name(word: str) -> None:
     """R3-G6 (Tudor's QA round 3, T1): one of the rooms printed "Group Room" had no area (its box
     refused), so none of the Group Rooms could be compared, and the refusal said they "have no
     name or number to ask their area by". It names the room with no area and why, and says the
-    largest of the rooms printed that way is what isn't known."""
+    largest (or the smallest, as asked: review-595) of the rooms printed that way isn't known."""
     groups = [labelled(n, "Group Room", area=12.0 + n) for n in range(1, 4)]
     unmeasured = labelled(4, "Group Room", area=None)
     hall = labelled(5, "Multi-Purpose Hall", area=150.0)
@@ -1587,13 +1588,13 @@ def test_the_largest_room_refusal_names_the_unmeasured_room_not_a_missing_name()
     drawing = scaled(*groups, unmeasured, hall, library).model_copy(
         update={"notes": ("room area: r4 not measured, its box is 0.40 x 0.50 m (0.20 m²)",)}
     )
-    found = asked("Which room is the largest?", drawing)
+    found = asked(f"Which room is the {word}?", drawing)
     assert found.refusal is not None, found.answer
     text = found.refusal.text
     assert "no name or number" not in text, text
     assert "1 of its rooms (Group Room) has no area measured" in text, text
     assert "its box is 0.40 x 0.50 m" in text, text
-    assert "the largest of the 4 rooms printed Group Room isn't known" in text, text
+    assert f"the {word} of the 4 rooms printed Group Room isn't known" in text, text
 
 
 def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:

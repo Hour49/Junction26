@@ -698,7 +698,7 @@ def which_room(
         else:
             asks, left = _extreme_asks(rooms, quantities, parser, largest=word != "smallest")
             if left or len(asks) < 2:
-                why = _left_why(left, asks, rooms, drawing)
+                why = _left_why(left, asks, rooms, drawing, word)
                 return _not_compared(f"I can't tell which room is the {word}: {why}.")
     else:
         return None
@@ -869,11 +869,16 @@ def _key(parser: QuestionParser, text: str) -> str | None:
 
 
 def _left_why(
-    left: Sequence[Room], asks: Sequence[tuple[str, str]], rooms: Sequence[Room], drawing: Drawing
+    left: Sequence[Room],
+    asks: Sequence[tuple[str, str]],
+    rooms: Sequence[Room],
+    drawing: Drawing,
+    word: str,
 ) -> str:
     """Why the rooms `left` (of `rooms`) can't be compared: the ones with no area, with the
     drawing's note on why, and the rooms that share a printed name with one of them, whose
-    largest is then unknown (R3-G6: not "no name or number"); the rest have no name to ask by."""
+    `word` ("largest", "smallest": as asked) is then unknown (R3-G6: not "no name or number");
+    the rest have no name to ask by."""
     if not left:
         return f"this drawing has {len(asks)} room{'' if len(asks) == 1 else 's'} to compare"
     unmeasured = [room for room in left if room.area_m2 is None]
@@ -892,7 +897,7 @@ def _left_why(
         if room.label and printed[" ".join(room.label.split())] > 1
     ))  # fmt: skip
     for name in shared:
-        why += f", so the largest of the {printed[name]} rooms printed {name} isn't known"
+        why += f", so the {word} of the {printed[name]} rooms printed {name} isn't known"
     rest = [
         room for room in left
         if room.area_m2 is not None and " ".join((room.label or "").split()) not in shared
