@@ -65,6 +65,12 @@ it('R3-method (SH-49) methodName turns measuring-method ids into plain labels', 
   expect(methodName('lidar')).toBe('lidar');
 });
 
+it('VW-101 methodName never shows a snake_case id raw: it becomes words', () => {
+  expect(methodName('symbol_detector')).toBe('symbol detector');
+  expect(methodName('count_arbiter_t1')).toBe('count arbiter t1');
+  expect(methodName('Door_1')).toBe('Door_1'); // a mark label, not an id: as is
+});
+
 it('SH-82 drawingName drops the folders and keeps the file name as given', () => {
   expect(drawingName('plans/flat-a.pdf')).toBe('flat-a.pdf');
   expect(drawingName('flat-a.pdf')).toBe('flat-a.pdf');
