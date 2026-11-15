@@ -291,3 +291,20 @@ def test_sv25_a_set_aside_ifc_is_offered_and_listed_by_its_sha256_prefix(
 def test_sv26_the_rules_model_finds_a_set_aside_ifc(settings: Settings, tmp_path: Path) -> None:
     turn = _rules(_client(settings, tmp_path, ingest=_SetAside()), "move the radiator")
     assert turn["kind"] in ("edit", "needs_input"), turn["text"]
+
+
+# --- room names in a chat turn (QA #430 c6886540832) ---
+
+
+def test_a_services_question_naming_a_room_reaches_the_services_tools(client: TestClient) -> None:
+    found = _rules(client, "Which radiators are in the bedroom?")
+    assert found["kind"] == "answer", found
+    assert "E3" in found["text"] and "2 Bedroom" in found["text"] and "E2" not in found["text"]
+    counted = _rules(client, "How many radiators are there in Living 1?")
+    assert counted["kind"] == "answer" and counted["text"].startswith("1 radiator in 1 Living")
+
+
+def test_a_room_the_services_model_lacks_is_said_with_its_rooms(client: TestClient) -> None:
+    found = _rules(client, "How many radiators are in the kitchen?")
+    assert found["kind"] == "dont_know", found
+    assert "no room named 'kitchen'" in found["text"] and "2 Bedroom" in found["text"]

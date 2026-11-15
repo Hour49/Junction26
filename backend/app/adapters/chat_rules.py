@@ -70,6 +70,17 @@ ASKS = (  # the network question a message asks, in ask_services' words
     (re.compile(r"\bwhat (does|do)\b.*\bserve\b"), "terminals_served"),
 )
 ELEMENT, WALL = re.compile(r"\be\d{1,6}\b"), re.compile(r"\bsw\d{1,5}\b")
+# "Which radiators are in the bedroom?", "How many sinks are there in Küche 1-3?": the room's
+# services listed (QA #430); sinks and toilets only here, not as something moved
+IN_ROOM_TERMINALS = {**TERMINALS, "sink": "sanitary_terminal", "washbasin": "sanitary_terminal",
+                     "basin": "sanitary_terminal", "toilet": "sanitary_terminal"}  # fmt: skip
+IN_ROOM_TERMINAL = re.compile(r"\b(" + "|".join(IN_ROOM_TERMINALS) + r")s?\b")
+LISTING = re.compile(r"\b(how many|which|what|list|count|are there|is there)\b")
+IN_ROOM = re.compile(
+    r"\b(?:in|inside)\s+(?:the\s+)?([^?!,]+?)(?:\s+(?:on|at)\s+.*)?[\s?!.]*$", re.I
+)
+NOT_A_ROOM = {"total", "all", "building", "this building", "model", "this model", "project",
+              "house", "file", "each room", "every room", "all rooms", "each storey"}  # fmt: skip
 
 
 @dataclass
@@ -154,6 +165,12 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         op = next((op for pattern, op in ASKS if pattern.search(words)), None)
         if op is not None and "ask_services" in offered:
             return _ask_services(turn, words, op)
+        kind = IN_ROOM_TERMINAL.search(words)
+        room = IN_ROOM.search(turn.message.strip())
+        if kind and room and LISTING.search(words) and room[1].lower() not in NOT_A_ROOM:
+            step = _in_room(turn, words, kind[1], room[1])
+            if step is not None:  # None: no services model, so the drawings answer as before
+                return step
     # a drawn area, or a sideways drag described as "a line ..., not an area" (QA robust-10):
     # propose_room gives the true reason for that one
     regions = [line.split(":")[0] for line in turn.selections if REGION.search(line)]
@@ -223,6 +240,29 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
         return "list_services", {"kind": TERMINALS[word[1]]} if word else {}
     why = next((str(f.get("error")) for _, f in listed if isinstance(f, dict)), None)
     return _final("dont_know", f"I can't find the building's services: {why or 'no drawings'}.")
+
+
+def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] | None:
+    """The terminals of one kind in the room the message names, by its name or id
+    (list_services' room_id); None when the project has no services model to list."""
+    found = _services(turn, words)
+    if isinstance(found, tuple):
+        return None if found[0] == "final_answer" else found
+    listed = turn.result("list_services", room_id=room)
+    if listed is None:
+        kind = IN_ROOM_TERMINALS[word]
+        return "list_services", {"drawing_id": found["drawing_id"], "room_id": room, "kind": kind}
+    if not isinstance(listed, dict) or "error" in listed:
+        why = listed.get("error") if isinstance(listed, dict) else None
+        return _final("dont_know", f"I can't tell: {why or 'the services list failed'}.")
+    items: list[Json] = [i for i in listed.get("items") or [] if isinstance(i, dict)]
+    count = len(items) + int(listed.get("more") or 0)
+    name = (listed.get("room") or {}).get("name") or room
+    cited = ", ".join(f"{i.get('label')} ({i['id']})" for i in items[:10])
+    text = f"{count} {word}{'' if count == 1 else 's'} in {name}" + (
+        f": {cited}." if cited else "."
+    )
+    return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
 
 
 def _picked(words: str, items: list[Json]) -> tuple[str | None, list[Json]]:
