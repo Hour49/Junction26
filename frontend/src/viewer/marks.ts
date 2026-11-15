@@ -98,14 +98,40 @@ export interface PlacedLabel {
 const RINGS = 12;
 const GAP = 1; // px of clearance between two badges
 
+/** Boxes of the other marks that lie inside `box` (normalised, a small slack), smaller than it. */
+export function nestedBoxes<T extends { box: readonly number[] }>(
+  mark: T,
+  others: readonly T[],
+  slack = 0.002,
+): T[] {
+  const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = mark.box;
+  const area = (b: readonly number[]) => ((b[2] ?? 0) - (b[0] ?? 0)) * ((b[3] ?? 0) - (b[1] ?? 0));
+  return others.filter(
+    (o) =>
+      o !== mark &&
+      area(o.box) < area(mark.box) &&
+      (o.box[0] ?? 0) >= x0 - slack &&
+      (o.box[1] ?? 0) >= y0 - slack &&
+      (o.box[2] ?? 0) <= x1 + slack &&
+      (o.box[3] ?? 0) <= y1 + slack,
+  );
+}
+
 /**
  * Where each badge goes so no two overlap (the rule of the backend's evidence_render.place_labels,
  * simplified): smallest box first; the box centre, then a 5 x 5 grid inside the box nearest the
  * centre, then rings around the box in 8 directions; full text first, then the number only.
+ * The centre and grid spots whose badge would cover one of the label's `nested` boxes (another
+ * mark inside this one) are skipped, so a room's badge never sits on the room inside it.
  * null: no free spot on the page.
  */
 export function placeLabels(
-  labels: readonly { box: readonly number[]; full: string; short: string }[],
+  labels: readonly {
+    box: readonly number[];
+    full: string;
+    short: string;
+    nested?: readonly (readonly number[])[];
+  }[],
   W: number,
   H: number,
 ): (PlacedLabel | null)[] {
@@ -136,8 +162,14 @@ export function placeLabels(
     const cx = (x0 + x1) / 2;
     const cy = (y0 + y1) / 2;
     const texts = label.full === label.short ? [label.full] : [label.full, label.short];
+    const holes = (label.nested ?? []).map(px);
     for (const text of texts) {
       const { w, h } = badgeSize(text);
+      const clear = ([x, y]: [number, number]) =>
+        holes.every(
+          ([a = 0, b = 0, c = 0, d = 0]) =>
+            x + w / 2 <= a || x - w / 2 >= c || y + h / 2 <= b || y - h / 2 >= d,
+        );
       const grid: [number, number][] = [];
       for (let a = 1; a <= 5; a++)
         for (let b = 1; b <= 5; b++)
@@ -156,8 +188,8 @@ export function placeLabels(
             cy + Math.sin(angle) * ((y1 - y0) / 2 + h / 2 + gap),
           ]);
         }
-      const spot = [[cx, cy] as [number, number], ...inside, ...rings].find(([x, y]) =>
-        free(x, y, w, h),
+      const spot = [...[[cx, cy] as [number, number], ...inside].filter(clear), ...rings].find(
+        ([x, y]) => free(x, y, w, h),
       );
       if (spot) {
         const placed = {

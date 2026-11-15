@@ -13,6 +13,7 @@ import {
   MUTED,
   normalisedNote,
   pickBox,
+  nestedBoxes,
   placeLabels,
   type PlacedLabel,
   safeColour,
@@ -335,6 +336,8 @@ export function PageViewer({
   };
   // Counted marks of a check are context: a shape, no badge (viewer.md OP 17).
   const allBadged = onPage.filter((m) => toneOf(m) !== 'counted');
+  // Marks drawn inside another mark (a Reduit in a Küche): its fill leaves them out, its badge avoids them.
+  const nestedIn = new Map(onPage.map((m) => [m.id, nestedBoxes(m, onPage)]));
   const colourOf = (m: MarkView) => {
     const t = toneOf(m);
     return t ? TONE_COLOUR[t] : stateColour(m);
@@ -405,6 +408,7 @@ export function PageViewer({
                 box: m.box,
                 full: value !== null && !narrow ? `${badgeText(m)} · ${value}` : badgeText(m),
                 short: badgeText(m),
+                nested: nestedIn.get(m.id)?.map((n) => n.box),
               };
             }),
             ...boxesHere.map((b) => ({ box: b.box, full: b.tag ?? '?', short: b.tag ?? '?' })),
@@ -689,23 +693,49 @@ export function PageViewer({
                       vectorEffect="non-scaling-stroke"
                     />
                   ));
+                const fill = tone === 'pass' || tone === 'counted' ? 'none' : hatched;
+                const fillOpacity =
+                  tone === 'fail'
+                    ? 0.2
+                    : tone === 'cannot_tell'
+                      ? 0.4
+                      : m.state === 'rejected'
+                        ? 0
+                        : line === 'hatched'
+                          ? 1
+                          : 0.25;
+                // A filled mark with marks inside it: the fill is a path with each inner mark as a
+                // hole (even-odd), so the inner room is not painted twice; the outline stays.
+                const holes = fill === undefined && m.polygon ? (nestedIn.get(m.id) ?? []) : [];
+                const ring = (pts: readonly (readonly number[])[]) =>
+                  `M${pts.map(([x, y]) => `${String(x)},${String(y)}`).join('L')}Z`;
+                const outline = (n: MarkView) =>
+                  ring(
+                    n.polygon ?? [
+                      [n.box[0], n.box[1]],
+                      [n.box[2], n.box[1]],
+                      [n.box[2], n.box[3]],
+                      [n.box[0], n.box[3]],
+                    ],
+                  );
                 return [
+                  m.polygon && holes.length > 0 ? (
+                    <path
+                      key={`${m.id}-fill`}
+                      className="vw-fill"
+                      style={tint(colour)}
+                      d={[ring(m.polygon), ...holes.map(outline)].join(' ')}
+                      fillRule="evenodd"
+                      fillOpacity={fillOpacity}
+                      onClick={common.onClick}
+                    />
+                  ) : null,
                   m.polygon ? (
                     <polygon
                       key={m.id}
                       points={m.polygon.map(([x, y]) => `${String(x)},${String(y)}`).join(' ')}
-                      fill={tone === 'pass' || tone === 'counted' ? 'none' : hatched}
-                      fillOpacity={
-                        tone === 'fail'
-                          ? 0.2
-                          : tone === 'cannot_tell'
-                            ? 0.4
-                            : m.state === 'rejected'
-                              ? 0
-                              : line === 'hatched'
-                                ? 1
-                                : 0.25
-                      }
+                      fill={holes.length > 0 ? 'none' : fill}
+                      fillOpacity={fillOpacity}
                       {...common}
                     />
                   ) : (

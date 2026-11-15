@@ -3,6 +3,7 @@ import { answer, answerArea, drawing } from '../api/fixtures';
 import type { MarkView, PageView } from '../api/types';
 import {
   markLook,
+  nestedBoxes,
   normalisedNote,
   pickBox,
   pickWidth,
@@ -83,6 +84,28 @@ describe('marks.ts', () => {
     expect(edge[2]).toBeCloseTo(0.03, 6);
     expect(edge[3]).toBe(1);
     expect(edge[3] - edge[1]).toBeCloseTo(0.045, 6);
+  });
+
+  it('nested marks: the Küche badge is not put on the Reduit inside it', () => {
+    const [kitchen, reduit] = answerArea.marks as [MarkView, MarkView];
+    expect(nestedBoxes(kitchen, answerArea.marks)).toEqual([reduit]);
+    expect(nestedBoxes(reduit, answerArea.marks)).toEqual([]);
+    for (const W of [358, 1440]) {
+      const H = (W * 400) / 600;
+      const [k, r] = placeLabels(
+        [
+          { box: kitchen.box, full: '1 · 22.40 m²', short: '1', nested: [reduit.box] },
+          { box: reduit.box, full: '2 · 2.49 m²', short: '2' },
+        ],
+        W,
+        H,
+      );
+      if (!k || !r) throw new Error('a badge found no spot');
+      const [a = 0, b = 0, c = 0, d = 0] = reduit.box.map((v, i) => v * (i % 2 === 0 ? W : H));
+      const off =
+        k.x + k.w / 2 <= a || k.x - k.w / 2 >= c || k.y + k.h / 2 <= b || k.y - k.h / 2 >= d;
+      expect(off).toBe(true);
+    }
   });
 
   it('R2-qa-1-3 VW-45 placeLabels: no two badges overlap on 19 small rooms, narrow or wide', () => {

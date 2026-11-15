@@ -128,6 +128,23 @@ describe('PageViewer: marks', () => {
     expect(Number(rect?.getAttribute('height'))).toBeCloseTo(y1 - y0, 6);
   });
 
+  it('nested marks: the Küche fill is a path with the Reduit as an even-odd hole, outline kept', () => {
+    const [kitchen, reduit] = answerArea.marks as [MarkView, MarkView];
+    const { container } = viewer(answerArea);
+    const fills = [...container.querySelectorAll('svg path.vw-fill')];
+    expect(fills).toHaveLength(1);
+    const ring = (pts: readonly (readonly number[])[]) =>
+      `M${pts.map(([x, y]) => `${String(x)},${String(y)}`).join('L')}Z`;
+    expect(fills[0]?.getAttribute('d')).toBe(
+      `${ring(kitchen.polygon ?? [])} ${ring(reduit.polygon ?? [])}`,
+    );
+    expect(fills[0]?.getAttribute('fill-rule')).toBe('evenodd');
+    expect(colour(fills[0])).toBe('#d62728');
+    const [outer, inner] = [...container.querySelectorAll('svg polygon')];
+    expect(outer?.getAttribute('fill')).toBe('none');
+    expect(inner?.hasAttribute('fill')).toBe(false);
+  });
+
   it('VW-13 overlay viewBox, preserveAspectRatio and non-scaling strokes', () => {
     const { container } = viewer(answerArea);
     const svg = container.querySelector('svg');
