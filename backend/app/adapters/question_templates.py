@@ -316,6 +316,12 @@ SHEET = frozenset(
     """.split()  # noqa: SIM905 (a word list reads better as text)
 )
 _SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
+# A discipline's plan is the sheet, not a room: "on the plumbing plan" (big QA R1 services, P-101
+# refused as a count in one room); "the plumbing room" stays a room
+DISCIPLINE_SHEET = re.compile(
+    r"(?:plumbing|heating|ventilation|hvac|mep|electrical|lighting|power|sanitary|drainage|"
+    rf"sprinkler|fire|mechanical|services?|structural) (?:{_SHEET_WORDS})\b"
+)
 # English words that leave something out, one list for the balcony rule (APPLIED), the exclusion
 # check (ENGLISH_EXCLUDING) and a parenthesis that is an exclusion (NOT_EXCLUSION); answer's nit on
 # #616: "(besides the entrance)" answered every door
@@ -476,7 +482,13 @@ class TemplateParser:
             if (
                 things
                 and INCLUDING.search(lower) is None
-                and (len(subjects) > 1 or any(m[1] not in SHEET for m in IN_PLACE.finditer(body)))
+                and (
+                    len(subjects) > 1
+                    or any(
+                        m[1] not in SHEET and not DISCIPLINE_SHEET.match(body, m.start(1))
+                        for m in IN_PLACE.finditer(body)
+                    )
+                )
             ):
                 return Unsupported(reason=IN_ONE_ROOM)
             subject = subjects[0]
