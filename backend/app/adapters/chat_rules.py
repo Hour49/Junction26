@@ -12,6 +12,7 @@ from app.core.agent.loop import NUDGE, SAID_UNIT, UNBACKED, said_value
 from app.core.agent.ports import Reply
 from app.core.agent.review import DOUBT, REVIEWED, pushed
 from app.core.agent.rooms import name_words
+from app.core.review.review import noun as count_noun
 
 Json = dict[str, Any]
 
@@ -860,14 +861,24 @@ def _answer(found: Json) -> tuple[str, Json]:
     # The turn carries the ask_drawings result, shown in full under the text: one sentence that
     # gives each answering drawing's value and cites its first mark (R2-A6: not "The answer is
     # below"). `answered` (the loop's) lists every one; `parts` may be cut for the window (#466).
-    # No count of drawings: "the drawing" or "the drawings" is wrong for some turn (#430).
-    listed: list[Json] = [a for a in found.get("answered") or [] if isinstance(a, dict)] or [
+    # No count of drawings: "the drawing" or "the drawings" is wrong for some turn (#430). The
+    # project total, when the drawings have one, leads; past 12 drawings "and N more" (R4-C5).
+    every: list[Json] = [a for a in found.get("answered") or [] if isinstance(a, dict)] or [
         {"drawing": p.get("name") or p.get("drawing_id"), "answer": p["answer"]["answer"],
          "unit": p["answer"].get("unit"), "ev": _first_ev(p["answer"])} for p in answering
     ]  # fmt: skip
-    listed = listed[:12]
+    listed = every[:12]
     said = "; ".join(f"{a['drawing']}: {said_value(a)}" + (f" [{a['ev']}]" if a.get("ev") else "")
                      for a in listed)  # fmt: skip
+    if cut := len(every) - len(listed):
+        said += f"; and {cut} more drawing{'s' if cut > 1 else ''}"
+    total = found.get("total")
+    if isinstance(total, (int, float)) and len(every) > 1:  # one drawing's total is its value
+        quantity: Json = answering[0]["answer"].get("quantity") or {}  # its noun is for its value
+        counted = count_noun(str(quantity.get("measure")), str(quantity.get("subject")), total)
+        named = f" {counted}" if counted and found.get("total_unit") == "count" else ""
+        whole = said_value({"answer": total, "unit": found.get("total_unit")})
+        said = f"In total {whole}{named}. {said}"
     return _final("answer", f"{said}.", [str(a["ev"]) for a in listed if a.get("ev")])
 
 
