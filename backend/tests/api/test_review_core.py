@@ -1797,6 +1797,9 @@ def _flats(*, assigned: bool) -> Drawing:
         "What is the area of the kitchen in apartment B?",
         "How big is the kitchen of apartment B?",
         "What is the net floor area of the kitchen in apartment B in m²?",
+        "How large is apartment B's kitchen?",  # review-688 M1: the flat named first
+        "In apartment B, what is the area of the kitchen?",
+        "What is the area of apartment B's kitchen?",
     ],
 )
 def test_r1_11_a_room_type_inside_an_apartment_is_that_room_never_the_whole_flat(text: str) -> None:
@@ -1820,6 +1823,17 @@ def test_r1_11_without_the_rooms_flat_it_refuses_never_the_whole_flat() -> None:
         "The drawing doesn't say which kitchen is in apartment B, so I can't give its area. Ask "
         "about the room by its number or name."
     ), found.refusal
+
+
+def test_r1_11_the_kitchen_in_the_apartment_is_the_one_flat_s_kitchen_never_the_flat() -> None:
+    """review-688 M1: site1677 (one flat) answered the flat's 123.137 m² for "the kitchen in the
+    apartment"; on a sheet of two flats with a kitchen each it is refused, never a flat's area."""
+    two = _flats(assigned=True)
+    one = two.model_copy(update={"rooms": two.rooms[2:], "apartments": (two.apartments or ())[1:]})
+    text = "What is the area of the kitchen in the apartment?"
+    assert (asked(text, one).refusal, asked(text, one).answer.answer) == (None, 13.92)
+    found = asked(text, two)
+    assert found.refusal is not None and found.answer.answer is None
 
 
 def test_r1_11_the_flat_itself_still_answers_its_area() -> None:
