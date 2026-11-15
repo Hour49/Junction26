@@ -33,11 +33,11 @@ per entry; an entry goes when its fix is merged.
   a number before a Nordic/German street, a postal code or ZIP on another line than its street, a ZIP with no state
   before it, an English street followed by a lowercase word (200 dataset PDFs: 52 of 52 changed lines were real
   addresses; #259) (Sat 19:20)
-- K12 · limit · backend · Memory on the live host's 8 GB cap: a cold upload of 6 big images peaked at 7.96 GB summed
-  over the backend's processes in today's demo config (7.43 GB without the settings #381 added), measured before
-  #405. #405 holds a big greyscale page once (the image readers' peak on a 138 Mpx scan: 11.13 to 2.84 GB cold), but
-  what a reading leaves resident after an upload is not given back yet. So INGEST_GROUPS_IN_FLIGHT stays 1 on main:
-  at 4, a cold upload under a 10 GB cap swapped twice what main did (#395) (Sun 01:30)
+- K12 · limit · backend · Memory on the live host's 8 GB cap: the demo config now reads up to 10 drawing groups at
+  once (#422), and #422's cold upload of 10 files peaked at 7.3 GB (cgroup), with one local reading at a time and
+  MALLOC_ARENA_MAX=2; two local readings at once peaked at 9.4 GB once, so INGEST_LOCAL_IN_FLIGHT stays 1. #405
+  holds a big greyscale page once (the image readers' peak on a 138 Mpx scan: 11.13 to 2.84 GB cold), but what a
+  reading leaves resident after an upload is not given back yet (Sun 01:30; Sun 02:50)
 - K13 · minor · backend · A services proposal on a services IFC that was set aside at upload carries the first 16
   characters of the file's sha256 as its drawing id: the edit card's picture works, a lookup by drawing name may
   show the bare id (#413) (Sun 01:30)

@@ -1,6 +1,6 @@
 # Pipeline (Stoa challenge)
 
-Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening; the golden paragraph, rows 1-2 and 5 and §4-§6 (demo config, parallel ingest, memory, drawable sheets, services) checked 2026-11-15 01:30 against main 3d0dc59, row 1-2 and §4 again at 02:15 against b8c9d8e4 (#414, #425, #434, #443). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
+Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening; the golden paragraph, rows 1-2 and 5 and §4-§6 (demo config, parallel ingest, memory, drawable sheets, services) checked 2026-11-15 01:30 against main 3d0dc59, row 1-2 and §4 again at 02:15 against b8c9d8e4 (#414, #425, #434, #443), §4-§6 at 02:50 against 992d98b1 (#422, #464). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
 methods). The per-plan output, the drawing model, becomes decision record 0004.
 
 ## 1. Ingestion: from files to one drawing model per plan
@@ -234,6 +234,9 @@ commented line per setting. The live demo runs with the settings `tools/qa-env.s
 | `MODEL_3D=true` | `false` | The 3D view of an IFC file (`GET .../files/{file_id}/model.glb`), converted alone in a child process held to 1,500 MB and 120 CPU seconds; `app.cli glb` converts ahead |
 | `TRIAGE_DESCRIBER=carbon`, `TRIAGE_JUDGE=rules`, `EVIDENCE_SCOPE=all_non_plan` | `off`, `off`, `set_aside` | A set-aside image is described by Carbon for the evidence index (about 0.005 USD an image), rules judge whether a set-aside file belongs to the project, and the index holds every non-plan file and PDF page (decision 0012) |
 | `SERVICES_FOLLOW=on` | `off` | A project's plumbing, ventilation and heating models are followed through every plan edit, and the chat gets the services tools (§6) |
+| `INGEST_GROUPS_IN_FLIGHT=10`, `INGEST_LOCAL_IN_FLIGHT=1` | `1`, `1` | Up to 10 drawing groups are read at once, with one local image reading at a time (§5) |
+| `CARBON_CALLS_IN_FLIGHT=48`, `CARBON_READ_WORKERS=12` | `8`, `4` | Up to 48 Carbon calls in flight in the process, 12 of them for one sheet's tiles; calls already in flight can go past `GEMINI_BUDGET_USD` |
+| `MALLOC_ARENA_MAX=2` | glibc's | Fewer malloc arenas: peak 9.6 to 6.7 GB on the same cached replay, no slower (33.1 vs 36.5 s) |
 
 Off in the demo on purpose, with what was measured:
 
@@ -245,23 +248,25 @@ Off in the demo on purpose, with what was measured:
 | `VECTOR_FALLBACK` | Failed its pre-registered check (#381) |
 | `RESOLVER=carbon` | The pilot was inconclusive, and its cost is paid inline on every answer (#381) |
 | `TRIAGE_CLASSIFIER` | No arm passed the gate (#381) |
-| `INGEST_GROUPS_IN_FLIGHT` (stays 1) | Memory on the live host's 8 GB cap (§5, KNOWN K12) |
 
 ## 5. Ingest at scale: parallel groups and memory
 
 Ingest reads a project's drawing groups on a pool of `INGEST_GROUPS_IN_FLIGHT` threads (`core/ingest/groups.py`,
-#395). The default, 1, reads them one after another as before. Groups that share a file, a source (a building's
+#395); the demo reads up to 10 at once (#422), the default, 1, one after another. Groups that share a file, a source (a building's
 sheets and its IFC model) or a file's content form one lane and are read in upload order, so no source is read by
 two groups at once and a copy still reuses the first reading. A group that fails does not stop the others; the
 project still fails with the first error. Each group keeps its own stage clock and counts its own cost, so every
 stage's time and cost stay with its file, and the status is saved only on the run's thread.
 
-Two limits hold whatever the setting: at most 8 Carbon calls are in flight per process (every `CarbonClient` call,
-around the HTTP call only), and the image route's local reading runs one sheet at a time per process
-(`adapters/one_at_a_time.py`), while the Carbon reads beside it stay outside that lock. Without the lock, 4 groups
-at once swapped 16 GB. Measured on a cold upload of 6 images (one run each, real Gemini): 253.0 s one group at a
-time, 78.9 s at 4 groups. On the same upload replayed from cached replies the stored drawings are byte-identical,
-and golden v2 changes no answer (0 of 3058) and no extraction file (204 of 204).
+Two limits hold beside it, both settings: at most `CARBON_CALLS_IN_FLIGHT` Carbon calls are in flight per process
+(every `CarbonClient` call, around the HTTP call only; 8 by default, 48 in the demo), and the image route's local
+reading runs `INGEST_LOCAL_IN_FLIGHT` sheets at a time per process (`adapters/one_at_a_time.py`; 1), while the
+Carbon reads beside it stay outside that slot. Without the slot, 4 groups at once swapped 16 GB. Files are probed
+as many at once as groups are read (at least 4). Measured cold, with real Gemini and one run each: 6 images took
+253.0 s one group at a time and 78.9 s at 4 groups (#395); 10 files (6 hard images, 2 drawn PDFs, 2 scans) took
+273.1 s on main and 88.3 s with #422's settings, 2.78 USD, cgroup peak 7.3 GB (#422; that run had 24 workers per
+sheet, the merged demo config 12). Replayed from cached replies, the
+stored drawings are byte-identical, and golden v2 changes no answer (0 of 3058) and no extraction file (204 of 204).
 
 Memory. A big greyscale page is held once, in its own mode (#405, #410): no reader makes a full-page RGB copy.
 The pixel digest hashes 256-row strips, Carbon's and the printed-scale reader's JPEG is resized before it becomes
@@ -279,9 +284,10 @@ numbers and names per discipline, such as each space's net floor area (`core/ifc
 nothing for a question, the answer is read from the sheet by rules and written from a template, with no model call
 (`core/answering/facts.py`). These answers are not measured on any gold, so they are Low, never sure, and ask for a
 double-check. The chat and the engineer's ask read stored sheets only (`adapters/ifc_model/facts_store.py`): the API
-process never parses an IFC when a question comes. On a miss the question is answered as before, and one build starts
-off the request in a child process held to 3,000 MB and 600 s; builds run one at a time, once per file, and a failed
-build is not retried. `python -m app.cli facts build --model <file.ifc> --cache <IFC_FACTS_CACHE>` builds a sheet
+process never parses an IFC when a question comes. Reading a project (`GET /api/projects/{id}`, which the screen
+polls during ingest) starts the build of each ingested IFC's sheet (#464), in a child process held to 3,000 MB and
+600 s; builds run one at a time, once per file, and a failed build is not retried. While a model's build runs, a
+question the takeoff cannot answer is told the model is still being read and to ask again in a minute. `python -m app.cli facts build --model <file.ifc> --cache <IFC_FACTS_CACHE>` builds a sheet
 ahead.
 
 Drawable sheets (#407). `GET /api/projects/{id}` says for each drawing whether a plan edit can be drawn on it
