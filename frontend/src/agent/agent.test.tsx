@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { drawingLabel } from '../api';
 import { answerRefused, drawing, project, projectAsk } from '../api/fixtures';
 import { mockApi, never, reply } from '../test/mockApi';
 import {
@@ -214,6 +215,45 @@ describe('TurnCard', () => {
     card({ ...answerTurn, answers: [refused] });
     expect(screen.queryByRole('list', { name: 'Per drawing' })).toBeNull();
     expect(screen.getByRole('list', { name: 'Sources' })).toBeTruthy();
+  });
+
+  it('K7 the agent chat names the refused drawings: some refused under the ask card, all refused without one', () => {
+    mockApi({});
+    const name = (p: (typeof projectAsk.parts)[number]) =>
+      drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
+    card({ ...answerTurn, answers: [projectAsk] });
+    expect(screen.getAllByTestId('refused-drawings').map((l) => l.textContent)).toEqual([
+      `Not used: ${name(projectAsk.parts[2] as (typeof projectAsk.parts)[number])} gives no reliable number for it.`,
+    ]);
+    cleanup();
+    const refused = {
+      ...projectAsk,
+      parts: projectAsk.parts.map((p) => ({
+        ...p,
+        answer: { ...answerRefused, drawing_id: p.drawing_id },
+      })),
+    };
+    card({ ...answerTurn, answers: [refused] });
+    expect(screen.queryByRole('list', { name: 'Per drawing' })).toBeNull();
+    expect(screen.getAllByTestId('refused-drawings').map((l) => l.textContent)).toEqual([
+      `Not used: ${refused.parts.map((p) => `${name(p)} can't answer this question`).join('; ')}.`,
+    ]);
+  });
+
+  it('K7 a turn with several all-refused asks says which question each "Not used" line belongs to', () => {
+    mockApi({});
+    const refuse = (question: string) => ({
+      ...projectAsk,
+      question,
+      parts: projectAsk.parts.map((p) => ({
+        ...p,
+        answer: { ...answerRefused, drawing_id: p.drawing_id },
+      })),
+    });
+    card({ ...answerTurn, answers: [refuse('How many doors?'), refuse('How many windows?')] });
+    const lines = screen.getAllByTestId('refused-drawings').map((l) => l.textContent);
+    expect(lines[0]).toMatch(/^“How many doors\?” — Not used: /);
+    expect(lines[1]).toMatch(/^“How many windows\?” — Not used: /);
   });
 
   it("Tudor's smoke (1): an edit turn's Show it shows the card's own After plan, not the plan beside the chat", () => {

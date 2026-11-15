@@ -1,6 +1,7 @@
 import { type CSSProperties, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/ui/tip';
+import { LockTip } from '../shell/LockTip';
 import { VIEWER_TIPS } from '../shell/tips-viewer';
 import type { AnswerView, MarkView, PageView, QuantityConflict } from '../api/types';
 import { formatValue, methodName } from '../api/format';
@@ -466,7 +467,7 @@ export function PageViewer({
         <div className="vw-bar">
           {pages.length > 1 && (
             <div className="vw-switcher">
-              <Tip text={VIEWER_TIPS.prevPage} wrap>
+              <LockTip text={VIEWER_TIPS.prevPage} locked={index === 0}>
                 <Button
                   {...barButton}
                   aria-label="Previous page"
@@ -477,14 +478,14 @@ export function PageViewer({
                 >
                   ‹
                 </Button>
-              </Tip>
+              </LockTip>
               <Tip text={VIEWER_TIPS.pageLine} wrap>
                 <span>
                   Page {index + 1} of {pages.length} · {countText(onPage.length)}
                   {doubtPages.length > 0 && ` · ${String(doubtPages.length)} ${disputedLegend}`}
                 </span>
               </Tip>
-              <Tip text={VIEWER_TIPS.nextPage} wrap>
+              <LockTip text={VIEWER_TIPS.nextPage} locked={index === pages.length - 1}>
                 <Button
                   {...barButton}
                   aria-label="Next page"
@@ -495,7 +496,7 @@ export function PageViewer({
                 >
                   ›
                 </Button>
-              </Tip>
+              </LockTip>
             </div>
           )}
           <div className="vw-zoom">

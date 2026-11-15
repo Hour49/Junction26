@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCard';
@@ -10,6 +10,72 @@ import { ModelDialog } from '../model3d/ModelDialog';
 import { canShow3d } from '../model3d/model3d';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+type Part = ProjectAnswer['parts'][number];
+type RefusalCode = NonNullable<Part['answer']['refusal']>['code'];
+
+/** K7: what a refused drawing lacks, by refusal code (the backend's LACKS, singular). */
+const LACKS: Record<RefusalCode, string> = {
+  'no-reader': 'gives no reliable number for it',
+  'no-scale': 'has no scale',
+  'not-in-drawing': "doesn't show it",
+  'not-read': "wasn't read for it",
+  'unsupported-question': "can't answer this question",
+  'no-drawing': 'has no drawing model',
+};
+/** More refused drawings than this are grouped by reason ("Has no scale: A, B, C."). */
+const GROUP_ABOVE = 3;
+
+/** K7: the drawings that refused, named with what each lacks, in the API's order; none, nothing. Used under a
+ * project answer (ChatAnswer) and under the project chat's refusal when every drawing refuses (ProjectChat).
+ * `question` names the ask the line belongs to, for a turn that holds several. */
+export function RefusedLine(props: { parts: Part[]; project: ProjectView; question?: string }) {
+  const refused = props.parts.flatMap((p) =>
+    p.answer.refusal ? [{ p, code: p.answer.refusal.code }] : [],
+  );
+  if (refused.length === 0) return null;
+  const name = (p: Part) => (
+    <span className="en-part-name">
+      {drawingLabel(
+        props.project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name },
+      )}
+    </span>
+  );
+  const asked = props.question ? `“${props.question}” — ` : '';
+  if (refused.length <= GROUP_ABOVE)
+    return (
+      <p className="en-refused" data-testid="refused-drawings">
+        {asked}Not used:{' '}
+        {refused.map(({ p, code }, n) => (
+          <span key={p.drawing_id}>
+            {n > 0 && '; '}
+            {name(p)} {LACKS[code]}
+          </span>
+        ))}
+        .
+      </p>
+    );
+  const groups = new Map<RefusalCode, Part[]>();
+  for (const { p, code } of refused) groups.set(code, [...(groups.get(code) ?? []), p]);
+  return (
+    <p className="en-refused" data-testid="refused-drawings">
+      {asked}Not used.
+      {[...groups].map(([code, ps]) => (
+        <span key={code}>
+          {' '}
+          {LACKS[code].charAt(0).toUpperCase() + LACKS[code].slice(1)}:{' '}
+          {ps.map((p, n) => (
+            <Fragment key={p.drawing_id}>
+              {n > 0 && ', '}
+              {name(p)}
+            </Fragment>
+          ))}
+          .
+        </span>
+      ))}
+    </p>
+  );
+}
 
 /** "<Level> confidence" (CH-42), the backend's sentence as its tooltip (the shared Tip) when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
@@ -40,8 +106,11 @@ export function ChatAnswer(props: {
   const opener = useRef<HTMLButtonElement | null>(null);
   const current = parts[Math.min(at, parts.length - 1)];
   const has3d = (p: (typeof parts)[number]) => canShow3d(p.model_3d) && Boolean(p.model_file_id);
-  // ui-bugs 5: the shown drawing's own model, else the answer's building model; none: no button
-  const model3d = current && has3d(current) ? current : parts.find(has3d);
+  // W3 (look-check #404): the button only when the SHOWN drawing has a model; an IFC file is its own model,
+  // a 2D drawing's model is the building's (another file), so it says so
+  const model3d = current && has3d(current) ? current : undefined;
+  const ownModel =
+    model3d && project.drawings.find((d) => d.drawing_id === model3d.drawing_id)?.kind === 'ifc';
   // "2 doors" (EN-68's noun), as the demo's "11 doors"
   const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
   // The value the server shows (`answer`: an estimated area in whole m², #294), as the answer card says it (CH-48).
@@ -56,7 +125,10 @@ export function ChatAnswer(props: {
   const labelOf = (p: (typeof parts)[number]) =>
     drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
   // ui-bugs 7: why a value was refused or flagged stays on screen; the confidence sentence is behind "Why?"
-  const reason = (p: (typeof parts)[number]) => p.answer.check?.reason;
+  // CH-50: methods that disagree say which value was kept and why (their pill says it is below)
+  const reason = (p: (typeof parts)[number]) =>
+    p.answer.check?.reason ??
+    (p.answer.quantity?.status === 'conflict' ? (p.answer.explanation ?? undefined) : undefined);
   // CH-46: the reason already says it is an estimate and why (the backend quotes it): one line, not two
   const estimate = (p: (typeof parts)[number]) => {
     const e = p.answer.quantity?.estimate;
@@ -105,7 +177,11 @@ export function ChatAnswer(props: {
                           type="button"
                           variant="outline"
                           className="size-11 rounded-full text-xs font-bold"
-                          aria-label={`View in 3D: ${labelOf(model3d)}`}
+                          aria-label={
+                            ownModel
+                              ? `View in 3D: ${labelOf(model3d)}`
+                              : 'View the building model in 3D'
+                          }
                           onClick={(e) => {
                             opener.current = e.currentTarget;
                             setModel(model3d);
@@ -114,7 +190,9 @@ export function ChatAnswer(props: {
                           3D
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Open the 3D model</TooltipContent>
+                      <TooltipContent>
+                        {ownModel ? 'Open the 3D model' : 'Open the building model in 3D'}
+                      </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
@@ -137,6 +215,39 @@ export function ChatAnswer(props: {
               )}
             </>
           )}
+          <div className="en-side">
+            {/* ui-bugs 6: only the card of the drawing shown; W2: right under its image, no half-empty column */}
+            <ul className="en-parts" aria-label="Per drawing">
+              {current && (
+                <li key={current.drawing_id}>
+                  <span>
+                    <span className="en-part-name">{labelOf(current)}</span>:{' '}
+                    <strong>{value(current)}</strong>
+                  </span>
+                  {/* CH-49: a room total that may leave rooms out; the explanation names them */}
+                  <PartialTag a={current.answer} />
+                  {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
+                  {current.answer.quantity?.status === 'signed' ? (
+                    <span className="v-pill v-pill--ok">Signed off</span>
+                  ) : gradeOf(current.answer) ? (
+                    <LevelPill
+                      grade={gradeOf(current.answer) as Grade}
+                      text={current.answer.level?.text}
+                    />
+                  ) : (
+                    current.answer.quantity && (
+                      <StatusPill status={current.answer.quantity.status} />
+                    )
+                  )}
+                  {estimate(current) && <p className="en-estimate">{estimate(current)}</p>}
+                  {/* CH-43: why a value was refused or flagged, under the value */}
+                  {reason(current) && <p className="en-why">{reason(current)}</p>}
+                  <WhyToggle text={current.answer.level?.text} />
+                  <ResolverLines a={current.answer} />
+                </li>
+              )}
+            </ul>
+          </div>
           <div className="en-crefsbox">
             <span className="en-label">References</span>
             <ol className="en-crefs" aria-label="References">
@@ -167,38 +278,9 @@ export function ChatAnswer(props: {
             </ol>
           </div>
         </figure>
-        <div className="en-side">
-          {/* ui-bugs 6: only the card of the drawing shown on the left */}
-          <ul className="en-parts" aria-label="Per drawing">
-            {current && (
-              <li key={current.drawing_id}>
-                <span>
-                  <span className="en-part-name">{labelOf(current)}</span>:{' '}
-                  <strong>{value(current)}</strong>
-                </span>
-                {/* CH-49: a room total that may leave rooms out; the explanation names them */}
-                <PartialTag a={current.answer} />
-                {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
-                {current.answer.quantity?.status === 'signed' ? (
-                  <span className="v-pill v-pill--ok">Signed off</span>
-                ) : gradeOf(current.answer) ? (
-                  <LevelPill
-                    grade={gradeOf(current.answer) as Grade}
-                    text={current.answer.level?.text}
-                  />
-                ) : (
-                  current.answer.quantity && <StatusPill status={current.answer.quantity.status} />
-                )}
-                {estimate(current) && <p className="en-estimate">{estimate(current)}</p>}
-                {/* CH-43: why a value was refused or flagged, under the value */}
-                {reason(current) && <p className="en-why">{reason(current)}</p>}
-                <WhyToggle text={current.answer.level?.text} />
-                <ResolverLines a={current.answer} />
-              </li>
-            )}
-          </ul>
-        </div>
       </div>
+      {/* K7: orderParts keeps only the answering drawings; the refused ones are named here */}
+      <RefusedLine parts={ask.parts} project={project} />
       {model?.model_file_id && (
         <ModelDialog
           projectId={projectId}

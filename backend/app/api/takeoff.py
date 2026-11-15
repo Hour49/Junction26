@@ -207,7 +207,7 @@ def takeoff_csv(
         writer.writerow([_cell(cell) for cell in cells])
     stem = re.sub(r"[^A-Za-z0-9._-]", "_", PurePosixPath(found.file).stem) or "drawing"
     return Response(
-        content=out.getvalue(),
+        content="\ufeff" + out.getvalue(),  # a BOM, so Excel reads UTF-8 (umlauts, names)
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{stem}-takeoff.csv"'},
     )

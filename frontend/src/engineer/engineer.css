@@ -16,7 +16,8 @@
   flex-direction: column;
   gap: 20px;
 }
-.en-turn {
+.en-turn,
+.en-turn-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -281,6 +282,13 @@
   line-height: 1.05;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+/* A text answer (an IFC model's fact answer): its lines as written, at reading size */
+.en-value--text {
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+  white-space: pre-line;
 }
 .en-noun {
   font-size: 17px;
@@ -674,7 +682,8 @@ button.en-ref:hover,
 }
 .en-chatcard {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px; /* ui-bugs 9: the image gets the space */
+  /* W2: one column; the one drawing card sits under its image, not in a half-empty side column */
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
 }
 .en-chatcard p {
@@ -779,7 +788,7 @@ button.en-cref {
   font-size: 14px;
 }
 .en-chatcard .en-side {
-  padding: 16px;
+  padding: 0;
   gap: 10px;
 }
 .en-parts li {
@@ -863,4 +872,10 @@ button.en-cref {
   .en-chat--empty {
     padding-top: 24px;
   }
+}
+/* K7: the drawings left out of the answer */
+.en-refused {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--v-muted);
 }

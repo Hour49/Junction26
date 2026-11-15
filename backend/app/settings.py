@@ -204,6 +204,12 @@ class Settings(BaseSettings):
     # keeps each sheet as JSON across runs; "" keeps them in memory only
     ifc_facts: bool = False
     ifc_facts_cache: str = ""
+    # A scanned services or structural plan (triage's Sheet.discipline) read into a fact sheet at
+    # ingest by local readers, no model call (app/adapters/discipline_pictures/lane.py; spec
+    # discipline-pictures.md): "template" = OCR legend + template symbols + mask runs. Off: ingest
+    # is unchanged. The sheets are kept in the cache folder by the page file's content
+    discipline_pictures: Literal["off", "template"] = "off"
+    discipline_pictures_cache_dir: Path = Path("../data/cache/discipline-pictures")
     # golden's policy.json (answer_policy_v1): the families answered from the prior even when
     # the drawing gives a value (app/adapters/answer_policy.py); "" none
     answer_policy: str = ""
