@@ -6,7 +6,7 @@ An entry's sample is the ink left of its label, other text blanked, cut at the f
 thin stroke at least `LINE` times longer than tall is a line style (a run), other ink a symbol;
 a line with no sample is a group heading ("Heating") for the entries under it. The printed scale
 is the first text line that states a ratio ("1:50") and any scale bar: a long thin bar ending
-just left of a text line "<n> m".
+just left of a text line "<n> m", which agrees with a ratio the page prints, if it prints one.
 
 Shortcut: one legend block, top-down; a legend in several columns is read as its longest one;
 upgrade with the VLM legend reader (spec, open decision 2). A scale bar is taken as 0 to the
@@ -29,7 +29,15 @@ from app.core.drawing.model import Scale
 from app.core.picture_facts import LegendEntry, PictureReading
 from app.core.pipeline.model import DrawingFile, Sheet
 from app.core.pipeline.ports import DrawingFiles
-from app.core.pipeline.printed import PrintedSheet, ScaleBar, printed_scale, ratio_of, trusted_dpi
+from app.core.pipeline.printed import (
+    DPI_RANGE,
+    INCH_M,
+    PrintedSheet,
+    ScaleBar,
+    printed_scale,
+    ratio_of,
+    trusted_dpi,
+)
 
 HEADER = re.compile(
     r"^\W*(?:legend|legende|legenda|leyenda|légende|selite|selitykset|merkkien\s+selitykset|"
@@ -53,7 +61,9 @@ LATIN = re.compile(r"[A-Za-z0-9\u00c0-\u024f]")
 GLYPH = 2
 SPECK = 0.04  # ink smaller than this many square line heights is scan noise
 ROW_GAP = 2  # this many blank pixel rows part one legend row's sample from the next's
-BAR_LABEL = re.compile(r"^\W*(\d+(?:[.,]\d+)?)\s*m\b(?!\s*:)", re.I)  # "5 m", not "m:" text
+# "5 m", not "m:" text, "mm" or an area ("5 m2"); OCR on a scan glues the label to its ratio
+# ("5 m1:100", "5m1:100") or reads a speck as a period ("5.m 1:100")
+BAR_LABEL = re.compile(r"^\W*(\d+(?:[.,]\d+)?)\.?\s*m(?:\b(?!\s*:)|(?=\s*1\s*:\s*\d))", re.I)
 
 Line = tuple[str, tuple[float, float, float, float]]  # text, box in pixels
 Ink = tuple[int, int, int, int]  # x0, y0, x1, y1 in pixels, ends exclusive
@@ -80,9 +90,14 @@ def read_legend(
     h = float(np.median([box[3] - box[1] for _, box in texts])) if texts else 0.0
     _despeckle(gray, SPECK * h * h)
     samples = {n: _sample(gray, box, h) for n, (_, box) in enumerate(texts)}
+    ratios = [ratio for text, _ in lines if (ratio := ratio_of(text)) is not None]
     printed = PrintedSheet(
         printed_scale=next((text for text, _ in lines if ratio_of(text) is not None), None),
-        bars=tuple(bar for text, box in texts if (bar := _bar(gray, text, box, h))),
+        bars=tuple(
+            bar
+            for text, box in texts
+            if (bar := _bar(gray, text, box, h)) and _agrees(bar, ratios, gray.shape[1])
+        ),
     )
     block = _under_header(texts, h) or _column(texts, samples, h)
     height, width = gray.shape
@@ -228,6 +243,18 @@ def _bar(
         end=(x1 / width, mid),
         length_m=float(found[1].replace(",", ".")),
         text=text,
+    )
+
+
+def _agrees(bar: ScaleBar, ratios: list[float], width: int) -> bool:
+    """A bar agrees with the printed ratios when, at one of them, it implies a resolution in
+    DPI_RANGE; with no ratio printed, any bar does. A size label OCR'd as "15 m" beside a pipe stub
+    implies 14 dpi at 1:100 (clinic, 11x off)."""
+    px = (bar.end[0] - bar.start[0]) * width
+    if not ratios or px <= 0:
+        return not ratios
+    return any(
+        DPI_RANGE[0] <= ratio * INCH_M * px / bar.length_m <= DPI_RANGE[1] for ratio in ratios
     )
 
 
