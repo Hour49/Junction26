@@ -359,7 +359,7 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
         if not drawing.pages:  # the model file itself: its spaces of each room type (qa-a)
             typed = typed_spaces(items)
             if _all_typed(items):  # a type no space has is 0, not unknown (R4-C4)
-                typed = {kind: [] for kind in ROOM_TYPES if kind != "other"} | typed
+                typed = {kind: [] for kind in _zero_types(typed)} | typed
             for kind, same in sorted(typed.items()):
                 for model in (True, False):
                     key = quantity_key("count", f"room:{kind}", storey=storey, model=model)
@@ -383,6 +383,18 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
 
 
 MEP_TWIN = re.compile(r"\bMEP Space\b", re.IGNORECASE)  # a room's services copy (duplex-mep)
+
+
+# Room types a person (and the dataset: "bathrooms/toilets") reads as one: with a space of one,
+# the other is not 0 (a WC answers "Is there a bathroom?"; review-663 M1)
+SAME_ROOM = frozenset({"bathroom", "wc"})
+
+
+def _zero_types(typed: Mapping[str, object]) -> list[str]:
+    """The room types a fully typed scope gives 0 for: every type but "other" and those it has,
+    and neither of SAME_ROOM when it has one of them."""
+    near: frozenset[str] = SAME_ROOM if typed.keys() & SAME_ROOM else frozenset()
+    return [kind for kind in ROOM_TYPES if kind != "other" and kind not in near]
 
 
 def _all_typed(items: Iterable[ModelObject]) -> bool:

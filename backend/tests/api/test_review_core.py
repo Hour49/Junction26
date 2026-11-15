@@ -1329,9 +1329,10 @@ def test_a_room_type_no_space_has_is_0_when_every_space_is_typed() -> None:
     none a bathroom, was refused ("doesn't give the room bathroom count"): the takeoff wrote
     rows only for the types present. 0, Low like every typed count, and the rule says when."""
     typed = model_file(
-        {**space("m1", "L1", "A202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
-        {**space("m2", "L1", "A203", "Kitchen", 8.0), "attrs": {"room_type": "kitchen"}},
-        space("m3", "L1", "A203-M", "Kitchen MEP Space", 8.0),  # a services copy: not a room
+        {**space("m1", "Level 1", "A202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
+        {**space("m2", "Level 1", "A203", "Kitchen", 8.0), "attrs": {"room_type": "kitchen"}},
+        space("m3", "Level 1", "A203-M", "Kitchen MEP Space", 8.0),  # a services copy: not a room
+        {**space("m4", "Level 2", "B202", "Bedroom 2", 11.0), "attrs": {"room_type": "bedroom"}},
     )
     bathrooms = ask("How many bathrooms are there?", typed, parser=TemplateParser(),
                     clock=lambda: 0.0, prior=NoPrior(), state=ReviewState(), check=BIM_POLICY,
@@ -1340,8 +1341,28 @@ def test_a_room_type_no_space_has_is_0_when_every_space_is_typed() -> None:
     assert bathrooms.answer.sure is False
     assert bathrooms.level is not None and bathrooms.level.level == "low"
     assert bathrooms.row is not None and "no space is typed" in bathrooms.row.rule.text
-    assert asked("How many bathrooms are there on L1?", typed).answer.answer == 0
-    assert asked("How many bedrooms are there?", typed).answer.answer == 1  # unchanged
+    assert asked("How many bathrooms are there on Level 1?", typed).answer.answer == 0
+    assert asked("How many bedrooms are there on Level 1?", typed).answer.answer == 1  # the storey
+    assert asked("How many bedrooms are there?", typed).answer.answer == 2  # unchanged
+
+
+def test_a_wc_is_not_0_bathrooms_nor_a_bathroom_0_wcs() -> None:
+    """review-663 M1: people and the dataset ("bathrooms/toilets: 12") read a WC and a bathroom
+    as one kind of room, so a fully typed model with a WC is not "0 bathrooms": refused, as
+    before."""
+    with_wc = model_file(
+        {**space("m1", "Level 1", "A101", "WC", 2.0), "attrs": {"room_type": "wc"}},
+        {**space("m2", "Level 1", "A102", "Kitchen", 8.0), "attrs": {"room_type": "kitchen"}},
+    )
+    for text in ("How many bathrooms are there?", "Is there a bathroom?"):
+        found = asked(text, with_wc)
+        assert found.answer.answer is None and found.refusal is not None, text
+    assert asked("How many bedrooms are there?", with_wc).answer.answer == 0  # other types: 0
+    with_bath = model_file(
+        {**space("m1", "Level 1", "A101", "Bathroom", 5.0), "attrs": {"room_type": "bathroom"}},
+    )
+    assert asked("How many bathrooms are there?", with_bath).answer.answer == 1
+    assert asked("How many bedrooms are there?", with_bath).answer.answer == 0
 
 
 def test_a_room_type_count_stays_refused_when_a_space_is_not_typed() -> None:
