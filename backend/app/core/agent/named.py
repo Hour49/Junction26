@@ -18,11 +18,13 @@ MODEL_WORDS = re.compile(
 # the word before a drawing's name ("on Drawn plan 1", "Drawn plan 1 and Drawn plan 2")
 BEFORE = r"(?:\b(?:on|in|of|for|from|and|or)\b|,)"
 # A message about other drawings too ("Drawn plan 1 and the others", "besides Drawn plan 1",
-# "more than the other drawings", "which drawing"): the named drawings alone would answer for
-# them, or give the very number left out, so nothing is narrowed (review-693 M1)
+# "more than the other drawings", "which drawing", "the whole project", "in total, including"):
+# the named drawings alone would answer for them, or give the very number left out, so nothing
+# is narrowed (review-693 M1)
 OTHERS = re.compile(
     r"\b(?:others?|rest|except|besides|apart\s+from|excluding|not\s+counting|without|than"
-    r"|compar\w*|versus|vs)\b|\bwhich\s+(?:drawing|plan|sheet|model|file)"
+    r"|compar\w*|versus|vs|remaining|elsewhere|including|whole|entire|project|overall|altogether"
+    r"|in\s+total|across)\b|\bwhich\s+(?:drawing|plan|sheet|model|file)"
     r"|\b(?:every|each|all|both)\s+(?:of\s+)?(?:the\s+)?(?:drawings?|plans?|sheets?|files?|models?)\b",
     re.IGNORECASE,
 )

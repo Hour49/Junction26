@@ -165,3 +165,21 @@ def test_review_693_s1_no_fragment_is_left(question: str, names: list[str], aske
 def test_review_693_s1_a_page_named_without_its_comma() -> None:
     names = {"p1": "Drawn plan 1, page 1", "p2": "Drawn plan 1, page 2"}
     assert named_drawings("rooms on Drawn plan 1 page 2", names) == {"p2"}
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "How many rooms on Drawn plan 1 and the remaining drawings?",
+        "How many rooms in the whole project, and on Drawn plan 1?",
+        "How many rooms in total, including Drawn plan 1?",
+        "How many rooms on Drawn plan 1 and elsewhere?",
+        "Rooms across Drawn plan 1 and any other plan",
+        "Rooms on Drawn plan 1 and the entire set, altogether",
+        "Rooms overall, Drawn plan 1 too",
+    ],
+)
+def test_review_693_m1b_a_message_about_the_whole_project_narrows_to_none(message: str) -> None:
+    """review-693 M1 (second pass): "the remaining drawings", "the whole project", "in total,
+    including", "elsewhere" still narrowed to Drawn plan 1."""
+    assert named_drawings(message, NAMES) == set()
