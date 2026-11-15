@@ -581,6 +581,17 @@ def test_tudor_b3_a_left_out_door_to_a_habitable_room_is_named_not_denied() -> N
     )
 
 
+def test_fail1_a_door_left_out_by_a_room_of_no_known_type_reads_plainly() -> None:
+    """fail-1's #462 should: "also opens into an other room". A room typed "other" is one the
+    reader could not type; it may still print a name, so it is not called unnamed."""
+    odd = room(8, "other", box=CLOSET["box"])
+    door = element(2, "door", (0.38, 0.2, 0.42, 0.26))  # bedroom/odd-room wall
+    found = check_rule(drawing(rooms=[room(1), odd], elements=[door]), SCOPED)
+    assert found.status == "not_applicable"
+    assert "also opens into a room of unknown use, and this rule leaves out" in found.why
+    assert "other room" not in found.why.split("also opens")[1]
+
+
 def test_a_scoped_door_rule_without_rooms_read_cannot_tell() -> None:
     door = element(1, "door", (0.2, 0.38, 0.27, 0.42))
     found = check_rule(drawing(elements=[door], read=["door", "window"]), SCOPED)
