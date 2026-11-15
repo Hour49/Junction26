@@ -32,6 +32,7 @@ from app.core.review.review import (
     ValueChangedError,
     apply_on_takeoff,
     disputes,
+    model_twins,
     reset,
     review_queue,
     room_names_of,
@@ -39,7 +40,7 @@ from app.core.review.review import (
     settle_and_sign,
     sheet_row,
     sign,
-    storey_twins,
+    takeoff_twins,
     unsign,
     with_rejected_items,
     with_twins,
@@ -108,10 +109,13 @@ def takeoff_rows(
         named = as_uploaded(ingest, ingest.drawing_info(drawing_id), project)
         file, project = named.path, named.project_id
     quantities = known_quantities(drawing)
-    state = with_twins(reviews.get(project, drawing_id), storey_twins(quantities))
+    twins = takeoff_twins(quantities)
+    state = with_twins(reviews.get(project, drawing_id), twins)
     state = with_rejected_items(state, quantities)  # a rejected door is no room's (R4-B2)
     names = room_names_of(drawing)  # once for the drawing, not per row
-    rows = [row(found, drawing, state, RULES, names) for found in quantities.values()]
+    hidden = model_twins(quantities)  # a model file's row under its plain key (R4-B14)
+    shown = [found for key, found in quantities.items() if key not in hidden]
+    rows = [row(found, drawing, state, RULES, names) for found in shown]
     if not zeros:
         rows = [found for found in rows if found.value != 0 or found.status != "single"]
     return Takeoff(
@@ -179,7 +183,7 @@ def signoff(
     else:
         at = now()
         signing = settle_and_sign if body.settle else sign
-        twins = storey_twins(quantities)
+        twins = takeoff_twins(quantities)
 
         def signed(state: ReviewState) -> ReviewState:
             # the row as the takeoff shows it: twins' edits, and an item rejected on its sheet row

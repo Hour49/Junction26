@@ -50,6 +50,16 @@ per entry; an entry goes when its fix is merged.
   come from that reading, but the chat may quote the description, which nobody checks. A question in Finnish can
   miss a sheet the same question in English finds (a site plan sixth of 8 sources in Finnish, second in English;
   13 of 15 test questions found their source in the first 5). Measured on #267 at bc25177, not re-run (Sat 18:37)
+- K17 · major · backend · A place left out of a count is not applied: "How many windows are there, excluding the
+  bathroom?", "(except in the bathroom)", "(not in the bathroom)" and "How many doors are there (besides in the
+  kitchen)?" answer every window or door. The plain "... except in the bathroom?" refuses as it should. The parser
+  reads the left-out room as another class, which changes nothing (`_unapplied_exclusion` with `_overlaps` in
+  `question_templates.py`); seen on main ca404d42 (Sun 05:53; Sun 06:01)
+- K18 · minor · backend · A services picture's lengths are found by the system words in its line styles' names, and
+  the potable water codes PWC and PWH (EN 806) are not among them: "How long are the cold water pipes?" on a sheet
+  whose style is S_PWC says no run is labelled cold water, then lists the systems (#652) (Sun 06:01)
+- K19 · minor · backend · A project read before `DISCIPLINE_PICTURES` went on in the demo (#598, Sun 05:41) has no
+  services pictures; uploading its files again reads them, once, at about 0.03 USD a page (Sun 06:01)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).
@@ -61,6 +71,7 @@ per entry; an entry goes when its fix is merged.
 - The app has a light theme only and does not follow the system's dark mode (#403).
 - The pen (draw mode) is greyed out on a drawing that cannot be drawn on, with the reason: a scan or photo, a
   building model with no drawn plan, a sheet with no scale, rooms without outlines or no wall geometry (#407, #416).
-- A scan with no detected door gets no area scale from Carbon's door boxes (SCALE_CARBON_DOORS stays off), and
-  services drawn on a scan or photo are not read (DISCIPLINE_PICTURES stays off). The measured reasons
-  are in [PIPELINE.md §4](PIPELINE.md#4-settings-the-demo-config-and-what-stays-off).
+- A scan with no detected door gets no area scale from Carbon's door boxes (SCALE_CARBON_DOORS stays off). The
+  measured reasons are in [PIPELINE.md §4](PIPELINE.md#4-settings-the-demo-config-and-what-stays-off).
+- Every answer read from a services picture is Low and asks for a double-check, and a pipe or duct length read from
+  line colours says it is an estimate, with the reader's measured numbers (#652).

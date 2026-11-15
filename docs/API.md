@@ -734,7 +734,7 @@ Ingest's project status, plus `drawings`:
       "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",
@@ -3345,7 +3345,7 @@ upload lists the files, instead of one request per file.
         "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
         "kind": "pdf_vector",
         "state": "flagged",
-        "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+        "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
         "group": "plans/flat-b",
         "route": "vector",
         "source": "plans/flat-b.pdf",
@@ -4968,7 +4968,7 @@ many quantities are left to review and how many are signed off, and every confli
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
-      "quantities": 43
+      "quantities": 27
     }
   ],
   "conflicts": [
@@ -5130,7 +5130,7 @@ tell, and an uncertain answer with the model's check:
       "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
       "group": "flat-b",
       "route": "vector",
       "source": "flat-b.pdf",
@@ -9707,7 +9707,7 @@ still come from this turn's tool results).
 
 `next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
 message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
-results, never from the model's text, in this order: "Show them on the plan" (`message` "Show me where they are")
+results, never from the model's text, in this order: "Show me where they are" (its `message` the same, QA R4-E8)
 when the answer has more marks than the view shows; "Are you sure?" when an answer is rated Medium or Low or has
 disputed marks, not after a review; "How big is <label>?" when the answer names a room `find_rooms` returned without
 an area. `next` is `[]` on a turn with `options` and on every other kind.
@@ -10683,7 +10683,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   },
   "next": [
     {
-      "label": "Show them on the plan",
+      "label": "Show me where they are",
       "message": "Show me where they are"
     }
   ]
