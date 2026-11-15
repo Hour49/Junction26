@@ -348,3 +348,19 @@ def test_which_room_is_the_largest_is_as_trusted_as_the_weakest_area_it_compares
         is None
     )
     assert asked(question, drawing=plain, route="bim", state=signed).level is None
+
+
+@pytest.mark.parametrize(
+    ("yes_no", "count"),
+    [("Is there a door?", "How many doors?"), ("Is there a toilet?", "How many toilets?")],
+)
+def test_review_510_is_there_gets_the_counts_answer_level_and_check(
+    yes_no: str, count: str
+) -> None:
+    """review-510 should 1: "is there a X" is asked as the count, so it can never skip the
+    double-check or be more certain than the count (a 0 is "no" only as surely as the count)."""
+    said, counted = asked(yes_no, score=0.95), asked(count, score=0.95)
+    assert (said.answer.answer, said.answer.unit, said.answer.sure) == (
+        counted.answer.answer, counted.answer.unit, counted.answer.sure)  # fmt: skip
+    assert said.level == counted.level and said.level is not None
+    assert said.check == counted.check
