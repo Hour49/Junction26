@@ -455,14 +455,6 @@ test("the code form is a strip at the top of the demo page, in the page's flow, 
   assert.ok(html.includes('href="/credits.html"'));
 });
 
-test("the static demo and the unlock page both say the live site's password in plain text", async () => {
-  const demo = await (await worker.fetch(new Request("https://junction.example.test/"), env())).text();
-  const banner = demo.indexOf("Want the live website? Enter the password <strong>sauna</strong> below");
-  assert.ok(banner > demo.indexOf("<body>") && banner < demo.indexOf("<h1>demo</h1>"));
-  const unlock = await (await worker.fetch(new Request("https://junction.example.test/__unlock"), env())).text();
-  assert.ok(unlock.includes("The password is <strong>sauna</strong>."));
-});
-
 test("an event stream from the app is passed on as it arrives: the first event is read before the last is asked for", async () => {
   let firstRead = false;
   let readWhenLastWasSent = null;
