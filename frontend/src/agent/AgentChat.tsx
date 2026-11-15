@@ -99,6 +99,8 @@ function lastShown(rows: Done[]): Shown | null {
  * sent on open, starter chips when empty, follow-up chips after a turn (chat.md). */
 export function AgentChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
+  // Retry on the error view asks again (QA board #430: a backend blip left the screen stuck)
+  const [tries, setTries] = useState(0);
   const [start] = useState(() => kept(projectId));
   const [rows, setRows] = useState<Row[]>(start.rows);
   // The drawings' own suggestions, for the starter and follow-up chips; failures leave fewer (or none).
@@ -155,6 +157,15 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const photo = usePhotoAdd(projectId, (project) => {
     setLoad({ state: 'ready', project });
   });
+
+  // qa #430: the answer card's shown reference opens (and scrolls to) its drawing in the Files pane. Stable: the
+  // card calls it from an effect. Before the user opens or closes a file, it joins the default open ones.
+  const [followed, setFollowed] = useState<string | null>(null);
+  const onReference = useCallback((id: string) => {
+    setFollowed(id);
+    setOpened((o) => (o === null ? o : withId(o, id)));
+    setReveal((r) => ({ drawingId: id, n: (r?.n ?? 0) + 1 }));
+  }, []);
 
   // A turn's place: shown, and its file opened in the list (if the user had chosen which are open).
   const showView = useCallback((view: View) => {
@@ -256,7 +267,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       abort.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- start is the mount's kept thread
-  }, [projectId, openAsk, send]);
+  }, [projectId, openAsk, send, tries]);
 
   useEffect(() => {
     const done = rows.filter((r): r is Done => r.status === 'done');
@@ -281,13 +292,27 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   if (load.state === 'error') {
     return (
       <div className="en-page">
-        <ErrorView error={load.error} />
+        <ErrorView
+          error={load.error}
+          onRetry={() => {
+            setLoad({ state: 'loading' });
+            setTries((n) => n + 1);
+          }}
+        />
         <a href={`#/p/${projectId}`}>Back to the project</a>
       </div>
     );
   }
   const { project } = load;
-  const plans = askable(project.drawings).map((d) => ({ drawing_id: d.drawing_id, name: d.name }));
+  // qa #430: drawings with pages first, building models (no page) last, so the first open file is a plan.
+  // Before the drawings are read, an IFC model counts as having no page.
+  const noPage = (d: (typeof project.drawings)[number]) =>
+    drawn ? (drawn[d.drawing_id]?.pages.length ?? 0) === 0 : d.kind === 'ifc';
+  const listed = askable(project.drawings)
+    .map((d, i) => ({ d, i }))
+    .sort((a, b) => Number(noPage(a.d)) - Number(noPage(b.d)) || a.i - b.i)
+    .map(({ d }) => d);
+  const plans = listed.map((d) => ({ drawing_id: d.drawing_id, name: d.name }));
   const busy = rows.some((r) => r.status === 'pending');
   const chips = starters(lists);
   // Hidden while the newest turn offers its own chips or does not know (CH-36's rule for a refusal).
@@ -323,7 +348,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     if (!wide) setSheet(true);
   };
   const turns = rows.flatMap((r) => (r.status === 'done' ? [r.turn] : []));
-  const files: PaneFile[] = askable(project.drawings).map((d) => {
+  const files: PaneFile[] = listed.map((d) => {
     // model-3d.md "More places": the drawing's 3D model, its newest answer's elements highlighted
     const modelFile = project.files.find(
       (f) => f.drawing_id === d.drawing_id && canShow3d(f.model_3d),
@@ -331,6 +356,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return {
       drawing_id: d.drawing_id,
       label: drawingLabel(d),
+      file: d.file,
       model: modelFile
         ? { fileId: modelFile.id, highlight: paneHighlight(turns, d.drawing_id) }
         : null,
@@ -338,9 +364,15 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     };
   });
   // The first file is open by default; the shown place's file is open too, until the user closes it.
-  const first = plans[0]?.drawing_id;
+  // Opened by default (Bogdan, board #430): the first drawable drawing, so the pen works at once; else the first
+  // with a page; else the first listed.
+  const first = (files.find((f) => f.drawable) ?? listed.find((d) => !noPage(d)) ?? listed[0])
+    ?.drawing_id;
   const openIds =
-    opened ?? withId(first ? [first] : [], shown?.drawingId ?? first ?? '').filter(Boolean);
+    opened ??
+    withId(withId(first ? [first] : [], shown?.drawingId ?? first ?? ''), followed ?? '').filter(
+      Boolean,
+    );
   const pen = {
     on: drawMode,
     can: files.some((f) => f.drawable && openIds.includes(f.drawing_id)),
@@ -378,6 +410,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           ? undefined
           : () => {
               setSheet(false);
+              setDrawMode(false); // qa #430: the pen draws in the sheet; closed, typing is back
             }
       }
     />
@@ -398,6 +431,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           <PlanSheet
             onClose={() => {
               setSheet(false);
+              setDrawMode(false);
             }}
           >
             {plan}
@@ -440,6 +474,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           busy={busy}
           onAsk={ask}
           onShow={plan ? showSource(r.turn) : undefined}
+          onReference={plan ? onReference : undefined}
           onDecided={(edit) => {
             // Kept with the thread, so a restored card shows the decision, not Accept again.
             setRows((rs) =>

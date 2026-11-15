@@ -12,6 +12,7 @@ import {
 import { SourceFigure, type Place, type Source } from '../viewer/SourceFigure';
 import { Tip } from '@/components/ui/tip';
 import { REVIEW_TIPS } from '../shell/tips-review';
+import { SERVER_DOWN, serverDown } from '../shell/ErrorView';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -458,7 +459,11 @@ export function ConflictCard({
       </div>
       {error !== null && (
         <p role="alert" className="cf-error">
-          {error instanceof ApiError && error.status === 409 ? SIGNED : errorText(error).detail}
+          {error instanceof ApiError && error.status === 409
+            ? SIGNED
+            : serverDown(error)
+              ? SERVER_DOWN // QA #430: a proxy 502 in plain words
+              : errorText(error).detail}
         </p>
       )}
     </article>

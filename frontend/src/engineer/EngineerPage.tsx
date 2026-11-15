@@ -45,6 +45,8 @@ export function EngineerPage(props: {
 }) {
   const { projectId, drawingId } = props;
   const [load, setLoad] = useState<Load>({ state: 'loading' });
+  // Retry on the error view asks again (QA board #430: a backend blip left the screen stuck)
+  const [tries, setTries] = useState(0);
   const [turns, setTurns] = useState<Turn[]>([]);
   const nextId = useRef(1);
   const pending = useRef(false);
@@ -100,7 +102,7 @@ export function EngineerPage(props: {
     return () => {
       abort.abort();
     };
-  }, [drawingId, projectId, openAsk, ask]);
+  }, [drawingId, projectId, openAsk, ask, tries]);
 
   // Again when the answer arrives: the card is taller than the pending line. CSS scroll-margin keeps it
   // clear of the sticky header and ask box.
@@ -114,7 +116,13 @@ export function EngineerPage(props: {
   if (load.state === 'error') {
     return (
       <div className="en-page">
-        <ErrorView error={load.error} />
+        <ErrorView
+          error={load.error}
+          onRetry={() => {
+            setLoad({ state: 'loading' });
+            setTries((n) => n + 1);
+          }}
+        />
         <a href={`#/p/${projectId}`}>Back to the project</a>
       </div>
     );

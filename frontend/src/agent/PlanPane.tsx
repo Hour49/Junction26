@@ -53,6 +53,8 @@ export function paneFocus(
 export interface PaneFile {
   drawing_id: string;
   label: string;
+  /** The source file's name (qa #430: "Drawn plan 2" alone does not say which plan). */
+  file?: string;
   /** Its 3D model (model-3d.md "More places"): its file and what to highlight. */
   model: { fileId: string; highlight: readonly Highlight[] } | null;
   /** The pen can draw on it (canDraw). */
@@ -126,6 +128,9 @@ function FileRow(props: {
     if (reveal > 0) row.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }, [reveal]);
   const bodyId = `ag-file-${drawingId}`;
+  // The name stays the button's name; the file under it is its description (muted, cut to one line).
+  const base = file.file?.split('/').at(-1);
+  const shownFile = base && base !== label ? base : null;
   return (
     <li ref={row} className="flex flex-col gap-2 border-b border-border pb-2 last:border-b-0">
       <div className="flex items-center gap-2">
@@ -136,12 +141,24 @@ function FileRow(props: {
             className="h-auto w-full justify-start px-2 py-2 text-left text-[15px] font-semibold whitespace-normal"
             aria-expanded={open}
             aria-controls={bodyId}
+            aria-describedby={shownFile ? `${bodyId}-file` : undefined}
             onClick={onToggle}
           >
             <span aria-hidden="true" className="text-muted-foreground">
               {open ? '▾' : '▸'}
             </span>
-            {label}
+            <span className="flex min-w-0 flex-col">
+              {label}
+              {shownFile && (
+                <span
+                  id={`${bodyId}-file`}
+                  aria-hidden="true"
+                  className="truncate text-xs font-normal text-muted-foreground"
+                >
+                  {shownFile}
+                </span>
+              )}
+            </span>
           </Button>
         </h3>
       </div>
@@ -186,7 +203,12 @@ function FileRow(props: {
               type="button"
               variant="secondary"
               size="pill-icon"
-              className="absolute top-2 right-2 z-10 shadow-sm"
+              // qa #430: over a page's top-right corner; a drawing with no page has text there, so it goes under it
+              className={
+                drawing?.pages.length
+                  ? 'absolute top-2 right-2 z-10 shadow-sm'
+                  : 'self-start shadow-sm'
+              }
               aria-label={`View in 3D: ${label}`}
               onClick={() => {
                 setOpen3d(true);

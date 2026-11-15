@@ -57,7 +57,8 @@ function projectWith(triagedB: 'other_drawing' | null): ProjectView {
 }
 
 function show(ask: ProjectAnswer = projectAsk, proj: ProjectView = projectWith(null)) {
-  render(<ChatAnswer ask={ask} project={proj} projectId={project.id} pack={null} />);
+  // a fresh object per render: the picked reference is kept per answer object (qa #430 item 3)
+  render(<ChatAnswer ask={{ ...ask }} project={proj} projectId={project.id} pack={null} />);
 }
 const refs = () =>
   within(screen.getByRole('list', { name: 'References' })).getAllByRole('listitem');
@@ -268,7 +269,7 @@ it('CH-42 one pill per row: Signed off, else the level with its text, else the s
       { ...flatB, answer: signed },
     ],
   });
-  const a = rows()[0] as HTMLElement;
+  const a = rowAt(0); // the higher level opens first (QA-1): choose reference 1
   const pill = a.querySelector('.v-pill') as HTMLElement;
   expect(pill.textContent).toBe('Medium confidence');
   expect(pill.getAttribute('title')).toBeNull();
@@ -323,7 +324,7 @@ it('CH-43 ui-bugs 7: check.reason stays under the value; the confidence sentence
       { ...flatB, answer: { ...answerHigh, check: null } },
     ],
   });
-  const a = rows()[0] as HTMLElement;
+  const a = rowAt(0); // the higher level opens first (QA-1): choose reference 1
   expect(a.querySelector('.en-why')?.textContent).toBe(answerMedium.check?.reason);
   const b = rowAt(1);
   expect(b.querySelector('.en-why')).toBeNull();
@@ -497,4 +498,81 @@ it('W3 the round "3D" button only when the shown drawing has a model; a 2D drawi
   cleanup();
   show();
   expect(screen.queryByRole('button', { name: /in 3D/ })).toBeNull();
+});
+
+it('QA-1 (#430) a multi-drawing answer opens on the most useful reference: a page, a non-zero value, the highest level', () => {
+  const zero = { ...flatA, answer: { ...flatA.answer, answer: 0, level: answerHigh.level } };
+  const some = { ...flatB, answer: { ...flatB.answer, answer: 36, level: answerMedium.level } };
+  show({ ...projectAsk, parts: [zero, some] });
+  expect(figure().getAttribute('aria-label')).toBe('Reference 2 of 2');
+  expect(rows()[0]?.textContent).toContain(`${LB}: 36`);
+  cleanup();
+  // two non-zero values with a page: the higher level wins
+  const low = { ...flatA, answer: { ...flatA.answer, level: answerMedium.level } };
+  const high = { ...flatB, answer: { ...flatB.answer, level: answerHigh.level } };
+  show({ ...projectAsk, parts: [low, high] });
+  expect(figure().getAttribute('aria-label')).toBe('Reference 2 of 2');
+  cleanup();
+  // a building model (no page) is never opened first, whatever its value
+  const model = {
+    ...flatB,
+    answer: { ...flatB.answer, pages: [], answer: 77, level: answerHigh.level },
+  };
+  show({ ...projectAsk, parts: [flatA, model] });
+  expect(figure().getAttribute('aria-label')).toBe('Reference 1 of 2');
+});
+
+it('QA-2 (#430) the card says what the number counts: the quantity label and its rule', () => {
+  show();
+  const q = flatA.answer.quantity as NonNullable<typeof flatA.answer.quantity>;
+  const line = (rows()[0] as HTMLElement).querySelector('.en-counts');
+  expect(line?.textContent).toBe(
+    `${q.label.charAt(0).toUpperCase()}${q.label.slice(1)}: ${q.rule.text}.`,
+  );
+});
+
+it('QA-3 (#430) the picked reference survives a remount (the layout switch at the phone width)', () => {
+  const ask = { ...projectAsk };
+  const view = render(
+    <ChatAnswer ask={ask} project={projectWith(null)} projectId={project.id} pack={null} />,
+  );
+  fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
+  view.unmount();
+  render(<ChatAnswer ask={ask} project={projectWith(null)} projectId={project.id} pack={null} />);
+  expect(figure().getAttribute('aria-label')).toBe('Reference 2 of 2');
+});
+
+it('QA-5 (#430) a count without a noun takes its quantity label: "2 apartments", "1 apartment"', () => {
+  const q = flatA.answer.quantity as NonNullable<typeof flatA.answer.quantity>;
+  const count = (n: number) => ({
+    ...flatA,
+    answer: {
+      ...flatA.answer,
+      answer: n,
+      unit: 'count' as const,
+      quantity: { ...q, noun: null, label: 'apartment', measure: 'count' as const },
+    },
+  });
+  show({ ...projectAsk, parts: [count(2)] });
+  expect(rows()[0]?.textContent).toContain(`${LA}: 2 apartments`);
+  cleanup();
+  show({ ...projectAsk, parts: [count(1)] });
+  expect(rows()[0]?.textContent).toContain(`${LA}: 1 apartment`);
+  expect(rows()[0]?.textContent).not.toContain('1 apartments');
+});
+
+it('QA-6 (#430) onReference gets the shown drawing on open and on every switch', () => {
+  const onReference = vi.fn();
+  render(
+    <ChatAnswer
+      ask={{ ...projectAsk }}
+      project={projectWith(null)}
+      projectId={project.id}
+      pack={null}
+      onReference={onReference}
+    />,
+  );
+  expect(onReference.mock.calls).toEqual([[flatA.drawing_id]]);
+  fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
+  expect(onReference.mock.calls).toEqual([[flatA.drawing_id], [flatB.drawing_id]]);
 });

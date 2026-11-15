@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCard';
@@ -10,6 +10,36 @@ import { ModelDialog } from '../model3d/ModelDialog';
 import { canShow3d } from '../model3d/model3d';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+type Part = ProjectAnswer['parts'][number];
+type Quantity = Part['answer']['quantity'];
+
+/** The reference each answer shows, kept across remounts (the agent chat swaps its layout at the phone width). */
+const PICKED = new WeakMap<ProjectAnswer, number>();
+const LEVEL_RANK = { high: 3, medium: 2, low: 1 } as const;
+
+/** The most useful reference to open on (qa #430): one with a page and a non-zero value, highest level first;
+ * else the first with a page; else the first. */
+export function bestReference(parts: readonly Part[]): number {
+  const score = (p: Part) =>
+    (p.answer.pages.length > 0 ? 100 : 0) +
+    (typeof p.answer.answer === 'number' && p.answer.answer !== 0 ? 10 : 0) +
+    (p.answer.level ? LEVEL_RANK[p.answer.level.level] : 0);
+  let best = 0;
+  parts.forEach((p, i) => {
+    if (score(p) > score(parts[best] as Part)) best = i;
+  });
+  return best;
+}
+
+/** A count's noun when the backend gave none: its quantity's label ("apartment" -> "2 apartments"). */
+function countNoun(q: Quantity, value: Part['answer']['answer']): string | null {
+  if (!q || q.measure !== 'count' || !/^[a-z][a-z ]*$/i.test(q.label)) return null;
+  const word = q.label.toLowerCase();
+  return value === 1 || word.endsWith('s') ? word : `${word}s`;
+}
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** K7: what a refused drawing lacks, by refusal code (the backend's LACKS, singular). */
 const LACKS: Record<
@@ -38,18 +68,20 @@ export function ChatAnswer(props: {
   project: ProjectView;
   projectId: string;
   pack: string | null;
+  /** Called with the shown reference's drawing (on open and on every change), e.g. to follow it in a Files pane. */
+  onReference?: (drawingId: string) => void;
 }) {
-  const { ask, project, projectId } = props;
+  const { ask, project, projectId, onReference } = props;
   const parts = orderParts(ask.parts, project.files);
   // K7: the drawings that refused, named with what each lacks (orderParts keeps only the answering ones)
   const refused = ask.parts.filter((p) => p.answer.refusal !== null);
-  // The reference shown: the first with a page; a building model (no page) shows "No preview" when chosen.
-  const [at, setAt] = useState(() =>
-    Math.max(
-      0,
-      parts.findIndex((p) => p.answer.pages.length > 0),
-    ),
-  );
+  // The reference shown: the most useful one (qa #430), kept per answer so a layout switch (a remount when the
+  // window crosses the phone width) does not reset it.
+  const [at, setAtState] = useState(() => PICKED.get(ask) ?? bestReference(parts));
+  const setAt = (n: number) => {
+    PICKED.set(ask, n);
+    setAtState(n);
+  };
   // model-3d.md part 2: the part whose 3D view is open, and the button that opened it (focus goes back)
   const [model, setModel] = useState<(typeof parts)[number] | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -60,13 +92,17 @@ export function ChatAnswer(props: {
   const model3d = current && has3d(current) ? current : undefined;
   const ownModel =
     model3d && project.drawings.find((d) => d.drawing_id === model3d.drawing_id)?.kind === 'ifc';
-  // "2 doors" (EN-68's noun), as the demo's "11 doors"
+  const shownId = current?.drawing_id;
+  useEffect(() => {
+    if (shownId) onReference?.(shownId);
+  }, [shownId, onReference]);
+  // "2 doors" (EN-68's noun), as the demo's "11 doors"; a count without one takes its quantity's label (qa #430)
   const noun = (n: string | null | undefined) => (n ? ` ${n}` : '');
   // The value the server shows (`answer`: an estimated area in whole m², #294), as the answer card says it (CH-48).
   const value = (p: (typeof parts)[number]) =>
     typeof p.answer.answer === 'number'
       ? shownValue(p.answer.answer, p.answer.unit, Boolean(p.answer.quantity?.estimate)) +
-        noun(p.answer.quantity?.noun)
+        noun(p.answer.quantity?.noun ?? countNoun(p.answer.quantity, p.answer.answer))
       : (p.answer.answer ?? '');
   // The total is in whole m² when a part in it is an estimate (the backend's _total), so it reads as they do.
   const estimated = parts.some((p) => p.answer.refusal === null && p.answer.quantity?.estimate);
@@ -172,6 +208,12 @@ export function ChatAnswer(props: {
                   </span>
                   {/* CH-49: a room total that may leave rooms out; the explanation names them */}
                   <PartialTag a={current.answer} />
+                  {/* qa #430: what the number counts, as the engineer's card says it */}
+                  {current.answer.quantity && (
+                    <p className="en-counts en-small">
+                      {cap(current.answer.quantity.label)}: {current.answer.quantity.rule.text}.
+                    </p>
+                  )}
                   {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
                   {current.answer.quantity?.status === 'signed' ? (
                     <span className="v-pill v-pill--ok">Signed off</span>

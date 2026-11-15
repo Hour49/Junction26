@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tip } from '@/components/ui/tip';
 import { useInfo } from '../shell/info';
 import { TIPS } from '../shell/tips';
@@ -9,6 +8,9 @@ import { TIPS } from '../shell/tips';
  * only know the file name. */
 export const PHOTO_ACCEPT =
   'image/png,image/jpeg,image/tiff,image/webp,.png,.jpg,.jpeg,.tif,.tiff,.webp';
+
+/** The question box while the pen is on (qa #430): how to type again, short enough for 390 px. */
+export const PEN_ON = 'Pen on: press Esc or the pen to type';
 
 /** Why the pen is off for a scan or photo (ui-bugs 1). */
 export const CANT_DRAW =
@@ -25,7 +27,6 @@ export interface Pen {
 }
 
 function PenButton({ pen }: { pen: Pen }) {
-  const [tip, setTip] = useState(false);
   const icon = (
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path
@@ -38,44 +39,29 @@ function PenButton({ pen }: { pen: Pen }) {
       />
     </svg>
   );
-  if (pen.can)
-    return (
+  // qa #430: both pens carry the shared Tip (hover, focus, tap). The greyed one is aria-disabled, not disabled:
+  // a disabled button gets no hover, focus or tap, so its tip could not show.
+  const tip = pen.can
+    ? pen.on
+      ? 'Pen on: click a room or drag a rectangle. Press Esc or the pen to type again.'
+      : 'Draw on the plan: click a room or drag a rectangle.'
+    : pen.reason
+      ? `You can't draw on this plan: ${pen.reason}.`
+      : CANT_DRAW;
+  return (
+    <Tip text={tip}>
       <Button
         type="button"
         variant={pen.on ? 'secondary' : 'ghost'}
         size="pill-icon"
         aria-label="Draw on the plan"
-        aria-pressed={pen.on}
-        title={pen.on ? 'Stop drawing (Esc)' : 'Draw on the plan: click a room or drag a rectangle'}
-        onClick={pen.onToggle}
+        {...(pen.can ? { 'aria-pressed': pen.on } : { 'aria-disabled': true })}
+        className={pen.can ? undefined : 'opacity-50'}
+        onClick={pen.can ? pen.onToggle : undefined}
       >
         {icon}
       </Button>
-    );
-  // aria-disabled, not disabled: a disabled button gets no hover, focus or tap, so the tip could not show.
-  return (
-    <TooltipProvider>
-      <Tooltip open={tip} onOpenChange={setTip}>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="pill-icon"
-            aria-label="Draw on the plan"
-            aria-disabled="true"
-            className="opacity-50"
-            onClick={() => {
-              setTip(true);
-            }}
-          >
-            {icon}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-60">
-          {pen.reason ? `You can't draw on this plan: ${pen.reason}.` : CANT_DRAW}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    </Tip>
   );
 }
 
@@ -149,13 +135,7 @@ export function AskBox(props: {
         <input
           id="en-question"
           value={text}
-          placeholder={
-            drawing
-              ? phone
-                ? 'Click or drag on the plan'
-                : 'Click a room or drag a rectangle on the plan'
-              : `Ask about ${phone && short ? short : file}`
-          }
+          placeholder={drawing ? PEN_ON : `Ask about ${phone && short ? short : file}`}
           disabled={drawing}
           autoComplete="off"
           aria-describedby={tooLong ? 'en-too-long' : undefined}

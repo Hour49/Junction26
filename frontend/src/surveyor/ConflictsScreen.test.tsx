@@ -17,6 +17,7 @@ import { ProjectReviewSide } from './ProjectReviewSide';
 import { ConflictsList } from './ConflictsScreen';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { REVIEW_TIPS } from '../shell/tips-review';
+import { SERVER_DOWN } from '../shell/ErrorView';
 
 // The source figure is fe-viewer's; here a double recording its props and counting its mounts.
 const fig = vi.hoisted(() => ({ props: [] as SourceFigureProps[], mounts: 0 }));
@@ -379,6 +380,16 @@ describe('ConflictsList', () => {
       'This value is signed off. Undo the sign-off in the surveyor workspace first.',
     );
     expect(within(c).getByText('Your choice')).toBeTruthy();
+  });
+
+  it('QA #430 a 502 on settle says the server is restarting, not "the server answered 502"', async () => {
+    show({ [PATH.edit]: reply(502, '<html>Bad Gateway</html>') });
+    await ready();
+    const c = card(base.label);
+    click(within(c).getByRole('button', { name: 'Modify' }));
+    click(tile(c, 1));
+    const alert = await within(c).findByRole('alert');
+    expect(alert.textContent).toBe(SERVER_DOWN);
   });
 
   it('CF-10 a card that needs a person: open tiles, none pressed, the typed box shown', async () => {

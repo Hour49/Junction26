@@ -74,6 +74,8 @@ export function ChecksScreen({
   const [projectAnswer, setProject] = useState<Keyed<ProjectView> | null>(null);
   const [checksAnswer, setChecks] = useState<Keyed<ProjectChecks> | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Retry on the project's error view asks again (QA board #430)
+  const [projectTries, setProjectTries] = useState(0);
   const [pickedAnswer, setPicked] = useState<{
     key: string;
     drawingId: string;
@@ -96,7 +98,7 @@ export function ChecksScreen({
     return () => {
       abort.abort();
     };
-  }, [projectId, hasPack]);
+  }, [projectId, hasPack, projectTries]);
   const project: Load<ProjectView> =
     projectAnswer?.key === projectId ? projectAnswer.load : { state: 'loading' };
 
@@ -168,7 +170,16 @@ export function ChecksScreen({
   if (!pack)
     return page(<p className={LINE}>Choose a country in the header to run its pre-check.</p>);
   if (project.state === 'loading') return page(<Loading label="Loading the checks…" />);
-  if (project.state === 'error') return page(<ErrorView error={project.error} />);
+  if (project.state === 'error')
+    return page(
+      <ErrorView
+        error={project.error}
+        onRetry={() => {
+          setProject(null);
+          setProjectTries((n) => n + 1);
+        }}
+      />,
+    );
   const p = project.value;
 
   // fail_means says what a fail means for this pack: shown only when a rule failed

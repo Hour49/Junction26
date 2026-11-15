@@ -196,6 +196,8 @@ export function TurnCard(props: {
   onDecided?: (p: Proposal) => void;
   /** Set when the plan is beside the chat: `[n]` and "Show it" show the place there. */
   onShow?: (e: Evidence) => void;
+  /** The drawing an answer card shows (on open and on each switch): the chat opens it in the Files pane. */
+  onReference?: (drawingId: string) => void;
 }) {
   const { turn, projectId, project, pack, busy, onAsk } = props;
   // The ask chat's card for each answer some drawing answered. Its References number drawings, so the Sources list
@@ -220,7 +222,14 @@ export function TurnCard(props: {
       )}
       <Text turn={turn} projectId={projectId} pack={pack} onShow={onShow} />
       {answers.map((a, i) => (
-        <ChatAnswer key={i} ask={a} project={project} projectId={projectId} pack={pack} />
+        <ChatAnswer
+          key={i}
+          ask={a}
+          project={project}
+          projectId={projectId}
+          pack={pack}
+          onReference={props.onReference}
+        />
       ))}
       {turn.kind !== 'needs_input' && options.length > 0 && (
         <p className="en-small">{OPTIONS_LABEL}</p>

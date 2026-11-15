@@ -3,12 +3,13 @@
 import type { ComponentProps } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { drawing, info, project } from '../api/fixtures';
+import { drawing, info, project, projectAsk } from '../api/fixtures';
+import { stubResizeObserver } from '../test/resizeObserver';
 import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
 import { AgentChat } from './AgentChat';
-import { paneFocus, viewMarks } from './PlanPane';
+import { paneFocus, PlanPane, viewMarks } from './PlanPane';
 import { unionBox, viewOf, type ChatTurn, type View } from './agent';
 import { answerTurn, conflictTurn, DID, dontKnowTurn, model } from './fixtures';
 
@@ -158,6 +159,36 @@ it('W1 the pane never sends a zoom box: the page opens whole, a focused source i
   expect(paneFocus(null, null)).toBeNull();
 });
 
+it('qa #430 the 3D circle sits over a page, but under the text of a drawing with no page', () => {
+  const pane3d = (pages: unknown[]) => (
+    <PlanPane
+      projectId={PID}
+      files={[
+        {
+          drawing_id: DID,
+          label: 'Building model 1',
+          model: { fileId: 'f1', highlight: [] },
+          drawable: false,
+        },
+      ]}
+      open={[DID]}
+      drawn={{ [DID]: { ...drawing, pages } as typeof drawing }}
+      view={null}
+      focus={null}
+      reveal={null}
+      drawMode={false}
+      onToggle={vi.fn()}
+      onPick={vi.fn()}
+    />
+  );
+  const button = () => screen.getByRole('button', { name: 'View in 3D: Building model 1' });
+  render(pane3d([]));
+  expect(button().className).not.toContain('absolute'); // in the flow: it cannot cover the "no page" line
+  cleanup();
+  render(pane3d(drawing.pages));
+  expect(button().className).toContain('absolute');
+});
+
 describe('the plan beside the chat (wide window)', () => {
   it("shows the project's first drawing before any turn, with no marks", async () => {
     open(viewTurn);
@@ -252,7 +283,7 @@ describe('the plan beside the chat (wide window)', () => {
     });
     const names = within(pane())
       .getAllByRole('heading', { level: 3 })
-      .map((h) => h.textContent.slice(1)); // after the ▸/▾ mark
+      .map((h) => h.querySelector('button > span:last-child')?.firstChild?.textContent); // the label
     expect(names).toEqual([
       'Drawn plan 1',
       'Drawn plan 2',
@@ -271,6 +302,101 @@ describe('the plan beside the chat (wide window)', () => {
     expect(nameButton('Drawn plan 1').getAttribute('aria-expanded')).toBe('false');
     expect(within(row('Drawn plan 1')).queryByTestId('viewer')).toBeNull();
     expect(within(row('Drawn plan 2')).getByTestId('viewer')).toBeTruthy();
+  });
+
+  it('qa #430 each name has its source file under it (muted), as its description', async () => {
+    open(viewTurn);
+    const button = await waitFor(() => nameButton('Drawn plan 2'));
+    expect(within(row('Drawn plan 2')).getByText('flat-b.pdf').className).toContain(
+      'text-muted-foreground',
+    );
+    expect(button.getAttribute('aria-describedby')).toBe(
+      within(row('Drawn plan 2')).getByText('flat-b.pdf').id,
+    );
+  });
+
+  it('#430 the first DRAWABLE drawing opens by default, so the pen works at once; the order stays', async () => {
+    const [d1, d2, , , model3d] = project.drawings;
+    if (!d1 || !d2 || !model3d) throw new Error('fixture drawings');
+    const sample = {
+      ...project,
+      drawings: [
+        { ...d1, drawable: false },
+        { ...d2, drawable: true, not_drawable_reason: null },
+        model3d,
+      ],
+    };
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    mockApi({
+      [`GET /api/projects/${PID}`]: sample,
+      ...Object.fromEntries(
+        sample.drawings.map((d) => [
+          `GET /api/drawings/${d.drawing_id}`,
+          { ...drawing, id: d.drawing_id },
+        ]),
+      ),
+    });
+    render(<AgentChat projectId={PID} />);
+    await waitFor(() => {
+      expect(within(row('Drawn plan 2')).getByTestId('viewer')).toBeTruthy();
+    });
+    expect(nameButton('Drawn plan 1').getAttribute('aria-expanded')).toBe('false');
+    const names = within(pane())
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.querySelector('button > span:last-child')?.firstChild?.textContent);
+    expect(names).toEqual(['Drawn plan 1', 'Drawn plan 2', 'Building model 1']);
+  });
+
+  it('qa #430 a building model with no page is listed last, so the first open file is a plan', async () => {
+    const [d1, d2, , , model3d] = project.drawings;
+    if (!d1 || !d2 || !model3d) throw new Error('fixture drawings');
+    // the upload's IFC sorted first, as on mix.zip; its drawing has no page
+    const first = { ...project, drawings: [model3d, d1, d2] };
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    mockApi({
+      [`GET /api/projects/${PID}`]: first,
+      [`GET /api/drawings/${model3d.drawing_id}`]: {
+        ...drawing,
+        id: model3d.drawing_id,
+        pages: [],
+      },
+      [`GET /api/drawings/${d1.drawing_id}`]: { ...drawing, id: d1.drawing_id },
+      [`GET /api/drawings/${d2.drawing_id}`]: { ...drawing, id: d2.drawing_id },
+    });
+    render(<AgentChat projectId={PID} />);
+    await waitFor(() => {
+      expect(within(row('Drawn plan 1')).getByTestId('viewer')).toBeTruthy();
+    });
+    const names = within(pane())
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.querySelector('button > span:last-child')?.firstChild?.textContent);
+    expect(names).toEqual(['Drawn plan 1', 'Drawn plan 2', 'Building model 1']);
+    expect(nameButton('Building model 1').getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('qa #430 the answer card switching to another reference opens and reveals that drawing in the pane', async () => {
+    stubResizeObserver();
+    open({ ...answerTurn, answers: [projectAsk] });
+    await send('How many doors are there?');
+    const refs = await screen.findByRole('list', { name: 'References' });
+    expect(within(row('Drawn plan 2')).queryByTestId('viewer')).toBeNull();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- the beforeAll mock, read for its calls
+    const scroll = vi.mocked(Element.prototype.scrollIntoView);
+    scroll.mockClear();
+    fireEvent.click(within(refs).getByRole('button', { name: /Drawn plan 2/ }));
+    await waitFor(() => {
+      expect(within(row('Drawn plan 2')).getByTestId('viewer')).toBeTruthy();
+    });
+    expect(nameButton('Drawn plan 2').getAttribute('aria-expanded')).toBe('true');
+    expect(scroll.mock.contexts).toContain(row('Drawn plan 2'));
   });
 
   it('ui-bugs 2 [n] on a closed file opens it with its marks and scrolls it into view', async () => {

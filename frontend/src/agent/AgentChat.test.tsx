@@ -257,6 +257,7 @@ it('ui-bugs 1 with no reason from the backend the pen says the generic sentence'
   mockApi({ [`GET /api/projects/${PID}`]: bare, ...drawings, [CHAT]: answerTurn });
   render(<AgentChat projectId={PID} />);
   const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
+  fireEvent.pointerDown(pen, { pointerType: 'touch' }); // a tap
   fireEvent.click(pen);
   expect((await screen.findByRole('tooltip')).textContent).toContain(
     "You can't draw on this plan: it is a photo/scan.",
@@ -281,6 +282,7 @@ it('ui-bugs 1 on a photo or scan the pen is greyed out and says why on focus; a 
   const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
   await new Promise((r) => setTimeout(r, 0));
   expect(pen.getAttribute('aria-disabled')).toBe('true');
+  fireEvent.pointerDown(pen, { pointerType: 'touch' }); // a tap
   fireEvent.click(pen);
   // the backend's own reason, not the generic sentence
   const tip = (await screen.findByRole('tooltip')).textContent;
@@ -289,6 +291,42 @@ it('ui-bugs 1 on a photo or scan the pen is greyed out and says why on focus; a 
   expect(screen.getByLabelText('Question')).toHaveProperty('disabled', false);
   expect(document.querySelector('.ag-drawing')).toBeNull();
   vi.unstubAllGlobals();
+});
+
+it('qa #430 the enabled pen has the shared tip on keyboard focus; on, it says how to type again', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  open(answerTurn);
+  const pen = await screen.findByRole('button', { name: 'Draw on the plan' });
+  await waitFor(() => {
+    expect(pen.getAttribute('aria-disabled')).toBeNull();
+  });
+  expect(pen.getAttribute('title')).toBeNull(); // no native title any more
+  pen.focus();
+  expect((await screen.findByRole('tooltip')).textContent).toContain('Draw on the plan');
+  fireEvent.click(pen);
+  expect(screen.getByLabelText('Question').getAttribute('placeholder')).toBe(
+    'Pen on: press Esc or the pen to type',
+  );
+  vi.unstubAllGlobals();
+});
+
+it('qa #430 closing the plan sheet on a narrow window puts the pen down: typing is back', async () => {
+  open(answerTurn);
+  await pointer(); // pen on: the sheet opens with the first file
+  const sheet = screen.getByRole('dialog', { name: 'The plan' });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+  expect(screen.queryByRole('dialog', { name: 'The plan' })).toBeNull();
+  expect(screen.getByLabelText('Question')).toHaveProperty('disabled', false);
+  expect(
+    screen.getByRole('button', { name: 'Draw on the plan' }).getAttribute('aria-pressed'),
+  ).toBe('false');
 });
 
 it('CH-18 agent chat: a photo read as a plan makes a project with no askable drawing askable', async () => {

@@ -4,7 +4,7 @@ import { ApiError } from '../api';
 import { error as errorBody, project } from '../api/fixtures';
 import { ProjectScreen } from '../ingest/ProjectScreen';
 import { mockApi, reply } from '../test/mockApi';
-import { ErrorView } from './ErrorView';
+import { ErrorView, SERVER_DOWN } from './ErrorView';
 import { Loading } from './Loading';
 import { cleanup } from '@testing-library/react';
 
@@ -33,6 +33,27 @@ describe('common views', () => {
     expect(screen.getByRole('alert').textContent).toContain('code: client');
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('QA #430 no answer, 502, 503 and 504 say the server is restarting; the code stays, small', () => {
+    for (const down of [
+      new ApiError(0, 'network', 'cannot reach the server'),
+      ...[502, 503, 504].map(
+        (n) => new ApiError(n, `http-${String(n)}`, `the server answered ${String(n)}`),
+      ),
+    ]) {
+      const { unmount } = render(<ErrorView error={down} onRetry={vi.fn()} />);
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toContain(SERVER_DOWN);
+      expect(alert.textContent).not.toContain(down.detail);
+      expect(alert.textContent).toContain(`code: ${down.code}`);
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+      unmount();
+    }
+    // any other error keeps the server's own words
+    render(<ErrorView error={new ApiError(500, 'internal', 'internal error')} />);
+    expect(screen.getByRole('alert').textContent).toContain('internal error');
+    expect(screen.queryByText(SERVER_DOWN)).toBeNull();
   });
 
   it('R2-qa-3-2 (SH-48) a 404 offers Back to workspaces, not Retry', () => {

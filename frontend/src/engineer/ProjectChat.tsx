@@ -41,6 +41,8 @@ export function ProjectChat(props: { projectId: string; query?: URLSearchParams 
  * question"). */
 function AskChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
+  // Retry on the error view asks again (QA board #430: a backend blip left the screen stuck)
+  const [tries, setTries] = useState(0);
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const nextId = useRef(1);
   const pending = useRef(false);
@@ -103,7 +105,7 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
     return () => {
       abort.abort();
     };
-  }, [projectId, openAsk, ask]);
+  }, [projectId, openAsk, ask, tries]);
 
   const last = turns.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
@@ -119,7 +121,13 @@ function AskChat({ projectId, query }: { projectId: string; query?: URLSearchPar
   if (load.state === 'error') {
     return (
       <div className="en-page">
-        <ErrorView error={load.error} />
+        <ErrorView
+          error={load.error}
+          onRetry={() => {
+            setLoad({ state: 'loading' });
+            setTries((n) => n + 1);
+          }}
+        />
         <a href={`#/p/${projectId}`}>Back to the project</a>
       </div>
     );
