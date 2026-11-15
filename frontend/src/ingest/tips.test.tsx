@@ -27,10 +27,10 @@ async function focus(el: HTMLElement, text: string) {
 }
 
 describe('ingest tips (P1)', () => {
-  it('"Try the sample project" explains the sample', async () => {
+  it('"Try a sample project" explains the sample', async () => {
     mockApi({});
     render(<HomeScreen />);
-    await hover(screen.getByRole('button', { name: 'Try the sample project' }), INGEST_TIPS.sample);
+    await hover(screen.getByRole('button', { name: 'Try a sample project' }), INGEST_TIPS.sample);
   });
 
   it('"Drawings ready" and "Set aside" explain their numbers', async () => {

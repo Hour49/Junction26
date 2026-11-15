@@ -14,14 +14,14 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
 
   await test.step('GP-2 step 1: home', async () => {
     await page.goto('/#/');
-    await expect(page.getByRole('button', { name: 'Try the sample project' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try a sample project' })).toBeVisible();
     await shot(page, testInfo, '01-home', offline);
   });
 
   let pid = '';
   let flatB = { id: '', label: '' };
   await test.step('GP-3 GP-41 GP-42 GP-45 P2: the sample ingests; the finished screen', async () => {
-    await page.getByRole('button', { name: 'Try the sample project' }).click();
+    await page.getByRole('button', { name: 'Try a sample project' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
     pid = /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
     await expect(filesThrough(page)).toHaveText('12 / 12', { timeout: 30_000 });

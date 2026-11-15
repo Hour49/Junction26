@@ -41,10 +41,10 @@ export function filesThrough(page: Page) {
   return page.locator('dt', { hasText: 'Files through' }).locator('+ dd');
 }
 
-/** Home → "Try the sample project" (fresh=true) → all 12 files through; returns the project id. */
+/** Home → "Try a sample project" (fresh=true) → all 12 files through; returns the project id. */
 export async function startSample(page: Page): Promise<string> {
   await page.goto('/#/');
-  await page.getByRole('button', { name: 'Try the sample project' }).click();
+  await page.getByRole('button', { name: 'Try a sample project' }).click();
   await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
   await expect(filesThrough(page)).toHaveText('12 / 12', { timeout: 30_000 });
   return /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';

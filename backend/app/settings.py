@@ -304,6 +304,9 @@ class Settings(BaseSettings):
     model_3d_timeout_s: float = Field(default=120, gt=0)
     # The synthetic demo archive (backend/scripts/make_sample_archive.py writes it); for /sample
     sample_archive: Path = Path("../data/samples/sample-project.zip")
+    # The curated sample projects the home screen offers besides it (GET /api/projects/samples):
+    # {"samples": [{"id", "title", "blurb", "tags", "zip"}]}, each zip in the manifest's folder
+    sample_manifest: Path = Path("../data/demo/samples.json")
     # Where a drawing's licence credit is looked up by content (app/adapters/credits.py): the
     # Stoa dataset (its data/<source>/LICENSE.md) and the Commons demo photos (manifest.jsonl)
     credit_dataset: Path = Path("../data/stoa/full/junction-dataset")

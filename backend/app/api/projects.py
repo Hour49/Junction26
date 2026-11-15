@@ -265,6 +265,35 @@ class _Sample(BaseModel):
     project_id: str
 
 
+class SampleOption(BaseModel):
+    """One sample project the home screen offers ("Try a sample project")."""
+
+    id: str
+    title: str
+    blurb: str = ""
+    tags: list[str] = []
+
+
+class SampleList(BaseModel):
+    samples: list[SampleOption]
+
+
+class _ManifestEntry(SampleOption):
+    zip: str
+
+
+class _Manifest(BaseModel):
+    samples: list[_ManifestEntry]
+
+
+SYNTHETIC_SAMPLE = SampleOption(
+    id="sample",
+    title="Small sample project",
+    blurb="A made-up flat: drawn plans, scans, phone photos and a small IFC model.",
+    tags=["PDF", "Images", "IFC"],
+)
+
+
 @router.get("")
 def project_list(
     request: Request, ingest: IngestDep, reviews: ReviewsDep, settings: SettingsDep
@@ -369,18 +398,39 @@ def sample(
     reviews: ReviewsDep,
     settings: SettingsDep,
     fresh: bool = False,
+    sample_id: Annotated[str | None, Query(alias="id", max_length=64)] = None,
 ) -> Started:
-    """The synthetic sample archive. `fresh`: the review edits of the last sample run are reset."""
-    # Built on first use; never refused as busy: it is small, and it is the demo's first click.
-    if not settings.sample_archive.is_file():
-        _build_sample(settings.sample_archive)
-    record = settings.projects_dir / "api" / "sample.json"
+    """A sample project: `id` one of GET /samples (none or "sample": the synthetic archive).
+    `fresh`: the review edits of the last run of that sample are reset."""
+    if sample_id is None or sample_id == SYNTHETIC_SAMPLE.id:
+        # Built on first use; never refused as busy: it is small, and it is the demo's first click.
+        if not settings.sample_archive.is_file():
+            _build_sample(settings.sample_archive)
+        record = settings.projects_dir / "api" / "sample.json"
+        name, data = SAMPLE_NAME, settings.sample_archive.read_bytes()
+    else:
+        archive = _sample_archive(settings.sample_manifest, sample_id)
+        record = settings.projects_dir / "api" / f"sample-{sample_id}.json"
+        name, data = archive.name, archive.read_bytes()
     if fresh and record.is_file():
         _reset_project(ingest, reviews, _Sample.model_validate_json(record.read_text()).project_id)
-    started = _start(ingest, SAMPLE_NAME, settings.sample_archive.read_bytes(), fresh)
+    started = _start(ingest, name, data, fresh)
     _write(record, _Sample(project_id=started.id).model_dump_json())
     _resolve_when_done(request.app.state, started.id)
     return started
+
+
+@router.get("/samples")
+def samples(settings: SettingsDep) -> SampleList:
+    """The sample projects to offer: the curated manifest's (SAMPLE_MANIFEST), then the synthetic
+    one, which is always there."""
+    return SampleList(
+        samples=[
+            SampleOption.model_validate(entry.model_dump())
+            for entry in _manifest(settings.sample_manifest)
+        ]
+        + [SYNTHETIC_SAMPLE]
+    )
 
 
 @router.get("/{project_id}")
@@ -760,6 +810,32 @@ def _build_sample(path: Path) -> None:
             path,
         )
         raise NotFoundError("The sample project isn't available on this server") from None
+
+
+def _manifest(path: Path) -> list[_ManifestEntry]:
+    """The curated samples (data/demo/samples.json): none when it is missing or broken (logged), so
+    the synthetic sample still works."""
+    if not path.is_file():
+        return []
+    try:
+        entries = _Manifest.model_validate_json(path.read_bytes()).samples
+    except (OSError, ValueError):
+        log.exception("the sample manifest %s is unreadable; offering the built-in sample", path)
+        return []
+    return [entry for entry in entries if entry.id != SYNTHETIC_SAMPLE.id]
+
+
+def _sample_archive(manifest: Path, sample_id: str) -> Path:
+    """The zip of a curated sample, which must sit inside the manifest's folder."""
+    entry = next((e for e in _manifest(manifest) if e.id == sample_id), None)
+    if entry is None:
+        raise NotFoundError(f"there is no sample {sample_id!r}")
+    folder = manifest.parent.resolve()
+    archive = (folder / entry.zip).resolve()
+    if not archive.is_relative_to(folder) or not archive.is_file():
+        log.error("sample %r: %s is not a file inside %s", sample_id, entry.zip, folder)
+        raise NotFoundError("That sample project isn't available on this server")
+    return archive
 
 
 def _reset_project(ingest: Ingest, reviews: ReviewStore, project_id: str) -> None:
