@@ -281,6 +281,25 @@ export function planCounts(project: ProjectView): {
   };
 }
 
+/**
+ * Drawings the sheet-kind step called not a drawing at all (a screenshot): kept and read because the step only
+ * warns, but no drawing ready (QA R4-A9, API.md `not_a_drawing`, left out when false).
+ */
+export function notDrawings(project: Pick<ProjectView, 'drawings'>): number {
+  return project.drawings.filter((d) => d.not_a_drawing).length;
+}
+
+/**
+ * The file page's side of `not_a_drawing` (backend core/ingest/triage.py `not_a_drawing`): the sheet-kind step
+ * doubted the sheet and called it not a drawing, and nobody has had it read as a floor plan since.
+ */
+export function calledNotADrawing(file: Pick<FileStatus, 'triage'>): boolean {
+  const t = file.triage;
+  return (
+    !!t && !t.read_as_plan && t.sheet?.decision === 'doubt' && t.sheet.kind === 'not_a_drawing'
+  );
+}
+
 /** How many quantities the drawings have ready. */
 export function quantityCount(project: ProjectView): number {
   return drawingFiles(project).reduce((n, f) => n + Object.keys(f.takeoff ?? {}).length, 0);

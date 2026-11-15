@@ -132,6 +132,14 @@ export function saidByStage(stepDid: string, stageDid: string): boolean {
   return false;
 }
 
+/**
+ * A measured time in the trace (AD-128): under 0.01 ms, which `formatMs` rounds to a fake-looking "0.00 ms", it
+ * reads "<0.01 ms", as `formatCost` says "<$0.01". 0 exactly is not timed: callers show no time for it (`untimed`).
+ */
+export function traceMs(ms: number): string {
+  return ms > 0 && ms < 0.01 ? '<0.01 ms' : formatMs(ms);
+}
+
 /** A step the server did not time: done with 0 ms exactly (the second count's checks today). */
 export const untimed = (s: Step): boolean => s.state === 'done' && s.ms === 0;
 
