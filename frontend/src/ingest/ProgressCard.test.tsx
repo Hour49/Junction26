@@ -515,6 +515,7 @@ describe('ProgressCard: pipeline view v5', () => {
         ranStep('rooms', { done: 1 }),
         ranStep('carbon', { skipped: 1 }),
         ranStep('double_check:l1', { done: 1 }),
+        ranStep('prior_scale', { skipped: 1 }),
       ],
     };
     // a finished project opened fresh: nothing was seen running, `ran` says what ran
@@ -534,7 +535,7 @@ describe('ProgressCard: pipeline view v5', () => {
       'Gemini cross-check · did not run',
       'double check by 2 more readers✓',
       'Gemini reader · not needed here', // only skipped: the sheet had enough symbols
-      'scale from door sizes', // no step of its own: nothing to tell
+      'scale from door sizes · not needed here', // `prior_scale` only skipped: a scale was read
     ]);
     const dim = must(
       within(lane('Image'))
@@ -605,7 +606,12 @@ describe('ProgressCard: pipeline view v5', () => {
       'describes sheets that are not plans (Gemini) · did not run',
       'keep or set aside (rules) · not needed here',
     ]);
-    const dim = must(screen.getByText(/did not run/).closest('li'));
+    const sorting = screen.getByRole('list', { name: 'Sorting' });
+    const dim = must(
+      within(sorting)
+        .getByText(/did not run/)
+        .closest('li'),
+    );
     expect(dim.dataset.dimmed).toBe('true');
     cleanup();
     // a file in its classifier step: the sheet-kind chip is the one running

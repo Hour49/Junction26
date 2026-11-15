@@ -321,6 +321,7 @@ const CHIP_STEPS: Record<string, readonly string[]> = {
   'photo detector': ['detector'],
   'Gemini for sheets with few symbols': ['carbon'],
   'Gemini reader': ['carbon'],
+  'scale from door sizes': ['prior_scale'], // backend raster_scale STEP_ID (#651)
 };
 
 /** Each reader chip's step ids on this project. */

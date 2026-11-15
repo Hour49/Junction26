@@ -209,7 +209,9 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
       chipCovers('symbol detector', { id: null, label: 'Symbol detector, 8 views' }, known),
     ).toBe(true);
     // a chip with no known id (or a step label as a chip): label only
-    expect(chipSteps('scale from door sizes', known)).toEqual([]);
+    expect(chipSteps('tiles for big sheets', known)).toEqual([]);
+    // the door-size scale estimate has its own step since #651
+    expect(chipSteps('scale from door sizes', known)).toEqual(['prior_scale']);
     expect(chipCovers('Wall tracer', { id: 'walls', label: 'Wall tracer' }, known)).toBe(true);
   });
 
@@ -226,7 +228,10 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     expect(chipRan('Gemini reader', [r('carbon', 0, 2)], known)).toBe('skipped');
     expect(chipRan('Gemini reader', [r('probe', 3)], known)).toBe('absent');
     expect(chipRan('Gemini reader', undefined, known)).toBeNull(); // an older project
-    expect(chipRan('scale from door sizes', [r('probe', 3)], known)).toBeNull(); // no known id
+    expect(chipRan('tiles for big sheets', [r('probe', 3)], known)).toBeNull(); // no known id
+    // the door-size scale (#651): skipped when a scale was read, no page, or the doors were not read
+    expect(chipRan('scale from door sizes', [r('prior_scale', 1)], known)).toBe('ran');
+    expect(chipRan('scale from door sizes', [r('prior_scale', 0, 2)], known)).toBe('skipped');
   });
 
   it('IN-102 things found: plain counts only, each drawing once (not its other renderings)', () => {

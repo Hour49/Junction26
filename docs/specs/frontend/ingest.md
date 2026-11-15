@@ -780,8 +780,9 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   ifc_vs_sheet, schedule_tags, scale_check, room_areas; "Gemini cross-check" ← carbon_check; "Gemini reader" / "for
   sheets with few symbols" ← carbon; "printed scale (Gemini)" ← printed_scale; "photo flattening" ← rectifier;
   "schedule tables" ← tables; "drawn-PDF reader" ← vector; "IFC model reader" ← ifc. The chip running now is found
-  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("scale
-  from door sizes", "tiles for big sheets": no step of their own). [unit: `chipStepsOf`, `chipSteps`,
+  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("tiles
+  for big sheets": no step of its own). "scale from door sizes" ← prior_scale (#651, 2026-11-15; before it had no
+  step and was never ticked or dimmed: changed on purpose with IN-123's and IN-124's tests). [unit: `chipStepsOf`, `chipSteps`,
   `chipHasStep`, `chipCovers`; component]
 - IN-124 (`ProjectStatus.ran`): a chip one of whose ids ended done or failed on a file of its route gets its "ran"
   tick, also on a finished project opened fresh (nothing seen running). Once every file of the lane has ended, a
