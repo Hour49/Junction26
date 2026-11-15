@@ -283,6 +283,23 @@ describe('ProjectScreen', () => {
     );
   });
 
+  it('IN-108 (QA R4-E6) the Conflicts tile counts what the list under it counts', async () => {
+    // the server's own count said 0 while the list read "1 conflict found · 1 settled by a rule"
+    mockApi({ [GET]: { ...project, conflicts_open: 0 } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Conflicts')).toBe('—'); // the list has not loaded yet
+    const onCounts = must(must(vi.mocked(ConflictsList).mock.lastCall)[0].onCounts);
+    act(() => {
+      onCounts({ total: 1, needsPerson: 0 });
+    });
+    expect(stat('Conflicts')).toBe('0 open of 1');
+    act(() => {
+      onCounts({ total: 0, needsPerson: 0 });
+    });
+    expect(stat('Conflicts')).toBe('0');
+  });
+
   it('no DXF hint when the set-aside files are not DXF', async () => {
     mockApi({
       [GET]: {

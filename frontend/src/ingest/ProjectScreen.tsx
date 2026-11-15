@@ -300,6 +300,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
           <ProgressCard
             project={project}
             now={at}
+            conflicts={counts}
             actions={<ChatRow projectId={projectId} project={project} counts={counts} />}
             footer={<DoneLine projectId={projectId} project={project} counts={counts} />}
           />

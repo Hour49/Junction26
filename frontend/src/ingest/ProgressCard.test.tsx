@@ -6,7 +6,7 @@ import { project } from '../api/fixtures';
 import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { LANE_ROWS, nameEnds, splitPath } from './RouteLanes';
-import { ProgressCard } from './ProgressCard';
+import { ProgressCard, conflictsStat } from './ProgressCard';
 import type { RanStep } from './pipeline';
 import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must, sampleRun } from './testing';
 
@@ -319,9 +319,32 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(statOf('Flagged')).toBe('0');
     expect(statOf('Cost')).toBe('$0.03');
     cleanup();
-    render(<ProgressCard project={{ ...project, conflicts_open: 2 }} now={Date.now()} />);
+    // the conflicts list's counts, never the server's conflicts_open (QA R4-E6)
+    render(
+      <ProgressCard
+        project={{ ...project, conflicts_open: 0 }}
+        conflicts={{ total: 2, needsPerson: 2 }}
+        now={Date.now()}
+      />,
+    );
     expect(statOf('Conflicts')).toBe('2');
     expect(statOf('Flagged')).toBe('1');
+  });
+
+  it('IN-108 (QA R4-E6) Conflicts: "0 open of 1" once one is settled, the count alone otherwise', () => {
+    expect(conflictsStat(null)).toBe('—');
+    expect(conflictsStat({ total: 0, needsPerson: 0 })).toBe('0');
+    expect(conflictsStat({ total: 3, needsPerson: 3 })).toBe('3');
+    expect(conflictsStat({ total: 1, needsPerson: 0 })).toBe('0 open of 1');
+    expect(conflictsStat({ total: 3, needsPerson: 1 })).toBe('1 open of 3');
+    render(
+      <ProgressCard
+        project={{ ...project, conflicts_open: 0 }}
+        conflicts={{ total: 1, needsPerson: 0 }}
+        now={Date.now()}
+      />,
+    );
+    expect(statOf('Conflicts')).toBe('0 open of 1');
   });
 
   it('IN-109 the last phase: Index with what it runs (index_steps), named from the server phase', () => {
