@@ -809,7 +809,9 @@ def _room_kinds(words: Sequence[str]) -> frozenset[str] | None:
 # its spaces names no room
 _AREA_OF = re.compile(
     r"\btotal (?P<before>[^\W\d_]+)(?= area\b)"
-    r"|\barea (?:of|for) (?:the |all (?:of )?(?:the )?|every |its |this )?(?P<of>[^\W\d_]+)"
+    r"|\barea (?:of|for) (?:the |all (?:of )?(?:the )?|both (?:of )?(?:the )?|every |its |this )?"
+    # a number before the noun says how many, not which ("the two bedrooms", "all 3 kitchens")
+    r"(?:(?:\d+|two|three|four|five|six|seven|eight|nine|ten) )?(?P<of>[^\W\d_]+(?: [^\W\d_]+)*)"
     # "rooms labelled 'Büro'": the label is the room word
     r"|\b(?:labell?ed|named|called)\s+(?:as\s+)?[\"'\u2018\u201c\u201e\u00ab]?(?P<label>\w[\w/-]*)",
     re.IGNORECASE,
@@ -819,6 +821,17 @@ _NOT_A_ROOM = frozenset(
     floor floors plan drawing sheet page storey level layout apartment flat dwelling unit house
     room rooms space spaces indoor interior internal numbered net usable this these whole entire
     gross building model project file each the a an all every its
+    living habitable heated residential home property main
+    """.split()  # noqa: SIM905 (a word list reads better as text)
+)
+
+# Where a noun phrase after "area of" ends: the words that start what follows it ("all rooms on this
+# floor", "the home in m²")
+_PHRASE_END = frozenset(
+    """
+    on in at of for with within inside across and or per by from to including excluding except
+    without is are as that which shown drawn only together combined m m² m2 sqm sq square metres
+    meters ft feet
     """.split()  # noqa: SIM905 (a word list reads better as text)
 )
 
@@ -834,9 +847,17 @@ def _area_room_word(asked: str, facts: _Facts) -> str | None:
         for word in _tokens(str(fact.value))
     }
     for found in _AREA_OF.finditer(asked):
-        word = (found.group("before") or found.group("of") or found.group("label")).casefold()
-        if word not in _NOT_A_ROOM and word not in names:
-            return word
+        if found.group("of") is None:
+            word = (found.group("before") or found.group("label")).casefold()
+            if word not in _NOT_A_ROOM and word not in names:
+                return word
+            continue
+        # the noun phrase, read on past the model's words: "the main offices" (review-755)
+        for word in found.group("of").casefold().split():
+            if word in _PHRASE_END:
+                break
+            if word not in _NOT_A_ROOM and word not in names:
+                return word
     return None
 
 
