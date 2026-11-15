@@ -5,7 +5,8 @@ refused (named with what each lacks) and the card of a drawing only when its tex
 
 from typing import Any
 
-from test_agent_loop import Model, Tools, call, final, step, turn
+import pytest
+from test_agent_loop import HALL, Model, Tools, call, final, step, turn
 
 PLAN, MODEL = "1" * 16, "2" * 16
 REFUSED = {
@@ -58,3 +59,46 @@ def test_an_answer_keeps_every_card() -> None:
     )
     got = turn(model, Tools(ask_drawings=ASKED))
     assert [p["drawing_id"] for a in got.answers for p in a["parts"]] == [MODEL, PLAN]
+
+
+@pytest.mark.parametrize(
+    ("label", "text"),
+    [
+        ("Dormitorio", "The area of room 1DER-COC is shown below [ev_1]."),  # ifc-r1 row 4
+        ("Flat", "The area of flat 2B is shown below [ev_1]."),
+    ],
+)
+def test_ifc_r1_row_4_a_room_code_is_no_number_of_the_text_s_own(label: str, text: str) -> None:
+    """ifc-r1 row 4 (main 031d74db, after #656/#679): "The area of room 1DER-COC is shown below
+    [1]." still said no value: the 1 of the room's code read as the text's own number, and the
+    cited mark's label is not the code, so #679's label strip does not take it out."""
+    found = {
+        **HALL,
+        "parts": [
+            {
+                **HALL["parts"][0],
+                "answer": {
+                    **HALL["parts"][0]["answer"],
+                    "answer": 12.43,
+                    "marks": [{"id": "m1", "page": 1, "box": [0.1, 0.1, 0.2, 0.2], "label": label}],
+                },
+            }
+        ],
+    }
+    model = Model(step(call("ask_drawings", question="q")), final(text=text))
+    got = turn(model, Tools(ask_drawings=found))
+    assert got.text.endswith(": 12.43 m²."), got.text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The hall is 156sqm, shown below [ev_1].",
+        "The hall is 156m2, shown below [ev_1].",
+        "The hall is 156 m², shown below [ev_1].",
+    ],
+)
+def test_a_number_with_its_unit_is_still_the_text_s_own(text: str) -> None:
+    model = Model(step(call("ask_drawings", question="q")), final(text=text))
+    got = turn(model, Tools(ask_drawings=HALL))
+    assert got.text == text.replace("[ev_1]", "[1]")

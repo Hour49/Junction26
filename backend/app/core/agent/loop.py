@@ -82,6 +82,9 @@ UNBACKED = "I could not back that answer with what the drawings say."
 SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³", "ft2": " ft²", "ft": " ft"}
 # a lead that leaves the values to the answer card under it, as the prompt asks
 TO_THE_CARD = re.compile(r"\bbelow\b", re.I)
+# a room or flat code that starts with its digits ("1DER-COC", "2B"), not a number with its unit
+# ("156m2", "120mm"): no value of the text's own (ifc-r1 row 4)
+CODE = re.compile(r"\b\d+(?!(?:sq[a-z]*|mm|cm|dm|km|m|ft|in)(?:\b|\d|²|³))[a-z][\w-]*", re.I)
 # the show chip's label and message, one text (QA R4-E8); "show me" routes it (prompt, chat_rules)
 SHOW_THEM = "Show me where they are"
 AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
@@ -982,7 +985,7 @@ class _Run:
         labels = [str(places[ev]["label"]) for ev in cited if places.get(ev, {}).get("label")]
         for name in sorted([*self.names.values(), *labels], key=len, reverse=True):
             text = text.replace(name, " ")
-        if claims(re.sub(r"\[\d+\]", " ", text)):
+        if claims(CODE.sub(" ", re.sub(r"\[\d+\]", " ", text))):
             return None
         listed: list[Json] = []
         for given in answers:
