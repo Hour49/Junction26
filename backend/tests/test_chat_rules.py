@@ -498,6 +498,33 @@ def test_review_483_ties_read_as_a_list_and_feet_are_compared_in_metres() -> Non
     assert args["text"] == "a.pdf has the smallest floor area: 9.29 m² [ev_1]."
 
 
+def test_a_comparison_over_answers_in_different_units_is_refused_not_ranked() -> None:
+    """qa-c's nit on #483: answers that cannot be put in one unit (a count next to an area, a
+    length next to an area) are not compared; ranking 9 doors against 10 m² would name a winner
+    of two different things. The reply says the units."""
+    mixed = {
+        "answered": [
+            {"drawing": "a.pdf", "answer": 9, "unit": "count", "ev": "ev_1"},
+            {"drawing": "b.pdf", "answer": 10, "unit": "m2", "ev": "ev_2"},
+        ]
+    }
+    for question in ("Which drawing has the largest floor area?", "Which plan has the most doors?"):
+        _, args = plan(question, ("ask_drawings", {}, mixed))
+        assert (args["kind"], args["text"]) == (
+            "dont_know",
+            "The drawings answer in different units (count, m2).",
+        )
+        assert args["evidence_ids"] == []
+    feet = {
+        "answered": [
+            {"drawing": "a.pdf", "answer": 30, "unit": "ft", "ev": "ev_1"},
+            {"drawing": "b.pdf", "answer": 10, "unit": "m2", "ev": "ev_2"},
+        ]
+    }
+    _, args = plan("Which drawing has the largest floor area?", ("ask_drawings", {}, feet))
+    assert args["kind"] == "dont_know" and "different units (m, m2)" in args["text"]  # ft -> m
+
+
 def test_the_lead_sentence_does_not_count_the_drawings() -> None:
     """Mada's #430 look-check: "The drawing answers this below" with four drawings answering."""
     parts = [{"drawing_id": f"{DRAWING[:-1]}{n}", "name": f"{n}.pdf", "answer": {
