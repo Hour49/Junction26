@@ -19,10 +19,12 @@ It is a triage `Classifier` around the configured one (`inner`, or none):
    .agents/exp/sheet-kind-live.md, rule N2). The kind it named stays on the record.
 
 PROMPT, SCHEMA, KINDS, PLAN_KINDS, `decide` and `advanced` are prototypes/sheet-kind/contract.py's
-(sheet-kind-2, frozen 2026-11-14 17:29), word for word but for `decide`'s camera-photo case and the
-`discipline` field (sheet-kind-3, 2026-11-15: the sheet's trade from what is drawn, cross-checked
-against its title and number by `sheet_discipline`; .agents/exp/pics-pic-cls.md), and
-PROMPT_SHA is pinned by a test. The
+(sheet-kind-2, frozen 2026-11-14 17:29), word for word but for `decide`'s camera-photo case, and
+PROMPT_SHA is pinned by a test. SHEET_DISCIPLINE=gemini asks with `DISCIPLINE` instead
+(sheet-kind-3, 2026-11-15): the same prompt and schema plus a required `discipline` field, the
+sheet's trade judged from what is drawn and cross-checked against its title and number by
+`sheet_discipline` (.agents/exp/pics-pic-cls.md). The default (`RULES`) is sheet-kind-2 unchanged,
+its discipline from `discipline_from_sheet`, so its replies and cache keys are as before. The
 model is Carbon (Bogdan, 2026-11-14 17:2x: "Carbon first"; r8 section AS-1). Its price is not
 confirmed (third-party pages: 2 / 10 USD per M tokens in / out, introductory until 2026-11-30,
 then 4 / 20), so every call is charged at 4 / 20 to the trace and the spend guard.
@@ -41,9 +43,9 @@ import re
 import struct
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, cast, get_args
+from typing import Any, Literal, Protocol, cast, get_args
 
 from PIL import Image
 
@@ -52,7 +54,7 @@ from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
 from app.adapters.triage.gemini_describer import encode
 from app.adapters.whole_file import write_whole
 from app.core import cost
-from app.core.discipline import sheet_discipline
+from app.core.discipline import discipline_from_sheet, sheet_discipline
 from app.core.errors import InvalidInputError
 from app.core.ifc_facts import Discipline
 from app.core.ingest.model import (
@@ -68,7 +70,7 @@ from app.core.spend import SpendGuard
 
 log = logging.getLogger(__name__)
 
-VERSION = "sheet-kind-3"  # change it with PROMPT, SCHEMA or the image encoding
+VERSION = "sheet-kind-2"  # change it with PROMPT, SCHEMA or the image encoding
 MODEL = "gemini-4-carbon"
 THINKING = "low"
 TEMPERATURE = 0.2
@@ -98,7 +100,6 @@ KINDS = {
     "not_a_drawing": "not a drawing",
     "other": "another kind of drawing",
 }  # the words are the ones a set-aside reason shows
-DISCIPLINES: tuple[Discipline, ...] = get_args(Discipline)
 
 PROMPT = (
     "You are looking at one sheet that someone uploaded to a tool that counts rooms, "
@@ -123,18 +124,6 @@ PROMPT = (
     "Fields:\n"
     "- seen: one sentence on what is drawn.\n"
     "- sheet_kind: the one kind that fits the sheet best.\n"
-    "- discipline: the one trade the sheet is drawn for, judged from what is drawn, not "
-    "from the title alone: architecture (walls, rooms, doors, windows, furniture; floor "
-    "plans, elevations, sections, roof and ceiling plans; also fire exit and evacuation "
-    "plans); structural (foundations, footings, piles, columns, beams, slabs, framing, "
-    "reinforcement); plumbing (WCs, basins, showers, water supply and drain pipes, "
-    "sewage, gas); heating (radiators, heating pipes, boilers, heat pumps, underfloor "
-    "heating); ventilation (ducts, air terminals, diffusers, air handling units, "
-    "cooling); electrical (sockets, lights, switches, cables, distribution boards, data "
-    "and telecom); fire (sprinklers, fire alarms, smoke detectors, hydrants, fire "
-    "extinguishers); site (site plans, maps, landscaping, terrain); other (none of "
-    "these, or not a drawing). A plan with walls in the background and pipes, ducts or "
-    "cables drawn over them is the trade of the pipes, ducts or cables.\n"
     "- floor_plan_on_sheet: true if an architectural floor plan, as defined above, is "
     "drawn anywhere on the sheet, even small, even beside elevations, sections or "
     "details, even inside a site plan when the rooms are drawn. false otherwise.\n"
@@ -161,7 +150,6 @@ SCHEMA = {
     "properties": {
         "seen": {"type": "STRING"},
         "sheet_kind": {"type": "STRING", "enum": list(KINDS)},
-        "discipline": {"type": "STRING", "enum": list(DISCIPLINES)},
         "floor_plan_on_sheet": {"type": "BOOLEAN"},
         "takeoff_possible": {"type": "BOOLEAN"},
         "confidence": {"type": "NUMBER"},
@@ -171,15 +159,74 @@ SCHEMA = {
         "advanced": {"type": "BOOLEAN"},
         "advanced_why": {"type": "STRING", "nullable": True},
     },
-    "required": ["seen", "sheet_kind", "discipline", "floor_plan_on_sheet", "takeoff_possible",
-                 "confidence", "title", "sheet_number", "printed_scale", "advanced",
-                 "advanced_why"],
-    "propertyOrdering": ["seen", "sheet_kind", "discipline", "floor_plan_on_sheet",
-                         "takeoff_possible", "confidence", "title", "sheet_number", "printed_scale",
-                         "advanced", "advanced_why"],
+    "required": ["seen", "sheet_kind", "floor_plan_on_sheet", "takeoff_possible", "confidence",
+                 "title", "sheet_number", "printed_scale", "advanced", "advanced_why"],
+    "propertyOrdering": ["seen", "sheet_kind", "floor_plan_on_sheet", "takeoff_possible",
+                         "confidence", "title", "sheet_number", "printed_scale", "advanced",
+                         "advanced_why"],
 }  # fmt: skip
 
 PROMPT_SHA = hashlib.sha256((PROMPT + json.dumps(SCHEMA, sort_keys=True)).encode()).hexdigest()
+
+DISCIPLINES: tuple[Discipline, ...] = get_args(Discipline)
+_DISCIPLINE_FIELD = (
+    "- discipline: the one trade the sheet is drawn for, judged from what is drawn, not "
+    "from the title alone: architecture (walls, rooms, doors, windows, furniture; floor "
+    "plans, elevations, sections, roof and ceiling plans; also fire exit and evacuation "
+    "plans); structural (foundations, footings, piles, columns, beams, slabs, framing, "
+    "reinforcement); plumbing (WCs, basins, showers, water supply and drain pipes, "
+    "sewage, gas); heating (radiators, heating pipes, boilers, heat pumps, underfloor "
+    "heating); ventilation (ducts, air terminals, diffusers, air handling units, "
+    "cooling); electrical (sockets, lights, switches, cables, distribution boards, data "
+    "and telecom); fire (sprinklers, fire alarms, smoke detectors, hydrants, fire "
+    "extinguishers); site (site plans, maps, landscaping, terrain); other (none of "
+    "these, or not a drawing). A plan with walls in the background and pipes, ducts or "
+    "cables drawn over them is the trade of the pipes, ducts or cables.\n"
+)
+
+
+@dataclass(frozen=True)
+class Contract:
+    """What one sheet-kind request asks: the prompt, the schema and their version. The cache key
+    holds `sha`, so each contract has its own replies."""
+
+    version: str
+    prompt: str
+    schema: dict[str, Any]
+    discipline: bool  # the reply names the discipline (SHEET_DISCIPLINE=gemini)
+
+    @property
+    def sha(self) -> str:
+        return hashlib.sha256(
+            (self.prompt + json.dumps(self.schema, sort_keys=True)).encode()
+        ).hexdigest()
+
+
+def _with_discipline(schema: dict[str, Any]) -> dict[str, Any]:
+    """SCHEMA with a required `discipline` field right after `sheet_kind`."""
+
+    def after_kind(names: list[str]) -> list[str]:
+        at = names.index("sheet_kind") + 1
+        return [*names[:at], "discipline", *names[at:]]
+
+    discipline = {"type": "STRING", "enum": list(DISCIPLINES)}
+    return {
+        **schema,
+        "properties": {**schema["properties"], "discipline": discipline},
+        "required": after_kind(schema["required"]),
+        "propertyOrdering": after_kind(schema["propertyOrdering"]),
+    }
+
+
+SHEET_KIND_LINE = "- sheet_kind: the one kind that fits the sheet best.\n"
+RULES = Contract(VERSION, PROMPT, SCHEMA, discipline=False)
+DISCIPLINE = Contract(
+    "sheet-kind-3",
+    PROMPT.replace(SHEET_KIND_LINE, SHEET_KIND_LINE + _DISCIPLINE_FIELD),
+    _with_discipline(SCHEMA),
+    discipline=True,
+)
+CONTRACTS: dict[Literal["rules", "gemini"], Contract] = {"rules": RULES, "gemini": DISCIPLINE}
 
 PLAN_KINDS = frozenset({"architectural_floor_plan", "multi_view_sheet"})
 NOT_DRAWING = frozenset({"not_a_drawing", "schedule_or_text"})  # set aside as not_drawing
@@ -262,23 +309,24 @@ def price(answer: dict[str, Any]) -> float:
     return (tokens_in * USD_PER_M_INPUT + tokens_out * USD_PER_M_OUTPUT) / 1e6
 
 
-def request_body(jpeg: bytes) -> dict[str, Any]:
+def request_body(jpeg: bytes, contract: Contract = RULES) -> dict[str, Any]:
     image = {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(jpeg).decode()}}
     return {
-        "contents": [{"parts": [image, {"text": PROMPT}]}],
+        "contents": [{"parts": [image, {"text": contract.prompt}]}],
         "generationConfig": {
             "temperature": TEMPERATURE,
             "maxOutputTokens": MAX_TOKENS,
             "responseMimeType": "application/json",
-            "responseSchema": SCHEMA,
+            "responseSchema": contract.schema,
             "thinkingConfig": {"thinkingLevel": THINKING},
         },
     }
 
 
-def form_of(answer: dict[str, Any]) -> dict[str, Any]:
-    """The reply's form; raises GeminiError when it is not the schema's form (a missing field, a
-    kind outside the enum, a confidence outside 0 to 1, a field of the wrong type)."""
+def form_of(answer: dict[str, Any], contract: Contract = RULES) -> dict[str, Any]:
+    """The reply's form; raises GeminiError when it is not the contract's schema's form (a missing
+    field, a kind or discipline outside its enum, a confidence outside 0 to 1, a field of the
+    wrong type)."""
     try:
         form = json.loads(reply_text(answer))
     except json.JSONDecodeError:
@@ -286,13 +334,13 @@ def form_of(answer: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(form, dict):
         raise GeminiError("the answer is not the sheet-kind form")
     form = cast(dict[str, Any], form)
-    missing = [key for key in cast(list[str], SCHEMA["required"]) if key not in form]
+    missing = [key for key in cast(list[str], contract.schema["required"]) if key not in form]
     if missing:
         raise GeminiError(f"the answer has no {', '.join(missing)}")
     confidence = form["confidence"]
     wrong = (
         form["sheet_kind"] not in KINDS
-        or form["discipline"] not in DISCIPLINES
+        or (contract.discipline and form["discipline"] not in DISCIPLINES)
         or not isinstance(form["floor_plan_on_sheet"], bool)
         or not isinstance(form["takeoff_possible"], bool)
         or isinstance(confidence, bool)
@@ -324,6 +372,7 @@ class GeminiSheetKindClient:
         timeout_s: float,
         model: str = MODEL,
         budget: SpendGuard | None = None,
+        contract: Contract = RULES,
     ) -> None:
         if not api_key:
             raise InvalidInputError("GEMINI_API_KEY is empty: SHEET_KIND=carbon needs a key")
@@ -331,6 +380,7 @@ class GeminiSheetKindClient:
         self.model = model
         self._timeout = timeout_s
         self._budget = budget  # GEMINI_BUDGET_USD (app/core/spend.py); None: no limit
+        self._contract = contract
 
     def __repr__(self) -> str:
         return f"GeminiSheetKindClient({self.model})"
@@ -359,7 +409,7 @@ class GeminiSheetKindClient:
         """The generateContent answer; raises TimeoutError on a timeout, else `GeminiError`."""
         request = urllib.request.Request(
             f"{URL}/{self.model}:generateContent",
-            data=json.dumps(request_body(jpeg)).encode(),
+            data=json.dumps(request_body(jpeg, self._contract)).encode(),
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
@@ -385,26 +435,28 @@ class SheetReply:
     usd: float  # 0 from the cache
     model: str
     said: str  # "gemini-4-carbon, sheet-kind-1" (+ ", cached")
+    contract: Contract = field(default=RULES, repr=False)
 
 
 class SheetKindReader:
     """One reply per uploaded file, cached by its bytes."""
 
-    def __init__(self, model: SheetKindModel, cache_dir: Path) -> None:
-        self._model = model
+    def __init__(self, model: SheetKindModel, cache_dir: Path, contract: Contract = RULES) -> None:
+        self._model = model  # asks with the same contract (GeminiSheetKindClient's `contract`)
         self._cache = cache_dir
+        self._contract = contract
 
     def read(self, data: bytes) -> SheetReply | Unavailable:
         digest = hashlib.sha256(data).hexdigest()
-        name = f"sheetkind-{digest}-{PROMPT_SHA[:12]}-{self._model.model}.json"
+        contract = self._contract
+        name = f"sheetkind-{digest}-{contract.sha[:12]}-{self._model.model}.json"
         path = self._cache / re.sub(r"[^A-Za-z0-9.-]", "_", name)
         model = self._model.model
-        said = f"{model}, {VERSION}"
+        said = f"{model}, {contract.version}"
         if path.is_file():
             try:
-                return SheetReply(
-                    form_of(json.loads(path.read_text())), 0.0, model, f"{said}, cached"
-                )
+                form = form_of(json.loads(path.read_text()), contract)
+                return SheetReply(form, 0.0, model, f"{said}, cached", contract)
             except (OSError, ValueError, GeminiError) as error:
                 log.warning("the cached reply %s could not be read (%s), so it is asked again",
                             path.name, error)  # fmt: skip
@@ -419,11 +471,11 @@ class SheetKindReader:
         usd = price(answer)
         cost.charge(usd)  # a call that was paid for counts even when its reply is unusable
         try:
-            form = form_of(answer)
+            form = form_of(answer, contract)
         except GeminiError as error:
             return Unavailable(note=f"{UNAVAILABLE}: {error}")
         write_whole(path, json.dumps(answer, ensure_ascii=False))
-        return SheetReply(form, usd, model, said)
+        return SheetReply(form, usd, model, said, contract)
 
 
 def sheet_of(
@@ -452,7 +504,11 @@ def sheet_of(
         advanced_why=why,
         seen=form["seen"],
         model=found.model,
-        discipline=sheet_discipline(form["discipline"], form["title"], form["sheet_number"]),
+        discipline=(
+            sheet_discipline(form["discipline"], form["title"], form["sheet_number"])
+            if found.contract.discipline
+            else discipline_from_sheet(form["sheet_kind"], form["title"], form["sheet_number"])
+        ),
     )
 
 

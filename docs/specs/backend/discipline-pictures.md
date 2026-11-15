@@ -39,7 +39,9 @@ Non-goals (v1):
 
 A page reaches this lane when triage says so:
 - `Sheet.discipline` (`app/core/ingest/model.py`) is one of `plumbing`, `heating`, `ventilation`, `electrical`,
-  `fire` or `structural`. Since sheet-kind-3 (2026-11-15) it is the sheet-kind reply's own `discipline` field,
+  `fire` or `structural`. By default (`SHEET_DISCIPLINE=rules`) only by a strong title word or a sheet code
+  (`discipline_from_sheet`). With `SHEET_DISCIPLINE=gemini` (prompt sheet-kind-3, 2026-11-15, off in the demo)
+  it is the sheet-kind reply's own `discipline` field,
   judged from what is drawn, cross-checked by `sheet_discipline` (`discipline.py`): a title or sheet number that
   names other disciplines by a strong word or a code makes it None (unsure, not routed); weak words such as
   "pump" or "piping" and service rooms never veto. Measured (.agents/exp/pics-pic-cls.md, dev only): right on
