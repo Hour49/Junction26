@@ -1,8 +1,9 @@
-"""'on the plumbing plan' names the drawing, not a room (big QA R1 services, row 12/10 note, pic-det,
-2026-11-15): P-101's own Ask refused "How many WCs are shown on the plumbing plan?" with "This
-question counts what is inside one room, and I count across the whole drawing", a whole-sheet
-count read as one room's because "plumbing" is no sheet word. A discipline word before a sheet
-word ("the heating plan", "the ventilation drawing") is the sheet; "the plumbing room" stays a room."""
+"""'on the plumbing plan' names the drawing, not a room (big QA R1 services, row 12/10 note,
+pic-det, 2026-11-15): P-101's own Ask refused "How many WCs are shown on the plumbing plan?" with
+"This question counts what is inside one room, and I count across the whole drawing", a
+whole-sheet count read as one room's because "plumbing" is no sheet word. A discipline word before
+a sheet word ("the heating plan", "the ventilation drawing") is the sheet; "the plumbing room"
+stays a room."""
 
 import pytest
 from test_levels import POLICY, SCAN, Scored
