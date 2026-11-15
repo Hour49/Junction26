@@ -16,6 +16,7 @@ const synthetic = {
   title: 'Small sample project',
   blurb: 'A made-up flat.',
   tags: ['PDF'],
+  prompts: [] as string[],
 };
 const onlySynthetic = { samples: [synthetic] };
 
@@ -146,6 +147,7 @@ describe('HomeScreen', () => {
       title: 'Mixed project archive',
       blurb: 'Plans and a model.',
       tags: ['PDF', 'IFC'],
+      prompts: ['Remove the wall between the kitchen and the hall', 'How many doors?', 'Third one'],
     };
     const api = mockApi({
       [LIST]: projectList,
@@ -159,7 +161,7 @@ describe('HomeScreen', () => {
     const list = screen.getByRole('list', { name: 'Sample projects' });
     const options = within(list).getAllByRole('button');
     expect(options.map((o) => o.textContent)).toEqual([
-      'Mixed project archivePlans and a model.PDFIFC',
+      'Mixed project archivePlans and a model.PDFIFC“Remove the wall between the kitchen and the hall”“How many doors?”',
       'Small sample projectA made-up flat.PDF',
     ]);
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(0);

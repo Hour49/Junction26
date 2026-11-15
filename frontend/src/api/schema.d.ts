@@ -2772,6 +2772,8 @@ export interface components {
             not_plans?: number | null;
             /** Phase */
             phase?: ("files" | "index") | null;
+            /** Prompts */
+            prompts?: string[];
             /** Ran */
             ran?: {
                 [key: string]: components["schemas"]["RanStep"][];
@@ -3261,6 +3263,11 @@ export interface components {
             blurb: string;
             /** Id */
             id: string;
+            /**
+             * Prompts
+             * @default []
+             */
+            prompts: string[];
             /**
              * Tags
              * @default []

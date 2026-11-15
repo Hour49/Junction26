@@ -408,3 +408,31 @@ it('R1 edits S3: a card keeps what the user chose (Before) when the window cross
     vi.unstubAllGlobals();
   }
 });
+
+it('a sample\'s "Try these" chips show above the suggestions in the given order; one click asks the agent', async () => {
+  const prompts = [
+    'Move the radiator in the kitchen to the north wall',
+    'What is cut off if valve V1 closes?',
+  ];
+  const api = mockApi({
+    [`GET /api/projects/${PID}`]: { ...drawable, prompts },
+    ...drawings,
+    [CHAT]: answerTurn,
+  });
+  render(<AgentChat projectId={PID} query={new URLSearchParams()} />);
+  const group = await screen.findByRole('region', { name: 'Try these' });
+  expect(
+    within(group)
+      .getAllByRole('button')
+      .map((b) => b.textContent),
+  ).toEqual(prompts);
+  fireEvent.click(within(group).getByRole('button', { name: prompts[1] }));
+  await screen.findByText(/is 7.56 m²/);
+  expect(posts(api)).toEqual([{ message: prompts[1] }]);
+});
+
+it('a project not made from a sample has no "Try these"', async () => {
+  open(answerTurn);
+  await screen.findByRole('button', { name: 'Draw on the plan' });
+  expect(screen.queryByRole('region', { name: 'Try these' })).toBeNull();
+});

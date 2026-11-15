@@ -281,6 +281,13 @@ export function UploadBox() {
                       ))}
                     </span>
                   )}
+                  {sample.prompts.length > 0 && (
+                    <span className="grid gap-0.5 text-[12px] text-text-2" aria-label="Try asking">
+                      {sample.prompts.slice(0, 2).map((prompt) => (
+                        <span key={prompt}>“{prompt}”</span>
+                      ))}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}

@@ -272,10 +272,18 @@ class SampleOption(BaseModel):
     title: str
     blurb: str = ""
     tags: list[str] = []
+    # curated questions that show what the sample can do ("Try these" chips, Bogdan 2026-11-15)
+    prompts: list[str] = []
 
 
 class SampleList(BaseModel):
     samples: list[SampleOption]
+
+
+class _SampleOf(BaseModel):
+    """Which curated sample a project was made from (api/sample-of-<project id>.json)."""
+
+    sample_id: str
 
 
 class _ManifestEntry(SampleOption):
@@ -416,6 +424,8 @@ def sample(
         _reset_project(ingest, reviews, _Sample.model_validate_json(record.read_text()).project_id)
     started = _start(ingest, name, data, fresh)
     _write(record, _Sample(project_id=started.id).model_dump_json())
+    if sample_id is not None and sample_id != SYNTHETIC_SAMPLE.id:
+        _write(_sample_of(settings, started.id), _SampleOf(sample_id=sample_id).model_dump_json())
     _resolve_when_done(request.app.state, started.id)
     return started
 
@@ -466,6 +476,7 @@ def project(
         skipped=skipped_of(status),
         expected_drawings=expected_drawings_of(status),
         not_plans=not_plans_of(status),
+        prompts=_prompts_of(settings, project_id),
         **open_counts(
             kept.counts(status, ingest, reviews, settings), settings.resolver != "off"
         )._asdict(),
@@ -850,6 +861,21 @@ def _reset_project(ingest: Ingest, reviews: ReviewStore, project_id: str) -> Non
 
 def _cleared(state: ReviewState) -> ReviewState:
     return reset(state, None)
+
+
+def _sample_of(settings: Settings, project_id: str) -> Path:
+    return settings.projects_dir / "api" / f"sample-of-{project_id}.json"
+
+
+def _prompts_of(settings: Settings, project_id: str) -> list[str]:
+    """The prompts of the sample the project was made from, read from the manifest now (so an
+    edit to it shows at once); none for a project not made from a sample."""
+    record = _sample_of(settings, project_id)
+    if not record.is_file():
+        return []
+    sample_id = _SampleOf.model_validate_json(record.read_text()).sample_id
+    entry = next((e for e in _manifest(settings.sample_manifest) if e.id == sample_id), None)
+    return entry.prompts if entry else []
 
 
 def _write(path: Path, text: str) -> None:
