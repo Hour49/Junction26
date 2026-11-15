@@ -126,6 +126,12 @@ function NothingRead({ projectId, project }: { projectId: string; project: Proje
           ))}
         </ul>
       )}
+      {project.files.some((f) => f.kind === 'dxf' && f.state === 'set_aside') && (
+        // with no drawing at all, a DXF was set aside for want of a page to place it on
+        <p>
+          A DXF is read with the PDF or PNG of the same name: put both in one .zip and upload that.
+        </p>
+      )}
       <a href={`#/p/${projectId}/documents`}>Every file is listed in Documents.</a>
     </Card>
   );

@@ -166,6 +166,34 @@ describe('ProjectScreen', () => {
     expect(screen.getByRole('heading', { name: project.name })).toBeTruthy();
   });
 
+  it('a lone DXF set aside: the Nothing-read card says to upload it with its PDF or PNG in one zip', async () => {
+    const f = must(project.files[0]);
+    mockApi({
+      [GET]: {
+        ...variants.noDrawings,
+        files: [{ ...f, path: 'floor3.dxf', kind: 'dxf', state: 'set_aside', drawing_id: null }],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(panel.textContent).toContain(
+      'A DXF is read with the PDF or PNG of the same name: put both in one .zip and upload that.',
+    );
+  });
+
+  it('no DXF hint when the set-aside files are not DXF', async () => {
+    mockApi({
+      [GET]: {
+        ...variants.noDrawings,
+        files: project.files.map((f) => ({ ...f, state: 'set_aside' as const, drawing_id: null })),
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.queryByText(/A DXF is read with/)).toBeNull();
+  });
+
   it('IN-72 a done project with no drawings: "Nothing could be read", reasons, no ring, no conflicts link', async () => {
     const nothing: ProjectView = {
       ...variants.noDrawings,
