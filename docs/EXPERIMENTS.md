@@ -1344,10 +1344,11 @@ fitted on the test split or on the eval half of golden v2.
 - Fixes without an experiment (TIFF and WebP uploads, the services-only IFC, the evidence-index lock, set-aside
   wording) are in their PRs, not here.
 
-## 17. Services on pictures: symbol readers, pairing and laying over (2026-11-15 03:00-04:35)
+## 17. Services on pictures: symbol readers, pairing and laying over (2026-11-15 03:00-05:50)
 
-All of it is behind `DISCIPLINE_PICTURES` (any of its readers), off in the demo. The numbers are from the PR
-bodies and the handoff comments named in each entry; the logs are on the machines that ran them.
+All of it is behind `DISCIPLINE_PICTURES`. The demo runs it with the `gemini` reader since #598 (merged 05:41); the other
+readers stay off. The numbers are from the PR bodies and the handoff comments named in each entry; the logs are on
+the machines that ran them.
 
 - **Symbol readers** (PR #579, merged). On a held-out rendered building (DigitalHub, 36 pages, 1,155 symbols;
   glyphs was trained on the clinic only), the template reader with its OCR legend got P 0.07, R 0.29 and counts within
@@ -1379,8 +1380,22 @@ bodies and the handoff comments named in each entry; the logs are on the machine
 - **DINO symbol check, kinds** (PR #551, merged, not called yet). Tudor's bench on #543: a label of no kind caught
   1,075 of 1,085 valve symbols and 205 of 245 sanitary ones (valve recall on scans .36 to .20, sanitary photo
   precision .47 to .02). #551 confirms only air terminals and air-worded labels; not measured again.
-- Gaps: no end-to-end run of the wired walls path yet (#580 lists it); the 4,610-unit set is one archive series and
-  its post-hoc 0 wrong is not a confirmation.
+- **Template as Gemini's double-check** (PR #588, merged). Held-out DigitalHub, Gemini first; 162 label units, 23
+  wrong (more than 10% off). Line written first: at least 95% of agreed units right and at least 80% of wrong units
+  held. Template with the OCR legend: 21 units agreed (13%), 20 of them right, 96% of the wrong ones held: **passes**.
+  Glyphs: 33 agreed, 31 right (94%), 91% held, one unit short. With so few agreed units the two can't really be told
+  apart; template went in because it needs no weights. `kind_of` fixes in the same PR raised Gemini's symbols with
+  the right kind from 59% to 72% (807 of 1,122).
+- **Run lengths from a line graph** (PR #603, merged, `DISCIPLINE_RUNS=graph`, off). Pre-registered A/B, tuned on the
+  clinic, DigitalHub v2 held out and scored once, true legend boxes and scale given to both arms; a unit is right
+  within 10% of the drawn length. Clean: mask 18 of 32, graph 21; photo: 4 and 12; scans 0 and 0. Clean + photo
+  33 of 64 against a line of 32: a narrow **pass**. The elbow and tee joins at 1.0 m **failed** their own line (pair
+  precision 0.73, recall 0.19 against 0.9 and 0.5) and stay off. The default reader stayed `mask` (#652).
+- **Lengths per system** (PR #652, merged, no new measurement). On the demo zip's P-101 the rainwater question and
+  the per-system question both answered the sum of four line styles, 68.47 m. A named system now gets its own length
+  (rainwater 16.40 m read, 6.75 m true), with a fixed sentence giving the reader's held-out numbers.
+- Gaps: the browser run on #565 is the only end-to-end run of the wired walls path, on one synthetic building; the
+  4,610-unit set is one archive series and its post-hoc 0 wrong is not a confirmation.
 
 ---
 
