@@ -1039,3 +1039,58 @@ def test_the_storey_a_question_names_is_no_word_a_space_is_named_by() -> None:
     assert _storeys_named_for("Which spaces are on Eg?", office) == []  # only as written
     clinic = _storeys_sheet(("First Floor", 0.0), ("Roof - Main", 9.25))
     assert _storeys_named_for("Which spaces are on the Main level?", clinic) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the area of the kitchen in apartment B?",
+        "What is the area of the bathroom in flat 2?",
+        "How big is the living room in apartment A?",
+        "How many bedrooms are in apartment B?",
+        "What is the area of apartment B?",
+    ],
+)
+def test_an_apartment_the_model_cannot_place_is_refused_never_every_space(text: str) -> None:
+    """Demo bug (2026-11-15, demo-project 9e0df7fabe33): "What is the area of the kitchen in
+    apartment B?" on bimspeed-vitoria answered "Spaces: 73 spaces, total area 903.07 m²", every
+    space: "apartment B" kept the room word from typing the spaces. The facts group no spaces
+    into apartments and no space's name says "apartment B", so the facts give no answer and the
+    question's own refusal stands."""
+    query = parse_ifc_question(text)
+    assert query is not None
+    assert fact_text(query, ROOMS) is None
+    question = Question(id=1, file=FILE, text=text)
+    assert answer_from_facts(question, ROOMS, 0.0) is None
+    refused = answer_question(
+        question, None, Refuses(), lambda: 0.0, NoPrior(), facts=lambda: ROOMS
+    )
+    assert refused.answer is None and refused.method.startswith("refused:"), refused
+
+
+def test_the_apartment_without_a_name_keeps_the_room_word() -> None:
+    """A nameless "the apartment" keeps the room word: the kitchens, as "the kitchen" gives."""
+    query = parse_ifc_question("What is the area of the kitchen in the apartment?")
+    assert query is not None
+    said = fact_text(query, ROOMS)
+    assert said is not None and said.splitlines()[0].endswith(": 1 space"), said
+    assert "1IZQ-COC" in said and "BAÑ" not in said
+
+
+def test_an_apartment_a_space_name_holds_is_answered() -> None:
+    """A model whose spaces say their apartment in the name places it: answered, as before."""
+    sheet = FactSheet(
+        model="flats_arc",
+        disciplines=["architecture"],
+        facts=[
+            fact("storey.elevation", "L1", 0.0, "m", storey="L1"),
+            fact("space.long_name", "1", "Apartment B Kitchen", None, storey="L1"),
+            fact("space.long_name", "2", "Apartment A Kitchen", None, storey="L1"),
+            fact("space.stated_area", "1", 9.5, "m2", storey="L1"),
+            fact("space.stated_area", "2", 8.0, "m2", storey="L1"),
+        ],
+    )
+    query = parse_ifc_question("What is the area of the kitchen in apartment B?")
+    assert query is not None
+    said = fact_text(query, sheet)
+    assert said is not None and "Apartment B Kitchen" in said and "9.5" in said, said
