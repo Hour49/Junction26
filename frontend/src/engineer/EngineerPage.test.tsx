@@ -297,6 +297,29 @@ describe('answers', () => {
     expect(sumRows).toContain('1 Küche 22.40 m²');
   });
 
+  it('EN-91 the mark list shows 12 rows and "Show all <n>", which toggles to every row', async () => {
+    const m0 = (answer.marks[0] ?? {}) as (typeof answer.marks)[number];
+    const many = {
+      ...answer,
+      marks: Array.from({ length: 38 }, (_, i) => ({ ...m0, id: `e${String(i + 1)}`, n: i + 1 })),
+    };
+    const t = await shown(many);
+    const list = () => t.querySelectorAll('.en-marks li');
+    expect(list()).toHaveLength(12);
+    const more = within(t).getByRole('button', { name: 'Show all 38' });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(more);
+    expect(list()).toHaveLength(38);
+    const fewer = within(t).getByRole('button', { name: 'Show fewer' });
+    expect(fewer.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(fewer);
+    expect(list()).toHaveLength(12);
+    cleanup();
+    const two = await shown(answer);
+    expect(two.querySelectorAll('.en-marks li')).toHaveLength(2);
+    expect(within(two).queryByRole('button', { name: /^Show all/ })).toBeNull();
+  });
+
   it('EN-18 the counting rule', async () => {
     const t = await shown(answer);
     expect(
