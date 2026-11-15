@@ -23,7 +23,7 @@ BEFORE = r"(?:\b(?:on|in|of|for|from|and|or)\b|,)"
 # is narrowed (review-693 M1)
 OTHERS = re.compile(
     r"\b(?:others?|rest|except|besides|apart\s+from|excluding|not\s+counting|without|than"
-    r"|compar\w*|versus|vs|remaining|elsewhere|including|whole|entire|project|overall|altogether"
+    r"|compar\w*|versus|vs|remaining|elsewhere|everywhere|including|whole|entire|project|overall|altogether"
     r"|in\s+total|across)\b|\bwhich\s+(?:drawing|plan|sheet|model|file)"
     r"|\b(?:every|each|all|both)\s+(?:of\s+)?(?:the\s+)?(?:drawings?|plans?|sheets?|files?|models?)\b",
     re.IGNORECASE,

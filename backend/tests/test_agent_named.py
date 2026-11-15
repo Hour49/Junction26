@@ -183,3 +183,12 @@ def test_review_693_m1b_a_message_about_the_whole_project_narrows_to_none(messag
     """review-693 M1 (second pass): "the remaining drawings", "the whole project", "in total,
     including", "elsewhere" still narrowed to Drawn plan 1."""
     assert named_drawings(message, NAMES) == set()
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["How many rooms on Drawn plan 1 and everywhere else?", "Doors everywhere, Drawn plan 1 too"],
+)
+def test_review_693_s_everywhere_narrows_to_none(message: str) -> None:
+    """qa-a's should on #693: "on Drawn plan 1 and everywhere else" narrowed to Drawn plan 1."""
+    assert named_drawings(message, NAMES) == set()
