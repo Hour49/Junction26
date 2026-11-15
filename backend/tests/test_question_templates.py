@@ -665,15 +665,13 @@ def test_a_hint_sentence_after_the_question_is_no_qualifier() -> None:
         ("How many windows are there in the plan, over all?", "window"),
         ("How many windows are there overall?", "window"),
         ("How many doors are shown on this floor plan only?", "door"),
-        ("What is the total floor area of the apartment with number A?", "apartment"),
-        ("What is the total floor area of the apartment with the name A?", "apartment"),
     ],
 )
 def test_review_532_words_that_do_not_narrow_the_thing_are_no_qualifier(
     text: str, subject: str
 ) -> None:
-    """review-532 should 1: "over all", "only" and "with the number/name/label" don't narrow what
-    is counted, so they are not refused as a condition on the items."""
+    """review-532 should 1: "over all" and "only" don't narrow what is counted, so they are not
+    refused as a condition on the items."""
     found = PARSE(text)
     assert isinstance(found, Query) and found.subject == subject
 
@@ -691,3 +689,18 @@ def test_a_place_after_over_under_above_below_still_narrows_the_thing(text: str)
     """A bare over/under/above/below names a place ("rooms above the garage"); answered, it
     would be the count of every room, so it stays refused."""
     assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total floor area of the apartment with number A?",
+        "What is the total floor area of the apartment with the name A?",
+        "How many rooms are in the apartment with the label B?",
+    ],
+)
+def test_review_539_a_thing_named_after_with_stays_refused(text: str) -> None:
+    """review-539 must: let through, "the apartment with number A" lost its A and answered for
+    the whole sheet ("the apartment", apartment=None). The parser reads the name only as
+    "apartment A", so this wording stays refused, as on main."""
+    assert isinstance(PARSE(text), Unsupported)
