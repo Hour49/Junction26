@@ -16,7 +16,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Protocol
 
-from app.core.answering.model import Answer, Evidence, Question
+from app.core.answering.model import IN_ONE_ROOM, Answer, Evidence, Question
 from app.core.discipline import SYSTEM_DISCIPLINE, system_from_question
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
@@ -82,6 +82,18 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         return None
     query, facts = _kind_of_sheet(query, sheet), _Facts(sheet.facts)
     picture = bool(sheet.facts) and all(_picture(fact) for fact in sheet.facts)
+    if picture and query.place is not None:  # a picture's facts are whole-sheet counts only
+        return Answer(
+            id=question.id,
+            answer=None,
+            unit=None,
+            evidence=(),
+            method="refused:unsupported-question",  # answer.UNSUPPORTED_QUESTION
+            cost_usd=0.0,
+            latency_s=latency_s,
+            abstain=True,
+            explanation=IN_ONE_ROOM,  # never the sheet total for one room (big QA R1 services)
+        )
     rows = _picture_rows(query, facts) if picture else None
     unread = rows is None and query.entity not in NOT_DRAWN and not facts.topics(f"{query.entity}.")
     if picture and (unread or (rows is not None and not rows.counted)):
