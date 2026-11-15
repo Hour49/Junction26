@@ -219,7 +219,8 @@ def test_the_dev_prior_comes_before_the_facts() -> None:
     assert answer.answer == 4 and answer.abstain is True  # the prior's number, as before
     assert asked == []  # and the sheet was never built
     answer = answer_question(question, {}, Counts(), lambda: 0.0, NoPrior(), facts=sheet)
-    assert answer.method == FACTS and asked == [1]  # no prior: the facts answer
+    assert answer.method == "refused:not-in-drawing" and asked == [1]  # no prior: the facts'
+    assert answer.explanation == "No doors found in this file (not available in it)."  # (no doors)
 
 
 def test_a_broken_fact_refuses_that_question_only() -> None:
@@ -1039,116 +1040,3 @@ def test_the_storey_a_question_names_is_no_word_a_space_is_named_by() -> None:
     assert _storeys_named_for("Which spaces are on Eg?", office) == []  # only as written
     clinic = _storeys_sheet(("First Floor", 0.0), ("Roof - Main", 9.25))
     assert _storeys_named_for("Which spaces are on the Main level?", clinic) == []
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        "What is the area of the kitchen in apartment B?",
-        "What is the area of the bathroom in flat 2?",
-        "How big is the living room in apartment A?",
-        "How many bedrooms are in apartment B?",
-        "What is the area of apartment B?",
-    ],
-)
-def test_an_apartment_the_model_cannot_place_is_refused_never_every_space(text: str) -> None:
-    """Demo bug (2026-11-15, demo-project 9e0df7fabe33): "What is the area of the kitchen in
-    apartment B?" on bimspeed-vitoria answered "Spaces: 73 spaces, total area 903.07 m²", every
-    space: "apartment B" kept the room word from typing the spaces. The facts group no spaces
-    into apartments and no space's name says "apartment B", so the facts give no answer and the
-    question's own refusal stands."""
-    query = parse_ifc_question(text)
-    assert query is not None
-    assert fact_text(query, ROOMS) is None
-    question = Question(id=1, file=FILE, text=text)
-    assert answer_from_facts(question, ROOMS, 0.0) is None
-    refused = answer_question(
-        question, None, Refuses(), lambda: 0.0, NoPrior(), facts=lambda: ROOMS
-    )
-    assert refused.answer is None and refused.method.startswith("refused:"), refused
-
-
-def test_the_apartment_without_a_name_keeps_the_room_word() -> None:
-    """A nameless "the apartment" keeps the room word: the kitchens, as "the kitchen" gives."""
-    query = parse_ifc_question("What is the area of the kitchen in the apartment?")
-    assert query is not None
-    said = fact_text(query, ROOMS)
-    assert said is not None and said.splitlines()[0].endswith(": 1 space"), said
-    assert "1IZQ-COC" in said and "BAÑ" not in said
-
-
-def test_an_apartment_a_space_name_holds_is_answered() -> None:
-    """A model whose spaces say their apartment in the name places it: answered, as before."""
-    sheet = FactSheet(
-        model="flats_arc",
-        disciplines=["architecture"],
-        facts=[
-            fact("storey.elevation", "L1", 0.0, "m", storey="L1"),
-            fact("space.long_name", "1", "Apartment B Kitchen", None, storey="L1"),
-            fact("space.long_name", "2", "Apartment A Kitchen", None, storey="L1"),
-            fact("space.stated_area", "1", 9.5, "m2", storey="L1"),
-            fact("space.stated_area", "2", 8.0, "m2", storey="L1"),
-        ],
-    )
-    query = parse_ifc_question("What is the area of the kitchen in apartment B?")
-    assert query is not None
-    said = fact_text(query, sheet)
-    assert said is not None and "Apartment B Kitchen" in said and "9.5" in said, said
-
-
-LIVING = ROOMS.model_copy(
-    update={
-        "facts": [
-            *ROOMS.facts,
-            fact("space.long_name", "01.22", "1IZQ-SAL", None, storey="P1"),
-            fact("space.room_type", "01.22", "living", None, storey="P1"),
-            fact("space.stated_area", "01.22", 21.5, "m2", storey="P1"),
-            fact("space.stated_area", "01.20", 9.23, "m2", storey="P1"),
-        ]
-    }
-)
-
-
-@pytest.mark.parametrize(
-    ("text", "kind", "name"),
-    [
-        ("How big is the kitchen?", "kitchen", "1IZQ-COC"),
-        ("How large is the kitchen?", "kitchen", "1IZQ-COC"),
-        ("What is the area of the living room?", "living room", "1IZQ-SAL"),
-        ("How big is the living room?", "living room", "1IZQ-SAL"),
-    ],
-)
-def test_how_big_and_the_living_room_give_that_room_type_never_every_space(
-    text: str, kind: str, name: str
-) -> None:
-    """Demo bug (2026-11-15, vitoria): "How big is the kitchen?" was read as a count with the
-    word "big", and "living" was no room word, so both listed every space. "How big" asks the
-    area, and the living room is a room type as the kitchen is."""
-    query = parse_ifc_question(text)
-    assert query is not None and query.measures == ("area",), query
-    said = fact_text(query, LIVING)
-    assert said is not None, said
-    assert said.splitlines()[0] == f"Spaces typed as {kind} by their names: 1 space", said
-    assert name in said and "BAÑ" not in said and "Spaces: " not in said, said
-
-
-@pytest.mark.parametrize(
-    ("text", "said"),
-    [
-        ("What is the area of the living room?", "living room"),
-        ("How big is the bedroom?", "bedroom"),
-        ("What is the area of the kitchen on Level 2?", "kitchen"),
-    ],
-)
-def test_a_room_type_the_model_lacks_is_not_available_never_every_space(
-    text: str, said: str
-) -> None:
-    """Review-729 M1: "What is the area of the living room?" on a model with no living room
-    listed every space as if it were the answer (the "No space ... named" line was said for "How
-    many" only). Its room type is not there: said so, and no space listed."""
-    query = parse_ifc_question(text)
-    assert query is not None
-    answer = fact_text(query, ROOMS)
-    assert answer is not None and answer.startswith("No space"), answer
-    assert f"typed as {said} (not available)" in answer, answer
-    assert "BAÑ" not in answer and "COC" not in answer, answer

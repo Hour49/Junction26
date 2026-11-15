@@ -29,7 +29,7 @@ from app.core.answering.answer import (
     printed_rooms,
     rooms_of_type,
 )
-from app.core.answering.facts import FACTS
+from app.core.answering.facts import FACTS, NOT_AVAILABLE
 from app.core.answering.floors import (
     FLOOR,
     FLOOR_AT,
@@ -469,6 +469,9 @@ def ask(
                 )
         if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
             words += _not_measured(parsed, drawing)  # review-349 S3
+        said = answer.explanation or ""
+        if answer.method == NOT_IN_DRAWING and NOT_AVAILABLE in said:
+            code, words = "not-in-drawing", said  # the file's own words (facts.py)
         if answer.explanation == IN_ONE_ROOM:  # a picture's whole-sheet count asked of one room
             code, words = "unsupported-question", PARTS[IN_ONE_ROOM]  # not "I don't count ..."
         if not can_answer:
