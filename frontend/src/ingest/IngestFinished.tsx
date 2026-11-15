@@ -5,6 +5,7 @@ import type { ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
 import { ConflictsList, type ConflictCounts } from '../surveyor/ConflictsScreen';
 import { plural } from './ingest';
+import { readDrawings } from './pipeline';
 import { TAP } from './ui';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,7 +18,7 @@ export type { ConflictCounts };
 /** The id of `ConflictsList`'s own section, to scroll to (never a `#` link: the router owns the hash). */
 export const CONFLICTS_ID = 'conflicts';
 
-const finished = (p: ProjectView) => p.state === 'done' && p.drawings.length > 0;
+const finished = (p: ProjectView) => p.state === 'done' && readDrawings(p).length > 0;
 
 /** "5 drawings ready. Conflicts are below. 2 issues in Documents need you." (IN-76) */
 export function DoneLine({
@@ -32,7 +33,7 @@ export function DoneLine({
   if (!finished(project)) return null;
   return (
     <p className="ingest-done-line m-0 text-[15px] text-text-2 [&_a]:font-semibold [&_a]:text-primary">
-      {`${plural(project.drawings.length, 'drawing')} ready.`}
+      {`${plural(readDrawings(project).length, 'drawing')} ready.`}
       {counts !== null && counts.total > 0 && (
         <>
           {' '}

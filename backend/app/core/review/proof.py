@@ -230,8 +230,13 @@ def _model(found: Row, drawing: Drawing, keys: tuple[ClassKey, ...]) -> Proof:
     # Shown only when it is exactly what was counted (core does not name the objects yet)
     exact = not named and (found.measure != "count" or len(chosen) == found.original_value)
     where = f" on {chosen[0].storey}" if exact and chosen and scope.storey else ""
+    names = (
+        "space in the model whose name says"
+        if len(chosen) == 1
+        else "spaces in the model whose names say"
+    )
     said = (
-        f"{len(chosen)} spaces in the model whose names say {words(kind)}{',' if where else ''}"
+        f"{len(chosen)} {names} {words(kind)}{',' if where else ''}"
         if kind is not None
         else f"{len(chosen)} {found.subject} objects in the model"
     )

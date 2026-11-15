@@ -47,7 +47,6 @@ describe('FileTraceScreen', () => {
       routeLabel(f.route), // IN-83: "drawn PDF route", not "vector"
       must(f.source),
       must(f.group),
-      '$0.00',
     ])
       expect(text).toContain(s);
     expect(text).toContain('ready');
@@ -312,6 +311,22 @@ describe('FileTraceScreen', () => {
       within(card).getByRole('link', { name: 'See these on the drawing' }).getAttribute('href'),
     ).toBe(`#/p/${PID}/d/${must(trace.file.drawing_id)}/engineer`);
     expect(must(card.querySelector('details')).open).toBe(false);
+  });
+
+  it('AD-122 the Cost fact shows only a cost above zero (was "$0.00" on every file, IN-32)', async () => {
+    const fact = (label: string) =>
+      [...document.querySelectorAll('.ingest-facts dt')].find((d) => d.textContent === label);
+    mockApi({ [GET]: { ...trace, file: { ...trace.file, cost_usd: 0 } } });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(fact('Time')).toBeTruthy();
+    expect(fact('Cost')).toBeUndefined();
+    expect(document.body.textContent).not.toContain('$0.00');
+    cleanup();
+    mockApi({ [GET]: { ...trace, file: { ...trace.file, cost_usd: 0.031 } } });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(must(fact('Cost')).nextElementSibling?.textContent).toBe('$0.03');
   });
 
   it('AD-119 a file read with its group: the Route fact names the file it was read with', async () => {

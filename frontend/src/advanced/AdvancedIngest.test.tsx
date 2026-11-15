@@ -338,11 +338,22 @@ describe('AdvancedIngest', () => {
     expect(stat('Rooms').textContent).toContain('10');
     expect(stat('Doors').textContent).toContain('4');
     expect(stat('Windows').textContent).toContain('4');
-    expect(stat('Drawings ready').textContent).toContain('6 / 6');
+    // AD-123: the two raster drawings were not read (readers.raster = hello), so 4 of the 6 are ready
+    expect(stat('Drawings ready').textContent).toContain('4 / 6');
     cleanup();
     await show({ ...project, expected_drawings: null });
     await pick(/^Extract/);
-    expect(stat('Drawings ready').querySelector('dd')?.textContent).toBe('6');
+    expect(stat('Drawings ready').querySelector('dd')?.textContent).toBe('4');
+  });
+
+  it('AD-123 Drawings ready leaves out drawings on a route with no reader (hello), as the Simple view', async () => {
+    await show({ ...project, readers: { ...project.readers, raster: 'composite' } });
+    await pick(/^Extract/);
+    expect(stat('Drawings ready').textContent).toContain('6 / 6');
+    cleanup();
+    await show({ ...project, readers: { ...project.readers, raster: 'hello', vector: 'hello' } });
+    await pick(/^Extract/);
+    expect(stat('Drawings ready').textContent).toContain('1 / 6'); // the IFC alone
   });
 
   it('a room pill names its room_type in its title', async () => {

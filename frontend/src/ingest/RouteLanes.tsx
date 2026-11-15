@@ -11,6 +11,7 @@ import {
   lanes,
   routeReaders,
   stepMatches,
+  unread,
   type Lane,
 } from './pipeline';
 import { MUTED } from './ui';
@@ -172,6 +173,7 @@ function LaneView({
   seen,
   live,
   known,
+  recorded,
 }: {
   projectId: string;
   lane: Lane;
@@ -179,6 +181,8 @@ function LaneView({
   seen: Set<string>;
   live: boolean;
   known: boolean;
+  /** `ProjectView.readers` as recorded: a file on a route whose reader is `hello` was not read (IN-116). */
+  recorded: Record<string, string> | undefined;
 }) {
   const routed = lane.id !== 'waiting' && lane.id !== 'other';
   const reading = lane.files.filter((f) => f.state === 'running');
@@ -186,7 +190,8 @@ function LaneView({
   const shown = lane.files.slice(0, LANE_ROWS);
   const more = lane.files.length - shown.length;
   const found = lane.files.filter(
-    (f) => isFinished(f) && f.drawing_id && (!f.source || f.source === f.path),
+    (f) =>
+      isFinished(f) && f.drawing_id && (!f.source || f.source === f.path) && !unread(f, recorded),
   );
   return (
     <section
@@ -260,6 +265,7 @@ export function RouteLanes({
           seen={seen.get(lane.id) ?? new Set()}
           live={isLive(project)}
           known={project.readers !== undefined}
+          recorded={project.readers}
         />
       ))}
     </section>

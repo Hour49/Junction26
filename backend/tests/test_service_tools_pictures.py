@@ -5,11 +5,14 @@ project is scripted; the picture's marks are those of test_services_picture_foll
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from test_services_picture_follow import WALL, heating
 
+from app.adapters import service_tools
 from app.adapters.discipline_pictures.lane import PictureFactSheet, PictureScale
 from app.adapters.ifc_services import ServiceFiles
 from app.adapters.service_tools import ServiceFollower
+from app.api.views import drawings_of
 from app.core.drawing.model import Drawing, Page, Room, Scale
 from app.core.ifc_facts import FactSheet
 from app.core.ingest.model import FileStatus, ProjectStatus
@@ -169,3 +172,69 @@ def test_a_picture_without_a_drawing_scale_is_sized_by_its_readers_scale() -> No
     heated = {d.discipline: d for d in services.disciplines}["heating"]
     assert heated.status == "not_aligned"
     assert heated.reason is not None and heated.reason.endswith("the services picture has no scale")
+
+
+def test_a_picture_read_from_another_rendering_is_named_once_by_its_drawing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """review-544 S1: a services picture uploaded as a PDF and a PNG is one drawing (its PNG a
+    rendering of it). A lane read from either is named by that drawing, once, not by a file name."""
+    base = project()
+    plan_file, *_ = base.ingest.status("p").files
+    png = FileStatus(
+        id="f2",
+        path="set/H-101 Floor 1 heating.png",
+        size=1,
+        sha256="h",
+        kind="png_plan",
+        state="ready",
+        group="h",
+        route="raster",
+        drawing_id="d2",
+    )
+    path = "set/H-101 Floor 1 heating.pdf"
+    pdf = png.model_copy(
+        update={"id": "f3", "path": path, "sha256": "hp", "kind": "pdf_scan", "drawing_id": "d3"}
+    )
+    listed = (plan_file.model_copy(update={"path": "set/A-101 Floor 1 plan.pdf"}), png, pdf)
+    status = base.ingest.status("p").model_copy(update={"files": listed})
+    [entry] = [e for e in drawings_of(status) if e.drawing_id == "d3"]
+    assert [r.drawing_id for r in entry.other_renderings] == ["d2"]  # the PNG is a rendering
+    plan = base.ingest.drawing(PLAN)
+    unscaled = plan.model_copy(update={"scale": Scale(status="no_scale"), "rooms": ()})
+    ingest = SimpleNamespace(
+        status=lambda _: status, drawing=lambda d: plan if d == PLAN else unscaled
+    )
+    read = heating()
+    facts = PictureFactSheet(
+        model=read.model,
+        disciplines=read.disciplines,
+        facts=[f.model_copy(update={"storey": None}) for f in read.facts],
+        scale=PictureScale(width_px=500, height_px=500, m_per_px=0.02),
+    )
+
+    def heated() -> Any:
+        follower = ServiceFollower(
+            SimpleNamespace(project_id="p", ingest=ingest),  # pyright: ignore[reportArgumentType]
+            ServiceFiles(),
+            pictures={"d2": facts}.get,
+        )
+        proposal = Proposal(proposal_id="p1", drawing_id=PLAN, page=1, removed=(WALL,))
+        services, _ = follower.run(proposal)
+        lane = {d.discipline: d for d in services.disciplines}["heating"]
+        assert lane.status == "checked", lane.reason
+        return lane
+
+    assert heated().source == entry.name  # "Scanned plan 1", not "H-101 Floor 1 heating.png"
+    # a lane read from both renderings names their drawing once
+    real = service_tools.picture_follow
+
+    def both(*args: Any, **kwargs: Any) -> Any:
+        seen = real(*args, **kwargs)
+        lanes = tuple(
+            d.model_copy(update={"source": "d3, d2"}) if d.source else d for d in seen.disciplines
+        )
+        return seen.model_copy(update={"disciplines": lanes})
+
+    monkeypatch.setattr(service_tools, "picture_follow", both)
+    assert heated().source == entry.name

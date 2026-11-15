@@ -76,6 +76,51 @@ describe('TraceTimeline steps', () => {
     expect(spans[2]?.style.getPropertyValue('--l')).toBe('30.00%');
   });
 
+  it('AD-121 a real raster extract: the wait and the runs side by side are said in words, steps stay the items', () => {
+    const raster: StageTrace = {
+      ...extract,
+      ms: 21168.7,
+      cost_usd: 0,
+      steps: [
+        step({ id: 'printed_scale', label: 'Printed scale and counts', at_ms: 1.3, ms: 359.3 }),
+        step({ id: 'carbon', label: 'Gemini Carbon check (never counted)', at_ms: 4.4, ms: 368.1 }),
+        step({
+          id: 'arbiter',
+          label: 'Symbol detector, 8 views + count arbiter',
+          at_ms: 16031.8,
+          ms: 5128.4,
+        }),
+        step({
+          id: 'detector',
+          label: 'Symbol detector (arbiter base)',
+          at_ms: 16031.8,
+          ms: 4486.7,
+        }),
+        step({ id: 'rooms', label: 'Room reader', at_ms: 16031.9, ms: 1369.7 }),
+        step({ id: 'arbiter', label: 'Count arbiter', at_ms: 20608.2, ms: 551.9 }),
+        step({ id: 'carbon', label: 'Gemini Carbon reader', at_ms: 21161.5, state: 'skipped' }),
+      ],
+    };
+    render(<TraceTimeline stages={[raster]} />);
+    const list = screen.getByRole('list', { name: 'Steps of Extract' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(7);
+    const notes = [...list.querySelectorAll('[role="presentation"]')].map((n) => n.textContent);
+    expect(notes).toEqual([
+      'Side by side, 1.30 ms to 372.5 ms: 2 steps',
+      'No step ran from 372.5 ms to 16.0 s',
+      'Side by side, 16.0 s to 21.2 s: 4 steps, up to 3 at once',
+    ]);
+    expect(list.querySelectorAll('.tl-step.together')).toHaveLength(6);
+    // the arbiter spans its run, so its bar is full width, not squeezed into the stage's last quarter
+    const arbiter = within(list)
+      .getByText('Symbol detector, 8 views + count arbiter')
+      .closest('li');
+    expect(
+      must(arbiter?.querySelector<HTMLElement>('.tl-span')).style.getPropertyValue('--w'),
+    ).toBe('100.00%');
+    expect(list.textContent).not.toContain('queue');
+  });
+
   it('AD-104 a stage without steps (an old server, or none recorded) draws no step list', () => {
     const old = { ...extract } as Partial<StageTrace>;
     delete old.steps;

@@ -713,10 +713,29 @@ run and tick it ("ran") after; a label no reader name covers gets its own chip.
 - IN-113 (orchestrator, 390 check with 40 files): a file row's link shows the folder muted and the file name in
   its own span that does not shrink, so a long path gives up its folder first and rows of one folder stay apart
   ("…/Grundriss_OG4…", not "Planunterlagen/Archi…"); the link's name and `title` stay the full path. [component]
+- IN-114 (QA R2-C3, 255-character upload name): the title `h1` (screen 2 and the file page) shows at most 3 lines
+  (`line-clamp-3`), with no sideways scroll at 390; its accessible name and `title` stay the full name. The
+  "Uploaded: …" line cuts a name over 60 characters in the middle ("Bauprojekt_…_Me.png"), its `title` the whole
+  name. [component;
+  browser: screenshots at 390 and 1440 in the PR]
+- IN-115 (QA R2-C4, empty zip): the "Uploaded: …" line says "Unpacking…" only while the project is queued or
+  running with no files yet. Done with no files (an empty zip: the server answers `done`, `files: []`,
+  `skipped: []`, no `error`) it says "No files found in it.", and the "Nothing read" card adds "There were no files
+  in it."; failed with no files it says "Nothing was unpacked." (the server's error follows). [component]
+- IN-116 (QA R2-A1, unread PNG): a drawing or file on a route whose reader is `hello` (`readers[route]`, "not read:
+  this setup has no reader for …") was not read. The server keeps its drawing (flagged, with a page for the
+  viewer), but "Drawings ready", the done line ("<n> drawings ready."), the "Flagged" total and the finished
+  sentence's "Read …" leave it out; the sentence counts it as "<n> not read", not as flagged. A done project with no drawing read shows
+  IN-72's "Nothing read" card, not "Ready" with a 100% ring. (A real reader that read nothing is not told apart:
+  the API has no field for it yet.) [unit: `unread`, `readDrawings`, `routeSummary`; component]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
 hairline facts, Route fact as `routeLabel`) stands.
+
+Changed on purpose (IN-116): IN-16, IN-68 and IN-76 count the drawings read, so on `project.json` (a no-keys run,
+`raster: hello`) "Drawings ready" is 4 / 6 and the done line "4 drawings ready.", and the golden path e2e on a
+no-keys backend sees 4 / 6 (its scan and photo are not read).
 
 Changed on purpose: IN-86 (Cost is back as the 8th total), IN-89's hint text, the golden path's "no file list on
 Ingest" (v3): file links now appear on Ingest, only inside the route lanes. "Showing `readers` and `counts` on these

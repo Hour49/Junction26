@@ -130,7 +130,8 @@ def test_many_walls_and_a_10_km_stray_keep_the_work_bounded(monkeypatch) -> None
     most = 120  # lines per side; the cost grows with their product
     assert max(w for _, w in sizes) <= most
     assert max(p for p, _ in sizes) <= most * register_module.SAMPLES
-    assert len(sizes) <= 4 * register_module.POSES * (register_module.ICP_STEPS + 1) + 8
+    runs = 4 * register_module.POSES + len(register_module.NUDGES) + 1  # + the polish
+    assert len(sizes) <= runs * (register_module.ICP_STEPS + 1) + 8
     assert max(votes) <= (2 * most) ** 2
 
 
@@ -142,3 +143,97 @@ def test_a_refined_scale_stays_in_the_searched_range() -> None:
     plan = np.array([[w.a, w.b] for w in floor(7)])
     _, scale, _ = register_module._icp(plan, sheet, 0.0, 1.0, np.zeros(2), (0.9, 1.1))
     assert 0.9 <= scale <= 1.1
+
+
+def dense(seed: int) -> list[Segment]:
+    """An architect's plan: the floor and 100 short stubs (closets, door jambs), axis-aligned."""
+    rng = np.random.default_rng(seed)
+    out = floor(seed)
+    for _ in range(100):
+        x, y, n = rng.uniform(0.5, 23.5), rng.uniform(0.5, 13.5), rng.uniform(0.4, 1.5)
+        out.append(Segment(a=(x, y), b=(x + n, y) if rng.random() < 0.5 else (x, y + n)))
+    return out
+
+
+def sparse(plan, seed: int, walls: int = 12, junk: int = 30, scale: float = 0.0105):
+    """A services sheet of `plan` (px, unturned, scale m/px): only `walls` of its 40 longest
+    walls are drawn, and `junk` short lines that are no walls (radiators, pipe stubs, text)."""
+    rng = np.random.default_rng(seed)
+
+    def q(p):
+        return ((p[0] - 2.0) / scale, (p[1] - 1.0) / scale)
+
+    longest = sorted(plan, key=lambda w: -math.dist(w.a, w.b))[:40]
+    out = [Segment(a=q(longest[i].a), b=q(longest[i].b)) for i in rng.choice(40, walls, False)]
+    for _ in range(junk):
+        x, y, n = rng.uniform(0, 24), rng.uniform(0, 14), rng.uniform(0.3, 1.2)
+        out.append(Segment(a=q((x, y)), b=q((x + n, y) if rng.random() < 0.5 else (x, y + n))))
+    return out
+
+
+def test_a_sparse_services_sheet_is_placed_right_or_refused_never_wrong() -> None:
+    """A dev building's kind: a dense plan, a sheet with a few long walls and many short lines.
+    Line counts let a wrong pose through (seeds 6, 8, 11, 16, 23; seed 16 at 0.56x and a
+    quarter turn, like the real pair). Within 5%: axis-aligned walls slide along themselves,
+    so on this sheet a pose 2-4% off scores more wall length than the truth."""
+    for seed in (6, 8, 11, 16, 23, 0, 1, 10, 25):
+        out = register(dense(seed), sparse(dense(seed), seed))
+        if isinstance(out, Place):
+            assert abs(out.rotation_deg) < 2 and abs(out.scale / 0.0105 - 1) < 0.05, (seed, out)
+
+
+def test_a_plan_alike_turned_half_round_is_refused_or_placed_right() -> None:
+    """A floor that looks the same turned 180 deg: its twin pose scores as well."""
+    half = [((0, 0), (24, 0)), ((24, 0), (24, 14)), ((24, 14), (0, 14)), ((0, 14), (0, 0))]
+    for x in (4.0, 8.0, 12.0):
+        half += [((x, 0), (x, 5)), ((24 - x, 14), (24 - x, 9))]
+    half += [((0, 7), (6, 7)), ((24, 7), (18, 7))]
+    plan = [Segment(a=a, b=b) for a, b in half]
+    out = register(plan, onto_sheet(plan, deg=0.0, scale=0.02, shift=(1.0, 1.0), drop=0.0))
+    if isinstance(out, Place):
+        assert abs(out.rotation_deg) < 0.5, out
+
+
+def test_another_building_s_services_sheet_is_refused() -> None:
+    """The services sheet of another, similar building (as a dev pair was)."""
+    for seed in range(3):
+        out = register(dense(seed), sparse(dense(seed + 100), seed, walls=40, junk=80))
+        assert isinstance(out, Refusal), (seed, out)
+
+
+def test_an_expected_scale_narrows_the_search() -> None:
+    plan = dense(6)
+    sheet = sparse(plan, 6, walls=30)
+    out = register(plan, sheet, expected_scale=0.0105)
+    assert isinstance(out, Place) and abs(out.scale / 0.0105 - 1) < 0.02, out
+    wrong = register(plan, sheet, expected_scale=0.0105 * 2)  # a misread printed scale
+    assert isinstance(wrong, Refusal), wrong
+
+
+def test_a_lay_off_the_wall_directions_quarter_turns_is_refused(monkeypatch) -> None:
+    """The fitted turn must agree (mod 90) with the direction histograms' peak; a fit that ends
+    further off was forced (on rendered dev pairs: wrong lays 7-26 deg off). Here the
+    peak is made to read 2 deg, ICP still finds the true 0 deg, and the gate is 1 deg."""
+    plan = floor(7)
+    monkeypatch.setattr(register_module, "_rotation", lambda plan, sheet: 2.0)
+    monkeypatch.setattr(register_module, "TURN_DEG", 1.0)
+    out = register(plan, plan)
+    assert isinstance(out, Refusal), out
+    assert out.reason.startswith("the fitted turn is 2.0 deg off"), out
+
+
+def test_sheet_lines_of_no_length_are_refused_and_mixed_ones_still_work() -> None:
+    plan = floor(7)
+    dots = [Segment(a=(float(x), 1.0), b=(float(x), 1.0)) for x in range(10)]
+    out = register(plan, dots)
+    assert out == Refusal(reason="the services sheet's wall lines have no length")
+    sheet = onto_sheet(plan, deg=93.0, scale=0.02, shift=(5.0, -3.0))
+    place = register(plan, [*sheet, *dots])
+    assert isinstance(place, Place) and abs(place.scale / 0.02 - 1) < 0.01, place
+
+
+def test_an_expected_scale_that_is_no_positive_number_is_refused() -> None:
+    plan = floor(7)
+    for bad in (0.0, -1.0, math.nan, math.inf):
+        out = register(plan, plan, expected_scale=bad)
+        assert out == Refusal(reason=f"the expected scale {bad} is not a positive number"), bad
