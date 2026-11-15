@@ -843,7 +843,8 @@ export function PageViewer({
             if (spot === null) return null; // no free spot: counted in the legend
             const value = valueOf(m);
             const tone = toneOf(m);
-            const name = `${m.label ?? 'item'}, ${said(m)}`;
+            // the value too (R3-C8): a screen reader hears the area the badge shows, even where a narrow frame hides it
+            const name = `${m.label ?? 'item'}${value === null ? '' : `, ${value}`}, ${said(m)}`;
             const isSelected = m.id === selected;
             const doubt = doubtOf.get(m.id);
             const whyId = `${uid}-why-${m.id}`;
