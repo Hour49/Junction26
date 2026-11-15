@@ -6,7 +6,7 @@ plain names (list_drawings) or, for the IFC, by "building model"."""
 import pytest
 from test_agent_loop import Model, Tools, call, final, step, turn
 
-from app.core.agent.named import named_drawings, unnamed
+from app.core.agent.named import kept_drawings, named_drawings, unnamed
 
 NAMES = {
     "d1": "Drawn plan 1",
@@ -192,3 +192,24 @@ def test_review_693_m1b_a_message_about_the_whole_project_narrows_to_none(messag
 def test_review_693_s_everywhere_narrows_to_none(message: str) -> None:
     """qa-a's should on #693: "on Drawn plan 1 and everywhere else" narrowed to Drawn plan 1."""
     assert named_drawings(message, NAMES) == set()
+
+
+@pytest.mark.parametrize(
+    ("message", "earlier", "named"),
+    [
+        ("and windows?", ["How many doors are there in the building model?"], {"m1"}),  # R2 row 2
+        ("What about the windows?", ["Doors on Drawn plan 2?"], {"d2"}),
+        ("And rooms?", ["Doors on Drawn plan 2?", "and windows?"], {"d2"}),  # a chain
+        ("also the toilets?", ["How many sinks on Plan image 2?"], {"i2"}),
+        ("and on Drawn plan 1?", ["Doors on Drawn plan 2?"], {"d1"}),  # names its own
+        ("and on all drawings?", ["Doors on Drawn plan 2?"], set()),  # widens: every drawing
+        ("and the others?", ["Doors on Drawn plan 2?"], set()),
+        ("How many windows are there?", ["Doors on Drawn plan 2?"], set()),  # a new question
+        ("and windows?", [], set()),
+        ("and windows?", ["How many doors are there?"], set()),  # nothing named before
+    ],
+)
+def test_r2_row_2_a_follow_up_keeps_the_drawings_named_before(
+    message: str, earlier: list[str], named: set[str]
+) -> None:
+    assert kept_drawings(message, earlier, NAMES) == named
