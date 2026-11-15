@@ -58,8 +58,21 @@ def test_a_count_question_names_its_subject(text: str, subject: str) -> None:
 )
 def test_space_as_part_of_a_compound_noun_is_not_rooms(text: str) -> None:
     """Tudor's QA (#430 c6886348353): "space heaters" answered "room count: 1"."""
-    found = PARSE(text)
-    assert not (isinstance(found, Query) and found.subject == "room"), found
+    assert isinstance(PARSE(text), Unsupported)  # refused, so the fact sheet may answer it
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the total area covered by space heating?",
+        "What is the total area of the space heating zones?",
+        "What is the total floor area with space cooling?",
+    ],
+)
+def test_an_area_of_a_space_service_is_refused_not_the_indoor_total(text: str) -> None:
+    """review-470 S1: with "space" no room word in these compounds, a subjectless total area
+    became every indoor room's area; a named service that is no room is refused."""
+    assert isinstance(PARSE(text), Unsupported)
 
 
 @pytest.mark.parametrize(

@@ -58,7 +58,12 @@ QUOTED = re.compile(r"(?<!\w)'(.+?)'(?!\w)|„([^“”]*)[“”]|«([^»]*)»|
 # Subject nouns, matched at a word start on the casefolded question. The order matters where one
 # pattern contains another: a matched span is blanked out before the next pattern runs (WC rooms
 # before WC seats, bathtubs before bathrooms, balconies before beams).
+SPACE_THING = "space_thing"  # a SUBJECTS hit that names no subject of the takeoff
+NOT_A_ROOM_SPACE = "a space heater, space heating or space frame is not a room the takeoff has"
 SUBJECTS: Sequence[tuple[str, str]] = (
+    # Matched first, so its "space" is no room: a service or structure named with it (space
+    # heaters, space heating, space frames; QA #430, review-470 S1). Never a Query: refused
+    (SPACE_THING, r"\bspaces?[\s-]+(?:heat\w*|frames?|truss\w*|cool\w*)"),
     ("room:wc", r"\bwc[- ]?(?:rooms?|til\w*|räume?)\b|\btoilet rooms?\b|\bseparate wcs?\b"),
     (
         "bathtub",
@@ -160,9 +165,7 @@ SUBJECTS: Sequence[tuple[str, str]] = (
     ),
     (
         "room",
-        # "space" heads a room, not a compound noun: space heaters, frames, trusses (#430 QA)
-        r"\brooms?\b|\bspaces?\b(?![\s-]+(?:heat\w*|frames?|truss\w*|cool\w*))"
-        r"|\w*räume?n?\b|\braums?\b|\bpièces?\b|\blocal[ei]?\b"
+        r"\brooms?\b|\bspaces?\b|\w*räume?n?\b|\braums?\b|\bpièces?\b|\blocal[ei]?\b"
         r"|\blocales\b|\bruimtes?\b|\bpomieszcze\w*|\bruum\w*|\brum(?:met)?\b|\bhuone(?:tta|et|ita)\b"
         r"|\bsalles?\b|\bstanz[ae]\b|\bvani\b|\bîncăper\w*|\bspați\w*|\bcamer[ae]\b",
     ),
@@ -334,6 +337,8 @@ class TemplateParser:
         if measure is None:
             return Unsupported(reason="no count, area, length or volume asked for")
         body, hits = _subjects(lower)
+        if any(subject == SPACE_THING for _, subject in hits):
+            return Unsupported(reason=NOT_A_ROOM_SPACE)
         model = any(q.role == "model" for q in quoted) or BUILDING.search(lower) is not None
         floor_total = (
             measure == "area"
