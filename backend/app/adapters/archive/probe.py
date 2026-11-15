@@ -73,6 +73,7 @@ import pypdfium2
 from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 from pypdfium2 import raw
 
+from app.adapters.archive.raster import too_large
 from app.adapters.eight_bit import eight_bit, on_white
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.ingest.model import ContentKind, LaterPage, Probed
@@ -293,6 +294,8 @@ def _image(data: bytes, image_format: str) -> Probed:
                 camera = ""
             image.draft("RGB", (THUMB, THUMB))  # JPEG: decode at a fraction of the size
             thumb = on_white(eight_bit(image)).convert("RGB")
+    except Image.DecompressionBombError as error:
+        return Probed(kind="unknown", did=too_large(error))
     except (UnidentifiedImageError, OSError) as error:
         return Probed(kind="unknown", did=f"an image that cannot be decoded: {error}")
     name = image_format.upper()

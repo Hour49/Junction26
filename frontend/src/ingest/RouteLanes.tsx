@@ -6,16 +6,21 @@ import type { FileStatus, ProjectView } from '../api';
 import { STAGE_LABEL, STATE_LABEL, STEPS, isFinished, isLive, plural, stepOf } from './ingest';
 import {
   PIPELINE_TIPS,
+  chipCovers,
+  chipRan,
+  chipStepsOf,
   chipWords,
   fileStep,
   foundLine,
   groupReaders,
   lanes,
   routeReaders,
-  stepMatches,
   triageReaders,
   unread,
+  type ChipSteps,
   type Lane,
+  type RanStep,
+  type SeenStep,
 } from './pipeline';
 import { MUTED } from './ui';
 import { cn } from '@/lib/utils';
@@ -35,25 +40,38 @@ const STATE_TONE: Record<FileStatus['state'], string> = {
   set_aside: 'text-danger',
 };
 
-/** The step labels seen running on each lane's files, kept across polls (a step can start and end between two). */
-function useSeenSteps(files: readonly FileStatus[]): Map<string, Set<string>> {
-  const [seen, setSeen] = useState(() => new Map<string, Set<string>>());
+/** The step a file is in now: its stable id (`FileStatus.step_id`) when sent, and its label; null: none. */
+function nowStep(f: FileStatus): SeenStep | null {
+  const label = fileStep(f);
+  return label === null ? null : { id: f.step_id ?? null, label };
+}
+
+/** A seen step's key: its id, else its label (an older server). */
+const keyOf = (s: SeenStep) => s.id ?? s.label;
+
+/** The steps seen running on each lane's files, kept across polls (a step can start and end between two). */
+function useSeenSteps(files: readonly FileStatus[]): Map<string, Map<string, SeenStep>> {
+  const [seen, setSeen] = useState(() => new Map<string, Map<string, SeenStep>>());
   const [last, setLast] = useState<readonly FileStatus[] | null>(null);
   if (files !== last) {
     // adjusted while rendering (react.dev "storing information from previous renders"), not in an effect
     setLast(files);
-    const fresh = files.filter((f) => f.route && fileStep(f) !== null);
-    if (fresh.some((f) => !seen.get(f.route ?? '')?.has(fileStep(f) ?? ''))) {
+    const fresh = files.flatMap((f) => {
+      const step = nowStep(f);
+      return f.route && step ? [{ route: f.route, step }] : [];
+    });
+    if (fresh.some(({ route, step }) => !seen.get(route)?.has(keyOf(step)))) {
       const next = new Map(seen);
-      for (const f of fresh) {
-        const route = f.route ?? '';
-        next.set(route, new Set([...(next.get(route) ?? []), fileStep(f) ?? '']));
-      }
+      for (const { route, step } of fresh)
+        next.set(route, new Map([...(next.get(route) ?? []), [keyOf(step), step]]));
       setSeen(next);
     }
   }
   return seen;
 }
+
+/** What a dimmed chip says: its steps were only skipped here, or none of them appeared (`ProjectStatus.ran`). */
+const DIMMED = { skipped: 'not needed here', absent: 'did not run' } as const;
 
 /** 8 ticks, one per file step: done, the one it is in now, still to come. Words carry the state beside it. */
 function Track({ file }: { file: FileStatus }) {
@@ -139,13 +157,26 @@ function ReaderChips({
   readers,
   seen,
   now,
+  ran,
+  settled,
+  known,
 }: {
   readers: string[];
-  seen: Set<string>;
-  now: string[];
+  seen: SeenStep[];
+  now: SeenStep[];
+  /** `ProjectStatus.ran[route]`: the steps that ran on this lane's files in this upload (IN-124). */
+  ran: readonly RanStep[] | undefined;
+  /** Every file of the lane has ended: what has not run by now will not on this upload. */
+  settled: boolean;
+  /** Each chip's step ids on this project (`chipStepsOf`, IN-123). */
+  known: ChipSteps;
 }) {
-  // a step label seen that no reader name covers is shown too: the server ran it
-  const extra = [...seen].filter((l) => !readers.some((r) => stepMatches(l, r)));
+  // a step seen that no reader covers is shown too, by its label: the server ran it
+  const extra = [
+    ...new Set(
+      seen.filter((s) => !readers.some((r) => chipCovers(r, s, known))).map((s) => s.label),
+    ),
+  ];
   const groups = groupReaders(readers, extra);
   if (groups.length === 0) return null;
   return (
@@ -164,19 +195,31 @@ function ReaderChips({
               className={cn('flex flex-wrap gap-1.5', !label && 'sm:col-span-2')}
             >
               {chips.map((c) => {
-                const running = now.some((l) => stepMatches(l, c));
-                const ran = [...seen].some((l) => stepMatches(l, c));
+                const running = now.some((s) => chipCovers(c, s, known));
+                const said = chipRan(c, ran, known);
+                const didRun = said === 'ran' || seen.some((s) => chipCovers(c, s, known));
+                // once the lane ended, a chip none of whose steps ran says why; null: not dimmed
+                const why =
+                  settled && !didRun && !running && (said === 'skipped' || said === 'absent')
+                    ? DIMMED[said]
+                    : null;
                 return (
                   <li
                     key={c}
+                    data-dimmed={why !== null || undefined}
                     className={cn(
                       'rounded-full px-2.5 py-0.5 text-xs',
-                      running ? 'bg-accent font-semibold text-primary' : 'bg-muted text-text-2',
+                      running
+                        ? 'bg-accent font-semibold text-primary'
+                        : why !== null
+                          ? 'border border-dashed border-muted text-muted-foreground'
+                          : 'bg-muted text-text-2',
                     )}
                   >
                     {running ? <span className="sr-only">running: </span> : null}
                     {chipWords(c, label !== null)}
-                    {ran && !running && (
+                    {why && <span>{` · ${why}`}</span>}
+                    {didRun && !running && (
                       <span aria-label="ran" className="ml-1 text-ok">
                         ✓
                       </span>
@@ -197,6 +240,8 @@ function LaneView({
   lane,
   readers,
   seen,
+  ran,
+  steps,
   live,
   known,
   recorded,
@@ -204,7 +249,10 @@ function LaneView({
   projectId: string;
   lane: Lane;
   readers: string[];
-  seen: Set<string>;
+  seen: SeenStep[];
+  ran: readonly RanStep[] | undefined;
+  /** Each chip's step ids on this project (`chipStepsOf`). */
+  steps: ChipSteps;
   live: boolean;
   known: boolean;
   /** `ProjectView.readers` as recorded: a file on a route whose reader is `hello` was not read (IN-116). */
@@ -212,7 +260,7 @@ function LaneView({
 }) {
   const routed = lane.id !== 'waiting' && lane.id !== 'other';
   const reading = lane.files.filter((f) => f.state === 'running');
-  const now = reading.map(fileStep).filter((s): s is string => s !== null);
+  const now = reading.map(nowStep).filter((s): s is SeenStep => s !== null);
   const shown = lane.files.slice(0, LANE_ROWS);
   const more = lane.files.length - shown.length;
   const found = lane.files.filter(
@@ -242,8 +290,15 @@ function LaneView({
           </span>
         </div>
         {routed &&
-          (readers.length > 0 || seen.size > 0 ? (
-            <ReaderChips readers={readers} seen={seen} now={now} />
+          (readers.length > 0 || seen.length > 0 ? (
+            <ReaderChips
+              readers={readers}
+              seen={seen}
+              now={now}
+              ran={ran}
+              settled={lane.files.every(isFinished)}
+              known={steps}
+            />
           ) : (
             // said only when the server recorded its readers (an old one did not)
             known && (
@@ -277,6 +332,7 @@ export function RouteLanes({
 }): JSX.Element | null {
   const seen = useSeenSteps(project.files);
   const byRoute = routeReaders(project.readers);
+  const steps = chipStepsOf(project.readers);
   const all = lanes(project.files);
   const sorting = triageReaders(project.readers);
   if (all.length === 0) return null;
@@ -303,7 +359,9 @@ export function RouteLanes({
           projectId={projectId}
           lane={lane}
           readers={lane.id in byRoute ? byRoute[lane.id as keyof typeof byRoute] : []}
-          seen={seen.get(lane.id) ?? new Set()}
+          seen={[...(seen.get(lane.id)?.values() ?? [])]}
+          ran={project.ran?.[lane.id]}
+          steps={steps}
           live={isLive(project)}
           known={project.readers !== undefined}
           recorded={project.readers}

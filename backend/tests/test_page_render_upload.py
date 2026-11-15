@@ -35,3 +35,15 @@ def test_an_image_that_cannot_be_decoded_is_invalid_input(kind: str, damage: str
 def test_a_pdf_that_cannot_be_opened_is_invalid_input() -> None:
     with pytest.raises(InvalidInputError, match="cannot be decoded"):
         render_upload(b"%PDF-1.7\n garbage", "pdf_scan", 400)
+
+
+def test_an_image_too_large_to_open_has_no_preview_in_plain_words(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """QA R4-G2: Pillow's decompression-bomb text never reaches the screen."""
+    data = jpeg()
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 10)
+    with pytest.raises(InvalidInputError) as refused:
+        render_upload(data, "jpeg_plan", 400)
+    assert "an image too large to open safely" in str(refused.value)
+    assert "DOS attack" not in str(refused.value)

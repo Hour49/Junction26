@@ -294,6 +294,15 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.adv-folder {
+  color: var(--v-muted);
+  font-weight: 400;
+}
+/* one box: a name that fits the line moves to it whole; a wider one breaks inside the box (AD-125) */
+.adv-name {
+  display: inline-block;
+  max-width: 100%;
+}
 .adv-caption {
   margin: 12px 0 0;
   text-align: center;

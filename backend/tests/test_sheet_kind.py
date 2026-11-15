@@ -40,7 +40,7 @@ from app.core.ingest.model import (
     Triage,
     Unavailable,
 )
-from app.core.ingest.triage import set_aside_reason, sheet_doubt, sheet_flag
+from app.core.ingest.triage import set_aside_reason, sheet_doubt, sheet_flag, symbols_refused
 from app.core.spend import SpendGuard
 from app.settings import Settings
 
@@ -181,6 +181,30 @@ def test_a_camera_photo_of_a_non_plan_is_still_warned(
     triage = warn_only(tmp_path, found, PHOTO_PROBED)
     assert triage.sheet is not None and triage.sheet.decision == "doubt"
     assert sheet_flag(triage) is not None
+
+
+@pytest.mark.parametrize(
+    ("found", "refused"),
+    [
+        (PIPING, True),  # T3: mep_plan at 0.98
+        (form("mep_plan", False, True, 0.9), False),  # at 0.9, not over it
+        (FIRE_EXIT_PLAN, False),  # an evacuation plan the model calls mep_plan at 0.65
+        (form("structural_plan", False, False, 0.98), False),
+        (form("site_plan_or_map", False, False, 0.95), False),
+        (form("roof_or_ceiling_plan", False, False, 0.97), False),
+    ],
+)
+def test_only_a_sure_mep_plan_refuses_its_symbol_counts(
+    tmp_path: Path, found: dict[str, Any], refused: bool
+) -> None:
+    """R3-C3, narrowed after review-596 (orchestrator 04:39): refusing door and fixture counts on
+    every doubted non-plan kind hit 30 of 327 real plans (evacuation plans, directories, a ceiling
+    plan); mep_plan over 0.9 hit none and still catches T3 at 0.98. Every other doubt keeps
+    warn-only (answered, Low, with the flag)."""
+    triage = warn_only(tmp_path, found, PNG_PROBED)
+    assert sheet_flag(triage) is not None  # each is a flagged doubt
+    assert (symbols_refused(triage) == sheet_flag(triage)) is refused
+    assert (symbols_refused(triage) is None) is not refused
 
 
 def test_a_camera_photo_is_still_set_aside_at_the_cut(tmp_path: Path) -> None:

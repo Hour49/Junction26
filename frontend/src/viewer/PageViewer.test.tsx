@@ -685,6 +685,11 @@ describe('PageViewer: label placement (R2-qa-1-3)', () => {
     const wide = badges(viewer(answerArea, { unit: 'm2' }).container);
     expect(wide.map((b) => b.textContent)).toEqual(['1 · 22.40 m²', '2 · 2.49 m²']);
     const wideLabels = wide.map((b) => b.getAttribute('aria-label'));
+    // R3-C8: the value is in the label, so a screen reader hears it on the narrow frame too
+    expect(wideLabels).toEqual([
+      'Mark 1: Küche, 22.40 m², counted',
+      'Mark 2: Reduit, 2.49 m², counted',
+    ]);
     cleanup();
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(358);
     const narrow = badges(viewer(answerArea, { unit: 'm2', selected: 'm1' }).container);

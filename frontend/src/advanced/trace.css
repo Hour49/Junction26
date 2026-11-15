@@ -183,6 +183,10 @@
 .tl-step.skipped {
   color: var(--v-muted);
 }
+.tl-step.conflict .tl-step-icon {
+  color: var(--v-warn);
+  font-weight: 700;
+}
 .tl-step.skipped .tl-step-icon {
   color: var(--v-muted);
 }

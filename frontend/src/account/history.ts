@@ -16,9 +16,11 @@ export function workspaceKind(p: Pick<ProjectSummary, 'files' | 'drawings'>): st
   return `${kind} · ${plural(p.files, 'file')} · ${plural(p.drawings, 'drawing')}`;
 }
 
-export type PillTone = 'accent' | 'ok' | 'danger';
+export type PillTone = 'accent' | 'ok' | 'warn' | 'danger';
 
-export function workspacePill(state: string): { word: string; tone: PillTone } {
+/** The list pill; a done workspace that read no drawing is "Nothing read", not "Ready" (QA R4-A12). */
+export function workspacePill(state: string, drawings?: number): { word: string; tone: PillTone } {
+  if (state === 'done' && drawings === 0) return { word: 'Nothing read', tone: 'warn' };
   if (state === 'done') return { word: 'Ready', tone: 'ok' };
   if (state === 'failed') return { word: 'Failed', tone: 'danger' };
   return { word: 'Reading', tone: 'accent' };

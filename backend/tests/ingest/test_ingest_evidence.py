@@ -47,7 +47,9 @@ def test_the_index_gets_the_judged_status_once_the_project_is_done(
     assert indexed.state == "done"
     elevation = file_of(indexed, "elevation.png").triage
     assert elevation is not None and elevation.verdict == "related"  # judged before indexing
-    assert indexed == status
+    # the done status, but for the index's own step, which is added once it has run
+    assert indexed == status.model_copy(update={"index_steps": status.index_steps[:-1]})
+    assert status.index_steps[-1].id == "evidence"
 
 
 def test_an_overrule_updates_the_index_with_the_persons_verdict(

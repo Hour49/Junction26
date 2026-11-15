@@ -22,6 +22,7 @@ from pydantic import Field
 
 from app.adapters.discipline_pictures import legend as legend_module
 from app.adapters.discipline_pictures import mask as mask_module
+from app.adapters.discipline_pictures import runs_graph as runs_graph_module
 from app.adapters.discipline_pictures import template as template_module
 from app.adapters.discipline_pictures.legend import OcrLegend
 from app.adapters.discipline_pictures.mask import MaskReader
@@ -29,11 +30,11 @@ from app.adapters.discipline_pictures.template import TemplateReader
 from app.adapters.whole_file import write_whole
 from app.core import picture_facts as picture_facts_module
 from app.core.discipline import discipline_from_sheet
-from app.core.ifc_facts import Fact, FactSheet
+from app.core.ifc_facts import Discipline, Fact, FactSheet
 from app.core.ingest.model import FileStatus
 from app.core.ingest.model import Sheet as SheetKind
 from app.core.model import Frozen
-from app.core.picture_facts import Checked, picture_facts, storey_of_title
+from app.core.picture_facts import Checked, double_check, picture_facts, storey_of_title
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.ports import DrawingFiles, Extractor, PictureReader
 
@@ -45,7 +46,13 @@ CODE = hashlib.sha256(
         [
             *(
                 Path(m.__file__ or "").read_bytes()
-                for m in (legend_module, template_module, mask_module, picture_facts_module)
+                for m in (
+                    legend_module,
+                    template_module,
+                    mask_module,
+                    runs_graph_module,
+                    picture_facts_module,
+                )
             ),
             Path(__file__).read_bytes(),
         ]
@@ -139,6 +146,8 @@ class PictureLane:
         sheets: PictureSheets,
         legend: OcrLegend,
         symbols: PictureReader | None = None,
+        runs: PictureReader | None = None,
+        check: PictureReader | None = None,
     ) -> None:
         self._inner = inner
         self._sheet_of = sheet_of
@@ -146,7 +155,11 @@ class PictureLane:
         self._legend = legend
         # the symbols' reader: `template` unless another is given (DISCIPLINE_PICTURES=glyphs)
         self._template = symbols or TemplateReader(files, legend.legend)
-        self._mask = MaskReader(files, legend.legend, legend.scale)
+        # a second symbols reader (DISCIPLINE_PICTURES=gemini: template): a label whose count it
+        # confirms (`double_check`) is not held; it adds no facts of its own
+        self._check = check
+        # the runs' reader: `mask` unless another is given (DISCIPLINE_RUNS=graph)
+        self._mask = runs or MaskReader(files, legend.legend, legend.scale)
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found = self._inner.extract(source, sheet)
@@ -158,13 +171,13 @@ class PictureLane:
         named = discipline_from_sheet("mep_plan", stem, None) if kind is None else None
         if sheet.pages and (routed(kind) or named in ROUTED):
             try:
-                self._read(source, sheet, kind, by_name=named is not None)
+                self._read(source, sheet, kind, named)
             except Exception:  # the lane never fails ingest; the log has the trace
                 log.exception("discipline pictures: %s not read", sheet.file.path)
         return found
 
     def _read(
-        self, source: DrawingFile, sheet: Sheet, kind: SheetKind | None, by_name: bool = False
+        self, source: DrawingFile, sheet: Sheet, kind: SheetKind | None, named: Discipline | None
     ) -> None:
         storey = storey_of_title(kind.title if kind else None)
         # shortcut: a photo the rectifier could not flatten is matched as is; skip template there
@@ -173,15 +186,22 @@ class PictureLane:
             reading.model_copy(update={"storey": storey})
             for reading in (self._template.read(source, sheet), self._mask.read(source, sheet))
         )
-        facts = picture_facts(
-            sheet.file.sha256[:16], Checked(readings=readings, agreed={}, disputed=())
-        )
+        checked = Checked(readings=readings, agreed={}, disputed=())
+        if self._check is not None:
+            second = double_check(readings[0], self._check.read(source, sheet))
+            checked = checked.model_copy(
+                update={"agreed": second.agreed, "disputed": second.disputed}
+            )
+        # the page's own discipline (triage's, else the file name's) for labels that name none
+        facts = picture_facts(sheet.file.sha256[:16], checked, kind.discipline if kind else named)
         if not facts.facts:
             notes = [note for reading in readings for note in reading.notes]
             said = "; ".join(notes)
             log.info("discipline pictures: no facts on %s (%s)", sheet.file.path, said)
             return
-        if by_name:  # said in each fact's source, after its readers, so a reason can quote it
+        if (
+            named is not None
+        ):  # said in each fact's source, after its readers, so a reason can quote it
             facts = facts.model_copy(update={"facts": [_named(f) for f in facts.facts]})
         kept = PictureFactSheet(**dict(facts), scale=self._scale(source, sheet))
         self._sheets.put(sheet.file.sha256, kept)

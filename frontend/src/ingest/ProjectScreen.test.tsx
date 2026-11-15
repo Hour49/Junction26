@@ -444,7 +444,10 @@ describe('ProjectScreen', () => {
   });
 
   it('IN-89 every file finished while the project runs: Step 9 of 9, Index working, no file bar', async () => {
-    mockApi({ [GET]: { ...variants.running, files: project.files } });
+    // every file finished while it runs: the server is in its last phase, which lists its steps when it ends
+    mockApi({
+      [GET]: { ...variants.running, files: project.files, phase: 'index', index_steps: [] },
+    });
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText('Step 9 of 9')).toBeTruthy();

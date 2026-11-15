@@ -498,6 +498,19 @@ Acceptance criteria
   only the drawings with questions, then one line for the rest ("12 drawings have none yet"); it was one row per
   drawing, 12 of 13 real ones reading "0 questions ready to ask". [component `FileMatrix.test.tsx`,
   `AdvancedIngest.test.tsx`; screenshots at 1440 and 390]
+- AD-125 (real steps of #535, 2026-11-15): Identify, Normalise and Second count now send steps. A step's did line that
+  the stage's own did already says (the whole line, or a part of it at its start or after "; " / ": ") is not shown
+  again; the step keeps its name and time. A done step with 0 ms exactly was not timed (the second count's checks):
+  no time, no bar. A check step whose `found.conflict` is above zero gets the "!" mark ("found a conflict"). The
+  Index step's log lists each file's evidence, then the project's `index_steps` ("<label> <did>", a failed one
+  marked), so its live line is the latest index step. A path in the Advanced panel's running text (live line, log,
+  "Questions ready to ask", the Unpack file cards) is the muted folder with a break allowed after each "/", then
+  the file name as one box: whole on its line when it fits, else broken after a "_" or "-" of its own, never
+  mid-token. [unit `trace.test.ts`; component `FileMatrix.test.tsx`, `AdvancedIngest.test.tsx`; e2e
+  `ingest-detail.spec.ts`; screenshots at 1440 and 390]
+- AD-126 (orchestrator, 2026-11-15): A path in the Advanced panel's running text (AD-125) breaks only after its own
+  separators, the folder's and the name's alike, with `nameParts` from `ingest.ts` (IN-121: after "_", "-", "." and
+  "/"), and carries the full path as its title. [component `AdvancedIngest.test.tsx`; screenshots at 1440 and 390]
 
 ## Not in the API
 

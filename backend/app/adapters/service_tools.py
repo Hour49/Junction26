@@ -233,7 +233,8 @@ class ServiceFollower:
     def _sheet(self, file: FileStatus, page: int, facts: FactSheet | None) -> Sheet:
         """Where a drawing's page lies: its size in metres when it has a scale, its room names
         at their boxes' centres, the floor its services facts name, and what pairing reads:
-        the upload's path, the sheet number triage read, the lanes its picture marks."""
+        the upload's path, the sheet number and discipline triage read, the lanes its picture
+        marks."""
         drawing_id = file.drawing_id or ""
         drawing = self.pipeline.ingest.drawing(drawing_id)
         read = file.triage.sheet if file.triage else None
@@ -251,6 +252,7 @@ class ServiceFollower:
             ),
             name=file.path or None,
             sheet_number=read.sheet_number if read else None,
+            discipline=read.discipline if read else None,
             disciplines=tuple(
                 lane
                 for lane in LANES

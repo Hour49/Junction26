@@ -4,9 +4,11 @@ import { STAGE_LABEL, formatCost, formatMs, plural } from '../ingest/ingest';
 import { INGEST_TIPS, STAGE_TIPS } from '../shell/tips-ingest';
 import {
   PHASE,
+  conflictsOf,
   decisions,
   repeats,
   foundLine,
+  saidByStage,
   sideBySide,
   stageSpans,
   stepRows,
@@ -15,6 +17,7 @@ import {
   type Span,
   type Step,
   type Tone,
+  untimed,
 } from './trace';
 import './trace.css';
 import { Tip } from '@/components/ui/tip';
@@ -38,23 +41,42 @@ const STEP_ICON = {
   done: { icon: '✓', word: 'done' },
   failed: { icon: '✕', word: 'failed' },
   skipped: { icon: '–', word: 'skipped' },
+  running: { icon: '…', word: 'running' },
 } as const;
 
-function StepRow({ step, span, together }: { step: Step; span: Span | null; together: boolean }) {
-  const state = STEP_ICON[step.state];
+function StepRow({
+  step,
+  span,
+  together,
+  stageDid,
+}: {
+  step: Step;
+  span: Span | null;
+  together: boolean;
+  stageDid: string;
+}) {
+  // a check that found a conflict is marked as one, though the step itself is done (AD-125)
+  const conflict = step.state === 'done' && conflictsOf(step) > 0;
+  const state = conflict ? { icon: '!', word: 'found a conflict' } : STEP_ICON[step.state];
   const found = foundLine(step.found);
+  // the stage's line already said it: the row keeps its name and time only (AD-125)
+  const did = saidByStage(step.did, stageDid) ? '' : step.did || found;
+  const timed = step.state !== 'skipped' && !untimed(step);
   return (
-    <li className={`tl-step ${step.state}${together ? ' together' : ''}`}>
+    <li
+      className={`tl-step ${step.state}${together ? ' together' : ''}${conflict ? ' conflict' : ''}`}
+    >
       <span className="tl-step-icon" role="img" aria-label={state.word}>
         {state.icon}
       </span>
       <span className="tl-step-label">{step.label}</span>
       <span className="tl-ms">
-        {step.state === 'skipped' ? 'skipped' : formatMs(step.ms)}
-        {step.cost_usd > 0 && ` · ${formatCost(step.cost_usd)}`}
+        {step.state === 'skipped' ? 'skipped' : timed && formatMs(step.ms)}
+        {step.cost_usd > 0 &&
+          `${timed || step.state === 'skipped' ? ' · ' : ''}${formatCost(step.cost_usd)}`}
       </span>
-      <Track span={step.state === 'skipped' ? null : span} className="step" />
-      {(step.did || found) && <p className="tl-step-did">{step.did || found}</p>}
+      <Track span={timed ? span : null} className="step" />
+      {did && <p className="tl-step-did">{did}</p>}
     </li>
   );
 }
@@ -67,10 +89,13 @@ export function StepList({
   steps,
   ms = 0,
   label,
+  did = '',
 }: {
   steps: readonly Step[];
   ms?: number;
   label: string;
+  /** The stage's own did line: a step's did that only repeats it is left out. */
+  did?: string;
 }) {
   return (
     <ol className="tl-steps" aria-label={label}>
@@ -82,6 +107,7 @@ export function StepList({
               step={row.step}
               span={row.span}
               together={row.together}
+              stageDid={did}
             />
           );
         const text =
@@ -138,7 +164,7 @@ function StageRow({ s, span }: { s: StageTrace; span: Span | null }) {
               {plural(steps.length, 'step')} inside {label}
               {together > 1 && `, up to ${String(together)} side by side`}
             </p>
-            <StepList steps={steps} ms={s.ms} label={`Steps of ${label}`} />
+            <StepList steps={steps} ms={s.ms} label={`Steps of ${label}`} did={s.did} />
           </>
         )}
       </div>

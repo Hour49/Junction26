@@ -115,6 +115,15 @@ def test_review_360_s3_a_room_holds_every_word_not_just_one(client: TestClient) 
     assert [r["label"] for r in find(client, "stanza 1.02")["rooms"]] == ["Stanza 1.02"]
 
 
+def test_a_plural_word_finds_the_rooms_printed_in_the_singular(client: TestClient) -> None:
+    """R4-A14 (Tudor's QA round 4, T1 school): the chat looked up "classrooms" and found no
+    label holding it, so "How many classrooms are there?" was refused, though the plan prints
+    Secondary Classroom 8 times (round 3's chat had asked for "classroom" and answered 8)."""
+    assert [r["label"] for r in find(client, "stanzas")["rooms"]] == ["Stanza 1.02"]
+    assert [r["label"] for r in find(client, "stanzas 1.02")["rooms"]] == ["Stanza 1.02"]
+    assert find(client, "stanzas 1.01")["status"] == "unknown"  # still every word
+
+
 def test_review_360_s1_offered_rooms_are_only_the_ones_find_rooms_returned() -> None:
     """Gemini mode: the server drops a chip for a room find_rooms did not return."""
     from test_agent_loop import Model, call, final, step

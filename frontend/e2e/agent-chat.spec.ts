@@ -82,6 +82,13 @@ test('AC-30 AC-31 AC-37: a question goes over the step stream and gets an answer
   await steps.click();
   await expect(card.locator('.ag-steps li').first()).toBeVisible();
   await shot(page, testInfo, 'agent-answer', offline);
+  // CH-51 phone grade: the card's thumbnail opens the full viewer with its zoom; Close returns
+  await card.getByRole('button', { name: 'Enlarge the plan' }).first().click();
+  const sheet = page.getByRole('dialog', { name: 'The plan' });
+  await expect(sheet.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+  await shot(page, testInfo, 'agent-answer-enlarged', offline);
+  await sheet.getByRole('button', { name: 'Close' }).click();
+  await expect(sheet).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -148,6 +155,23 @@ async function storageEdit(page: Page, e2eDir: string, pack: string | null) {
   const pen = page.getByRole('button', { name: 'Draw on the plan' });
   await expect(pen).not.toHaveAttribute('aria-disabled', 'true');
   await pen.click();
+  await dragStorageBox(page);
+  // Pen down (Escape outside the viewer) so typing is back; on a narrow window close the sheet over the chat.
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
+  await page.keyboard.press('Escape');
+  await expect(pen).toHaveAttribute('aria-pressed', 'false');
+  const sheet = page.getByRole('dialog', { name: 'The plan' });
+  if (await sheet.isVisible()) await sheet.getByRole('button', { name: 'Close' }).click();
+  const turn = await ask(page, 'Put a storage room here');
+  const card = turn.locator('.ag-card--edit');
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  return card;
+}
+
+/** Drags STORAGE_BOX on the first open file's page (the pen on); the area chip shows. */
+async function dragStorageBox(page: Page) {
   const frame = page.locator('.ag-drawing .vw-frame').first();
   const img = frame.locator('img');
   await expect
@@ -171,19 +195,31 @@ async function storageEdit(page: Page, e2eDir: string, pack: string | null) {
   });
   await page.mouse.up();
   await expect(page.getByRole('button', { name: /^Remove Area on .+, page 1$/ })).toBeVisible();
-  // Pen down (Escape outside the viewer) so typing is back; on a narrow window close the sheet over the chat.
-  await page.evaluate(() => {
-    (document.activeElement as HTMLElement | null)?.blur();
-  });
-  await page.keyboard.press('Escape');
-  await expect(pen).toHaveAttribute('aria-pressed', 'false');
-  const sheet = page.getByRole('dialog', { name: 'The plan' });
-  if (await sheet.isVisible()) await sheet.getByRole('button', { name: 'Close' }).click();
-  const turn = await ask(page, 'Put a storage room here');
-  const card = turn.locator('.ag-card--edit');
-  await expect(card).toBeVisible({ timeout: 30_000 });
-  return card;
 }
+
+test('R4-F3 phone: "Show the plan" opens the sheet, its own Draw pen draws, the pen goes down after the drag', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone', 'the sheet is the narrow layout');
+  const offline = await noKeys(page);
+  const id = await uploaded(page, 'walled-flat.pdf', walledFlat(testInfo.config.rootDir));
+  await page.goto(`/#/p/${id}/chat`);
+  await expect(page.getByRole('button', { name: 'Draw on the plan' })).not.toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Show the plan' }).click();
+  const sheet = page.getByRole('dialog', { name: 'The plan' });
+  const draw = sheet.getByRole('button', { name: 'Draw', exact: true });
+  await expect(draw).toBeVisible(); // the sheet covers the ask bar's pen
+  await draw.click();
+  await expect(draw).toHaveAttribute('aria-pressed', 'true');
+  await dragStorageBox(page);
+  await expect(draw).toHaveAttribute('aria-pressed', 'false'); // R4-F1: a finished drag puts it down
+  await shot(page, testInfo, 'agent-sheet-drawn', offline);
+  await sheet.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByRole('textbox', { name: 'Question' })).toBeEnabled();
+});
 
 test('LC-11 LC-12: a storage room boxed into Stanza 1.02 under Zürich rules shows "Would not meet"', async ({
   page,

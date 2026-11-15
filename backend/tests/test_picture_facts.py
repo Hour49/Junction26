@@ -5,8 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from app.core.ifc_facts import Discipline
 from app.core.picture_facts import (
     NO_SCALE,
+    Checked,
     LegendEntry,
     PictureReading,
     Run,
@@ -15,6 +17,7 @@ from app.core.picture_facts import (
     double_check,
     kind_of,
     level_of_fact,
+    line_kind_of,
     picture_facts,
 )
 from app.core.review.check import CheckPolicy, Counts
@@ -310,3 +313,115 @@ def test_picture_facts_imports_no_adapter_image_library_model_reader_or_settings
     source = path.read_text()
     assert forbidden_imports(source, "app.core.picture_facts") == []
     assert "ifcopenshell" not in source
+
+
+def test_a_radiator_named_with_its_valve_and_german_compound_valves_and_pumps() -> None:
+    from app.core.picture_facts import kind_of
+
+    def kind(label: str) -> str | None:
+        found = kind_of(label, None)
+        return found and found[0]
+
+    # Revit type names from a German services model (rwth-digitalhub): a radiator named with
+    # its valve's side is a radiator; valves and pumps are compound words
+    assert kind("Heizkörper Plan Ventil Unten:Rechts") == "space_heater"
+    assert kind("Schrägsitzventil DN 12 - 50 - Gewinde:ND 25") == "valve"
+    assert kind("Absperrventil allgemein - Flansch:Standard") == "valve"
+    assert kind("Doppelpumpe DN 32 - 100 - Flansch:DN 50") == "pump"
+    assert kind("RLT-Gerät Ventilatorkammer:Ventilatorkammer 1.0") == "fan"  # not a valve
+    # unchanged: a radiator's valve is a valve, and the plain names keep their kinds
+    assert kind("Radiator valve") == "valve"
+    assert kind("Heizkörperventil") == "valve"
+    assert kind("M_Radiator - Panel") == "space_heater"
+    assert kind("Supply air diffuser") == "air_terminal"
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Radiator lockshield valve",
+        "Radiator return valve",
+        "Radiator angle valve",
+        "Valve - Radiator",
+        "Valve Radiator Oventrop AV 9",
+        "HC_Valve_Radiator_MEPcontent_Oventrop_AV 9_Angle Pattern:DN 15",
+        "HC Valve Radiator MEPcontent Oventrop AV 9 Angle Pattern:DN 15",  # OCR'd, no underscores
+        "Heizkörper Ventil",
+        "Heizkörper-Ventil",
+        "Heizkörper Ventil Typ",
+        "Heizkörper-Thermostatventil",
+        "Radiatorventil",
+        "Patteriventtiili",
+        "Lämpöpatteri venttiili",
+    ],
+)
+def test_a_valve_named_with_its_radiator_is_a_valve(label: str) -> None:
+    found = kind_of(label, None)
+    assert found is not None and found[0] == "valve"
+
+
+def test_only_a_radiator_family_that_names_its_valve_position_is_a_radiator() -> None:
+    for label in ("Heizkörper Plan Ventil Unten:Rechts", "Heizkörper Kompakt Ventil Oben:Links"):
+        assert kind_of(label, None) == ("space_heater", "heating")
+
+
+# --- the sheet's discipline for labels that name none (pic-det, 2026-11-15) ----------------------
+
+H101 = [  # DigitalHub H-101 legend labels as Gemini returned them, garbled umlauts included
+    "Heizkörper Plan Ventil Unten:Rechts",
+    "HeizkAcrper Plan Ventil Unten:Rechts",
+    "HeizkHrper Plan Ventil Unten:Rechts",
+    "Absperrventil allgemein - Flansch:Standard",
+    "Doppelpumpe DN 32 - 100 - Flansch:DN 50",
+]
+
+
+@pytest.mark.parametrize("label", H101)
+def test_on_a_heating_sheet_a_label_that_names_no_discipline_is_heating(label: str) -> None:
+    found = kind_of(label, None, "heating")
+    assert found is not None and found[1] == "heating"
+
+
+def test_on_a_plumbing_sheet_valves_stay_plumbing_and_a_named_discipline_wins() -> None:
+    assert kind_of("Absperrventil allgemein - Flansch:Standard", None, "plumbing") == (
+        "valve",
+        "plumbing",
+    )
+    assert kind_of("Valve", None, "plumbing") == ("valve", "plumbing")
+    assert kind_of("Valve", "Cold water", "heating") == ("valve", "plumbing")  # the group names it
+    assert kind_of("Domestic cold water valve", None, "heating") == ("valve", "plumbing")
+    assert kind_of("Radiator", None, "plumbing") == ("space_heater", "heating")  # heating only
+
+
+def test_with_no_sheet_discipline_kinds_are_as_before() -> None:
+    before = [  # main at 48c6758a
+        ("space_heater", "heating"),
+        ("valve", "plumbing"),
+        ("valve", "plumbing"),
+        ("valve", "plumbing"),
+        ("pump", "plumbing"),
+    ]
+    assert [kind_of(label, None, None) for label in H101] == before
+    assert line_kind_of("H_Transport_VL_", None) is None
+
+
+def test_a_line_or_a_label_with_no_kind_takes_the_sheet_discipline() -> None:
+    assert line_kind_of("H_Transport_VL_", None, "heating") == ("pipe_segment", "heating")
+    assert line_kind_of("Hydronic Supply", None, "plumbing") == ("pipe_segment", "heating")
+    reading = PictureReading(
+        reader="vlm",
+        legend=None,
+        read=("Kugelhahn DN 15", "HeizkAcrper Plan Ventil Unten:Rechts"),
+        sightings=tuple(
+            Sighting(label=label, spot=Spot(page=1, box=(0.1, 0.1, 0.2, 0.2), reader="vlm"))
+            for label in ("Kugelhahn DN 15", "HeizkAcrper Plan Ventil Unten:Rechts")
+        ),
+    )
+    checked = Checked(readings=(reading,), agreed={}, disputed=())
+
+    def disciplines(sheet: Discipline | None) -> set[str]:
+        facts = picture_facts("d", checked, sheet).facts
+        return {f.discipline for f in facts if f.topic.endswith(".count")}
+
+    assert disciplines("heating") == {"heating"}
+    assert disciplines(None) == {"other", "plumbing"}  # as before

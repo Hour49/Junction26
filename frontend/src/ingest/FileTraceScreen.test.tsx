@@ -66,7 +66,8 @@ describe('FileTraceScreen', () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
-    const items = [...document.querySelectorAll('.ingest-trace li')];
+    // the stage rows only: each stage's steps are list items nested inside its row
+    const items = [...document.querySelectorAll('.ingest-trace > li')];
     expect(items).toHaveLength(trace.stages.length);
     trace.stages.forEach((s, i) => {
       const item = must(items[i]);

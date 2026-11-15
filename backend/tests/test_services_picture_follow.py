@@ -4,7 +4,7 @@ A synthetic 10 m x 10 m page; no IFC."""
 
 from app.core.ifc_facts import Fact, FactSheet, Spot
 from app.core.plan_edit.model import Item, Proposal
-from app.core.services.model import DisciplineFollow, ServicesFollow
+from app.core.services.model import DisciplineFollow, Pairing, ServicesFollow
 from app.core.services.picture_follow import CANNOT, Sheet, picture_follow
 
 PLAN = Sheet(drawing_id="d1", page=1, storey="2. krs", size_m=(10.0, 10.0))
@@ -231,3 +231,24 @@ def test_two_sheets_whose_room_names_are_far_apart_are_not_laid_over_each_other(
     )
     assert h.status == "not_aligned"
     assert h.reason is not None and "miss each other by up to" in h.reason
+
+
+def test_a_paired_heating_sheets_plumbing_marks_are_not_the_plumbing_lane() -> None:
+    """pic-sync 2026-11-15 04:46: a heating sheet (H-101) whose picture also reads as plumbing
+    fills only the heating lane; the plumbing lane says why it took none of its marks."""
+    marks = heating(CROSSING)
+    plumbing = [f.model_copy(update={"discipline": "plumbing"}) for f in marks.facts]
+    sheet = PLAN.model_copy(update={"drawing_id": "d2", "name": "set/H-101 E00 heating.png"})
+    paired = Pairing(drawing_id="d2", page=1, paired_by="metadata", reason="same floor", score=0.9)
+    found = picture_follow(
+        Proposal(proposal_id="p1", drawing_id="d1", page=1, removed=(WALL,)),
+        PLAN,
+        [(sheet, marks.model_copy(update={"facts": [*marks.facts, *plumbing]}))],
+        pairings=[paired],
+    )
+    assert lane(found, "heating").status == "checked"
+    p = lane(found, "plumbing")
+    assert (p.status, p.reason) == (
+        "not_aligned",
+        "H-101 E00 heating.png is a heating sheet by its name: its plumbing marks are not taken",
+    )

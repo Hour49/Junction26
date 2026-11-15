@@ -138,3 +138,27 @@ it('EN-78 ?ask= with a place: the question is asked, no opening card gets the fo
   expect(posts(api)).toHaveLength(1);
   expect(viewers.some((v) => v.focus)).toBe(false);
 });
+
+it('R4-C1 a reload keeps ?ask=: not asked again when the kept thread holds it, also with later questions', async () => {
+  const query = new URLSearchParams({ ask: Q }).toString();
+  const later = { ...answer, question: 'How many windows are there?' };
+  let n = 0;
+  open(query, { 'POST /api/ask': () => (n++ === 0 ? answer : later) });
+  await within(await screen.findByRole('article', { name: Q })).findByTestId('answer-value');
+  fireEvent.change(await loaded(), { target: { value: later.question } });
+  fireEvent.submit((await loaded()).closest('form') as HTMLFormElement);
+  await within(await screen.findByRole('article', { name: later.question })).findByTestId(
+    'answer-value',
+  );
+  unmount(); // the reload: the page mounts again in the same tab, its storage and ?ask= kept
+  const api = open(query);
+  await within(await screen.findByRole('article', { name: later.question })).findByTestId(
+    'answer-value',
+  );
+  await loaded();
+  expect(posts(api)).toEqual([]);
+  expect(screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual([
+    Q,
+    later.question,
+  ]);
+});

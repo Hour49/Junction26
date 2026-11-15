@@ -41,7 +41,7 @@ on Retry. Per `ProjectSummary`:
 | --- | --- |
 | `id` | selection key; "Open workspace" `href` `#/p/<id>` |
 | `name` | list item title and panel heading (mono, `overflow-wrap: anywhere`; text, never HTML) |
-| `state` | the list pill: `queued`/`running` "Reading", `done` "Ready", `failed` "Failed" (words, plus the token colour) |
+| `state` | the list pill: `queued`/`running` "Reading", `done` "Ready" (warn "Nothing read" when `drawings` is 0, QA R4-A12), `failed` "Failed" (words, plus the token colour) |
 | `created_at` | list item time and the panel's "created <time>" (`formatTime`, shared: `YYYY-MM-DD HH:MM UTC`) |
 | `files`, `drawings` | "<kind> · 11 files · 5 drawings" (singular "1 file", "1 drawing"); kind: `files === 1` "Single file", else "Archive" |
 | `to_review` (#121, `number \| null`, null unless done) | a warn pill "<n> to review" after the state pill; none when null or 0 |

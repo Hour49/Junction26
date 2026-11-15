@@ -43,7 +43,7 @@
   "error": "the server restarted during ingest",
   "ms": 12.5,
   "cost_usd": 0.0,
-  "phase": null,
+  "phase": "files",
   "index_steps": [],
   "drawings": [],
   "skipped": [

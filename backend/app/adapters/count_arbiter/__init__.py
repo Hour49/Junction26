@@ -20,6 +20,9 @@ data/stoa/exp/local-dec/) holds:
 
 L1 runs once per page on the CPU: grayscale, long side scaled to `size` (Lanczos), pasted
 top-left on white, /255; P = softmax(logits / T) per head (prototypes/localdec/prep.py).
+
+Its three reads are steps of the result, one after the other (decision 0018): the base detector,
+the second detector and the arbiter itself (L1 and the pick, with the counts it changed).
 """
 
 import json
@@ -41,8 +44,9 @@ from app.core.pipeline.count_arbiter import (
     Reading,
     pick,
 )
-from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor
+from app.core.pipeline.steps import Span, found_of, found_words, starting, timed
 
 ADDED: Mapping[str, ElementClass] = {
     "door": "door",
@@ -133,6 +137,19 @@ class L1PageCounts:
         return found
 
 
+def _step(step_id: str, label: str, span: Span, found: Extracted) -> StepTrace:
+    counted = found_of(found.elements, found.read)
+    return StepTrace(
+        id=step_id,
+        label=label,
+        did=found_words(counted),
+        at_ms=span.at_ms,
+        ms=span.ms,
+        cost_usd=span.cost_usd,
+        found=counted,
+    )
+
+
 def _score(element: Element) -> float:
     value = element.attrs.get("score")
     return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else 0.0
@@ -177,8 +194,27 @@ class ArbiterCountExtractor:
         self._files = files
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        found = self._base.extract(source, sheet)
-        second = self._second.extract(source, sheet)
+        found, by_base = timed(lambda: self._base.extract(source, sheet))
+        second, by_second = timed(lambda: self._second.extract(source, sheet))
+        starting("pick", "Count arbiter (L1 page counts)")
+        arbitrated, by_arbiter = timed(lambda: self._arbitrate(source, found, second))
+        steps = (
+            *found.steps,
+            _step("base", "Symbol detector (arbiter base)", by_base, found),
+            *second.steps,
+            _step("second", "Symbol detector (arbiter second read)", by_second, second),
+            StepTrace(
+                id="pick",
+                label="Count arbiter (L1 page counts)",
+                did=arbitrated.notes[-1].removeprefix("arbiter t1: "),
+                at_ms=by_arbiter.at_ms,
+                ms=by_arbiter.ms,
+            ),
+        )
+        return arbitrated.model_copy(update={"steps": steps})
+
+    def _arbitrate(self, source: DrawingFile, found: Extracted, second: Extracted) -> Extracted:
+        """`found` with the counts the arbiter changed, and what L1 read kept beside it."""
         probs = self._l1.probs(self._files.read(source.path))
         elements = list(found.elements)
         changes: list[str] = []

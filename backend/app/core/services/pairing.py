@@ -11,9 +11,10 @@ from pathlib import PurePosixPath
 
 from shapely.geometry import LineString, Point
 
+from app.core.ifc_facts import Discipline
 from app.core.plan_edit.walls import PlanPage
 from app.core.services.model import Affine, Pairing, Point2
-from app.core.services.picture_follow import Sheet, align
+from app.core.services.picture_follow import Sheet, align, named_why, takes
 from app.core.services.register import Place, Segment, register
 
 # A register lays a sheet over the plan: the map and how it was found, or why it cannot. The
@@ -113,7 +114,8 @@ def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register
     """The wall-line register (`register`): each part of the sheet's lines laid on the plan's
     walls (metres), the part's corner added back; the best lay as a map of page fractions with
     `register`'s words. Two parts that lay the sheet two ways with no clear winner are refused
-    (twin views), as is a cut-out part laid off the sheet's own scale (it has no page to fill)."""
+    (twin views), as is a cut-out part laid off the sheet's own scale (it has no page to fill);
+    with no scale bar a part is laid only when the whole page lays too, at its scale."""
 
     def laid(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
         if plan.size_m is None:
@@ -143,6 +145,18 @@ def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register
                 return (
                     f"two parts of the sheet lay it two ways ({placed.inliers} and "
                     f"{other.inliers} wall lines match): which view is the plan is a guess"
+                )
+        if not whole and sheet.size_m is None:  # a part has no page to fill: its page lay checks it
+            page = next((p for p, w in places if w), None)
+            if page is None:
+                return (
+                    "a part of the sheet matches the walls, but the sheet has no scale and its "
+                    "whole page does not lay: the part's size is unchecked, not laid"
+                )
+            if abs(placed.scale / page.scale - 1) > SCALE_SLACK:
+                return (
+                    f"a part of the sheet lays at {placed.scale * 1000:.1f} mm a pixel, its whole "
+                    f"page at {page.scale * 1000:.1f} mm: not laid"
                 )
         how = placed.reason
         if sheet.size_m is not None:  # its own scale (a scale bar): say when the walls disagree
@@ -242,12 +256,20 @@ def pair(
 ) -> list[Pairing | str]:
     """One result per candidate, in order: how it is the plan's floor, or why it is not taken."""
     found = [_pair(plan, sheet, register) for sheet in candidates]
+    # the lanes each laid sheet may be in: never one its own name rules out (H-101, the heating
+    # sheet, in the plumbing lane), whatever its score; the plan's own page is in each it marks
+    lanes: list[tuple[Discipline, ...]] = [
+        ()
+        if isinstance(got, str)
+        else tuple(d for d in sheet.disciplines if got.paired_by == "same_page" or takes(sheet, d))
+        for sheet, got in zip(candidates, found, strict=True)
+    ]
     # the best per discipline: the plan's own page, then the higher score, then the earlier sheet
     best: dict[str, int] = {}
-    for i, (sheet, got) in enumerate(zip(candidates, found, strict=True)):
+    for i, got in enumerate(found):
         if isinstance(got, str):
             continue
-        for d in sheet.disciplines:
+        for d in lanes[i]:
             j = best.get(d)
             if j is None or _rank(got) > _rank(found[j]):
                 best[d] = i
@@ -260,8 +282,8 @@ def pair(
             continue
         alike = [
             k
-            for k, (other, theirs) in enumerate(zip(candidates, found, strict=True))
-            if d in other.disciplines
+            for k, theirs in enumerate(found)
+            if d in lanes[k]
             and not isinstance(theirs, str)
             and theirs.paired_by == "geometry"
             and theirs.score == top.score
@@ -273,11 +295,14 @@ def pair(
         if isinstance(got, str) or not sheet.disciplines:
             out.append(got)
             continue
-        won = {d for d in sheet.disciplines if best[d] == i and d not in tied}
+        if not lanes[i]:
+            out.append(f"{named_why(sheet)}, not {' or '.join(sheet.disciplines)}")
+            continue
+        won = {d for d in lanes[i] if best[d] == i and d not in tied}
         # shortcut: a sheet that wins one of its lanes is kept whole; split a sheet's lanes when
         # one picture marks several disciplines and loses some of them
         if not won:
-            d = next((d for d in sheet.disciplines if i in tied.get(d, ())), None)
+            d = next((d for d in lanes[i] if i in tied.get(d, ())), None)
             if d is not None:
                 names = ", ".join(_shown(candidates[k]) for k in tied[d])
                 out.append(
@@ -285,13 +310,13 @@ def pair(
                     f"({names}): which one is this floor is not known"
                 )
                 continue
-            lost = sheet.disciplines[0]
+            lost = lanes[i][0]
             out.append(f"another {lost} picture was taken: {_shown(candidates[best[lost]])}")
             continue
         others = [
             _shown(other)
             for k, (other, theirs) in enumerate(zip(candidates, found, strict=True))
-            if k != i and not isinstance(theirs, str) and set(other.disciplines) & won
+            if k != i and not isinstance(theirs, str) and set(lanes[k]) & won
         ]
         if others:
             got = got.model_copy(
