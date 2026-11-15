@@ -26,7 +26,7 @@ from app.core.ingest.triage import is_not_plan
 from app.core.pipeline.model import Route
 
 # The kinds a drawing is read from: a sheet (stage 7 places the drawing model on its page) or a
-# model; DXF and SVG are other renderings only (pipeline/ingest.py NO_SHEET)
+# model; DXF and SVG are other renderings only (pipeline/ingest.py no_sheet)
 GIVES_A_DRAWING: frozenset[ContentKind] = frozenset(
     {"pdf_vector", "pdf_scan", "png_plan", "jpeg_plan", "photo_plan", "ifc"}
 )

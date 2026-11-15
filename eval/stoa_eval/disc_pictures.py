@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 NEAR = 0.006  # of the page diagonal (spec, Method 2)
 BUDGET_USD = 0.15  # per page (spec, Cost per page)
+NONE_SYSTEM = "pipes, ducts"  # the legend text for runs without a system (plan_picture._draw)
 
 
 class _Model(BaseModel):
@@ -40,7 +41,7 @@ class Symbol(_Model):
 
 
 class TruthRun(_Model):
-    kind: str
+    kind: str | None  # None: any kind's facts (the renderer's truth has no run kind)
     system: str
     size: str | None  # None: the system's total
     length_m: float = Field(gt=0)
@@ -173,55 +174,62 @@ def _share(part: int, whole: int) -> float | None:
     return part / whole if whole else None
 
 
-RENDER_FIELDS = ("building", "discipline", "dpi", "width_px", "height_px", "symbols", "runs")
+RENDER_FIELDS = ("model", "discipline", "dpi", "variant", "size_px", "symbols", "runs")
 
 
 def truth_from_render(body: Mapping[str, Any]) -> DiscTruth:
     """A renderer truth file (P3, `plan_picture.py`: one `<picture>.json` beside the picture) as a
     `DiscTruth`: symbols one per instance in pixels -> points per label in page fractions; runs per
-    (system, size) plus `system_lengths_m` as the systems' totals."""
+    (system, printed size), and each system's total over all its runs (sized or not). Runs carry
+    no kind, and a run without a system is named as the legend prints it (`NONE_SYSTEM`). The
+    variant (clean, scan, photo, no-legend, no-scale) sets the degradation and the flags; an empty
+    legend is a page without symbols, not a page without a legend."""
     missing = [key for key in RENDER_FIELDS if key not in body]
     missing += sorted({key for s in body.get("symbols", ()) for key in ("label", "kind", "x", "y")
                        if key not in s})  # fmt: skip
-    missing += sorted({key for r in body.get("runs", ()) for key in ("kind", "system", "length_m")
+    missing += sorted({key for r in body.get("runs", ()) for key in ("system", "size", "length_m")
                        if key not in r})  # fmt: skip
     if missing:
         raise ValueError(f"truth {body.get('picture')!r} lacks {', '.join(missing)}")
-    width, height = body["width_px"], body["height_px"]
+    width, height = body["size_px"]
     points: dict[str, list[tuple[float, float]]] = defaultdict(list)
     kinds: dict[str, str] = {}
     for symbol in body["symbols"]:
         points[symbol["label"]].append((symbol["x"] / width, symbol["y"] / height))
         kinds[symbol["label"]] = symbol["kind"]
-    kind_of_system = {r["system"]: r["kind"] for r in body["runs"]}
-    orphans = sorted(set(body.get("system_lengths_m", {})) - set(kind_of_system))
+    totals: dict[str, float] = defaultdict(float)
+    sized: list[dict[str, Any]] = []
+    for r in body["runs"]:
+        system = r["system"] or NONE_SYSTEM
+        totals[system] += r["length_m"]
+        if r["size"]:
+            sized.append({"kind": None, "system": system, "size": r["size"],
+                          "length_m": r["length_m"]})  # fmt: skip
+    orphans = sorted(set(body.get("system_lengths_m", {})) - set(totals))
     if orphans:
         raise ValueError(f"truth {body.get('picture')!r}: system(s) {orphans} have no runs")
-    runs = [
-        {"kind": kind_of_system[system], "system": system, "size": None, "length_m": length}
-        for system, length in body.get("system_lengths_m", {}).items()
+    runs: list[dict[str, Any]] = [
+        {"kind": None, "system": system, "size": None, "length_m": length}
+        for system, length in totals.items()
     ]
-    runs += [
-        {"kind": r["kind"], "system": r["system"], "size": r.get("size"), "length_m": r["length_m"]}
-        for r in body["runs"]
-    ]
+    variant = body["variant"]
     return DiscTruth.model_validate(
         {
             "picture": body.get("picture", ""),
-            "building": body["building"],
+            "building": body["model"],
             "discipline": body["discipline"],
             "storey": body.get("storey"),
             "dpi": body["dpi"],
-            "degradation": body.get("variant", "clean"),
-            "legend": bool(body.get("legend", True)),
-            "scale": bool(body.get("scale", True)),
+            "degradation": variant if variant in ("clean", "scan", "photo") else "clean",
+            "legend": variant != "no-legend",
+            "scale": variant != "no-scale",
             "width_px": width,
             "height_px": height,
             "symbols": [
                 {"label": label, "kind": kinds[label], "points": pts}
                 for label, pts in points.items()
             ],
-            "runs": runs,
+            "runs": [r for r in runs + sized if r["length_m"] > 0],
         }
     )
 
@@ -296,7 +304,8 @@ def score_one(truth: DiscTruth, pred: DiscPred | None, near: float = NEAR) -> Me
         topic, subject = (".length", "all") if run.size is None else (".size_length", run.size)
         said = next(
             (f for f in facts
-             if f.topic == run.kind + topic and f.subject == subject and f.system == run.system),
+             if (f.topic == f"{run.kind}{topic}" if run.kind else f.topic.endswith(topic))
+             and f.subject == subject and f.system == run.system),
             None,
         )  # fmt: skip
         value = _number(said.value) if said else None

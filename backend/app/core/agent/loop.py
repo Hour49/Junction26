@@ -594,7 +594,8 @@ class _Run:
                                status="error" if bad else "ok", ms=ms))  # fmt: skip
         summary = _summary(name, found, self.names)
         self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": summary})
-        self._reply(call, text if isinstance(found, str) else _for_model(found))
+        seen = _answered(found) if name == ASK else found  # pyright: ignore[reportUnknownVariableType]
+        self._reply(call, text if isinstance(found, str) else _for_model(seen))
 
     def _show(self, call: Json, arguments: str) -> None:
         """show_on_plan (contract B): the places this turn shows, or the model is told why not."""
@@ -1012,6 +1013,29 @@ def _asked(found: Json, evs: set[str], given: Json) -> Json:
         disputed += _evs(check.get("disputed"))
     ordered = sorted(evs, key=lambda ev: int(ev.removeprefix("ev_")))
     return {"answer": given, "evs": ordered, "marks": marks, "disputed": disputed}
+
+
+def _answered(found: Any) -> Any:
+    """An ask_drawings result as the model reads it: `answered` first, each answering drawing's
+    file, value, unit and first mark. The window cut keeps only the first drawings of `parts`
+    while the card shows them all (#466: "The drawing answers this below [1]." over 4 drawings);
+    this short list survives the cut, as `parts` is always the longer list."""
+    if not isinstance(found, dict):
+        return found
+    given: Json = found  # pyright: ignore[reportUnknownVariableType]
+    answered: list[Json] = []
+    parts: list[Any] = given.get("parts") or []
+    for part in parts:
+        each: Json = part if isinstance(part, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+        answer: Json = each.get("answer") or {}
+        if answer.get("answer") is None:
+            continue
+        quantity: Json = answer.get("quantity") or {}
+        evs = _evs(answer.get("marks") or quantity.get("marks"))
+        answered.append({"drawing": each.get("name") or each.get("drawing_id"),
+                         "answer": answer["answer"], "unit": answer.get("unit"),
+                         "ev": evs[0] if evs else None})  # fmt: skip
+    return {"answered": answered, **given} if answered else given
 
 
 def _evs(items: Any) -> list[str]:

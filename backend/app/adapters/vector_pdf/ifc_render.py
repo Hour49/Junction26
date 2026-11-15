@@ -46,6 +46,8 @@ from app.adapters.vector_pdf.objects import (
     bounds_of,
 )
 from app.core.drawing.model import (
+    CUT_SOLID_NOTE,
+    DOOR_SHAPES_NOTE,
     Attr,
     Box,
     Element,
@@ -151,13 +153,21 @@ def read(page: PdfPage, m_per_pt: float | None) -> Reading:
                 )
             )
     solids = len(by_class["wall"])
+    doors = len(by_class["door"])
     notes = (
-        (
-            f"{solids} cut solids are listed as walls: the sheet draws walls, columns and other "
-            "cut parts in one style",
-        )
-        if solids
-        else ()
+        *(
+            (
+                f"{solids} {CUT_SOLID_NOTE}: the sheet draws walls, columns and other "
+                "cut parts in one style",
+            )
+            if solids
+            else ()
+        ),
+        *(
+            (f"{doors} {DOOR_SHAPES_NOTE}: a door drawn edge-on or over another can be missed",)
+            if doors
+            else ()
+        ),
     )
     boxes: list[Box] = [*(room.box for room in rooms), *(element.box for element in elements)]
     storey = next((m.group(1) for text in page.texts if (m := STOREY.search(text.text))), None)

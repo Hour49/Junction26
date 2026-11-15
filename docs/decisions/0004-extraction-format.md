@@ -212,3 +212,17 @@ not scored).
 
 Alternative rejected: the backend writing the room type somewhere else (a `sheet` subject plus a note, or a new
 subject kind). It would lose the type or add a kind that `counts` doesn't need for the same idea.
+
+## Amendment, 2026-11-15 02:15: an `.ifc` model may list no object of the plan's classes
+
+A services model (DigitalHub's heating `-hzg-v2.ifc`, ventilation `-lft-v2.ifc`) uploaded on its own has no wall,
+door, window, column, stair, slab, beam, railing or space, so its `model_objects` is `[]`. Before, an `.ifc` file
+without pages needed a non-empty `model_objects`, so ingest set the model aside ("no PDF, PNG or JPEG in its group")
+and the chat had no drawing to ask (Tudor's QA batch 1, B4). Now an `.ifc` file without pages may have
+`model_objects: []`: the model was read and lists none of the plan's classes. `null` still means the file is no
+model (`eval/stoa_eval/extraction.py`, `backend/app/core/drawing/model.py`). Every file valid before stays valid. No
+gold has such a file, so nothing scores differently. Its MEP elements are answered from its fact sheet
+(`IFC_FACTS`) and the services tools, not from `model_objects`.
+
+Alternative rejected: services classes in `model_objects`. It would add classes to `ModelClass` and to the API
+schema the frontend generates, for counts the fact sheet already gives.

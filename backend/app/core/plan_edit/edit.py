@@ -42,7 +42,12 @@ def remove_wall(
     doors = [o for o in page.openings if o.kind == "door" and o.id in wall.doors]
     # the door gap is not in the wall mass: it goes with the wall, or the merged room has a hole
     gap = shapely.unary_union([page.box_shape(d.box).intersection(between) for d in doors])
-    removed = shapely.unary_union([wall.strip, gap])
+    # room outlines that stop short of the wall's faces (DigitalHub): the slot between the two
+    # rooms along this wall goes with it, closed as walls_of closes the pair (mitre: no corners)
+    pair = shapely.unary_union([sa, sb]).buffer(REACH_M, join_style="mitre")
+    pair = pair.buffer(-REACH_M, join_style="mitre")
+    slot = pair.difference(sa).difference(sb).intersection(wall.strip.buffer(REACH_M))
+    removed = shapely.unary_union([wall.strip, gap, slot])
     merged = shapely.unary_union([sa, sb, removed]).buffer(CLOSE_M).buffer(-CLOSE_M)
     pieces = parts(merged)
     if len(pieces) != 1:
