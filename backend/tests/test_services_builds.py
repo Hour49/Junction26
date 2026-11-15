@@ -115,6 +115,24 @@ def test_a_building_model_with_proxies_only_is_no_services_model(tmp_path: Path)
     assert ServicesStore(cache).none_path(sha).is_file()
 
 
+def test_a_model_or_marker_stored_before_the_proxy_rule_is_never_read(tmp_path: Path) -> None:
+    """Orchestrator, 2026-11-15: a services model means something else since the proxy rule, so
+    the builder version is 2 and an entry an older build wrote (the arc IFC stored at 02:40 as a
+    "services model", or a b1 none-marker) is neither served nor taken as settled: rebuilt."""
+    data = _services(tmp_path / "s.ifc").read_bytes()
+    sha = hashlib.sha256(data).hexdigest()
+    cache = tmp_path / "cache"
+    model = ServicesStore(cache).build("heating.ifc", data)
+    assert model is not None
+    current = ServicesStore(cache).path(sha)
+    current.rename(cache / f"{sha}.services.v1.b1.json.gz")
+    (cache / f"{sha}.services.none.b1").write_bytes(b"")
+    assert ServicesStore(cache).load(sha) is None
+    jobs = Jobs()
+    builds = ServicesBuilds(cache, build=lambda d, n, c, a: None, start=jobs)
+    assert builds.building(sha, "heating.ifc", lambda: data) and len(jobs.waiting) == 1
+
+
 def test_a_building_model_is_tried_once_not_again_after_a_restart(tmp_path: Path) -> None:
     """Review of #475, Gap A: an architecture IFC has no distribution element, so its child build
     stored nothing and every restart parsed it again (up to 3 GB, 600 s) while the tools said
