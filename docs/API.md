@@ -8812,6 +8812,11 @@ text cites, or for a `dont_know` or `needs_input` citing none, those in which a 
 `label`, `sure`, and `level`, the confidence level of the `ask_drawings` answer it comes from, or null). `steps`
 lists every tool call with a label in plain words, `status` (`ok` or `error`) and `ms`; `model`, `cost_usd` and
 `latency_s` are the turn's.
+The proposal's `services` (with `SERVICES_FOLLOW=on`; else null) is the follow-up through the project's services
+models or pictures, specified in [services-follow.md § API](specs/backend/services-follow.md#api-additive-to-v1). A
+lane a services picture checked has `picture`: the discipline sheet (`drawing_id`, `page`), its `pairing` (why that
+sheet is taken to be the plan's floor: `paired_by`, `reason`, `score`) and the edit's strips and the lane's marks in
+that sheet's page fractions; every other lane has `picture: null`.
 
 Levels only where measured (added 2026-11-14): when a number in an `answer` or `conflict` turn's `text` comes only from
 `get_plan_geometry`, `get_takeoff` or `list_walls` (no confidence level) and from no `ask_drawings` answer or the
