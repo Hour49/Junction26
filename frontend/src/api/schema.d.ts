@@ -785,6 +785,43 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Affine
+         * @description How a services sheet lies on the plan: a sheet page fraction (x, y) lands on the plan's
+         *     page at (a x + b y + c, d x + e y + f). Identity on the plan's own page.
+         */
+        Affine: {
+            /**
+             * A
+             * @default 1
+             */
+            a: number;
+            /**
+             * B
+             * @default 0
+             */
+            b: number;
+            /**
+             * C
+             * @default 0
+             */
+            c: number;
+            /**
+             * D
+             * @default 0
+             */
+            d: number;
+            /**
+             * E
+             * @default 1
+             */
+            e: number;
+            /**
+             * F
+             * @default 0
+             */
+            f: number;
+        };
         /** After */
         After: {
             /**
@@ -1426,6 +1463,7 @@ export interface components {
              * @default []
              */
             marks: components["schemas"]["ServiceMark"][];
+            picture?: components["schemas"]["FollowPicture"] | null;
             /** Reason */
             reason?: string | null;
             /** Source */
@@ -1921,6 +1959,38 @@ export interface components {
              */
             unit: "m2" | "m" | "count";
         };
+        /**
+         * FollowPicture
+         * @description The discipline sheet a lane was read from, with the edit drawn in its page fractions.
+         */
+        FollowPicture: {
+            /**
+             * Added
+             * @default []
+             */
+            added: [
+                number,
+                number
+            ][][];
+            /** Drawing Id */
+            drawing_id: string;
+            /**
+             * Marks
+             * @default []
+             */
+            marks: components["schemas"]["PictureMark"][];
+            /** Page */
+            page: number;
+            pairing: components["schemas"]["Pairing"];
+            /**
+             * Removed
+             * @default []
+             */
+            removed: [
+                number,
+                number
+            ][][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2391,6 +2461,25 @@ export interface components {
             width: number;
         };
         /**
+         * Pairing
+         * @description Why a services sheet is taken to be the plan's floor (pics-edit-follow W1).
+         */
+        Pairing: {
+            /** Drawing Id */
+            drawing_id: string;
+            /** Page */
+            page: number;
+            /**
+             * Paired By
+             * @enum {string}
+             */
+            paired_by: "same_page" | "metadata" | "geometry" | "user";
+            /** Reason */
+            reason: string;
+            /** Score */
+            score?: number | null;
+        };
+        /**
          * Patch
          * @description An edit as data (SV-13): elements as they are after (`moved`, `changed`) or new (`added`),
          *     ids that go (`removed`), and the connections that go or come.
@@ -2426,6 +2515,27 @@ export interface components {
              * @default []
              */
             removed: string[];
+        };
+        /**
+         * PictureMark
+         * @description A lane's mark where the discipline sheet draws it (`ref` as in the lane's marks).
+         */
+        PictureMark: {
+            /** At */
+            at?: [
+                number,
+                number
+            ] | null;
+            /**
+             * Line
+             * @default []
+             */
+            line: [
+                number,
+                number
+            ][];
+            /** Ref */
+            ref: string;
         };
         /** PictureRef */
         PictureRef: {

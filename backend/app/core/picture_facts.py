@@ -69,7 +69,8 @@ class Checked(Frozen):
 # kind (snake case, as facts_mep) -> the disciplines it may be, first the default, and its words
 # in the dataset's languages. Matched case-blind after a word start, so compounds match their
 # first part only when listed whole ("lämpöpatteri"). The first kind that matches wins: a
-# "supply air valve" is an air terminal, a "radiator valve" a valve.
+# "supply air valve" is an air terminal, a "radiator valve" a valve, a "lighting panelboard" or a
+# "switchboard" a distribution board.
 _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
     (
         "air_terminal",
@@ -110,6 +111,13 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"prise de courant|presa|enchufe|toma de corriente|pistikupesa",
     ),
     (
+        "electric_distribution_board",
+        ("electrical",),
+        r"distribution board|switchboard|ryhmäkeskus|sähkökeskus|verteiler|elcentral|"
+        r"gruppcentral|verdeelkast|tableau électrique|quadro elettrico|cuadro eléctrico|"
+        r"jaotuskilp|panel ?board",
+    ),
+    (
         "switching_device",
         ("electrical",),
         r"switch|kytkin|schalter|strömbrytare|brytare|schakelaar|interrupteur|interruttore|"
@@ -122,16 +130,10 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"lampada|apparecchio illuminante|luminaria|valgusti",
     ),
     (
-        "electric_distribution_board",
-        ("electrical",),
-        r"distribution board|switchboard|ryhmäkeskus|sähkökeskus|verteiler|elcentral|"
-        r"gruppcentral|verdeelkast|tableau électrique|quadro elettrico|cuadro eléctrico|"
-        r"jaotuskilp",
-    ),
-    (
         "sanitary_terminal",
         ("plumbing",),
-        r"wc\b|toilet|wash ?basin|sink|shower|bath|urinal|wc-istuin|pesuallas|allas|suihku|"
+        r"wc\b|toilet|water closet|lavator|wash ?basin|sink|shower|bath|urinal|wc-istuin|"
+        r"pesuallas|allas|suihku|"
         r"waschbecken|waschtisch|dusche|badewanne|tvättställ|dusch|wastafel|douche|"
         r"lavabo|lavandino|doccia|inodoro|ducha|kraanikauss|dušš",
     ),
@@ -171,10 +173,24 @@ _KIND_RES: list[tuple[str, tuple[Discipline, ...], re.Pattern[str]]] = [
 ]
 
 
+# A Revit family's prefix ("M_Radiator", "M_Lavatory"): "_" is a word character, so the kind's
+# word after it has no word start
+_FAMILY_PREFIX = re.compile(r"^[A-Za-z]{1,3}_(?=[A-Za-z])")
+# The run a line style draws, by the discipline its system names ("Hydronic Supply", "Sanitary")
+_SEGMENT: dict[Discipline, str] = {
+    "heating": "pipe_segment",
+    "plumbing": "pipe_segment",
+    "fire": "pipe_segment",
+    "ventilation": "duct_segment",
+    "electrical": "cable_carrier_segment",
+}
+
+
 def kind_of(label: str, group: str | None) -> tuple[str, Discipline] | None:
     """The IFC kind a legend label names and that kind's discipline; None when it names none. A
     kind several disciplines draw (a valve, a pipe) takes the one its group heading, else the
     label itself, names; else its default."""
+    label = _FAMILY_PREFIX.sub("", label)
     for kind, can, pattern in _KIND_RES:
         if pattern.search(label):
             for text in (group, label):
@@ -183,6 +199,17 @@ def kind_of(label: str, group: str | None) -> tuple[str, Discipline] | None:
                     return kind, can[can.index(named)]
             return kind, can[0]
     return None
+
+
+def line_kind_of(label: str, group: str | None) -> tuple[str, Discipline] | None:
+    """A line style's kind: the segment its label names, else the segment of the discipline its
+    system names ("Unit A Hydronic Supply In" -> a heating pipe, "Supply Air" -> a duct)."""
+    kind = kind_of(label, group)
+    if kind and kind[0] in _SEGMENT.values():
+        return kind
+    named = discipline_from_question(label) or discipline_from_question(group or "")
+    discipline = named if named in _SEGMENT else (kind[1] if kind else None)
+    return None if discipline not in _SEGMENT else (_SEGMENT[discipline], discipline)
 
 
 # A storey as a sheet's title prints it ("2ND FLOOR", "2. krs", "1. OG", "Level 3", "Kellari")
@@ -366,7 +393,7 @@ def picture_facts(drawing: str, checked: Checked) -> FactSheet:
         looked = [r for r in readings if label in _labels(r)]
         lead = looked[0]
         group, line = _group_of(label, readings)
-        kind = kind_of(label, group)
+        kind = (line_kind_of if line else kind_of)(label, group)
         unit = _Unit(
             label=label,
             kind=kind and kind[0],

@@ -8,6 +8,7 @@ import pytest
 
 from stoa_eval.cli import main
 from stoa_eval.disc_pictures import (
+    NONE_SYSTEM,
     DiscPred,
     DiscTruth,
     aggregates,
@@ -211,32 +212,59 @@ def test_aggregates_name_no_picture_label_or_building() -> None:
 
 
 def render_body(picture: str = "p1", building: str = "b1") -> dict[str, object]:
-    """A truth file as the renderer writes it: one symbol per instance in pixels."""
+    """A truth file as the renderer writes it (plan_picture.py): the model's name, the page size,
+    one symbol per instance in pixels, runs per (system, size) without a kind, and a run without
+    a printed size only in its system's total."""
     t = truth(picture)
     return {
-        "picture": picture, "building": building, "discipline": "heating", "storey": "2",
-        "dpi": 150, "variant": "clean", "width_px": 1000, "height_px": 1000,
+        "picture": picture, "model": building, "discipline": "heating", "storey": "2",
+        "dpi": 150, "variant": "clean", "ratio": 50, "size_px": [1000, 1000],
         "legend": [{"label": "A"}, {"label": "B"}, {"label": "C"}],
         "symbols": [
             {"label": s.label, "kind": s.kind, "x": x * 1000, "y": y * 1000}
             for s in t.symbols for x, y in s.points
         ],
         "counts": {s.label: len(s.points) for s in t.symbols},
-        "runs": [{"kind": "pipe_segment", "system": "heating", "size": size, "length_m": m}
-                 for size, m in (("DN20", 10.0), ("DN15", 5.0))],
+        "runs": [{"system": "heating", "size": size, "length_m": m, "plan_m": m / 2}
+                 for size, m in (("DN20", 10.0), ("DN15", 5.0), (None, 25.0))],
         "system_lengths_m": {"heating": 40.0},
     }  # fmt: skip
 
 
-def test_truth_from_render_is_the_hand_truth() -> None:
-    assert truth_from_render(render_body()) == truth()
+RUNS = [
+    {"kind": None, "system": "heating", "size": None, "length_m": 40.0},
+    {"kind": None, "system": "heating", "size": "DN20", "length_m": 10.0},
+    {"kind": None, "system": "heating", "size": "DN15", "length_m": 5.0},
+]
+
+
+def test_truth_from_render_reads_the_renderers_file() -> None:
+    assert truth_from_render(render_body()) == truth(runs=RUNS)
+
+
+def test_truth_from_render_runs_without_a_system_as_printed() -> None:
+    body = render_body()
+    body["runs"] = [{"system": None, "size": "27 mmø", "length_m": 2.0, "plan_m": 1.0},
+                    {"system": None, "size": None, "length_m": 3.0, "plan_m": 1.0}]  # fmt: skip
+    body["system_lengths_m"] = {}  # the renderer totals named systems only
+    runs = {(r.system, r.size): r.length_m for r in truth_from_render(body).runs}
+    assert runs == {(NONE_SYSTEM, None): 5.0, (NONE_SYSTEM, "27 mmø"): 2.0}
+
+
+def test_truth_from_render_flags_come_from_the_variant() -> None:
+    no_legend = truth_from_render(render_body() | {"variant": "no-legend", "legend": []})
+    assert no_legend.variant == "150dpi-clean-no-legend"
+    no_scale = truth_from_render(render_body() | {"variant": "no-scale", "ratio": None})
+    assert no_scale.variant == "150dpi-clean-no-scale"
+    no_symbols = truth_from_render(render_body() | {"variant": "photo", "legend": []})
+    assert no_symbols.variant == "150dpi-photo"  # an empty legend is a page without symbols
 
 
 def test_truth_from_render_names_missing_fields() -> None:
     body = render_body()
-    del body["building"]
+    del body["model"]
     body["symbols"] = [{"kind": "valve", "x": 1, "y": 1}]
-    with pytest.raises(ValueError, match="building, label"):
+    with pytest.raises(ValueError, match="model, label"):
         truth_from_render(body)
 
 
@@ -246,9 +274,11 @@ def test_truth_from_render_system_total_without_runs() -> None:
         truth_from_render(body)
 
 
-def test_no_legend_variant_from_render() -> None:
-    body = render_body() | {"legend": [], "variant": "scan"}
-    assert truth_from_render(body).variant == "150dpi-scan-no-legend"
+def test_a_run_without_a_kind_matches_any_kinds_length() -> None:
+    facts = [fact("duct_segment.length", "all", 39.0, unit="m", system="heating"),
+             fact("symbol.size_length", "DN20", 10.0, unit="m", system="heating")]  # fmt: skip
+    m = score([truth(runs=RUNS)], [pred(facts=facts)]).overall
+    assert (m.runs, m.run_within_5, m.run_refused) == (3, 2, 1)
 
 
 def _write_bench(root: Path) -> tuple[Path, Path]:

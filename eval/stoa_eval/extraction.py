@@ -470,7 +470,7 @@ class Extraction(_Strict):
         problems: list[str] = []
         objects = self.model_objects or []
         if not self.pages:
-            if not (objects and self.file.endswith(".ifc")):
+            if not (self.model_objects is not None and self.file.endswith(".ifc")):
                 problems.append(
                     "pages needs at least 1 page, unless an .ifc file has model_objects"
                 )

@@ -483,3 +483,24 @@ def test_every_answering_drawing_reaches_the_model_though_parts_are_cut() -> Non
     assert [(a["drawing"], a["answer"], a["unit"]) for a in seen["answered"]] == [
         (f"plan-{n}.pdf", 10.0 + n, "m2") for n in range(5)]  # fmt: skip
     assert [a["ev"] for a in seen["answered"]] == [f"ev_{1 + 25 * n}" for n in range(5)]
+
+
+def test_review_483_answered_is_never_cut_though_each_part_is_8_kb() -> None:
+    """qa-c review of #483 (MUST 1): once `parts` was cut to one drawing, `answered` was the
+    longest list and got halved too (13 drawings of ~8 KB each: the model saw 6). It is built
+    first and kept whole; only the rest is cut."""
+    marks = [{"id": f"m{k}", "page": 1, "box": [0.1, 0.2, 0.3, 0.4], "label": f"Room {k}"}
+             for k in range(10)]  # fmt: skip
+    parts = [{"drawing_id": f"{n:016x}", "name": f"plan-{n}.pdf",
+              "answer": {"answer": 10.0 + n, "unit": "m2", "marks": marks,
+                         "explanation": "x" * 7500}}
+             for n in range(13)]  # fmt: skip
+    asked = {"question": "What is the total floor area?", "parts": parts}
+    model = Model(step(call("ask_drawings", question="What is the total floor area?")),
+                  final(kind="dont_know", text="No."))  # fmt: skip
+    turn(model, Tools(ask_drawings=asked))
+    content = model.sent[1][-1]["content"]
+    assert len(content) <= 8000
+    seen = json.loads(content)
+    assert "answered_more" not in seen
+    assert [a["drawing"] for a in seen["answered"]] == [f"plan-{n}.pdf" for n in range(13)]
