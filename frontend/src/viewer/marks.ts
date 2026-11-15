@@ -98,23 +98,52 @@ export interface PlacedLabel {
 const RINGS = 12;
 const GAP = 1; // px of clearance between two badges
 
-/** Boxes of the other marks that lie inside `box` (normalised, a small slack), smaller than it. */
-export function nestedBoxes<T extends { box: readonly number[] }>(
+type Pt = readonly number[];
+const corners = (b: readonly number[]): Pt[] => [
+  [b[0] ?? 0, b[1] ?? 0],
+  [b[2] ?? 0, b[1] ?? 0],
+  [b[2] ?? 0, b[3] ?? 0],
+  [b[0] ?? 0, b[3] ?? 0],
+];
+
+/** Inside the ring or within `slack` of one of its edges (rooms share walls). */
+function inRing(p: Pt, ring: readonly Pt[], slack: number): boolean {
+  const [x = 0, y = 0] = p;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [ax = 0, ay = 0] = ring[i] ?? [];
+    const [bx = 0, by = 0] = ring[j] ?? [];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const t =
+      dx || dy
+        ? Math.min(1, Math.max(0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+        : 0;
+    if (Math.hypot(x - ax - t * dx, y - ay - t * dy) <= slack) return true;
+    if (ay > y !== by > y && x < ax + ((y - ay) * (bx - ax)) / (by - ay)) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * The other marks drawn directly inside `mark` (a Reduit in a Küche): every vertex of their polygon
+ * (their box corners without one) lies inside `mark`'s polygon (its box without one), within
+ * `slack`; a mark inside one of those is left to it (A > B > C: A's are B only).
+ */
+export function nestedBoxes<T extends { box: readonly number[]; polygon?: readonly Pt[] | null }>(
   mark: T,
   others: readonly T[],
   slack = 0.002,
 ): T[] {
-  const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = mark.box;
   const area = (b: readonly number[]) => ((b[2] ?? 0) - (b[0] ?? 0)) * ((b[3] ?? 0) - (b[1] ?? 0));
-  return others.filter(
-    (o) =>
-      o !== mark &&
-      area(o.box) < area(mark.box) &&
-      (o.box[0] ?? 0) >= x0 - slack &&
-      (o.box[1] ?? 0) >= y0 - slack &&
-      (o.box[2] ?? 0) <= x1 + slack &&
-      (o.box[3] ?? 0) <= y1 + slack,
-  );
+  const within = (inner: T, outer: T) =>
+    inner !== outer &&
+    area(inner.box) < area(outer.box) &&
+    (inner.polygon ?? corners(inner.box)).every((p) =>
+      inRing(p, outer.polygon ?? corners(outer.box), slack),
+    );
+  const inside = others.filter((o) => within(o, mark));
+  return inside.filter((o) => !inside.some((d) => within(o, d)));
 }
 
 /**

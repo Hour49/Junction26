@@ -108,6 +108,34 @@ describe('marks.ts', () => {
     }
   });
 
+  it("nested marks: a room in an L-shaped room's notch is not nested; only direct children are", () => {
+    const [kitchen] = answerArea.marks as [MarkView];
+    const mark = (box: MarkView['box'], polygon: [number, number][] | null = null): MarkView => ({
+      ...kitchen,
+      box,
+      polygon,
+    });
+    const ell = mark(
+      [0, 0, 0.6, 0.6],
+      [
+        [0, 0],
+        [0.6, 0],
+        [0.6, 0.3],
+        [0.3, 0.3],
+        [0.3, 0.6],
+        [0, 0.6],
+      ],
+    );
+    const notch = mark([0.3, 0.3, 0.6, 0.6]);
+    const inLeg = mark([0.05, 0.35, 0.25, 0.55]);
+    expect(nestedBoxes(ell, [ell, notch, inLeg])).toEqual([inLeg]);
+    const a = mark([0, 0, 1, 1]);
+    const b = mark([0.1, 0.1, 0.5, 0.5]);
+    const c = mark([0.2, 0.2, 0.3, 0.3]);
+    expect(nestedBoxes(a, [a, b, c])).toEqual([b]);
+    expect(nestedBoxes(b, [a, b, c])).toEqual([c]);
+  });
+
   it('R2-qa-1-3 VW-45 placeLabels: no two badges overlap on 19 small rooms, narrow or wide', () => {
     const [kitchen] = answerArea.marks as [MarkView];
     const rooms = Array.from({ length: 19 }, (_, i) => {
