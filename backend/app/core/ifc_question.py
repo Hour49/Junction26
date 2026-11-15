@@ -179,6 +179,27 @@ _BETWEEN = re.compile(
 # An IFC GlobalId: 22 characters of its base-64 alphabet, mixed case and a digit in practice.
 _GUID = re.compile(r"(?<![\w$])[0-9A-Za-z_$]{22}(?![\w$])")
 _WORD = re.compile(r"[^\W_]+(?:[-'][^\W_]+)*")
+# A place inside the sheet the question counts in: "in the plumbing room", "in room 1-15", "in
+# the left half of the sheet", "does the cafeteria have". "On the plumbing plan", "in this
+# drawing", "in H-101" name the sheet itself (big QA R1 services: a picture's sheet total was
+# given for one room)
+_IN_PLACE = re.compile(
+    r"\b(?:in|inside|within)\s+(?:(?:the|this|that|these|those|a|an|one|each|every)\s+)?"
+    r"(?P<place>[^\W_][\w'\u2019-]*(?:\s+(?!(?:of|on|and|or|with|at|for|in|per|that|which|where|"
+    r"are|is|has|have|had|carry|carries|show|shows|list|lists|contain|contains)\b)"
+    r"[^\W_][\w'\u2019-]*)*)"
+    r"|\bdoes\s+(?:the|this|that)\s+(?P<has>[^\W_][\w'\u2019 -]*?)\s+(?:have|contain|hold)\b",
+    re.I,
+)
+_SHEET_WORDS = frozenset(  # the whole sheet, a table on it, or the unit asked in ("in m²")
+    """plan plans floorplan drawing drawings sheet sheets page pages picture pictures photo photos
+    image images scan scans layout diagram map legend model file building project total all it
+    them whole entire set schedule schedules table tables m m² m2 m³ m3 mm cm km sqm metre metres
+    meter meters ft feet units system systems network circuit circuits""".split()  # noqa: SIM905
+)
+# "in Plan image 1", "in P-101 E00 plumbing.png": the drawing by its name or file (review-721 S1)
+_FILE_END = re.compile(r"\.(?:png|jpe?g|pdf|tiff?|svg|webp|ifc|dwg|dxf)\b", re.I)
+_SHEET_CODE = re.compile(r"[^\W\d_]{1,3}-?\d+[^\W\d_]?")  # H-101, P101, E00: a drawing's own code
 _STOP = frozenset(
     """a an and any are as at be by can could do does each for from give have how i in include
     including is it its me model of on or please provide the their there these they this to
@@ -214,6 +235,7 @@ class FactQuery(Frozen):
     between: tuple[str, str] | None = None  # two storeys as the question words them
     yes_no: bool = False  # "Are the interior walls load bearing?"
     derived: bool = False  # asks for an estimate or a judgement the model does not store
+    place: str | None = None  # a place inside the sheet it counts in (_IN_PLACE), as worded
 
     def family(self) -> str:
         if self.aggregate == "unavailable":
@@ -238,6 +260,7 @@ def parse_ifc_question(text: str) -> FactQuery | None:
         # "Can you provide ..." is a request, not a yes/no question
         yes_no=re.match(r"(?:are|is|does|do|has|have|can)\b(?!\s+you\b)", lower) is not None,
         derived=_DERIVED.search(said) is not None,
+        place=_place(rest),
         guid=_guid(said),
         between=None
         if (pair := _BETWEEN.search(said)) is None
@@ -275,6 +298,18 @@ def parse_ifc_question(text: str) -> FactQuery | None:
             ),
         }
     )
+
+
+def _place(text: str) -> str | None:
+    """The first place inside the sheet the question counts in, or None when every "in the ..."
+    names the sheet, a system or the drawing itself: a sheet word or the drawing's code in it ("the
+    heating plan", "the waste water system", "Plan image 1", "P-101 E00"), or a file name."""
+    for found in _IN_PLACE.finditer(text):
+        place = found["place"] or found["has"]
+        sheet = any(w in _SHEET_WORDS or _SHEET_CODE.fullmatch(w) for w in place.split())
+        if not sheet and not _FILE_END.match(text, found.end()):
+            return place
+    return None
 
 
 def _entity(text: str) -> str | None:

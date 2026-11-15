@@ -102,7 +102,7 @@ schedule or a detector.
 | --- | --- | --- | --- | --- |
 | room area | `printed_label` | `polygon_x_scale` | 2% | trust the printed label; a bigger gap means the scale or the polygon is wrong |
 | floor or apartment area | `printed_total` | `summed_rooms` | 2% | report the printed total; show the room list |
-| floor area (raster, gross printed) | `summed_rooms` (indoor rooms, net) | `printed_total` (gross) | net/gross 0.60-1.02 | no rule: inside the band only a note; outside it both values on the indoor area answer, held for a person; a net question never gets the gross number (`GROSS_NET_CHECK`) |
+| floor area (raster, gross printed) | `summed_rooms` (indoor rooms, net) | `printed_total` (gross) | net/gross 0.60-1.02 | inside the band only a note; outside it the rooms' sum, the gross shown beside it, flagged (never certified) but not held; a net question never gets the gross number (`GROSS_NET_CHECK`) |
 | scale | `scale_text` | `scale_bar` or `dimension_lines` | 2% | measured value over text; text found next to a detail drawing is ignored (see below) |
 | scale (raster) | `detector` (door estimate) | `scale_bar` or `scale_text` | 10% | the printed scale; the estimate stays as the other value (`RASTER_PRINTED_SCALE`); over 2x apart only a bar wins, and flags the areas |
 | scale (raster) | `detector` (door estimate) | `printed_label` (room-label areas) | 10% | the label scale (`printed_label`), also over 2x apart (3+ rooms, misreads dropped); it replaces the estimate with `LABEL_SCALE=on` when the bands do not overlap, with `always` whenever made (§ below) |
@@ -148,7 +148,9 @@ an element count, a person decides, unless `PRINTED_TOTAL_ANSWERS=on` (default `
 rule "printed on the sheet: <text> (<n> drawn)". Exactly: the same element class, room type or all rooms (Carbon's
 mapping: DORMS is `room:bedroom`); a sheet showing one floor; when any printed count of the subject names a floor,
 only those naming the sheet's floor (not another floor's, not the building's TOTAL), else a sheet-wide one; not one
-wing or block; and every count left printing the same number. Anything less, or an entry another rule already
+wing or block; every count left printing the same number; and the fact's own text printing that number as a whole
+number (not a count Carbon infers from words: the Finnish flat type "H+ALK+S" read as 1 sauna on golden dev
+high_quality_architectural-6462, gold 0). Anything less, or an entry another rule already
 decided (the 2x rule above), keeps the behaviour above. `carbon`
 reads them with the Carbon client (page call shared with `CARBON_READER`, a bars call, one full-resolution call per
 bar), on the process's spend guard.
@@ -169,12 +171,15 @@ the reading is unchanged.
 Gross against net (2026-11-15, accuracy task 6, `GROSS_NET_CHECK=off|on`, default off, needs
 `RASTER_PRINTED_SCALE=carbon`, no extra call; `app/core/pipeline/gross_net.py`): US area tables print gross floor
 areas (BOMA Z65.3 / ASTM E1836: to the outside face of the exterior walls); the rooms found are net. The gross is the
-largest printed fact in m² (a printed ft² arrives converted) whose subject is `floor_area` or whose text says TOTAL
-or GROSS; the net is the indoor rooms as the takeoff sums them. Net/gross inside 0.60-1.02 (offices 0.60-0.82, a K-8
+largest printed fact in m² (a printed ft² arrives converted) whose text says it is a total (TOTAL, GROSS, BRUTTO,
+GFA, BGF, BTA, KERROSALA, KOKONAISALA, "floor area") and not a net one; Carbon's subject `floor_area` alone is not
+enough (golden dev 10036: a room label "27,5 m2" came as `floor_area`). The net is the indoor rooms as the takeoff sums them. Net/gross inside 0.60-1.02 (offices 0.60-0.82, a K-8
 school 0.71, our net includes corridors; the top is 1.0 plus 2% rounding) adds only a note. Outside it the sheet gets
 a `floor_area` conflict (`summed_rooms` then `printed_total`, the note saying which is gross), attached to the
-indoor and all-rooms area totals whose value is the net: the answer keeps the net, shows the gross and abstains. On
-T2 (us_daf dorm p003, TOTAL SECOND FLOOR = 26,562 SF) the 40 rooms found sum to 41% of it.
+indoor and all-rooms area totals whose value is the net: a rule keeps the net, the gross is shown beside it, and the
+answer is flagged but not held. Not held, because the ratio cannot tell rooms missed from a total that covers more
+than the drawing: T2 (us_daf dorm p003, TOTAL SECOND FLOOR = 26,562 SF) has the 40 rooms found at 41% of it; golden
+dev 14874 prints KERROSALA 227 for two flats, its gold rooms sum to 52% (2026-11-15, Bogdan's golden A/B).
 
 Scale signatures (2026-11-15, accuracy task 2, `SCALE_SIGNATURES=off|bar|on`, default off;
 `app/core/pipeline/scale_signatures.py`): inside 2x, two scales whose quotient is within 2.5% of a known slip
