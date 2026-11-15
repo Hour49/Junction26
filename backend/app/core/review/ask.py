@@ -14,6 +14,7 @@ from typing import NamedTuple
 from app.core.answering.answer import (
     AGREEING_FAMILIES,
     NO_DRAWING,
+    NOT_CALLED,
     NOT_IN_DRAWING,
     PRIOR_BY_POLICY,
     SCHEDULE,
@@ -411,6 +412,8 @@ def ask(
                 else _room_counts(rooms, again.subject, quantities, parser)
             )
             can_answer = each or can_answer
+        if isinstance(parsed, Unsupported) and parsed.reason.startswith(NOT_CALLED):
+            code, words = "not-in-drawing", parsed.reason  # "Bagno 1.01" where 1.01 is Küche
         if isinstance(parsed, Unsupported) and parsed.reason in FLOOR_REASONS:
             # "How many toilets are on the second floor?" on a sheet that doesn't name it: which
             # floors it does name, or what each of its unnamed plans holds (fable-rooms r10 10)
