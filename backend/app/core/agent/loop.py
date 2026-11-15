@@ -898,10 +898,12 @@ class _Run:
         """The sentence for a number in `text` that rests only on unrated places (an
         UNRATED_TOOLS result of this turn gives it; no rated answer's value, earlier ones
         included, nor the user's message does), worded for the tools that gave it; None: no
-        such number, or the text says so already. A label's number ("LOBBY 104") is a name."""
+        such number, or the text says so already. A label's number ("LOBBY 104") is a name, and
+        so is a drawing's ("Drawn plan 5": qa-a, "which drawing has no scale")."""
         if SAID_UNRATED.search(text):
             return None
-        for label in _labels([_json(found) for _, found in self.unrated]):
+        names = [*_labels([_json(found) for _, found in self.unrated]), *self.names.values()]
+        for label in sorted(names, key=len, reverse=True):  # "Drawn plan 10" before "... 1"
             text = re.sub(re.escape(label), " ", text, flags=re.I)
         rated = numbers(self.rated)
         tools = {
