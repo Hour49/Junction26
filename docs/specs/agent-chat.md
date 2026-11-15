@@ -64,7 +64,8 @@ Project: the real swiss sheet `site980_bldg2055_floor9178.pdf` uploaded as a pro
   The turn's `kind` is `conflict` exactly when a quantity an `ask_drawings` result it rests on has `status:
   conflict` (two sources, one quantity, different values): an `answer` over one is raised to `conflict`, and the
   model's own `conflict` over different rooms' values (each its own room) is lowered to `answer` (QA R4-C9). A
-  turn with no `ask_drawings` result keeps the model's kind.
+  turn with no `ask_drawings` result, or one that also called `list_conflicts`, `get_takeoff` or `list_issues`
+  (they report conflicts too), keeps the model's kind.
 
 ### 2.2 Model adapters (`app/adapters/`)
 

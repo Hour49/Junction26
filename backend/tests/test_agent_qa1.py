@@ -104,6 +104,22 @@ def test_r4_c9_a_conflicting_quantity_the_model_calls_a_conflict_stays_one() -> 
     assert got.kind == "conflict"
 
 
+def test_r4_c9_a_conflict_another_tool_reported_stays_a_conflict() -> None:
+    """review-624 M1 (describe's probe): list_conflicts says the schedule's 8.2 m2 and the drawn
+    7.56 m2 are one quantity measured differently; ask_drawings gives a plain 7.56. The model's
+    conflict stands: another tool of the turn reported it."""
+    listed = {"conflicts": [{"quantity": "area:room|name=1.01", "label": "area of room 1.01",
+                             "values": [{"method": "schedule", "value": 8.2},
+                                        {"method": "drawn", "value": 7.56}]}]}  # fmt: skip
+    for tool in ("list_conflicts", "get_takeoff", "list_issues"):
+        model = Model(
+            step(call(tool, 1), call("ask_drawings", 2, question="area of room 1.01")),
+            final(kind="conflict", text="The schedule says 8.2 m2, the drawn room 7.56 m2 [ev_1]."),
+        )  # fmt: skip
+        got = turn(model, Tools(ask_drawings=ASKED, **{tool: listed}))
+        assert got.kind == "conflict", tool
+
+
 def test_answers_3_lc6_the_turn_context_follows_the_system_prompt_every_turn() -> None:
     model = Model(final(text="Pick a country."))
     turn(model, context=NO_COUNTRY)

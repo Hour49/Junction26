@@ -81,6 +81,8 @@ UNBACKED = "I could not back that answer with what the drawings say."
 SHOW_THEM = "Show me where they are"  # the "Show them on the plan" chip (contract F)
 AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
 UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
+# the tools besides ask_drawings whose results report a conflict (pipeline_tools' descriptions)
+CONFLICT_TOOLS = frozenset({"list_conflicts", "get_takeoff", "list_issues"})
 UNRATED = (
     "That number is read straight from the drawing's geometry and has no confidence level; ask "
     "about it directly for a rated answer."
@@ -846,9 +848,11 @@ class _Run:
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
         asked = answers or tuple(e["answer"] for e in self.asked)
-        if kind == "conflict" and asked and not any(_conflicted(given) for given in asked):
+        others = {name for name, _ in self.seen} & CONFLICT_TOOLS
+        if kind == "conflict" and asked and not others and not any(map(_conflicted, asked)):
             # different rooms' values are not a disagreement: a conflict is one quantity two
-            # sources give different values, and ask_drawings marks that (QA R4-C9)
+            # sources give different values, and ask_drawings marks that (QA R4-C9); a turn that
+            # also asked another tool that reports conflicts keeps the model's (review-624 M1)
             kind = "answer"
             answers = self._answers(set(cited) | set(shown), kind)
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
