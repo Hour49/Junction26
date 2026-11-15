@@ -1845,7 +1845,9 @@ def _flats(*, assigned: bool) -> Drawing:
     flat they are in, as the Swiss reader reads them."""
     from app.core.drawing.model import Apartment
 
-    def room(rid: str, kind: str, box: tuple[float, float, float, float], m2: float, flat: str):
+    def room(
+        rid: str, kind: RoomType, box: tuple[float, float, float, float], m2: float, flat: str
+    ):
         return Room(id=rid, type=kind, label=kind.capitalize(), page=1, box=box, area_m2=m2,
                     attrs={"number": rid}, apartment=flat if assigned else None)  # fmt: skip
 
