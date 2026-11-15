@@ -62,7 +62,9 @@ def test_every_conflict_quantity_has_plain_words(make_service: MakeService) -> N
     ingest = make_service()
     project = ingest.wait(ingest.start("sample.zip", build_archive()))
     reason = by_path(project.files)["plans/flat-b.pdf"].reason
-    assert reason.startswith("1 conflict between the two methods (room areas) ("), reason
+    # R4-B7: its one conflict a rule settled; still flagged (golden demo step 3)
+    said = "1 conflict between the two methods (room areas), settled by a rule ("
+    assert reason.startswith(said), reason
 
 
 def test_a_rectified_photo_names_how_in_plain_words() -> None:
