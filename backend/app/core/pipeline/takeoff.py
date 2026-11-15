@@ -351,7 +351,7 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
         if not drawing.pages:  # the model file itself: its spaces of each room type (qa-a)
-            for kind, same in sorted(_typed_spaces(items).items()):
+            for kind, same in sorted(typed_spaces(items).items()):
                 for model in (True, False):
                     key = quantity_key("count", f"room:{kind}", storey=storey, model=model)
                     _put(found, key, "count", len(same), marks(same), MODEL_SPACE_TYPES)
@@ -376,7 +376,7 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
 MEP_TWIN = re.compile(r"\bMEP Space\b", re.IGNORECASE)  # a room's services copy (duplex-mep)
 
 
-def _typed_spaces(items: Iterable[ModelObject]) -> dict[str, list[ModelObject]]:
+def typed_spaces(items: Iterable[ModelObject]) -> dict[str, list[ModelObject]]:
     """The spaces of `items` by their `room_type` (the IFC reader's), a space listed again with
     the same number, name and storey once (review-527: duplex-m lists every room twice), and a
     room's services copy ("Bedroom 1 MEP Space": duplex-mep) not at all."""
