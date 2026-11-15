@@ -185,6 +185,16 @@ def test_the_demo_config_is_all_on_with_five_measured_worse_off() -> None:
         "RASTER_TILES",
         "VECTOR_FALLBACK",
         "RESOLVER",
-        "DISCIPLINE_PICTURES",
     ):
         assert not any(line.startswith(off + "=") for line in config), off
+
+
+def test_the_demo_config_reads_discipline_and_pictures_with_gemini() -> None:
+    """demo/discipline-on (Bogdan, 2026-11-15 04:30: "562 merge flag ON. 2. on"): Carbon names each
+    sheet's discipline (#562) and Gemini reads its symbols and legend (#579). The backend defaults
+    are rules and off."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    assert "SHEET_DISCIPLINE=gemini" in config
+    assert "DISCIPLINE_PICTURES=gemini" in config
