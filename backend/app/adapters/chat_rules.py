@@ -82,9 +82,16 @@ ASKS = (  # the network question a message asks, in ask_services' words
 )
 ELEMENT, WALL = re.compile(r"\be\d{1,6}\b"), re.compile(r"\bsw\d{1,5}\b")
 # "Which radiators are in the bedroom?", "How many sinks are there in Küche 1-3?": the room's
-# services listed (QA #430); sinks and toilets only here, not as something moved
-IN_ROOM_TERMINALS = {**TERMINALS, "sink": "sanitary_terminal", "washbasin": "sanitary_terminal",
-                     "basin": "sanitary_terminal", "toilet": "sanitary_terminal"}  # fmt: skip
+# services listed (QA #430); sinks and toilets only here, not as something moved. A sanitary word
+# counts its IFC PredefinedType: a WC, a basin and their mounting frames are all one IFC class (R5)
+SANITARY_TYPES = {"sink": "SINK", "washbasin": "WASHHANDBASIN", "basin": "WASHHANDBASIN",
+                  "toilet": "TOILETPAN", "urinal": "URINAL"}  # fmt: skip
+IN_ROOM_TERMINALS = {**TERMINALS, **dict.fromkeys(SANITARY_TYPES, "sanitary_terminal")}
+# the IFC sanitary types in the person's words (#559 qa-a: no raw IFC names in an answer)
+SANITARY_WORDS = {"SINK": "sink", "WASHHANDBASIN": "washbasin", "TOILETPAN": "toilet",
+                  "URINAL": "urinal", "SANITARYFOUNTAIN": "sanitary fountain", "BATH": "bath",
+                  "SHOWER": "shower", "BIDET": "bidet", "CISTERN": "cistern",
+                  "WCSEAT": "WC seat"}  # fmt: skip
 IN_ROOM_TERMINAL = re.compile(r"\b(" + "|".join(IN_ROOM_TERMINALS) + r")s?\b")
 LISTING = re.compile(r"\b(how many|which|what|list|count|are there|is there)\b")
 IN_ROOM = re.compile(  # the LAST "in <room>" at the end, before an "on level 2"
@@ -273,10 +280,24 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
     if _beside(turn, found["drawing_id"]):  # #491 review: the drawings answer, as before
         return None
     listed = turn.result("list_services", room_id=room)
+    sanitary = word in SANITARY_TYPES  # an architecture model counts sinks and toilets too
+    have: Json = found.get("by_predefined") or {}  # the whole model's types of that kind
+    if sanitary and have and SANITARY_TYPES[word] not in have and not _cut(have):
+        if _other_ifc(turn, found["drawing_id"]):
+            return None  # the architecture model may type it
+        why = (  # #559 S1, in plain words: not "0 urinals", nor the tool's IFC names
+            f"the services model's {have['untyped']} sanitary fixtures have no type in the model, "
+            f"so it doesn't say which are {word}s"
+            if set(have) == {"untyped"}
+            else f"the services model has no fixture typed as a {word}; its sanitary fixtures "
+            f"are {_fixtures(have)}"
+        )
+        return _final("dont_know", f"I can't tell: {why}.")
     if listed is None:
         kind = IN_ROOM_TERMINALS[word]
-        return "list_services", {"drawing_id": found["drawing_id"], "room_id": room, "kind": kind}
-    sanitary = word not in TERMINALS  # an architecture model counts sinks and toilets too
+        typed = {"predefined": SANITARY_TYPES[word]} if sanitary else {}
+        call = {"drawing_id": found["drawing_id"], "room_id": room, "kind": kind, **typed}
+        return "list_services", call
     if not isinstance(listed, dict) or "error" in listed:
         if sanitary and _other_ifc(turn, found["drawing_id"]):
             return None  # review-517: its room and fixtures are in the other model
@@ -287,11 +308,32 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
     if sanitary and not count and _other_ifc(turn, found["drawing_id"]):
         return None  # not "0 sinks": the services model holds none, the architecture model may
     name = (listed.get("room") or {}).get("name") or room
+    untyped = int(listed.get("untyped") or 0)
+    if untyped and not count:  # R5: never a whole-category number, nor a 0 it can't know
+        return _final(
+            "dont_know",
+            f"I can't tell: the {untyped} sanitary fixtures in {name} have no type in the model, "
+            f"so it doesn't say which are {word}s.",
+        )
     cited = ", ".join(f"{i.get('label')} ({i['id']})" for i in items[:10])
-    text = f"{count} {word}{'' if count == 1 else 's'} in {name}" + (
-        f": {cited}." if cited else "."
-    )
+    text = f"{count} {word}{'' if count == 1 else 's'} in {name}"
+    if untyped:  # never a silent undercount: there may be more (orchestrator, 03:52)
+        text = f"At least {text} ({untyped} more sanitary fixtures there have no type in the model)"
+    text += f": {cited}." if cited else "."
     return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
+
+
+def _cut(groups: Json) -> bool:
+    """A group list cut short ("and K more groups"): what it lacks may still be there."""
+    return any(key.startswith("and ") for key in groups)
+
+
+def _fixtures(groups: Json) -> str:
+    """'16 toilets, 12 washbasins and 34 sanitary fountains' from by_predefined."""
+    said = [f"{n} with no type in the model" if key == "untyped"
+            else f"{n} {SANITARY_WORDS.get(key, key.lower())}{'' if n == 1 else 's'}"
+            for key, n in groups.items()]  # fmt: skip
+    return ", ".join(said[:-1]) + f" and {said[-1]}" if len(said) > 1 else said[0]
 
 
 def _other_ifc(turn: _Turn, services: str) -> bool:
