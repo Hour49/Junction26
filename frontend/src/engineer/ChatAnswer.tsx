@@ -2,6 +2,8 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCard';
+import { Confidence } from '../agent/Confidence';
+import type { Level } from '../agent/agent';
 import { ResolverLines } from './Resolver';
 import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
@@ -119,10 +121,12 @@ export function ChatAnswer(props: {
   project: ProjectView;
   projectId: string;
   pack: string | null;
+  /** The agent's confidence per drawing id: shown on that drawing's reference card (P5). */
+  levels?: ReadonlyMap<string, Level>;
   /** Called with the shown reference's drawing (on open and on every change), e.g. to follow it in a Files pane. */
   onReference?: (drawingId: string) => void;
 }) {
-  const { ask, project, projectId, onReference } = props;
+  const { ask, project, projectId, onReference, levels } = props;
   const parts = orderParts(ask.parts, project.files);
   // The reference shown: the most useful one (qa #430), kept per answer so a layout switch (a remount when the
   // window crosses the phone width) does not reset it.
@@ -175,8 +179,9 @@ export function ChatAnswer(props: {
 
   return (
     <>
-      {ask.total !== null ? (
+      {ask.total !== null && (
         // The demo's lead: the value only (CH-39); total_note is never shown, it can name refused drawings.
+        // Without a total nothing is said here: the written answer already says the counts are not added up.
         <p className="en-lead">
           <strong className="en-value" data-testid="answer-value">
             {shownValue(ask.total, ask.total_unit, estimated) +
@@ -189,9 +194,6 @@ export function ChatAnswer(props: {
             </>
           )}
         </p>
-      ) : (
-        // The backend's sentence already says how many drawings answered; the refused ones are left out (#221).
-        <p className="en-lead en-lead--why">{ask.why_no_total ?? ask.total_note}</p>
       )}
       <div className="v-card en-chatcard">
         <figure
@@ -266,10 +268,8 @@ export function ChatAnswer(props: {
                       {cap(current.answer.quantity.label)}: {current.answer.quantity.rule.text}.
                     </p>
                   )}
-                  {/* one pill, as the demo: a sign-off, else the level, else the status (CH-42) */}
-                  {current.answer.quantity?.status === 'signed' ? (
-                    <span className="v-pill v-pill--ok">Signed off</span>
-                  ) : gradeOf(current.answer) ? (
+                  {/* one pill, as the demo: the level, else the status (CH-42) */}
+                  {gradeOf(current.answer) ? (
                     <LevelPill
                       grade={gradeOf(current.answer) as Grade}
                       text={current.answer.level?.text}
@@ -293,6 +293,7 @@ export function ChatAnswer(props: {
             <ol className="en-crefs" aria-label="References">
               {parts.map((p, n) => {
                 const sub = about(p.drawing_id);
+                const level = levels?.get(p.drawing_id);
                 return (
                   <li key={p.drawing_id}>
                     <button
@@ -311,6 +312,11 @@ export function ChatAnswer(props: {
                           {p.answer.pages.length === 0 && `${sub ? ' · ' : ''}no preview`}
                         </span>
                       </span>
+                      {level && (
+                        <span className="en-crefconf">
+                          <Confidence level={level} />
+                        </span>
+                      )}
                     </button>
                   </li>
                 );

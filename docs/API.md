@@ -3981,7 +3981,25 @@ many quantities are left to review and how many are signed off, and every confli
                 0.5,
                 0.375
               ],
-              "label": "polygon_x_scale"
+              "label": "polygon_x_scale",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ],
           [
@@ -3993,7 +4011,25 @@ many quantities are left to review and how many are signed off, and every confli
                 0.21269,
                 0.19027
               ],
-              "label": "printed_label"
+              "label": "printed_label",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ]
         ]
@@ -4346,7 +4382,25 @@ tell, and an uncertain answer with the model's check:
                 0.5,
                 0.375
               ],
-              "label": "polygon_x_scale"
+              "label": "polygon_x_scale",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ],
           [
@@ -4358,7 +4412,25 @@ tell, and an uncertain answer with the model's check:
                 0.21269,
                 0.19027
               ],
-              "label": "printed_label"
+              "label": "printed_label",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ]
         ]
@@ -4386,7 +4458,8 @@ tell, and an uncertain answer with the model's check:
               0.5,
               0.375
             ],
-            "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+            "label": "the room outlines at the sheet's scale counts polygon_x_scale here",
+            "polygon": null
           },
           {
             "page": 1,
@@ -4396,7 +4469,8 @@ tell, and an uncertain answer with the model's check:
               0.21269,
               0.19027
             ],
-            "label": "the printed room areas counts printed_label here"
+            "label": "the printed room areas counts printed_label here",
+            "polygon": null
           }
         ],
         "by": "carbon:gemini-4-carbon",
@@ -4471,7 +4545,25 @@ tell, and an uncertain answer with the model's check:
                   0.5,
                   0.375
                 ],
-                "label": "polygon_x_scale"
+                "label": "polygon_x_scale",
+                "polygon": [
+                  [
+                    0.16667,
+                    0.125
+                  ],
+                  [
+                    0.16667,
+                    0.375
+                  ],
+                  [
+                    0.5,
+                    0.375
+                  ],
+                  [
+                    0.5,
+                    0.125
+                  ]
+                ]
               }
             ],
             [
@@ -4483,7 +4575,25 @@ tell, and an uncertain answer with the model's check:
                   0.21269,
                   0.19027
                 ],
-                "label": "printed_label"
+                "label": "printed_label",
+                "polygon": [
+                  [
+                    0.16667,
+                    0.125
+                  ],
+                  [
+                    0.16667,
+                    0.375
+                  ],
+                  [
+                    0.5,
+                    0.375
+                  ],
+                  [
+                    0.5,
+                    0.125
+                  ]
+                ]
               }
             ]
           ]
@@ -4511,7 +4621,8 @@ tell, and an uncertain answer with the model's check:
                 0.5,
                 0.375
               ],
-              "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+              "label": "the room outlines at the sheet's scale counts polygon_x_scale here",
+              "polygon": null
             },
             {
               "page": 1,
@@ -4521,7 +4632,8 @@ tell, and an uncertain answer with the model's check:
                 0.21269,
                 0.19027
               ],
-              "label": "the printed room areas counts printed_label here"
+              "label": "the printed room areas counts printed_label here",
+              "polygon": null
             }
           ],
           "by": "carbon:gemini-4-carbon",
@@ -4809,7 +4921,8 @@ tell, and an uncertain answer with the model's check:
           0.65,
           0.2
         ],
-        "label": "Counted as a door, but 2 of the 3 other readers see nothing here."
+        "label": "Counted as a door, but 2 of the 3 other readers see nothing here.",
+        "polygon": null
       },
       {
         "page": 1,
@@ -4819,7 +4932,8 @@ tell, and an uncertain answer with the model's check:
           0.36,
           0.9
         ],
-        "label": "Not counted, but 2 of the 3 other readers see a door here."
+        "label": "Not counted, but 2 of the 3 other readers see a door here.",
+        "polygon": null
       }
     ],
     "by": "carbon:gemini-4-carbon",
@@ -7936,7 +8050,25 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
               0.5,
               0.375
             ],
-            "label": "polygon_x_scale"
+            "label": "polygon_x_scale",
+            "polygon": [
+              [
+                0.16667,
+                0.125
+              ],
+              [
+                0.16667,
+                0.375
+              ],
+              [
+                0.5,
+                0.375
+              ],
+              [
+                0.5,
+                0.125
+              ]
+            ]
           }
         ],
         [
@@ -7948,7 +8080,25 @@ An answer whose quantity two methods measured differently (`quantity.conflict`, 
               0.21269,
               0.19027
             ],
-            "label": "printed_label"
+            "label": "printed_label",
+            "polygon": [
+              [
+                0.16667,
+                0.125
+              ],
+              [
+                0.16667,
+                0.375
+              ],
+              [
+                0.5,
+                0.375
+              ],
+              [
+                0.5,
+                0.125
+              ]
+            ]
           }
         ]
       ]
@@ -8225,7 +8375,25 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
               0.5,
               0.375
             ],
-            "label": "polygon_x_scale"
+            "label": "polygon_x_scale",
+            "polygon": [
+              [
+                0.16667,
+                0.125
+              ],
+              [
+                0.16667,
+                0.375
+              ],
+              [
+                0.5,
+                0.375
+              ],
+              [
+                0.5,
+                0.125
+              ]
+            ]
           }
         ],
         [
@@ -8237,7 +8405,25 @@ The same question after the quantity was signed off (`quantity.status` `signed`,
               0.21269,
               0.19027
             ],
-            "label": "printed_label"
+            "label": "printed_label",
+            "polygon": [
+              [
+                0.16667,
+                0.125
+              ],
+              [
+                0.16667,
+                0.375
+              ],
+              [
+                0.5,
+                0.375
+              ],
+              [
+                0.5,
+                0.125
+              ]
+            ]
           }
         ]
       ]
@@ -8578,7 +8764,7 @@ page fractions. A sync call: a turn takes up to `AGENT_TURN_USD` dollars and 60 
 ```
 
 Response `ChatTurn`: `kind` is `answer`, `dont_know`, `conflict`, `needs_input` (which room or wall: 2-4
-`options`) or `edit` (with `edit`, the proposal). `options` may come with any kind (a `dont_know` carries the
+`options`), `edit` (with `edit`, the proposal) or `ask_issue` (below). `options` may come with any kind (a `dont_know` carries the
 questions the drawings can answer): each is a chip whose `message` the client sends as the next message.
 `evidence[].name`, the step labels and the text use the drawing's plain name ("Drawn plan 1"). `evidence` lists
 only the places `text` cites, numbered in the order it cites them. `answers` (last) holds the `ask_drawings`
@@ -8605,6 +8791,18 @@ after the cited ones. `source: "evidence"`: the page of `[1]` with every cited p
 the proposal's page around its geometry. `box` is the marks' union with a margin, the box to focus; each mark's `n`
 is its `evidence` item. Places minted in earlier turns stay citable: a follow-up may cite them (numbers in `text`
 still come from this turn's tool results).
+
+Asking about an open issue first (added 2026-11-15, decision [0018](decisions/0018-chat-asks-issues.md)): when the
+chat's `ask_drawings` answer rests on an open issue nobody answered or skipped (a `needs_person` conflict on the
+same quantity, a reading flag on a drawing that gave a value, an `unrelated_file`
+the judge was unsure of when every drawing refused), the turn ends as `kind: "ask_issue"` with `issue` (the
+`Issue` as `GET …/issues` gives it) and `options`: a conflict's values (`value` set), the issue's suggestions, then
+"Skip for now" (`skip: true`); `answers` is `[]`. The next request sends `issue_answer: {issue_id, text, by, value?,
+skip?}` with its `message`; 422 `validation` when the chat is not asking about that issue. A `value` settles the
+conflict (a person's `settle`, the note names `by`); any other answer but a skip is saved as the issue's `answer`.
+A skip is kept with the project and that issue is never asked again. That request then answers the held question;
+after a skip its `text` ends "This rests on an open issue on <drawing>: <label>. Do you have other questions?". At
+most 2 asks per question. `issue`, `Option.value` and `Option.skip` are left out when not set.
 
 `next` (added 2026-11-14) is 0 to 3 follow-up chips after a complete `answer` or `conflict` turn, `[{label,
 message}]` like `options`; a click sends `message` as the next message. The server builds them from the turn's tool
@@ -10450,7 +10648,25 @@ any project, which no project shows. A project that does not hold the drawing is
                 0.5,
                 0.375
               ],
-              "label": "polygon_x_scale"
+              "label": "polygon_x_scale",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ],
           [
@@ -10462,7 +10678,25 @@ any project, which no project shows. A project that does not hold the drawing is
                 0.21269,
                 0.19027
               ],
-              "label": "printed_label"
+              "label": "printed_label",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ]
         ]
@@ -11074,7 +11308,25 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
                 0.5,
                 0.375
               ],
-              "label": "polygon_x_scale"
+              "label": "polygon_x_scale",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ],
           [
@@ -11086,7 +11338,25 @@ settled at 3, the conflicting room area signed off by Ana), trimmed to those thr
                 0.21269,
                 0.19027
               ],
-              "label": "printed_label"
+              "label": "printed_label",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ]
         ]

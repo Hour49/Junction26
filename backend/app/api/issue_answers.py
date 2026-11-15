@@ -47,3 +47,27 @@ def save(root: Path, project_id: str, issue_id: str, answer: IssueAnswer | None)
         partial = path.with_suffix(".json.part")
         partial.write_text(json.dumps(kept, ensure_ascii=False), encoding="utf-8")
         os.replace(partial, path)  # a reader never sees half a file
+
+
+def _skips_file(root: Path, project_id: str) -> Path:
+    return root / "api" / "issue_skips" / f"{project_id}.json"
+
+
+def skipped(root: Path, project_id: str) -> frozenset[str]:
+    """The issue ids a person skipped in the chat (decision 0018): never asked about again."""
+    path = _skips_file(root, project_id)
+    with _lock:
+        text = path.read_text(encoding="utf-8") if path.is_file() else "[]"
+    return frozenset(json.loads(text))
+
+
+def skip(root: Path, project_id: str, issue_id: str) -> None:
+    """Keep `issue_id` as skipped, with the project, across chats and restarts."""
+    path = _skips_file(root, project_id)
+    with _lock:
+        text = path.read_text(encoding="utf-8") if path.is_file() else "[]"
+        kept = sorted({*json.loads(text), issue_id})
+        path.parent.mkdir(parents=True, exist_ok=True)
+        partial = path.with_suffix(".json.part")
+        partial.write_text(json.dumps(kept), encoding="utf-8")
+        os.replace(partial, path)

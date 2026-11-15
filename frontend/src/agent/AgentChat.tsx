@@ -30,10 +30,12 @@ import { LiveSteps } from './LiveSteps';
 import { canShow3d, paneHighlight } from '../model3d/model3d';
 import { PlanPane, PlanSheet, type PaneFile } from './PlanPane';
 import { LIVE_START, liveStep, streamTurn, type Live } from './stream';
+import type { IssueReply } from './IssueAsk';
 import { TurnCard } from './TurnCard';
 import '../engineer/engineer.css';
 
-type Sent = { id: number; message: string; chips: string[] };
+// issueAnswer: the answer to an ask_issue turn (decision 0018), sent with the message
+type Sent = { id: number; message: string; chips: string[]; issueAnswer?: IssueReply };
 type Row =
   | (Sent & { status: 'pending'; live?: Live })
   | (Sent & { status: 'error'; error: unknown; selection: Selection[] })
@@ -153,6 +155,10 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const nextId = useRef(Math.max(0, ...start.rows.map((r) => r.id)) + 1);
   const nextSel = useRef(1);
   const pending = useRef(false);
+  // R4-E7: a send moves focus back to the ask box once the thread has re-rendered (the empty chat's layout and a
+  // tapped chip unmount what had focus), and the answer is said in the polite live region.
+  const refocus = useRef(false);
+  const [said, setSaid] = useState('');
   const thread = useRef<HTMLElement>(null);
   const photo = usePhotoAdd(projectId, (project) => {
     setLoad({ state: 'ready', project });
@@ -183,6 +189,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       const body = {
         ...(chatId.current ? { chat_id: chatId.current } : {}),
         message: row.message,
+        ...(row.issueAnswer ? { issue_answer: row.issueAnswer } : {}),
         ...(selection.length ? { selection } : {}),
         ...(packNow.current ? { pack: packNow.current } : {}), // LC-11: the country picker's rule pack, as the checks screen sends it
       };
@@ -206,22 +213,30 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         (turn) => {
           chatId.current = turn.chat_id;
           settle({ ...row, status: 'done', turn });
+          setSaid(announce(turn));
           // Every turn with a place moves the plan (contract A); one without leaves it where it is.
           const view = viewOf(turn);
           if (view) showView(view);
         },
         (error: unknown) => {
           settle({ ...row, status: 'error', error, selection });
+          setSaid('The answer failed. You can send it again.');
         },
       );
     },
     [projectId, showView],
   );
 
-  const ask = (message: string) => {
+  const ask = (message: string, issueAnswer?: IssueReply) => {
     if (pending.current) return;
-    const row: Sent = { id: nextId.current++, message, chips: pointed.map((p) => p.chip) };
+    const row: Sent = {
+      id: nextId.current++,
+      message,
+      chips: pointed.map((p) => p.chip),
+      ...(issueAnswer ? { issueAnswer } : {}),
+    };
     setRows((rs) => [...rs, { ...row, status: 'pending' }]);
+    refocus.current = true;
     send(
       row,
       pointed.map((p) => p.sel),
@@ -281,6 +296,12 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       // full or blocked storage: the thread just isn't kept
     }
   }, [rows, projectId]);
+
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    document.getElementById('en-question')?.focus();
+  }, [rows]);
 
   const last = rows.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
@@ -473,6 +494,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           pack={pack}
           busy={busy}
           onAsk={ask}
+          onIssueAnswer={ask}
+          closed={r !== rows.at(-1)}
+          drawings={drawn}
           onShow={plan ? showSource(r.turn) : undefined}
           onReference={plan ? onReference : undefined}
           onDecided={(edit) => {
@@ -490,6 +514,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
 
   const bar = (
     <div className="ag-bar">
+      <p className="en-sr" role="status" aria-live="polite" aria-label="Chat status">
+        {said}
+      </p>
       <div className="ag-selrow">
         {!wide && plan && (
           <button
@@ -578,4 +605,18 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       {bar}
     </div>,
   );
+}
+
+/** What the polite live region says when a turn arrives (R4-E7): short, and never the answer's own words, which are
+ * read in the thread. */
+function announce(turn: ChatTurn): string {
+  const said: Record<ChatTurn['kind'], string> = {
+    answer: 'Answer ready.',
+    conflict: 'Answer ready: the sources disagree.',
+    dont_know: 'Answer ready: the drawings do not say.',
+    needs_input: 'The assistant asks you to choose.',
+    edit: 'A change to the plan is ready to review.',
+    ask_issue: 'The assistant asks about an open issue first.',
+  };
+  return said[turn.kind];
 }

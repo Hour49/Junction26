@@ -153,18 +153,34 @@ export function ChecksScreen({
       {body}
     </div>
   );
+  // R4-E3: every state has the screen's h1 (the loaded states draw it in `head`)
+  const title = <h1 className="sr-only">Pre-check</h1>;
   if (!pack)
-    return page(<p className={LINE}>Choose a country in the header to run its pre-check.</p>);
-  if (project.state === 'loading') return page(<Loading label="Loading the checks…" />);
+    return page(
+      <>
+        {title}
+        <p className={LINE}>Choose a country in the header to run its pre-check.</p>
+      </>,
+    );
+  if (project.state === 'loading')
+    return page(
+      <>
+        {title}
+        <Loading label="Loading the checks…" />
+      </>,
+    );
   if (project.state === 'error')
     return page(
-      <ErrorView
-        error={project.error}
-        onRetry={() => {
-          setProject(null);
-          setProjectTries((n) => n + 1);
-        }}
-      />,
+      <>
+        {title}
+        <ErrorView
+          error={project.error}
+          onRetry={() => {
+            setProject(null);
+            setProjectTries((n) => n + 1);
+          }}
+        />
+      </>,
     );
   const p = project.value;
 

@@ -230,7 +230,7 @@ it('CH-47 an arriving answer: the turn to its top, then its first row just above
 it('CH-5 (ui-bugs 6) project_ask.json: two drawings answer, no total, its note, the line of the shown drawing; a reference swaps it', async () => {
   open(projectAsk);
   const turn = await answered('How many doors are there?');
-  expect(within(turn).getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
+  expect(within(turn).queryByText(projectAsk.why_no_total ?? 'x')).toBeNull();
   expect(within(turn).queryByTestId('answer-value')).toBeNull();
   const perDrawing = () =>
     within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem');

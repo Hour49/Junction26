@@ -128,7 +128,10 @@ it('each step shows as it is planned, runs and ends with its summary; then the a
   await push('answer', answerTurn);
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
   expect(screen.queryByRole('list', { name: 'What the agent is doing' })).toBeNull();
-  expect(screen.queryByRole('status')).toBeNull();
+  // the live steps' status is gone; the chat's own polite region (R4-E7) stays
+  expect(screen.queryAllByRole('status').map((e) => e.getAttribute('aria-label'))).toEqual([
+    'Chat status',
+  ]);
 });
 
 it('a connection lost mid-turn says so, keeps the chat id, and is not sent again by itself', async () => {

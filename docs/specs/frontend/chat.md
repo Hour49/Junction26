@@ -218,12 +218,13 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   no title then). [unit on the CSS text + component]
 - CH-39 (re-sweep item 2, orch 18:00; replaces CH-31's lead and CH-35's row look) Closer to the demo:
   - Lead above the card: with a `total`, only the value in bold ("2 doors": `formatValue` + the first answering
-    part's `quantity.noun` when it has one) and the Sure badge; no `total_note`. Without one, `why_no_total`
-    (`total_note` when null) as a smaller muted sentence (`.en-lead--why`, 14 px). No quantity label line.
+    part's `quantity.noun` when it has one) and the Sure badge; no `total_note`. Without one, no lead and no why line
+    (P3, 2026-11-15: the written answer already says the counts are not added up). No quantity label line.
   - Left: the viewer gets `bare` (fe-viewer: no class line, zoom toolbar, page meta or legend; the mono file name
     above the image stays); no arrows (CH-33).
   - Right, per answering drawing, ONE row: a sentence "<name>: <b>value[ noun]</b>", ONE pill ("Sure" when
     `line.sure`, else the status word). The "Show it on <name>" link is removed (ui-bugs 8, 2026-11-15).
+    A reference card shows the agent's "Confidence: <level>" for its drawing when given (P5; agent chat only).
   [component with a `PageViewer` spy; unit on the CSS text; browser 1440 and 390]
 - CH-40 (#224, orch 18:05) Where the card names a DRAWING it shows `drawingLabel(d)` (shared.md: the
   backend's plain `name`, "Drawn plan 1", else the file name) for the part's `project.drawings[]` entry (a part

@@ -77,11 +77,6 @@ const stubs: Screens = {
   DocumentsScreen: DocumentsStub,
   FileTraceScreen: ({ fileId }) => <p>trace {fileId}</p>,
   EngineerPage: ({ drawingId }) => <p>engineer {drawingId}</p>,
-  SurveyorScreen: ({ drawingId, query }) => (
-    <p>
-      surveyor {drawingId} {query.get('q')}
-    </p>
-  ),
 };
 
 function go(hash: string) {
@@ -119,8 +114,16 @@ describe('shell', () => {
     expect(screen.getByText('trace f2')).toBeTruthy();
     go(`#/p/${P}/d/${D}/engineer`);
     expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
-    go(`#/p/${P}/d/${D}/surveyor?q=${encodeURIComponent('area:room|name=küche')}`);
-    expect(screen.getByText(`surveyor ${D} area:room|name=küche`)).toBeTruthy();
+    await screen.findByText(OFFLINE);
+  });
+
+  it("P8 an old …/surveyor link lands on the same drawing's engineer view, query kept, no Surveyor tab", async () => {
+    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door`;
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    expect(screen.getByText(`engineer ${D}`)).toBeTruthy();
+    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/engineer?q=door`);
+    expect(screen.queryByRole('link', { name: /surveyor/i })).toBeNull();
     await screen.findByText(OFFLINE);
   });
 
@@ -169,7 +172,7 @@ describe('shell', () => {
     expect(marked()).toEqual(tabs('Documents'));
     for (const hash of [
       `#/p/${P}/checks`,
-      `#/p/${P}/d/${D}/surveyor`,
+      `#/p/${P}/d/${D}/engineer`,
       `#/p/${P}/d/${D}/engineer`,
     ]) {
       go(hash);
@@ -182,7 +185,7 @@ describe('shell', () => {
   });
 
   it('SH-75 with a pack every tab href carries it (also an unlisted pack)', async () => {
-    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door&pack=fi`;
+    window.location.hash = `#/p/${P}/d/${D}/engineer?q=door&pack=fi`;
     mockApi({ 'GET /api/info': withPacks, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
@@ -373,7 +376,7 @@ describe('shell', () => {
   });
 
   it('SH-69 the country picker lists the rule packs and writes ?pack; no request, no pending', async () => {
-    window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door`;
+    window.location.hash = `#/p/${P}/d/${D}/engineer?q=door`;
     const api = mockApi({
       'GET /api/info': withPacks,
       'GET /api/projects': projectList,
@@ -398,7 +401,7 @@ describe('shell', () => {
     // the rules page link shows only once a country is chosen
     expect(within(group()).queryByRole('link', { name: 'Building construction rules' })).toBeNull();
     fireEvent.click(fi);
-    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door&pack=fi`);
+    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/engineer?q=door&pack=fi`);
     go(window.location.hash);
     expect(button().getAttribute('aria-label')).toBe('Country rules: Finland');
     expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
@@ -415,7 +418,7 @@ describe('shell', () => {
         .getAttribute('aria-pressed'),
     ).toBe('true');
     fireEvent.click(within(group()).getByRole('button', { name: 'No checks' }));
-    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door`);
+    expect(window.location.hash).toBe(`#/p/${P}/d/${D}/engineer?q=door`);
     go(window.location.hash);
     fireEvent.click(button());
     fireEvent.keyDown(group(), { key: 'Escape' });
@@ -471,7 +474,7 @@ describe('shell', () => {
       `#/p/${P}`,
       `#/p/${P}/f/f1`,
       `#/p/${P}/d/${D}/engineer`,
-      `#/p/${P}/d/${D}/surveyor`,
+      `#/p/${P}/d/${D}/engineer`,
       '#/nope',
     ]) {
       go(hash);

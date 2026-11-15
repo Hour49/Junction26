@@ -116,6 +116,11 @@
   max-width: 50%;
 }
 /* Over the empty right end of the viewer's file-name row (its padding is 20 px); in flow on a phone. */
+.en-also a {
+  display: inline-block;
+  min-height: 24px; /* R4-E5: a target of at least 24 px */
+  line-height: 24px;
+}
 .en-place {
   position: absolute;
   top: 20px;
@@ -702,10 +707,6 @@ button.en-ref:hover,
   font-size: 14px;
   font-weight: 600;
 }
-.en-lead--why {
-  font-size: 14px;
-  color: var(--v-muted);
-}
 .en-chathead {
   display: flex;
   align-items: center;
@@ -772,6 +773,11 @@ button.en-cref {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  font-size: 12px;
+}
+.en-crefconf {
+  margin-left: auto;
+  flex-shrink: 0;
   font-size: 12px;
 }
 .en-crefname {

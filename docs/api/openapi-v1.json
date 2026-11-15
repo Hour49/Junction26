@@ -984,6 +984,16 @@
             ],
             "title": "Chat Id"
           },
+          "issue_answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IssueReply"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "message": {
             "maxLength": 2000,
             "minLength": 1,
@@ -1056,13 +1066,24 @@
             "title": "Evidence",
             "type": "array"
           },
+          "issue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Issue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "kind": {
             "enum": [
               "answer",
               "dont_know",
               "conflict",
               "needs_input",
-              "edit"
+              "edit",
+              "ask_issue"
             ],
             "title": "Kind",
             "type": "string"
@@ -4375,6 +4396,53 @@
         "title": "IssueLinks",
         "type": "object"
       },
+      "IssueReply": {
+        "additionalProperties": false,
+        "description": "A person's answer to the chat's ask_issue turn (decision 0018). `value`: a conflict's value\npicked, which settles it; `skip`: Skip for now (kept, never asked again).",
+        "properties": {
+          "by": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          },
+          "issue_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Issue Id",
+            "type": "string"
+          },
+          "skip": {
+            "default": false,
+            "title": "Skip",
+            "type": "boolean"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "issue_id",
+          "text",
+          "by"
+        ],
+        "title": "IssueReply",
+        "type": "object"
+      },
       "Item": {
         "additionalProperties": false,
         "description": "A removed or added piece of geometry (a wall strip, a door, a new partition).",
@@ -5265,6 +5333,29 @@
             "minLength": 1,
             "title": "Message",
             "type": "string"
+          },
+          "skip": {
+            "anyOf": [
+              {
+                "const": true,
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
           }
         },
         "required": [
@@ -8963,6 +9054,35 @@
             "minimum": 1.0,
             "title": "Page",
             "type": "integer"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    },
+                    {
+                      "maximum": 1.0,
+                      "minimum": 0.0,
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "minItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
           }
         },
         "required": [

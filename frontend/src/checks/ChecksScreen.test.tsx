@@ -59,6 +59,7 @@ describe('ChecksScreen', () => {
     const { api } = await show(null);
     expect(api.calls.filter((c) => !c.url.endsWith('/api/info'))).toEqual([]);
     expect(screen.getByText('Choose a country in the header to run its pre-check.')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 })).toBeTruthy(); // R4-E3
   });
 
   it('CK-2 the heading names the pack; no law line, pack note or summary line above the rules', async () => {

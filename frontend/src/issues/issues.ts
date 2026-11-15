@@ -1,7 +1,7 @@
 // Pure helpers of the issues screen (issues.md "API calls", "The marks for the plan").
 import type { Issue, IssueSeverity, IssueState, MarkView } from '../api';
 import type { Tone } from '../viewer/PageViewer';
-import { issueRoute } from '../surveyor/issueLinks';
+import { issueRoute } from '../conflicts/issueLinks';
 
 export interface Row {
   issue: Issue;
@@ -33,7 +33,8 @@ export const STATES: readonly IssueState[] = ['open', 'settled', 'signed_off'];
 export const STATE_LABEL: Record<IssueState, { word: string; icon: string }> = {
   open: { word: 'open', icon: '●' },
   settled: { word: 'settled', icon: '✓' },
-  signed_off: { word: 'signed off', icon: '✓✓' },
+  // no screen says a person signed a value off (user, 2026-11-15): a signed-off issue reads as closed
+  signed_off: { word: 'closed', icon: '✓' },
 };
 
 export const numbered = (issues: readonly Issue[]): Row[] =>
@@ -45,7 +46,7 @@ export function filterIssues(rows: readonly Row[], f: { kind: string; state: str
   );
 }
 
-/** "3 open · 1 settled · 1 signed off"; states with none are left out. */
+/** "3 open · 1 settled · 1 closed"; states with none are left out. */
 export function counts(issues: readonly Issue[]): string {
   return STATES.map(
     (s) => [issues.filter((i) => i.state === s).length, STATE_LABEL[s].word] as const,
@@ -127,10 +128,6 @@ export function routeOf(
   if (issue.kind === 'unrelated_file' && issue.file_id) {
     const label = issue.state === 'open' ? 'Make a call' : 'See the call';
     links.push({ label, href: href(`${p}/f/${issue.file_id}`, {}, pack) });
-  }
-  if (did && (issue.kind === 'reading_flag' || issue.kind === 'code_check_failed')) {
-    const q: Record<string, string> = issue.quantity ? { q: issue.quantity } : {};
-    links.push({ label: 'Open in the surveyor', href: href(`${p}/d/${did}/surveyor`, q, pack) });
   }
   if (issue.kind === 'code_check_failed' && pack)
     links.push({ label: 'See the check', href: href(`${p}/checks`, {}, pack) });

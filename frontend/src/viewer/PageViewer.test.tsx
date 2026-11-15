@@ -210,7 +210,7 @@ describe('PageViewer: legend, caption, pages', () => {
     const mixed = viewer(answer, { marks: [m1, { ...m2, state: 'rejected', n: null }] }).container;
     const text = mixed.querySelector('.vw-legend')?.textContent ?? '';
     expect(text).toContain('counted');
-    expect(text).toContain('rejected by a surveyor');
+    expect(text).toContain('rejected');
   });
 
   it('VW-29 (demo parity) no credit line, with or without a credit; file name shown', () => {
@@ -260,7 +260,7 @@ describe('PageViewer: mark states', () => {
   it('VW-15 rejected: ×, dotted outline, two crossing lines, words in the label', () => {
     const { container } = viewer(answer, { marks: [door1, rejected] });
     const b = badgeOf(container, '×');
-    expect(b?.getAttribute('aria-label')).toBe('door, rejected by a surveyor');
+    expect(b?.getAttribute('aria-label')).toBe('door, rejected');
     const rects = container.querySelectorAll('svg rect');
     expect(rects[1]?.getAttribute('stroke-dasharray')).toBe('2 3');
     expect(container.querySelectorAll('svg line.vw-cross')).toHaveLength(2);
@@ -269,7 +269,7 @@ describe('PageViewer: mark states', () => {
   it('VW-16 added: +n, dashed outline, words in the label', () => {
     const { container } = viewer(answer, { marks: [door1, added] });
     const b = badgeOf(container, '+3');
-    expect(b?.getAttribute('aria-label')).toBe('Mark 3: item, added by a surveyor');
+    expect(b?.getAttribute('aria-label')).toBe('Mark 3: item, added');
     expect(container.querySelectorAll('svg rect')[1]?.getAttribute('stroke-dasharray')).toBe('6 3');
   });
 
@@ -459,20 +459,15 @@ describe('PageViewer: selection, highlight, keyboard', () => {
     expect(onHover).toHaveBeenLastCalledWith(null);
   });
 
-  it('ui-tips P1 a numbered mark says what a mark is, on hover and on keyboard focus', async () => {
+  it('a plain counted mark has no hover tooltip, on hover or keyboard focus', async () => {
     const { container } = viewer(answer);
     const b1 = badgeOf(container, '1') as HTMLElement;
     fireEvent.pointerMove(b1, { pointerType: 'mouse' });
-    expect((await screen.findByRole('tooltip')).textContent).toContain(
-      'One thing Vellum counted. The number matches the list of marks.',
-    );
-    fireEvent.pointerLeave(b1, { pointerType: 'mouse' });
-    fireEvent.pointerMove(document.body, { clientX: 900, clientY: 900 }); // out of Radix's grace area
-    await waitFor(() => {
-      expect(screen.queryByRole('tooltip')).toBeNull();
-    });
+    await new Promise((r) => setTimeout(r, 150));
+    expect(screen.queryByRole('tooltip')).toBeNull();
     b1.focus();
-    expect((await screen.findByRole('tooltip')).textContent).toContain('One thing Vellum counted.');
+    await new Promise((r) => setTimeout(r, 150));
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });
 

@@ -1,6 +1,12 @@
 # Golden demo path and its end-to-end test (spec, frontend v1)
 Status: draft, 2026-11-14 16:40 (demo parity section planned; Vellum section 11:20), by fe-golden.  Story: #33.  API: docs/API.md (v1).
 
+> **P8 (2026-11-15): the Surveyor is gone from the frontend** (user decision). Everything below about the surveyor
+> screen, settling a value there, signing off, "Verified by …", the per-drawing CSV and the `…/surveyor` route is
+> superseded: steps V10-V14, GP-9 to GP-13, GP-28 and the sign-off parts of GP-34 are deleted from the e2e. An old
+> `…/surveyor` URL lands on the same drawing's engineer view. Screenshots `10-surveyor-queue`, `11-signed` and
+> `12-verified` are no longer taken. The header Export (whole project) stays.
+
 ## Purpose
 
 The golden path is the flow we show the judges in the 3-minute pitch: a zip goes in, one file is followed through
@@ -32,17 +38,13 @@ checks on every screenshot (offline strip, no horizontal scroll, no console erro
 | V4 | File trace, `#/p/<id>/f/<fid>` | open `plans/flat-b.pdf` | as GP-4: "flagged", "1 conflict(s) between the two methods", the second-count line, the write stage |
 | V5 | Settle the conflicts, `#/p/<id>/conflicts` (3) | header "Conflicts"; on the "Küche · 1.01" card Modify, tap A, then "Use the rule's value" (CF-22) | "1 conflict found" (#131: one per room); the card on `plans/flat-b.pdf` "Settled by rule", then "Your choice" with Modify (never "Change"), then "Settled by rule"; "Start a new chat" (below the cards) is the primary link, "Open the workspace" a quiet link; no "Ask anything …" line |
 | V5a | New chat, `#/p/<id>/chat` (chat.md) | "Start a new chat" | the project name, the ask bar in the upper middle and the group "Suggested questions": "How many doors are there?", "What is the net floor area of all indoor rooms in m²?", "How many windows are there?"; no "Ask anything …" line, no plan, image or marks |
-| V5b | (chat) | click the chip "How many doors are there?" (the chips go, the bar moves to the bottom) | one card from one `POST /api/projects/{pid}/ask` (#135): several drawings answer, so no total and the backend's note "… they may show the same rooms, so the numbers are not added up"; a line per drawing ("plans/flat-b.pdf: 2"), each with "Show it on <file>"; no image |
+| V5b | (chat) | click the chip "How many doors are there?" (the chips go, the bar moves to the bottom) | one card from one `POST /api/projects/{pid}/ask` (#135): several drawings answer, so no total and no why line (the written answer says the numbers are not added up); a line per drawing ("plans/flat-b.pdf: 2"), each with "Show it on <file>"; no image |
 | V6 | Ask, with proof, `…/d/<did>/engineer` (4) | by its URL (ui-bugs 8) | as GP-5: the page, its credit, the suggested questions |
 | V7-V9 | (4) | the door count, the room 1.01 area, the roof refusal | as GP-6, GP-7, GP-8 |
-| V10-V12 | Surveyor, `…/surveyor` (restyle) | settle 1.01 on 22.40 m², sign off as "Ana" | as GP-9, GP-10, GP-11 |
-| V13 | (4) | ask the 1.01 area again | as GP-12: "22.40 m²", "Verified by Ana, …" |
-| V14 | Surveyor | Export CSV | as GP-13 |
 | V15 | Workspaces, `#/workspaces` (5) | follow "Workspaces" in the header | the sample workspace first and selected; stats Files 11, Drawings 5, To review 0, Signed off "1 of <n>" (one per room, though #131 signs the room's twin row too); history: "Uploaded sample-project.zip", "Analysis done", then (with the "Asked: …" events) "Conflict settled: area of room (name Küche · 1.01)" (kept 22.40 m²) before "Signed off: area of room (name Küche · 1.01)" (… by Ana); no "Settled by a rule" left |
 
 Screenshots per width (`frontend/screenshots/<desktop|phone>/`): `01-home`, `02-project`, `03-advanced`,
-`04-trace`, `05-conflicts`, `05a-chat`, `05b-chat-answer`, `06-engineer`, `07-count`, `08-area-conflict`, `09-refusal`, `10-surveyor-queue`,
-`11-signed`, `12-verified`, `13-workspaces`. Each is opened and looked at against its canvas screen (QA.md §3).
+`04-trace`, `05-conflicts`, `05a-chat`, `05b-chat-answer`, `06-engineer`, `07-count`, `08-area-conflict`, `09-refusal`, `13-workspaces`. Each is opened and looked at against its canvas screen (QA.md §3).
 
 Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the new screens):
 
@@ -55,10 +57,10 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
 - GP-32 V6: flat-b's `#/p/<id>/d/<16 hex>/engineer?ask=<question>` opened by its URL (ui-bugs 8/13: the chat
   and the plan pane have no link to a drawing's workspace any more) shows the drawing asking that question. The path no longer goes through the card's surveyor link or "Open the workspace". [e2e]
 - GP-33 V15: "Workspaces" in the header reaches `#/workspaces`; the first workspace is "sample-project.zip" with
-  `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 0 and Signed off matching `/^1 of \d+$/` (one per room).
+  `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 0.
   [e2e]
 - GP-34 V15: the history starts "Uploaded sample-project.zip", "Analysis done"; later "Conflict settled: area of room
-  (name Küche · 1.01)" comes before "Signed off: area of room (name Küche · 1.01)" (with "by Ana"), the only "Signed off" event; "Asked: How many doors are there?" twice (the chat's one
+  (name Küche · 1.01)" ; "Asked: How many doors are there?" twice (the chat's one
   grouped entry and the engineer's ask); no "Settled by a
   rule" event is left (#131: the one conflict was settled by a person). [e2e]
 - GP-35 Fifteen screenshots per width, named as above, each with the offline strip and no horizontal scroll.
@@ -70,8 +72,7 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
 - GP-39 V5a: `#/p/<id>/chat` shows the `h1` project name, the textbox "Question", "Ask" and the group "Suggested
   questions" with exactly the three chips above; no "Ask anything …" line; inside `main` no `img`, `figure` or
   canvas. Clicking the doors chip asks it (V5b), and the group is gone after the first ask. [e2e]
-- GP-40 V5b: the doors question gives one turn with no `answer-value`, text matching "may show the same rooms, so
-  the numbers are not added up", "plans/flat-b.pdf: 2", one card (the reference chosen), no "Show it on" link, and no `img` or
+- GP-40 V5b: the doors question gives one turn with no `answer-value`, no "not added up" line, "plans/flat-b.pdf: 2", one card (the reference chosen), no "Show it on" link, and no `img` or
   `figure` in the turn. The Chat tab is `aria-current="page"` on the chat page. [e2e]
 - GP-36 No screen on the path shows a user name, initials, avatar or country picker, and no mock value from the
   canvas ("harbour-block-archive.zip", "Beatrice", "Hour49"). [e2e: text checks on every screenshot step]
@@ -96,7 +97,7 @@ Open points (Vellum):
   Settled (ingest.md, 11:30): Simple keeps the file list, so V4 can be reached from Simple; the test still walks V3
   (Advanced) for its screenshot and reaches V4 from there.
 - V-2 The pitch is 3 minutes: V3, V4 and V14 can be cut live; the test still walks them.
-- V-3 After V10-V12 the sample's flat-b has one conflict left (Küche), decided by rule, so "To review" is 1 in V15.
+- V-3 (superseded by P8).
 
 ## Demo parity: how the path walks the demo's screens (round 3, 2026-11-14 16:25)
 
@@ -452,21 +453,8 @@ The path
 - GP-8 Step 7: the turn for "What colour is the roof?" shows "I can't answer that from this drawing." and
   the reason "This question isn't one I can turn into a count…", no "code:" line, at least one question button,
   and no answer value. [e2e]
-- GP-9 Step 8: the "Surveyor" link reaches `#/p/<id>/d/<same drawing id>/surveyor`, whose "To review" group lists
-  "area of room (name 1.01)" and "area of room (name Küche)", each with "Methods disagree". [e2e]
-- GP-10 Step 9: with "area of room (name 1.01)" selected, "Keep A: 22.40 m² (room outlines × sheet scale)" makes its row read
-  22.40 m² and "Changed in review", and the detail "Settled at 22.40 m²". [e2e]
-- GP-11 Step 10: "Ana" in "Signing as" and "Sign off 22.40 m²" make the row read "Verified" and the detail
-  "Signed off by Ana". [e2e]
-- GP-12 Step 11: back on Engineer, asking "What is the net floor area of room 1.01?" shows "22.40 m²", "Verified" and
-  text matching `Verified by Ana, \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC`. [e2e]
-- GP-13 Step 12: "Export CSV" on Surveyor gives a download named `flat-b-takeoff.csv` whose line starting
-  `plans/flat-b.pdf,area:room|name=1.01,` matches `,22\.401,m2,signed,30\.0,` and `,Ana,`. [e2e]
 - GP-14 Every step from 1 to 12 passes in both projects; the `phone` project uses no other steps or selectors than
   `desktop`. [e2e]
-- GP-28 Step 8a (06:00 scope): the "Surveyor" link reaches `#/p/<id>/d/<same drawing id>/surveyor`, whose side
-  panel lists the conflicts "area of room (name 1.01)" and "area of room (name Küche)", each with "plans/flat-b.pdf",
-  "22.40 m² vs 30.00 m²" and "decided by rule". [e2e]
 - GP-15 Running `npm run e2e` twice in a row passes both times (a new temp data dir, and `fresh=true` resets the
   sign-off of the first run). [e2e, by hand once before merge]
 

@@ -50,26 +50,17 @@ export async function startSample(page: Page): Promise<string> {
   return /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
 }
 
-/** The sample, then a file's page from Documents' file list (parity: no file list on Ingest). */
+/** The sample, then a drawing's file page from the state pill on its Documents card (P7: Documents has no file
+ * list; a file that is not a drawing has no link there). */
 export async function fileFromDocuments(page: Page, file: string): Promise<string> {
   const pid = await startSample(page);
   await page.goto(`/#/p/${pid}/documents`);
   await page
-    .getByRole('region', { name: 'Files' })
-    .getByRole('link')
-    .filter({ hasText: file })
+    .getByRole('region', { name: 'Drawings' })
+    .getByRole('link', { name: `How ${file} was read` })
     .click();
   await expect(page).toHaveURL(/\/f\/f\d+$/);
   return pid;
-}
-
-/** The sample's plans/flat-b.pdf on the surveyor route, by its URL (parity: no Surveyor tab; these tests are about
- * the workspace, not the way in, which golden-path.spec.ts walks). */
-export async function openSurveyor(page: Page) {
-  const pid = await startSample(page);
-  const { id } = await drawingOf(page, pid, 'plans/flat-b.pdf');
-  await page.goto(`/#/p/${pid}/d/${id}/surveyor`);
-  await expect(page).toHaveURL(/\/d\/[0-9a-f]{16}\/surveyor/);
 }
 
 /** A drawing of the project by its file: its id and its on-screen name (`drawingLabel`: #224's `name`, else the file

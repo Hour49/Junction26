@@ -2,7 +2,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
 
-/** The look of the surveyor's "Settled by rule" tip: dark rounded box, 12px text, 240px wide. */
+/** The look of the "Settled by rule" tip: dark rounded box, 12px text, 240px wide. */
 const LOOK =
   'w-60 max-w-[240px] rounded-xl px-3 py-2 text-left text-xs leading-snug font-normal text-balance';
 
@@ -17,6 +17,26 @@ interface TipProps {
   wrap?: boolean;
   side?: 'top' | 'bottom' | 'left' | 'right';
   className?: string;
+}
+
+/** Whether the last input was the keyboard (what `:focus-visible` tells a browser, which jsdom does not say). It
+ * starts true: a focus before any pointer press is not the page returning focus after a click. */
+let usingKeyboard = true;
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'keydown',
+    () => {
+      usingKeyboard = true;
+    },
+    true,
+  );
+  document.addEventListener(
+    'pointerdown',
+    () => {
+      usingKeyboard = false;
+    },
+    true,
+  );
 }
 
 /** What a tap activates: a tap on one of these (enabled) is its action, not a request for the tip. */
@@ -83,6 +103,12 @@ export function Tip({ text, children, wrap = false, side = 'bottom', className }
           ref={triggerEl}
           onPointerDown={(e) => {
             touch.current = e.pointerType === 'touch';
+          }}
+          onFocus={(e) => {
+            // R4-E17: a focus the page gives after a pointer press (a closed popover returns it to its button) is
+            // no request for the tip; keyboard focus and hover are. Radix skips its own opening when the event is
+            // default-prevented.
+            if (!usingKeyboard) e.preventDefault();
           }}
           onPointerCancel={() => {
             touch.current = false; // the touch became a scroll: no click will come

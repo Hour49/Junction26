@@ -83,9 +83,9 @@ it('EN-81 the arrows on plans and references: 92% surface, the demo shadow', () 
   );
 });
 
-it('CH-39 ui-bugs 8: no Show it on link style left; the why line smaller', () => {
+it('CH-39 ui-bugs 8: no Show it on link style left; no why line style left', () => {
   expect(css).not.toMatch(/\.en-show\b/);
-  expect(rulesFor('.en-lead--why')).toMatch(/font-size:\s*14px/);
+  expect(css).not.toMatch(/\.en-lead--why\b/);
 });
 
 it('deep QA research-lead 1: a text answer keeps its line breaks at reading size', () => {

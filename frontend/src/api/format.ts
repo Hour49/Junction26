@@ -15,6 +15,13 @@ export function formatTime(iso: string): string {
   return `${at.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
+/** `YYYY-MM-DD HH:MM:SS UTC`: tells two uploads of the same name apart (R4-E19). */
+export function formatTimeSeconds(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return iso;
+  return `${at.toISOString().slice(0, 19).replace('T', ' ')} UTC`;
+}
+
 // Reader ids as /api/info and DrawingView.reader give them (backend app/settings.py), as plain labels.
 const READERS: Record<string, string> = {
   composite: 'image reader',

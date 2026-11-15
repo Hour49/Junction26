@@ -38,7 +38,6 @@ export const TIPS = {
     'How this drawing was read: exact CAD or vector, or AI vision for scans and photos. Click to see the details.',
   suggested: 'Questions Vellum knows it can answer for this drawing. Click one to ask it.',
   sendDisabled: 'Type a question first.',
-  mark: 'One thing Vellum counted. The number matches the list of marks.',
   checks: 'How this number was verified: which methods measured it and whether they agree.',
   secondScore:
     'How much a second, independent reader agrees. Higher is better; it is not a probability.',
@@ -55,11 +54,9 @@ export const TIPS = {
   colGlobalId: "The object's unique id inside the building model.",
   // Answer status pill (same words as engineer/format.ts)
   status: {
-    signed: statusTip('signed'),
     agree: statusTip('agree'),
     conflict: statusTip('conflict'),
     estimate: statusTip('estimate'),
-    edited: statusTip('edited'),
     single: statusTip('single'),
   },
   // Documents

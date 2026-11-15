@@ -6,8 +6,6 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { noKeys, sampleDone, shot, watchErrors } from './support';
 
-const STEPS = /^\d+ steps? · \d+\.\d s · /;
-
 /** ag-geom's walled sheet as PDF bytes, made by the backend's test helper (as start-backend.sh runs uv). */
 function walledFlat(e2eDir: string): Buffer {
   const backend = path.join(e2eDir, '..', '..', 'backend');
@@ -61,7 +59,7 @@ test('AC-39: the empty chat has no "What I read", and the ask box stays above th
   expect(errors).toEqual([]);
 });
 
-test('AC-30 AC-31 AC-37: a question goes over the step stream and gets an answer card with its steps line', async ({
+test('AC-30 AC-31 AC-37: a question goes over the step stream and gets an answer card with no steps line', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
@@ -77,10 +75,8 @@ test('AC-30 AC-31 AC-37: a question goes over the step stream and gets an answer
   const card = turn.locator('.ag-card');
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(card).toHaveClass(/ag-card--(answer|dont_know)/);
-  const steps = card.locator('.ag-steps summary');
-  await expect(steps).toHaveText(STEPS);
-  await steps.click();
-  await expect(card.locator('.ag-steps li').first()).toBeVisible();
+  await expect(card.locator('.ag-steps')).toHaveCount(0);
+  await expect(card).not.toContainText(/\d+ steps? · /);
   await shot(page, testInfo, 'agent-answer', offline);
   expect(errors).toEqual([]);
 });
@@ -117,7 +113,7 @@ test('AC-32 AC-35: removing the wall between two rooms gives an edit card that c
   await expect(plan.getByText('Demolished (yellow, dashed)')).toBeVisible();
   await expect(card.locator('.ag-changes li').first()).toContainText('Removed');
   await expect(card.locator('.ag-changes')).toContainText('→');
-  await expect(card.locator('.ag-steps summary')).toHaveText(STEPS);
+  await expect(card.locator('.ag-steps')).toHaveCount(0);
   await shot(page, testInfo, 'agent-edit', offline);
 
   const before = card.getByRole('button', { name: 'Before' });

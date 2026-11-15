@@ -29,16 +29,15 @@ async function uploaded(page: Page, testInfo: TestInfo): Promise<string> {
 /** Console errors but the expected 409 of "Preparing the 3D view…", which the browser logs as a failed resource. */
 const unexpected = (errors: string[]) => errors.filter((e) => !e.includes('status of 409'));
 
-test('M3-19 Documents -> the IFC file -> Show in 3D draws the model, the controls work', async ({
+test('M3-19 Documents -> the IFC drawing card state pill -> Show in 3D draws the model, the controls work', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const id = await uploaded(page, testInfo);
   await page.goto(`/#/p/${id}/documents`);
   await page
-    .getByRole('region', { name: 'Files' })
-    .getByRole('link')
-    .filter({ hasText: FILE })
+    .getByRole('region', { name: 'Drawings' })
+    .getByRole('link', { name: `How ${FILE} was read` })
     .click();
   const card = page.getByRole('region', { name: '3D view' });
   await card.getByRole('button', { name: 'Show in 3D' }).click();

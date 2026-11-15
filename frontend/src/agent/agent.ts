@@ -115,11 +115,17 @@ export function changeLines(p: Proposal): string[] {
   ];
 }
 
-/** "2 steps · 1.2 s · $0.01" (AC-31 disclosure). */
-export function stepsSummary(t: ChatTurn): string {
-  const n = t.steps.length;
-  const cost = t.cost_usd === 0 ? '$0' : t.cost_usd < 0.01 ? '<$0.01' : `$${t.cost_usd.toFixed(2)}`;
-  return `${String(n)} ${n === 1 ? 'step' : 'steps'} · ${t.latency_s.toFixed(1)} s · ${cost}`;
+/** The confidence of each drawing the turn cites, for the References cards (P5). Sources are marks, references
+ * are drawings, so they are matched by drawing id; several marks on one drawing give the lowest level. */
+export function levelsByDrawing(evidence: Evidence[]): Map<string, Level> {
+  const rank: Record<Level['level'], number> = { low: 0, medium: 1, high: 2 };
+  const out = new Map<string, Level>();
+  for (const e of evidence) {
+    if (!e.level) continue;
+    const have = out.get(e.drawing_id);
+    if (!have || rank[e.level.level] < rank[have.level]) out.set(e.drawing_id, e.level);
+  }
+  return out;
 }
 
 /** Points of a page-fraction polygon for an SVG `points` attribute. */

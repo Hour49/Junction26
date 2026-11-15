@@ -1047,6 +1047,7 @@ export interface components {
         ChatRequest: {
             /** Chat Id */
             chat_id?: string | null;
+            issue_answer?: components["schemas"]["IssueReply"] | null;
             /** Message */
             message: string;
             /** Pack */
@@ -1074,11 +1075,12 @@ export interface components {
              * @default []
              */
             evidence: components["schemas"]["ChatEvidence"][];
+            issue?: components["schemas"]["Issue"] | null;
             /**
              * Kind
              * @enum {string}
              */
-            kind: "answer" | "dont_know" | "conflict" | "needs_input" | "edit";
+            kind: "answer" | "dont_know" | "conflict" | "needs_input" | "edit" | "ask_issue";
             /** Latency S */
             latency_s: number;
             /** Model */
@@ -2070,6 +2072,26 @@ export interface components {
             trace: string | null;
         };
         /**
+         * IssueReply
+         * @description A person's answer to the chat's ask_issue turn (decision 0018). `value`: a conflict's value
+         *     picked, which settles it; `skip`: Skip for now (kept, never asked again).
+         */
+        IssueReply: {
+            /** By */
+            by: string;
+            /** Issue Id */
+            issue_id: string;
+            /**
+             * Skip
+             * @default false
+             */
+            skip: boolean;
+            /** Text */
+            text: string;
+            /** Value */
+            value?: number | null;
+        };
+        /**
          * Item
          * @description A removed or added piece of geometry (a wall strip, a door, a new partition).
          */
@@ -2352,6 +2374,10 @@ export interface components {
             label: string;
             /** Message */
             message: string;
+            /** Skip */
+            skip?: true | null;
+            /** Value */
+            value?: number | null;
         };
         /**
          * Overrule
@@ -3641,6 +3667,11 @@ export interface components {
             label: string;
             /** Page */
             page: number;
+            /** Polygon */
+            polygon?: [
+                number,
+                number
+            ][] | null;
         };
         /**
          * View

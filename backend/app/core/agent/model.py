@@ -8,7 +8,8 @@ from pydantic import Field
 from app.core.model import Frozen
 from app.core.plan_edit.model import Proposal
 
-TurnKind = Literal["answer", "dont_know", "conflict", "needs_input", "edit"]
+# ask_issue (decision 0018): the server asks about an open issue before the answer
+TurnKind = Literal["answer", "dont_know", "conflict", "needs_input", "edit", "ask_issue"]
 Json = dict[str, Any]
 
 
@@ -43,6 +44,9 @@ class Step(Frozen):
 class Option(Frozen):
     label: str = Field(min_length=1, max_length=60)
     message: str = Field(min_length=1, max_length=300)
+    # ask_issue's choices (decision 0018): a conflict value picking settles; the Skip chip
+    value: float | None = Field(default=None, exclude_if=lambda v: v is None)
+    skip: Literal[True] | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 Box = tuple[float, float, float, float]  # page fractions, top left origin
@@ -88,6 +92,8 @@ class ChatTurn(Frozen):
     # Follow-up chips after a complete turn (.agents/chat/contract.md F): server-built from the
     # turn's tool results, never from the model's text; at most 3; none when `options` is set
     next: tuple[Option, ...] = Field(default=(), max_length=3)
+    # ask_issue: the issue asked about, as GET /api/projects/{id}/issues gives it
+    issue: Json | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 @dataclass(frozen=True)
@@ -118,3 +124,5 @@ class Chat:
     # Every ask_drawings result: {"answer": as the route gave it, "evs": its ev ids, "marks": the
     # ev ids of its answers' marks, "disputed": of the marks the readers disagree on}
     asked: list[Json] = field(default_factory=list[Json])
+    # The question an ask_issue turn holds back (decision 0018): {"question", "issue", "asks"}
+    pending: Json | None = None

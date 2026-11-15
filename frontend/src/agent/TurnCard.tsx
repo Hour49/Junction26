@@ -1,19 +1,18 @@
 import { useState, type MouseEvent } from 'react';
-import type { ProjectView } from '../api';
+import type { DrawingView, ProjectView } from '../api';
 import { ChatAnswer, RefusedLine } from '../engineer/ChatAnswer';
 import { routeHref } from '../shell/route';
 import {
   blocksOf,
   inlineOf,
-  LEVEL_WORD,
   splitCites,
-  stepsSummary,
   type ChatTurn,
+  levelsByDrawing,
   type Evidence,
-  type Level,
   type Proposal,
 } from './agent';
 import { EditCard } from './EditCard';
+import { IssueAsk, type IssueReply } from './IssueAsk';
 import './agent.css';
 
 /** "Show it": the drawing in the engineer workspace at that place (engineer.md `?page=&box=`), keeping the
@@ -43,22 +42,6 @@ const show = (e: Evidence, onShow?: (e: Evidence) => void) =>
 /** "Bagno 1.01 · Drawn plan 1, page 1"; the server may leave the label or the drawing's name out. */
 const where = (e: Evidence) =>
   `${e.label ?? 'Place'} · ${e.name ?? 'the drawing'}, page ${String(e.page)}`;
-
-const LEVEL_TONE: Record<Level['level'], string> = {
-  high: ' v-pill--ok',
-  medium: ' v-pill--warn',
-  low: ' v-pill--danger',
-};
-
-/** "Confidence: High" with the level's text as its tooltip (ADR 0011, Bogdan 16:53). */
-function Confidence({ level }: { level: Level }) {
-  return (
-    <span className={`v-pill${LEVEL_TONE[level.level]}`} title={level.text ?? undefined}>
-      Confidence: {LEVEL_WORD[level.level]}
-      {level.text && <span className="en-sr">. {level.text}</span>}
-    </span>
-  );
-}
 
 /** The turn's text (answers-1): paragraphs, lists, bold and http(s) links from the model's Markdown, as React
  * text (no HTML is ever parsed), with `[n]` source links. */
@@ -131,50 +114,6 @@ function Text({
   );
 }
 
-function Sources({
-  turn,
-  projectId,
-  pack,
-  onShow,
-}: {
-  turn: ChatTurn;
-  projectId: string;
-  pack: string | null;
-  onShow?: (e: Evidence) => void;
-}) {
-  return (
-    <ol className="ag-sources" aria-label="Sources">
-      {turn.evidence.map((e) => (
-        <li key={e.id}>
-          <span className="en-tag">{e.n}</span>
-          <span>{where(e)}</span>
-          {e.level && <Confidence level={e.level} />}
-          <a href={showHref(projectId, e, pack)} onClick={show(e, onShow)}>
-            Show it
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function Steps({ turn }: { turn: ChatTurn }) {
-  if (turn.steps.length === 0) return null;
-  return (
-    <details className="ag-steps">
-      <summary>{stepsSummary(turn)}</summary>
-      <ol>
-        {turn.steps.map((s) => (
-          <li key={s.n} className={s.status === 'error' ? 'ag-step--error' : undefined}>
-            {s.label}
-            {s.status === 'error' && <span className="ag-errmark"> · failed</span>}
-          </li>
-        ))}
-      </ol>
-    </details>
-  );
-}
-
 const OPTIONS_LABEL = 'Try one of these instead';
 
 const HEADLINE: Partial<Record<ChatTurn['kind'], string>> = {
@@ -198,10 +137,17 @@ export function TurnCard(props: {
   onShow?: (e: Evidence) => void;
   /** The drawing an answer card shows (on open and on each switch): the chat opens it in the Files pane. */
   onReference?: (drawingId: string) => void;
+  /** ask_issue (decision 0018): the person's answer to the issue, sent as the next turn. */
+  onIssueAnswer?: (message: string, reply: IssueReply) => void;
+  /** ask_issue: a later turn exists, so the issue is answered. */
+  closed?: boolean;
+  /** The drawings as read, by id: the asked issue's page. */
+  drawings?: Record<string, DrawingView> | null;
 }) {
   const { turn, projectId, project, pack, busy, onAsk } = props;
-  // The ask chat's card for each answer some drawing answered. Its References number drawings, so the Sources list
-  // stays: the text's [n] number the marks (Tudor's smoke 3).
+  // The ask chat's card for each answer some drawing answered. Its References number drawings and carry each
+  // drawing's confidence (P5); the text's [n] number the marks and link to them (Tudor's smoke 3).
+  const levels = levelsByDrawing(turn.evidence);
   const answers = turn.answers.filter((a) => a.parts.some((p) => p.answer.refusal === null));
   // K7: an answer no drawing answered has no card; its drawings are still named with what each lacks (the card
   // names the refused ones of the answers above)
@@ -231,6 +177,7 @@ export function TurnCard(props: {
           project={project}
           projectId={projectId}
           pack={pack}
+          levels={levels}
           onReference={props.onReference}
         />
       ))}
@@ -242,10 +189,21 @@ export function TurnCard(props: {
           question={refused.length > 1 ? a.question : undefined}
         />
       ))}
-      {turn.kind !== 'needs_input' && options.length > 0 && (
+      {turn.kind === 'ask_issue' && turn.issue && (
+        <IssueAsk
+          turn={turn}
+          projectId={projectId}
+          drawing={turn.issue.drawing_id ? props.drawings?.[turn.issue.drawing_id] : undefined}
+          file={project.files.find((f) => f.id === turn.issue?.file_id)}
+          busy={busy}
+          closed={props.closed ?? false}
+          onAnswer={(message, reply) => props.onIssueAnswer?.(message, reply)}
+        />
+      )}
+      {turn.kind !== 'needs_input' && turn.kind !== 'ask_issue' && options.length > 0 && (
         <p className="en-small">{OPTIONS_LABEL}</p>
       )}
-      {options.length > 0 && (
+      {turn.kind !== 'ask_issue' && options.length > 0 && (
         <div
           className="en-suggest"
           role="group"
@@ -277,10 +235,6 @@ export function TurnCard(props: {
           reveal={reveal}
         />
       )}
-      {turn.evidence.length > 0 && (
-        <Sources turn={turn} projectId={projectId} pack={pack} onShow={onShow} />
-      )}
-      <Steps turn={turn} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { error, fileReadAsPlan, project, projectRunning, triageStarted } from '.
 import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
-import { ConflictsList } from '../surveyor/ConflictsScreen';
+import { ConflictsList } from '../conflicts/ConflictsScreen';
 import { formatMs } from './ingest';
 import { ProjectScreen } from './ProjectScreen';
 import { flush, must, triaged, variants } from './testing';
@@ -12,7 +12,7 @@ import { flush, must, triaged, variants } from './testing';
 vi.mock('../advanced/AdvancedIngest', () => ({
   AdvancedIngest: vi.fn(() => <p>the advanced view</p>),
 }));
-vi.mock('../surveyor/ConflictsScreen', () => ({
+vi.mock('../conflicts/ConflictsScreen', () => ({
   ConflictsList: vi.fn(() => <section id="conflicts">the conflicts list</section>),
 }));
 vi.mock('../shell/issueCount', () => ({ useIssuesToAnswer: vi.fn(() => null) }));

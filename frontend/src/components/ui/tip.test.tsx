@@ -125,6 +125,7 @@ it('a touch that turned into a scroll does not block the tip afterwards', async 
   fireEvent.pointerDown(b, { pointerType: 'touch' });
   fireEvent.pointerCancel(b, { pointerType: 'touch' }); // the browser took the touch for a scroll: no click
   fireEvent.pointerUp(document.body, { pointerType: 'touch' });
+  fireEvent.keyDown(document.body, { key: 'Tab' }); // keyboard focus opens the tip
   b.focus();
   await screen.findByRole('tooltip');
 });
@@ -139,6 +140,7 @@ it('closes on a tap outside even when the opening tap never produced a click', a
     </>,
   );
   const b = screen.getByRole('button', { name: 'Tap' });
+  fireEvent.keyDown(document.body, { key: 'Tab' });
   b.focus();
   await screen.findByRole('tooltip');
   // a touch that starts on the button but is dragged away: pointerdown, no click
@@ -158,8 +160,26 @@ it('works on a disabled button through the wrapping span', async () => {
   const b = screen.getByRole('button', { name: 'Sign off' });
   const wrapper = b.parentElement as HTMLElement;
   expect(wrapper.tabIndex).toBe(0);
+  fireEvent.keyDown(document.body, { key: 'Tab' });
   wrapper.focus();
   await screen.findByRole('tooltip');
   expect(wrapper.getAttribute('aria-describedby')).toBeTruthy();
   expect(screen.getAllByText('Type your name first.').length).toBeGreaterThan(0);
+});
+
+it('R4-E17 a focus the page gives after a pointer press opens no tip; keyboard focus does', async () => {
+  render(
+    <Tip text="Country rules.">
+      <button>Country</button>
+    </Tip>,
+  );
+  const b = screen.getByRole('button', { name: 'Country' });
+  fireEvent.pointerDown(document.body, { pointerType: 'mouse' }); // the click that picked a country
+  b.focus(); // the closed popover returns focus to its button
+  await new Promise((r) => setTimeout(r, 300));
+  expect(screen.queryByRole('tooltip')).toBeNull();
+  b.blur();
+  fireEvent.keyDown(document.body, { key: 'Tab' });
+  b.focus();
+  expect((await screen.findByRole('tooltip')).textContent).toContain('Country rules.');
 });

@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { project, projectResolved, projectReviewResolved, resolving } from '../api/fixtures';
 import type { ProjectReview, ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
-import { ConflictsList } from '../surveyor/ConflictsScreen';
+import { ConflictsList } from '../conflicts/ConflictsScreen';
 import { CONFLICTS_ID, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
 import { must, variants } from './testing';
 
-vi.mock('../surveyor/ConflictsScreen', () => ({
+vi.mock('../conflicts/ConflictsScreen', () => ({
   ConflictsList: vi.fn(() => <section id="conflicts">the conflicts list</section>),
 }));
 vi.mock('../shell/issueCount', () => ({ useIssuesToAnswer: vi.fn(() => null) }));

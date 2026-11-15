@@ -3,7 +3,7 @@
 import { useCallback, useState, type JSX } from 'react';
 import type { ProjectView } from '../api';
 import { useIssuesToAnswer } from '../shell/issueCount';
-import { ConflictsList, type ConflictCounts } from '../surveyor/ConflictsScreen';
+import { ConflictsList, type ConflictCounts } from '../conflicts/ConflictsScreen';
 import { plural } from './ingest';
 import { TAP } from './ui';
 import { Button } from '@/components/ui/button';

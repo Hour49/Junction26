@@ -86,6 +86,7 @@ from app.adapters.raster_detector import OnnxDetector
 from app.adapters.raster_ocr.engine import RapidOcrEngine
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
 from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
+from app.adapters.raster_ocr.room_outlines import RoomOutlines
 from app.adapters.raster_region import RegionDetector, load_region
 from app.adapters.raster_remote import HttpReaderClient, RemoteReader
 from app.adapters.raster_scale import PriorScale
@@ -1095,7 +1096,7 @@ def _raster_component(
             )
             return RemoteReader(files, client)
         case "gemini" if not where:
-            return _gemini_rooms(settings, files)
+            return _outlined(_gemini_rooms(settings, files), settings, files)
         case "carbon":  # carbon, or carbon:<READER_SHA[:12]> to pin the contract it reads by
             if where not in ("", READER_SHA[:12]):
                 raise InvalidInputError(
@@ -1107,7 +1108,9 @@ def _raster_component(
             if not settings.region_model_dir:
                 raise InvalidInputError("RASTER_COMPONENTS: regionrooms needs REGION_MODEL_DIR")
             region = SegmenterRegion(*load_region(Path(settings.region_model_dir)))
-            return RegionRooms(_gemini_rooms(settings, files), files, region)
+            return RegionRooms(
+                _outlined(_gemini_rooms(settings, files), settings, files), files, region
+            )
         case "photo" if where:
             return OnnxDetector.from_folder(files, inside(PHOTO_DIR, where))
         case "region" if where:
@@ -1138,6 +1141,11 @@ def _raster_component(
                 "arbiter-t1:<arm>[:<one-view tune run>], "
                 "decisions-s1536:<source> and one-plan"
             )
+
+
+def _outlined(rooms: Extractor, settings: Settings, files: DrawingFiles) -> Extractor:
+    """`rooms` with the outlines the page's walls give them (ROOM_OUTLINES)."""
+    return RoomOutlines(rooms, files) if settings.room_outlines else rooms
 
 
 def _gemini_rooms(settings: Settings, files: DrawingFiles) -> Extractor:

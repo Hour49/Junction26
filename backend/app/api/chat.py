@@ -17,17 +17,30 @@ from app.adapters.agent_tools import project_toolbox
 from app.adapters.chat_store import JsonChatStore
 from app.adapters.ifc_model.glb import GlbModels
 from app.api.checks import RulePacksDep, find_pack
-from app.api.deps import IngestDep, Models3dDep, ProjectId, SettingsDep
+from app.api.deps import (
+    IngestDep,
+    Models3dDep,
+    ProjectId,
+    SettingsDep,
+    get_reviews,
+    now,
+    project_of,
+)
+from app.api.issue_answers import IssueAnswer, save, skip, skipped
+from app.api.issues import Issue, listed_issues
 from app.api.project_ask import ProjectAnswer, with_models_3d
 from app.api.views import View, drawings_of
 from app.composition import chat_caps, chat_model, spend_guard
 from app.core.agent import model
+from app.core.agent.issue_ask import ASKS, Asker, answered_line, skipped_ending
 from app.core.agent.loop import run_turn
 from app.core.agent.prompt import COUNTRY, NO_COUNTRY, SERVICES
 from app.core.checks.model import RulePack
 from app.core.errors import InvalidInputError, NotFoundError, UnknownPackError
+from app.core.pipeline.takeoff import known_quantities
 from app.core.plan_edit.model import Proposal, Selection
-from app.core.review.review import NotAllowedError
+from app.core.review.model import Edit
+from app.core.review.review import NotAllowedError, apply, sheet_row
 from app.core.spend import SpendGuard
 
 log = logging.getLogger(__name__)
@@ -44,6 +57,18 @@ class ChatTurn(model.ChatTurn):
 
     # the same JSON core keeps as plain objects, typed here for the contract
     answers: tuple[ProjectAnswer, ...] = ()  # pyright: ignore[reportIncompatibleVariableOverride]
+    issue: Issue | None = Field(default=None, exclude_if=lambda v: v is None)  # pyright: ignore[reportIncompatibleVariableOverride]
+
+
+class IssueReply(View):
+    """A person's answer to the chat's ask_issue turn (decision 0018). `value`: a conflict's value
+    picked, which settles it; `skip`: Skip for now (kept, never asked again)."""
+
+    issue_id: str = Field(min_length=1, max_length=200)
+    text: str = Field(min_length=1, max_length=500)
+    by: str = Field(min_length=1, max_length=100)
+    value: float | None = None
+    skip: bool = False
 
 
 class ChatRequest(View):
@@ -56,6 +81,9 @@ class ChatRequest(View):
     # The header's country picker (LC-6): the rule pack plan edits are checked against, an id
     # from GET /api/info rule_packs; none: edits are not checked. Per turn, not stored
     pack: str | None = Field(default=None, min_length=1, max_length=32)
+    # The answer to the chat's pending ask_issue turn (decision 0018); `message` is what the
+    # person sees as theirs (the chip or the typed answer)
+    issue_answer: IssueReply | None = None
 
 
 class Decision(View):
@@ -170,6 +198,14 @@ def _turn_runner(
     if status.state != "done":
         raise NotAllowedError(f"project {project_id} is {status.state}; ask again when it is done")
     found = chats.get(project_id, body.chat_id) if body.chat_id else chats.new()
+    reply = body.issue_answer
+    if reply is not None:
+        held = (found.pending or {}).get("issue") or {}
+        if held.get("id") != reply.issue_id:
+            raise InvalidInputError(f"this chat is not asking about issue {reply.issue_id}")
+        offered = (found.pending or {}).get("values") or []
+        if reply.value is not None and reply.value not in offered:
+            raise InvalidInputError(f"{reply.value} is not one of the values offered: {offered}")
     lock = chats.lock(found.chat_id)
     if not lock.acquire(blocking=False):
         raise HTTPException(409, "a turn is still running")
@@ -177,6 +213,18 @@ def _turn_runner(
     def run(emit: Callable[[str, Any], None]) -> ChatTurn:
         try:
             current = chats.get(project_id, found.chat_id) if body.chat_id else found
+            message, ending, left = body.message, "", ASKS
+            if reply is not None and current.pending:
+                message, ending, left = _answered(project_id, current.pending, reply, request,
+                                                  ingest, settings)  # fmt: skip
+            else:
+                current.pending = None
+            reviews = get_reviews(request)
+            asker = Asker(
+                load=lambda: _issues(project_id, ingest, reviews, settings),
+                skipped=skipped(settings.projects_dir, project_id),
+                left=left,
+            )
             tools = project_toolbox(
                 request.app, project_id, body.selection, current.proposals, pack
             )
@@ -187,8 +235,9 @@ def _turn_runner(
             context = _country(request.app, pack)
             if settings.services_follow == "on":  # decision 0016
                 context = f"{context}\n{SERVICES}"
-            turn = run_turn(current, body.message, body.selection, model, tools, caps, guard,
-                            names=names, context=context, emit=emit)  # fmt: skip
+            turn = run_turn(current, message, body.selection, model, tools, caps, guard,
+                            names=names, context=context, emit=emit, ask=asker,
+                            ending=ending)  # fmt: skip
             chats.put(project_id, current)
             shown = ChatTurn.model_validate(turn.model_dump(mode="json"))
             # MODEL_3D: the views' state is put on at response time only, never kept with the chat
@@ -198,6 +247,52 @@ def _turn_runner(
             lock.release()
 
     return run, {"chat_id": found.chat_id, "turn": len(found.turns) + 1}
+
+
+def _issues(project_id: str, ingest: Any, reviews: Any, settings: Any) -> list[dict[str, Any]]:
+    """The project's issues for the ask (decision 0018). They only add a question before the
+    answer: when they can't be listed, the answer comes without it."""
+    try:
+        found = listed_issues(ingest.status(project_id), ingest, reviews, settings)
+    except (NotFoundError, NotAllowedError) as error:
+        log.warning("chat: no issues to ask about in %s: %s", project_id, error)
+        return []
+    return [issue.model_dump(mode="json") for issue in found]
+
+
+def _answered(
+    project_id: str,
+    pending: dict[str, Any],
+    reply: IssueReply,
+    request: Request,
+    ingest: Any,
+    settings: Any,
+) -> tuple[str, str, int]:
+    """Settles the asked issue with the person's answer (decision 0018): a picked conflict value
+    is a person's settle, every answer is kept as the issue's answer with the name; a skip is
+    kept with the project. Gives the held question with what the person said, the server's
+    ending, and the asks left."""
+    issue: dict[str, Any] = pending["issue"]
+    question: str = pending["question"]
+    left = ASKS - int(pending.get("asks", 1))
+    if reply.skip:
+        skip(settings.projects_dir, project_id, reply.issue_id)
+        return question, skipped_ending(issue), 0
+    value = reply.value if issue.get("kind") == "conflict" else None
+    if value is not None:
+        drawing_id = str(issue["drawing_id"])
+        drawing = ingest.drawing(drawing_id)
+        edit = Edit(quantity=issue["quantity"], action="settle", value=value,
+                    note=f"{reply.text} ({reply.by}, in the chat)"[:200])  # fmt: skip
+        quantity = sheet_row(known_quantities(drawing), edit.quantity)
+        at = now()
+        owner = project_of(ingest, drawing_id, project_id)
+        get_reviews(request).update(
+            owner, drawing_id, lambda state: apply(state, edit, quantity, drawing, at)
+        )
+    said = IssueAnswer(text=reply.text, by=reply.by, at=now())
+    save(settings.projects_dir, project_id, reply.issue_id, said)
+    return f"{question}\n{answered_line(issue, reply.text, value)}", "", left
 
 
 def _country(app: Any, pack: RulePack | None) -> str:

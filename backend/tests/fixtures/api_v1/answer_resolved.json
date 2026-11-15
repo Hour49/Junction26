@@ -267,7 +267,8 @@
           0.65,
           0.2
         ],
-        "label": "Counted as a door, but 2 of the 3 other readers see nothing here."
+        "label": "Counted as a door, but 2 of the 3 other readers see nothing here.",
+        "polygon": null
       },
       {
         "page": 1,
@@ -277,7 +278,8 @@
           0.36,
           0.9
         ],
-        "label": "Not counted, but 2 of the 3 other readers see a door here."
+        "label": "Not counted, but 2 of the 3 other readers see a door here.",
+        "polygon": null
       }
     ],
     "by": "carbon:gemini-4-carbon",

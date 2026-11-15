@@ -40,6 +40,7 @@ class JsonChatStore:
             minted=found["minted"],
             evidence=found.get("evidence", {}),  # chats written before item 1 have none
             asked=found.get("asked", []),
+            pending=found.get("pending"),
         )
 
     def put(self, project_id: str, chat: Chat) -> None:
@@ -53,6 +54,7 @@ class JsonChatStore:
             "minted": chat.minted,
             "evidence": chat.evidence,
             "asked": chat.asked,
+            "pending": chat.pending,
         }
         write_whole(self._path(project_id, chat.chat_id), json.dumps(body, ensure_ascii=False))
 

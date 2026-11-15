@@ -755,6 +755,43 @@ def test_a_value_with_a_position_and_no_items_is_marked_where_it_was_read() -> N
     assert [(mark.label, mark.box) for mark in modelled] == [("ifc_model", OTHER)]
 
 
+def test_a_room_area_conflict_marks_the_room_with_its_own_outline() -> None:
+    outline = ((0.1, 0.1), (0.4, 0.1), (0.4, 0.3), (0.2, 0.3), (0.1, 0.2))
+    entry = {
+        "id": "c1",
+        "quantity": "room_area",
+        "subject": {"kind": "room", "ref": "r1"},
+        "status": "conflict",
+        "tolerance": 0.02,
+        "values": [
+            {"value": 12.5, "unit": "m2", "method": "printed_label", "page": 1, "box": BOX},
+            {"value": 13.4, "unit": "m2", "method": "polygon_x_scale", "page": 1, "box": BOX},
+        ],
+        "resolution": None,
+    }
+    sheet = drawing(
+        rooms=(room(1, "bedroom", 12.5, label="MH", polygon=outline),),
+        conflicts=(entry,),
+    )
+    found = known_quantities(sheet)[Query(measure="area", subject="room", name="MH").key()]
+    assert found.conflict is not None
+    for marks in found.conflict.value_marks:
+        assert [mark.polygon for mark in marks] == [outline]
+
+
+def test_a_room_count_marks_each_room_with_its_outline_and_a_method_region_gets_none() -> None:
+    outline = ((0.1, 0.1), (0.4, 0.1), (0.4, 0.3))
+    sheet = drawing(
+        rooms=(room(1, "other", 10.0, plan="p1", polygon=outline), room(2, "other", 20.0)),
+        conflicts=(_room_count_entry(2, 3, picked=None),),
+    )
+    conflict = known_quantities(sheet)[Query(subject="room").key()].conflict
+    assert conflict is not None
+    drawn, modelled = conflict.value_marks
+    assert [mark.polygon for mark in drawn] == [outline, None]
+    assert [mark.polygon for mark in modelled] == [None]  # the model's region is no room outline
+
+
 def test_a_conflict_with_no_item_or_position_has_no_marks() -> None:
     sheet = drawing(elements=(element(1, "door"),), conflicts=(_door_count_entry(0, 3),))
     conflict = known_quantities(sheet)[Query(subject="door").key()].conflict

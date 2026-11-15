@@ -562,18 +562,12 @@ describe('extended answers', () => {
     expect(within(t).getByText('2 door objects in the model on Ground floor')).toBeTruthy();
   });
 
-  it('EN-30 Send to surveyor links to the surveyor view on the key; absent on a refusal', async () => {
+  it('EN-30 no answer links to a surveyor view', async () => {
     const t = await shownTurn(answer);
-    const link = within(t).getByRole('link', { name: 'Send to surveyor' });
-    expect(link.getAttribute('href')).toBe(`#/p/${PROJECT}/d/${DRAWING}/surveyor?q=door`);
+    expect(within(t).queryByRole('link', { name: /surveyor/i })).toBeNull();
     cleanup();
     const c = await shownTurn(answerConflict);
-    expect(within(c).getByRole('link', { name: 'Send to surveyor' }).getAttribute('href')).toBe(
-      `#/p/${PROJECT}/d/${DRAWING}/surveyor?q=area%3Aroom%7Cname%3D1.01`,
-    );
-    cleanup();
-    const r = await shownTurn(answerRefused);
-    expect(within(r).queryByRole('link', { name: 'Send to surveyor' })).toBeNull();
+    expect(within(c).queryByRole('link', { name: /surveyor/i })).toBeNull();
   });
 
   it('#90 EN-29 the picture link carries the project; only when confidence is null', async () => {
@@ -720,20 +714,16 @@ describe('extended answers', () => {
     expect(within(t).getByText(/1 counted without a mark \(second reader\)/)).toBeTruthy();
   });
 
-  it('EN-32 a signed answer shows who verified it and when', async () => {
+  it('EN-32 a signed answer says nothing of who checked it', async () => {
     const t = await shownTurn(answerSigned);
-    expect(within(t).getByText('Verified by Ana, 2026-11-14 01:40 UTC')).toBeTruthy();
-    expect(within(t).getByText('Verified')).toBeTruthy();
+    expect(t.textContent).not.toMatch(/Verified|Ana|signed/i);
   });
 
-  it('EN-34 nobody decided: the surveyor sentence, no Kept line', async () => {
+  it('EN-34 nobody decided: one plain sentence, no Kept line', async () => {
     const t = await shownTurn(answerNeedsPerson);
-    expect(
-      within(t).getByText(
-        'No rule decides. A surveyor has to settle it before this value can be used.',
-      ),
-    ).toBeTruthy();
+    expect(within(t).getByText('No rule decides this value.')).toBeTruthy();
     expect(within(t).queryByText(/^Kept /)).toBeNull();
+    expect(t.textContent).not.toMatch(/surveyor/i);
   });
 
   it('EN-35 agree shows the second method; single says one method', async () => {
@@ -756,16 +746,9 @@ describe('extended answers', () => {
 
   it('EN-37 an edited answer: was 2, the rejected and added rows', async () => {
     const t = await shownTurn(answerEdited);
-    expect(within(t).getByText('Changed in review, was 2')).toBeTruthy();
-    expect(rowTexts(t)).toContain('× door rejected by a surveyor');
-    expect(rowTexts(t)).toContain('+3 item added by a surveyor');
-  });
-
-  it('EN-38 a settled value shows when and what', async () => {
-    const t = await shownTurn(answerSettled);
-    expect(
-      within(t).getByText('Settled by a surveyor at 2026-11-14 01:30 UTC: 22.40 m²'),
-    ).toBeTruthy();
+    expect(within(t).queryByText(/Changed in review/)).toBeNull();
+    expect(rowTexts(t)).toContain('× door');
+    expect(rowTexts(t)).toContain('+3 item');
   });
 
   it('EN-38 a settled value replaces the Kept line', async () => {
@@ -924,8 +907,6 @@ describe('Vellum (screen 4)', () => {
       'Estimate',
       'Measured with an estimated scale or method; treat it as approximate.',
     ],
-    [answerEdited, 'Changed in review', 'A surveyor changed this value in review.'],
-    [answerSigned, 'Verified', 'A surveyor checked this value and signed it off.'],
   ])('EN-57 the status pill %#: words, and its tooltip on focus', async (a, word, tip) => {
     const t = await shownTurn(a);
     // ui-bugs 7c: the shared Tip (components/ui/tip) on a focusable wrapper around the pill
@@ -1053,13 +1034,11 @@ describe('Vellum (screen 4)', () => {
     }
   });
 
-  it('EN-83 signed off: "Signed off", no level; no double-check panel on a High answer', async () => {
+  it('EN-83 a signed answer shows its level like any other; nothing says it was signed off', async () => {
     const signed = await shownTurn({ ...answerSigned, level: answerHigh.level });
     const block = signed.querySelector('.en-grade') as HTMLElement;
-    expect(within(block).getByText('Signed off')).toBeTruthy();
-    expect(within(block).queryByText('High')).toBeNull();
-    expect(block.textContent).not.toContain(answerHigh.level?.text ?? 'x');
-    expect(block.querySelector('.en-bar')).toBeNull();
+    expect(within(block).queryByText('Signed off')).toBeNull();
+    expect(signed.textContent).not.toMatch(/Signed off|Verified/);
   });
 
   it('EN-84 flagged drawing: flag reason and level at the top, above the plan and marks', async () => {

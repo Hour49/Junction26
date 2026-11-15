@@ -12,8 +12,8 @@ Requirement ids AC-n; tests name the id they cover.
 
 Project: the real swiss sheet `site980_bldg2055_floor9178.pdf` uploaded as a project (as in the clicky demo).
 
-1. Ask "How big is the bathroom?" → an answer with its number, a numbered source ("Bagno 1.01 · Drawn plan 1,
-   page 1 · Show it") and a "2 steps" disclosure listing what the agent did.
+1. Ask "How big is the bathroom?" → an answer with its number, `[1]` linking to its place on the plan, the
+   confidence on the drawing's References card, no sources list and no steps line.
 2. Ask "Remove the wall between the bathroom and the bedroom to make the bathroom larger" → an edit card: the plan
    with the wall drawn as demolished, the merged room hatched with "24.04 → 24.56 m²", a change list, what is
    unknown ("whether the wall is load-bearing"), the wet-room note, Before / After, Accept / Reject.
@@ -150,10 +150,11 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-30 `AgentChat` (thread): used by the project chat route when `info.chat.available`; otherwise today's
   `/ask` chat stays (ProjectChat unchanged). Keeps `chat_id` from the first turn; one turn pending at a time;
   reuses `AskBox`. Empty start as today (title, ask bar, starter chips).
-- AC-31 Turn card: the text with `[n]` as links to its source; sources list `n · label · drawing name, page p ·
-  Show it` (opens the drawing at that place with the existing viewer focus), also under an ask chat card, whose
-  References number drawings, not the text's `[n]` (Tudor's smoke 3, 2026-11-14); a disclosure "N steps · 1.2 s · $0.01"
-  listing each step's label and an error mark for failed ones; kind look: `dont_know` uses the refusal look ("I
+- AC-31 Turn card: the text with `[n]` as links to its source; no separate sources list (P5, 2026-11-15): each
+  source's confidence ("Confidence: High", same pill and tooltip) sits on the right of its drawing's References card
+  in the ask chat card, matched by drawing id (several marks on a drawing: the lowest level); References number
+  drawings, not the text's `[n]` (Tudor's smoke 3, 2026-11-14); a turn with no ask card shows no confidence; no steps, time or cost line on a finished
+  reply (P4, 2026-11-15; the live steps while a turn runs stay, AC-37); kind look: `dont_know` uses the refusal look ("I
   don't know" headline + the reason), `conflict` shows both values with their sources, `needs_input` shows its
   options as chips that send `option.message`.
 - AC-32 Edit card (`kind: edit`): the page image with an overlay (page-fraction SVG, like `PageViewer`'s marks):
@@ -182,7 +183,7 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   Each turn with a `view` opens its file and page, draws its marks numbered as the sources
   (polygon when sent, else box), focuses `view.box` and shows `view.caption`; a turn without one leaves the plan as
   it was. A server without `view`: the turn's view is the page of `[1]` with every source on that page (contract
-  A's "evidence" rule). `[n]` and a source's "Show it" open that file in the list, scroll to it, focus that place
+  A's "evidence" rule). `[n]` opens that file in the list, scroll to it, focus that place
   and stay in the chat (a modified click still opens the workspace); a source on another page opens that page with
   its own mark. Under 1200 px: AC-38. A restored thread opens its newest view. [component
   `plan.test.tsx`, `PageViewer` spy; browser 1440 and 390]

@@ -10,8 +10,8 @@ import {
   roomAt,
   roomsOf,
   signedArea,
+  levelsByDrawing,
   splitCites,
-  stepsSummary,
   zoomFor,
 } from './agent';
 import { EditCard } from './EditCard';
@@ -62,13 +62,6 @@ describe('helpers', () => {
       ', not [3].',
     ]);
     expect(splitCites('no cites', [1])).toEqual(['no cites']);
-  });
-  it('AC-31 stepsSummary counts steps, time and cost', () => {
-    expect(stepsSummary(answerTurn)).toBe('2 steps · 0.3 s · $0');
-    expect(
-      stepsSummary({ ...answerTurn, steps: answerTurn.steps.slice(0, 1), cost_usd: 0.012 }),
-    ).toBe('1 step · 0.3 s · $0.01');
-    expect(stepsSummary({ ...answerTurn, cost_usd: 0.004 })).toBe('2 steps · 0.3 s · <$0.01');
   });
   it('AC-32 changeLines: removed, new, rooms with before → after and the difference', () => {
     expect(changeLines(proposal)).toEqual([
@@ -128,23 +121,22 @@ describe('helpers', () => {
 });
 
 describe('TurnCard', () => {
-  it('AC-31 answer: [n] links to its source, sources with Show it, confidence, steps disclosure', () => {
+  it('AC-31 answer: [n] links to its source, no separate sources list, no steps line', () => {
     card();
     const cite = screen.getByRole('link', { name: /Source 1: Bagno 1.01/ });
-    const show = screen.getByRole('link', { name: 'Show it' });
     expect(cite.getAttribute('href')).toBe(
       `#/p/${PID}/d/${DID}/engineer?page=1&box=0.31%2C0.22%2C0.38%2C0.29`,
     );
-    expect(show.getAttribute('href')).toBe(cite.getAttribute('href'));
-    const sources = within(screen.getByRole('list', { name: 'Sources' }));
-    expect(sources.getByText('Bagno 1.01 · Drawn plan 1, page 1')).toBeTruthy();
-    const conf = sources.getByText(/Confidence: High/);
-    expect(conf.getAttribute('title')).toBe('Read from the drawn room outline and its label.');
-    expect(screen.getByText('2 steps · 0.3 s · $0')).toBeTruthy();
-    expect(screen.getByText('Asked the drawings: room area')).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Show it' })).toBeNull();
+    expect(screen.queryByText(/Confidence:/)).toBeNull(); // no ask card here, so no reference to carry it
+    expect(screen.queryByText(/steps? · /)).toBeNull();
+    expect(document.querySelector('.ag-steps, details')).toBeNull();
+    expect(screen.queryByText(/\$\d|\d\.\d s/)).toBeNull();
+    expect(screen.queryByText('Asked the drawings: room area')).toBeNull();
   });
 
-  it('AC-31 dont_know: the refusal look, "I don\'t know" headline and the reason; a failed step is marked', () => {
+  it('AC-31 dont_know: the refusal look, "I don\'t know" headline and the reason; no step list', () => {
     const { container } = render(
       <TurnCard
         turn={dontKnowTurn}
@@ -158,9 +150,7 @@ describe('TurnCard', () => {
     expect(container.querySelector('.ag-card--dont_know')).toBeTruthy();
     expect(screen.getByText("I don't know.")).toBeTruthy();
     expect(screen.getByText(/does not say which walls carry load/)).toBeTruthy();
-    expect(screen.getByText(/failed/).closest('li')?.textContent).toBe(
-      'Searched the building code · failed',
-    );
+    expect(screen.queryByText(/failed/)).toBeNull();
     expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull();
   });
 
@@ -168,7 +158,7 @@ describe('TurnCard', () => {
     card(conflictTurn);
     expect(screen.getByText('The sources disagree.')).toBeTruthy();
     expect(screen.getAllByRole('link', { name: /^Source [12]/ })).toHaveLength(2);
-    expect(screen.getAllByText(/Confidence:/)).toHaveLength(1);
+    expect(screen.queryByText(/Confidence:/)).toBeNull();
   });
 
   it('AC-31 needs_input: options are chips that send option.message', () => {
@@ -190,21 +180,30 @@ describe('TurnCard', () => {
     expect(screen.queryByText('Try one of these instead')).toBeNull();
   });
 
-  it('AC-31 a turn resting on ask results shows the ask chat card, and the Sources its [n] cite (Tudor smoke 3)', () => {
+  it('AC-31 a turn resting on ask results shows the ask chat card with its confidence on the reference card (Tudor smoke 3, P5)', () => {
     mockApi({});
     card({ ...answerTurn, answers: [projectAsk] });
     expect(screen.getByText(/is 7.56 m²/)).toBeTruthy(); // the agent's text stays
     expect(screen.getByRole('list', { name: 'Per drawing' })).toBeTruthy();
     expect(screen.getByRole('list', { name: 'References' })).toBeTruthy();
-    // References number drawings; the text's [n] number marks: each [n] has its line in Sources
-    const sources = within(screen.getByRole('list', { name: 'Sources' }));
+    // P5: the separate list is gone; the reference card of that drawing carries the evidence's confidence
+    expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull();
+    const refs = within(screen.getByRole('list', { name: 'References' })).getAllByRole('listitem');
+    const first = answerTurn.evidence[0];
+    const ref = refs.find((li) => li.querySelector('.en-crefconf')) as HTMLElement;
     expect(
-      sources.getAllByRole('listitem').map((li) => li.querySelector('.en-tag')?.textContent),
-    ).toEqual(answerTurn.evidence.map((e) => String(e.n)));
-    expect(screen.getByText('2 steps · 0.3 s · $0')).toBeTruthy();
+      within(ref)
+        .getByText(/Confidence: High/)
+        .getAttribute('title'),
+    ).toBe(first?.level?.text);
+    expect(refs.filter((li) => li.querySelector('.en-crefconf'))).toHaveLength(1); // matched by drawing id
+    expect(levelsByDrawing(answerTurn.evidence).get(DID)?.level).toBe('high');
+    expect(screen.queryByText(/steps? · /)).toBeNull();
+    expect(document.querySelector('.ag-steps, details')).toBeNull();
+    expect(screen.queryByText(/\$\d|\d\.\d s/)).toBeNull();
   });
 
-  it("AC-31 ask results no drawing answered: no ask card, the agent's sources stay", () => {
+  it('AC-31 ask results no drawing answered: no ask card, no sources list', () => {
     const refused = {
       ...projectAsk,
       parts: projectAsk.parts.map((p) => ({
@@ -214,7 +213,7 @@ describe('TurnCard', () => {
     };
     card({ ...answerTurn, answers: [refused] });
     expect(screen.queryByRole('list', { name: 'Per drawing' })).toBeNull();
-    expect(screen.getByRole('list', { name: 'Sources' })).toBeTruthy();
+    expect(screen.queryByRole('list', { name: 'Sources' })).toBeNull();
   });
 
   it('K7 the agent chat names the refused drawings: some refused under the ask card, all refused without one', () => {
@@ -256,7 +255,7 @@ describe('TurnCard', () => {
     expect(lines[1]).toMatch(/^“How many windows\?” — Not used: /);
   });
 
-  it("Tudor's smoke (1): an edit turn's Show it shows the card's own After plan, not the plan beside the chat", () => {
+  it("Tudor's smoke (1): an edit turn's [n] link shows the card's own After plan, not the plan beside the chat", () => {
     mockApi({ [DRAWING]: never() });
     const onShow = vi.fn();
     const scrolled = vi.fn();
@@ -273,7 +272,7 @@ describe('TurnCard', () => {
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Before' }));
-    fireEvent.click(screen.getByRole('link', { name: 'Show it' }));
+    fireEvent.click(screen.getAllByRole('link', { name: /^Source 1/ })[0] as HTMLElement);
     expect(onShow).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'After' }).getAttribute('aria-pressed')).toBe('true');
     expect(scrolled).toHaveBeenCalled();

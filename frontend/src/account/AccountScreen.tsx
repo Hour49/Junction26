@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import {
   errorText,
-  formatTime,
+  formatTimeSeconds,
   getProject,
   getProjectQuestions,
   getProjectReview,
@@ -151,7 +151,7 @@ function Item({
         )}
       </span>
       <span className="v-caption">{workspaceKind(summary)}</span>
-      <span className="v-caption">{formatTime(summary.created_at)}</span>
+      <span className="v-caption">{formatTimeSeconds(summary.created_at)}</span>
     </button>
   );
 }
@@ -209,7 +209,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
           <div>
             <p className="v-caption m-0">
               {p.files.length === 1 ? 'Single file' : 'Archive'} · created{' '}
-              {formatTime(p.created_at)}
+              {formatTimeSeconds(p.created_at)}
             </p>
             <h2 className={cn(NAME, 'mt-1 mb-0 text-2xl')}>{p.name}</h2>
           </div>

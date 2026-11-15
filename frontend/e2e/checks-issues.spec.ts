@@ -2,7 +2,7 @@
 // checks.md CK-16, issues.md IS-19/IS-20, shared.md SH-70, viewer.md VW-79, engineer.md EN-76.
 // Everything is the live no-keys backend: real rule packs (fi, ch-zh; #139), checks and issues (#147).
 import { expect, test, type Page } from '@playwright/test';
-import { drawingOf, noKeys, sampleDone, shot, watchErrors } from './support';
+import { noKeys, sampleDone, shot, watchErrors } from './support';
 
 const NOTE = 'A pre-check of a few rules, not a compliance certificate.';
 
@@ -125,87 +125,40 @@ test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks,
   expect(errors, 'no console or page errors').toEqual([]);
 });
 
-test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail answered', async ({
+test('DOC IS-19 IS-20 P6a: Documents lists no issues; its tab badge still counts them, with and without a pack', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const pid = await sampleDone(page);
   const main = page.getByRole('main');
-  // The issue rows only (each source figure's legend is a list of its own).
-  const issueList = main
-    .getByRole('region', { name: 'Issues on demand' })
-    .locator('ul > li, ol > li')
-    .filter({
-      has: page.getByRole('link', { name: 'Open the file' }),
-    });
-  // Issues on demand: only what waits for an answer now (documents.ts waitsForYou); no conflicts or notes.
-  const shown = async (query: string) =>
-    (await liveIssues(page, pid, query)).filter(
-      (i) =>
-        (i.kind !== 'conflict' || !!i.resolved) &&
-        i.severity !== 'note' &&
-        i.state === 'open' &&
-        !i.answer,
-    ).length;
-  const { label } = await drawingOf(page, pid, 'plans/flat-b.pdf');
 
-  // ch-zh: flat-b's bedroom fails, the one issue that needs an answer.
+  // ch-zh: flat-b's bedroom fails, the one issue that needs an answer; answering it moves into the chat, so
+  // Documents only counts it on the tab.
   await page.goto(`/#/p/${pid}/documents?pack=ch-zh`);
   await expect(main.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
-  await expect(issueList).toHaveCount(await shown('?pack=ch-zh'));
-  const fail = issueList.filter({ hasText: 'Fails a rule' });
-  await expect(fail).toHaveCount(1);
-  // The row and the source preview name the drawing by its plain name (follow-ups: `drawing_name`).
-  await expect(fail).toContainText(label);
-  await expect(fail).toContainText('Zimmer 1.05');
+  await expect(main.getByRole('region', { name: 'Issues on demand' })).toHaveCount(0);
+  await expect(main.getByRole('textbox')).toHaveCount(0);
   await expect(banner(page).getByRole('link', { name: /^Documents/ })).toHaveAccessibleName(
     'Documents, 1 issue to answer',
   );
   await expect(main.getByRole('link', { name: 'Export' })).toHaveCount(0);
-  // Its source: minimized, expanded in place, previewed (viewer.md SourceFigure / SourcePreview).
-  const figure = fail.getByRole('figure', { name: /^Source of issue \d+$/ });
-  await figure.getByRole('button', { name: 'Expand', exact: true }).click();
-  await expect(figure.getByRole('button', { name: 'Minimize', exact: true })).toBeVisible();
-  await figure.getByRole('button', { name: 'Show source' }).click();
-  const dialog = page.getByRole('dialog', { name: `Source: ${label}` });
-  await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
   await noSideScroll(page, 'documents?pack=ch-zh');
-  if (testInfo.project.name === 'phone') {
-    // IS-20 / brief rule 5: the issue's buttons are 44 px taps at 390.
-    const heights = await fail
-      .getByRole('button')
-      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
-    expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
-  }
   await shot(page, testInfo, 'is-issues-ch-zh', offline);
-  // Answered by typing: the badge goes (SH-78), the answer stays and can be changed.
-  await fail.getByRole('textbox', { name: 'Your name' }).fill('Ana');
-  await fail.getByRole('textbox', { name: 'Your answer' }).fill('The wall moves; 10.2 m² in rev B');
-  await fail.getByRole('button', { name: 'Use my answer' }).click();
-  await expect(fail).toContainText('The wall moves; 10.2 m² in rev B');
-  await expect(banner(page).getByRole('link', { name: /^Documents/ })).toHaveAccessibleName(
-    'Documents',
-  );
 
-  // fi passes those rooms: no failed rule, and notes are not listed.
+  // fi passes those rooms: nothing to answer.
   await page.goto(`/#/p/${pid}/documents?pack=fi`);
-  await expect(issueList).toHaveCount(await shown('?pack=fi'));
-  await expect(issueList.filter({ hasText: 'Fails a rule' })).toHaveCount(0);
-  await expect(
-    main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
-  ).toHaveCount(0);
+  await expect(main.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+  await expect(main.getByRole('region', { name: 'Issues on demand' })).toHaveCount(0);
   await noSideScroll(page, 'documents?pack=fi');
   // ui-bugs 10, 11: the header has no project picker and no Workspaces link.
   await expect(banner(page).getByRole('combobox')).toHaveCount(0);
   await expect(banner(page).getByRole('link', { name: 'Workspaces' })).toHaveCount(0);
   await shot(page, testInfo, 'is-issues-fi', offline);
 
-  // No pack: only what waits for an answer; no export.
+  // No pack: no export either.
   await page.goto(`/#/p/${pid}/documents`);
-  await expect(issueList).toHaveCount(await shown(''));
+  await expect(main.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
   await expect(main.getByRole('link', { name: 'Export' })).toHaveCount(0);
   await noSideScroll(page, 'documents');
   await shot(page, testInfo, 'is-issues', offline);

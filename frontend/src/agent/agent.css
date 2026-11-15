@@ -20,10 +20,17 @@
   margin: 0;
   padding-left: 1.4em;
 }
+/* R4-E11: a 24 x 24 px hit area around the small number; the negative margin keeps the line height as it was. */
 .ag-cite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  margin: -6px -2px;
   font-size: 0.8em;
   vertical-align: super;
-  line-height: 0;
+  line-height: 1;
   padding: 0 1px;
   color: var(--v-accent);
 }
@@ -37,48 +44,6 @@
 }
 .ag-card--conflict .ag-headline {
   color: var(--v-warn);
-}
-
-.ag-sources {
-  list-style: none;
-  margin: 0;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--v-line);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-}
-.ag-sources li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-}
-.ag-sources a {
-  color: var(--v-accent);
-  font-weight: 500;
-}
-
-.ag-steps {
-  font-size: 13px;
-  color: var(--v-muted);
-}
-.ag-steps summary {
-  cursor: pointer;
-  min-height: 24px;
-}
-.ag-steps ol {
-  margin: 6px 0 0;
-  padding-left: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  color: var(--v-text-2);
-}
-.ag-step--error,
-.ag-errmark {
-  color: var(--v-danger);
 }
 
 /* The edit card: plan left, change list right; one column below 900 px (AC-35). */
@@ -518,5 +483,13 @@
   .ag-live-step--running .ag-live-mark::before {
     animation: none;
     border-color: var(--v-accent);
+  }
+}
+
+/* R4-E13: a phone held sideways has little height: the ask bar keeps only the ask box (no chip row, no count). */
+@media (max-height: 500px) {
+  .ag-bar .ag-selrow,
+  .ag-bar .en-meta {
+    display: none;
   }
 }

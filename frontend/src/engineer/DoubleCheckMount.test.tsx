@@ -82,7 +82,7 @@ it("EN-70 onChanged replaces that turn's answer only; the card sends nothing its
     doorMount.onChanged(answerEdited);
   });
   expect(within(doors).getByTestId('answer-value').textContent).toBe('1');
-  expect(within(doors).getByText('Changed in review, was 2')).toBeTruthy();
+  expect(within(doors).queryByText(/Changed in review/)).toBeNull();
   expect(last().answer).toEqual(answerEdited);
   expect(within(area).getByTestId('answer-value').textContent).toBe('52.27 m²');
   expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(posts);

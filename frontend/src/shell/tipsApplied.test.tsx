@@ -68,12 +68,9 @@ describe('tips applied in the shell, documents and export (docs/ui-tooltips.md, 
     await shown(TIPS.export);
   });
 
-  it('the Issues heading and each file state word explain themselves', async () => {
+  it('each drawing card’s file state word explains itself', async () => {
     mockApi(projectRoutes);
     render(<DocumentsScreen projectId={PID} pack={null} />);
-    const heading = await screen.findByRole('heading', { name: 'Issues on demand' });
-    (heading.parentElement as HTMLElement).focus();
-    await shown(TIPS.issues);
     const flagged = await screen.findAllByText('flagged');
     (flagged[0]?.closest('[tabindex]') as HTMLElement).focus();
     await shown(fileStateTip('flagged'));

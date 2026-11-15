@@ -17,6 +17,7 @@ from app.core.drawing.model import (
     ModelObject,
     Page,
     Plan,
+    Polygon,
     ReadClass,
     ReaderView,
     Resolution,
@@ -140,6 +141,9 @@ class ValueMark(Frozen):
     page: int = Field(ge=1)
     box: Box
     label: str
+    # the item's outline in the same frame as `box`, when the extraction has one: a room's own
+    # outline, never a method's region; None: draw the box
+    polygon: Polygon | None = None
 
 
 class QuantityConflict(Frozen):

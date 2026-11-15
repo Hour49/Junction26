@@ -23,7 +23,7 @@ because the designs use those colours on every screen (pill and button fills, st
 | `--v-bg` | `#f5f5f7` | page background |
 | `--v-surface` | `#ffffff` | cards, drop zone, the header |
 | `--v-text` | `#1d1d1f` | text; the logo tile's background |
-| `--v-muted` | `#6e6e73` | secondary text, captions, chevrons |
+| `--v-muted` | `#66666b` (R4-E12: was `#6e6e73`, 4.15:1 on `--v-seg`) | secondary text, captions, chevrons |
 | `--v-line` | `#d2d2d7` | hairlines, input borders, the dashed drop border is `#c3cbc7` (use `--v-line`) |
 | `--v-accent` | `#3d5a4f` | primary button, links, focus ring, selected state |
 | `--v-accent-strong` | `#2a3f37` | link hover, primary button hover/pressed |
@@ -952,3 +952,14 @@ Vellum round (round 2)
     answers, the store is deleted): a reload loses typed answers and the badge comes back. Alternative:
     `sessionStorage` per tab (survives a reload, not other viewers); not chosen to keep one source of truth for
     when A1 lands. Orchestrator's call.
+
+
+## R4 shell fixes (Tudor QA round 4, board #404; 2026-11-15)
+- R4-E4 `document.title` = "<screen> · <project> · Vellum" (`shell/title.ts`; screens Ingest, Chat, Checks, Documents,
+  File, Drawing), just "Vellum" on a screen without a project; the name comes from the header badge's project request.
+- R4-E3 the checks screen has an h1 in every state (visually hidden before its heading shows); not-found's heading is an h1.
+- R4-E5 "Also as <file>" links are 24 px high (`.en-also a`).
+- R4-E17 `Tip` opens on keyboard focus, not on a focus the page gives after a pointer press (a closed popover returning
+  focus to its button).
+- R4-E12 `--v-muted` is `#66666b`: at least 4.68:1 on every tinted token (`--v-seg` is the darkest).
+- R4-E19 the account list and detail show `YYYY-MM-DD HH:MM:SS UTC` (`formatTimeSeconds`).

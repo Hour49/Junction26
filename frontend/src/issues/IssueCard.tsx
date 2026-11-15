@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   answerIssue,
   errorText,
@@ -14,24 +14,24 @@ import {
   type RelevanceRequest,
 } from '../api';
 import { callError, callLine } from '../ingest/triage';
-import { issueRoute } from '../surveyor/issueLinks';
+import { issueRoute } from '../conflicts/issueLinks';
 import { SourceFigure } from '../viewer/SourceFigure';
 import { ModelDialog } from '../model3d/ModelDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { isAnswerable, issueSource, pillOf } from './documents';
-import { CARD, FOOT, MONO, SMALL } from './ui';
+import { isAnswerable, issueSource, pillOf } from '../documents/documents';
+import { CARD, FOOT, MONO, SMALL } from '../documents/ui';
 
 /** An answer chip (the demo's .qchip): a soft pill, 44 px tall, its text wraps. */
-const CHIP =
+export const CHIP =
   'v-press h-auto min-h-11 rounded-full px-3.5 py-2 text-left text-sm font-normal whitespace-normal disabled:opacity-55';
-const FIELD = 'min-h-11 min-w-0 flex-1 rounded-xl bg-card px-3.5 text-base md:text-base';
+export const FIELD = 'min-h-11 min-w-0 flex-1 rounded-xl bg-card px-3.5 text-base md:text-base';
 
 const NAME_KEY = 'countersign.surveyorName'; // the surveyor's key: one typed name for every call
 
-function savedName(): string {
+export function savedName(): string {
   try {
     return localStorage.getItem(NAME_KEY) ?? '';
   } catch {
@@ -39,7 +39,7 @@ function savedName(): string {
   }
 }
 
-function saveName(name: string) {
+export function saveName(name: string) {
   try {
     localStorage.setItem(NAME_KEY, name);
   } catch {
@@ -47,7 +47,7 @@ function saveName(name: string) {
   }
 }
 
-function NameField({ name, onName }: { name: string; onName: (name: string) => void }) {
+export function NameField({ name, onName }: { name: string; onName: (name: string) => void }) {
   return (
     <label className={`${SMALL} grid max-w-80 gap-1`}>
       Your name
@@ -319,11 +319,13 @@ function ModelSaid({ projectId, issue }: { projectId: string; issue: Issue }) {
   );
 }
 
-/** One issue on the Documents tab (documents.md flow 4). */
+/** One issue as the Documents tab showed it (documents.md flow 4); the chat shows it when it asks about it
+ * (decision 0018), with its own answer in `children` instead of the issue's answer form. */
 export function IssueCard(props: {
   projectId: string;
   issue: Issue;
-  n: number;
+  /** Its number in a list; none in the chat. */
+  n?: number;
   drawing: DrawingView | null | undefined;
   file: FileStatus | undefined;
   onFile: (file: FileStatus) => void;
@@ -331,6 +333,8 @@ export function IssueCard(props: {
   onIssue: (issue: Issue) => void;
   /** The issue's 3D model (model-3d.md "More places" 2): its file and the checked element. */
   model?: { fileId: string; highlight: readonly Highlight[] } | null;
+  /** Replaces the answer form (the chat's choices). */
+  children?: ReactNode;
 }) {
   const { projectId, issue, n, drawing, file, onFile, pack, onIssue, model } = props;
   const [open3d, setOpen3d] = useState(false);
@@ -342,9 +346,11 @@ export function IssueCard(props: {
     <li>
       <Card className={`${CARD} gap-2.5 px-5 py-[18px] [&_p]:m-0`}>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-[22px] font-bold tabular-nums" aria-hidden="true">
-            {n}
-          </span>
+          {n !== undefined && (
+            <span className="min-w-[22px] font-bold tabular-nums" aria-hidden="true">
+              {n}
+            </span>
+          )}
           <Badge
             variant={pill.tone || 'secondary'}
             className="px-[11px] py-[5px] text-xs data-[variant=secondary]:text-text-2"
@@ -381,14 +387,20 @@ export function IssueCard(props: {
           )}
         </div>
         <p className="text-base [overflow-wrap:anywhere]">{issue.why}</p>
-        {source && <SourceFigure sources={[source]} label={`Source of issue ${String(n)}`} />}
+        {source && (
+          <SourceFigure
+            sources={[source]}
+            label={n === undefined ? 'Source of the issue' : `Source of issue ${String(n)}`}
+          />
+        )}
         <ModelSaid projectId={projectId} issue={issue} />
-        {isAnswerable(issue) &&
-          (issue.kind === 'unrelated_file' ? (
-            file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />
-          ) : (
-            <IssueAnswerForm projectId={projectId} issue={issue} pack={pack} onIssue={onIssue} />
-          ))}
+        {props.children ??
+          (isAnswerable(issue) &&
+            (issue.kind === 'unrelated_file' ? (
+              file?.triage && <RelevanceCall projectId={projectId} file={file} onFile={onFile} />
+            ) : (
+              <IssueAnswerForm projectId={projectId} issue={issue} pack={pack} onIssue={onIssue} />
+            )))}
         {model && open3d && (
           <ModelDialog
             projectId={projectId}

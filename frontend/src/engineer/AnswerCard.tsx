@@ -4,7 +4,6 @@ import { Tip } from '@/components/ui/tip';
 import {
   errorText,
   evidenceUrl,
-  formatTime,
   formatValue,
   methodName,
   previewUrl,
@@ -18,7 +17,6 @@ import { routeLabel } from '../ingest/ingest';
 import { pageFlagged } from '../doublecheck/check';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
 import { ResolverLines } from './Resolver';
-import { routeHref } from '../shell/route';
 import { TIPS } from '../shell/tips';
 import { ChecksPanel } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
@@ -50,8 +48,6 @@ function sign(m: MarkView): string {
 
 /** The viewer's words for a mark that is not simply counted. */
 function stateWords(m: MarkView): string | null {
-  if (m.state === 'rejected') return 'rejected by a surveyor';
-  if (m.state === 'added') return 'added by a surveyor';
   if (m.state === 'excluded') return `left out by the rule${m.reason ? `: ${m.reason}` : ''}`;
   return null;
 }
@@ -125,6 +121,7 @@ const TONE: Record<Row['status'], string> = {
 
 /** The status in words, with its explanation as a tooltip on hover and focus. */
 export function StatusPill({ status }: { status: Row['status'] }) {
+  if (status === 'signed' || status === 'edited') return null; // nothing says a person checked or changed it
   // ui-bugs 7c: the app's one tooltip (components/ui/tip), as every pill
   return (
     <Tip text={statusTip(status)} wrap>
@@ -381,15 +378,6 @@ function Answer(props: {
       : (a.answer ?? '');
   // An IFC model's fact answer is lines of text, not one value: set as text, never in the big value's type.
   const text = typeof a.answer === 'string' && (a.answer.includes('\n') || a.answer.length > 60);
-  const surveyor =
-    row &&
-    routeHref({
-      name: 'workspace',
-      projectId,
-      drawingId: a.drawing_id,
-      role: 'surveyor',
-      query: new URLSearchParams({ q: row.key }),
-    });
   const refs = refsOf(a, projectId, place);
   const opened = refs.findIndex((r) => r.kind === open);
   const openRef = refs[opened];
@@ -407,33 +395,22 @@ function Answer(props: {
     !!a.check && !a.quantity?.signed && (pageFlagged(a) || a.level?.level !== 'high');
   const said = a.quantity?.estimate && reasonShown && a.check?.reason.includes(a.quantity.estimate);
   const estimate = said ? null : estimateLine(a);
-  const confidence =
-    row?.status === 'signed' ? (
-      // A person's sign-off replaces the level (EN-83).
-      <div className="en-grade">
-        <div className="en-labelrow">
-          <h4 className="en-label">Confidence</h4>
-          <span className="v-pill v-pill--ok">Signed off</span>
-        </div>
+  const confidence = grade && (
+    <div className="en-grade">
+      <div className="en-labelrow">
+        <h4 className="en-label">Confidence</h4>
+        <TipIf text={a.level?.text}>
+          <span className={`v-pill${GRADE_TONE[grade]}`}>{grade}</span>
+        </TipIf>
       </div>
-    ) : (
-      grade && (
-        <div className="en-grade">
-          <div className="en-labelrow">
-            <h4 className="en-label">Confidence</h4>
-            <TipIf text={a.level?.text}>
-              <span className={`v-pill${GRADE_TONE[grade]}`}>{grade}</span>
-            </TipIf>
-          </div>
-          <span className="en-bar" aria-hidden="true">
-            {[1, 2, 3].map((s) => (
-              <span key={s} className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'} />
-            ))}
-          </span>
-          <WhyToggle text={a.level?.text} />
-        </div>
-      )
-    );
+      <span className="en-bar" aria-hidden="true">
+        {[1, 2, 3].map((s) => (
+          <span key={s} className={s <= STEPS[grade] ? 'en-step en-step--on' : 'en-step'} />
+        ))}
+      </span>
+      <WhyToggle text={a.level?.text} />
+    </div>
+  );
   return (
     <>
       {flagged && (
@@ -521,11 +498,6 @@ function Answer(props: {
           {a.proof.arithmetic && <p className="en-arith">{a.proof.arithmetic}</p>}
         </figure>
         <div className="en-side">
-          {row?.signed && (
-            <p className="en-verified">
-              Verified by {row.signed.by}, {formatTime(row.signed.at)}
-            </p>
-          )}
           {!flagged && confidence}
           {row && (
             <div className="en-checks">
@@ -583,7 +555,6 @@ function Answer(props: {
               Picture of this answer
             </a>
           )}
-          {surveyor && <a href={surveyor}>Send to surveyor</a>}
         </footer>
       </div>
     </>

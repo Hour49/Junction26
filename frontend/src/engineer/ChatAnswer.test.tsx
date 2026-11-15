@@ -105,15 +105,18 @@ it('CH-30 a sheet that is not a floor plan comes first, in the rows and the refe
   expect(refs()[0]?.textContent).toContain(LA);
 });
 
-it('CH-31 the lead: why_no_total without a total, never the refused drawings; a total with its note', () => {
+it('CH-31 no total: no lead and no why line, never the refused drawings; a total shows the value only', () => {
   show();
-  expect(screen.getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
+  expect(screen.queryByText(projectAsk.why_no_total ?? 'x')).toBeNull();
+  expect(screen.queryByText(/not added up/)).toBeNull();
+  expect(document.querySelector('.en-lead')).toBeNull();
   expect(screen.queryByText(projectAsk.refused_note ?? 'x', { exact: false })).toBeNull();
   expect(screen.queryByText(projectAsk.total_note)).toBeNull();
   expect(screen.queryByTestId('answer-value')).toBeNull();
   cleanup();
   show({ ...projectAsk, why_no_total: null });
-  expect(screen.getByText(projectAsk.total_note)).toBeTruthy();
+  expect(screen.queryByText(projectAsk.total_note)).toBeNull();
+  expect(document.querySelector('.en-lead')).toBeNull();
   cleanup();
   const total = { ...projectAsk, total: 4, total_unit: 'count' as const, why_no_total: null };
   show({ ...total, total_note: 'Two floors.', refused_note: null });
@@ -237,7 +240,7 @@ it('CH-35 ui-bugs 6/8: only the card of the shown drawing, its value and status,
   expect(document.body.textContent).not.toContain(refused);
 });
 
-it('CH-39 the lead is the bold value only; without a total the why sentence, smaller; no label line', () => {
+it('CH-39 the lead is the bold value only; without a total no lead at all; no label line', () => {
   const total = { ...projectAsk, total: 2, total_unit: 'count' as const, why_no_total: null };
   show({ ...total, total_note: 'Over one drawing.', refused_note: null });
   const lead = document.querySelector('.en-lead') as HTMLElement;
@@ -247,8 +250,7 @@ it('CH-39 the lead is the bold value only; without a total the why sentence, sma
   expect(screen.queryByText(/^Door count$/)).toBeNull();
   cleanup();
   show();
-  const why = screen.getByText(projectAsk.why_no_total ?? 'x');
-  expect(why.classList.contains('en-lead--why')).toBe(true);
+  expect(document.querySelector('.en-lead, .en-lead--why')).toBeNull();
 });
 
 it('CH-39 the viewer is bare; each row is one sentence with the value in bold, one pill and the link', () => {
@@ -306,7 +308,7 @@ it('CH-42 one pill per row: Signed off, else the level with its text, else the s
   // ui-bugs 7c: the level's sentence is the shared Tip's, on focus or hover
   (pill.parentElement as HTMLElement).focus();
   expect((await screen.findByRole('tooltip')).textContent).toBe(answerMedium.level?.text);
-  expect(rowAt(1).querySelector('.v-pill')?.textContent).toBe('Signed off');
+  expect(rowAt(1).textContent).not.toContain('Signed off'); // nothing says a person signed it
   expect(document.body.textContent).not.toMatch(/Sure/);
   cleanup();
   show({ ...projectAsk, total: 4, total_unit: 'count', total_level: 'low', total_sure: true });

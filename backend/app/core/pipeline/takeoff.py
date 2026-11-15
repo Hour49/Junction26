@@ -466,7 +466,9 @@ def _value_marks(entry: Conflict, drawing: Drawing) -> tuple[tuple[ValueMark, ..
             for n, item in enumerate(shown, 1):
                 tag = item.attrs.get("mark")
                 label = tag if isinstance(tag, str) and tag else f"{ref} {n}"
-                marks.append(ValueMark(page=item.page, box=item.box, label=label))
+                marks.append(
+                    ValueMark(page=item.page, box=item.box, label=label, polygon=item.polygon)
+                )
         elif entry.quantity == "room_count" and entry.subject.kind == "sheet":
             if value.method == "plan_drawing":
                 counted = list(drawing.rooms)
@@ -478,9 +480,16 @@ def _value_marks(entry: Conflict, drawing: Drawing) -> tuple[tuple[ValueMark, ..
                 ]
             else:
                 counted = []
-            marks = [ValueMark(page=r.page, box=r.box, label=r.label or r.id) for r in counted]
+            marks = [
+                ValueMark(page=r.page, box=r.box, label=r.label or r.id, polygon=r.polygon)
+                for r in counted
+            ]
         if not marks and value.page is not None and value.box is not None:
-            marks = [ValueMark(page=value.page, box=value.box, label=value.method)]
+            # a room's value is that room's own outline; any other value's box is a method's
+            # region, which is not an outline
+            room = rooms.get(ref) if entry.subject.kind == "room" and ref else None
+            outline = room.polygon if room is not None and room.page == value.page else None
+            marks = [ValueMark(page=value.page, box=value.box, label=value.method, polygon=outline)]
         drawn.append(tuple(marks))
     return tuple(drawn) if any(drawn) else ()
 

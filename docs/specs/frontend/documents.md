@@ -7,6 +7,20 @@ counted, one count rule `needsYou`), built by fe-ingest, 2026-11-14. Brief:
 #217). This screen replaces the Issues screen (`issues.md`): its pure helpers stay (numbering, kind/severity/state
 words, `routeOf`), its screen parts (filters, plan panel, the Issues tab) are superseded here.
 
+**Amended 2026-11-15 (P6a, P7; supersedes the issues and files parts below).** The Documents screen is only the
+drawings now. (1) The "Issues on demand" section is gone, with its issues request, cards and Retry; the feature moves
+into the chat. `IssueCard.tsx`, `issueSource`, `waitsForYou`/`needsYou` (header badge) stay in the code, unmounted on
+this screen. DOC-3..9, DOC-11, DOC-13 and the issue-card parts of flow 1-4 no longer apply here. (2) The "Files"
+section is gone (and with it "No image set aside as not a floor plan" and the per-file rows; DOC-17, FT-25). (3) Each
+Drawings card: title, path, kind and route on the left, then its file's state pill (`StateBadge` with the file-state
+tip, ✓ ready / ! flagged, matched by `drawing.file === file.path`) as a link to the file's trace `#/p/<pid>/f/<id>`
+(no pill when no file matches); "Open" on the right of the card.
+(4) User decision 2026-11-15: under Drawings a compact **Set aside** list (`setAsideFiles` in `documents.ts`: files that
+are not any drawing's file and are `set_aside` or triaged as not a floor plan; hidden entirely with none): a smaller
+card each with the path, its reason in plain words (the triage line `rowLine`, else `shortReason`) and its state pill
+as a link to `#/p/<pid>/f/<id>`, so those files keep a way to their trace page. Tests: `DocumentsScreen.test.tsx`
+(P7 Set aside), `e2e/triage.spec.ts`. Tests: `DocumentsScreen.test.tsx` (P6a P7, DOC-10).
+
 Ported from the demo: the UI and the behaviour. Never its data: no hand-made issues, boxes, suggestions or answers;
 every value comes from `GET /api/projects/{pid}` and `GET /api/projects/{pid}/issues`.
 

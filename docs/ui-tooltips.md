@@ -117,7 +117,6 @@ class names on `TooltipContent`:
 | Plan | `viewer/PageViewer.tsx:460,474` | Page arrows | Previous or next page of this sheet. Disabled on the first or last page. | P2 |
 | Plan | `viewer/PageViewer.tsx:487,498,512` | Zoom out, Zoom in, Fit | Disabled at the smallest or largest zoom. Fit shows the whole sheet. | P3 |
 | Plan | `viewer/PageViewer.tsx:469` | "Page 1 of 2 · N marks" | Marks are the doors, rooms and other things Vellum found on this page. | P2 |
-| Plan | `viewer/PageViewer.tsx:801` | Numbered mark on the plan | One thing Vellum counted. The number matches the list of marks. | P1 |
 | Plan | `viewer/PageViewer.tsx:519-520` | "Click or drag where a mark is missing" | Adds a mark Vellum missed. Only while you are fixing a count. | P2 |
 | Plan | `viewer/SourceFigure.tsx:265,277,315` | Previous / next source, Minimize / Expand the drawing | Move between sources, or shrink the picture. | P3 |
 | Engineer | `engineer/ModelProof.tsx:18-24` | "Model objects" table: Class, Storey, GlobalId | Class: the kind of object (wall, door). Storey: the floor. GlobalId: the object's unique id in the IFC model. | P2 |

@@ -29,18 +29,16 @@ export function statusWord(status: Row['status']): string {
 }
 
 // The status pill's tooltip (engineer.md "Status tooltips").
-const STATUS_TIPS: Record<Row['status'], string> = {
-  signed: 'A surveyor checked this value and signed it off.',
+const STATUS_TIPS: Partial<Record<Row['status'], string>> = {
   agree: 'Two independent methods measured this and got the same value.',
   conflict:
     'Two methods measured different values; the checks below say which one is kept and why.',
   estimate: 'Measured with an estimated scale or method; treat it as approximate.',
-  edited: 'A surveyor changed this value in review.',
   single: 'Only one method measured this; there is no second check.',
 };
 
 export function statusTip(status: Row['status']): string {
-  return STATUS_TIPS[status];
+  return STATUS_TIPS[status] ?? '';
 }
 
 const KINDS: Record<string, string> = {

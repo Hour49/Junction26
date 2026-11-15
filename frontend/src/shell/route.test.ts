@@ -14,7 +14,7 @@ describe('parseRoute', () => {
         name: 'workspace',
         projectId: P,
         drawingId: D,
-        role,
+        role: 'engineer',
       });
   });
 
@@ -31,16 +31,20 @@ describe('parseRoute', () => {
       expect(parseRoute(hash).name).toBe('not-found');
     expect(parseRoute(`#/p/${P}/`).name).toBe('project');
     expect(parseRoute(`#/p/${P}/d/${D}/surveyor/`).name).toBe('workspace');
+    // an old surveyor link is the engineer view of the same drawing (P8)
+    expect(routeHref(parseRoute(`#/p/${P}/d/${D}/surveyor?q=door`))).toBe(
+      `#/p/${P}/d/${D}/engineer?q=door`,
+    );
   });
 
   it('SH-3 the query parses and round-trips a takeoff key through routeHref', () => {
     const key = 'area:room|name=küche';
-    const route = parseRoute(`#/p/${P}/d/${D}/surveyor`);
+    const route = parseRoute(`#/p/${P}/d/${D}/engineer`);
     route.query.set('q', key);
     const href = routeHref(route);
-    expect(href).toBe(`#/p/${P}/d/${D}/surveyor?q=area%3Aroom%7Cname%3Dk%C3%BCche`);
+    expect(href).toBe(`#/p/${P}/d/${D}/engineer?q=area%3Aroom%7Cname%3Dk%C3%BCche`);
     const back = parseRoute(href);
-    expect(back).toMatchObject({ name: 'workspace', role: 'surveyor' });
+    expect(back).toMatchObject({ name: 'workspace', role: 'engineer' });
     expect(back.query.get('q')).toBe(key);
   });
 
@@ -100,8 +104,8 @@ describe('parseRoute', () => {
     }
     expect(packOf(parseRoute(`#/p/${P}/checks?pack=fi`))).toBe('fi');
     expect(packOf(parseRoute(`#/p/${P}`))).toBeNull();
-    const surveyor = `#/p/${P}/d/${D}/surveyor?q=a`;
-    expect(withPack(surveyor, 'fi')).toBe(`#/p/${P}/d/${D}/surveyor?q=a&pack=fi`);
+    const surveyor = `#/p/${P}/d/${D}/engineer?q=a`;
+    expect(withPack(surveyor, 'fi')).toBe(`#/p/${P}/d/${D}/engineer?q=a&pack=fi`);
     expect(withPack(`${surveyor}&pack=fi`, null)).toBe(surveyor);
     expect(withPack(`#/p/${P}?pack=fi`, 'ch')).toBe(`#/p/${P}?pack=ch`);
     expect(withPack(`#/p/${P}`, null)).toBe(`#/p/${P}`);

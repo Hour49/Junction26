@@ -12,7 +12,7 @@ interface FileRow {
   triage: unknown;
 }
 
-test('FT-21: the site photo is set aside as not a floor plan, its trace and issue, then read as a plan', async ({
+test('FT-21: the site photo is set aside as not a floor plan, its trace, then read as a plan', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
@@ -27,28 +27,16 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
   const fid = site?.id ?? '';
   expect(project.cost_usd).toBe(0);
 
-  // Documents' file list (parity: Ingest has no file list): the row says what triage thinks, not the reason.
+  // P7: Documents' "Set aside" list holds the photo (its reason in words) and links to its trace. (The issue and
+  // its "Open the file" link move into the chat; not asserted here.)
   await page.goto(`/#/p/${pid}/documents`);
-  const files = page.getByRole('region', { name: 'Files' });
-  await expect(files).toContainText('1 not a floor plan: kept, not read');
-  const row = files.locator(`a[href$="/f/${fid}"]`);
+  const aside = page.getByRole('region', { name: 'Set aside' });
+  const row = aside.getByRole('listitem').filter({ hasText: 'photos/site.jpg' });
   await expect(row).toContainText('Not a floor plan: not a drawing');
-  await expect(row).toContainText('– Not judged');
-  await expect(row).not.toContainText('P(plan)');
   await row.scrollIntoViewIfNeeded();
   await shot(page, testInfo, 'ft-row', offline);
-
-  // Documents' issues: one for it, "Not a floor plan" in its words, linking to its file page.
-  const issue = page
-    .getByRole('region', { name: 'Issues on demand' })
-    .locator('ul > li, ol > li')
-    .filter({ has: page.getByRole('link', { name: 'Open the file' }), hasText: 'photos/site.jpg' });
-  await expect(issue).toHaveCount(1);
-  await expect(issue).toContainText('Not a floor plan');
-  const call = issue.getByRole('link', { name: 'Open the file' });
+  const call = row.getByRole('link', { name: 'How photos/site.jpg was read' });
   await expect(call).toHaveAttribute('href', `#/p/${pid}/f/${fid}`);
-  await issue.scrollIntoViewIfNeeded();
-  await shot(page, testInfo, 'ft-issue', offline);
   await call.click();
 
   // The trace: not described, so the note once; nothing was paid for.
@@ -104,8 +92,13 @@ test('FT-21: the site photo is set aside as not a floor plan, its trace and issu
   await expect(read).toHaveCount(0);
   await shot(page, testInfo, 'ft-read-as-plan', offline);
 
+  // now a drawing: its card is on Documents, with the file's path
   await page.goto(`/#/p/${pid}/documents`);
-  await expect(files).toContainText('No image set aside as not a floor plan');
-  await expect(row).toContainText(/Read as a floor plan on Ana.s call/);
+  await expect(page.getByRole('region', { name: 'Drawings' })).toContainText('photos/site.jpg');
+  await expect(
+    page.getByRole('region', { name: 'Set aside' }).getByRole('listitem').filter({
+      hasText: 'photos/site.jpg',
+    }),
+  ).toHaveCount(0);
   expect(errors, 'no console or page errors').toEqual([]);
 });

@@ -44,7 +44,7 @@ interface Props {
 
 type Mode = 'idle' | 'choosing' | 'saving';
 
-const SIGNED = 'This value is signed off. Undo the sign-off in the surveyor workspace first.';
+const LOCKED = 'This value cannot be changed.';
 
 const UNIT: Record<string, string> = { m2: 'm²', m3: 'm³', m: 'm', ft: 'ft', ft2: 'ft²' };
 
@@ -55,11 +55,20 @@ function sourceOf(c: ConflictEntry, d: DrawingView, name: string, who: string | 
   // a backend before #221 sends no value_marks: the drawing without outlines, never a crash
   const marks = (c.conflict.value_marks as typeof c.conflict.value_marks | undefined) ?? [];
   const at = marks.flat()[0]?.page ?? values.find((v) => v.page)?.page ?? 1;
-  const place = (label: string, m: { page: number; box: NonNullable<Place['box']> }): Place => {
+  const place = (
+    label: string,
+    m: {
+      page: number;
+      box: NonNullable<Place['box']>;
+      polygon?: Place['polygon'];
+    },
+  ): Place => {
     const here = m.page === at;
     return {
       label: `${label}${here ? '' : `, on page ${String(m.page)}`}`,
       box: here ? m.box : null,
+      // the item's own outline (a room's walls), drawn instead of the box
+      ...(here && m.polygon ? { polygon: m.polygon } : {}),
     };
   };
   return {
@@ -145,16 +154,14 @@ export function ConflictCard({
   }, [drawing, onNeedDrawing]);
 
   const choosing = mode === 'choosing' && !signed;
-  const [pillWords, pillClass] = signed
-    ? [`Signed off by ${signed.by}`, 'ok' as const]
-    : mode === 'choosing' && state !== 'open'
+  const [pillWords, pillClass] =
+    mode === 'choosing' && state !== 'open'
       ? ['Choosing', 'secondary' as const]
       : state === 'picked'
         ? [who ?? '', PILL.picked[1]]
         : PILL[state];
-  const tip = signed
-    ? 'Undo the sign-off in the surveyor workspace to change it.'
-    : mode === 'choosing' && state !== 'open'
+  const tip =
+    mode === 'choosing' && state !== 'open'
       ? 'Tap the right value, or Cancel.'
       : state === 'open'
         ? 'The rules could not decide. Pick a value before you open the workspace.'
@@ -460,7 +467,7 @@ export function ConflictCard({
       {error !== null && (
         <p role="alert" className="cf-error">
           {error instanceof ApiError && error.status === 409
-            ? SIGNED
+            ? LOCKED
             : serverDown(error)
               ? SERVER_DOWN // QA #430: a proxy 502 in plain words
               : errorText(error).detail}

@@ -816,37 +816,36 @@ export function PageViewer({
               if (doubt !== undefined) setTip(on ? m.id : null);
             };
             return [
-              // A mark the readers doubt has its own "why" tip (below); the others say what a mark is.
-              <Tip key={m.id} text={doubt === undefined ? VIEWER_TIPS.mark : ''}>
-                <button
-                  type="button"
-                  className={`vw-badge ${tone ? `vw-badge--${tone}` : `vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}`}${m.id === highlighted ? ' vw-hot' : ''}${doubt === undefined ? '' : ' vw-badge--disputed'}`}
-                  aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
-                  aria-describedby={doubt === undefined ? undefined : whyId}
-                  aria-pressed={isSelected}
-                  style={{ ...where, ...tint(colourOf(m)) }}
-                  onClick={() => onSelect?.(m.id)}
-                  onPointerEnter={() => {
-                    show(true);
-                  }}
-                  onPointerLeave={() => {
-                    show(false);
-                  }}
-                  onFocus={() => {
-                    show(true);
-                  }}
-                  onBlur={() => {
-                    show(false);
-                  }}
-                >
-                  {spot ? spot.text : value === null ? badgeText(m) : `${badgeText(m)} · ${value}`}
-                  {doubt !== undefined && (
-                    <span className="vw-q-tag" aria-hidden="true">
-                      {doubt.tag ?? '?'}
-                    </span>
-                  )}
-                </button>
-              </Tip>,
+              // A mark the readers doubt has its own "why" tip (below); a plain counted mark has none.
+              <button
+                key={m.id}
+                type="button"
+                className={`vw-badge ${tone ? `vw-badge--${tone}` : `vw-badge--${open(m) ? 'open' : 'filled'} vw-badge--${m.state}`}${m.id === highlighted ? ' vw-hot' : ''}${doubt === undefined ? '' : ' vw-badge--disputed'}`}
+                aria-label={m.n === null ? name : `Mark ${String(m.n)}: ${name}`}
+                aria-describedby={doubt === undefined ? undefined : whyId}
+                aria-pressed={isSelected}
+                style={{ ...where, ...tint(colourOf(m)) }}
+                onClick={() => onSelect?.(m.id)}
+                onPointerEnter={() => {
+                  show(true);
+                }}
+                onPointerLeave={() => {
+                  show(false);
+                }}
+                onFocus={() => {
+                  show(true);
+                }}
+                onBlur={() => {
+                  show(false);
+                }}
+              >
+                {spot ? spot.text : value === null ? badgeText(m) : `${badgeText(m)} · ${value}`}
+                {doubt !== undefined && (
+                  <span className="vw-q-tag" aria-hidden="true">
+                    {doubt.tag ?? '?'}
+                  </span>
+                )}
+              </button>,
               doubt !== undefined && (
                 <span key={`${m.id}-why`} id={whyId} className="vw-sr">
                   {ask(doubt.why, doubt.prefix)}

@@ -55,7 +55,25 @@
                 0.5,
                 0.375
               ],
-              "label": "polygon_x_scale"
+              "label": "polygon_x_scale",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ],
           [
@@ -67,7 +85,25 @@
                 0.21269,
                 0.19027
               ],
-              "label": "printed_label"
+              "label": "printed_label",
+              "polygon": [
+                [
+                  0.16667,
+                  0.125
+                ],
+                [
+                  0.16667,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.375
+                ],
+                [
+                  0.5,
+                  0.125
+                ]
+              ]
             }
           ]
         ]
@@ -95,7 +131,8 @@
               0.5,
               0.375
             ],
-            "label": "the room outlines at the sheet's scale counts polygon_x_scale here"
+            "label": "the room outlines at the sheet's scale counts polygon_x_scale here",
+            "polygon": null
           },
           {
             "page": 1,
@@ -105,7 +142,8 @@
               0.21269,
               0.19027
             ],
-            "label": "the printed room areas counts printed_label here"
+            "label": "the printed room areas counts printed_label here",
+            "polygon": null
           }
         ],
         "by": "carbon:gemini-4-carbon",

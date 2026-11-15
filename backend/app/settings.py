@@ -182,6 +182,9 @@ class Settings(BaseSettings):
     eu_vlm_api_key: SecretStr = SecretStr("")
     eu_vlm_model: str = "Qwen/Qwen3.8-27B-FP8"
     eu_vlm_timeout_s: float = 300.0
+    # Room outlines for raster plans: a rooms reader's boxes become the free space inside the drawn
+    # walls (app/adapters/raster_ocr/room_outlines.py). Off: rooms keep their box.
+    room_outlines: bool = True
     rooms_provider: ProviderName = "gemini"  # the room reader (sources gemini, regionrooms)
     decisions_provider: ProviderName = "gemini"  # G1main counts: swap and answer confidence
     kind_provider: ProviderName = "gemini"  # the sheet-kind signal (DECISIONS_KIND)

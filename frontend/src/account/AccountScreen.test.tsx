@@ -72,7 +72,7 @@ describe('AccountScreen list', () => {
     expect(item.textContent).toContain('sample-project.zip');
     expect(item.textContent).toContain('Ready');
     expect(item.textContent).toContain('Archive · 11 files · 5 drawings');
-    expect(item.textContent).toContain('2026-11-14 08:00 UTC');
+    expect(item.textContent).toContain('2026-11-14 08:00:00 UTC');
   });
 
   it('AC-5 an empty list', async () => {
@@ -145,7 +145,7 @@ describe('AccountScreen panel', () => {
       expect.arrayContaining([`/api/projects/${ID}`, `/api/projects/${ID}/review`]),
     );
     const p = within(panel());
-    expect(p.getByText('Archive · created 2026-11-14 08:00 UTC')).toBeTruthy();
+    expect(p.getByText('Archive · created 2026-11-14 08:00:00 UTC')).toBeTruthy();
     expect(p.getByRole('heading', { name: 'sample-project.zip' })).toBeTruthy();
     expect(p.getByRole('link', { name: 'Open workspace' }).getAttribute('href')).toBe(`#/p/${ID}`);
     expect(screen.getByRole('link', { name: /New workspace/ }).getAttribute('href')).toBe('#/');

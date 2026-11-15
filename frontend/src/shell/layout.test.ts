@@ -36,7 +36,7 @@ const TOKENS: Record<string, string> = {
   '--v-bg': '#f5f5f7',
   '--v-surface': '#ffffff',
   '--v-text': '#1d1d1f',
-  '--v-muted': '#6e6e73',
+  '--v-muted': '#66666b',
   '--v-line': '#d2d2d7',
   '--v-accent': '#3d5a4f',
   '--v-accent-strong': '#2a3f37',

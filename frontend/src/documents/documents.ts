@@ -1,5 +1,12 @@
 // Pure helpers of the Documents tab (docs/specs/frontend/documents.md).
-import { previewUrl, type DrawingView, type FileStatus, type Issue } from '../api';
+import {
+  previewUrl,
+  type DrawingView,
+  type FileStatus,
+  type Issue,
+  type ProjectView,
+} from '../api';
+import { isNotPlan } from '../ingest/triage';
 import { SEVERITIES, SEVERITY_LABEL, numbered, type Row } from '../issues/issues';
 import type { Source } from '../viewer/SourceFigure';
 
@@ -72,4 +79,13 @@ export function issueSource(
 export function shortReason(f: Pick<FileStatus, 'state' | 'reason'>): string | null {
   if (f.state !== 'set_aside') return null;
   return f.reason.replace(/\s*\([^()]*\)\s*$/, '') || null;
+}
+
+/** The files that are not drawings and were set aside or judged not a floor plan (the Documents "Set aside" list,
+ * P7). A file read as a plan is a drawing, so it is not here. */
+export function setAsideFiles(project: Pick<ProjectView, 'files' | 'drawings'>): FileStatus[] {
+  const drawn = new Set(project.drawings.map((d) => d.file));
+  return project.files.filter(
+    (f) => !drawn.has(f.path) && (f.state === 'set_aside' || isNotPlan(f)),
+  );
 }

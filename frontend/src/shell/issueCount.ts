@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getIssues, getProject } from '../api';
 import { needsYou } from '../documents/documents';
+import { rememberProjectName } from './title';
 
 /** How often a running project is asked whether its ingest is done. */
 const WAIT_MS = 1000;
@@ -42,6 +43,7 @@ export function useIssuesToAnswer(
     // The issues answer 409 until the ingest is done (a console error in the browser): wait for `done` first.
     const ask = async () => {
       const project = await getProject(projectId, { signal });
+      rememberProjectName(projectId, project.name);
       if (project.state === 'queued' || project.state === 'running') {
         timer = setTimeout(() => {
           ask().catch(fail);

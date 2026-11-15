@@ -13,7 +13,6 @@ import {
 } from '../api/fixtures';
 import { mockApi, reply } from '../test/mockApi';
 import type { SourceFigureProps } from '../viewer/SourceFigure';
-import { ProjectReviewSide } from './ProjectReviewSide';
 import { ConflictsList } from './ConflictsScreen';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { REVIEW_TIPS } from '../shell/tips-review';
@@ -376,9 +375,7 @@ describe('ConflictsList', () => {
     const c = card(base.label);
     click(within(c).getByRole('button', { name: "Use the rule's value" }));
     const alert = await within(c).findByRole('alert');
-    expect(alert.textContent).toBe(
-      'This value is signed off. Undo the sign-off in the surveyor workspace first.',
-    );
+    expect(alert.textContent).toBe('This value cannot be changed.');
     expect(within(c).getByText('Your choice')).toBeTruthy();
   });
 
@@ -437,10 +434,12 @@ describe('ConflictsList', () => {
           {
             label: `Variant 1: ${methodName('polygon_x_scale')}`,
             box: base.conflict.value_marks[0]?.[0]?.box,
+            polygon: base.conflict.value_marks[0]?.[0]?.polygon,
           },
           {
             label: `Variant 2: ${methodName('printed_label')}`,
             box: base.conflict.value_marks[1]?.[0]?.box,
+            polygon: base.conflict.value_marks[1]?.[0]?.polygon,
           },
         ],
       },
@@ -479,6 +478,34 @@ describe('ConflictsList', () => {
     expect(fig.props.at(-1)?.sources[0]?.places).toEqual([]);
   });
 
+  it('CF-38 a mark with an outline passes it on, so the figure draws the room and not its box', async () => {
+    const outline: [number, number][] = [
+      [0.1, 0.1],
+      [0.3, 0.1],
+      [0.3, 0.2],
+      [0.1, 0.3],
+    ];
+    const mark = (label: string, polygon?: [number, number][]) => ({
+      page: 1,
+      box: [0.1, 0.1, 0.3, 0.3] as [number, number, number, number],
+      label,
+      ...(polygon ? { polygon } : {}),
+    });
+    show({
+      [PATH.review]: withConflicts([
+        {
+          ...base,
+          conflict: { ...base.conflict, value_marks: [[mark('K+R', outline)], [mark('OH')]] },
+        },
+      ]),
+    });
+    await ready();
+    await screen.findByTestId('figure');
+    const places = fig.props.at(-1)?.sources[0]?.places;
+    expect(places?.[0]?.polygon).toEqual(outline);
+    expect(places?.[1]?.polygon ?? null).toBeNull();
+  });
+
   it('CF-38 a backend without value_marks (before #221) shows the drawing without outlines, no crash', async () => {
     const older: Partial<typeof base.conflict> = { ...base.conflict };
     delete older.value_marks;
@@ -512,9 +539,7 @@ describe('ConflictsList', () => {
     click(within(c).getByRole('button', { name: 'Modify' }));
     click(tile(c, 1));
     const alert = await within(c).findByRole('alert');
-    expect(alert.textContent).toContain(
-      'This value is signed off. Undo the sign-off in the surveyor workspace first.',
-    );
+    expect(alert.textContent).toContain('This value cannot be changed.');
     expect(within(c).getByRole('button', { name: 'Cancel' })).toBeTruthy();
     expect(disabled(tile(c, 1))).toBe(false);
   });
@@ -682,18 +707,6 @@ describe('ConflictsList', () => {
     expect(within(foot).getByRole('button', { name: 'Modify' }).className).toContain('cf-soft');
   });
 
-  it('CF-19 the side panel links to the project (the conflicts are on Ingest) when there are conflicts', async () => {
-    mockApi({ [PATH.review]: projectReview });
-    render(<ProjectReviewSide projectId={pid} drawingId={did} />);
-    const link = await screen.findByRole('link', { name: 'Settle the conflicts' });
-    expect(link.getAttribute('href')).toBe(`#/p/${pid}`);
-    cleanup();
-    mockApi({ [PATH.review]: withConflicts([]) });
-    render(<ProjectReviewSide projectId={pid} drawingId={did} />);
-    await screen.findByRole('list', { name: /Conflicts/ });
-    expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
-  });
-
   it('CF-20 none of the design mock values appear', async () => {
     show({ [PATH.review]: withConflicts([needs, base, yours]) });
     await ready();
@@ -736,12 +749,12 @@ describe('ConflictsList', () => {
     expect(await tipOf(t.parentElement as HTMLElement)).toBe(REVIEW_TIPS.choiceLocked);
   });
 
-  it('CF-23 a real sign-off on the entry locks the card and names the signer', async () => {
+  it('CF-23 a real sign-off on the entry locks the card and names no one', async () => {
     const signed: ConflictEntry = { ...base, signed: { by: 'Ana', at: AT, value: 30 } };
     show({ [PATH.review]: withConflicts([signed]) });
     await ready();
     const c = card(base.label);
-    expect(within(c).getByText('Signed off by Ana')).toBeTruthy();
+    expect(within(c).queryByText(/Signed off|Ana/)).toBeNull();
     expect(disabled(tile(c, 1))).toBe(true);
     expect(within(c).queryByRole('button', { name: 'Modify' })).toBeNull();
   });

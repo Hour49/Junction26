@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from app.core.agent import law
 from app.core.agent.evidence import mint
+from app.core.agent.issue_ask import Asker, ask_text, noted, options_of, related
 from app.core.agent.model import (
     Caps,
     Chat,
@@ -189,6 +190,14 @@ def _quiet(kind: str, data: Json) -> None:
     """No stream: the sync route."""
 
 
+class _AskIssueError(Exception):
+    """An answer rests on an open issue: the turn asks about it first (decision 0018)."""
+
+    def __init__(self, issue: Json, given: Json) -> None:
+        super().__init__(issue.get("id"))
+        self.issue, self.given = issue, given
+
+
 class _EndedError(Exception):
     """The turn ends here with a dont_know saying why."""
 
@@ -205,15 +214,21 @@ def run_turn(
     names: Mapping[str, str] | None = None,
     context: str = "",
     emit: Emit = _quiet,
+    ask: Asker | None = None,
+    ending: str = "",
 ) -> ChatTurn:
     """Runs one turn and records it in `chat` (messages, turns, proposals, results).
     `names`: drawing id → the drawing's plain name ("Drawn plan 1"), for evidence and steps.
     `context`: this turn's lines after the system prompt (the chosen country, its laws).
     `emit`: gets the turn's events as they happen (contract C), all in the server's words; the
-    final `answer` event is the caller's (it is the returned turn)."""
+    final `answer` event is the caller's (it is the returned turn).
+    `ask`: the project's issues: an ask_drawings answer that rests on an open one ends the turn
+    as an ask_issue turn (decision 0018). `ending`: said by the server after the answer's text."""
     run = _Run(chat, model, toolbox, caps, guard, clock, names or {})
     run.system = f"{SYSTEM}\n{context}" if context else SYSTEM
     run.emit = emit
+    run.ask = ask
+    run.ending = ending
     return run.turn(message, selection)
 
 
@@ -232,6 +247,8 @@ class _Run:
         self.guard, self.clock, self.names = guard, clock, names
         self.system = SYSTEM
         self.emit: Emit = _quiet
+        self.ask: Asker | None = None
+        self.ending = ""
         self.tools = [*toolbox.tools, SHOW_ON_PLAN_TOOL, REVIEW_ANSWER_TOOL, FINAL_ANSWER_TOOL]
         self.started = clock()
         self.ledger: dict[str, Json] = {}  # this turn's places
@@ -282,13 +299,31 @@ class _Run:
         # show_on_plan shows is one of them
         for given in chat.asked:
             self.rated += _values(given["answer"])
+        asking: _AskIssueError | None = None
         try:
             answer = self._loop()
         except _EndedError as ended:
             answer = FinalAnswer(kind="dont_know", text=str(ended))
+        except _AskIssueError as found:
+            asking, answer = found, FinalAnswer(kind="dont_know", text=ask_text(found.issue))
         chat.minted += len(self.ledger)
         chat.proposals.update(self.proposals)
-        turn = self._turn_of(answer)
+        if asking is not None:
+            turn = self._ask_turn(asking.issue, asking.given)
+            asks = (chat.pending or {}).get("asks", 0) if chat.pending else 0
+            question = (chat.pending or {}).get("question") or message
+            offered = [o.value for o in turn.options or () if o.value is not None]
+            chat.pending = {
+                "question": question,
+                "issue": asking.issue,
+                "asks": asks + 1,
+                "values": offered,  # the only values a reply may settle to (R4)
+            }
+        else:
+            turn = self._turn_of(answer)
+            chat.pending = None
+            if self.ending:
+                turn = turn.model_copy(update={"text": f"{turn.text.rstrip()} {self.ending}"})
         chat.evidence.update(self.ledger)
         chat.asked.extend(self.asked)
         if turn.edit is not None:  # as shown, ev ids and kept law notes included (LC-10)
@@ -384,6 +419,9 @@ class _Run:
                 self._tool(call, name, arguments)
             except _EndedError:
                 self._skip(calls[at:])
+                raise
+            except _AskIssueError:
+                self._skip(calls[at + 1 :])
                 raise
         return None
 
@@ -594,7 +632,22 @@ class _Run:
                                status="error" if bad else "ok", ms=ms))  # fmt: skip
         summary = _summary(name, found, self.names)
         self.emit("tool_result", {**self.steps[-1].model_dump(), "summary": summary})
-        self._reply(call, text if isinstance(found, str) else _for_model(found))
+        for_model = text if isinstance(found, str) else _for_model(found)
+        if name == ASK and isinstance(found, dict) and self.ask is not None:
+            given = json.loads(out)
+            issues = self.ask.load()
+            asked = related(issues, given, self.ask.skipped) if self.ask.left > 0 else []
+            if asked:
+                self._reply(call, for_model)
+                raise _AskIssueError(asked[0], given)
+            if said := noted(issues, given):  # D5: what people already answered about it
+                people = [
+                    {"issue": issue.get("label"), "on": issue.get("drawing_name"),
+                     "answer": issue["answer"]["text"]}
+                    for issue in said
+                ]  # fmt: skip
+                for_model = _for_model({**found, "people_answered": people})
+        self._reply(call, for_model)
 
     def _show(self, call: Json, arguments: str) -> None:
         """show_on_plan (contract B): the places this turn shows, or the model is told why not."""
@@ -861,6 +914,21 @@ class _Run:
             answers=answers,
             view=view,
             next=self._follow_ups(kind, answers, view, evidence, answer),
+        )
+
+    def _ask_turn(self, issue: Json, given: Json) -> ChatTurn:
+        """The ask_issue turn (decision 0018): the issue, its choices; no answer yet."""
+        return ChatTurn(
+            chat_id=self.chat.chat_id,
+            turn=len(self.chat.turns) + 1,
+            kind="ask_issue",
+            text=ask_text(issue),
+            options=options_of(issue, given),
+            steps=tuple(self.steps),
+            model=self.model.name,
+            cost_usd=round(self.cost, 6),
+            latency_s=round(self.clock() - self.started, 3),
+            issue=issue,
         )
 
     def _follow_ups(
