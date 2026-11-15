@@ -91,8 +91,10 @@ def test_is_x_connected_to_y_reads_the_attached_systems() -> None:
     terminals = [Terminal(id=k, label="radiator", at=at) for k, at in spots.items()]
     attached = attach(graph(), terminals, 15.0)
     assert connected(attached, "t1", "t2") is True
-    assert connected(attached, "t1", "t3") is False
-    assert connected(attached, "t1", "t4") is None  # t4 is not attached: unknown, not "no"
+    # on different systems is not "no": a line read with a gap splits one system in two
+    # (pics-graph.md: 5% of pieces lost -> pair recall 0.41, precision 1.0), so only "yes" is said
+    assert connected(attached, "t1", "t3") is None
+    assert connected(attached, "t1", "t4") is None  # t4 is not attached: unknown
 
 
 def test_a_system_lists_its_terminals_and_its_source_equipment() -> None:

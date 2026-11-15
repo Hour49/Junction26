@@ -146,12 +146,13 @@ def attach(graph: LineGraph, terminals: Sequence[Terminal], max_px: float) -> tu
 
 
 def connected(attached: Sequence[Attached], a: str, b: str) -> bool | None:
-    """Whether terminals `a` and `b` are on one system; None when either is not attached (not
-    known, which is not "no")."""
+    """True when terminals `a` and `b` are on one system; else None (not known), never False: a
+    line read with a gap splits one system in two, so two systems on the picture do not say
+    the pipes are apart (5% of pieces lost: pair recall 0.41, precision 1.0; pics-graph.md)."""
     on = {x.terminal: x.system for x in attached}
-    if on.get(a) is None or on.get(b) is None:
+    if on.get(a) is None or on.get(a) != on.get(b):
         return None
-    return on[a] == on[b]
+    return True
 
 
 def names(found: Sequence[System]) -> dict[str, str]:
