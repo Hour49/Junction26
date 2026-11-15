@@ -240,6 +240,25 @@ INDOOR = re.compile(r"indoor|innenr|intérieur|interni|numbered|nummeriert|numé
 FLOOR_TOTAL = re.compile(r"\bfloor area\b|\btotal (?:\w+ )?area\b")
 ALL_ROOMS = re.compile(r"\b(?:all|every) (?:the |of the )?(?:indoor )?rooms\b")
 NOT_NET = re.compile(r"\bgross\b|\bfootprint\b|\bbrutto")
+# The noun a floor total names ("the total office area", "the total area of the offices"): it must
+# be the sheet, its floor or its rooms. Any other noun names rooms the parser has no type for, and
+# summing every room for it gave a confident wrong answer (sample explorers 2026-11-15: "the total
+# area of the offices" → 798.81 m², truth 210.81). English only, as FLOOR_TOTAL.
+TOTAL_NOUN = re.compile(
+    r"\btotal (?P<before>[^\W\d_]+)(?= area\b)"
+    r"|\barea (?:of|for) (?:the |all (?:of )?(?:the )?|every |its |this )?(?P<of>[^\W\d_]+)"
+)
+TOTAL_WORDS = frozenset(
+    """
+    floor floors plan drawing sheet page storey level layout apartment flat dwelling unit house
+    room rooms space spaces indoor interior internal numbered net usable this these whole entire
+    """.split()  # noqa: SIM905 (a word list reads better as text)
+)
+# A room label named without quotes, as the question's last word ("rooms labelled Büro?"): read as
+# quoted. A label of several words is left as it was (where it ends is not known).
+LABEL_UNQUOTED = re.compile(
+    r"\b(?:labell?ed|named|called)\s+(?:as\s+)?(?P<label>(?!_)\w[\w/-]*)\s*(?=[?.!]|$)"
+)
 SUPERLATIVE = re.compile(r"\b(?:longest|smallest|shortest|längste|kleinste|plus petit|pisin)")
 # The one superlative taken off: the largest room by area (of a type, or of a printed label).
 LARGEST = re.compile(r"\b(?:largest|biggest|grösste|größte|plus grand|maggiore|suurin)")
@@ -446,6 +465,9 @@ class TemplateParser:
                 return Unsupported(reason=SEVERAL_STOREYS)
             quoted.append(_Quoted(text=at.group("code") or at.group("name"), role="storey"))
             bare = f"{bare[: at.start()]} _ {bare[at.end() :]}"  # as if it were quoted
+        if not any(q.role == "label" for q in quoted) and (unquoted := LABEL_UNQUOTED.search(bare)):
+            quoted.append(_Quoted(text=unquoted.group("label"), role="label"))
+            bare = f"{bare[: unquoted.start('label')]} _ {bare[unquoted.end('label') :]}"
         lower = bare.casefold()
         if is_table_question(raw):
             return parse_table(raw)
@@ -480,6 +502,8 @@ class TemplateParser:
             and NOT_NET.search(lower) is None
             and (FLOOR_TOTAL.search(lower) is not None or ALL_ROOMS.search(lower) is not None)
         )
+        if floor_total and _unknown_total_noun(body, hits):
+            return Unsupported(reason=NO_SUBJECT)  # never every room for rooms it can't pick
         numbers = _room_numbers(bare)
         number = numbers[0] if numbers else None
         if len({n.group(1) for n in numbers}) > 1 and measure in ("area", "length"):
@@ -614,6 +638,17 @@ def _room_side(
     if subject != "room":
         return Query(measure="length", subject=subject, **common)
     return Unsupported(reason="the length of rooms without saying which room")
+
+
+def _unknown_total_noun(body: str, hits: list[tuple[int, str]]) -> bool:
+    """A floor total asked of a noun that is no subject the parser knows and not the sheet, its
+    floor or its rooms (TOTAL_NOUN): "the total area of the offices", "the total garage area"."""
+    starts = {position for position, _ in hits}
+    for found in TOTAL_NOUN.finditer(body):
+        group = "before" if found.group("before") is not None else "of"
+        if found.group(group) not in TOTAL_WORDS and found.start(group) not in starts:
+            return True
+    return False
 
 
 def _room_numbers(bare: str) -> list[re.Match[str]]:
