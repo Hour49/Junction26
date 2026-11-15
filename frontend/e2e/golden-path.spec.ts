@@ -282,6 +282,9 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     // No Surveyor tab (SH-75) and no surveyor link on the conflict card (CF-47): the area answer sends it there.
     await turn(AREA).getByRole('link', { name: 'Send to surveyor' }).click();
     await expect(page).toHaveURL(new RegExp(`^${escape(drawingUrl)}/surveyor(\\?.*)?$`));
+    // K3: on a phone the drawings and conflicts fold behind one toggle; the drawing comes first
+    const fold = page.getByRole('button', { name: /^Drawings \(\d+\) · Conflicts \(\d+\)$/ });
+    if ((page.viewportSize()?.width ?? 0) <= 640) await fold.click();
     for (const text of [
       'area of room (name Küche · 1.01)',
       '22.40 m² vs 30.00 m²',
