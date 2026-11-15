@@ -15,10 +15,11 @@ corridors included, so it sits above an assignable ratio; the top of NET_TO_GROS
   person (takeoff._conflict_keys); it never becomes the gross number.
 - Inside it the printed gross is only context: a note on the reading.
 
-The gross is a printed fact with an area unit whose subject is floor_area or whose text says TOTAL
-or GROSS, the largest of them (a floor total is never smaller than its wing subtotals). The net is
-the indoor rooms as the takeoff sums them (`takeoff._area_sum`): a room whose box area was refused
-is left out, any other room without an area leaves the net unknown, and then nothing is checked.
+The gross is a printed fact in m² (the reader converts a printed ft²) whose subject is floor_area
+or whose text says TOTAL or GROSS, the largest of them (a floor total is never smaller than its
+wing subtotals). The net is the indoor rooms as the takeoff sums them (`takeoff._area_sum`): a
+room whose box area was refused is left out, any other room without an area leaves the net
+unknown, and then nothing is checked.
 """
 
 import re
@@ -29,8 +30,6 @@ from app.core.pipeline.model import Extracted, Measurement
 from app.core.pipeline.printed import PrintedFact
 from app.core.pipeline.raster_scale import AREA_REFUSED
 
-FT2_M2 = 0.09290304  # one international square foot
-AREA_UNITS = {"m2": 1.0, "ft2": FT2_M2}  # the Carbon reader's area units, in m²
 NET_TO_GROSS = (0.60, 1.02)  # the plausible net/gross band: the module docstring
 _TOTAL = re.compile(r"\b(?:total|gross)\b", re.IGNORECASE)
 
@@ -39,9 +38,9 @@ def printed_gross(facts: Sequence[PrintedFact]) -> tuple[float, PrintedFact] | N
     """The sheet's printed gross floor area in m², with the fact it was read from; None when it
     prints no area total."""
     totals = [
-        (fact.value * AREA_UNITS[fact.unit], fact)
+        (fact.value, fact)
         for fact in facts
-        if fact.unit in AREA_UNITS
+        if fact.unit == "m2"  # the Carbon reader gives a printed ft² in m² (carbon._facts)
         and fact.value > 0
         and (fact.subject == "floor_area" or _TOTAL.search(fact.text))
     ]

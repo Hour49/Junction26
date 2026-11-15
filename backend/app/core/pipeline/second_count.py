@@ -44,7 +44,7 @@ METHODS = {
     "printed_label": "the printed room areas",
     "polygon_x_scale": "the room outlines at the sheet's scale",
     "printed_total": "the total printed on the sheet",
-    "summed_rooms": "the rooms found, summed",
+    "summed_rooms": "the summed rooms",
 }
 
 COUNTS: frozenset[ConflictQuantity] = frozenset({"room_count", "element_count", "storey_count"})

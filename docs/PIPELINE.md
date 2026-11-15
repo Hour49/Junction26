@@ -102,6 +102,7 @@ schedule or a detector.
 | --- | --- | --- | --- | --- |
 | room area | `printed_label` | `polygon_x_scale` | 2% | trust the printed label; a bigger gap means the scale or the polygon is wrong |
 | floor or apartment area | `printed_total` | `summed_rooms` | 2% | report the printed total; show the room list |
+| floor area (raster, gross printed) | `summed_rooms` (indoor rooms, net) | `printed_total` (gross) | net/gross 0.60-1.02 | no rule: inside the band only a note; outside it both values on the indoor area answer, held for a person; a net question never gets the gross number (`GROSS_NET_CHECK`) |
 | scale | `scale_text` | `scale_bar` or `dimension_lines` | 2% | measured value over text; text found next to a detail drawing is ignored (see below) |
 | scale (raster) | `detector` (door estimate) | `scale_bar` or `scale_text` | 10% | the printed scale; the estimate stays as the other value (`RASTER_PRINTED_SCALE`); over 2x apart only a bar wins, and flags the areas |
 | element or room count (raster) | the reader's (`detector`...) | `printed_total` | 0 | no rule: show both (`RASTER_PRINTED_SCALE`). With `PRINTED_TOTAL_ANSWERS=on` (default `off`), a printed count of exactly the entry's subject, of the floor the sheet shows, with one value ("SECOND FLOOR = 48 DORMS" on a second-floor plan) is reported; the count read stays as the other value and the entry stays a conflict |
@@ -148,6 +149,16 @@ of the same family on the whole sheet), not found (nothing changes). A disagreem
 silently: a printed count gets a third value with OCR's reading (method `annotation`, no rule), an area a note, and
 the scale text is not used (the estimate stays). The step's trace counts the three outcomes; with no disagreement
 the reading is unchanged.
+
+Gross against net (2026-11-15, accuracy task 6, `GROSS_NET_CHECK=off|on`, default off, needs
+`RASTER_PRINTED_SCALE=carbon`, no extra call; `app/core/pipeline/gross_net.py`): US area tables print gross floor
+areas (BOMA Z65.3 / ASTM E1836: to the outside face of the exterior walls); the rooms found are net. The gross is the
+largest printed fact in m² (a printed ft² arrives converted) whose subject is `floor_area` or whose text says TOTAL
+or GROSS; the net is the indoor rooms as the takeoff sums them. Net/gross inside 0.60-1.02 (offices 0.60-0.82, a K-8
+school 0.71, our net includes corridors; the top is 1.0 plus 2% rounding) adds only a note. Outside it the sheet gets
+a `floor_area` conflict (`summed_rooms` then `printed_total`, the note saying which is gross), attached to the
+indoor and all-rooms area totals whose value is the net: the answer keeps the net, shows the gross and abstains. On
+T2 (us_daf dorm p003, TOTAL SECOND FLOOR = 26,562 SF) the 40 rooms found sum to 41% of it.
 
 How a conflict shows in the answer (answer_v1.1, [0002](decisions/0002-answer-format.md)): `answer` holds the
 resolved value, `conflicts` lists every measured value with its method, file, page and box (page and box are null

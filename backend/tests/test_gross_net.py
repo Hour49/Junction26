@@ -15,7 +15,6 @@ from app.core.answering.answer import answer_question
 from app.core.answering.model import Answer, Query, Question, Unsupported
 from app.core.drawing.model import Attr, Drawing, Room, Scale
 from app.core.pipeline.gross_net import (
-    FT2_M2,
     NET_TO_GROSS,
     gross_net_checked,
     net_area,
@@ -29,16 +28,16 @@ from app.core.pipeline.takeoff import known_quantities
 from app.settings import Settings
 
 BOX = (0.6, 0.6, 0.9, 0.62)
-# T2's area table as the Carbon reader gave it (us_daf dorm p003), trimmed: wing totals are
-# "other", circulation "room:hall", the floor's subtotal and total floor_area
+# T2's area table as the Carbon reader gives it (us_daf dorm p003, ft² in m²), trimmed: wing
+# totals are "other", circulation "room:hall", the floor's subtotal and total floor_area
 T2_FACTS = (
     PrintedFact(text="SECOND FLOOR = 48 DORMS", subject="room:bedroom", value=48, unit="count"),
-    PrintedFact(text="WEST WING CIRCULATION = 914 SF", subject="room:hall", value=914, unit="ft2"),
-    PrintedFact(text="TOTAL WEST WING = 7,009 SF", subject="other", value=7009, unit="ft2"),
-    PrintedFact(text="SUBTOTAL 26,181 SF", subject="floor_area", value=26181, unit="ft2"),
-    PrintedFact(text="EXTERIOR STAIR (1/2 SF) 381 SF", subject="room:shaft", value=381, unit="ft2"),
-    PrintedFact(text="TOTAL SECOND FLOOR = 26,562 SF", subject="floor_area", value=26562,
-                unit="ft2", box=BOX),
+    PrintedFact(text="WEST WING CIRCULATION = 914 SF", subject="room:hall", value=84.91, unit="m2"),
+    PrintedFact(text="TOTAL WEST WING = 7,009 SF", subject="other", value=651.16, unit="m2"),
+    PrintedFact(text="SUBTOTAL 26,181 SF", subject="floor_area", value=2432.29, unit="m2"),
+    PrintedFact(text="EXTERIOR STAIR (1/2 SF) 381 SF", subject="room:shaft", value=35.4, unit="m2"),
+    PrintedFact(text="TOTAL SECOND FLOOR = 26,562 SF", subject="floor_area", value=2467.68,
+                unit="m2", box=BOX),
 )  # fmt: skip
 
 
@@ -60,7 +59,7 @@ def extracted(*rooms: Room) -> Extracted:
 @pytest.mark.parametrize(
     ("facts", "picked"),
     [
-        (T2_FACTS, ("TOTAL SECOND FLOOR = 26,562 SF", 26562 * FT2_M2)),  # the largest total
+        (T2_FACTS, ("TOTAL SECOND FLOOR = 26,562 SF", 2467.68)),  # the largest total
         (gross_m2(300), ("GROSS FLOOR AREA 300 m2", 300.0)),  # GROSS in the text
         ((PrintedFact(text="1200 m2", subject="floor_area", value=1200, unit="m2"),),
          ("1200 m2", 1200.0)),  # floor_area alone
@@ -145,7 +144,7 @@ def ask(found: Extracted) -> Answer:
 def test_t2_the_indoor_area_keeps_the_net_number_and_is_held_with_the_gross_beside_it() -> None:
     """Pass line 1: the answer's value stays the rooms' sum, the printed gross is the other
     value, no rule decides (a person does), and the note says which is which."""
-    gross = 26562 * FT2_M2
+    gross = 2467.68
     found = gross_net_checked(extracted(room("a", 700.0), room("b", 411.0)), T2_FACTS)
     answer = ask(found)
     assert answer.answer == 1111.0 and answer.abstain is True
