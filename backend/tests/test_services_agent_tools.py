@@ -349,3 +349,42 @@ def test_a_name_two_rooms_hold_lists_them_and_an_unknown_one_says_so() -> None:
     assert "SR1 '1 Living'" in both["error"] and "SR2 '2 Living'" in both["error"]
     unknown = _run(_store(), "list_services", drawing_id="d1", room_id="Küche 1-3")
     assert "no room named 'Küche 1-3'" in unknown["error"] and "1 Living" in unknown["error"]
+
+
+# --- breakdowns (#430 c6886940069 R2: "of each type", "per room" refused when the list was cut) ---
+
+
+def _many(count: int, types: int) -> ServicesModel:
+    """The fixture with `count` more radiators in turns of the two rooms, of `types` type names."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    radiator = next(e for e in doc["elements"] if e["id"] == "E3")
+    many = [
+        {**radiator, "id": f"E{100 + i}", "ref": {"guid": f"g{i}"}, "ports": [],
+         "type": f"Radiator type {i % types}", "room": ("SR1", "SR2")[i % 2]}
+        for i in range(count)
+    ]  # fmt: skip
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *many]})
+
+
+def test_a_cut_list_still_counts_every_match_by_type_and_by_room() -> None:
+    found = _run(_store(_many(300, 3)), "list_services", drawing_id="d1", kind="space_heater")
+    assert found["more"] > 0  # the items are cut, the groups are not
+    assert found["by_type"] == {
+        "Radiator type 0": 100, "Radiator type 1": 100, "Radiator type 2": 100,
+        "Radiator 22-600": 2,
+    }  # fmt: skip
+    assert found["by_room"] == {"SR1 1 Living": 151, "SR2 2 Bedroom": 151}
+
+
+def test_too_many_groups_keep_the_largest_and_count_the_rest() -> None:
+    found = _run(_store(_many(300, 300)), "list_services", drawing_id="d1", kind="space_heater")
+    rest = [k for k in found["by_type"] if k.startswith("and ")]
+    assert len(rest) == 1 and rest[0].endswith(" more groups")
+    assert sum(found["by_type"].values()) == found["count"] == 302
+    assert found["by_type"]["Radiator 22-600"] == 2  # the largest group is kept
+
+
+def test_the_list_tool_says_breakdowns_come_from_the_groups() -> None:
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    said = listing["function"]["description"]
+    assert "by_type" in said and "by_room" in said

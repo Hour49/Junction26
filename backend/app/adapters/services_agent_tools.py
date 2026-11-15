@@ -19,6 +19,7 @@ caller with the model each drawing's chat edits (its source plus the accepted pa
 import json
 import logging
 import re
+from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
@@ -67,6 +68,7 @@ NOT_READ = (
     "ducts and cables cannot be followed"
 )
 MAX_ITEMS = 60
+MAX_GROUPS = 30  # of by_type and by_room before a result is cut to LIMIT
 NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
 )
@@ -372,11 +374,10 @@ _CHANGES = " Changes nothing: the person accepts or rejects the proposal."
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
-        "A building's pipes, ducts and cables: storeys, systems, connectivity, terminals "
-        "and equipment (ids E...) with room id and name; count = all matches (list may be cut): "
-        "how-many answer states count. room_id (id or name): that room's walls (SW...), "
-        "what hangs on "
-        "them, and whether a pipe is in reach. Use before proposing.",
+        "Pipes, ducts, cables: storeys, systems, connectivity, terminals and equipment "
+        "(ids E...) with room; count = all matches (items may be cut), state it; by_type, "
+        "by_room count all matches: answer breakdowns from them. room_id (id or name): its "
+        "walls (SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
     (
@@ -471,6 +472,15 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     if room is not None:
         found |= _walls(model, room)
     names = {r.id: r.name for r in model.rooms}
+    matched = [
+        e
+        for e in model.elements
+        if (e.group == "flow_terminal" or _equipment(e))
+        and (storey is None or e.storey == storey.id)
+        and (args.system is None or args.system in e.systems)
+        and (room is None or e.room == room.id)
+        and (args.kind is None or args.kind in (e.kind, e.group))
+    ]
     items = [
         {
             "id": e.id,
@@ -482,19 +492,33 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
             "page": pages.get(e.storey or ""),
             "box": _box(model, e),
         }
-        for e in model.elements
-        if (e.group == "flow_terminal" or _equipment(e))
-        and (storey is None or e.storey == storey.id)
-        and (args.system is None or args.system in e.systems)
-        and (room is None or e.room == room.id)
-        and (args.kind is None or args.kind in (e.kind, e.group))
+        for e in matched
     ]
     found["count"] = len(items)
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
-    while len(json.dumps(found, ensure_ascii=False)) > LIMIT and found["items"]:
-        found["items"].pop()
-        found["more"] += 1
+    types = Counter(e.type for e in matched)
+    rooms = Counter(f"{e.room} {names.get(e.room, '')}".strip() if e.room else "no room"
+                    for e in matched)  # fmt: skip
+    top = MAX_GROUPS
+    while True:  # the groups count every match: items go first, then the smallest groups
+        found["by_type"], found["by_room"] = _groups(types, top), _groups(rooms, top)
+        short = len(json.dumps(found, ensure_ascii=False)) <= LIMIT
+        if short or (top == 1 and not found["items"]):
+            break
+        if found["items"]:
+            found["items"].pop()
+            found["more"] += 1
+        else:
+            top //= 2
     return found
+
+
+def _groups(counts: Counter[str], top: int) -> dict[str, int]:
+    """The `top` largest groups, the rest summed under "and K more groups"."""
+    kept = dict(counts.most_common(top))
+    if len(counts) > top:
+        kept[f"and {len(counts) - top} more groups"] = sum(counts.values()) - sum(kept.values())
+    return kept
 
 
 def _ask(store: ServicesToolStore, args: Any) -> dict[str, Any]:

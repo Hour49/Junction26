@@ -66,6 +66,18 @@ class _WithPlan(_Ingest):
         return done.model_copy(update={"files": (*done.files, plan)})
 
 
+class _AllIfc(_Ingest):
+    """Only IFC files (#430 c6886940069 R3): the services model and an architecture model."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        done = super().status(project_id)
+        arc = FileStatus(
+            id="f2", path="m/arc.ifc", size=1, sha256="2" * 64, kind="ifc", state="ready",
+            route="bim", drawing_id="fedcba9876543210",
+        )  # fmt: skip
+        return done.model_copy(update={"files": (arc, *done.files)})
+
+
 class _PdfOnly(_Ingest):
     """The same project with no IFC file: a PDF plan only."""
 
@@ -457,3 +469,19 @@ def test_a_name_two_rooms_hold_is_answered_with_both(settings: Settings, tmp_pat
     found = _rules(_client(settings, tmp_path, model=renamed), "Which radiators are in the living?")
     assert found["kind"] == "dont_know", found
     assert "SR1 '1 Living'" in found["text"] and "SR2 '2 Living'" in found["text"]
+
+
+def test_in_a_project_of_ifc_files_only_a_room_question_reaches_the_services_tools(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """#430 c6886940069 R3: another IFC file is no drawing that answers about a room."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    doc["rooms"][0]["name"] = "1-3 Küche"
+    radiator = next(e for e in doc["elements"] if e["id"] == "E2")
+    sink = {**radiator, "id": "E20", "ref": {"guid": "sink"}, "kind": "sanitary_terminal",
+            "type": "Spüle", "label": "Spüle", "ports": []}  # fmt: skip
+    model = ServicesModel.model_validate({**doc, "elements": [*doc["elements"], sink]})
+    client = _client(settings, tmp_path, ingest=_AllIfc(), model=model)
+    found = _rules(client, "How many sinks are there in Küche 1-3?")
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith("1 sink in 1-3 Küche") and "E20" in found["text"]
