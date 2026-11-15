@@ -42,6 +42,17 @@ def listed(client: TestClient, project_id: str) -> list[dict[str, Any]]:
     return body["issues"]
 
 
+def waits_for_you(issue: dict[str, Any]) -> bool:
+    """The client's one count rule (frontend/src/documents/documents.ts `waitsForYou`, DOC-12): a
+    conflict only once a model looked at it (`resolved`), not a note, open, unanswered."""
+    return (
+        (issue["kind"] != "conflict" or "resolved" in issue)
+        and issue["severity"] != "note"
+        and issue["state"] == "open"
+        and issue["answer"] is None
+    )
+
+
 def drawing_of(project: dict[str, Any], path: str) -> str:
     return next(file["drawing_id"] for file in project["files"] if file["path"] == path)
 
