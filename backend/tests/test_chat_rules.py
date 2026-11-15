@@ -99,6 +99,13 @@ def test_ac11_several_rooms_of_the_type_asked_about_ask_which() -> None:
         {"label": "Room 1.01", "message": "What is the net floor area of room 1.01?"},
         {"label": "Room 1.09", "message": "What is the net floor area of room 1.09?"},
     ]
+    # review-537 M1: with find_rooms offered (it matches room types since #537), the refusal's
+    # own rooms still answer: they keep the question asked; find_rooms would only locate them
+    tools = [*TOOLS, {"type": "function", "function": {"name": "find_rooms"}}]
+    turn = history("How big is the bathroom?", ("ask_drawings", {}, asked))
+    [call] = RulesChatModel().complete(turn, tools).message["tool_calls"]
+    assert call["function"]["name"] == "final_answer"
+    assert json.loads(call["function"]["arguments"])["options"] == args["options"]
 
 
 def test_ac11_a_refusal_carries_its_suggestions_as_options() -> None:
