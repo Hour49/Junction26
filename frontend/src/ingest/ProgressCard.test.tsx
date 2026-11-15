@@ -7,7 +7,7 @@ import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { LANE_ROWS, splitPath } from './RouteLanes';
 import { ProgressCard } from './ProgressCard';
-import { DEMO_READERS, must } from './testing';
+import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
 
 beforeEach(stubResizeObserver);
 afterEach(cleanup);
@@ -89,21 +89,12 @@ describe('ProgressCard: pipeline view v5', () => {
       within(chips)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual([
-      'running: symbol detector',
-      'count arbiter',
-      'plan finder',
-      'room reader',
-      'Carbon',
-      'printed scale',
-      'second readers (2)',
-      'Carbon level check',
-    ]);
+    ).toEqual(RASTER_CHIPS.map((c) => (c === 'symbol detector' ? `running: ${c}` : c)));
     expect(
       within(lane('Drawn PDF'))
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toContain('schedule reader');
+    ).toContain('schedule tables');
     // a file links to its own page
     expect(
       within(lane('Image')).getByRole('link', { name: 'plans/img.png' }).getAttribute('href'),
@@ -179,7 +170,55 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(chips).toContain('symbol detector✓');
     expect(chips).toContain('room reader✓');
     expect(chips).toContain('running: Wall tracer');
-    expect(chips).toContain('Carbon'); // configured, not seen: no tick
+    expect(chips).toContain('Gemini for sheets with few symbols'); // configured, not seen: no tick
+  });
+
+  it("IN-118 a live file's real steps tick their reader chips; none becomes a chip of its own", () => {
+    const { rerender } = render(<ProgressCard project={running} now={Date.now()} />);
+    for (const label of LIVE_STEPS.raster)
+      rerender(
+        <ProgressCard
+          project={{
+            ...running,
+            files: running.files.map((f) => (f.id === 'img' ? { ...f, step: label } : f)),
+          }}
+          now={Date.now()}
+        />,
+      );
+    const chips = within(within(lane('Image')).getByRole('list', { name: 'Readers' }))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+    expect(chips).toHaveLength(RASTER_CHIPS.length);
+    for (const c of [
+      'printed scale (Gemini)✓',
+      'Gemini cross-check (not counted)✓',
+      'Gemini count decision✓',
+      'count arbiter✓',
+      'room reader✓',
+      'double check by 2 more readers (not counted)✓',
+      'running: Gemini for sheets with few symbols',
+    ])
+      expect(chips).toContain(c);
+  });
+
+  it('IN-119 the sorting every file goes through before its route, from the recorded triage', () => {
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const sorting = within(screen.getByRole('region', { name: 'Routes' })).getByRole('list', {
+      name: 'Sorting',
+    });
+    expect(
+      within(sorting)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      'scan or photo (Gemini)',
+      'sheet kind (Gemini)',
+      'describes sheets that are not plans (Gemini)',
+      'keep or set aside (rules)',
+    ]);
+    cleanup();
+    render(<ProgressCard project={{ ...running, readers: undefined }} now={Date.now()} />);
+    expect(screen.queryByRole('list', { name: 'Sorting' })).toBeNull();
   });
 
   it("IN-101 a route whose reader reads nothing says so (the no-keys server's image route)", () => {
