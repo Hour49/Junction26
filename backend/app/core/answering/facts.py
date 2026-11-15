@@ -83,7 +83,7 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
     query, facts = _kind_of_sheet(query, sheet), _Facts(sheet.facts)
     picture = bool(sheet.facts) and all(_picture(fact) for fact in sheet.facts)
     if picture:  # its systems are its runs: "each pipe system" is their length by system
-        query = _per_system(query)
+        query = _per_system(query, facts)
     if picture and query.place is not None:  # a picture's facts are whole-sheet counts only
         return Answer(
             id=question.id,
@@ -157,15 +157,24 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
 _EACH_SYSTEM = re.compile(r"\b(?:by|per|each)\s+(?:\w+\s+)?systems?\b", re.I)
 
 
-def _per_system(query: FactQuery) -> FactQuery:
-    """A picture's "how long is each (pipe|plumbing) system": its runs' length by system."""
+def _per_system(query: FactQuery, facts: "_Facts") -> FactQuery:
+    """A picture's "how long is each (pipe|plumbing) system": its runs' length by system. With no
+    runs of that kind on the sheet, the query as asked: its not-available line (review-737 S3)."""
     if "length" not in query.measures or not _EACH_SYSTEM.search(query.asked):
         return query
     if query.entity == "system":
-        entity = "duct_segment" if query.discipline == "ventilation" else "pipe_segment"
+        has = [e for e in ("pipe_segment", "duct_segment") if facts.topics(f"{e}.length")]
+        entity = (
+            "duct_segment"
+            if query.discipline == "ventilation"
+            or (query.discipline is None and has == ["duct_segment"])
+            else "pipe_segment"
+        )  # a duct picture asked "each system" lists its ducts (review-737 S2)
     elif query.entity in ("pipe_segment", "duct_segment"):
         entity = query.entity
     else:
+        return query
+    if not facts.topics(f"{entity}.length"):
         return query
     return query.model_copy(update={"entity": entity, "by": "system"})
 
