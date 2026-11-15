@@ -15,7 +15,7 @@ routes' numbers:
     get_takeoff     GET  /api/drawings/{id}/takeoff?project={id}
     list_conflicts  GET  /api/projects/{id}/review          (its `conflicts`)
     list_issues     GET  /api/projects/{id}/issues
-    run_checks      GET  /api/projects/{id}/checks?pack=    (fails first, passes counted)
+    run_checks      GET  /api/projects/{id}/checks?pack=    (fails first, passes last)
     get_plan_geometry  the drawing model's plans, rooms, openings and walls on one page
 
 The names are provisional (the chat side posts the final list); renaming is a change of `NAME`
@@ -170,9 +170,10 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     ),
     (
         "run_checks",
-        "Check the project's drawings against a building-code rule pack: every failing and "
-        "cannot-tell result with its drawing, rule and clause, then each rule on each drawing "
-        "with its results counted by status. A pre-check, not a compliance certificate.",
+        "Check the project's drawings against a building-code rule pack: each rule with its "
+        "clause and its drawings and results counted by status, every failing and cannot-tell "
+        "result (and each drawing a rule could not check), then the passing results. A "
+        "pre-check, not a compliance certificate.",
         _ChecksArgs,
     ),
     (
@@ -356,42 +357,56 @@ def _issues(store: PipelineStore, args: Any) -> list[BaseModel]:
 
 def _checks(store: PipelineStore, args: Any) -> dict[str, Any]:
     pack = find_pack(store.packs, args.pack)  # NotFoundError names the pack
-    return _failures_first(checks_of(store.project_id, pack, store.ingest))
+    return _failures_first(checks_of(store.project_id, pack, store.ingest), pack.fail_means)
 
 
-def _failures_first(found: ProjectChecks) -> dict[str, Any]:
-    """The route's checks as the chat reads them: the failing and cannot-tell results first,
-    each with its drawing, rule and clause, then each rule on each drawing with its results
-    counted by status. The passes are only counted, so when the loop cuts a long result to fit
-    (it halves the longest list) the failures are the last thing it reaches (R4-I5: the drawings
-    list was cut before flat-b's failing Zimmer 1.05)."""
-    listed: dict[str, list[dict[str, Any]]] = {"fail": [], "cannot_tell": []}
-    rules: list[dict[str, Any]] = []
+def _failures_first(found: ProjectChecks, fail_means: str | None) -> dict[str, Any]:
+    """The route's checks as the chat reads them. The loop fits a long result by halving its
+    longest list, never a dict, so (R4-I5, review-621):
+    - `rules` is a dict by rule id: title, clause, and its drawings and results counted by
+      status (as big as the pack, not the project);
+    - `failures` and `cannot_tell` hold small entries (file, rule, subject, value and its why,
+      which says the limit; the pack's `fail_means`, the same after every fail, is said once);
+      a rule that could not run on a drawing at all ("no rooms were read") is a cannot-tell
+      entry of its own, with no subject;
+    - `passes`, entries of the same kind, comes last: as many as the rest or more, each as long,
+      it is the list a cut halves first. The drawing ids are list_drawings'."""
+    rules: dict[str, dict[str, Any]] = {}
+    listed: dict[str, list[dict[str, Any]]] = {"fail": [], "cannot_tell": [], "pass": []}
     for drawing in found.drawings:
-        where = {"file": drawing.file, "drawing_id": drawing.drawing_id}
         for rule in drawing.rules:
-            clause = rule.clause.model_dump(mode="json")
+            summary = rules.setdefault(rule.rule_id, {
+                "title": rule.title, "clause": rule.clause.model_dump(mode="json"),
+                "drawings": Counter[str](), "results": Counter[str](),
+            })  # fmt: skip
+            summary["drawings"][rule.status] += 1
+            at = {"file": drawing.file, "rule_id": rule.rule_id}
             for result in rule.results:
-                if result.status in listed:
-                    shown = result.model_dump(mode="json", exclude={"rule_id", "marks"})
-                    listed[result.status].append(
-                        {**where, "rule_id": rule.rule_id, "title": rule.title,
-                         "clause": clause, **shown}
-                    )  # fmt: skip
-            rules.append(
-                {**where, "rule_id": rule.rule_id, "title": rule.title, "status": rule.status,
-                 "why": rule.why, "clause": rule.clause.ref,
-                 "counts": dict(Counter(result.status for result in rule.results))}
-            )  # fmt: skip
+                summary["results"][result.status] += 1
+                said = result.why
+                if fail_means and said.endswith(fail_means):
+                    said = said.removesuffix(fail_means).rstrip()
+                listed[result.status].append(
+                    {**at, "subject": result.subject.label, "value": result.value, "why": said}
+                )
+            if rule.status == "cannot_tell" and all(r.status != rule.status for r in rule.results):
+                listed["cannot_tell"].append({**at, "why": rule.why})  # the rule could not run
     return {
         "project_id": found.project_id,
         "pack": found.pack,
         "note": found.note,
         "status": found.status,
+        "fail_means": fail_means,
+        "rules": {rule_id: _counted(summary) for rule_id, summary in rules.items()},
         "failures": listed["fail"],
         "cannot_tell": listed["cannot_tell"],
-        "rules": rules,
+        "passes": listed["pass"],
     }
+
+
+def _counted(summary: dict[str, Any]) -> dict[str, Any]:
+    """A rule's summary with its counters as plain dicts."""
+    return {**summary, "drawings": dict(summary["drawings"]), "results": dict(summary["results"])}
 
 
 def _geometry(store: PipelineStore, args: Any) -> dict[str, Any]:
