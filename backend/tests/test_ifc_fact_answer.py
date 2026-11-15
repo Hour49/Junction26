@@ -219,7 +219,8 @@ def test_the_dev_prior_comes_before_the_facts() -> None:
     assert answer.answer == 4 and answer.abstain is True  # the prior's number, as before
     assert asked == []  # and the sheet was never built
     answer = answer_question(question, {}, Counts(), lambda: 0.0, NoPrior(), facts=sheet)
-    assert answer.method == FACTS and asked == [1]  # no prior: the facts answer
+    assert answer.method == "refused:not-in-drawing" and asked == [1]  # no prior: the facts'
+    assert answer.explanation == "No doors found in this file (not available in it)."  # (no doors)
 
 
 def test_a_broken_fact_refuses_that_question_only() -> None:

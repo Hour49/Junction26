@@ -25,6 +25,7 @@ from app.core.services.pairing import file_floors, floors_in
 FACTS = "facts"  # `method` of an answer read from the fact sheet
 WHY = "read from the file's fact sheet; not yet measured, so confidence is Low"
 UNAVAILABLE = "This information is not available in the file"
+NOT_AVAILABLE = "not available in it"  # a file that holds none of the thing asked: refused
 # A picture's sheet holds facts only of what its legend lists (discipline-pictures.md Outputs)
 NOT_READ = "not read on this picture"
 PICTURE_ROUTES = ("picture", "vector")  # a Fact.source's route, before its colon
@@ -55,6 +56,12 @@ _STYLE_CODES = (
 SAME_KIND = {"heat_exchanger": "space_heater", "switch": "switching_device"}
 # What a question asks about that is not a drawn thing: never refused as not read
 NOT_DRAWN = frozenset({"project", "storey", "space", "system", "discipline", "port"})
+
+
+class _NoneHeld(str):
+    """What a file says when it holds none of the thing asked ("No dampers found in this file
+    (not available in it)."): a refusal, not an answer, so a project's answer card never opens on
+    a model that lacks it under another model's count (big QA R2 services row 7)."""
 
 
 class FactSource(Protocol):
@@ -130,6 +137,18 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
     text = _written(query, facts) if rows is None else rows.text()
     if text is None:
         return None
+    if isinstance(text, _NoneHeld) and query.how_many:  # "Which ... are present?" keeps its text
+        return Answer(
+            id=question.id,
+            answer=None,
+            unit=None,
+            evidence=(),
+            method="refused:not-in-drawing",
+            cost_usd=0.0,
+            latency_s=latency_s,
+            abstain=True,
+            explanation=str(text),
+        )
     if floor:
         text = f"This picture is {floor} by its file name.\n{text}"
     asked = (
@@ -308,7 +327,7 @@ def _written(query: FactQuery, facts: "_Facts") -> str | None:
         noun = _plural(_noun(query.entity))
         if query.entity == "discipline":
             noun = f"{query.discipline or 'such'} elements"
-        text = f"This file holds no {noun}: not available in it."
+        text = _NoneHeld(f"This file holds no {noun}: {NOT_AVAILABLE}.")
     asks = query.yes_no and query.entity not in ("project", "space", "storey")
     if asks and text is not None and (said := _yes_no(query, facts, storey)) is not None:
         text = f"{said}\n{text}"
@@ -1549,7 +1568,7 @@ def _by_name(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     ]
     lines += _categories(query, facts, storey)
     if not lines:
-        return f"No {_plural(_noun(query.entity))} found in this file (not available in it)."
+        return _NoneHeld(f"No {_plural(_noun(query.entity))} found in this file ({NOT_AVAILABLE}).")
     return "\n".join(lines)
 
 

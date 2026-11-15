@@ -234,6 +234,7 @@ class FactQuery(Frozen):
     guid: str | None = None  # an element's GlobalId the question names
     between: tuple[str, str] | None = None  # two storeys as the question words them
     yes_no: bool = False  # "Are the interior walls load bearing?"
+    how_many: bool = False  # asks for a number of things: "How many dampers ...", "number of"
     derived: bool = False  # asks for an estimate or a judgement the model does not store
     place: str | None = None  # a place inside the sheet it counts in (_IN_PLACE), as worded
 
@@ -241,6 +242,10 @@ class FactQuery(Frozen):
         if self.aggregate == "unavailable":
             return "unavailable"
         return f"{self.entity}.{self.measures[0]}"
+
+
+# Count wording: a file holding none of the thing is no answer to it (answering/facts.py)
+_HOW_MANY = re.compile(r"\bhow\s+many\b|\b(?:total\s+)?(?:number|count)\s+of\b")
 
 
 def parse_ifc_question(text: str) -> FactQuery | None:
@@ -260,6 +265,7 @@ def parse_ifc_question(text: str) -> FactQuery | None:
         # "Can you provide ..." is a request, not a yes/no question
         yes_no=re.match(r"(?:are|is|does|do|has|have|can)\b(?!\s+you\b)", lower) is not None,
         derived=_DERIVED.search(said) is not None,
+        how_many=_HOW_MANY.search(lower) is not None,
         place=_place(rest),
         guid=_guid(said),
         between=None
