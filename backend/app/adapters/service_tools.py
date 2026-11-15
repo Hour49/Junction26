@@ -42,6 +42,7 @@ from app.core.plan_edit.walls import PlanPage
 from app.core.services.follow import follow, not_followed
 from app.core.services.model import (
     LANES,
+    DisciplineFollow,
     Frame,
     Lane,
     Point2,
@@ -191,8 +192,18 @@ class ServiceFollower:
         plan = self._sheet(plan_file, proposal.page, self.pictures(proposal.drawing_id))
         pairings = pair(plan, [sheet for sheet, _ in sheets], self._register(proposal))
         seen = picture_follow(proposal, plan, sheets, pairings=pairings)
+        names = {e.file: e.name for e in drawings_of(status)}
+
+        def named(lane: DisciplineFollow) -> DisciplineFollow:
+            """A picture lane's sheets by their names in the project, as a model lane's model."""
+            if not lane.source:
+                return lane
+            ids = lane.source.split(", ")
+            said = (_name(files[i], names) if i in files else i for i in ids)
+            return lane.model_copy(update={"source": ", ".join(said)})
+
         lanes = tuple(
-            mine if mine.status != "no_model" else theirs
+            named(mine) if mine.status != "no_model" else theirs
             for mine, theirs in zip(seen.disciplines, followed.disciplines, strict=True)
         )
         return followed.model_copy(
