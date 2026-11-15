@@ -9,6 +9,7 @@ from test_api_ask_picture_facts import ask, picture_project
 from app.core.answering.facts import FACTS, answer_from_facts
 from app.core.answering.model import IN_ONE_ROOM, Answer, Question
 from app.core.ifc_facts import Fact, FactSheet
+from app.core.ifc_question import parse_ifc_question
 from app.settings import Settings
 from tests.test_picture_answers import _sheet
 
@@ -84,3 +85,18 @@ def test_the_ask_and_the_chat_refuse_one_room_on_a_picture(settings: Settings) -
     assert parts[drawing]["answer"] is None and parts[drawing]["method"] != FACTS
     sheet = ask(client, project, drawing, "How many radiators are drawn on this plan?")
     assert sheet["method"] == FACTS and "29" in sheet["answer"], sheet
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the net floor area of the room 'ESIK (67-2)', in m²?",
+        "How long is the heating pipe on H-101, in metres?",
+        "How many doors in the door schedule have a wood solid core door?",
+        "Which room in the finish room schedule has the largest area?",
+    ],
+)
+def test_a_unit_or_a_table_is_no_place_inside_the_sheet(text: str) -> None:
+    """The golden set's "in m²" and "in the door schedule" (2026-11-15): not a room."""
+    found = parse_ifc_question(text)
+    assert found is None or found.place is None, found

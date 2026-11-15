@@ -186,14 +186,16 @@ _WORD = re.compile(r"[^\W_]+(?:[-'][^\W_]+)*")
 _IN_PLACE = re.compile(
     r"\b(?:in|inside|within)\s+(?:(?:the|this|that|these|those|a|an|one|each|every)\s+)?"
     r"(?P<place>[^\W_][\w'\u2019-]*(?:\s+(?!(?:of|on|and|or|with|at|for|in|per|that|which|where|"
-    r"are|is)\b)[^\W_][\w'\u2019-]*)*)"
+    r"are|is|has|have|had|carry|carries|show|shows|list|lists|contain|contains)\b)"
+    r"[^\W_][\w'\u2019-]*)*)"
     r"|\bdoes\s+(?:the|this|that)\s+(?P<has>[^\W_][\w'\u2019 -]*?)\s+(?:have|contain|hold)\b",
     re.I,
 )
-_SHEET_WORDS = frozenset(
+_SHEET_WORDS = frozenset(  # the whole sheet, a table on it, or the unit asked in ("in m²")
     """plan plans floorplan drawing drawings sheet sheets page pages picture pictures photo photos
     image images scan scans layout diagram map legend model file building project total all it
-    them whole entire set""".split()  # noqa: SIM905 (a word list reads better as text)
+    them whole entire set schedule schedules table tables m m² m2 m³ m3 mm cm km sqm metre metres
+    meter meters ft feet units""".split()  # noqa: SIM905 (a word list reads better as text)
 )
 _SHEET_CODE = re.compile(r"[^\W\d_]{1,3}-?\d+[^\W\d_]?")  # H-101, P101, E00: a drawing's own code
 _STOP = frozenset(
