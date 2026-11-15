@@ -515,6 +515,10 @@ Thread and pages
   <n>" (`aria-expanded`), which shows every row and becomes "Show fewer". A selected mark past the 12th (a badge
   clicked in the viewer, EN-17) shows the whole list, so its row is there. Before: a schedule's 38 rows listed "1 item"
   … "38 item", 2,000 px of card. [component]
+- EN-92 (QA round 2, R2-A2) A refusal draws no sheet, so the opening card (the page without marks, the "how it was
+  read" line) stays above the thread while every turn is a refusal; the first turn that is not a refusal (pending, an
+  answer or an error) replaces it as before (EN-78). A judge whose first question is refused still sees the drawing.
+  [component]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)
