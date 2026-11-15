@@ -494,7 +494,7 @@ describe('edits', () => {
     fireEvent.click(nth(within(detail()).getAllByRole('button', { name: 'Reject' }), 0));
     const alert = await within(detail()).findByRole('alert');
     expect(alert.textContent).toContain('door is signed off');
-    expect(alert.textContent).toContain('not-allowed');
+    expect(alert.textContent).not.toContain('not-allowed'); // R2-C5: no raw code
     expect(screen.getByRole('row', { name: /door count/ }).textContent).toContain('One method');
     fireEvent.click(nth(within(detail()).getAllByRole('button', { name: 'Reject' }), 0));
     await waitFor(() => {
@@ -772,7 +772,7 @@ describe('states', () => {
     show('', { [PATH.takeoff]: reply(404, errorBody) });
     const notFound = await screen.findByRole('alert');
     expect(notFound.textContent).toContain('no drawing 0123456789abcdef');
-    expect(notFound.textContent).toContain('code: not-found');
+    expect(notFound.textContent).not.toContain('not-found');
     expect(
       within(notFound).getByRole('link', { name: 'Back to workspaces' }).getAttribute('href'),
     ).toBe('#/workspaces');

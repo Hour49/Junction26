@@ -89,9 +89,9 @@ export function callError(error: unknown): string {
     return 'The project is still being read: a call can be made once it is done.';
   if (code === 'no-description')
     return 'This file was not described, so there is nothing to judge or overrule.';
-  const { detail, code: c } = errorText(error);
-  if (code === 'not-found') return `This file is no longer in the project. (${detail}, ${c})`;
-  return `${detail} (${c})`;
+  const { detail } = errorText(error);
+  if (code === 'not-found') return `This file is no longer in the project. (${detail})`;
+  return detail;
 }
 
 export function readError(error: unknown): string {
@@ -100,6 +100,5 @@ export function readError(error: unknown): string {
     return 'The project is still being read, or this file is being read again already.';
   if (code === 'not-triaged')
     return 'Triage did not set this file aside, so there is nothing to read again.';
-  const { detail, code: c } = errorText(error);
-  return `${detail} (${c})`;
+  return errorText(error).detail;
 }

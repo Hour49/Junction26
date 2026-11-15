@@ -183,7 +183,7 @@ describe('drawing header and ask box', () => {
   it('EN-3 a 404 shows the error with detail, code and a link to the project', async () => {
     open({ [DRAWING_ROUTE]: { status: 404, body: error } });
     expect(await screen.findByText(/no drawing 0123456789abcdef/)).toBeTruthy();
-    expect(screen.getAllByText(/not-found/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/not-found/)).toHaveLength(0); // R2-C5: no raw code
     const back = screen.getByRole('link', { name: 'Back to the project' });
     expect(back.getAttribute('href')).toBe(`#/p/${PROJECT}`);
   });
@@ -478,7 +478,7 @@ describe('refusals and errors', () => {
     expect(
       await within(t).findByText('The question could not be answered: question too long'),
     ).toBeTruthy();
-    expect(within(t).getByText(/validation/)).toBeTruthy();
+    expect(within(t).queryByText(/validation/)).toBeNull(); // R3-L7: no raw 'code: …' line
     fireEvent.change(input(), { target: { value: 'x' } });
     expect(askButton().disabled).toBe(false);
     fireEvent.click(within(t).getByRole('button', { name: 'Try again' }));

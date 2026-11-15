@@ -78,7 +78,7 @@ describe('PageViewer: page and frame', () => {
     const img = screen.getByAltText('Page 1 of plans/flat-a.pdf');
     const src = img.getAttribute('src');
     fireEvent.error(img);
-    await screen.findByText('Page 1 could not be loaded: no drawing 0123456789abcdef (not-found)');
+    await screen.findByText('Page 1 could not be loaded: no drawing 0123456789abcdef');
     expect(fetchMock).toHaveBeenCalledWith(src);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => {

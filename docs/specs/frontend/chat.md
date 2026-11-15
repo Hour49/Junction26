@@ -52,7 +52,7 @@ project's drawings").
 | Asking | the question bubble and "Reading N drawings…"; Ask disabled |
 | Answered (one or more parts) | one card: the quantity label (small), the total (`answer-value`, 44 px) in `total_unit` when `total` is not null, a "Sure" badge after it when `total_sure` (as EN-53), `total_note`, then one line per answering part "<name>: <value>" with "Show it on <name>" linking to `#/p/<pid>/d/<drawing_id>/engineer?ask=<question>` (plus `&pack=<id>` when the chat has one), so that drawing opens already answering this question with its marks (engineer.md EN-72; QA R4b-1); no plan, no image |
 | Refused by all | one refusal card: "I can't answer that from these drawings.", the first refusal's text and its `can_answer` chips (a click asks the project again) |
-| The ask failed (404, 409, 500, network) | the engineer's error turn ("The question could not be answered: <detail>", code, Try again asks again) |
+| The ask failed (404, 409, 500, network) | the engineer's error turn ("The question could not be answered: <detail>", no raw code, Try again asks again) |
 
 Phone 390: one column, no sideways scroll, the ask box sticks to the bottom (engineer.md EN-71 band).
 

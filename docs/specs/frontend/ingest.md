@@ -180,9 +180,9 @@ when `rotated` is not 0, "deskewed <deskew_deg>°" when `deskew_deg` is not 0, "
 | --- | --- | --- | --- | --- |
 | Loading | list shows "Loading projects…" | "Loading project…" in place of the content | "Loading trace…" | delay the response (component test: a pending promise; e2e: `page.route` with a delay) |
 | Empty | (no list on home in v2) | only once the project is `done` or `failed`: no files: "This upload has no files." No drawings: "No drawings: nothing in this upload could be read as a plan." While `queued` or `running` an empty list gives no verdict: it reads "Waiting for the files…", and with no files yet the progress line is left out (no "0 of 0") | stages `[]`: "No stages yet." | variants `list-empty`, `no-drawings`, `no-files`, `trace-queued`; `queued` with `files: []` |
-| Error | drop card: `detail` and `code` of the upload error | first load fails: `ErrorView` (its `not-found` link "Back to workspaces") with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
+| Error | drop card: `detail` of the upload error (no raw `code`, QA R2-C5) | first load fails: `ErrorView` (its `not-found` link "Back to workspaces") with Retry. A poll fails: the last data stays, labelled "Not updating since <formatTime(now)>: <detail> (<code>)", with Retry that resumes polling | as the project screen, plus "Back to the project" | `mockApi` with `{status: 500, body: error}`; 404 with an unknown id; stop the backend |
 | Upload refused | `uploadTooLarge`'s sentence. No request sent | | | a `File` over the limit (component test: `new File` with a stubbed `size`) |
-| Busy / too large | box shows `detail` and `code` (`busy`, `too-large`) | | | `mockApi` 429 / 413 with `error.json` spread with that `code` |
+| Busy / too large | box shows `detail` (worded per `code`: `busy`, `too-large`) | | | `mockApi` 429 / 413 with `error.json` spread with that `code` |
 | Running | | polling; "Analysing now"; the working step row shows its hint and file bar; running files show "running" | polling; stages grow | variant `running` / `trace-running` |
 | Failed project | | "Ingest failed", "Stopped" and `error`; no step list; polling stopped; files listed as returned | | variant `failed` |
 | Set aside | | the row reads "set aside" with its `reason` | the failing stage reads "Failed: <failure>" | variant `set-aside` / `trace-failed` |
@@ -278,7 +278,7 @@ Home and upload
 - IN-8: On `202` from an upload or from the sample, the location becomes `#/p/<id>` with `id` from
   `project_started.json`. [component]
 - IN-9: "Try the sample project" sends `POST /api/projects/sample?fresh=true` with no body. [component]
-- IN-10: For the sample, a 413, 429, 422 or 404 response shows its `detail` and `code` in the box (e.g. "busy") and re-enables the
+- IN-10: For the sample, a 413, 429, 422 or 404 response shows its `detail` in the box, not the code (QA R2-C5) and re-enables the
   controls. [component, `error.json` bodies with status and code changed]
 - IN-89 (Bogdan 2026-11-15, "so I know when i've successfully uploaded and sent to server and received, and moves me
   to start the extraction"): a file goes over XHR (fetch has no upload progress). Sending: "Sending <name>: <sent>
@@ -333,7 +333,7 @@ Project screen
 - IN-28: A poll that fails keeps the last data on screen and shows "Not updating since <formatTime(now)>: <detail> (<code>)"
   with Retry; polling is paused until Retry, which sends the request again. [component, fake timers, 500 +
   `error.json`]
-- IN-29: A first load answered 404 `not-found` shows `ErrorView` with `detail`, `code` and its link "Back to workspaces" (`#/workspaces`); a
+- IN-29: A first load answered 404 `not-found` shows `ErrorView` with `detail` (no code) and its link "Back to workspaces" (`#/workspaces`); a
   first load that fails with `code` `network` shows Retry, which requests the project again. [component,
   `error.json`, rejected fetch]
 - IN-54: The toggle is a group "View" with links "Simple" (`#/p/<id>`) and "Advanced" (`#/p/<id>?view=advanced`);
@@ -403,7 +403,7 @@ File trace
   with `rectified: true` it adds "perspective corrected". [unit]
 - IN-42: An image of `BeforeAfter` that fails to load is replaced by "Preview not available" (before) or "Page not
   available" (after). [component, fire `error` on the `<img>`]
-- IN-43: A trace answered 404 shows `detail`, `code` and "Back to the project". [component, `error.json`]
+- IN-43: A trace answered 404 shows `detail` (no code) and "Back to the project". [component, `error.json`]
 - IN-48: With `trace-image`, exactly one `GET /api/drawings/<file.drawing_id>` is sent and "Credit: none recorded
   for this file" (`drawing.json`, `credit: null`) shows under the "after" image and not under "As uploaded"; with
   that request answered 500 the same line shows; with `trace.json` (no before/after) the request is not sent.

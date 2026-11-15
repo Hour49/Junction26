@@ -174,8 +174,7 @@ function IssueAnswerForm(props: {
       setText(next.answer?.text ?? '');
       onIssue(next);
     } catch (e) {
-      const { detail, code } = errorText(e);
-      setFailed(`${detail} (${code})`);
+      setFailed(errorText(e).detail);
     } finally {
       setSending(false);
     }

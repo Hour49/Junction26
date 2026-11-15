@@ -615,11 +615,10 @@ function Answer(props: {
 }
 
 function ErrorTurn({ error, onRetry }: { error: unknown; onRetry: () => void }) {
-  const { detail, code } = errorText(error);
+  const { detail } = errorText(error);
   return (
     <div className="v-card en-error" role="alert">
       <p>The question could not be answered: {detail}</p>
-      <p className="en-small">code: {code}</p>
       <button type="button" className="en-chip v-press" onClick={onRetry}>
         Try again
       </button>
