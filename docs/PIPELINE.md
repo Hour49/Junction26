@@ -1,6 +1,6 @@
 # Pipeline (Stoa challenge)
 
-Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening; the golden paragraph, rows 1-2 and 5 and §4-§6 (demo config, parallel ingest, memory, drawable sheets, services) checked 2026-11-15 01:30 against main 3d0dc59, row 1-2 and §4 again at 02:15 against b8c9d8e4 (#414, #425, #434, #443), §4-§6 at 02:50 against 992d98b1 (#422, #464). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
+Status: draft, 2026-11-13 21:50; §3 updated 23:28; stage table and §2 brought up to the code 2026-11-14 00:26; rows 3-4, 5, 7 (vector, raster) and 10 checked again 2026-11-14 21:30 against the merges of that evening; the golden paragraph, rows 1-2 and 5 and §4-§6 (demo config, parallel ingest, memory, drawable sheets, services) checked 2026-11-15 01:30 against main 3d0dc59, row 1-2 and §4 again at 02:15 against b8c9d8e4 (#414, #425, #434, #443), §4-§6 at 02:50 against 992d98b1 (#422, #464), §4 at 02:45 against 98588dcc (#480, #486). It follows [REQUIREMENTS.md](REQUIREMENTS.md) (ingest once, answer cheaply, two
 methods). The per-plan output, the drawing model, becomes decision record 0004.
 
 ## 1. Ingestion: from files to one drawing model per plan
@@ -216,7 +216,7 @@ before those holds, and why each was or was not real, are in decision 0009.
 
 Every reader beyond the five defaults above is off until a setting turns it on; `backend/.env.example` has one
 commented line per setting. The live demo runs with the settings `tools/qa-env.sh config` prints (checked
-2026-11-15 on main 3d0dc59):
+2026-11-15 on main 98588dc):
 
 | In the demo | Default | What it turns on |
 | --- | --- | --- |
@@ -243,11 +243,12 @@ Off in the demo on purpose, with what was measured:
 | Setting | Why it stays off |
 | --- | --- |
 | `SCALE_CARBON_DOORS` | Meant for a scan whose detector found no door: the area scale would come from Carbon's door boxes (door width `CARBON_DOOR_M` 1.069 m, fitted on one half of a set of rendered scans with a known scale; 11 of 11 sheets of the other half inside the band; #401). On a fresh set of 68 questions about public scans nobody on the team had used (truths by eye, hashed before any run), main 030abbb with it off gave 36 right, 12 wrong, 20 refused; with it on 37, 14, 17. All three changes were on one sheet with a hand-written 1/4" scale the reader did not read: the kitchen came out 16 m² against 9.8 and the house 149 m² against 100, both outside the ±16% band the answer printed (the third change was a right answer). A wrong number whose stated band does not hold is worse than a refusal, so it stays off. #417 now gives no door scale when a printed scale was seen but not read; that has not been measured with the setting on. On golden v2 the setting changes nothing (Carbon reads elements only on images over 4,000 px) |
-| `DISCIPLINE_PICTURES` (`off` or `template`; #414) | With `template`, a scan that triage names a services or structural sheet is read by local readers only (legend, symbols, coloured runs) into a fact sheet whose answers are Low, decision 0015. Tudor's per-class bench on pictures rendered from the services models (#281): counts within ±10% 49% of the time on clean renders, 37% on scans, 35% at 100 dpi and 36% on photos; on scans precision falls to 0.05-0.2; 8% of run lengths within 10%. Run end to end on #414 with the readers on (10 bench pictures), nothing reached a user. It stays off until a bench passes |
+| `DISCIPLINE_PICTURES` (`off` or `template`; #414) | With `template`, a scan that triage names a services or structural sheet is read by local readers only (legend, symbols, coloured runs) into a fact sheet whose answers are Low, decision 0015. Tudor's per-class bench on pictures rendered from the services models (#281): counts within ±10% 49% of the time on clean renders, 37% on scans, 35% at 100 dpi and 36% on photos; on scans precision falls to 0.05-0.2; 8% of run lengths within 10%. Run end to end on #414 with the readers on (10 bench pictures), nothing reached a user. #486 made the readers work end to end and cleans each page before reading it (a median filter on salt-and-pepper pages, flattening, deskew up to ±2°). On the tune half of noisy 150 dpi pictures, with the legend boxes given, precision went from 0.58, 0.56 and 0.17 to 0.97, 0.92 and 1.00 (air terminals, other symbols, lights), at recall 0.87, 0.73 and 0.93. #486 reports only the tune half, and in real use nobody gives the legend boxes, so it stays off until a bench passes |
 | `RASTER_TILES` | Large sheets took 77 to 95 s longer each in the all-on run, and its CubiCasa criterion failed (#381) |
 | `VECTOR_FALLBACK` | Failed its pre-registered check (#381) |
 | `RESOLVER=carbon` | The pilot was inconclusive, and its cost is paid inline on every answer (#381) |
 | `TRIAGE_CLASSIFIER` | No arm passed the gate (#381) |
+| `USER_SCALE` (#432, #480) | In the agent chat, a user can give the scale of a drawing that has none ("the scale is 1:100", "the kitchen is 12 m2", "Room 301 is 18 m2"). That chat's areas and lengths on the drawing are then measured with it and answered Low, "using the scale you gave", never sure. A ratio is refused on an image that states no resolution. Off until it is measured |
 
 ## 5. Ingest at scale: parallel groups and memory
 
