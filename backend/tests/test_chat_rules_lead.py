@@ -54,9 +54,11 @@ def test_without_a_total_the_drawings_are_listed_as_before() -> None:
 
 
 def test_a_counted_total_names_what_it_counts() -> None:
-    doors = {"unit": "count", "quantity": {"noun": "doors"}}
-    parts = [{"drawing_id": f"d{at}", "name": f"{at}.pdf", "answer": {"answer": at, **doors}}
-             for at in (1, 2)]  # fmt: skip
+    """qa-c on #669: each part's noun is for its own value ("door" for 1), so the total's word
+    comes from the total: drawing 1 counts 1 door, the total is 3 doors."""
+    parts = [{"drawing_id": f"d{at}", "name": f"{at}.pdf", "answer": {"answer": at, "unit": "count",
+              "quantity": {"measure": "count", "subject": "door", "noun": noun}}}
+             for at, noun in ((1, "door"), (2, "doors"))]  # fmt: skip
     found = {"answered": answered(2), "parts": parts, "total": 3, "total_unit": "count"}
     _, args = plan("How many doors?", ("ask_drawings", {}, found))
     assert args["text"] == "In total 3 doors. 1.pdf: 1 [ev_1]; 2.pdf: 2 [ev_2]."

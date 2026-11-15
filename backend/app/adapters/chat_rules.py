@@ -12,6 +12,7 @@ from app.core.agent.loop import NUDGE, UNBACKED
 from app.core.agent.ports import Reply
 from app.core.agent.review import DOUBT, REVIEWED, pushed
 from app.core.agent.rooms import name_words
+from app.core.review.review import noun as count_noun
 
 Json = dict[str, Any]
 
@@ -871,8 +872,9 @@ def _answer(found: Json) -> tuple[str, Json]:
         said += f"; and {cut} more drawing{'s' if cut > 1 else ''}"
     total = found.get("total")
     if isinstance(total, (int, float)) and len(every) > 1:  # one drawing's total is its value
-        noun = (answering[0]["answer"].get("quantity") or {}).get("noun")
-        named = f" {noun}" if noun and found.get("total_unit") == "count" else ""
+        quantity: Json = answering[0]["answer"].get("quantity") or {}  # its noun is for its value
+        counted = count_noun(str(quantity.get("measure")), str(quantity.get("subject")), total)
+        named = f" {counted}" if counted and found.get("total_unit") == "count" else ""
         said = (
             f"In total {_said({'answer': total, 'unit': found.get('total_unit')})}{named}. {said}"
         )
