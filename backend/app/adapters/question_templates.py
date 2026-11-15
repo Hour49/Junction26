@@ -316,6 +316,13 @@ SHEET = frozenset(
     """.split()  # noqa: SIM905 (a word list reads better as text)
 )
 _SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
+# English words that leave something out, one list for the balcony rule (APPLIED), the exclusion
+# check (ENGLISH_EXCLUDING) and a parenthesis that is an exclusion (NOT_EXCLUSION); answer's nit on
+# #616: "(besides the entrance)" answered every door
+_LEAVING_OUT = (
+    r"excluding|except|excepting|not counting|not including|leaving out|without|other than"
+    r"|apart from|aside from|besides|minus|save for|with the exception of|omitting|but not"
+)
 # Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
 # balconies" (EXCLUDING), a room's "longer side" (its length); and words that narrow nothing
 # (review-532): "over all", and "only" at the end or next to the sheet ("on this floor plan
@@ -323,7 +330,7 @@ _SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
 # outward", "toilets only for staff": R4-C2). Not "the apartment with number A": the parser reads
 # that name only as "apartment A", so it would answer for the whole sheet (review-539)
 APPLIED = re.compile(
-    r"\b(?:without|excluding|except|not counting|leaving out)\s+(?:the\s+|its\s+)?balcon\w*"
+    rf"\b(?:{_LEAVING_OUT})\s+(?:the\s+|its\s+)?balcon\w*"
     r"|\b(?:longer|shorter)\s+side\b"
     # "only" ends the question or its clause; with the sheet before it ("on this floor plan
     # only") or after it ("only on this drawing"): "doors on this plan only open outward" narrows
@@ -571,14 +578,9 @@ def _quoted(raw: str) -> list[_Quoted]:
 
 # The English exclusions R4-C12 refuses when not applied; the other languages' ones in golden are
 # the indoor net area's outdoor spaces and hint sentences the parser does apply (extras: 3)
-ENGLISH_EXCLUDING = re.compile(
-    r"\b(?:excluding|except|excepting|not counting|not including|leaving out|without|other than"
-    r"|apart from|aside from|besides|minus|save for)\b"
-)
+ENGLISH_EXCLUDING = re.compile(rf"\b(?:{_LEAVING_OUT})\b")
 # A parenthesis that is an exclusion ("(except the entrance)") is read, not dropped (review-616 S2)
-NOT_EXCLUSION = re.compile(
-    r"\((?!\s*(?:excluding|except|not counting|leaving out|apart from))[^()]*\)"
-)
+NOT_EXCLUSION = re.compile(rf"\((?!\s*(?:{_LEAVING_OUT})\b)[^()]*\)")
 
 
 def _unapplied_exclusion(lower: str, subject: str) -> bool:
