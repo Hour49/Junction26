@@ -55,7 +55,9 @@ describe('TriageCard (file-triage.md)', () => {
     it('a small card: class words and what it looks like, the chance, no calls', async () => {
       await show(doubted('elevation'));
       expect(
-        card().getByRole('heading', { name: 'A floor plan · Looks like: an elevation' }),
+        card().getByRole('heading', {
+          name: 'Read as a floor plan · the sheet-kind step says it looks like an elevation',
+        }),
       ).toBeTruthy();
       expect(card().queryAllByRole('button')).toEqual([]);
       expect(screen.getByRole('region', { name: 'Is it a floor plan?' }).textContent).toContain(

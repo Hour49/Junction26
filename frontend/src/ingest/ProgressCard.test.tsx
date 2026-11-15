@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
 import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
-import { LANE_ROWS, splitPath } from './RouteLanes';
+import { LANE_ROWS, nameEnds, splitPath } from './RouteLanes';
 import { ProgressCard } from './ProgressCard';
 import type { RanStep } from './pipeline';
 import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must, sampleRun } from './testing';
@@ -397,6 +397,41 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
     expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');
+  });
+
+  it('IN-129 (QA R4-A2) two names with a long shared start keep their ends and extensions; 24 px links (R4-E2)', () => {
+    expect(nameEnds('site1000_bldg2082_floor3_plan.dxf')).toEqual([
+      'site1000_bldg2082_flo',
+      'or3_plan.dxf',
+    ]);
+    expect(nameEnds('plan.pdf')).toEqual(['', 'plan.pdf']);
+    expect(nameEnds('README')).toEqual(['', 'README']); // no extension: the last 8 characters
+    const stem = 'site1000_bldg2082_floor3_ground_floor_plan_rev_C';
+    render(
+      <ProgressCard
+        project={{
+          ...running,
+          files: [
+            file('d', { route: 'raster', path: `drawings/${stem}.dxf` }),
+            file('p', { route: 'raster', path: `drawings/${stem}.pdf` }),
+          ],
+        }}
+        now={Date.now()}
+      />,
+    );
+    const ends = ['dxf', 'pdf'].map((ext) => {
+      const link = within(lane('Image')).getByRole('link', { name: `drawings/${stem}.${ext}` });
+      expect(link.className).toContain('min-h-6'); // a 24 px tap target
+      const name = must(link.querySelector('.ingest-name'));
+      expect(name.textContent).toBe(`${stem}.${ext}`); // the whole name, in two parts
+      expect(name.className).toContain('shrink-0'); // IN-113: the folder still gives way first
+      expect(must(name.querySelector('.ingest-name-start')).className).toContain('truncate');
+      const end = must(name.querySelector('.ingest-name-end'));
+      expect(end.className).toContain('shrink-0');
+      expect(end.className).not.toContain('truncate');
+      return end.textContent;
+    });
+    expect(ends).toEqual(['an_rev_C.dxf', 'an_rev_C.pdf']);
   });
 
   it('IN-116 (QA R2-A1) a file on a route with no reader is not a drawing ready nor read', () => {

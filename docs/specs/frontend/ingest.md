@@ -807,6 +807,14 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   for the index steps) a chip whose step did not run dims as IN-124 ("not needed here", "did not run"). No `ran`,
   or no or empty `index_steps` (an older server or record): as before. [unit: `triageRan`, `triageEnded`;
   component, from the demo sample's real status]
+- IN-128 (QA R4-G4, a 3000-file zip of text files): IN-72's "Nothing read" card lists each entry on its own row as
+  before, but a reason shared by 4 or more entries is one row: "<n> files", the reason, and "For example: <the
+  first 3 paths>". It shows 12 rows at most; the entries past them are counted ("And <n> more files.") above the
+  link to Documents. A 3-file upload looks as before. [unit: `whyRows`; component: 3000 + 20 entries]
+- IN-129 (QA R4-A2, R4-E2): a lane file row's name, after its folder gave way (IN-113), gives up its middle, not its
+  end: the extension and the 8 characters before it stay ("site1000_bldg2082_flo…or3_plan.dxf"), so a DXF and its
+  PDF of the same name stay apart, at 390 too. The file link is at least 24 px high (`min-h-6`), a tap target.
+  [unit: `nameEnds`; component: two names with a long shared start; browser at 390, the link box measured]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
