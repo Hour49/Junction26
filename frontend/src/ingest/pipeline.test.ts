@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
-import type { FileStatus, ProjectView } from '../api';
+import type { FileStatus, ProjectView, StepTrace } from '../api';
 import {
   chipCovers,
   chipHasStep,
@@ -23,7 +23,9 @@ import {
   triageReaders,
   unread,
   triageEnded,
+  triageEmpty,
   triageRan,
+  rowStep,
 } from './pipeline';
 import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must, sampleRun } from './testing';
 
@@ -427,7 +429,8 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
       'describes sheets that are not plans (Gemini)',
       'keep or set aside (rules)',
     ];
-    expect(chips.map((c) => triageRan(c, done))).toEqual(['ran', 'ran', 'ran', 'ran']);
+    // the sample's judge weighed no file (`found` {}): "empty" (changed on purpose with IN-133)
+    expect(chips.map((c) => triageRan(c, done))).toEqual(['ran', 'ran', 'ran', 'empty']);
     // mid-run: the files' identify steps ended on some files; the last phase has not begun
     const mid = sampleRun('mid');
     expect(chips.map((c) => triageRan(c, mid))).toEqual(['ran', 'ran', null, null]);
@@ -458,5 +461,51 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     expect(triageRan('sheet kind (Gemini)', { ...done, ran: undefined })).toBeNull();
     expect(triageRan(chips[3] ?? '', { ...done, index_steps: [] })).toBeNull();
     expect(triageRan(chips[3] ?? '', { files: done.files, ran: done.ran })).toBeNull();
+  });
+
+  it('IN-133 triageRan: a judge that weighed no file is "empty", read from its `found`, never its `did`', () => {
+    const done = sampleRun('done');
+    const judge = (changes: Partial<StepTrace>) => ({
+      ...done,
+      index_steps: done.index_steps.map((s) => (s.id === 'judge' ? { ...s, ...changes } : s)),
+    });
+    const chip = 'keep or set aside (rules)';
+    expect(triageEmpty(chip)).toBe('nothing to judge');
+    expect(triageRan(chip, judge({ found: {} }))).toBe('empty');
+    expect(triageRan(chip, judge({ found: { unrelated: 0 } }))).toBe('empty');
+    expect(triageRan(chip, judge({ found: { unrelated: 2, related: 1 } }))).toBe('ran');
+    // no `found` (not from this backend): ran, its did is not parsed
+    const { found: _found, ...bare } = must(done.index_steps.find((s) => s.id === 'judge'));
+    const noFound = done.index_steps.map((s) => (s.id === 'judge' ? bare : s));
+    expect(triageRan(chip, { ...done, index_steps: noFound })).toBe('ran');
+    // a failed judge ran (it may have weighed some before it failed)
+    expect(triageRan(chip, judge({ found: {}, state: 'failed' }))).toBe('ran');
+    expect(triageRan(chip, judge({ state: 'running' }))).toBe('running');
+    // the describer's chip has no such case: an empty `found` still ran
+    expect(triageEmpty('describes sheets that are not plans (Gemini)')).toBeNull();
+    const described = done.index_steps.map((s) => (s.id === 'describe' ? { ...s, found: {} } : s));
+    expect(
+      triageRan('describes sheets that are not plans (Gemini)', {
+        ...done,
+        index_steps: described,
+      }),
+    ).toBe('ran');
+  });
+
+  it('IN-134 rowStep: the wait for the local reader in its running form; other steps by their label', () => {
+    const at = (changes: Partial<FileStatus>) => file('w', { state: 'running', ...changes });
+    expect(rowStep(at({ step_id: 'local_slot', step: 'Waited for the local reader' }))).toBe(
+      'waiting for the local reader',
+    );
+    expect(rowStep(at({ step_id: 'local_slot', step: 'Waiting for the local reader' }))).toBe(
+      'waiting for the local reader',
+    );
+    expect(rowStep(at({ step_id: 'symbols', step: 'Waited for the local reader' }))).toBe(
+      'Waited for the local reader',
+    );
+    expect(rowStep(at({ step_id: 'symbols', step: 'Symbol detector, 8 views' }))).toBe(
+      'Symbol detector, 8 views',
+    );
+    expect(rowStep(at({ step: null }))).toBeNull();
   });
 });

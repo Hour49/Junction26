@@ -424,7 +424,12 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(link.getAttribute('aria-label')).toBe(long);
     expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
-    expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');
+    // the folder's path is cut, its "/" stays, and it keeps 3ch: "P…/" (the name leaves it that much)
+    const folder = must(link.querySelector('.ingest-folder'));
+    expect(folder.textContent).toBe('Planunterlagen/Architektur/Grundrisse/Obergeschoss-3/');
+    expect(folder.className).toContain('min-w-[3ch]');
+    expect(must(folder.querySelector('.ingest-folder-path')).className).toContain('truncate');
+    expect(must(link.querySelector('.ingest-name')).className).toContain('max-w-[calc(100%-3ch)]');
   });
 
   it('IN-129 (QA R4-A2) two names with a long shared start keep their ends and extensions; 24 px links (R4-E2)', () => {
@@ -682,7 +687,8 @@ describe('ProgressCard: pipeline view v5', () => {
       'scan or photo (Gemini)✓',
       'sheet kind (Gemini)✓',
       'describes sheets that are not plans (Gemini)✓',
-      'keep or set aside (rules)✓',
+      // the sample's judge weighed no file ("0 files judged", `found` {}): changed on purpose with IN-133
+      'keep or set aside (rules) · nothing to judge',
     ]);
     cleanup();
     // mid-run: what ran on the files so far is ticked, the last phase's steps are still to come, nothing dimmed
@@ -738,5 +744,62 @@ describe('ProgressCard: pipeline view v5', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual(['Relevance judge: 0 files judged', 'Files for the evidence index … running']);
+  });
+
+  it('IN-133 the judge chip, once its step weighed no file, is dimmed "nothing to judge", not ticked', () => {
+    const done = sampleRun('done'); // its judge: "0 files judged; cad/detail.dxf is set aside ...", found {}
+    const judge = () =>
+      must(
+        within(screen.getByRole('list', { name: 'Sorting' }))
+          .getByText(/keep or set aside/)
+          .closest('li'),
+      );
+    render(<ProgressCard project={done} now={Date.now()} />);
+    expect(judge().textContent).toBe('keep or set aside (rules) · nothing to judge');
+    expect(judge().dataset.dimmed).toBe('true');
+    expect(within(judge()).queryByLabelText('ran')).toBeNull();
+    cleanup();
+    const weighed = done.index_steps.map((s) =>
+      s.id === 'judge' ? { ...s, did: '2 files judged: 2 unrelated', found: { unrelated: 2 } } : s,
+    );
+    render(<ProgressCard project={{ ...done, index_steps: weighed }} now={Date.now()} />);
+    expect(judge().textContent).toBe('keep or set aside (rules)✓');
+    expect(judge().dataset.dimmed).toBeUndefined();
+  });
+
+  it('IN-134 a file waiting for the local reader says so in its row; the wait is no "Also ran" chip', () => {
+    const at = (step: Partial<FileStatus>): ProjectView => ({
+      ...running,
+      files: running.files.map((f) => (f.id === 'img' ? { ...f, ...step } : f)),
+    });
+    const note = () =>
+      must(
+        within(lane('Image'))
+          .getByRole('link', { name: 'plans/img.png' })
+          .closest('li')
+          ?.querySelector('.ingest-note'),
+      ).textContent;
+    const chips = () =>
+      within(within(lane('Image')).getByRole('group', { name: 'Readers' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent);
+    const groups = () =>
+      [...lane('Image').querySelectorAll('.ingest-readers')].map((g) => g.getAttribute('data-group'));
+    const waiting = at({ state: 'running', step_id: 'local_slot', step: 'Waited for the local reader' });
+    const { rerender } = render(<ProgressCard project={waiting} now={Date.now()} />);
+    expect(note()).toBe('Extract: waiting for the local reader');
+    expect(groups()).not.toContain('other');
+    expect(chips()).toHaveLength(RASTER_CHIPS.length);
+    expect(chips().join(' ')).not.toMatch(/local reader/i);
+    // the next reader starts (by its label, as an older server): the wait seen before still makes no chip
+    rerender(
+      <ProgressCard
+        project={at({ step_id: null, step: 'Symbol detector, 8 views' })}
+        now={Date.now()}
+      />,
+    );
+    expect(note()).toBe('Extract: Symbol detector, 8 views');
+    expect(groups()).not.toContain('other');
+    expect(chips().join(' ')).not.toMatch(/local reader/i);
   });
 });
