@@ -49,7 +49,9 @@ SAME_COLOUR = 50  # per channel: a pixel drawn in the legend line's colour (as m
 CHROMA_SHARE = 0.5  # and at least this share of its colourfulness (max - min channel)
 PAD = 2  # pixels around a legend box
 BRIDGE_M = 1.0  # the largest gap bridged, building metres (clinic: 22/50; 0.5: 21, 0.25: 18)
-JOIN_M = 1.0  # elbows and tees joined up to here, building metres (clinic pair precision 78%)
+# Elbows and tees joined up to here, building metres. 0: off. 1.0 m was fit on clinic and failed its
+# pre-registered line on DigitalHub (pair precision 0.73 / recall 0.19 vs 0.9 / 0.5), so off
+JOIN_M = 0.0
 BRIDGE_ANGLE = 30.0  # degrees between an end's direction and the gap, at both ends
 BACK_PX = 8  # an end's direction: from this far back along its edge
 SPUR_WIDTHS = 2.0  # an end edge on a junction this many line widths long or less is a spur
