@@ -191,16 +191,22 @@ function SourceImage({ source, first, crop }: { source: Source; first: number; c
   );
 }
 
-function Legend({ places, first }: { places: readonly Place[]; first: number }) {
+/** A minimized figure lists this many places, then "and N more" (Expand or Show source lists them all). */
+export const MIN_LEGEND = 3;
+
+function Legend({ places, first, max }: { places: readonly Place[]; first: number; max?: number }) {
   if (!places.length) return null;
+  const shown = max === undefined ? places : places.slice(0, max);
+  const more = places.length - shown.length;
   return (
     <ol className="vw-hl-legend">
-      {places.map((p, i) => (
+      {shown.map((p, i) => (
         <li key={i}>
           <b aria-hidden="true">{first + i}</b>
           <span>{p.label}</span>
         </li>
       ))}
+      {more > 0 && <li className="pl-7">and {more} more</li>}
     </ol>
   );
 }
@@ -300,7 +306,7 @@ export function SourcePreview({ sources, start = 0, onClose }: SourcePreviewProp
   );
 }
 
-/** A conflict's or issue's source drawing: minimized thumbnail + numbered legend, Expand, Show source. */
+/** A conflict's or issue's source drawing: minimized thumbnail + numbered legend (capped), Expand, Show source. */
 export function SourceFigure({ sources, label, defaultOpen = false }: SourceFigureProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [preview, setPreview] = useState(false);
@@ -329,7 +335,7 @@ export function SourceFigure({ sources, label, defaultOpen = false }: SourceFigu
       )}
       {places.length > 0 && (
         <figcaption>
-          <Legend places={places} first={1} />
+          <Legend places={places} first={1} max={open ? undefined : MIN_LEGEND} />
         </figcaption>
       )}
       <div className="vw-src-btns">
