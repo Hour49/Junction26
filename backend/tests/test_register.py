@@ -1,9 +1,11 @@
 """register: a services sheet's wall lines laid over the plan's (rotation, scale, shift)."""
 
 import math
+import time
 
 import numpy as np
 
+from app.core.services import register as register_module
 from app.core.services.model import Point2
 from app.core.services.register import Place, Refusal, Segment, register
 
@@ -78,3 +80,65 @@ def test_too_few_walls_are_refused() -> None:
     out = register(plan, plan[:3])
     assert isinstance(out, Refusal)
     assert out.reason == "only 3 wall lines on the services sheet (6 needed)"
+
+
+def test_non_finite_lines_are_dropped_before_counting() -> None:
+    plan = floor(7)
+    bad = [Segment(a=(math.nan, 0.0), b=(1.0, 1.0)), Segment(a=(0.0, 0.0), b=(math.inf, 2.0))]
+    out = register(plan, [*plan[:4], *bad])
+    assert out == Refusal(reason="only 4 wall lines on the services sheet (6 needed)")
+    place = register([*plan, *bad], [*onto_sheet(plan, 0.0, 1.0, (0.0, 0.0)), *bad])
+    assert isinstance(place, Place), place
+
+
+def test_a_far_stray_line_is_fast_and_harmless() -> None:
+    plan = floor(7)
+    stray = Segment(a=(10_000.0, 10_000.0), b=(10_003.0, 10_000.0))
+    sheet = onto_sheet(plan, deg=93.0, scale=0.02, shift=(5.0, -3.0))
+    start = time.perf_counter()
+    place = register([*plan, Segment(a=(100.0, 100.0), b=(103.0, 100.0))], [*sheet, stray])
+    assert time.perf_counter() - start < 30.0  # only the old blow-up (243 s, GBs); work: below
+    assert isinstance(place, Place), place
+    assert abs(place.scale / 0.02 - 1) < 0.01
+
+
+def test_many_walls_and_a_10_km_stray_keep_the_work_bounded(monkeypatch) -> None:
+    """Deterministic: the work (lines kept, points against walls, vote cells) is capped by
+    LONGEST, whatever the count and spread of the input; a 30 s bound only catches a blow-up."""
+    rng = np.random.default_rng(5)
+    plan = floor(7) + [
+        Segment(a=(x, y), b=(x + 1.0, y)) for x, y in rng.uniform(0, 14, (200, 2)).tolist()
+    ]
+    sheet = [*plan, Segment(a=(10_000.0, 0.0), b=(10_001.0, 0.0))]
+    sizes: list[tuple[int, int]] = []
+    votes: list[int] = []
+    nearest, unique = register_module._nearest, np.unique
+
+    def counted_nearest(points, walls):
+        sizes.append((len(points), len(walls)))
+        return nearest(points, walls)
+
+    def counted_unique(keys, **kw):
+        votes.append(len(keys))
+        return unique(keys, **kw)
+
+    monkeypatch.setattr(register_module, "_nearest", counted_nearest)
+    monkeypatch.setattr(register_module.np, "unique", counted_unique)
+    start = time.perf_counter()
+    register(plan, sheet)
+    assert time.perf_counter() - start < 30.0
+    most = 120  # lines per side; the cost grows with their product
+    assert max(w for _, w in sizes) <= most
+    assert max(p for p, _ in sizes) <= most * register_module.SAMPLES
+    assert len(sizes) <= 4 * register_module.POSES * (register_module.ICP_STEPS + 1) + 8
+    assert max(votes) <= (2 * most) ** 2
+
+
+def test_a_refined_scale_stays_in_the_searched_range() -> None:
+    """ICP left alone shrinks a pose on lines that match nothing (0.48x here) toward a point,
+    where every line would count as on a wall."""
+    rng = np.random.default_rng(4)
+    sheet = rng.uniform(0, 30, (12, 2, 2))
+    plan = np.array([[w.a, w.b] for w in floor(7)])
+    _, scale, _ = register_module._icp(plan, sheet, 0.0, 1.0, np.zeros(2), (0.9, 1.1))
+    assert 0.9 <= scale <= 1.1

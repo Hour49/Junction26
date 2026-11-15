@@ -1036,6 +1036,9 @@ Ingest's project status, plus `drawings`:
   - `text_only`: text and no drawing (a spec PDF, a .txt).
   - `set_aside`: not ingested (unsafe path, zip bomb, not a drawing, a photo not of a plan, a DXF or SVG with no
     sheet next to it, a stage that failed).
+  - A file read while model calls got no answer (HTTP 429 or 5xx, a timeout, a reset, or the Gemini budget used up)
+    keeps its state, and its `reason` ends "; <n> model calls got no answer (or the Gemini budget was used up), so
+    this reading is partial and is asked again on the next upload". Such a reading is never reused (#439).
 - `route`: `bim`, `cad`, `vector`, `raster`, or null. `source`: the file the drawing was read from.
 - A multi-page PDF: page 1 is read with the file itself, as before. Each later page that holds a drawing (up to 50
   after page 1) is listed as a file of its own, `<name>#p<n>.pdf` next to the PDF (e.g. `plans/set#p3.pdf`), later
@@ -1244,9 +1247,10 @@ the `identify` stage's line.
   `doubt`: it is read; with a non-plan kind, in either mode (an unsure one with `SHEET_KIND_SET_ASIDE=true` too), the
   file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; "), none of
   its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
-  issue; the flag follows the project's triage, also when the reading is reused from the cache, and `POST …/triage`
-  drops it; with a plan kind every answer with a value ends its `explanation` with "This sheet may not be a floor
-  plan."; `read`: also a camera photo (`photo_plan`) it calls no floor plan while `takeoff_possible` is true, under
+  issue; the flag follows the project's triage, also when the reading is reused from the cache (a partial reading is
+  never reused, #439), and `POST …/triage` drops it; with a plan kind every answer with a value ends its
+  `explanation` with "This sheet may not be a floor plan."; `read`: also a camera photo (`photo_plan`) it calls no
+  floor plan while `takeoff_possible` is true, under
   the cut: a posted fire exit plan keeps the kind it was given and gets no sheet-kind doubt (the photo's own reading
   flag stays)), `takeoff_possible`, `confidence` (of a floor plan on the
   sheet), `title`, `sheet_number`, `discipline` (`architecture`, `structural`, `plumbing`, `heating`, `ventilation`,
