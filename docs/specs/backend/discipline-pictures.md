@@ -238,8 +238,9 @@ does not list is refused ("not read on this picture"), not 0. Not wired yet: vec
 
 Built (2026-11-15, pic-det): two more symbol readers, each with its own sheet folder (`lane.kept_in`).
 `DISCIPLINE_PICTURES=gemini` (`gemini.py`, reader `vlm`): one Carbon call per page reads the legend's rows and every
-plan occurrence's box; replies cached by page sha256 + prompt hash + model; a failed call or a reply that is not the
-asked JSON raises, so the lane keeps no sheet (and keeps the one it had). `DISCIPLINE_PICTURES=glyphs` (`glyphs.py`):
+plan occurrence's box; replies cached by page sha256 + `VERSION` + prompt hash + model (a reply with no legend is not
+kept); a failed call or a reply that is not the asked JSON raises, so the lane keeps no sheet (and keeps the one it
+had). `DISCIPLINE_PICTURES=glyphs` (`glyphs.py`):
 a YOLO26 S glyph-style detector (72 classes: shape x fill x printed number) on 1024 px tiles, the legend binding
 style -> label. Measured on a held-out rendered building (rwth-digitalhub v2, 36 pages, 1,155 symbols; trained or
 tuned on bsc-clinic only; IoU 0.5):
