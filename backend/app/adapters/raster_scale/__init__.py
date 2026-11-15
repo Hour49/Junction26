@@ -10,11 +10,16 @@ from the room's outline at the estimated scale becomes a conflict (`label_area_c
 The estimate is a `prior_scale` step after the inner reader's steps (decision 0018): the scale it
 found, or why none; `skipped` when it is not made (a scale was read, no page, doors not read). The
 step is reporting only: what the sheet is read as is the same with or without it.
+`carbon` (DOOR_PRIOR_BOXES=on): when every door counted is a box that Carbon reader drew itself
+(none snapped onto a detector door, #310), the estimate takes Carbon's door width,
+CARBON_DOOR_M, fitted on its boxes, not DOOR_M, fitted on the detector's (door_prior.py).
 """
 
+from app.core.pipeline.door_prior import read_only_by
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.raster_scale import (
+    carbon_door_scale,
     door_sides,
     estimate_scale,
     label_area_checks,
@@ -27,9 +32,14 @@ STEP_ID = "prior_scale"  # stable (docs/API.md); the ingest screen's "scale from
 LABEL = "Scale from door sizes"
 
 
+# DOOR_PRIOR_BOXES=on: why a composite's own Carbon doors take Carbon's width (door_prior.py)
+CARBON_READ = "no detector read the doors"
+
+
 class PriorScale:
-    def __init__(self, inner: Extractor) -> None:
+    def __init__(self, inner: Extractor, carbon: str | None = None) -> None:
         self._inner = inner
+        self._carbon = carbon  # DOOR_PRIOR_BOXES=on: the Carbon reader's tag; None: DOOR_M always
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found = self._inner.extract(source, sheet)
@@ -43,7 +53,11 @@ class PriorScale:
             found = found.model_copy(update={"notes": (*found.notes, note)})
             return _with_step(found, _skipped("not made: the doors were not read"))
         started = now_ms()
-        scale = estimate_scale(door_sides(found.elements, sheet.pages))
+        sides = door_sides(found.elements, sheet.pages)
+        carbon = self._carbon is not None and read_only_by(
+            self._carbon, found.elements, sheet.pages
+        )
+        scale = carbon_door_scale(sides, CARBON_READ) if carbon else estimate_scale(sides)
         if scale is None:
             note = "scale estimate: not made, no door was detected"
             found = found.model_copy(update={"notes": (*found.notes, note)})

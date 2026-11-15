@@ -64,6 +64,8 @@ PrintedTotalAnswersName = Literal["off", "on"]
 PrintedOcrCheckName = Literal["off", "on"]
 # on: a printed gross floor area against the rooms found summed (with RASTER_PRINTED_SCALE)
 GrossNetCheckName = Literal["off", "on"]
+# off, or on: DOOR_PRIOR_UNITS, DOOR_PRIOR_BOXES (app/core/pipeline/door_prior.py)
+DoorPriorName = Literal["off", "on"]
 RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # raster: a drawn PDF the vector reader has no sheet style for goes to the raster route
 VectorFallbackName = Literal["off", "raster"]
@@ -137,6 +139,15 @@ class Settings(BaseSettings):
     # gross ratio outside 0.60-1.02 puts both on the indoor area answer, held for a person
     # (app/core/pipeline/gross_net.py)
     gross_net_check: GrossNetCheckName = "off"
+    # on: with RASTER_PRINTED_SCALE=carbon, a sheet whose printed text is imperial (an imperial
+    # scale, feet-inch dimensions, SF or ft) gets its door estimate at a 0.914 m (3'-0") leaf, not
+    # the CubiCasa-fitted 0.794 m, and its rooms measured again (app/core/pipeline/door_prior.py)
+    door_prior_units: DoorPriorName = "off"
+    # on: with RASTER_SCALE=priors, a sheet whose counted doors are all Carbon's own boxes (none
+    # snapped onto a detector door) gets its door estimate at Carbon's
+    # box width CARBON_DOOR_M (1.069 m) instead of the detector's DOOR_M
+    # (app/core/pipeline/door_prior.py)
+    door_prior_boxes: DoorPriorName = "off"
     # auto: a raster page whose long side is over 4000 px is read by every detector source of
     # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
     # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.

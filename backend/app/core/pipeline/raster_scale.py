@@ -6,7 +6,10 @@ Nothing printed is read here: the value rests on the detected doors, so the stat
 
 - Door prior: a door leaf is DOOR_M metres; the scale is DOOR_M over the median long side (px) of
   the detected door boxes. DOOR_M is fitted on val (376 CubiCasa dev sheets, region:C-yolo26s-1536's
-  ONNX doors at score >= 0.5): median 5.6% off the gold scale.
+  ONNX doors at score >= 0.5): median 5.6% off the gold scale. It is the detector's leaf box on
+  Finnish homes: DOOR_PRIOR_BOXES=on gives Carbon's door boxes CARBON_DOOR_M, and
+  DOOR_PRIOR_UNITS=on an imperial sheet a 3'-0" leaf, 0.914 m (ADA 404.2.3; the standard, not a
+  fit), both in door_prior.py with where their numbers came from.
 - The printed uncertainty depends on how many doors the median rests on: SPREAD_FEW below
   FEW_DOORS, else SPREAD_MANY, each the 68% quantile of the scale error, fitted on one half of val
   and checked on the other, both ways, then averaged (prototypes/areas/calibrate.py). One
@@ -353,15 +356,18 @@ CARBON_DOOR_M = 1.069  # m
 CARBON_DOORS = "doors the Carbon reader found"  # in the source of every scale made from them
 
 
-def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
-    """The scale from the door prior over Carbon's door boxes `sides`; None without a door. The
-    band is SPREAD_FEW however many doors (the widest; the bands were fitted on the detector's)."""
+def carbon_door_scale(
+    sides: Sequence[float], why: str = "the detector found no door it is sure of"
+) -> Scale | None:
+    """The scale from the door prior over Carbon's door boxes `sides`, `why` in its source; None
+    without a door. The band is SPREAD_FEW however many doors (the widest; the bands were fitted
+    on the detector's)."""
     if not sides:
         return None
     return Scale(
         status="estimated",
         m_per_unit=CARBON_DOOR_M / statistics.median(sides),
         source=f"a door is about {CARBON_DOOR_M} m wide; median of {len(sides)} {CARBON_DOORS} "
-        "(the detector found no door it is sure of)",
+        f"({why})",
         uncertainty=SPREAD_FEW,
     )

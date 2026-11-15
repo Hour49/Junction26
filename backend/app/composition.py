@@ -900,6 +900,10 @@ def build_ingest(
         names["printed_ocr_check"] = settings.printed_ocr_check
     if settings.gross_net_check != "off" and settings.raster_printed_scale != "off":  # the same
         names["gross_net_check"] = settings.gross_net_check
+    if settings.door_prior_boxes != "off":  # the same
+        names["door_prior_boxes"] = settings.door_prior_boxes
+    if settings.door_prior_units != "off":  # the same
+        names["door_prior_units"] = settings.door_prior_units
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -1089,7 +1093,8 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
                     "RASTER_SCALE=priors estimates the scale itself: drop scale= from "
                     "RASTER_COMPONENTS, or set RASTER_SCALE=off"
                 )
-            return PriorScale(inner)
+            carbon = SOURCE if settings.door_prior_boxes == "on" else None  # Carbon's boxes
+            return PriorScale(inner, carbon)
 
 
 def _printed(
@@ -1116,8 +1121,9 @@ def _printed(
             answers = settings.printed_total_answers == "on"
             checker = PrintedOcr(_ocr(), files) if settings.printed_ocr_check == "on" else None
             gross_net = settings.gross_net_check == "on"
+            door_units = settings.door_prior_units == "on"
             return PrintedScale(  # kind: no camera dpi
-                inner, reader, files, kind_of, answers, checker, gross_net
+                inner, reader, files, kind_of, answers, checker, gross_net, door_units=door_units
             )
 
 
