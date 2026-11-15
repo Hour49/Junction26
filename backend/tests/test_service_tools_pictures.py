@@ -54,6 +54,12 @@ def test_a_wall_removed_on_a_picture_plan_gets_the_picture_lane_of_its_services_
     assert "Heating: " in shown["text"]
 
 
+def test_a_picture_lane_names_its_sheet_as_the_project_does_not_by_its_id() -> None:
+    services, _ = run({PLAN: heating()})  # QA round 2 R2-B1: "6 elements of 58b44c1d9322fbfa"
+    [lane] = [d for d in services.disciplines if d.discipline == "heating"]
+    assert lane.source == "Drawn plan 1"
+
+
 def test_without_a_services_picture_the_follow_up_is_as_before() -> None:
     services, _ = run({})
     assert {d.status for d in services.disciplines} == {"no_model"}
