@@ -161,6 +161,7 @@ def test_the_setting_picks_what_is_asked_and_cached(
     assert body["generationConfig"]["responseSchema"] == contract.schema
     (cached,) = tmp_path.glob("*.json")
     assert f"-{contract.sha[:12]}-" in cached.name
-    assert f"{contract.version})" in found.method
+    # the prompt version is in the cache file's name, not the trace's words (9b03c2f1, QA R4)
+    assert found.method == "Gemini sheet kind"
     # rules: an MEP plan titled by its level names no service; gemini: the model's heating
     assert found.sheet.discipline == (None if setting == "rules" else "heating")
