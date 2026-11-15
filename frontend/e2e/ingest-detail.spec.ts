@@ -233,6 +233,10 @@ test('AD-127 (QA R4-A9): a drawing called not a drawing is tagged on Advanced an
   const picker = page.locator('.adv-pick select');
   await picker.selectOption({ label: `${NOT_A_DRAWING} · not a drawing` });
   await expect(page.locator('.adv-visual .adv-tag')).toHaveText('not a drawing');
+  // the no-keys sample: 4 drawings read (the image route has no reader), flat-b left out (IN-126)
+  await expect(page.locator('.adv-stats > div', { hasText: 'Drawings ready' })).toContainText(
+    '3 / 6',
+  );
   await picker.evaluate((e) => {
     e.scrollIntoView({ block: 'center' });
   });

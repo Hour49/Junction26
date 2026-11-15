@@ -388,6 +388,8 @@ describe('AdvancedIngest', () => {
     expect([...select.options].map((o) => o.textContent)).toContain(
       'plans/flat-b.pdf · not a drawing',
     );
+    // readDrawings leaves it out (IN-126): of the 4 read (the 2 raster ones have no reader), 3 are ready
+    expect(stat('Drawings ready').textContent).toContain('3 / 6');
     expect(document.querySelector('.adv-visual .adv-tag')).toBeNull(); // flat-a is shown first
     fireEvent.change(select, { target: { value: must(p.drawings[1]).drawing_id } });
     await flush();
