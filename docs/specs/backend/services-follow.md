@@ -332,6 +332,10 @@ Pairing (tests in `tests/test_services_pairing.py`):
   (room names, then walls) pairs it `geometry`; both refusing gives both reasons; a sheet scale 20 % off the walls' is named
   (`test_walls_lay_a_turned_half_size_sheet_over_the_plan`).
 - **SFP-19** The wall mass of a 0.2 m walled box gives its four centre lines (`test_the_plans_wall_lines_are_centre_lines`).
+- **SFP-20** A picture whose drawing has no scale is sized by the scale its picture lane read
+  (`PictureFactSheet.scale`, #511: `width_px × m_per_px` by `height_px × m_per_px`): same floor and size, laid page to
+  page and checked; without it, refused "… the services picture has no scale" unless the walls lay it over
+  (`test_a_picture_without_a_drawing_scale_is_sized_by_its_readers_scale`).
 
 **The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
 `picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the
