@@ -27,6 +27,7 @@ from app.core.plan_edit.model import Item, Proposal
 from app.core.services.follow import LETTER, counted
 from app.core.services.model import (
     LANES,
+    Affine,
     Code,
     DisciplineFollow,
     Point2,
@@ -106,10 +107,10 @@ class _Found:
     things: list[_Thing]
 
 
-def align(plan: Sheet, sheet: Sheet) -> Place | str:
+def align(plan: Sheet, sheet: Sheet) -> Affine | str:
     """How the services sheet's fractions land on the plan's, or why they cannot."""
     if (sheet.drawing_id, sheet.page) == (plan.drawing_id, plan.page):
-        return lambda p: p
+        return Affine()
     if plan.storey and sheet.storey and _norm(plan.storey) != _norm(sheet.storey):
         return f"the services picture is of another floor ({sheet.storey})"
     if plan.size_m is None:
@@ -135,7 +136,7 @@ def align(plan: Sheet, sheet: Sheet) -> Place | str:
         return f"the room names of the two sheets miss each other by up to {worst:.2f} m"
     # shortcut: a shift only (sheets of one floor share their orientation); fit a rotation when
     # a real pair of sheets needs one
-    return lambda p: ((p[0] * sw + dx) / pw, (p[1] * sh + dy) / ph)
+    return Affine(a=sw / pw, c=dx / pw, e=sh / ph, f=dy / ph)
 
 
 def picture_follow(
@@ -158,7 +159,7 @@ def picture_follow(
                 if f.discipline in LANES and f.spots:
                     refused.setdefault(f.discipline, place)
             continue
-        for discipline, found in _things(sheet, facts, place, unit).items():
+        for discipline, found in _things(sheet, facts, place.apply, unit).items():
             things[discipline] += found
             sources[discipline].append(sheet.drawing_id)
     lanes: list[DisciplineFollow] = []
