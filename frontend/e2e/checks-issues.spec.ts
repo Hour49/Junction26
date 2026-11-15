@@ -53,7 +53,7 @@ async function noSideScroll(page: Page, where: string) {
 
 const banner = (page: Page) => page.getByRole('banner');
 
-test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks, the note verbatim, the ch-zh fail outlined on the drawing', async ({
+test('CK-16 VW-79 DOC-16: the picker sets ?pack= and links to the checks, no note, the ch-zh fail outlined in a dialog', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
@@ -109,19 +109,18 @@ test('CK-16 VW-79 DOC-16: the picker sets ?pack=, Documents links to the checks,
   await expect(fail).toContainText('File: plans/flat-b.pdf');
   await expect(fail).toContainText('8.06');
   await expect(main.getByText('2 drawings pass every checked place')).toBeVisible();
-  // VW-79: "Show on the drawing" outlines the failed room on its page, visible without scrolling.
-  await fail.getByRole('button', { name: 'Show on the drawing' }).click();
-  const mark = page
-    .getByRole('complementary')
-    .getByRole('button', { name: /fails the rule/ })
-    .first();
-  await expect(mark).toBeVisible();
-  // At 390 the viewer sits under the list (CK-16): the page scrolls to it; the mark itself needs no scrolling
-  // inside the viewer's scroll box (VW-79).
-  await page.getByRole('complementary').scrollIntoViewIfNeeded();
-  await expect(mark).toBeInViewport();
   await noSideScroll(page, 'checks ch-zh');
   await shot(page, testInfo, 'ck-checks-ch-zh', offline);
+  // VW-79: "Show on the drawing" opens the drawing in a dialog with the failed room outlined, visible without
+  // scrolling the page; Close shuts it.
+  await fail.getByRole('button', { name: 'Show on the drawing' }).click();
+  const dialog = page.getByRole('dialog', { name: 'plans/flat-b.pdf' });
+  const mark = dialog.getByRole('button', { name: /fails the rule/ }).first();
+  await expect(mark).toBeVisible();
+  await expect(mark).toBeInViewport();
+  await shot(page, testInfo, 'ck-checks-ch-zh-dialog', offline);
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).toHaveCount(0);
   expect(errors, 'no console or page errors').toEqual([]);
 });
 
