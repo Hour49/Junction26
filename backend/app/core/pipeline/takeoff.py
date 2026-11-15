@@ -45,6 +45,7 @@ from app.core.drawing.model import (
     Scale,
     Table,
 )
+from app.core.pipeline.label_scale import LABEL_SOURCE
 from app.core.pipeline.model import (
     Counted,
     CountingRule,
@@ -848,8 +849,8 @@ def label_disputed(drawing: Drawing) -> str | None:
     outlines at that scale), naming both: one of the two is misread (T4: a printed ratio at a
     camera's dpi came out 23x too small in area). None with fewer than LABEL_SCALE_ROOMS."""
     m_per_unit = drawing.scale.m_per_unit
-    if m_per_unit is None:
-        return None
+    if m_per_unit is None or (drawing.scale.source or "").startswith(LABEL_SOURCE):
+        return None  # a scale made from the labels agrees with them (label_scale.py)
     pages = {page.page: page for page in drawing.pages}
     ratios: list[float] = []
     for room in drawing.rooms:

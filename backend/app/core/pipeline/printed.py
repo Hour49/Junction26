@@ -473,6 +473,10 @@ def _label_checked(found: Extracted, pages: Sequence[Page]) -> Extracted:
     )
 
 
+unestimated = _unestimated  # for label_scale.py (LABEL_SCALE)
+label_checked = _label_checked
+
+
 def _room_types_counted(found: Extracted, facts: Sequence[PrintedFact]) -> list[Measurement]:
     """How many rooms of each type the reading has, for each room type the sheet prints a count
     of: the value a printed count of that type stands against (`measured` has no per-type room
