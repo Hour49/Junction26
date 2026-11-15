@@ -545,6 +545,28 @@ def _between(pair: tuple[str, str], facts: _Facts) -> str:
 # --- spaces ---------------------------------------------------------------------------------
 
 _HOW_MANY = re.compile(r"\s*how\s+many\b", re.I)
+# A question's room word and the room types it counts (space.room_type, the drawing path's
+# types). A WC and a bathroom are one family, as people and the dataset read them ("bathrooms/
+# toilets: 12"; review-663 M1)
+_ROOM_WORDS: tuple[tuple[frozenset[str], str], ...] = (
+    (frozenset({"bathroom", "wc"}), r"bath\w*|toilets?|wcs?|restrooms?|washrooms?|lavator\w*"),
+    (frozenset({"bedroom"}), r"bedrooms?"),
+    (frozenset({"kitchen"}), r"kitchens?"),
+)
+
+
+def _rooms_said(kinds: Iterable[str]) -> str:
+    return " or ".join("WC" if kind == "wc" else kind for kind in sorted(kinds))
+
+
+def _room_kinds(words: Sequence[str]) -> frozenset[str] | None:
+    """The room types a question's one room word counts ("bathrooms": bathroom and WC)."""
+    word = " ".join(words)
+    return next(
+        (kinds for kinds, pattern in _ROOM_WORDS if re.fullmatch(pattern, word, re.I)), None
+    )
+
+
 _SPACE_AREAS = ("space.stated_area", "space.net_floor_area", "space.area", "space.gross_floor_area")
 
 
@@ -574,6 +596,10 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     chosen = [name for name, at in names.items() if storey is None or at == storey]
     labelled = {name: f"{name} {long_name.get(name, '')}" for name in chosen}
     picked = _named(labelled.values(), query.words)
+    typed = {f.subject: str(f.value) for f in facts.get("space.room_type", anywhere=True)}
+    kinds = None if picked else _room_kinds(query.words)
+    if kinds is not None:  # no name holds the word: the spaces its room word types (R1 E6)
+        picked = {labelled[name] for name in chosen if typed.get(name) in kinds}
     if picked:
         chosen = [name for name in chosen if labelled[name] in picked]
         if query.measures == ("height",) and query.aggregate == "list":  # asked alone
@@ -618,11 +644,20 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     lines = [missing] if missing else []
     if len(query.words) == 1 and not picked and _HOW_MANY.match(query.asked):
         # "How many offices?" and no space is one: said, then every space
-        lines.insert(0, f"No space in this file is named '{query.words[0]}' (not available).")
+        typed_as = f" or typed as {_rooms_said(kinds)}" if kinds is not None and typed else ""
+        lines.insert(
+            0,
+            f"No space{where} in this file is named '{query.words[0]}'{typed_as} (not available).",
+        )
     if picked:  # how many spaces the question's words name: a count of the listed spaces
         n = len(chosen)  # with its noun: "8" before a line "M. TOILET" would read as 8 m
         matched = f"{n} {_plural('space', n)}"
-        lines.insert(0, f"Spaces matching '{' '.join(query.words)}'{where}: {matched}")
+        said = (
+            f"Spaces typed as {_rooms_said(kinds)} by their names"
+            if kinds is not None
+            else f"Spaces matching '{' '.join(query.words)}'"
+        )
+        lines.insert(0, f"{said}{where}: {matched}")
     else:
         lines.append(f"Spaces{where}: {total('all', storey)}")
     if query.aggregate in ("max", "min"):
@@ -799,6 +834,10 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
         and not facts.get(f"{entity}_type.count")
         and not runs
     ):
+        if _room_kinds(query.named) is not None and facts.get("space.room_type", anywhere=True):
+            # "toilets" and no fixture in the file: its WC rooms, never a type whose name holds
+            # the word ("Toilettentrennwand", a partition wall; big QA R1 E10)
+            return _spaces(query.model_copy(update={"words": query.named}), facts, storey)
         return _by_name(query, facts, storey)
     noun = _noun(entity)
     where = f" on {_label(storey, facts)}" if storey else ""
