@@ -154,9 +154,7 @@ def test_a_doubtful_sheet_is_read_and_each_answer_with_a_value_says_so(
     )
     assert files["doubt.png"]["state"] == "flagged" and line in files["doubt.png"]["reason"]
     assert files["doubt.png"]["triage"]["sheet"]["decision"] == "doubt"
-    doors = ask(client, found, "doubt.png", DOORS)["refusal"]["text"]  # R3-C3
-    assert doors.startswith(f"T{line[1:]}, so its symbols are not counted")
-    answer = ask(client, found, "doubt.png", KITCHENS)
+    answer = ask(client, found, "doubt.png", DOORS)  # not an mep_plan: warn-only (review-596)
     assert answer["answer"] == 1
     assert answer["explanation"] == f"read from a page flagged at upload: {line}"
     assert answer["line"]["explanation"] == answer["explanation"]

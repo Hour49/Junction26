@@ -67,7 +67,6 @@ from app.core.drawing.model import (
 )
 from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import CARBON_FLAG
-from app.core.ingest.triage import SHEET_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Partial, Quantity
@@ -221,10 +220,15 @@ class Known(NamedTuple):
     twins: dict[str, str]
 
 
-def known_of(drawing: Drawing, flags: Sequence[str], raster: bool) -> Known:
+def known_of(
+    drawing: Drawing, flags: Sequence[str], raster: bool, no_symbols: str | None = None
+) -> Known:
     """The drawing's takeoff (stages 9-10) as `ask` answers from it: the groups a flagged page's
-    reader did not read and the 0 counts the drawing does not say are left out."""
-    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
+    reader did not read, the symbols of a sure services sheet and the 0 counts the drawing does
+    not say are left out."""
+    quantities, unread, unlocated = _flagged(
+        known_quantities(drawing), drawing, flags, raster, no_symbols
+    )
     unsaid = _unsaid(quantities, drawing)
     kept = {key: found for key, found in quantities.items() if key not in unsaid}
     return Known(kept, unread, unlocated, unsaid, storey_twins(kept))
@@ -252,6 +256,7 @@ def ask(
     room_words: RoomWords = no_room_words,
     facts: Callable[[], FactSheet | None] | None = None,
     known: Known | None = None,
+    no_symbols: str | None = None,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -277,9 +282,11 @@ def ask(
     fact sheet, asked only when the takeoff, the schedules and the dev prior give nothing
     (answer_question): its answer is Low, never sure, marked by the facts' spots. `known`:
     `drawing`'s takeoff as `known_of` gives it for these `flags` and `raster`, when the caller has
-    it already (which_room's per-room questions)."""
+    it already (which_room's per-room questions). `no_symbols` (triage.symbols_refused): the
+    sheet-kind step is sure the sheet is a services plan, so its door, window and fixture counts
+    are refused with these words (R3-C3)."""
     if known is None:
-        known = known_of(drawing, flags, raster)
+        known = known_of(drawing, flags, raster, no_symbols)
     quantities, unread, unlocated, unsaid, twins = known
 
     def area_of(asked: str) -> Asked:  # one room's area, as this question would be answered
@@ -288,6 +295,7 @@ def ask(
             prior_families=prior_families, confidence=confidence, sure_at=sure_at, flags=flags,
             raster=raster, check=check, route=route, disputes=disputes, no_reader=no_reader,
             scorers=scorers, carbon_ladder=carbon_ladder, facts=facts, known=known,
+            no_symbols=no_symbols,
         )  # fmt: skip
 
     if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
@@ -344,14 +352,13 @@ def ask(
     refusal = None
     if answer.method not in (TAKEOFF, SCHEDULE, FACTS):
         code, words = _refusal(answer.method, parsed, query, drawing)
-        sheet = _sheet_flag(flags)
         if (
             isinstance(parsed, Query)
             and query is not None
-            and sheet is not None
+            and no_symbols is not None
             and _groups(query) <= SYMBOLS
         ):
-            code, words = "not-in-drawing", _symbols_text(sheet)
+            code, words = "not-in-drawing", _symbols_text(no_symbols)
         elif isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
         elif query is not None and query in unlocated:
@@ -552,7 +559,11 @@ def _summed(parsed: object, answer: Answer) -> bool:
 
 
 def _flagged(
-    quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
+    quantities: Mapping[str, Quantity],
+    drawing: Drawing,
+    flags: Sequence[str],
+    raster: bool,
+    no_symbols: str | None = None,
 ) -> tuple[dict[str, Quantity], set[str], dict[str, Quantity]]:
     """On a page ingest flagged (a phone photo, a scan), a group its reader found nothing of
     (no element at all, no room at all) is unknown, not 0: its keys are left out and the group
@@ -574,7 +585,7 @@ def _flagged(
         empty.update(ELEMENT_CLASSES)
         if CARBON_FLAG in flags and drawing.read is not None:
             empty.difference_update(drawing.read)
-    if _sheet_flag(flags) is not None:
+    if no_symbols is not None:
         empty.update(SYMBOLS)  # a piping plan's tanks are not toilets (R3-C3)
     if (flags or raster) and not drawing.rooms:
         empty.add("room")
@@ -619,14 +630,10 @@ def _groups(key: str) -> set[str]:
     return {part.split(":", 1)[0] for part in parse_key(key)[1].split("+")}
 
 
-# Counted from a floor plan's symbols. On a sheet the sheet-kind step called a non-plan kind
-# (triage.sheet_flag) they are refused: T3, a piping plan, answered "6 toilets" from 1 WC and 5
-# filter-separator tanks (Tudor's QA round 3, R3-C3). Rooms are still answered, flagged.
+# Counted from a floor plan's symbols. On a sheet the sheet-kind step is sure is a services plan
+# (triage.symbols_refused) they are refused: T3, a piping plan, answered "6 toilets" from 1 WC
+# and 5 filter-separator tanks (Tudor's QA round 3, R3-C3). Rooms are still answered, flagged.
 SYMBOLS = frozenset({"door", "window", "toilet", "sink", "shower", "bathtub", "sauna_stove"})
-
-
-def _sheet_flag(flags: Sequence[str]) -> str | None:
-    return next((flag for flag in flags if flag.startswith(SHEET_FLAG)), None)
 
 
 def _symbols_text(flag: str) -> str:
