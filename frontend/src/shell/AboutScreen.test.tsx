@@ -30,6 +30,16 @@ describe('AboutScreen', () => {
     expect(api.calls).toHaveLength(1);
   });
 
+  it('SH-81 with a project: a link back to it, as the other pages have; without one: no such link', () => {
+    mockApi({ [`GET /api/projects/${PID}`]: { ...project, drawings: [] } });
+    const { unmount } = render(<AboutScreen projectId={PID} />);
+    const back = screen.getByRole('link', { name: 'Back to the project' });
+    expect(back.getAttribute('href')).toBe(`#/p/${PID}`);
+    unmount();
+    render(<AboutScreen projectId={null} />);
+    expect(screen.queryByRole('link', { name: 'Back to the project' })).toBeNull();
+  });
+
   it('SH-80 without a project: the hint and no request', () => {
     const api = mockApi({});
     render(<AboutScreen projectId={null} />);
