@@ -258,6 +258,36 @@ describe('SourceFigure: many marks', () => {
   });
 });
 
+describe('SourceFigure: crowded thumbnail', () => {
+  const doors = (n: number): Source => ({
+    name: 'Doors',
+    page,
+    places: Array.from({ length: n }, (_, i) => ({
+      label: `Variant 1: door ${String(i + 1)}`,
+      box: [0.01 * i, 0.1, 0.01 * i + 0.01, 0.12] as Box,
+    })),
+  });
+  const thumbNumbers = (c: HTMLElement) => c.querySelectorAll('.vw-src-thumb .vw-hl b').length;
+
+  it('VW-100 over 12 marks the minimized thumbnail draws outlines only and a count line', () => {
+    const { container } = render(<SourceFigure sources={[doors(74)]} label="S" />);
+    expect(container.querySelectorAll('.vw-src-thumb .vw-hl')).toHaveLength(74);
+    expect(thumbNumbers(container)).toBe(0);
+    expect(container.querySelector('.vw-many')?.textContent).toBe(
+      '74 marks, numbered when expanded',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    expect(thumbNumbers(container)).toBe(74);
+    expect(container.querySelector('.vw-many')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show source' }));
+    expect(screen.getByRole('dialog').querySelectorAll('.vw-hl b')).toHaveLength(74);
+    cleanup();
+    const twelve = render(<SourceFigure sources={[doors(12)]} label="S" />).container;
+    expect(thumbNumbers(twelve)).toBe(12);
+    expect(twelve.querySelector('.vw-many')).toBeNull();
+  });
+});
+
 describe('SourceFigure: image sources', () => {
   it('VW-92 a source with no page but an image shows the image, never outlines', () => {
     const { container } = render(
