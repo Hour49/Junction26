@@ -44,6 +44,12 @@ per entry; an entry goes when its fix is merged.
 - K15 · minor · backend · A group read before is reused by content and keeps the reason text it was read with, so
   a reason reworded since (#459, #475) shows its old words until a fresh run reads the file again (seen on #475's
   run, not re-run here) (Sun 02:55)
+- K16 · limit · backend · The evidence index (EVIDENCE_SCOPE=all_non_plan, on in the demo) can also hold a floor
+  plan's description: 1 of the 20 plan pictures in the demo projects, a camera photo of an evacuation plan that
+  Carbon called `other` (31 of 227 on a hard hand-checked set). The photo is still read as a plan and its counts
+  come from that reading, but the chat may quote the description, which nobody checks. A question in Finnish can
+  miss a sheet the same question in English finds (a site plan sixth of 8 sources in Finnish, second in English;
+  13 of 15 test questions found their source in the first 5). Measured on #267 at bc25177, not re-run (Sat 18:37)
 
 ## Intended, not bugs
 - The engineer's thread lives in memory: a reload or another drawing starts it empty (engineer.md).
