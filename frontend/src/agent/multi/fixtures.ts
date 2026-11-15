@@ -2,7 +2,7 @@
 // card fixture's wall W4 (x 0.40 to 0.41, y 0.20 to 0.30) with a ventilation model that has every status.
 import type { Proposal } from '../agent';
 import { proposal } from '../fixtures';
-import type { Lane, ServicesFollow } from './services';
+import type { Lane, LanePicture, ServicesFollow } from './services';
 
 const none = { follows: 0, stays: 0, needs_decision: 0, cut_off: 0, new_run_m: 0 };
 
@@ -185,3 +185,89 @@ export const services: ServicesFollow = {
 };
 
 export const followed: Proposal = { ...proposal, services };
+
+/** pics-edit-follow W3: a heating lane read from the floor's heating picture (another sheet), with the edit and its
+ * marks placed on that sheet: wall W4 lies at x 0.45 to 0.46, y 0.30 to 0.40 there. */
+export const PIC = 'pic0heating0001';
+export const heatingPicture: Lane & { picture: LanePicture } = {
+  discipline: 'heating',
+  status: 'checked',
+  source: 'heating plan (picture)',
+  reason: null,
+  elements: 14,
+  line: 'Heating: 1 radiator to re-seat, 1 pipe passing through.',
+  summary: { ...none, needs_decision: 1, stays: 1 },
+  marks: [
+    { ref: 'H1', global_id: '', kind: 'radiator', label: 'radiator', line: [], at: [0.398, 0.24] },
+    {
+      ref: 'H2',
+      global_id: '',
+      kind: 'pipe',
+      label: 'pipe, heating flow',
+      line: [
+        [0.36, 0.27],
+        [0.45, 0.27],
+      ],
+      at: null,
+    },
+  ],
+  actions: [
+    {
+      id: 'h1',
+      status: 'needs_decision',
+      code: 'reseat',
+      label:
+        'The radiator on the removed wall has to move; where to and how to reconnect are not shown on a picture.',
+      refs: ['H1'],
+      system: null,
+      moved_to: null,
+      paths: [],
+    },
+    {
+      id: 'h2',
+      status: 'stays',
+      code: 'through',
+      label: 'The heating flow pipe crossing the wall is now open to the merged room.',
+      refs: ['H2'],
+      system: 'heating flow',
+      moved_to: null,
+      paths: [],
+    },
+  ],
+  picture: {
+    drawing_id: PIC,
+    page: 1,
+    pairing: {
+      drawing_id: PIC,
+      page: 1,
+      paired_by: 'metadata',
+      reason: "same floor in the title block: 'EG' on both",
+      score: null,
+    },
+    removed: [
+      [
+        [0.45, 0.3],
+        [0.46, 0.3],
+        [0.46, 0.4],
+        [0.45, 0.4],
+      ],
+    ],
+    added: [],
+    marks: [
+      { ref: 'H1', line: [], at: [0.448, 0.34] },
+      {
+        ref: 'H2',
+        line: [
+          [0.41, 0.37],
+          [0.5, 0.37],
+        ],
+        at: null,
+      },
+    ],
+  },
+};
+
+export const pictured: Proposal = {
+  ...proposal,
+  services: { ...services, disciplines: [heatingPicture, ventilation] },
+};
