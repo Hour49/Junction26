@@ -69,27 +69,51 @@ test('W4-1: with no keys, the heating and plumbing pictures are read and followe
   expect(errors).toEqual([]);
 });
 
-// shortcut: fixme until W1 (pairing, pics/pairing), W2 (the picture in the follow, pics/follow-picture) and W3 (the
-// picture in the tab, pics/edit-picture-tabs) are on main; then drop the fixme and fit the locators to W3's DOM.
-test.fixme('W4-2: the heating tab shows the H-101 picture with the wall struck out and why it is that floor', async ({
+test('W4-2: the heating tab shows the H-101 picture with the edit, why it is that floor, and can refuse it', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const card = await removed(page, testInfo.config.rootDir);
-  await card
-    .getByRole('group', { name: 'Discipline' })
-    .getByRole('button', { name: /^Heating/ })
-    .click();
-  const panel = card.getByRole('region', { name: 'Heating after the change' });
-  // the same floor by its names (H-101 / A-101, floor 1), never the floor 2 sheet (H-102)
-  await expect(panel).toContainText(/floor 1|101/i);
-  await expect(panel).not.toContainText('H-102');
-  // the picture itself, with the removed wall's strip drawn on it, and a way to refuse the pairing
-  await expect(card.getByRole('img', { name: /H-101/ })).toBeVisible();
-  await expect(card.getByRole('button', { name: 'Not this sheet' })).toBeVisible();
-  // two radiators on the wall to move, the supply pipe through it (services-follow.md SFP-1)
-  await expect(panel.locator('.ms-action')).not.toHaveCount(0);
+  const tabs = card.getByRole('group', { name: 'Discipline' });
+  const heating = tabs.getByRole('button', { name: /^Heating/ });
+  await expect(heating).not.toContainText(/no model|not aligned/, { timeout: 30_000 });
+  await heating.click();
+  // AC-42: paired by the sheets' names (the same floor and sheet number on both), never the floor 2 sheet (H-102)
+  const line = card.locator('.ms-pairing');
+  await expect(line).toContainText("Paired by the sheets' names");
+  await expect(line).toContainText("'Floor 1' on both");
+  await expect(line).toContainText('H-101');
+  await expect(line).not.toContainText('H-102');
+  // AC-40, AC-41: the heating sheet itself, the edit drawn on it; Before shows it as drawn
+  const picture = card.getByRole('img', {
+    name: /H-101 Floor 1 heating\.png, page 1, with the proposed change/,
+  });
+  await expect(picture).toBeVisible();
+  await expect(
+    card.getByRole('region', { name: 'Heating after the change' }).locator('.ms-action'),
+  ).not.toHaveCount(0);
   await shot(page, testInfo, 'pics-heating-picture', offline);
+  await card.getByRole('button', { name: 'Before' }).click();
+  await expect(
+    card.getByRole('img', { name: /H-101 Floor 1 heating\.png, page 1, as drawn/ }),
+  ).toBeVisible();
+  await card.getByRole('button', { name: 'After' }).click();
+  // plumbing: its own sheet of the floor
+  await tabs.getByRole('button', { name: /^Plumbing/ }).click();
+  await expect(card.locator('.ms-pairing')).toContainText('P-101');
+  await expect(
+    card.getByRole('img', { name: /P-101 Floor 1 plumbing\.png, page 1/ }),
+  ).toBeVisible();
+  // AC-43: a wrong pairing can be refused, and the tab then says it is not checked
+  await tabs.getByRole('button', { name: /^Heating/ }).click();
+  await card.getByRole('button', { name: 'Not this sheet' }).click();
+  await expect(card).toContainText("Not checked: you said this is not this floor's heating sheet.");
+  await expect(tabs.getByRole('button', { name: /^Heating/ })).toContainText('not checked');
+  await expect(card.getByRole('button', { name: 'Use this sheet again' })).toBeVisible();
+  // AC-44: no horizontal scroll at either width
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
   expect(errors).toEqual([]);
 });
