@@ -654,5 +654,6 @@ def _answer(found: Json) -> tuple[str, Json]:
     evidence = [marks[0]["ev"] for p in answering[:12] if (marks := [
         m for m in p["answer"].get("marks", []) if isinstance(m, dict) and "ev" in m])]  # fmt: skip
     cites = "".join(f"[{ev}]" for ev in evidence)
-    them = "drawings answer" if len(answering) > 1 else "drawing answers"
-    return _final("answer", f"The {them} this below{' ' + cites if cites else ''}.", evidence)
+    # No count of drawings in the sentence: the card under it lists every drawing's value, and
+    # a sentence that says "the drawing" or "the drawings" is wrong for some turn (#430).
+    return _final("answer", f"The answer is below{' ' + cites if cites else ''}.", evidence)

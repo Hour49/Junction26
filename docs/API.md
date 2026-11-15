@@ -8619,7 +8619,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   "chat_id": "c4a7c0000001",
   "turn": 1,
   "kind": "answer",
-  "text": "The drawings answer this below [1][2].",
+  "text": "The answer is below [1][2].",
   "evidence": [
     {
       "n": 1,
