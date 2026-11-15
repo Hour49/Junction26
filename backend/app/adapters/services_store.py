@@ -10,7 +10,8 @@ content hash, so a re-exported file (new bytes, same name) keeps every old id; t
 `ServicesBuilds` builds a project's missing models off the request (SV-8: never at question time),
 as `facts_store.StoredFacts` builds fact sheets: one child process at a time with its own memory
 and time budget, once per sha256 in flight, a failure not started again in this process. A file
-with no distribution element (a building model) stores nothing.
+with no distribution element (a building model) stores a marker,
+`<sha256>.services.none.b<builder>`, so it is tried once, not again after a restart.
 """
 
 import gzip
@@ -57,6 +58,11 @@ class ServicesStore:
         version = services_model.BUILDER_VERSION
         return self._dir / f"{sha256}.services.v1.b{version}.json.gz"
 
+    def none_path(self, sha256: str) -> Path:
+        """The marker of a file with this content that has no services model (no distribution
+        element), per builder version: a builder fix tries it again."""
+        return self._dir / f"{sha256}.services.none.b{services_model.BUILDER_VERSION}"
+
     def load(self, sha256: str) -> ServicesModel | None:
         path = self.path(sha256)
         if not path.is_file():
@@ -72,8 +78,10 @@ class ServicesStore:
     ) -> ServicesModel | None:
         """The model of the file `name` with content `data` (and its building model's bytes),
         built once and kept. None when ifcopenshell cannot read it. `keep_empty=False`: a model
-        with no element is returned and not kept (a building model is no services model)."""
-        stored = self.load(hashlib.sha256(data).hexdigest())
+        with no element is returned and not kept, only marked (a building model is no services
+        model)."""
+        sha256 = hashlib.sha256(data).hexdigest()
+        stored = self.load(sha256)
         if stored is not None:
             return stored
         ids_path = self._dir / f"{hashlib.sha256(name.encode()).hexdigest()[:24]}.ids.json"
@@ -91,6 +99,7 @@ class ServicesStore:
                 logger.warning("%s: no services model: %s", name, error)
                 return None
         if not keep_empty and not model.elements:
+            self._write(self.none_path(sha256), b"")
             return model
         self._write(ids_path, json.dumps(ids, indent=0, sort_keys=True).encode())
         raw = model.model_dump_json().encode()
@@ -170,8 +179,8 @@ class ServicesBuilds:
 
     def building(self, sha256: str, name: str, data: Callable[[], bytes]) -> bool:
         """Whether the model of this content is being built: a build starts when none is stored,
-        in flight or failed. False when it is stored or its build failed."""
-        if self._store.path(sha256).is_file():
+        in flight or failed. False when it is stored, has none or its build failed."""
+        if self._store.path(sha256).is_file() or self._store.none_path(sha256).is_file():
             return False
         with self._lock:
             if sha256 in self._failed:

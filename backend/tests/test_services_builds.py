@@ -5,6 +5,7 @@ chat turn starts the build of each missing one in a capped child (as facts_store
 say it is being built instead of "none"."""
 
 import hashlib
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -91,6 +92,47 @@ def test_the_child_stores_a_services_model_and_nothing_for_a_building_model(
     assert not ServicesStore(cache).path(sha).is_file()
     (tmp_path / "x.ifc").write_bytes(b"no ifc")
     assert _child(str(tmp_path / "x.ifc"), "x.ifc", str(cache)) == NOT_READ
+
+
+def test_a_building_model_is_tried_once_not_again_after_a_restart(tmp_path: Path) -> None:
+    """Review of #475, Gap A: an architecture IFC has no distribution element, so its child build
+    stored nothing and every restart parsed it again (up to 3 GB, 600 s) while the tools said
+    "being built" for a model that never comes. The child now leaves a marker per sha256."""
+    cache = tmp_path / "cache"
+    building = _architecture(tmp_path / "a.ifc")
+    assert _child(str(building), "architecture.ifc", str(cache)) == NO_SERVICES
+    started: list[str] = []
+    jobs = Jobs()
+    restarted = ServicesBuilds(cache, build=lambda d, n, c: started.append(n), start=jobs)
+    sha = hashlib.sha256(building.read_bytes()).hexdigest()
+    assert not restarted.building(sha, "architecture.ifc", building.read_bytes)
+    assert jobs.waiting == [] and started == []
+
+
+def test_two_files_are_built_one_at_a_time(tmp_path: Path) -> None:
+    """Review of #475, Gap B: two builds at once would double the memory."""
+    entered = {"a": threading.Event(), "b": threading.Event()}
+    release = threading.Event()
+    threads: list[threading.Thread] = []
+
+    def build(data: bytes, name: str, cache: Path) -> None:
+        entered[name].set()
+        if name == "a":
+            assert release.wait(10)
+
+    def start(job: Callable[[], None]) -> None:
+        threads.append(threading.Thread(target=job))
+        threads[-1].start()
+
+    builds = ServicesBuilds(tmp_path, build=build, start=start)
+    assert builds.building("sha-a", "a", lambda: b"")
+    assert entered["a"].wait(10)
+    assert builds.building("sha-b", "b", lambda: b"")
+    assert not entered["b"].wait(0.5)  # held behind a's build
+    release.set()
+    for thread in threads:
+        thread.join(10)
+    assert entered["b"].is_set()
 
 
 def test_the_capped_child_builds_the_model_the_api_reads(tmp_path: Path) -> None:
