@@ -74,6 +74,36 @@ def test_answers_9_ac9_a_conflicting_quantity_ends_as_conflict() -> None:
     assert "kind conflict" in SYSTEM  # the prompt says so too
 
 
+def test_r4_c9_different_rooms_values_are_not_a_conflict_the_model_says_they_are() -> None:
+    """Tudor QA R4-C9: "The sources disagree." (kind conflict) over three different rooms'
+    values, while the card under it said each is its own room. A conflict is two sources giving
+    one quantity different values: a turn is a conflict only when a quantity it rests on is one."""
+    part = ASKED["parts"][0]
+    parts = [
+        {**part, "drawing_id": f"d{n}", "name": f"flat-{n}.pdf",
+         "answer": {**part["answer"], "answer": value}}
+        for n, value in enumerate((7.56, 9.1, 12.4), start=1)
+    ]  # fmt: skip
+    asked = {**ASKED, "parts": parts}
+    said = "Room 1.01 is 7.56, 9.1 and 12.4 m2 on the three flats [ev_1] [ev_2] [ev_3]."
+    got = turn(Model(step(call("ask_drawings", question="area of room 1.01")),
+                     final(kind="conflict", text=said)),
+               Tools(ask_drawings=asked))  # fmt: skip
+    assert got.kind == "answer"  # the text and its three sources as they were
+    assert got.text == "Room 1.01 is 7.56, 9.1 and 12.4 m2 on the three flats [1] [2] [3]."
+    assert len(got.answers) == 1 and len(got.evidence) == 3  # the card stays with the turn
+
+
+def test_r4_c9_a_conflicting_quantity_the_model_calls_a_conflict_stays_one() -> None:
+    part = ASKED["parts"][0]
+    quantity = {"status": "conflict", "values": [22.4, 30.0]}
+    asked = {**ASKED, "parts": [{**part, "answer": {**part["answer"], "quantity": quantity}}]}
+    got = turn(Model(step(call("ask_drawings", question="area")),
+                     final(kind="conflict", text="Room 1.01 is 22.4 or 30.0 m2 [ev_1].")),
+               Tools(ask_drawings=asked))  # fmt: skip
+    assert got.kind == "conflict"
+
+
 def test_answers_3_lc6_the_turn_context_follows_the_system_prompt_every_turn() -> None:
     model = Model(final(text="Pick a country."))
     turn(model, context=NO_COUNTRY)

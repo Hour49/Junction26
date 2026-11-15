@@ -845,6 +845,12 @@ class _Run:
         answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
+        asked = answers or tuple(e["answer"] for e in self.asked)
+        if kind == "conflict" and asked and not any(_conflicted(given) for given in asked):
+            # different rooms' values are not a disagreement: a conflict is one quantity two
+            # sources give different values, and ask_drawings marks that (QA R4-C9)
+            kind = "answer"
+            answers = self._answers(set(cited) | set(shown), kind)
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
         evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
