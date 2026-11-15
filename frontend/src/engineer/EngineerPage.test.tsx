@@ -1326,3 +1326,38 @@ describe('hover tips on the engineer page (docs/ui-tooltips.md)', () => {
     await tipOf(await within(t).findByText('This drawing was flagged'), TIPS.flagged);
   });
 });
+
+describe('a text answer from a building model (deep QA, research-lead 1)', () => {
+  const text = '5 storeys:\n- Basement: elevation -3.00 m\n- Ground floor: elevation 0.00 m';
+  const facts = (answerText: string): AnswerView => ({
+    ...answerModel,
+    question: 'How many storeys does the building have?',
+    answer: answerText,
+    unit: null,
+    quantity: null,
+    marks: [],
+    method: 'facts',
+    proof: { ...answerModel.proof, kind: 'none', arithmetic: null, objects: null, storeys: null },
+  });
+
+  it('is set as text with its lines kept, not as the big value; its first line is the sentence', async () => {
+    const a = facts(text);
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(a) });
+    await typeAndAsk(a.question);
+    const t = await turn(a.question);
+    const value = await within(t).findByTestId('answer-value');
+    expect(value.className).toBe('en-value en-value--text');
+    expect(value.textContent).toBe(text);
+    expect(t.querySelector('.en-sentence')?.textContent).toBe('5 storeys.');
+    // the drawing pane is not left empty
+    expect(within(t).getByText('Read from the model data: no sheet to point at.')).toBeTruthy();
+  });
+
+  it('a short text answer stays the big value', async () => {
+    const a = facts('Kitchen');
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(a) });
+    await typeAndAsk(a.question);
+    const value = await within(await turn(a.question)).findByTestId('answer-value');
+    expect(value.className).toBe('en-value');
+  });
+});

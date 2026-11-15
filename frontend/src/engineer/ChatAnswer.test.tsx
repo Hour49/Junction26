@@ -4,7 +4,14 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
 import { drawingLabel } from '../api';
-import { answer, answerArea, answerResolved, project, projectAsk } from '../api/fixtures';
+import {
+  answer,
+  answerArea,
+  answerConflict,
+  answerResolved,
+  project,
+  projectAsk,
+} from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
 import { ChatAnswer } from './ChatAnswer';
@@ -131,6 +138,29 @@ it('K7 the drawings that refused are named with what each lacks, under the card'
   cleanup();
   show({ ...projectAsk, parts: projectAsk.parts.slice(0, 2) });
   expect(screen.queryByTestId('refused-drawings')).toBeNull();
+});
+
+it('K7 more than 3 refused drawings are grouped by reason, in the order the API sends them', () => {
+  const refusal = projectAsk.parts[2]?.answer.refusal as NonNullable<Part['answer']['refusal']>;
+  const refuse = (id: string, name: string, code: typeof refusal.code): Part => ({
+    ...flatA,
+    drawing_id: id,
+    name,
+    answer: { ...flatA.answer, refusal: { ...refusal, code } },
+  });
+  show({
+    ...projectAsk,
+    parts: [
+      flatA,
+      refuse('r1', 'a.png', 'no-scale'),
+      refuse('r2', 'b.png', 'not-in-drawing'),
+      refuse('r3', 'c.png', 'no-scale'),
+      refuse('r4', 'd.ifc', 'no-drawing'),
+    ],
+  });
+  expect(screen.getByTestId('refused-drawings').textContent).toBe(
+    "Not used. Has no scale: a.png, c.png. Doesn't show it: b.png. Has no drawing model: d.ifc.",
+  );
 });
 
 it('CH-32 reference 1 is drawn large by the viewer with its marks and legend; no credit', () => {
@@ -575,4 +605,13 @@ it('QA-6 (#430) onReference gets the shown drawing on open and on every switch',
   expect(onReference.mock.calls).toEqual([[flatA.drawing_id]]);
   fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
   expect(onReference.mock.calls).toEqual([[flatA.drawing_id], [flatB.drawing_id]]);
+});
+
+it('CH-50 methods that disagree say which value was kept and why under the value; a check reason still wins', () => {
+  show({ ...projectAsk, parts: [{ ...flatA, answer: answerConflict }] });
+  expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(answerConflict.explanation);
+  cleanup();
+  const check = { ...(answerMedium.check as NonNullable<typeof answerMedium.check>) };
+  show({ ...projectAsk, parts: [{ ...flatA, answer: { ...answerConflict, check } }] });
+  expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(check.reason);
 });

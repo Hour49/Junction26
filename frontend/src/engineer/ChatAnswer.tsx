@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { drawingLabel, type ProjectAnswer, type ProjectView } from '../api';
 import { routeLabel } from '../ingest/ingest';
 import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCard';
@@ -40,12 +40,10 @@ function countNoun(q: Quantity, value: Part['answer']['answer']): string | null 
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+type RefusalCode = NonNullable<Part['answer']['refusal']>['code'];
 
 /** K7: what a refused drawing lacks, by refusal code (the backend's LACKS, singular). */
-const LACKS: Record<
-  NonNullable<ProjectAnswer['parts'][number]['answer']['refusal']>['code'],
-  string
-> = {
+const LACKS: Record<RefusalCode, string> = {
   'no-reader': 'gives no reliable number for it',
   'no-scale': 'has no scale',
   'not-in-drawing': "doesn't show it",
@@ -53,6 +51,59 @@ const LACKS: Record<
   'unsupported-question': "can't answer this question",
   'no-drawing': 'has no drawing model',
 };
+/** More refused drawings than this are grouped by reason ("Has no scale: A, B, C."). */
+const GROUP_ABOVE = 3;
+
+/** K7: the drawings that refused, named with what each lacks, in the API's order; none, nothing. Used under a
+ * project answer (ChatAnswer) and under the project chat's refusal when every drawing refuses (ProjectChat).
+ * `question` names the ask the line belongs to, for a turn that holds several. */
+export function RefusedLine(props: { parts: Part[]; project: ProjectView; question?: string }) {
+  const refused = props.parts.flatMap((p) =>
+    p.answer.refusal ? [{ p, code: p.answer.refusal.code }] : [],
+  );
+  if (refused.length === 0) return null;
+  const name = (p: Part) => (
+    <span className="en-part-name">
+      {drawingLabel(
+        props.project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name },
+      )}
+    </span>
+  );
+  const asked = props.question ? `“${props.question}” — ` : '';
+  if (refused.length <= GROUP_ABOVE)
+    return (
+      <p className="en-refused" data-testid="refused-drawings">
+        {asked}Not used:{' '}
+        {refused.map(({ p, code }, n) => (
+          <span key={p.drawing_id}>
+            {n > 0 && '; '}
+            {name(p)} {LACKS[code]}
+          </span>
+        ))}
+        .
+      </p>
+    );
+  const groups = new Map<RefusalCode, Part[]>();
+  for (const { p, code } of refused) groups.set(code, [...(groups.get(code) ?? []), p]);
+  return (
+    <p className="en-refused" data-testid="refused-drawings">
+      {asked}Not used.
+      {[...groups].map(([code, ps]) => (
+        <span key={code}>
+          {' '}
+          {LACKS[code].charAt(0).toUpperCase() + LACKS[code].slice(1)}:{' '}
+          {ps.map((p, n) => (
+            <Fragment key={p.drawing_id}>
+              {n > 0 && ', '}
+              {name(p)}
+            </Fragment>
+          ))}
+          .
+        </span>
+      ))}
+    </p>
+  );
+}
 
 /** "<Level> confidence" (CH-42), the backend's sentence as its tooltip (the shared Tip) when there is one. */
 const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
@@ -73,8 +124,6 @@ export function ChatAnswer(props: {
 }) {
   const { ask, project, projectId, onReference } = props;
   const parts = orderParts(ask.parts, project.files);
-  // K7: the drawings that refused, named with what each lacks (orderParts keeps only the answering ones)
-  const refused = ask.parts.filter((p) => p.answer.refusal !== null);
   // The reference shown: the most useful one (qa #430), kept per answer so a layout switch (a remount when the
   // window crosses the phone width) does not reset it.
   const [at, setAtState] = useState(() => PICKED.get(ask) ?? bestReference(parts));
@@ -110,7 +159,10 @@ export function ChatAnswer(props: {
   const labelOf = (p: (typeof parts)[number]) =>
     drawingLabel(project.drawings.find((d) => d.drawing_id === p.drawing_id) ?? { file: p.name });
   // ui-bugs 7: why a value was refused or flagged stays on screen; the confidence sentence is behind "Why?"
-  const reason = (p: (typeof parts)[number]) => p.answer.check?.reason;
+  // CH-50: methods that disagree say which value was kept and why (their pill says it is below)
+  const reason = (p: (typeof parts)[number]) =>
+    p.answer.check?.reason ??
+    (p.answer.quantity?.status === 'conflict' ? (p.answer.explanation ?? undefined) : undefined);
   // CH-46: the reason already says it is an estimate and why (the backend quotes it): one line, not two
   const estimate = (p: (typeof parts)[number]) => {
     const e = p.answer.quantity?.estimate;
@@ -267,19 +319,8 @@ export function ChatAnswer(props: {
           </div>
         </figure>
       </div>
-      {refused.length > 0 && (
-        <p className="en-refused" data-testid="refused-drawings">
-          Not used:{' '}
-          {refused.map((p, n) => (
-            <span key={p.drawing_id}>
-              {n > 0 && '; '}
-              <span className="en-part-name">{labelOf(p)}</span>{' '}
-              {p.answer.refusal ? LACKS[p.answer.refusal.code] : ''}
-            </span>
-          ))}
-          .
-        </p>
-      )}
+      {/* K7: orderParts keeps only the answering drawings; the refused ones are named here */}
+      <RefusedLine parts={ask.parts} project={project} />
       {model?.model_file_id && (
         <ModelDialog
           projectId={projectId}

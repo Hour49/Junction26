@@ -20,6 +20,7 @@ import { flush, must, sheet } from '../ingest/testing';
 import { issuesChanged } from '../shell/issueCount';
 import { issueRoute } from '../surveyor/issueLinks';
 import { DocumentsScreen } from './DocumentsScreen';
+import { waitsForYou } from './documents';
 
 vi.mock('../shell/issueCount', async (original) => ({
   ...(await original<typeof import('../shell/issueCount')>()),
@@ -65,7 +66,7 @@ function show(
   render(<DocumentsScreen projectId={body.id} pack={pack} />);
   return api;
 }
-const issuesRegion = () => within(screen.getByRole('region', { name: 'Issues' }));
+const issuesRegion = () => within(screen.getByRole('region', { name: 'Issues on demand' }));
 const cards = () => issuesRegion().getAllByRole('listitem');
 
 beforeEach(() => {
@@ -77,15 +78,13 @@ afterEach(() => {
 });
 
 describe('DocumentsScreen (documents.md)', () => {
-  it('DOC-1 and DOC-16: kicker, title, counts line, the checks link', async () => {
+  it('DOC-1 and DOC-16: kicker and title, no counts line; the rules link lives in the country picker', async () => {
     show(project, projectIssues, {}, 'fi');
     await flush();
     expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy();
     expect(document.body.textContent).toContain(project.name);
-    expect(document.body.textContent).toContain('3 files ingested, 5 drawings read from them');
-    expect(screen.getByRole('link', { name: 'Building-code checks' }).getAttribute('href')).toBe(
-      `#/p/${PID}/checks?pack=fi`,
-    );
+    expect(document.body.textContent).not.toContain('files ingested');
+    expect(screen.queryByRole('link', { name: 'Building-code checks' })).toBeNull();
   });
 
   it('DOC-2 while running: no issues request, the waiting line, lists shown', async () => {
@@ -102,29 +101,30 @@ describe('DocumentsScreen (documents.md)', () => {
     show(project, { ...projectIssues, issues: [...projectIssues.issues, needs] });
     await flush();
     const list = cards();
-    expect(list.length).toBe(projectIssues.issues.length); // 6 - 1 conflict + needs
+    // Issues on demand: only what waits for an answer now (no conflicts, notes or answered ones)
+    const waiting = [...projectIssues.issues, needs].filter(
+      (i) => i.kind !== 'conflict' && waitsForYou(i),
+    );
+    expect(list.length).toBe(waiting.length);
     const first = must(list[0]);
     expect(first.textContent).toContain('1');
     expect(first.textContent).toContain('Needs a person');
     expect(first.textContent).toContain('Plan image 1'); // #229 drawing_name, not the path
     expect(first.textContent).not.toContain(needs.file);
     expect(first.textContent).toContain(needs.why);
-    const asideCard = must(list.find((c) => c.textContent.includes(aside.why)));
-    expect(asideCard.textContent).toContain(aside.file); // no drawing: the file path
+    expect(list.find((c) => c.textContent.includes(aside.why))).toBeUndefined(); // a note: not listed
     expect(within(first).getByRole('link', { name: 'Open the file' }).getAttribute('href')).toBe(
       `#/p/${PID}/f/${String(needs.file_id)}`,
     );
     expect(document.body.textContent).not.toContain(must(issueOf('conflict').why));
   });
 
-  it('DOC-5 and DOC-9: a note has no answer form; no chips without suggestions', async () => {
+  it('DOC-5 and DOC-9: a note is not listed; no chips without suggestions', async () => {
     show(project, { ...projectIssues, issues: [located, needs] });
     await flush();
-    const [answerable, note] = [must(cards()[0]), must(cards()[1])];
-    expect(within(note).queryByRole('textbox')).toBeNull();
-    expect(within(note).queryByRole('button', { name: 'Use my answer' })).toBeNull();
+    expect(cards()).toHaveLength(1); // the note (located) is not listed
     expect(
-      within(answerable)
+      within(must(cards()[0]))
         .getAllByRole('button')
         .map((b) => b.textContent),
     ).toEqual(['Use my answer']);
@@ -139,7 +139,7 @@ describe('DocumentsScreen (documents.md)', () => {
     };
     show(
       { ...project, files: [...project.files, photo] },
-      { ...projectIssues, issues: [needs, aside] },
+      { ...projectIssues, issues: [needs, { ...aside, severity: 'needs_person' }] },
     );
     await flush();
     const calls = vi.mocked(SourceFigure).mock.calls.map(([p]) => p);
@@ -350,13 +350,11 @@ describe('DocumentsScreen (documents.md)', () => {
     ];
     show(project, { ...projectIssues, issues });
     await flush();
-    const [cannot, picked] = [within(must(cards()[0])), within(must(cards()[1]))];
+    // Carbon's pick is a note: it waits for no one, so only the can-not-tell card is listed
+    expect(cards()).toHaveLength(1);
+    expect(document.body.textContent).not.toContain(pick.reason);
+    const cannot = within(must(cards()[0]));
     const card = must(issueRoute(conflict, PID)); // the conflict card on Ingest (fe-surveyor)
-    expect(picked.getByText('Picked by Carbon').getAttribute('title')).toBe('gemini-4-carbon');
-    expect(picked.getByText(pick.reason)).toBeTruthy();
-    expect(picked.getByText('Note')).toBeTruthy();
-    expect(picked.getByRole('link', { name: 'You can change it' }).getAttribute('href')).toBe(card);
-    expect(picked.queryByRole('textbox')).toBeNull();
     expect(cannot.getByText('Needs a person')).toBeTruthy();
     expect(cannot.getByText('Carbon could not tell')).toBeTruthy();
     expect(cannot.getByText(must(resolving.review.conflicts[0]?.resolved).reason)).toBeTruthy();
@@ -364,7 +362,7 @@ describe('DocumentsScreen (documents.md)', () => {
       card,
     );
     expect(cannot.queryByRole('textbox')).toBeNull();
-    expect(issuesRegion().getByText(/1 issue needs your answer/)).toBeTruthy();
+    expect(issuesRegion().getByText('1 issue needs your answer now.')).toBeTruthy();
   });
 
   it('DOC-10 drawings and files: names, route words, Open and file links', async () => {
@@ -387,12 +385,10 @@ describe('DocumentsScreen (documents.md)', () => {
       );
   });
 
-  it('DOC-11 Export is a download link to the zip, pack kept', async () => {
+  it('DOC-11 no Export link on the issues', async () => {
     show(project, projectIssues, {}, 'fi');
     await flush();
-    const link = issuesRegion().getByRole('link', { name: 'Export' });
-    expect(link.getAttribute('href')).toBe(`/api/projects/${PID}/issues.zip?pack=fi`);
-    expect(link.hasAttribute('download')).toBe(true);
+    expect(issuesRegion().queryByRole('link', { name: 'Export' })).toBeNull();
   });
 
   it('DOC-13 the issues failing: detail and code with Retry, the lists stay', async () => {
@@ -409,9 +405,9 @@ describe('DocumentsScreen (documents.md)', () => {
     expect(screen.getByRole('region', { name: 'Files' })).toBeTruthy();
   });
 
-  it('every answered issue: the line says so; no issues: nothing needs a look', async () => {
+  it('no issue waiting: nothing needs your answer right now', async () => {
     show(project, { ...projectIssues, issues: [] });
     await flush();
-    expect(issuesRegion().getByText('No issues: nothing needs a look.')).toBeTruthy();
+    expect(issuesRegion().getByText('Nothing needs your answer right now.')).toBeTruthy();
   });
 });

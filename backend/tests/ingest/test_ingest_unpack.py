@@ -128,3 +128,30 @@ def test_a_corrupt_entry_is_refused_and_an_unreadable_zip_is_one_file() -> None:
 def test_a_broken_central_directory_is_one_unreadable_file() -> None:
     with pytest.raises(InvalidInputError):
         list(ZipUnpacker()._unzip(b"PK\x03\x04garbage", "", None, nested=False))  # type: ignore[arg-type]
+
+
+def flagless(names: dict[str, bytes]) -> bytes:
+    """A zip whose names are these raw bytes with the UTF-8 flag (bit 11) unset, as macOS's
+    Archive Utility writes UTF-8 names: ASCII stand-ins of the same length, swapped after."""
+    stand_ins = {
+        f"{index:0{len(raw)}d}"[-len(raw) :]: raw for index, raw in enumerate(names.values())
+    }
+    data = zipped(*((stand_in, b"%PDF-1.4 x") for stand_in in stand_ins))
+    for stand_in, raw in stand_ins.items():
+        data = data.replace(stand_in.encode(), raw)
+    return data
+
+
+def test_a_utf8_name_without_the_utf8_flag_is_read_as_utf8() -> None:
+    """QA r12 upload sweep: 'Kerros_ä/Pohjapiirros_ö.pdf' zipped on a Mac showed as
+    'Kerros_├ñ/Pohjapiirros_├╢.pdf' (cp437, the zip default for a name without the flag)."""
+    name = "Kerros_ä/Pohjapiirros_ö.pdf"
+    found = unpack(flagless({name: name.encode()}))
+    assert list(found) == [name]
+    assert found[name].data == b"%PDF-1.4 x"
+
+
+def test_a_cp437_name_without_the_flag_stays_cp437() -> None:
+    """Bytes that are not UTF-8 (a DOS/Windows zip: 0xE1 is cp437 'ß') keep the zip default."""
+    found = unpack(flagless({"Grundriß.pdf": "Grundriß.pdf".encode("cp437")}))
+    assert list(found) == ["Grundriß.pdf"]

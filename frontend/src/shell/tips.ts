@@ -63,8 +63,7 @@ export const TIPS = {
     single: statusTip('single'),
   },
   // Documents
-  issues:
-    'Something Vellum could not decide alone. Answer it; notes are only for your information.',
+  issues: 'What Vellum could not decide alone and needs your answer now.',
 } as const;
 
 /** The tip for a file's state word ("" for a state without one: no tip is shown). */
