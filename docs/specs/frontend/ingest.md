@@ -723,6 +723,11 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
 - IN-113 (orchestrator, 390 check with 40 files): a file row's link shows the folder muted and the file name in
   its own span that does not shrink, so a long path gives up its folder first and rows of one folder stay apart
   ("…/Grundriss_OG4…", not "Planunterlagen/Archi…"); the link's name and `title` stay the full path. [component]
+  The folder gives way down to its first letter and a whole "…/" ("s…/") and no further (trace's final e2e,
+  2026-11-15: a few pixels of a cut glyph before "ground-floor-copy.png" at 390): its "/" does not shrink and the
+  name leaves it 3ch (in 1ch Chromium shows the letter, not "…", and "s/" reads as a folder), so the name's start
+  is cut next (IN-129). [component; browser at 1440 and 390, `e2e/lane-names.spec.ts`: each cut folder at least as
+  wide as its first letter and "…/"]
 - IN-114 (QA R2-C3, 255-character upload name): the title `h1` (screen 2 and the file page) shows at most 3 lines
   (`line-clamp-3`), with no sideways scroll at 390; its accessible name and `title` stay the full name. The
   "Uploaded: …" line cuts a name over 60 characters in the middle ("Bauprojekt_…_Me.png"), its `title` the whole
@@ -837,6 +842,17 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   the project waited 2 s or more for a free slot (`created_at` to `started_at`; still queued: to now) a short line
   under it says so: "after 64 s waiting for a free slot", or while it is still queued "waiting 12 s for a free
   slot" under "—". A wait from 2 min reads "3 min 5 s". [unit: `queueWaitMs`, `formatWait`; component]
+- IN-133 (trace's final e2e, 2026-11-15: "keep or set aside (rules) ✓" beside "0 files judged"): the judge's
+  sorting chip, once its index step ended done with a `found` that counts no file (the judge's `found` is its
+  verdicts, so `{}` is "0 files judged"), is dimmed as IN-124 with "nothing to judge", not ticked. Read from
+  `found` only, never from `did`; no `found`, or a failed judge: ticked as IN-127. [unit: `triageRan`,
+  `triageEmpty`; component, from the demo sample's real status]
+- IN-134 (decision 0018 `local_slot`): while a file's `step_id` is `local_slot` (it waits for the local reader,
+  which reads one sheet at a time), its row reads the step's label in its running form, "Extract: waiting for the
+  local reader", and the wait is no chip: no "Also ran" group for it, then or after. [unit: `rowStep`; component]
+
+Changed on purpose (IN-133): IN-127's demo sample shows "keep or set aside (rules) · nothing to judge", not a tick
+(its judge weighed no file).
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,

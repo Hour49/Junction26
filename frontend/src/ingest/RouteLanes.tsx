@@ -5,6 +5,7 @@ import { useState, type JSX } from 'react';
 import type { FileStatus, ProjectView } from '../api';
 import { STAGE_LABEL, STATE_LABEL, STEPS, isFinished, isLive, plural, stepOf } from './ingest';
 import {
+  LOCAL_SLOT,
   PIPELINE_TIPS,
   chipCovers,
   chipRan,
@@ -16,6 +17,8 @@ import {
   lanes,
   readDrawings,
   routeReaders,
+  rowStep,
+  triageEmpty,
   triageEnded,
   triageRan,
   triageReaders,
@@ -102,7 +105,7 @@ function Track({ file }: { file: FileStatus }) {
 /** What the row says under the path: the reader now, the stage, what it found, or why it was not read. */
 function rowNote(file: FileStatus): string {
   if (file.state === 'running') {
-    const step = fileStep(file);
+    const step = rowStep(file);
     const stage = file.stage ? STAGE_LABEL[file.stage] : 'Starting';
     return step ? `${stage}: ${step}` : stage;
   }
@@ -146,12 +149,21 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
         // the two flex spans would read "plans/ a.pdf" in Chromium (a space between them): the name is the path
         aria-label={file.path}
       >
-        {/* a long path gives up its folder first: the file name is what tells two rows apart */}
+        {/* a long path gives up its folder first: the file name is what tells two rows apart. The folder keeps
+            3ch, its first letter and a whole "…/" ("s…/"), never a cut glyph (IN-113) */}
         {folder && (
-          <span className="ingest-folder min-w-0 truncate text-muted-foreground">{folder}</span>
+          <span className="ingest-folder flex min-w-[3ch] text-muted-foreground">
+            <span className="ingest-folder-path min-w-0 truncate">{folder.slice(0, -1)}</span>
+            <span className="shrink-0">/</span>
+          </span>
         )}
         {/* then the name gives up its middle: its end and extension stay (IN-129) */}
-        <span className="ingest-name flex min-w-0 shrink-0 max-w-full">
+        <span
+          className={cn(
+            'ingest-name flex min-w-0 shrink-0',
+            folder ? 'max-w-[calc(100%-3ch)]' : 'max-w-full',
+          )}
+        >
           <span className="ingest-name-start min-w-0 truncate">{start}</span>
           <span className="ingest-name-end shrink-0 whitespace-pre">{end}</span>
         </span>
@@ -228,10 +240,13 @@ function ReaderChips({
   /** Each chip's step ids on this project (`chipStepsOf`, IN-123). */
   known: ChipSteps;
 }) {
-  // a step seen that no reader covers is shown too, by its label: the server ran it
+  // a step seen that no reader covers is shown too, by its label: the server ran it. The wait for the local
+  // reader is not a reader: its row says it (IN-134)
   const extra = [
     ...new Set(
-      seen.filter((s) => !readers.some((r) => chipCovers(r, s, known))).map((s) => s.label),
+      seen
+        .filter((s) => s.id !== LOCAL_SLOT && !readers.some((r) => chipCovers(r, s, known)))
+        .map((s) => s.label),
     ),
   ];
   const groups = groupReaders(readers, extra);
@@ -401,11 +416,14 @@ export function RouteLanes({
             <ul aria-label="Sorting" className="flex flex-wrap gap-1.5">
               {sorting.map((c) => {
                 const said = triageRan(c, project);
-                // once its step can no longer run, a chip whose step did not run says why (IN-127, as IN-124)
+                // once its step can no longer run, a chip whose step did not run says why (IN-127, as IN-124);
+                // a step that ended having weighed no file says so too, not a tick (IN-133)
                 const why =
-                  (said === 'skipped' || said === 'absent') && triageEnded(c, project)
-                    ? DIMMED[said]
-                    : null;
+                  said === 'empty'
+                    ? triageEmpty(c)
+                    : (said === 'skipped' || said === 'absent') && triageEnded(c, project)
+                      ? DIMMED[said]
+                      : null;
                 return (
                   <Chip
                     key={c}
