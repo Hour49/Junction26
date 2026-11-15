@@ -41,7 +41,7 @@ from app.core.errors import DomainError
 from app.core.ingest.model import FileStatus
 from app.core.plan_edit.model import Flag as PlanFlag
 from app.core.plan_edit.model import Proposal, Selection
-from app.core.services.derive import graph
+from app.core.services.derive import discipline_of, graph
 from app.core.services.edit import (
     EditRefusedError,
     Position,
@@ -69,6 +69,8 @@ NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
 )
 FROM_PICTURE = "a services model read from a picture is listed and counted, not edited"
+# German exports name heating systems H_* (Heizung) or Heiz-/Wärme-: words facts_mep's table lacks
+HEATING_MARKS = ("heiz", "wärme", "waerme")
 WALL_COVER_M = 0.3  # a wall is on a room side when it covers this much of it (edit.py's rule)
 MOUNTED_M = 0.5  # a terminal this close to a room side is mounted on its wall
 
@@ -310,7 +312,8 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
         "A building's pipes, ducts and cables: storeys, systems, connectivity, and terminals "
-        "and equipment (ids E...). With room_id: that room's walls (SW...), what hangs on "
+        "and equipment (ids E...); count is how many match, items may be cut: a how-many "
+        "answer states count. With room_id: that room's walls (SW...), what hangs on "
         "them, and whether a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
@@ -421,6 +424,7 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         and (room is None or e.room == room.id)
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
+    found["count"] = len(items)
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
     while len(json.dumps(found, ensure_ascii=False)) > LIMIT and found["items"]:
         found["items"].pop()
@@ -611,17 +615,27 @@ def _systems(model: ServicesModel) -> list[dict[str, Any]]:
     for e in model.elements:
         for name in e.systems:
             by.setdefault(name, []).append(e)
+    types = {s.name: s.type for s in model.systems}
     return [
         {
             "name": name,
-            "discipline": max(
-                {e.discipline for e in members}, key=[e.discipline for e in members].count
-            ),
+            "discipline": _discipline(f"{name} {types.get(name, '')}", members),
             "elements": len(members),
             "length_m": round(sum(e.length_m or 0 for e in members), 2),
         }
         for name, members in sorted(by.items())
     ]
+
+
+def _discipline(words: str, members: list[Element]) -> str:
+    """A system's own name and type first; its members' (mostly pipes, read as plumbing) last."""
+    words = words.lower()
+    if words.startswith("h_") or any(mark in words for mark in HEATING_MARKS):
+        return "heating"
+    said = discipline_of(words)
+    if said != "other":
+        return said
+    return max({e.discipline for e in members}, key=[e.discipline for e in members].count)
 
 
 def _walls(model: ServicesModel, room: Room) -> dict[str, Any]:

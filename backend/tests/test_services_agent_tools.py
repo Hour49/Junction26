@@ -86,6 +86,47 @@ def test_sv23_list_services_filters_and_stays_short_with_a_more_count() -> None:
     assert all(i["kind"] == "space_heater" for i in found["items"])
 
 
+def test_sv23_a_count_question_gets_the_total_not_the_part_listed() -> None:
+    """Live (#430): "How many radiators are there?" → "14 ... and 49 more"; the total first."""
+    model = two_rooms()
+    doc = model.model_dump(mode="json", by_alias=True)
+    radiator = next(e for e in doc["elements"] if e["id"] == "E3")
+    many = [{**radiator, "id": f"E{100 + i}", "ref": {"guid": f"g{i}"}} for i in range(61)]
+    big = ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *many]})
+    found = _run(_store(big), "list_services", drawing_id="d1", kind="space_heater")
+    assert found["count"] == 63 and len(found["items"]) < 63
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "count" in listing["function"]["description"]
+
+
+def test_sv23_a_heating_system_named_h_underscore_is_called_heating() -> None:
+    """Live (#430): German exports name heating systems H_* (Vorlauf/Rücklauf) and their pipes
+    read as plumbing; the system's own name says heating."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    names = {SUPPLY: "H_Transport_VL_1", "Heating Return": "H_Transport_RL_0"}
+    for e in doc["elements"]:
+        e["systems"] = [names.get(s, s) for s in e["systems"]]
+        e["discipline"] = "plumbing"  # what the words of a pipe give
+    found = _run(_store(ServicesModel.model_validate(doc)), "list_services", drawing_id="d1")
+    assert {s["name"]: s["discipline"] for s in found["systems"]} == {
+        "H_Transport_RL_0": "heating",
+        "H_Transport_VL_1": "heating",
+    }
+
+
+def test_sv23_a_system_s_own_words_name_its_discipline_before_its_members() -> None:
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    for e in doc["elements"]:
+        e["systems"] = ["Domestic Cold Water" if s == SUPPLY else "Lüftung 1" for s in e["systems"]]
+        e["discipline"] = "heating"
+    found = _run(_store(ServicesModel.model_validate(doc)), "list_services", drawing_id="d1")
+    # "Lüftung" says nothing to the table: the members' majority stays
+    assert {s["name"]: s["discipline"] for s in found["systems"]} == {
+        "Domestic Cold Water": "plumbing",
+        "Lüftung 1": "heating",
+    }
+
+
 def test_sv22_sv26_list_services_narrows_to_the_room_of_a_selection() -> None:
     store = _store(sel_1=_region(7.5, 2.0))  # inside SR2
     found = _run(store, "list_services", drawing_id="d1", selection_id="sel_1")
