@@ -14,7 +14,10 @@ import {
   foundLine,
   groupReaders,
   lanes,
+  readDrawings,
   routeReaders,
+  triageEnded,
+  triageRan,
   triageReaders,
   unread,
   type ChipSteps,
@@ -153,6 +156,42 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
   );
 }
 
+/** One chip: highlighted while its step runs, dimmed with why it did not run, ticked once it ran. */
+function Chip({
+  words,
+  running,
+  why,
+  ran,
+}: {
+  words: string;
+  running: boolean;
+  why: string | null;
+  ran: boolean;
+}) {
+  return (
+    <li
+      data-dimmed={why !== null || undefined}
+      className={cn(
+        'rounded-full px-2.5 py-0.5 text-xs',
+        running
+          ? 'bg-accent font-semibold text-primary'
+          : why !== null
+            ? 'border border-dashed border-muted text-muted-foreground'
+            : 'bg-muted text-text-2',
+      )}
+    >
+      {running ? <span className="sr-only">running: </span> : null}
+      {words}
+      {why && <span>{` · ${why}`}</span>}
+      {ran && !running && (
+        <span aria-label="ran" className="ml-1 text-ok">
+          ✓
+        </span>
+      )}
+    </li>
+  );
+}
+
 function ReaderChips({
   readers,
   seen,
@@ -204,27 +243,13 @@ function ReaderChips({
                     ? DIMMED[said]
                     : null;
                 return (
-                  <li
+                  <Chip
                     key={c}
-                    data-dimmed={why !== null || undefined}
-                    className={cn(
-                      'rounded-full px-2.5 py-0.5 text-xs',
-                      running
-                        ? 'bg-accent font-semibold text-primary'
-                        : why !== null
-                          ? 'border border-dashed border-muted text-muted-foreground'
-                          : 'bg-muted text-text-2',
-                    )}
-                  >
-                    {running ? <span className="sr-only">running: </span> : null}
-                    {chipWords(c, label !== null)}
-                    {why && <span>{` · ${why}`}</span>}
-                    {didRun && !running && (
-                      <span aria-label="ran" className="ml-1 text-ok">
-                        ✓
-                      </span>
-                    )}
-                  </li>
+                    words={chipWords(c, label !== null)}
+                    running={running}
+                    why={why}
+                    ran={didRun}
+                  />
                 );
               })}
             </ul>
@@ -245,6 +270,7 @@ function LaneView({
   live,
   known,
   recorded,
+  read,
 }: {
   projectId: string;
   lane: Lane;
@@ -257,15 +283,25 @@ function LaneView({
   known: boolean;
   /** `ProjectView.readers` as recorded: a file on a route whose reader is `hello` was not read (IN-116). */
   recorded: Record<string, string> | undefined;
+  /** The ids of the drawings something was read off (`readDrawings`): what the lane's count counts. */
+  read: ReadonlySet<string>;
 }) {
   const routed = lane.id !== 'waiting' && lane.id !== 'other';
   const reading = lane.files.filter((f) => f.state === 'running');
   const now = reading.map(nowStep).filter((s): s is SeenStep => s !== null);
   const shown = lane.files.slice(0, LANE_ROWS);
   const more = lane.files.length - shown.length;
-  const found = lane.files.filter(
-    (f) =>
-      isFinished(f) && f.drawing_id && (!f.source || f.source === f.path) && !unread(f, recorded),
+  // each drawing read once, as "Drawings ready" counts them (a copy of a file is the same drawing; IN-126)
+  const found = new Set(
+    lane.files.flatMap((f) =>
+      isFinished(f) &&
+      f.drawing_id &&
+      read.has(f.drawing_id) &&
+      (!f.source || f.source === f.path) &&
+      !unread(f, recorded)
+        ? [f.drawing_id]
+        : [],
+    ),
   );
   return (
     <section
@@ -283,7 +319,7 @@ function LaneView({
             {[
               plural(lane.files.length, 'file'),
               live && reading.length > 0 ? `${String(reading.length)} reading now` : null,
-              routed && found.length > 0 ? plural(found.length, 'drawing') + ' read' : null,
+              routed && found.size > 0 ? plural(found.size, 'drawing') + ' read' : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -335,6 +371,7 @@ export function RouteLanes({
   const steps = chipStepsOf(project.readers);
   const all = lanes(project.files);
   const sorting = triageReaders(project.readers);
+  const read = new Set(readDrawings(project).map((d) => d.drawing_id));
   if (all.length === 0) return null;
   return (
     <section aria-label="Routes" className="grid content-start gap-3">
@@ -344,11 +381,23 @@ export function RouteLanes({
           <p className={cn(MUTED, 'm-0')}>Every file first, before it takes a route:</p>
           <Tip text={PIPELINE_TIPS.triage} wrap className="justify-self-start">
             <ul aria-label="Sorting" className="flex flex-wrap gap-1.5">
-              {sorting.map((c) => (
-                <li key={c} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-text-2">
-                  {c}
-                </li>
-              ))}
+              {sorting.map((c) => {
+                const said = triageRan(c, project);
+                // once its step can no longer run, a chip whose step did not run says why (IN-127, as IN-124)
+                const why =
+                  (said === 'skipped' || said === 'absent') && triageEnded(c, project)
+                    ? DIMMED[said]
+                    : null;
+                return (
+                  <Chip
+                    key={c}
+                    words={c}
+                    running={said === 'running'}
+                    why={why}
+                    ran={said === 'ran'}
+                  />
+                );
+              })}
             </ul>
           </Tip>
         </div>
@@ -365,6 +414,7 @@ export function RouteLanes({
           live={isLive(project)}
           known={project.readers !== undefined}
           recorded={project.readers}
+          read={read}
         />
       ))}
     </section>

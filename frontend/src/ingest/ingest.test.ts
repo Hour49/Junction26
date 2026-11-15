@@ -201,6 +201,9 @@ describe('ingest.ts', () => {
     expect(formatMs(0.6838)).toBe('0.68 ms');
     expect(formatMs(12.5)).toBe('12.5 ms');
     expect(formatMs(1234)).toBe('1.2 s');
+    expect(formatMs(0.0042)).toBe('<0.01 ms');
+    expect(formatMs(0)).toBe('0.00 ms');
+    expect(formatMs(0.01)).toBe('0.01 ms');
     expect(formatCost(0)).toBe('$0.00');
     expect(formatCost(0.004)).toBe('<$0.01');
     expect(formatCost(0.123)).toBe('$0.12');

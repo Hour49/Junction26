@@ -384,7 +384,8 @@ File trace
   characters of `sha256`, time and cost. [component, `trace.json`]
 - IN-33: Every stage of `trace.json` is an item in order with its label, `did`, and `ms` formatted by `formatMs`;
   `output` shows only when not empty and not equal to `did`. [component]
-- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234; `formatCost` gives "$0.00"
+- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234, "<0.01 ms" for 0.0042
+  (a measured time above 0 and under 0.01; 0 stays "0.00 ms"); `formatCost` gives "$0.00"
   for 0, "<$0.01" for 0.004, "$0.12" for 0.123; `formatSize` gives "2.2 KB" for 2263 and "1.0 MB" for 1048576.
   [unit]
 - IN-35: `trace-failed` shows the `extract` item as "Failed: no page could be read" with an icon and the word, the
@@ -779,8 +780,9 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   ifc_vs_sheet, schedule_tags, scale_check, room_areas; "Gemini cross-check" ← carbon_check; "Gemini reader" / "for
   sheets with few symbols" ← carbon; "printed scale (Gemini)" ← printed_scale; "photo flattening" ← rectifier;
   "schedule tables" ← tables; "drawn-PDF reader" ← vector; "IFC model reader" ← ifc. The chip running now is found
-  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("scale
-  from door sizes", "tiles for big sheets": no step of their own). [unit: `chipStepsOf`, `chipSteps`,
+  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("tiles
+  for big sheets": no step of its own). "scale from door sizes" ← prior_scale (#651, 2026-11-15; before it had no
+  step and was never ticked or dimmed: changed on purpose with IN-123's and IN-124's tests). [unit: `chipStepsOf`, `chipSteps`,
   `chipHasStep`, `chipCovers`; component]
 - IN-124 (`ProjectStatus.ran`): a chip one of whose ids ended done or failed on a file of its route gets its "ran"
   tick, also on a finished project opened fresh (nothing seen running). Once every file of the lane has ended, a
@@ -794,6 +796,17 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   ready, as IN-116: "Drawings ready", the done line and the chat row leave it out, "Open the workspace" opens the
   first drawing that was read, and a done project whose only drawings are such shows IN-72's "Nothing read" card
   with the backend's flag reason, not "Ready" and the chat offer. No new words. [unit: `readDrawings`; component]
+  A lane's "<n> drawings read" counts the same drawings (trace's e2e on the demo sample, 2026-11-15: the image
+  lane said 4 with the site photo and a copy of the scan): each drawing of `readDrawings` read off the lane's
+  files, once, so the lanes add up to "Drawings ready". [component, from the demo sample's real status]
+- IN-127 (trace's e2e, 2026-11-15: the sorting chips never ticked): each "Sorting" chip (IN-119) ticks from the
+  step id that really ran: "scan or photo" ← `probe` (it asks the sheet-kind signal), "plan or not" and "sheet
+  kind" ← `classifier`, both in `ran` on any route; "describes sheets that are not plans" ← `describe` and "keep
+  or set aside" ← `judge` in `index_steps`. Running (a file's `step_id`, or a `running` index step) highlights it
+  as a reader chip; once its step can no longer run (every file ended for `probe`/`classifier`, the project ended
+  for the index steps) a chip whose step did not run dims as IN-124 ("not needed here", "did not run"). No `ran`,
+  or no or empty `index_steps` (an older server or record): as before. [unit: `triageRan`, `triageEnded`;
+  component, from the demo sample's real status]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,

@@ -1,7 +1,7 @@
 // The pipeline view's data (ingest.md "Pipeline view v5"): which readers each route runs, what the files found,
 // and the files grouped by the route they take. Pure: the screen only draws what these return.
 import type { FileStatus, ProjectView } from '../api';
-import { STEPS, activeStep, isFinished, plural, stepOf } from './ingest';
+import { STEPS, activeStep, isFinished, isLive, plural, stepOf } from './ingest';
 
 /** One step that ran on a route's files in this upload (`ProjectStatus.ran`, decision 0018). */
 export type RanStep = NonNullable<ProjectView['ran']>[string][number];
@@ -188,6 +188,60 @@ export function triageReaders(readers: Record<string, string> | undefined): stri
   return out;
 }
 
+/**
+ * Where each sorting chip's step is recorded (IN-127, decision 0018 ids): on the files' identify stage, in
+ * `ProjectStatus.ran[route]` (`probe` asks the sheet-kind signal, `classifier` is triage and its sheet-kind step),
+ * or in the project's last phase, `index_steps` (the describer indexes the sheets that are not plans; the judge).
+ */
+const TRIAGE_STEP: Record<string, { ran: string } | { index: string }> = {
+  'scan or photo (Gemini)': { ran: 'probe' },
+  'plan or not (rules)': { ran: 'classifier' },
+  'plan or not (image model)': { ran: 'classifier' },
+  'sheet kind (Gemini)': { ran: 'classifier' },
+  'describes sheets that are not plans (Gemini)': { index: 'describe' },
+  'keep or set aside (rules)': { index: 'judge' },
+};
+
+/**
+ * What the upload says of a sorting chip (IN-127), by step id: "running" while its step runs (a file's `step_id`,
+ * or a `running` index step), "ran" once it ended done or failed, "skipped" when it only appeared skipped,
+ * "absent" when it did not appear. null: nothing to tell (an older server: no `ran`, no or empty `index_steps`).
+ */
+export function triageRan(
+  chip: string,
+  project: Pick<ProjectView, 'files' | 'ran'> & Partial<Pick<ProjectView, 'index_steps'>>,
+): 'running' | 'ran' | 'skipped' | 'absent' | null {
+  const where = TRIAGE_STEP[chip];
+  if (where === undefined) return null;
+  if ('ran' in where) {
+    if (!project.ran) return null;
+    if (project.files.some((f) => f.state === 'running' && f.step_id === where.ran))
+      return 'running';
+    const mine = Object.values(project.ran)
+      .flat()
+      .filter((s) => s.id === where.ran);
+    if (mine.some((s) => s.done + s.failed > 0)) return 'ran';
+    return mine.length > 0 ? 'skipped' : 'absent';
+  }
+  // none or empty: an older server or record, or a failed ingest (a chip shown has its step there otherwise)
+  const steps = project.index_steps ?? [];
+  if (steps.length === 0) return null;
+  const mine = steps.filter((s) => s.id === where.index);
+  if (mine.some((s) => s.state === 'running')) return 'running';
+  if (mine.some((s) => s.state === 'done' || s.state === 'failed')) return 'ran';
+  return mine.length > 0 ? 'skipped' : 'absent';
+}
+
+/**
+ * Whether a sorting chip's step can no longer run on this upload (IN-127, as IN-124): every file has ended (the
+ * identify steps), or the project has (the last phase's).
+ */
+export function triageEnded(chip: string, project: Pick<ProjectView, 'files' | 'state'>): boolean {
+  const where = TRIAGE_STEP[chip];
+  if (where === undefined) return false;
+  return 'ran' in where ? project.files.every(isFinished) : !isLive(project);
+}
+
 /** Takeoff keys that are not things on the plan: the plan and apartment counts. */
 const NOT_THINGS = new Set(['plan', 'apartment']);
 
@@ -267,6 +321,7 @@ const CHIP_STEPS: Record<string, readonly string[]> = {
   'photo detector': ['detector'],
   'Gemini for sheets with few symbols': ['carbon'],
   'Gemini reader': ['carbon'],
+  'scale from door sizes': ['prior_scale'], // backend raster_scale STEP_ID (#651)
 };
 
 /** Each reader chip's step ids on this project. */
