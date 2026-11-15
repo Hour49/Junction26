@@ -1075,8 +1075,9 @@ Ingest's project status, plus `drawings`:
   request per file. `cost_usd` on the project, each file and each stage: what the stage's model calls cost
   (Gemini Decisions in `identify` for the sheet kind and in `extract` for the count swap; a cached call costs
   0), 0.0 with no paid reader, which is the point to show. `normalised` on an image file: as on the drawing's page.
-- `step` on a running file (decision 0018, additive): the label of the step running now ("Room reader"); left
-  out when none is. `phase` on the project while it runs: `files` (reading the files) or `index` (the last phase:
+- `step` and `step_id` on a running file (decision 0018, additive): the label and the `id` of the step running
+  now ("Room reader (Gemini)", `rooms`; the step that started last when several run at once); left out when none
+  is. `phase` on the project while it runs: `files` (reading the files) or `index` (the last phase:
   judging relevance, describing, the evidence index); null otherwise. `index_steps`: what ran in that last phase,
   as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs.
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
@@ -2477,8 +2478,11 @@ that is not an evidence id. `description.detail` is a model's description no per
   (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon`, `printed_scale`, `double_check`, `plans`,
   `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
   `room_areas`, `schedule_tags`, `second_count` (second_count: `found` is `{"agree": n, "conflict": m}`); `judge`,
-  `describe`, `evidence` (the project's `index_steps`). A step that is not timed on its own (a comparison, the EXIF
-  turn) has `ms` 0. A new id may be added; a screen shows `label` and need not know the id.
+  `describe`, `evidence` (the project's `index_steps`). An id is unique in its stage: a double-check reader's is
+  `double_check:<reader name>` (`double_check:l1`), a raster source's own steps are `<its id>/<inner id>` and
+  follow it (`arbiter/base`, `arbiter/second`, `arbiter/pick`: the count arbiter's reads and its pick), and an id
+  met again in a stage is numbered (`detector`, `detector-2`). A step that is not timed on its own (a comparison,
+  the EXIF turn) has `ms` 0. A new id may be added; a screen shows `label` and need not know the id.
 
 A file set aside at a stage that failed (a zip entry that would be written outside the project folder): the
 stage carries `failure`, and later stages are not run:
@@ -12895,7 +12899,7 @@ unofficial translation. An unknown id is 404 `not-found`.
 ## Changelog
 
 - 2026-11-15, additive (decision 0018, ingest trace steps): `StageTrace.steps` (a `StepTrace` list: `id`, `label`,
-  `did`, `at_ms`, `ms`, `cost_usd`, `state`, `found`), `FileStatus.step` (left out when none), `ProjectStatus.phase`
+  `did`, `at_ms`, `ms`, `cost_usd`, `state`, `found`), `FileStatus.step` (left out when none), `FileStatus.step_id`, `ProjectStatus.phase`
   and `ProjectStatus.index_steps`. Old clients ignore them; fixtures regenerated.
 - 2026-11-14, behaviour (docs refresh of the evening's merges; no shape change): the vector reader's printed scale
   reads imperial ratios, skips a ramp slope, and gives no scale to a sheet that prints several different ones and

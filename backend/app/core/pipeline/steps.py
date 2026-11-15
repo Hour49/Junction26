@@ -9,6 +9,7 @@ extract stage."""
 
 import time
 from collections.abc import Callable, Iterable, Sequence
+from contextvars import ContextVar, Token
 from typing import NamedTuple
 
 from app.core import cost
@@ -82,3 +83,42 @@ def timed[T](call: Callable[[], T]) -> tuple[T, Span]:
 def without_steps(found: Extracted) -> Extracted:
     """What was read, without how: two readings of a sheet are the same when this is."""
     return found.model_copy(update={"steps": ()})
+
+
+# Who hears that a step starts (ingest's live `FileStatus.step`); None: nobody. A reader that runs
+# a step on a thread of its own runs it in a copy of its context (`contextvars.copy_context`).
+_listener: ContextVar[Callable[[str, str], None] | None] = ContextVar("step_listener", default=None)
+
+
+def starting(step_id: str, label: str) -> None:
+    """Says that the step `step_id` (`label`) starts now, to whoever listens."""
+    heard = _listener.get()
+    if heard is not None:
+        heard(step_id, label)
+
+
+class listening:  # noqa: N801 (used as a function: `with listening(...)`)
+    """`heard(step_id, label)` is called for every step that starts inside the block."""
+
+    def __init__(self, heard: Callable[[str, str], None]) -> None:
+        self._heard = heard
+        self._token: Token[Callable[[str, str], None] | None] | None = None
+
+    def __enter__(self) -> None:
+        self._token = _listener.set(self._heard)
+
+    def __exit__(self, *_: object) -> None:
+        if self._token is not None:
+            _listener.reset(self._token)
+
+
+def nested(prefix: str) -> listening:
+    """Inside the block, a step that starts is heard as `<prefix>/<its id>`: a step inside the
+    step `prefix` (a raster source's own steps)."""
+    outer = _listener.get()
+
+    def heard(step_id: str, label: str) -> None:
+        if outer is not None:
+            outer(f"{prefix}/{step_id}", label)
+
+    return listening(heard)

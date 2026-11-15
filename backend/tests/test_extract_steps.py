@@ -27,7 +27,7 @@ from app.core.ingest.timing import StageClock, TimedExtractor, with_steps
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
 from app.core.pipeline.printed import PrintedSheet
-from app.core.pipeline.steps import now_ms
+from app.core.pipeline.steps import listening, now_ms, starting
 
 PLANS = (Plan(id="x", page=1, box=(0.0, 0.0, 1.0, 1.0)),)
 
@@ -103,7 +103,7 @@ def test_a_double_check_reader_is_its_own_step_and_never_counted() -> None:
         double_check={"l1": "detector:B"},
     )
     got = built.extract(FILE, SHEET)
-    check = next(step for step in got.steps if step.id == "double_check")
+    check = next(step for step in got.steps if step.id == "double_check:l1")
     assert check.label == "Double-check reader l1: Symbol detector"
     assert check.did.startswith("never counted") and check.found == {"door": 2}
     assert len(got.elements) == 1
@@ -167,7 +167,9 @@ def test_a_second_extract_call_lists_its_steps_after_the_first() -> None:
     stage = StageTrace(stage="extract", did="read", ms=30)
     other = StageTrace(stage="takeoff", did="t", ms=1)
     traced = with_steps([stage, other], timer.steps[FILE.path])
-    assert traced[0].steps == tuple(steps) and traced[1].steps == ()
+    # the same id twice in one stage: the second is numbered, so a live step_id names one step
+    assert [step.id for step in traced[0].steps] == ["vector", "vector-2"]
+    assert traced[1].steps == ()
 
 
 class Waiting:
@@ -290,9 +292,9 @@ def test_the_count_arbiter_lists_its_three_reads_in_order() -> None:
         base, second, l1(), follows_second("toilet"), ArbiterFiles()
     ).extract(ARBITER_FILE, ARBITER_SHEET)
     assert [(step.id, step.label) for step in got.steps] == [
-        ("detector", "Symbol detector (arbiter base)"),
-        ("detector", "Symbol detector (arbiter second read)"),
-        ("arbiter", "Count arbiter (L1 page counts)"),
+        ("base", "Symbol detector (arbiter base)"),
+        ("second", "Symbol detector (arbiter second read)"),
+        ("pick", "Count arbiter (L1 page counts)"),
     ]
     assert got.steps[0].found == {"toilet": 1} and got.steps[1].found == {"toilet": 2}
     assert got.steps[2].did.startswith("toilet 1 -> 2 (P = ")
@@ -312,3 +314,49 @@ def test_a_source_counts_only_the_classes_it_gives() -> None:
     by_did = {step.did.split(";")[0]: step.found for step in got.steps}
     assert by_did["read for door"] == {"door": 2}
     assert by_did["read for 13 element classes"] == {"window": 1}
+
+
+def test_each_source_is_heard_live_as_it_starts_on_its_own_thread() -> None:
+    readers: dict[str, Extractor] = {
+        "detector:A": Fake(elements=[element("door", LEFT)], read=["door"]),
+        "detector:B": Fake(read=["door"]),
+        "one-plan": Fake(plans=PLANS),
+    }
+    built = assemble(
+        parse_components("elements=detector:A,plans=one-plan"),
+        readers.__getitem__,
+        double_check={"l1": "detector:B"},
+    )
+    heard: list[tuple[str, str]] = []
+    with listening(lambda step_id, label: heard.append((step_id, label))):
+        built.extract(FILE, SHEET)
+    assert sorted(heard) == [
+        ("detector", "Symbol detector"),
+        ("double_check:l1", "Double-check reader l1: Symbol detector"),
+        ("plans", "Whole page as one plan"),
+    ]
+    starting("vector", "nobody listens")  # outside the block: heard by no one
+    assert len(heard) == 3
+
+
+class Inner(Fake):
+    """A source that runs two steps of its own, and says so live."""
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        starting("pick", "Pick")
+        own = (StepTrace(id="base", label="Base"), StepTrace(id="pick", label="Pick"))
+        return super().extract(source, sheet).model_copy(update={"steps": own})
+
+
+def test_a_sources_own_steps_are_nested_under_its_id_and_heard_so() -> None:
+    readers: dict[str, Extractor] = {
+        "arbiter-t1:C": Inner(elements=[element("door", LEFT)], read=["door"]),
+        "one-plan": Fake(plans=PLANS),
+    }
+    heard: list[str] = []
+    with listening(lambda step_id, label: heard.append(step_id)):
+        got = composite({"door": "arbiter-t1:C", "plans": "one-plan"}, readers).extract(FILE, SHEET)
+    ids = [step.id for step in got.steps]
+    assert {"arbiter", "arbiter/base", "arbiter/pick", "plans"} == set(ids)
+    assert ids.index("arbiter") + 1 == ids.index("arbiter/base")  # right after its parent
+    assert "arbiter/pick" in heard and len(ids) == len(set(ids))

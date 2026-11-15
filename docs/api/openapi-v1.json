@@ -3707,6 +3707,17 @@
             ],
             "title": "Step"
           },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
           "takeoff": {
             "additionalProperties": {
               "anyOf": [

@@ -488,6 +488,8 @@ class FileStatus(Frozen):
     model_3d: Model3d | None = Field(default=None, exclude_if=lambda value: value is None)
     # While running: the label of the step running now; left out of the JSON otherwise
     step: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    # While running: that step's StepTrace.id; left out of the JSON otherwise
+    step_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectStatus(Frozen):

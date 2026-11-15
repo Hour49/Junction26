@@ -14,7 +14,8 @@ from app.core.drawing.model import Conflict
 from app.core.evidence.chunks import passages
 from app.core.ingest.model import FileStatus, Normalised, ProjectStatus, StageTrace, StepTrace
 from app.core.ingest.steps import frame_steps, second_count_steps, triage_step
-from app.core.pipeline.steps import Span
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.steps import Span, starting
 from scripts.make_sample_archive import build_archive, png_bytes, raster_plan
 
 
@@ -162,3 +163,40 @@ def test_a_project_is_in_the_files_phase_while_its_files_are_read(
         reader.release.set()
         ingest.close()
     assert done.phase is None and done.index_steps == ()  # no judge, no index: nothing ran
+
+
+class Announcing(Blocking):
+    """A raster reader that says its step starts, then waits like `Blocking`."""
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        starting("rooms", "Room reader (Gemini)")
+        return super().extract(source, sheet)
+
+
+def test_a_running_file_shows_the_step_running_now_and_drops_it_when_done(
+    make_service: MakeService,
+) -> None:
+    reader = Announcing()
+    ingest = make_service(runner=ThreadRunner(), raster=lambda files: reader)
+    try:
+        project = ingest.start("scan.png", png_bytes(raster_plan()))
+        assert reader.entered.wait(10)
+        (file,) = ingest.status(project).files
+        assert (file.stage, file.step, file.step_id) == ("extract", "Room reader (Gemini)", "rooms")
+        assert file.model_dump(mode="json")["step_id"] == "rooms"
+        reader.release.set()
+        done = ingest.wait(project, timeout=10)
+    finally:
+        reader.release.set()
+        ingest.close()
+    dumped = done.files[0].model_dump(mode="json")
+    assert "step" not in dumped and "step_id" not in dumped
+
+
+def test_the_route_stage_is_timed(make_service: MakeService) -> None:
+    ticks = iter(range(10_000))
+    ingest = make_service(clock=lambda: next(ticks) / 1000)  # each reading 1 ms later
+    status = ingest.status(ingest.start("a.zip", build_archive()))
+    pdf = next(file for file in status.files if file.path == "plans/flat-a.pdf")
+    stages = {stage.stage: stage for stage in ingest.trace(status.id, pdf.id).stages}
+    assert stages["route"].ms > 0

@@ -46,6 +46,7 @@ found; a source whose model calls got no answer is a failed step. The steps a so
 (the count arbiter's three reads) follow its own.
 """
 
+import contextvars
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
@@ -68,7 +69,7 @@ from app.core.pipeline.disputed_marks import ANSWER
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.plan_rooms import floor_plans
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.steps import found_of, found_words, now_ms
+from app.core.pipeline.steps import found_of, found_words, nested, now_ms, starting
 from app.core.wording import SCALE_WORDS, count
 
 RoomPolicy = Callable[[Sequence[Room]], Sequence[Room]]
@@ -187,7 +188,16 @@ class CompositeRasterExtractor:
             with ThreadPoolExecutor(len(components), thread_name_prefix="raster") as pool:
                 pending = {
                     name: pool.submit(
-                        _charged, component.reader, source, sheet, spent, failed, name, spans
+                        contextvars.copy_context().run,  # so the source's step is heard live
+                        _charged,
+                        component.reader,
+                        source,
+                        sheet,
+                        spent,
+                        failed,
+                        name,
+                        spans,
+                        self._label(name),
                     )
                     for name, component in components.items()
                 }
@@ -203,7 +213,8 @@ class CompositeRasterExtractor:
         steps: list[StepTrace] = []
         for name in sorted(read, key=lambda name: spans[name][0]):
             step = self._step(name, read[name], spans[name], spent[name], failed[name])
-            steps += [step, *read[name].steps]  # and what ran inside it
+            inner = (s.model_copy(update={"id": f"{step.id}/{s.id}"}) for s in read[name].steps)
+            steps += [step, *inner]  # and what ran inside it, as `<its id>/<inner id>`
         return merged.model_copy(update={"steps": (*merged.steps, *steps)})
 
     def _step(
@@ -217,10 +228,7 @@ class CompositeRasterExtractor:
         """One source's step: what it was read for, what it found of that, its time and cost."""
         parts = [part for part, by in self.parts().items() if by == name]
         checks = [check for check, by in self._double_check.items() if by.name == name]
-        step_id, label = source_label(name)
-        if not parts:
-            step_id = "double_check"
-            label = f"Double-check reader {', '.join(checks)}: {label}"
+        step_id, label = self._label(name)
         rooms = len(got.rooms) if "rooms" in parts and _looked_for(got.read, "room") else None
         plans = len(got.plans) if "plans" in parts else None
         # a part's source counts only the classes it gives; a double-check reader all it saw
@@ -253,6 +261,15 @@ class CompositeRasterExtractor:
             state="failed" if faults else "done",
             found=found,
         )
+
+    def _label(self, name: str) -> tuple[str, str]:
+        """The step id and label of the source `name`: a double-check reader's says so."""
+        step_id, label = source_label(name)
+        if name in self.parts().values():
+            return step_id, label
+        checks = [check for check, by in self._double_check.items() if by.name == name]
+        named = ", ".join(checks)
+        return f"double_check:{named}", f"Double-check reader {named}: {label}"
 
     def _components(self) -> list[Component]:
         """Every source this composite reads a sheet with, the parts' first."""
@@ -374,13 +391,16 @@ def _charged(
     failed: dict[str, int],
     name: str,
     spans: dict[str, tuple[float, float]],
+    step: tuple[str, str],
 ) -> Extracted:
     """The reader's result, read on this (worker) thread; what its calls cost goes in
     `spent[name]` also when it fails, when it began and ended in `spans[name]`."""
     before, faulted = cost.mark(), cost.faults()
     started = now_ms()
+    starting(*step)
     try:
-        return reader.extract(source, sheet)
+        with nested(step[0]):  # its own steps are heard as `<its id>/<inner id>`
+            return reader.extract(source, sheet)
     finally:
         spent[name] = cost.since(before)
         failed[name] = cost.faults_since(faulted)

@@ -23,7 +23,7 @@ from app.adapters.pdf_tables.page import read_table_page
 from app.adapters.pdf_tables.schedule_check import checks_of, reads_itself
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor
-from app.core.pipeline.steps import timed
+from app.core.pipeline.steps import starting, timed
 from app.core.wording import count
 
 SAME_SHAPE = 0.01  # relative difference of width / height between the PDF page and the sheet
@@ -38,6 +38,7 @@ class PdfTables:
         found = self._inner.extract(source, sheet)
         if source.kind != "pdf" or not sheet.pages:
             return found
+        starting("tables", "Schedule tables (PDF)")
         found, span = timed(lambda: self._tables(source, sheet, found))
         read = found.tables or ()
         step = StepTrace(

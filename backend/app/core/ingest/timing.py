@@ -12,7 +12,7 @@ from app.core.ingest.model import Stage, StageTrace
 from app.core.ingest.ports import Clock
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor, PageReader, SecondCounter
-from app.core.pipeline.steps import now_ms, shifted
+from app.core.pipeline.steps import listening, now_ms, shifted
 from app.core.wording import count
 
 
@@ -24,6 +24,8 @@ class StageClock:
 
     clock: Clock
     on_start: Callable[[Stage, str], None] = lambda stage, path: None  # shows the live stage
+    # shows the live step: (path, step id, label)
+    on_step: Callable[[str, str, str], None] = lambda path, step_id, label: None
     ms: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
     usd: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
     faults: dict[str, int] = field(default_factory=dict[str, int])  # model calls that failed
@@ -107,7 +109,8 @@ class TimedExtractor:
         before = self._timer.ms.get(path, {}).get("extract", 0.0)
         started = self._timer.start("extract", path)
         began = now_ms()  # the steps' clock: they say when they began on it
-        found = self._inner.extract(source, sheet)
+        with listening(lambda step_id, label: self._timer.on_step(path, step_id, label)):
+            found = self._inner.extract(source, sheet)
         self._timer.stop("extract", path, started)
         self._timer.add_steps("extract", path, found.steps, began, before)
         return found
@@ -141,12 +144,28 @@ class CollectingSink:
 def with_steps(
     stages: Sequence[StageTrace], steps: dict[Stage, list[StepTrace]]
 ) -> list[StageTrace]:
-    """`stages` with the steps that ran inside each, in start order (decision 0018)."""
+    """`stages` with the steps that ran inside each, in start order (decision 0018), each id
+    once in its stage (`unique`)."""
     return [
         stage.model_copy(
-            update={"steps": tuple(sorted(steps[stage.stage], key=lambda step: step.at_ms))}
+            update={"steps": unique(sorted(steps[stage.stage], key=lambda step: step.at_ms))}
         )
         if steps.get(stage.stage)
         else stage
         for stage in stages
     ]
+
+
+def unique(steps: Sequence[StepTrace]) -> tuple[StepTrace, ...]:
+    """`steps` with an id met again given a number: `detector`, `detector-2`, `detector-3`, so
+    a live `step_id` names one step."""
+    seen: set[str] = set()
+    found: list[StepTrace] = []
+    for step in steps:
+        step_id, n = step.id, 1
+        while step_id in seen:
+            n += 1
+            step_id = f"{step.id}-{n}"
+        seen.add(step_id)
+        found.append(step if step_id == step.id else step.model_copy(update={"id": step_id}))
+    return tuple(found)

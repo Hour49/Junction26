@@ -118,6 +118,8 @@ class Groups:
         started = self._clock()
         scans = _scans(run, members)
         routed = route(members, readers.readable, scans)
+        routing = _ms(self._clock, started) / len(asked)  # stage 5, shared by the files asked
+        started = self._clock()
         scanned = routed.source.path in scans
         route_name = routed.route
         given = {file.path for file in asked}
@@ -136,7 +138,7 @@ class Groups:
             run.set(file.path, group=members.key, route=route_name, source=routed.source.path)
             run.stage(file.path, "group", f"{members.key}: {listed}", spent,
                       output=count(len(members.files), "file"))  # fmt: skip
-            run.stage(file.path, "route", how, 0.0, output=route_name)
+            run.stage(file.path, "route", how, routing, output=route_name)
         keys = {file.path: _hash(file.sha256, group_key)[:16] for file in asked}
         if not run.fresh:
             stored = [self._store.outcome(keys[file.path]) for file in asked]
@@ -156,7 +158,11 @@ class Groups:
         keys: Mapping[str, str],
         route_name: Route,
     ) -> None:
-        timer = StageClock(self._clock, on_start=lambda stage, path: _live(run, stage, path))
+        timer = StageClock(
+            self._clock,
+            on_start=lambda stage, path: _live(run, stage, path),
+            on_step=lambda path, step_id, label: _live_step(run, path, step_id, label),
+        )
         extractors: dict[Route, Extractor] = {
             name: TimedExtractor(extractor, timer) for name, extractor in readers.extractors.items()
         }
@@ -390,7 +396,12 @@ def _failed(run: Run, asked: list[DrawingFile], timer: StageClock, failure: str)
 
 def _live(run: Run, stage: str, path: str) -> None:
     if run.has(path):
-        run.set(path, stage=stage)
+        run.set(path, stage=stage, step=None, step_id=None)
+
+
+def _live_step(run: Run, path: str, step_id: str, label: str) -> None:
+    if run.has(path):
+        run.set(path, step=label, step_id=step_id)
 
 
 def _with_frame(stages: list[StageTrace], frame: Normalised | None, ms: float) -> list[StageTrace]:

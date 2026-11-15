@@ -26,7 +26,7 @@ from app.adapters.vector_pdf.scale import read_bar, read_ratio, read_scale
 from app.core.drawing.model import Box, MeasuredValue, MeasureMethod, Scale, Subject
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles
-from app.core.pipeline.steps import found_of, found_words, now_ms
+from app.core.pipeline.steps import found_of, found_words, now_ms, starting
 from app.core.wording import SCALE_WORDS
 
 STYLES = (swiss, ifc_render)
@@ -40,6 +40,7 @@ class PdfVectorExtractor:
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         began = now_ms()
+        starting("vector", "Drawn-PDF reader")
         found, style = self._read(source, sheet)
         label = "Drawn-PDF reader" + (f" ({STYLE_WORDS[style]})" if style else "")
         counted = found_of(

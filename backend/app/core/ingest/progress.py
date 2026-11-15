@@ -119,7 +119,7 @@ class Run:
             self._stages[file_id] = list(failed_stage(self._stages[file_id], did, failure))
 
     def finish(self, path: str, state: FileState, reason: str) -> None:
-        self.set(path, state=state, reason=reason)
+        self.set(path, state=state, reason=reason, step=None, step_id=None)
         status = self.file(path)
         logger.info(
             "ingest: %s %s %s in %.1f ms: %s", status.path, status.kind, state, status.ms, reason

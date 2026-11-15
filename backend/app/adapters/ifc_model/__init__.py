@@ -50,7 +50,7 @@ from app.core.drawing.model import (
 from app.core.errors import NotFoundError
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, SecondCounter
-from app.core.pipeline.steps import found_of, found_words, now_ms
+from app.core.pipeline.steps import found_of, found_words, now_ms, starting
 
 SAME_SHAPE = 0.01  # relative difference of width / height between the SVG frame and the page
 LOOKS_FOR: tuple[ReadClass, ...] = ("room", *CLASSES.values())
@@ -90,6 +90,7 @@ class IfcModelExtractor:
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         began = now_ms()
+        starting("ifc", "IFC model reader")
         found = self._read(source, sheet)
         if found.model_objects is not None and not sheet.pages:
             label = "IFC model reader"

@@ -16,7 +16,8 @@ we are doing right now in the actual pipeline."
 - `StepTrace`: `id` (stable machine id, listed in docs/API.md), `label` (plain words for the screen), `did` (what it
   found, or the error), `at_ms` (start, ms after its stage began), `ms`, `cost_usd`, `state`
   (`done` / `failed` / `skipped`), `found` (counts by class, `{}` when it counts nothing).
-- `FileStatus.step: str | None`: the label of the step running now, left out of the JSON when None.
+- `FileStatus.step: str | None` and `FileStatus.step_id: str | None`: the label and id of the step running
+  now, left out of the JSON when None.
 - `ProjectStatus.phase: "files" | "index" | None` and `ProjectStatus.index_steps`: the project's last phase (judge,
   describe, evidence index) as steps.
 

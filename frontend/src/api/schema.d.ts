@@ -1912,6 +1912,8 @@ export interface components {
             state: "queued" | "running" | "ready" | "flagged" | "text_only" | "set_aside";
             /** Step */
             step?: string | null;
+            /** Step Id */
+            step_id?: string | null;
             /** Takeoff */
             takeoff?: {
                 [key: string]: number;

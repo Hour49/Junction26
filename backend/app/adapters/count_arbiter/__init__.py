@@ -46,7 +46,7 @@ from app.core.pipeline.count_arbiter import (
 )
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor
-from app.core.pipeline.steps import Span, found_of, found_words, timed
+from app.core.pipeline.steps import Span, found_of, found_words, starting, timed
 
 ADDED: Mapping[str, ElementClass] = {
     "door": "door",
@@ -196,14 +196,15 @@ class ArbiterCountExtractor:
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found, by_base = timed(lambda: self._base.extract(source, sheet))
         second, by_second = timed(lambda: self._second.extract(source, sheet))
+        starting("pick", "Count arbiter (L1 page counts)")
         arbitrated, by_arbiter = timed(lambda: self._arbitrate(source, found, second))
         steps = (
             *found.steps,
-            _step("detector", "Symbol detector (arbiter base)", by_base, found),
+            _step("base", "Symbol detector (arbiter base)", by_base, found),
             *second.steps,
-            _step("detector", "Symbol detector (arbiter second read)", by_second, second),
+            _step("second", "Symbol detector (arbiter second read)", by_second, second),
             StepTrace(
-                id="arbiter",
+                id="pick",
                 label="Count arbiter (L1 page counts)",
                 did=arbitrated.notes[-1].removeprefix("arbiter t1: "),
                 at_ms=by_arbiter.at_ms,

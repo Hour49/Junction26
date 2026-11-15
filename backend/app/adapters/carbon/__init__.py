@@ -22,7 +22,7 @@ from app.adapters.carbon.reader import CarbonClient, CarbonExtractor, CarbonRead
 from app.core.drawing.model import Box, CarbonCheck, Element, Plan, ReadClass
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.steps import Span, found_of, found_words, timed
+from app.core.pipeline.steps import Span, found_of, found_words, starting, timed
 from app.core.wording import count
 
 __all__ = [
@@ -52,6 +52,7 @@ class CarbonSwitch:
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if not self._use_carbon(source.path):
             return self._other.extract(source, sheet)
+        starting("carbon", "Gemini Carbon reader (the whole sheet)")
         found, span = timed(lambda: self._carbon.extract(source, sheet))
         rooms = len(found.rooms) if found.read is None or "room" in found.read else None
         seen = found_of(found.elements, found.read, rooms=rooms, plans=len(found.plans))
@@ -118,6 +119,7 @@ class CarbonThings:
                     state="skipped",
                 )
                 return shipped.model_copy(update={"steps": (*steps, skipped)})
+            starting("carbon", THINGS)
             carbon, span = timed(lambda: self._carbon.extract(source, sheet))
             if not carbon.plans and not carbon.read:  # Carbon read nothing (a failed call, a
                 # spent budget): the shipped reading stays, as before the clause
