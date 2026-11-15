@@ -294,6 +294,8 @@ def _written(query: FactQuery, facts: "_Facts") -> str | None:
             asked = {*_tokens(named[0]), named[0].casefold()}
             words = tuple(word for word in query.words if word.casefold() not in asked)
             query = query.model_copy(update={"storey": named[0].lower(), "words": words})
+    if query.entity == "space" and _flat_unplaced(query.asked, facts):
+        return None  # never every space for one apartment: the question's own refusal stands
     storey = None if query.storey is None else _storey_of(query.storey, facts)
     if query.storey is not None and storey is None:
         n = len(_storeys_by_height(facts))
@@ -696,11 +698,33 @@ _ROOM_WORDS: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"bathroom", "wc"}), r"bath\w*|toilets?|wcs?|restrooms?|washrooms?|lavator\w*"),
     (frozenset({"bedroom"}), r"bedrooms?"),
     (frozenset({"kitchen"}), r"kitchens?"),
+    (frozenset({"living"}), r"living|lounges?"),  # "living room": "room" is no subject word
 )
 
 
+# An apartment the question names ("in apartment B", "flat 2"), and the words that say one
+_FLAT = r"apartments?|flats?|dwellings?|units?|suites?|wohnung\w*|appartements?|appartamento|asunto"
+_FLAT_NAMED = re.compile(
+    rf"\b(?:{_FLAT})\s+(?:no\.?\s*|number\s+|#\s*)?(?P<id>[a-z]|\d+[a-z]?|[a-z]\d+)\b(?![.,]\d)",
+    re.I,
+)
+
+
+def _flat_unplaced(asked: str, facts: _Facts) -> bool:
+    """The question names an apartment (demo bug 2026-11-15: "the kitchen in apartment B" gave
+    every space) that no space's name says: the facts group no spaces into apartments."""
+    flat = _FLAT_NAMED.search(asked)
+    if flat is None:
+        return False
+    said = " ".join(_tokens(flat.group(0)))
+    spaces = facts.get("space.long_name", anywhere=True)
+    names = [*(str(f.value) for f in spaces), *(f.subject for f in spaces)]
+    return not any(f" {said} " in f" {' '.join(_tokens(name))} " for name in names)
+
+
 def _rooms_said(kinds: Iterable[str]) -> str:
-    return " or ".join("WC" if kind == "wc" else kind for kind in sorted(kinds))
+    said = {"wc": "WC", "living": "living room"}
+    return " or ".join(said.get(kind, kind) for kind in sorted(kinds))
 
 
 def _room_kinds(words: Sequence[str]) -> frozenset[str] | None:
@@ -741,7 +765,8 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     labelled = {name: f"{name} {long_name.get(name, '')}" for name in chosen}
     picked = _named(labelled.values(), query.words)
     typed = {f.subject: str(f.value) for f in facts.get("space.room_type", anywhere=True)}
-    kinds = None if picked else _room_kinds(query.words)
+    room = [w for w in query.words if not re.fullmatch(_FLAT, w, re.I)]  # "in the apartment"
+    kinds = None if picked else _room_kinds(room)
     if kinds is not None:  # no name holds the word: the spaces its room word types (R1 E6)
         picked = {labelled[name] for name in chosen if typed.get(name) in kinds}
     if picked:
@@ -785,6 +810,11 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     where = f" on {_label(storey, facts)}" if storey else ""
     if not chosen:
         return f"No such spaces{where} in this file."
+    if kinds is not None and not picked and not _HOW_MANY.match(query.asked):
+        # a room type no space has: never every space as its answer (review-729 M1)
+        named = " ".join(query.words)
+        said = f"named '{named}' or typed as {_rooms_said(kinds)}"
+        return f"No space{where} in this file is {said} (not available)."
     lines = [missing] if missing else []
     if len(query.words) == 1 and not picked and _HOW_MANY.match(query.asked):
         # "How many offices?" and no space is one: said, then every space
