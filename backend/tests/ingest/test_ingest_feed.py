@@ -170,7 +170,7 @@ def test_a_sheet_s_group_waits_for_its_model_still_being_identified() -> None:
     read = Recorded()
     fed = feed(read, {"a.pdf": ["m.ifc"]})
     for path in ("a.pdf", "m.ifc"):
-        fed.pending(path)
+        fed.pending(path, path)
     fed.unpacked()
     fed.identified("a.pdf", drawing("a.pdf"))
     assert read.groups == []  # its source m.ifc may join it
@@ -183,7 +183,7 @@ def test_a_group_waits_for_the_pdf_whose_page_it_could_be() -> None:
     read = Recorded()
     fed = feed(read)
     for path in ("s#p2.png", "s.pdf"):
-        fed.pending(path)
+        fed.pending(path, path)
     fed.unpacked()
     fed.identified("s#p2.png", drawing("s#p2.png"))
     assert read.groups == []  # s.pdf's page 2 would be the file s#p2.pdf, group s#p2
@@ -195,7 +195,7 @@ def test_a_group_waits_for_the_pdf_whose_page_it_could_be() -> None:
 def test_nothing_is_read_before_the_upload_is_unpacked() -> None:
     read = Recorded()
     fed = feed(read)
-    fed.pending("a.pdf")
+    fed.pending("a.pdf", "a.pdf")
     fed.identified("a.pdf", drawing("a.pdf"))
     assert read.groups == []
     fed.unpacked()
@@ -209,7 +209,7 @@ def test_a_copy_started_later_is_read_after_the_first() -> None:
     read = Recorded(held="x/c")
     fed = feed(read)
     for path in ("x/c.png", "y/c.png"):
-        fed.pending(path)
+        fed.pending(path, path)
     fed.unpacked()
     fed.identified("x/c.png", drawing("x/c.png", "same"))
     fed.identified("y/c.png", drawing("y/c.png", "same"))
@@ -221,11 +221,26 @@ def test_a_copy_started_later_is_read_after_the_first() -> None:
     assert read.most == 1
 
 
+def test_a_later_copy_identified_first_waits_for_the_earlier_one() -> None:
+    """y/c.png (a copy of x/c.png, after it in the upload) is identified first: it is read only
+    after x/c.png, so x/c.png is the reading and y/c.png the one that reuses it."""
+    read = Recorded()
+    fed = feed(read)
+    for path in ("x/c.png", "y/c.png"):
+        fed.pending(path, "same")
+    fed.unpacked()
+    fed.identified("y/c.png", drawing("y/c.png", "same"))
+    assert read.groups == []
+    fed.identified("x/c.png", drawing("x/c.png", "same"))
+    fed.wait()
+    assert [key for key, _ in read.groups] == ["x/c", "y/c"]
+
+
 def test_files_with_nothing_in_common_are_read_side_by_side() -> None:
     read = Recorded(held="a")
     fed = feed(read)
     for path in ("a.pdf", "b.pdf"):
-        fed.pending(path)
+        fed.pending(path, path)
     fed.unpacked()
     fed.identified("a.pdf", drawing("a.pdf"))
     fed.identified("b.pdf", drawing("b.pdf"))

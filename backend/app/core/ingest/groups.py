@@ -295,6 +295,9 @@ class Feed:
     `Groups.run` reads. Groups that share a file, a source or a content are read one after
     another in upload order, the later one when the earlier has ended, as `run`'s lanes are.
 
+    A group also waits for an earlier copy of one of its files, so the copy read first is the
+    first one uploaded, whichever check ends first.
+
     The caller (IngestService._unpack) says each file to identify (`pending`, in upload order),
     then what it is (`identified`: its drawing, or None), then `unpacked` when the upload holds
     no more files; `wait` then waits for the groups and raises the first error."""
@@ -311,6 +314,7 @@ class Feed:
         self._read, self._run, self._readers, self._saved = read, run, readers, saved
         self._order: dict[str, int] = {}  # by path: its place in the upload
         self._pending: set[str] = set()
+        self._content: dict[str, str] = {}  # by path: its sha256
         self._drawings: dict[str, DrawingFile] = {}
         self._unpacked = False
         self._started: set[str] = set()  # group keys
@@ -321,9 +325,10 @@ class Feed:
         self._pool = ThreadPoolExecutor(in_flight, thread_name_prefix="group")
         self._lock = threading.Lock()
 
-    def pending(self, path: str) -> None:
+    def pending(self, path: str, sha256: str) -> None:
         with self._lock:
             self._order.setdefault(path, len(self._order))
+            self._content[path] = sha256
             self._pending.add(path)
 
     def identified(self, path: str, drawing: DrawingFile | None) -> None:
@@ -359,6 +364,18 @@ class Feed:
             self._sources[path] = self._readers.finder.sources(path)
         return self._sources[path]
 
+    def _waits_for(self, path: str, members: DrawingGroup) -> bool:
+        """Whether `members`'s group waits for the file at `path`, not identified yet: it could
+        join the group, or it is an earlier copy of one of its files (read first, as in upload
+        order, so the later copy is the one that reuses its reading)."""
+        if self._could_join(path, members):
+            return True
+        return any(
+            self._content[path] == file.sha256 and self._order[path] < self._order[file.path]
+            for file in members.files
+            if file.path in self._order
+        )
+
     def _could_join(self, path: str, members: DrawingGroup) -> bool:
         """Whether the file at `path`, not identified yet, could be in `members`'s group."""
         if _key(path) == members.key:
@@ -377,7 +394,7 @@ class Feed:
             (members, asked)
             for members, asked in groups
             if members.key not in self._started
-            and not any(self._could_join(path, members) for path in self._pending)
+            and not any(self._waits_for(path, members) for path in self._pending)
         ]
         if not ready:
             return

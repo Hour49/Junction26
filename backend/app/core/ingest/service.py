@@ -446,7 +446,7 @@ class IngestService:
             for page in pages:  # files of their own, known before the PDF's group may start
                 run.split.add(path)
                 if not run.has(named := page_path(path, page.number)):
-                    feed.pending(named)
+                    feed.pending(named, hashlib.sha256(page.data).hexdigest())
                     later.append(named)
             feed.identified(path, found)
             for page in pages:
@@ -476,8 +476,9 @@ class IngestService:
                 self._store.put_file(run.id, entry.path, entry.data)
                 run.stage(entry.path, "unpack", f"path checked, {entry.size} bytes",
                           unpacked + self._ms(started), output=entry.path)  # fmt: skip
-                first_of.setdefault(hashlib.sha256(entry.data).hexdigest(), entry.path)
-                feed.pending(entry.path)
+                sha256 = hashlib.sha256(entry.data).hexdigest()
+                first_of.setdefault(sha256, entry.path)
+                feed.pending(entry.path, sha256)
                 probing.append((entry.path, entry.data, pool.submit(self._probed, entry.data)))
                 if len(probing) >= probes:
                     identify_next()
