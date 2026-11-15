@@ -344,7 +344,7 @@
       "sha256": "b69c8d9a3086562595e80387d03beb2db0e4d1db9d94c63cf091788f01358377",
       "kind": "pdf_vector",
       "state": "flagged",
-      "reason": "1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)",
+      "reason": "1 conflict between the two methods (room areas), settled by a rule (7 elements, 5 rooms, scale read from the sheet)",
       "group": "plans/flat-b",
       "route": "vector",
       "source": "plans/flat-b.pdf",

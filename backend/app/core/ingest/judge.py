@@ -57,9 +57,13 @@ def judge(
     flags: list[str] = []
     disputed = [entry for entry in drawing.conflicts or () if entry.status == "conflict"]
     conflicts = [entry for entry in disputed if entry.quantity != "scale"]
-    if conflicts:
-        what = ", ".join(sorted({CONFLICT_WORDS[entry.quantity] for entry in conflicts}))
-        flags.append(f"{count(len(conflicts), 'conflict')} between the two methods ({what})")
+    # a conflict a rule settled still flags the file (golden demo step 3) but says so: it needs
+    # no person (review.needs_person, the Conflicts tile's open count) (R4-B7)
+    for ruled, said in ((False, ""), (True, ", settled by a rule")):
+        some = [entry for entry in conflicts if (entry.resolution is not None) == ruled]
+        if some:
+            what = ", ".join(sorted({CONFLICT_WORDS[entry.quantity] for entry in some}))
+            flags.append(f"{count(len(some), 'conflict')} between the two methods ({what}){said}")
     flags += [scale_flag(entry) for entry in disputed if entry.quantity == "scale"]
     empty = read_nothing(drawing, route, reader)
     if empty is not None:

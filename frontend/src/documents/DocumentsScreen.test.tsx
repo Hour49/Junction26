@@ -349,7 +349,9 @@ describe('DocumentsScreen (documents.md)', () => {
     show(body, { ...projectIssues, project_id: body.id, issues: [] });
     await flush();
     const files = screen.getByRole('region', { name: 'Files' });
-    expect(files.textContent).toContain('A floor plan · Looks like: an elevation');
+    expect(files.textContent).toContain(
+      'Read as a floor plan · the sheet-kind step says it looks like an elevation',
+    );
   });
 
   it('RS-30 RS-31 Carbon’s pick and can-not-tell on a conflict issue, with a link to its card', async () => {
@@ -427,7 +429,9 @@ describe('DocumentsScreen (documents.md)', () => {
     await flush();
     const files = within(screen.getByRole('region', { name: 'Files' }));
     const row = must(files.getByText('plans/flat-b.pdf').closest('a'));
-    expect(within(row).getByText('1 conflict between the two methods (room areas)')).toBeTruthy();
+    // R4-B7: its one conflict a rule settled; the file stays flagged
+    const why = '1 conflict between the two methods (room areas), settled by a rule';
+    expect(within(row).getByText(why)).toBeTruthy();
     expect(issuesRegion().getByText('Nothing needs your answer right now.')).toBeTruthy();
     // the same words as the ingest page's summary (routeSummary), so the two pages agree
     expect(

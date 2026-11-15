@@ -476,7 +476,7 @@ export function lanes(files: readonly FileStatus[]): Lane[] {
 export const PIPELINE_TIPS = {
   thingsFound: 'Rooms, doors, windows and fixtures counted so far, each drawing once.',
   conflicts:
-    'Places where two readers measured the same thing differently and a person has to choose.',
+    'Places where two readers measured the same thing differently. Open ones still need a person to choose.',
   flagged: 'Files that were read but need a look before you rely on them.',
   cost: 'What the paid model calls of this upload cost. Cached calls are free.',
   readers: 'The readers this server runs on this route, as it recorded them for this upload.',

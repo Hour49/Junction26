@@ -32,6 +32,10 @@ Runner = Callable[[str, str], str]  # (tool name, arguments JSON) -> result JSON
 # answers "room 1.01" (QA smoke-1; the parser is app/core/answering's, so worked around here)
 ROOM_NUMBER = re.compile(r"\b([^\W\d_]+)\s+(\d+\.\d{2})\b(?!\s*(?:m\b|m2|m²|cm|mm|%))")
 ROOMS_LISTED = 12
+FOUND_COVERS = (
+    "only the rooms a reader found on the drawings and read a label for: rooms it missed, or "
+    "found without a label, are not in it, so this is no count of them all"
+)
 FIND_TOOLS: list[Json] = [
     {
         "type": "function",
@@ -41,7 +45,8 @@ FIND_TOOLS: list[Json] = [
                 "The rooms whose label printed on the drawings contains every word of `query` "
                 "(e.g. 'office', 'open office 102'), with their places (ev ids). Use it when "
                 "ask_drawings refuses a question that names a room: offer the printed labels "
-                "as options, or read the one room with get_plan_geometry. Labels only."
+                "as options, or read the one room with get_plan_geometry. Labels only: only the "
+                "rooms a reader found and read a label for, never a count of all such rooms."
             ),
             "parameters": {
                 "type": "object",
@@ -169,20 +174,25 @@ def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
     if not words:
         return _error("give the room's words as printed, e.g. 'office' or 'open office 102'")
     found: list[Json] = []
+    read = unlabelled = 0
     for entry in drawings_of(store.ingest.status(store.project_id)):
         try:
             rooms = store.ingest.drawing(entry.drawing_id).rooms
         except DomainError:
             continue  # not read
+        read += len(rooms)
+        unlabelled += sum(not room.label for room in rooms)
         for room in rooms:
             printed = _printed(room.label, room.attrs.get("number"))
             if printed and _holds(printed, words):
                 place = {"drawing_id": entry.drawing_id, "page": room.page, "box": list(room.box)}
                 found.append({"room": room.id, "label": printed, "name": entry.name, **place})
+    # what the list covers: a partial raster reading lists 2 of 8 classrooms (R4-A14)
+    covers: Json = {"rooms_read": read, "unlabelled": unlabelled, "counts": FOUND_COVERS}
     if not found:
         reason = f"no room label printed on the drawings holds {' '.join(sorted(words))}"
-        return json.dumps({"status": "unknown", "reason": reason}, ensure_ascii=False)
-    out: Json = {"status": "ok", "count": len(found), "rooms": found[:ROOMS_LISTED]}
+        return json.dumps({"status": "unknown", "reason": reason, **covers}, ensure_ascii=False)
+    out: Json = {"status": "ok", "count": len(found), **covers, "rooms": found[:ROOMS_LISTED]}
     return json.dumps(out, ensure_ascii=False)
 
 

@@ -32,8 +32,8 @@ def test_a_medium_answer_carbon_counts_differently_becomes_low() -> None:
     found = asked(score=MEDIUM, drawing=checked(read=("door", "room"), elements=THREE))
     assert found.answer.answer == 2  # the answer is the reader's, never Carbon's
     assert made(found) == ("low", "carbon")
-    assert found.level is not None and "Gemini Carbon" in found.level.text
-    assert "counted 3 here" in found.level.text
+    assert found.level is not None and "Carbon" not in found.level.text  # QA R4-C10
+    assert "a second AI reader counted 3 here" in found.level.text
     assert f"({CARBON_DEMOTED.exact} of {CARBON_DEMOTED.units})" in found.level.text
     assert found.check is not None  # still asks for the double-check it asked for
 
@@ -59,8 +59,8 @@ def test_a_failed_check_keeps_the_level_and_says_carbon_did_not_check() -> None:
     assert alone.level is not None and found.level is not None
     assert made(found) == ("medium", "score")
     assert found.level.text == (
-        f"{alone.level.text} Gemini Carbon did not check it: not read: the page call failed: "
-        "HTTP 503."
+        f"{alone.level.text} A second AI reader did not check it: not read: the page call "
+        "failed: HTTP 503."
     )
 
 

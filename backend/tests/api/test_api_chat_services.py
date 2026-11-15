@@ -638,3 +638,34 @@ def test_a_sanitary_word_whose_type_the_model_lacks_is_not_counted(
     assert "0 urinal" not in found["text"], found
     assert "no fixture typed as a urinal" in found["text"] and "3 toilets" in found["text"], found
     assert not RAW_IFC.search(found["text"]), found  # qa-a nit: plain words, not IFC names
+
+
+def _with_kitchen_sink() -> ServicesModel:
+    """wc_room() plus one kitchen sink typed SINK in the other room, so the model has the type."""
+    doc = wc_room().model_dump(mode="json", by_alias=True)
+    basin = next(e for e in doc["elements"] if e.get("predefined") == "WASHHANDBASIN")
+    sink = {
+        **basin,
+        "id": "E399",
+        "room": "SR2",
+        "predefined": "SINK",
+        "label": "Spüle Geschirrspüler:140 x 60cm",
+        "name": "Spüle Geschirrspüler:140 x 60cm",
+    }
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], sink]})  # fmt: skip
+
+
+@pytest.mark.parametrize("kitchen_sink", [True, False])
+def test_r4_c3_sinks_in_a_washroom_count_its_washbasins_not_a_confident_0(
+    settings: Settings, tmp_path: Path, kitchen_sink: bool
+) -> None:
+    """R4-C3 (Tudor's QA round 4): since #559 "sink" asked for IFC type SINK only, so "How many
+    sinks in Bad 1-3?" on a model whose basins are WASHHANDBASIN answered a confident 0 (with a
+    SINK elsewhere in the model) or "no fixture typed as a sink" (without). In English a sink is a
+    washbasin too: both types count."""
+    model = _with_kitchen_sink() if kitchen_sink else wc_room()
+    found = _rules(_client(settings, tmp_path, model=model), f"How many sinks are in {WC_ROOM}?")
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith(f"2 sinks in {WC_ROOM}: "), found
+    assert "E307" in found["text"] and "E308" in found["text"], found
+    assert "E399" not in found["text"] and not RAW_IFC.search(found["text"]), found

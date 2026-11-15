@@ -140,6 +140,15 @@ def test_other_files(data: bytes, expected: str) -> None:
     assert kind(data) == expected
 
 
+def test_a_text_file_says_its_size_in_the_right_number() -> None:
+    # QA R4-G4: a zip of 3000 one-byte files listed "plain text, 1 bytes" 3000 times
+    probe = FileProbe()
+    assert [probe.probe(data).did for data in (b"x", b"xy")] == [
+        "plain text, 1 byte",
+        "plain text, 2 bytes",
+    ]
+
+
 def test_an_ifc_model() -> None:
     assert kind(ifc_model()) == "ifc"
 

@@ -6,7 +6,7 @@ from typing import Any
 
 from test_agent_loop import ASKED, PROPOSAL, Model, Tools, call, final, step, turn
 
-from app.core.agent.loop import UNRATED, UNRATED_BOTH, UNRATED_TAKEOFF, run_turn
+from app.core.agent.loop import FOUND_ONLY, UNRATED, UNRATED_BOTH, UNRATED_TAKEOFF, run_turn
 from app.core.agent.model import Caps, Chat
 from app.core.spend import SpendGuard
 
@@ -209,3 +209,61 @@ def test_a_drawings_file_name_is_a_name_not_a_number_from_geometry() -> None:
     )
     got = turn(model, Tools(get_plan_geometry=found), names={DRAWING: "Drawn plan 1"})
     assert got.text == f"The hall on Drawn plan 1 is 5 m² [1]. {UNRATED}"
+
+
+CLASSROOMS: dict[str, Any] = {
+    "status": "ok", "count": 2, "rooms_read": 55, "unlabelled": 9,
+    "counts": "only the rooms a reader found ...",
+    "rooms": [{"room": f"r{n}", "label": "Secondary Classroom", "drawing_id": DRAWING,
+               "name": "school.png", "page": 1, "box": [0.1 * n, 0.1, 0.1 * n + 0.05, 0.2]}
+              for n in (1, 2)],
+}  # fmt: skip
+
+
+def test_r4_a14_a_count_of_the_rooms_find_rooms_found_says_it_is_only_those() -> None:
+    """eu-big live T1: "There are 2 rooms labeled Secondary Classroom" stood as the number of
+    classrooms (truth 8). A number only find_rooms gives gets the server's sentence: only the
+    rooms a reader found, no confidence level."""
+    model = Model(
+        step(call("find_rooms", query="classroom")),
+        final(text="There are 2 rooms labeled Secondary Classroom [ev_1] [ev_2].",
+              evidence_ids=["ev_1", "ev_2"]),
+    )  # fmt: skip
+    got = turn(model, Tools(find_rooms=CLASSROOMS), message="How many classrooms are there?")
+    assert got.kind == "answer"
+    assert got.text == f"There are 2 rooms labeled Secondary Classroom [1] [2]. {FOUND_ONLY}"
+    assert not any(c.isdigit() for c in FOUND_ONLY)
+
+
+def test_r4_a14_found_rooms_and_takeoff_numbers_name_both() -> None:
+    model = Model(
+        step(call("find_rooms", query="classroom"), call("get_takeoff", 2, drawing_id=DRAWING)),
+        final(text="I found 2 classrooms [ev_1] and 3 doors [ev_3].", evidence_ids=["ev_1"]),
+    )
+    got = turn(model, Tools(find_rooms=CLASSROOMS, get_takeoff=TAKEOFF))
+    assert got.text.endswith(f"{FOUND_ONLY} {UNRATED_TAKEOFF}")
+
+
+def test_r4_a14_saying_no_confidence_level_does_not_drop_that_rooms_were_missed() -> None:
+    said = "There are 2 rooms labeled Secondary Classroom [ev_1]; this has no confidence level."
+    model = Model(step(call("find_rooms", query="classroom")),
+                  final(text=said, evidence_ids=["ev_1"]))  # fmt: skip
+    assert turn(model, Tools(find_rooms=CLASSROOMS)).text.endswith(FOUND_ONLY)
+    missed = "I found 2 Secondary Classrooms [ev_1]; rooms the reader missed are not in it."
+    model = Model(step(call("find_rooms", query="classroom")),
+                  final(text=missed, evidence_ids=["ev_1"]))  # fmt: skip
+    assert FOUND_ONLY not in turn(model, Tools(find_rooms=CLASSROOMS)).text  # not said twice
+
+
+def test_review_644_s1_only_the_count_find_rooms_gives_gets_the_found_only_sentence() -> None:
+    """review-644 S1: rooms_read, unlabelled and a room's page are in the result too, yet they
+    are no count of the rooms found with that label."""
+    for said in ("The reader read 55 rooms in all [ev_1].", "Two classrooms are on page 1 [ev_1].",
+                 "9 rooms have no printed label [ev_1]."):  # fmt: skip
+        model = Model(step(call("find_rooms", query="classroom")),
+                      final(text=said, evidence_ids=["ev_1"]))  # fmt: skip
+        assert FOUND_ONLY not in turn(model, Tools(find_rooms=CLASSROOMS)).text, said
+    listed = "I found 2 Secondary Classrooms [ev_1] [ev_2]."  # the count still gets it
+    model = Model(step(call("find_rooms", query="classroom")),
+                  final(text=listed, evidence_ids=["ev_1", "ev_2"]))  # fmt: skip
+    assert turn(model, Tools(find_rooms=CLASSROOMS)).text.endswith(FOUND_ONLY)

@@ -5,6 +5,7 @@ from app.core.drawing.model import (
     MeasuredValue,
     MeasureMethod,
     Page,
+    Resolution,
     Scale,
     Subject,
     Table,
@@ -118,10 +119,40 @@ def test_a_scale_disagreement_does_not_count_as_one_of_the_file_s_conflicts() ->
         [Measurement(quantity="room_area", subject=Subject(kind="room", ref="r1"),
                      value=MeasuredValue(value=12.0, method="printed_label"))],
     )  # fmt: skip
-    both = drawing.model_copy(update={"conflicts": (*(drawing.conflicts or ()), *area)})
+    unruled = [entry.model_copy(update={"resolution": None}) for entry in area]  # R4-B7
+    both = drawing.model_copy(update={"conflicts": (*(drawing.conflicts or ()), *unruled)})
     state, reason = judge(both, "png_plan", "raster", "composite")
     assert state == "flagged"
     assert reason.startswith(
         "1 conflict between the two methods (room areas); the scale read two ways disagrees: "
         "a rule keeps the printed scale bar over the scale estimated from the doors ("
+    ), reason
+
+
+def test_a_conflict_a_rule_settled_says_so_in_the_file_s_reason() -> None:
+    """Tudor QA round 4, R4-B7: the file's only flag reason was a conflict a rule settled (its
+    card: "1 conflict found · 1 settled by a rule", the Conflicts tile 0 open), yet the file's
+    reason read as if a person still had to settle it. It stays flagged (golden demo step 3:
+    flat-b), and its reason says a rule settled it; one no rule decides reads as before."""
+    area = second_count(
+        [Measurement(quantity="room_area", subject=Subject(kind="room", ref="r1"),
+                     value=MeasuredValue(value=10.0, method="polygon_x_scale"))],
+        [Measurement(quantity="room_area", subject=Subject(kind="room", ref="r1"),
+                     value=MeasuredValue(value=12.0, method="printed_label"))],
+    )  # fmt: skip
+    [found] = [entry for entry in area if entry.status == "conflict"]
+    ruled = found.model_copy(update={"resolution": Resolution(rule="printed label", value=12.0)})
+    open_one = found.model_copy(update={"resolution": None})
+    plan = sheet(None).model_copy(update={"scale": Scale(status="scaled"), "read": ("swiss",)})
+    state, reason = judge(plan.model_copy(update={"conflicts": (ruled,)}), "pdf_vector",
+                          "vector", "pdf")  # fmt: skip
+    assert state == "flagged", reason
+    ruled_reason = "1 conflict between the two methods (room areas), settled by a rule ("
+    assert reason.startswith(ruled_reason), reason
+    state, reason = judge(plan.model_copy(update={"conflicts": (open_one, ruled)}), "pdf_vector",
+                          "vector", "pdf")  # fmt: skip
+    assert state == "flagged"
+    assert reason.startswith(
+        "1 conflict between the two methods (room areas); 1 conflict between the two methods "
+        "(room areas), settled by a rule ("
     ), reason

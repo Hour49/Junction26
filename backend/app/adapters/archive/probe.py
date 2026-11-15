@@ -444,5 +444,5 @@ def _other(data: bytes) -> Probed:
         return Probed(kind="unknown", did="binary content in no format we read")
     control = sum(ord(char) < 32 and char not in "\t\r\n\f" for char in text)
     if text and control <= len(text) / 100:
-        return Probed(kind="text", did=f"plain text, {len(data)} bytes")
+        return Probed(kind="text", did=f"plain text, {counted(len(data), 'byte')}")
     return Probed(kind="unknown", did="binary content in no format we read")
