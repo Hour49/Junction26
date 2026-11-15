@@ -7,6 +7,7 @@ when the parser maps it back to that row's key, so asking a suggestion is never 
 """
 
 import re
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from typing import NamedTuple
 
@@ -58,6 +59,7 @@ from app.core.drawing.model import (
     ELEMENT_CLASSES,
     CarbonCheck,
     Drawing,
+    ModelObject,
     Plan,
     Room,
     Table,
@@ -69,6 +71,7 @@ from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
 from app.core.pipeline.model import CountingRule, Partial, Quantity
 from app.core.pipeline.takeoff import (
+    SPACE,
     known_quantities,
     normalised,
     plan_counts,
@@ -622,7 +625,8 @@ def which_room(
     parser: QuestionParser,
     area_of: Callable[[str], Asked],
 ) -> Asked | None:
-    """ "Which room is the largest?", "Which is the biggest room?" (the drawing's indoor rooms) and
+    """ "Which room is the largest?", "Which is the biggest room?" (the drawing's indoor rooms, or a
+    building model's spaces when it draws none: an .ifc asked on its own) and
     "Which is larger, the X or the Y?": the room's name, from each room's area as its own area
     question answers it (`area_of`: its value, refusal, level and marks). The level is the
     weakest of the areas compared, never higher than any of them. Refused when an area it needs
@@ -632,14 +636,31 @@ def which_room(
     if SCHEDULE_WORD.search(text):
         return None
     rooms = [room for room in drawing.rooms if not room.outdoor]
+    among, aside = len(rooms), ""
     if (two := WHICH_OF_TWO.match(text)) is not None:
         word = two["more"].casefold()
         asks = [(two[side], f"What is the area of the {two[side]}?") for side in ("x", "y")]
     elif (extreme := WHICH_EXTREME.match(text)) is not None:
         word = (extreme["a"] or extreme["b"]).casefold()
-        asks, left = _extreme_asks(rooms, quantities, parser, largest=word != "smallest")
-        if left or len(asks) < 2:
-            return _not_compared(f"I can't tell which room is the {word}: {_left_why(left, asks)}.")
+        spaces = [item for item in drawing.model_objects or () if item.class_ == SPACE]
+        if not rooms and spaces:  # a building model asked on its own draws no room (QA B6)
+            # a space of no area (a void, a shaft) is no room to rank: left out, named
+            empty = [item for item in spaces if round(item.quantities.get("area_m2", 1), 2) == 0]
+            ranked = [item for item in spaces if item not in empty]
+            asks, unasked = _space_asks(ranked, quantities, parser)
+            among = len(ranked)
+            if empty:
+                aside = "leaving out " + ", ".join(
+                    f"{_space_shown(item)}, 0.00 m²" for item in empty
+                )
+            if unasked or len(asks) < 2:
+                why = _unasked_why(unasked, ranked, asks)
+                return _not_compared(f"I can't tell which room is the {word}: {why}.")
+        else:
+            asks, left = _extreme_asks(rooms, quantities, parser, largest=word != "smallest")
+            if left or len(asks) < 2:
+                why = _left_why(left, asks)
+                return _not_compared(f"I can't tell which room is the {word}: {why}.")
     else:
         return None
     got: dict[str | None, tuple[str, Asked]] = {}  # by the row it reads: one room counted once
@@ -676,9 +697,11 @@ def which_room(
         said = f"{first_name} ({_m2(first)}) is {word} than {second_name} ({_m2(second)})"
     else:
         said = (
-            f"{first_name} ({_m2(first)}) is the {word} of the {len(rooms)} rooms; next is "
+            f"{first_name} ({_m2(first)}) is the {word} of the {among} rooms; next is "
             f"{second_name} ({_m2(second)})"
         )
+        if aside:
+            said += f"; {aside}"
     compared = [found for _, found in ordered]
     levels = [found.level for found in compared]
     level = None if any(lv is None for lv in levels) else min(
@@ -725,6 +748,64 @@ def _extreme_asks(
         elif found not in (question for _, question in asks):
             asks.append((_shown(room), found))
     return asks, left
+
+
+def _space_asks(
+    spaces: Sequence[ModelObject], quantities: Mapping[str, Quantity], parser: QuestionParser
+) -> tuple[list[tuple[str, str]], list[ModelObject]]:
+    """The area question of each space of a building model, by one of its names on its storey
+    (the takeoff's row of that one space); the spaces no question reaches are returned as left."""
+    asks: list[tuple[str, str]] = []
+    left: list[ModelObject] = []
+    for space in spaces:
+        names = [_space_shown(space), space.name, space.long_name]
+        texts = [
+            f"What is the net floor area of room '{name}' on '{space.storey}'?"
+            for name in dict.fromkeys(names)
+            if name and space.storey and "'" not in name + space.storey
+        ]
+        found = next((t for t in texts if _key(parser, t) in quantities), None)
+        if found is None:
+            left.append(space)
+        else:
+            asks.append((_space_shown(space), found))
+    return asks, left
+
+
+def _space_shown(space: ModelObject) -> str:
+    """A model's space as the answer names it: "<LongName> (<Name>)", or the one it has."""
+    number, long_name = space.name or None, space.long_name or None
+    if number and long_name and number != long_name:
+        return f"{long_name} ({number})"
+    return long_name or number or "an unnamed space"
+
+
+def _unasked_why(
+    left: Sequence[ModelObject], spaces: Sequence[ModelObject], asks: Sequence[tuple[str, str]]
+) -> str:
+    """Why the spaces `left` can't be ranked, each group with its own reason (review-479)."""
+    if not left:
+        return f"the model has {len(asks)} room{'' if len(asks) == 1 else 's'} to compare"
+    reasons: dict[str, list[ModelObject]] = defaultdict(list)
+    for space in left:
+        if "area_m2" not in space.quantities:
+            reasons["has no area in the model"].append(space)
+        elif not space.storey:
+            reasons["has no storey"].append(space)
+        elif not (space.name or space.long_name):
+            reasons["has no name"].append(space)
+        else:  # named, on a storey, with an area: another space there has its name
+            reasons[f"on {space.storey} can't be told apart by name"].append(space)
+    parts: list[str] = []
+    for why, same in reasons.items():
+        shown = [_space_shown(space) for space in same[:4]]
+        named = " and ".join(shown) if len(shown) == 2 else ", ".join(shown)
+        if why.startswith("on "):
+            parts.append(f"{named} {why}")
+        else:
+            verb = why if len(same) == 1 else why.replace("has ", "have ", 1)
+            parts.append(f"{named} {verb}")
+    return f"{len(left)} of its {len(spaces)} rooms can't be compared: " + "; ".join(parts)
 
 
 def _key(parser: QuestionParser, text: str) -> str | None:

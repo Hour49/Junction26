@@ -2,7 +2,7 @@
   "chat_id": "c4a7c0000001",
   "turn": 1,
   "kind": "answer",
-  "text": "The drawings answer this below [1][2][3].",
+  "text": "The answer is below [1][2][3].",
   "evidence": [
     {
       "n": 1,

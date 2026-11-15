@@ -138,14 +138,16 @@ test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail
     .filter({
       has: page.getByRole('link', { name: 'Open the file' }),
     });
-  // Issues on demand: only what waits for an answer now (documents.ts waitsForYou); no conflicts or notes.
+  // Issues on demand: what waits for an answer now (documents.ts waitsForYou: no conflicts, no notes) plus the open
+  // unanswered `unrelated_file` note, the call on a file triage set aside (DOC-7; there is one only with
+  // TRIAGE_CLASSIFIER=rules). Not counted by the badge.
   const shown = async (query: string) =>
     (await liveIssues(page, pid, query)).filter(
       (i) =>
-        (i.kind !== 'conflict' || !!i.resolved) &&
-        i.severity !== 'note' &&
         i.state === 'open' &&
-        !i.answer,
+        !i.answer &&
+        (i.kind === 'unrelated_file' ||
+          ((i.kind !== 'conflict' || !!i.resolved) && i.severity !== 'note')),
     ).length;
   const { label } = await drawingOf(page, pid, 'plans/flat-b.pdf');
 
@@ -193,8 +195,11 @@ test('DOC IS-19 IS-20: the issues on Documents with and without a pack, the fail
   await page.goto(`/#/p/${pid}/documents?pack=fi`);
   await expect(issueList).toHaveCount(await shown('?pack=fi'));
   await expect(issueList.filter({ hasText: 'Fails a rule' })).toHaveCount(0);
+  // no answer box on a rule row (the triage call on a set-aside file has its own name box, DOC-7)
   await expect(
-    main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
+    issueList
+      .filter({ hasNot: page.getByRole('button', { name: 'It belongs to this project' }) })
+      .getByRole('textbox'),
   ).toHaveCount(0);
   await noSideScroll(page, 'documents?pack=fi');
   // ui-bugs 10, 11: the header has no project picker and no Workspaces link.

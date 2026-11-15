@@ -41,6 +41,27 @@ const HEADER =
   'kind,file,drawing_id,page,item,type,label,value,unit,width_m,height_m,status,detail';
 
 describe('scan CSV', () => {
+  it('EX-4 a set-aside file the project lists in both files and skipped is one row (QA fe-ui2)', () => {
+    const [aside, lost] = [project.skipped[0], project.skipped[1]];
+    if (!aside || !lost) throw new Error('project.json has two skipped files');
+    const file = project.files[0];
+    if (!file) throw new Error('project.json has a file');
+    // the backend lists a set-aside file under files (with its id) and again under skipped
+    const both: ProjectView = {
+      ...project,
+      files: [
+        ...project.files,
+        { ...file, id: 'f9', path: aside.path, state: 'set_aside', reason: aside.reason },
+      ],
+    };
+    const rows = scanRows({ ...scan, project: both }).filter((r) => r.kind === 'file');
+    expect(rows.filter((r) => r.file === aside.path).map((r) => [r.item, r.status])).toEqual([
+      ['f9', 'set_aside'],
+    ]);
+    // a skipped file that never became a file (the server restarted mid-ingest) keeps its row
+    expect(rows.filter((r) => r.file === lost.path).map((r) => r.status)).toEqual(['skipped']);
+  });
+
   it('EX-3 the first line is the header', () => {
     expect(COLUMNS.join(',')).toBe(HEADER);
     expect(lines(toCsv(scanRows(scan)))[0]).toBe(HEADER);

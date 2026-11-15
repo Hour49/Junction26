@@ -6,6 +6,7 @@ from typing import Any
 
 import ifcopenshell
 import ifcopenshell.guid
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -95,7 +96,7 @@ class _Builder:
         kind = self._new("IfcColumnType", Name=type_name, PredefinedType="COLUMN")
         self._new("IfcRelDefinesByType", RelatedObjects=elements, RelatingType=kind)
 
-    def pipes(self, system: str, runs: list[tuple[float, float, str, float]]) -> None:
+    def pipes(self, system: str, runs: list[tuple[float, float, str, float]]) -> list[Any]:
         disc = self.f.createIfcCircleProfileDef("AREA", None, None, 10.0)
         elements = []
         for x, y, direction, length in runs:
@@ -121,6 +122,10 @@ class _Builder:
                 ),
             )
             elements.append(pipe)
+        self.assign(elements, system)
+        return elements
+
+    def assign(self, elements: list[Any], system: str) -> None:
         group = self._new("IfcDistributionSystem", Name=system)
         self._new("IfcRelAssignsToGroup", RelatedObjects=elements, RelatingGroup=group)
 
@@ -202,7 +207,7 @@ def test_the_same_seed_gives_the_same_bytes(model: Path, tmp_path: Path) -> None
     assert a.read_bytes() != c.read_bytes() and other["symbols"] != one["symbols"]
 
 
-@pytest.mark.parametrize("variant", ["scan", "photo"])
+@pytest.mark.parametrize("variant", ["scan", "scan-colour", "photo"])
 def test_a_degraded_picture_moves_its_points_with_it(
     model: Path, tmp_path: Path, variant: str
 ) -> None:
@@ -220,3 +225,105 @@ def test_a_structural_plan_counts_columns(model: Path, tmp_path: Path) -> None:
     assert truth["counts"] == {"Column 300": 2}
     assert [e["label"] for e in truth["legend"]] == ["Column 300"]
     assert truth["runs"] == []
+
+
+def _plumbing(path: Path, systems: dict[str, list[tuple[float, float, str, float]]]) -> Path:
+    built = _Builder()
+    for system, runs in systems.items():
+        built.pipes(system, runs)
+    return built.save(path)
+
+
+def _one(model: Path, out: Path, **options: Any) -> dict[str, Any]:
+    (picture,) = render_model(model, out, dpi=150, **options)
+    return json.loads(picture.with_suffix(".json").read_text(encoding="utf-8"))
+
+
+def test_runs_are_styled_and_counted_per_system_type(tmp_path: Path) -> None:
+    built = _Builder()
+    built.pipes("Waste 1", [(0.0, 0.0, "x", 3.0)])
+    built.pipes("Waste 2", [(0.0, 1.0, "x", 2.0)])
+    built.pipes("Vent 1", [(0.0, 2.0, "x", 4.0)])
+    shared = built.pipes("Vent 7", [(0.0, 3.0, "x", 1.0)])
+    built.assign(shared, "Waste 3")  # one pipe in two systems is drawn, and counted, once
+    truth = _one(built.save(tmp_path / "waste.ifc"), tmp_path)
+    assert [line["system"] for line in truth["legend_lines"]] == ["Vent", "Waste"]
+    lengths = truth["system_lengths_m"]
+    assert set(lengths) == {"Vent", "Waste"}
+    assert sum(lengths.values()) == pytest.approx(10.0)
+    assert lengths["Vent"] in (pytest.approx(4.0), pytest.approx(5.0))
+    assert sum(r["length_m"] for r in truth["runs"]) == pytest.approx(10.0)
+    assert truth["system_plan_m"] == pytest.approx(lengths, abs=0.05)
+    assert truth["styles_capped"] == 0
+
+
+def test_types_past_the_styles_share_a_grey_other(tmp_path: Path) -> None:
+    systems = {f"T{i:02d} 1": [(0.0, float(i), "x", 2.0)] for i in range(30)}
+    truth = _one(_plumbing(tmp_path / "many.ifc", systems), tmp_path)
+    rows = [line["system"] for line in truth["legend_lines"]]
+    assert rows == [f"T{i:02d}" for i in range(23)] + ["other systems"]
+    assert truth["styles_capped"] == 7
+    assert truth["system_lengths_m"]["other systems"] == pytest.approx(14.0)
+
+
+@pytest.mark.parametrize("variant", ["clean", "scan", "scan-colour", "photo"])
+def test_legend_boxes_hold_their_row_after_distortion(
+    model: Path, tmp_path: Path, variant: str
+) -> None:
+    clean = _render(model, tmp_path / "clean")
+    truth = _render(model, tmp_path, variant=variant, seed=3)
+    image = Image.open(tmp_path / truth["picture"]).convert("L")
+    flat = Image.open(tmp_path / "clean" / clean["picture"]).convert("L")
+    rows = [*truth["legend"], *truth["legend_lines"]]
+    assert len(rows) == 4  # two symbol rows, two line rows
+    for row, before in zip(rows, [*clean["legend"], *clean["legend_lines"]], strict=True):
+        x0, y0, x1, y1 = (round(v) for v in row["box"])
+        assert x1 - x0 > 50 and 10 < y1 - y0 < 60
+        if variant != "clean":
+            assert row["box"] != before["box"]
+        # the row's ink sits where it sat in the clean box: a box off by a few pixels shifts it
+        here, there = _ink(image, row["box"]), _ink(flat, before["box"])
+        width = row["box"][2] - row["box"][0]  # blur thickens ink, a warp widens the box
+        assert here[0] > 50 and abs(here[2] - there[2]) < 2.5, (here, there)
+        assert abs(here[1] - there[1]) < 0.1 * width, (here, there)  # rows differ in y
+
+
+def _ink(image: Image.Image, box: list[float]) -> tuple[int, float, float]:
+    """Dark pixels in the box, and their centre in pixels from the box's centre."""
+    x0, y0, x1, y1 = (round(v) for v in box)
+    dark = np.asarray(image.crop((x0, y0, x1, y1))) < 200  # blur greys thin ink
+    ys, xs = np.nonzero(dark)
+    h, w = dark.shape
+    return len(xs), float(xs.mean() - w / 2), float(ys.mean() - h / 2)
+
+
+def test_a_colour_scan_keeps_its_colours(model: Path, tmp_path: Path) -> None:
+    truth = _render(model, tmp_path, variant="scan-colour", seed=3)
+    pixels = np.asarray(Image.open(tmp_path / truth["picture"]).convert("RGB"), dtype=int)
+    assert (pixels.max(axis=2) - pixels.min(axis=2)).max() > 80  # coloured lines survive
+    grey = _render(model, tmp_path / "grey", variant="scan", seed=3)
+    assert Image.open(tmp_path / "grey" / grey["picture"]).mode == "L"
+
+
+def test_scan_noise_is_configurable(model: Path, tmp_path: Path) -> None:
+    default = _render(model, tmp_path / "a", variant="scan", seed=3)
+    _render(model, tmp_path / "b", variant="scan", seed=3, noise=(1.0, 0.002, 60))
+    harsh = _render(model, tmp_path / "c", variant="scan", seed=3, noise=(1.5, 0.005, 40))
+    rougher = _render(model, tmp_path / "d", variant="scan", seed=3, noise=(1.0, 0.002, 40))
+    a, b, c, d = (tmp_path / d / default["picture"] for d in "abcd")
+    assert a.read_bytes() == b.read_bytes()  # the defaults are bar 1's scan
+    assert d.stat().st_size < a.stat().st_size and rougher["noise"]["quality"] == 40
+    assert harsh["noise"] == {"blur": 1.5, "salt": 0.005, "quality": 40}
+    assert default["noise"] == {"blur": 1.0, "salt": 0.002, "quality": 60}
+    assert harsh["symbols"] == default["symbols"]  # same rotation: the seed, not the noise
+    salty = _render(model, tmp_path / "e", variant="scan", seed=3, noise=(1.0, 0.02, 60))
+    assert _salt(Image.open(tmp_path / "e" / salty["picture"])) > 3 * _salt(Image.open(a))
+    assert c.read_bytes() != a.read_bytes()
+
+
+def _salt(image: Image.Image) -> int:
+    """Lone black dots on white: pixels far darker than all four neighbours."""
+    full = np.asarray(image.convert("L"), dtype=int)
+    centre = full[1:-1, 1:-1]
+    around = np.minimum.reduce([full[:-2, 1:-1], full[2:, 1:-1], full[1:-1, :-2], full[1:-1, 2:]])
+    return int((around - centre > 120).sum())

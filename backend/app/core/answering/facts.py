@@ -27,7 +27,8 @@ UNAVAILABLE = "This information is not available in the file"
 # A picture's sheet holds facts only of what its legend lists (discipline-pictures.md Outputs)
 NOT_READ = "not read on this picture"
 PICTURE_ROUTES = ("picture", "vector")  # a Fact.source's route, before its colon
-SAME_KIND = {"heat_exchanger": "space_heater"}  # a radiator is an IfcSpaceHeater in a model too
+# a radiator is an IfcSpaceHeater in a model too; a picture names a switch's kind as IFC does
+SAME_KIND = {"heat_exchanger": "space_heater", "switch": "switching_device"}
 # What a question asks about that is not a drawn thing: never refused as not read
 NOT_DRAWN = frozenset({"project", "storey", "space", "system", "discipline", "port"})
 
@@ -574,10 +575,10 @@ def _space_extras(
     if storey is None and per_storey and gross:
         lines += ["Gross floor area by storey:", *per_storey]
     for topic, label in (
-        ("space.gross_floor_area", "gross floor area"),
-        ("space.net_floor_area", "net floor area"),
+        ("space.gross_floor_area", "gross floor area as the file states it"),
+        ("space.net_floor_area", "net floor area as the file states it"),
         ("space.stated_area", "stated area"),
-        ("space.area", "footprint area"),
+        ("space.area", "footprint area from the model's geometry"),  # the takeoff's model-spaces
     ):
         if (fact := facts.one(topic, "all", storey)) is not None:
             lines.append(f"Sum of the spaces' {label}: {_num(fact)}")
