@@ -66,6 +66,17 @@ GRID = [(0.05 + 0.08 * i, 0.5) for i in range(10)]
         ("Valve", "Heating", ("valve", "heating")),
         ("Valve", "Cold water", ("valve", "plumbing")),
         ("Logo", None, None),
+        ("Main switchboard", None, ("electric_distribution_board", "electrical")),
+        ("M_Radiator - Hosted:Readiator - 25", None, ("space_heater", "heating")),  # Revit M_
+        ("M_Ball Valve - 50 mm", "Unit A Hydronic Supply In", ("valve", "heating")),
+        ("M_Lavatory - Oval:535 mmx485 mm", None, ("sanitary_terminal", "plumbing")),
+        ("M_Water Closet - Flush Tank", None, ("sanitary_terminal", "plumbing")),
+        ("M_Sink - Island - Single", None, ("sanitary_terminal", "plumbing")),
+        (
+            "M_Lighting and Appliance Panelboard - 208V MLO:400 A",
+            None,
+            ("electric_distribution_board", "electrical"),
+        ),  # a panel, not a light
     ],
 )
 def test_kind_of_maps_a_legend_label_to_an_ifc_kind(
@@ -216,6 +227,26 @@ def test_runs_give_length_size_length_and_with_length() -> None:
     assert by[("pipe_segment.size_length", "DN20", "Heating")].value == pytest.approx(9.9)
     assert by[("pipe_segment.with_length", "all", "Heating")].value == 2
     assert by[("pipe_segment.with_length", "all", "Heating")].unit == "count"
+
+
+@pytest.mark.parametrize(
+    ("label", "kind", "discipline"),
+    [
+        ("Unit A Hydronic Supply In", "pipe_segment", "heating"),
+        ("Unit B Domestic Cold Water", "pipe_segment", "plumbing"),
+        ("Supply Air", "duct_segment", "ventilation"),
+        ("Heating pipe", "pipe_segment", "heating"),
+    ],
+)
+def test_a_line_style_named_by_its_system_is_that_discipline_s_run(
+    label: str, kind: str, discipline: str
+) -> None:
+    legend = (LegendEntry(label=label, group=None, line=True, box=None),)
+    run = Run(label=label, size=None, length_m=1.5, spots=(_spot(0.1, 0.1, "mask"),))
+    reading = _reading("mask", [], legend=legend, runs=(run,))
+    by = {(f.topic, f.subject): f for f in picture_facts("d1", double_check(reading, None)).facts}
+    length = by[(f"{kind}.length", "all")]
+    assert length.value == pytest.approx(1.5) and length.discipline == discipline
 
 
 def test_runs_that_differ_by_more_than_ten_percent_are_held() -> None:

@@ -34,6 +34,7 @@ from typing import Any, Protocol, cast
 
 from PIL import Image
 
+from app.adapters import gemini_http
 from app.adapters.whole_file import write_whole
 from app.core import cost
 from app.core.drawing.model import Room, RoomType, Scale
@@ -83,6 +84,13 @@ class GeminiError(Exception):
     """Gemini gave no usable answer; the message is safe to show (no key, no image)."""
 
 
+class NoAnswerError(GeminiError):
+    """The call got no answer to use: the service did not reply (HTTP error, timeout, reset, a
+    body that is not JSON) or the spend guard refused it. Nothing was paid for, so the reading
+    that went without it is partial and is not kept for later uploads (`cost.fail`); an empty
+    reply that was paid for is a plain `GeminiError` and is."""
+
+
 class RoomModel(Protocol):
     @property
     def name(self) -> str: ...
@@ -118,7 +126,7 @@ class GeminiClient:
 
     def ask(self, png: bytes, prompt: str) -> str:
         if self._budget is not None and (refused := self._budget.exhausted()):
-            raise GeminiError(refused)
+            raise NoAnswerError(refused)
         body = {
             "contents": [{"role": "user", "parts": [
                 {"inlineData": {"mimeType": "image/png", "data": base64.b64encode(png).decode()}},
@@ -136,14 +144,14 @@ class GeminiClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+            with gemini_http.urlopen(request, timeout=self._timeout) as response:
                 answer = json.load(response)
         except urllib.error.HTTPError as error:
-            raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
+            raise NoAnswerError(f"HTTP {error.code} {_status(error)}".strip()) from None
         except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets
-            raise GeminiError(f"no answer: {type(error).__name__}") from None
+            raise NoAnswerError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
-            raise GeminiError("the answer is not JSON") from None
+            raise NoAnswerError("the answer is not JSON") from None
         usd = price(answer)
         cost.charge(usd)  # a call that was paid for counts even when its text is unusable
         if self._budget is not None:
@@ -326,6 +334,8 @@ class GeminiRoomExtractor:
             try:
                 found = self._gemini.read(image)
             except GeminiError as error:
+                if isinstance(error, NoAnswerError):
+                    cost.fail()
                 return Extracted(
                     method="printed_label",
                     scale=Scale(status="no_scale"),

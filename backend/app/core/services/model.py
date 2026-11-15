@@ -12,6 +12,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal
 
+from pydantic import Field
+
 from app.core.ifc_facts import Discipline
 from app.core.model import Frozen
 
@@ -167,6 +169,64 @@ class Summary(Frozen):
     new_run_m: float = 0.0  # estimated new pipe or duct, right-angle routes
 
 
+class Affine(Frozen):
+    """How a services sheet lies on the plan: a sheet page fraction (x, y) lands on the plan's
+    page at (a x + b y + c, d x + e y + f). Identity on the plan's own page."""
+
+    a: float = 1.0
+    b: float = 0.0
+    c: float = 0.0
+    d: float = 0.0
+    e: float = 1.0
+    f: float = 0.0
+
+    def apply(self, p: Point2) -> Point2:
+        x, y = p
+        return (self.a * x + self.b * y + self.c, self.d * x + self.e * y + self.f)
+
+    def inverse(self) -> "Affine":
+        """The plan's fractions back to the sheet's; a map that folds the page has none."""
+        det = self.a * self.e - self.b * self.d
+        if abs(det) < 1e-12:
+            raise ValueError("this map folds the page: it has no inverse")
+        a, b, d, e = self.e / det, -self.b / det, -self.d / det, self.a / det
+        return Affine(
+            a=a, b=b, c=-(a * self.c + b * self.f), d=d, e=e, f=-(d * self.c + e * self.f)
+        )
+
+
+class Pairing(Frozen):
+    """Why a services sheet is taken to be the plan's floor (pics-edit-follow W1)."""
+
+    drawing_id: str
+    page: int
+    paired_by: Literal["same_page", "metadata", "geometry", "user"]
+    reason: str  # plain words, server-written
+    score: float | None = None  # 0..1; None for same_page and user
+    to_plan: Affine | None = Field(
+        default=None, exclude=True
+    )  # the sheet on the plan; not in the API
+
+
+class PictureMark(Frozen):
+    """A lane's mark where the discipline sheet draws it (`ref` as in the lane's marks)."""
+
+    ref: str
+    line: Path = ()
+    at: Point2 | None = None
+
+
+class FollowPicture(Frozen):
+    """The discipline sheet a lane was read from, with the edit drawn in its page fractions."""
+
+    drawing_id: str
+    page: int
+    pairing: Pairing
+    removed: tuple[Path, ...] = ()  # the removed walls' strips
+    added: tuple[Path, ...] = ()  # the new partitions' strips
+    marks: tuple[PictureMark, ...] = ()
+
+
 class DisciplineFollow(Frozen):
     discipline: Discipline
     status: Literal["checked", "no_model", "not_aligned"]
@@ -177,6 +237,7 @@ class DisciplineFollow(Frozen):
     summary: Summary = Summary()
     marks: tuple[ServiceMark, ...] = ()
     actions: tuple[ServiceAction, ...] = ()
+    picture: FollowPicture | None = None  # a lane a services picture checked
 
 
 class ServicesFollow(Frozen):

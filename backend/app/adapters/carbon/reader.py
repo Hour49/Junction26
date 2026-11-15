@@ -33,10 +33,18 @@ from typing import Any, Protocol
 
 from PIL import Image
 
+from app.adapters import gemini_http
 from app.adapters.carbon import contract
 from app.adapters.carbon.flight import flight
 from app.adapters.eight_bit import eight_bit
-from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, pixel_digest, reply_text
+from app.adapters.raster_ocr.gemini import (
+    URL,
+    GeminiError,
+    NoAnswerError,
+    _status,
+    pixel_digest,
+    reply_text,
+)
 from app.adapters.whole_file import write_whole
 from app.core import cost
 from app.core.drawing.model import Room
@@ -50,6 +58,7 @@ WORKERS = 4  # calls in flight at once for one read (contract 1.1): CARBON_READ_
 # every sheet read at the same time, the printed-scale reader): ingest reads several drawings at
 # once (INGEST_GROUPS_IN_FLIGHT), and their calls together stay under CARBON_CALLS_IN_FLIGHT
 CALLS_IN_FLIGHT = 8  # its default
+NO_ANSWER = "call got no answer"  # in a reason: no reply (or a refused budget), not a bad reply
 _slots: dict[int, threading.BoundedSemaphore] = {}  # by the cap: one per process, shared by clients
 _slots_guard = threading.Lock()
 
@@ -103,15 +112,15 @@ class CarbonClient:
         try:
             with self._in_flight:  # the budget is checked when it is this call's turn (review-422)
                 if self._budget is not None and (refused := self._budget.exhausted()):
-                    raise GeminiError(refused)
-                with urllib.request.urlopen(request, timeout=self._timeout) as response:
+                    raise NoAnswerError(refused)
+                with gemini_http.urlopen(request, timeout=self._timeout) as response:
                     answer = json.load(response)
         except urllib.error.HTTPError as error:
-            raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None
+            raise NoAnswerError(f"HTTP {error.code} {_status(error)}".strip()) from None
         except (OSError, http.client.HTTPException) as error:  # URLError, timeouts, resets
-            raise GeminiError(f"no answer: {type(error).__name__}") from None
+            raise NoAnswerError(f"no answer: {type(error).__name__}") from None
         except json.JSONDecodeError:
-            raise GeminiError("the answer is not JSON") from None
+            raise NoAnswerError("the answer is not JSON") from None
         if not isinstance(answer, dict):
             raise GeminiError("the answer is not a JSON object")
         usd = contract.price(answer.get("usageMetadata") or {})
@@ -160,6 +169,8 @@ class CarbonReader:
                 tiles = None if form is None else contract.tile_plan(width, height, _plans(form))
                 asked = list(pool.map(lambda box: self._ask("tile", page.crop(box)), tiles or []))
         cost.charge(usd + sum(paid for _, _, paid in asked))  # paid on the pool's threads
+        said = [why, *(said for _, said, _ in asked)]
+        cost.fail(sum(1 for line in said if line is not None and NO_ANSWER in line))
         found = contract.assemble(
             width,
             height,
@@ -195,6 +206,8 @@ class CarbonReader:
             try:
                 answer = self._model.generate(jpeg(image), prompt, schema, tokens)
                 form = check(json.loads(reply_text(answer)))
+            except NoAnswerError as error:
+                return None, f"the {kind} {NO_ANSWER}: {error}", cost.since(before)
             except GeminiError as error:
                 return None, f"the {kind} call failed: {error}", cost.since(before)
             except ValueError as error:  # not JSON, or not the form (contract.ReplyError)

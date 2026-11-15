@@ -4,18 +4,22 @@ model is the two-room fixture (radiators E2 in SR1 and E3 in SR2 on the south wa
 
 import gzip
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.adapters.services_store import ServicesStore
+from app.adapters.services_agent_tools import BUILDING
+from app.adapters.services_store import ServicesBuilds, ServicesStore
 from app.api import chat as chat_api
 from app.composition import build_ingest
 from app.core.agent.ports import Reply
+from app.core.drawing.model import Drawing, ModelObject, Scale
 from app.core.errors import NotFoundError
 from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.services.stored import ServicesModel
 from app.main import create_app
 from app.settings import Settings
 from tests.services_fixtures import two_rooms
@@ -48,6 +52,30 @@ class _SetAside(_Ingest):
     """The IFC file was set aside at upload ("no PDF, PNG or JPEG in its group"): no drawing."""
 
     drawing_key: str | None = None
+
+
+class _WithPlan(_Ingest):
+    """The services IFC and a floor plan PDF: the plan rules answer what is no services question."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        done = super().status(project_id)
+        plan = FileStatus(
+            id="f2", path="m/plan.pdf", size=1, sha256="e" * 64, kind="pdf_vector", state="ready",
+            route="vector", drawing_id="fedcba9876543210",
+        )  # fmt: skip
+        return done.model_copy(update={"files": (*done.files, plan)})
+
+
+class _AllIfc(_Ingest):
+    """Only IFC files (#430 c6886940069 R3): the services model and an architecture model."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        done = super().status(project_id)
+        arc = FileStatus(
+            id="f2", path="m/arc.ifc", size=1, sha256="2" * 64, kind="ifc", state="ready",
+            route="bim", drawing_id="fedcba9876543210",
+        )  # fmt: skip
+        return done.model_copy(update={"files": (arc, *done.files)})
 
 
 class _PdfOnly(_Ingest):
@@ -94,12 +122,16 @@ def client(settings: Settings, tmp_path: Path) -> TestClient:
 
 
 def _client(
-    settings: Settings, tmp_path: Path, follow: str = "on", ingest: _Ingest | None = None
+    settings: Settings,
+    tmp_path: Path,
+    follow: str = "on",
+    ingest: _Ingest | None = None,
+    model: ServicesModel | None = None,
 ) -> TestClient:
     """The services tools are offered behind SERVICES_FOLLOW (on here unless `follow`)."""
     cache = tmp_path / "services"
     cache.mkdir(exist_ok=True)
-    model = two_rooms()
+    model = model or two_rooms()
     ServicesStore(cache).path(model.source.sha256).write_bytes(
         gzip.compress(model.model_dump_json().encode())
     )
@@ -179,6 +211,102 @@ def test_sv25_a_project_without_a_services_model_says_so(
     model = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
     _turn(client, monkeypatch, model)
     assert "has been read into a services model yet" in model.results[0]
+
+
+def test_sv8_a_project_file_without_a_stored_model_is_built_off_the_request(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """QA B4: a services IFC uploaded alone had no stored model (only the deploy built one), so
+    the chat said "This project has no services model". The turn starts its build, once, and the
+    tool says it is being built; the next turn after the build reads it."""
+    cache = tmp_path / "services"
+    for stored in cache.iterdir():
+        stored.unlink()
+    started: list[Callable[[], None]] = []
+    app: Any = client.app
+    app.state.ingest.upload_bytes = lambda project, file: b"the heating model"
+
+    def build(data: bytes, name: str, folder: Path, architecture: bytes | None) -> None:
+        assert (data, name) == (b"the heating model", "heating.ifc")
+        model = two_rooms()
+        ServicesStore(folder).path(model.source.sha256).write_bytes(
+            gzip.compress(model.model_dump_json().encode())
+        )
+
+    app.state.services_builds = ServicesBuilds(cache, build=build, start=started.append)
+    for _ in range(2):
+        asked = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
+        _turn(client, monkeypatch, asked)
+        assert BUILDING in asked.results[0]
+    assert len(started) == 1  # in flight: the second turn starts none
+    started[0]()
+    listed = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
+    _turn(client, monkeypatch, listed)
+    assert '"E2"' in listed.results[0] and BUILDING not in listed.results[0]
+
+
+class _WithBuilding(_Ingest):
+    """A heating model read alone (a drawing listing no object of the plan's), the building's
+    architecture model (a drawing listing a wall), a ventilation model set aside (no drawing)."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        files = (
+            FileStatus(id="f1", path="m/lft.ifc", size=1, sha256="1" * 64, kind="ifc",
+                       state="set_aside"),
+            FileStatus(id="f2", path="m/arc.ifc", size=1, sha256="2" * 64, kind="ifc",
+                       state="ready", route="bim", drawing_id="d-arc"),
+            FileStatus(id="f3", path="m/hzg.ifc", size=1, sha256="3" * 64, kind="ifc",
+                       state="ready", route="bim", drawing_id="d-hzg"),
+        )  # fmt: skip
+        return ProjectStatus(
+            id=PROJECT, name="p", state="done", created_at="2026-11-15T00:00:00Z", files=files
+        )
+
+    def drawing(self, drawing_id: str) -> Any:
+        wall = ModelObject(id="o1", class_="wall")
+        objects = (wall,) if drawing_id == "d-arc" else ()
+        return Drawing(file=drawing_id, pages=(), scale=Scale(status="scaled", m_per_unit=1.0),
+                       model_objects=objects)  # fmt: skip
+
+    def upload_bytes(self, project_id: str, file_id: str) -> bytes:
+        return f"bytes of {file_id}".encode()
+
+
+def test_sv8_builds_get_the_one_architecture_model_and_known_services_models_go_first(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review of #475 (ifc-ask S2, C1): an on-demand build had no architecture model, so its
+    services model had no rooms or walls for good (it is kept by the file's sha256). With exactly
+    one architecture model in the project (a model listing walls, doors, windows or rooms) each
+    build gets it; a model read as listing none of those (a services model) starts first, the
+    architecture model itself last."""
+    client = _client(settings, tmp_path, ingest=_WithBuilding())
+    started: list[Callable[[], None]] = []
+    built: list[tuple[str, bytes | None]] = []
+    app: Any = client.app
+
+    def build(data: bytes, name: str, folder: Path, architecture: bytes | None) -> None:
+        built.append((name, architecture))
+
+    app.state.services_builds = ServicesBuilds(tmp_path / "s2", build=build, start=started.append)
+    _turn(client, monkeypatch, _dont_know(_call("list_services", 1, drawing_id=MODELLED)))
+    for job in started:
+        job()
+    arc = b"bytes of f2"
+    assert built == [("hzg.ifc", arc), ("lft.ifc", arc), ("arc.ifc", None)]
+
+
+def test_sv8_the_app_has_one_build_queue_from_its_start(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of #475 (ifc-ask S3): the queue was made by the first chat turn that needed it, so
+    two first turns at once could each make one and run two 3000 MB builds side by side. It is
+    made with the app, and every turn uses that one."""
+    app: Any = client.app
+    queue = app.state.services_builds
+    assert isinstance(queue, ServicesBuilds)
+    _turn(client, monkeypatch, _dont_know(_call("list_services", 1, drawing_id=MODELLED)))
+    assert app.state.services_builds is queue
 
 
 SIX = {"list_services", "ask_services", "propose_move_terminal", "propose_add_terminal",
@@ -291,3 +419,69 @@ def test_sv25_a_set_aside_ifc_is_offered_and_listed_by_its_sha256_prefix(
 def test_sv26_the_rules_model_finds_a_set_aside_ifc(settings: Settings, tmp_path: Path) -> None:
     turn = _rules(_client(settings, tmp_path, ingest=_SetAside()), "move the radiator")
     assert turn["kind"] in ("edit", "needs_input"), turn["text"]
+
+
+# --- room names in a chat turn (QA #430 c6886540832) ---
+
+
+def test_a_services_question_naming_a_room_reaches_the_services_tools(client: TestClient) -> None:
+    found = _rules(client, "Which radiators are in the bedroom?")
+    assert found["kind"] == "answer", found
+    assert "E3" in found["text"] and "2 Bedroom" in found["text"] and "E2" not in found["text"]
+    counted = _rules(client, "How many radiators are there in Living 1?")
+    assert counted["kind"] == "answer" and counted["text"].startswith("1 radiator in 1 Living")
+
+
+def test_a_room_the_services_model_lacks_is_said_with_its_rooms(client: TestClient) -> None:
+    found = _rules(client, "How many radiators are in the kitchen?")
+    assert found["kind"] == "dont_know", found
+    assert "no room named 'kitchen'" in found["text"] and "2 Bedroom" in found["text"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "How many toilets are in the bathroom?",
+        "How many toilets are there in the second floor?",
+        "How many toilets are in all bathrooms?",
+        "Which radiators are in the bedroom?",
+        "How many radiators are there in total in the building?",
+        "How many radiators are in the building model?",
+        "How many sinks are in room 1?",
+        "How many toilets are in the bathroom in the second floor?",
+    ],
+)
+def test_with_a_plan_beside_the_services_model_the_drawings_answer_as_before(
+    settings: Settings, tmp_path: Path, message: str
+) -> None:
+    """#491 review (fail-1): the room path is for a project whose only drawing is the services
+    model; with a plan beside it the question goes to the drawings, as on main."""
+    found = _rules(_client(settings, tmp_path, ingest=_WithPlan()), message)
+    assert "ask the drawings" in found["text"], found  # the fake ingest has no drawing read
+    assert "no room named" not in found["text"]
+
+
+def test_a_name_two_rooms_hold_is_answered_with_both(settings: Settings, tmp_path: Path) -> None:
+    model = two_rooms()
+    renamed = model.model_copy(
+        update={"rooms": (model.rooms[0], model.rooms[1].model_copy(update={"name": "2 Living"}))}
+    )
+    found = _rules(_client(settings, tmp_path, model=renamed), "Which radiators are in the living?")
+    assert found["kind"] == "dont_know", found
+    assert "SR1 '1 Living'" in found["text"] and "SR2 '2 Living'" in found["text"]
+
+
+def test_in_a_project_of_ifc_files_only_a_room_question_reaches_the_services_tools(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """#430 c6886940069 R3: another IFC file is no drawing that answers about a room."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    doc["rooms"][0]["name"] = "1-3 Küche"
+    radiator = next(e for e in doc["elements"] if e["id"] == "E2")
+    sink = {**radiator, "id": "E20", "ref": {"guid": "sink"}, "kind": "sanitary_terminal",
+            "type": "Spüle", "label": "Spüle", "ports": []}  # fmt: skip
+    model = ServicesModel.model_validate({**doc, "elements": [*doc["elements"], sink]})
+    client = _client(settings, tmp_path, ingest=_AllIfc(), model=model)
+    found = _rules(client, "How many sinks are there in Küche 1-3?")
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith("1 sink in 1-3 Küche") and "E20" in found["text"]

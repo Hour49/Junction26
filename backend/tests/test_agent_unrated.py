@@ -149,3 +149,41 @@ def test_review_342_n3_not_said_twice() -> None:
         final(text="The lobby is 14.2 m², read from the geometry without a confidence level."),
     )
     assert UNRATED not in turn(model, Tools(get_plan_geometry=GEOMETRY)).text
+
+
+def test_a_drawings_name_is_a_name_not_a_number_from_geometry() -> None:
+    """qa-a cross-drawing walk: "Which drawing has no scale?" → "Two drawings have no scale:
+    Drawn plan 5 … and Plan photo 2 [1]." got "That number is read straight from the drawing's
+    geometry" though it states no number: the 5 and 2 of the drawing names were read as numbers
+    a geometry result backs. A number the answer states from geometry still gets it."""
+    hall: dict[str, Any] = {
+        "drawing_id": DRAWING, "page": 1, "scale": None,
+        "rooms": [{"id": "R1", "label": "Hall", "area_m2": 5, "page": 1,
+                   "box": [0.1, 0.1, 0.3, 0.3]}],
+    }  # fmt: skip
+    named = {DRAWING: "Drawn plan 5"}
+    model = Model(
+        step(call("get_plan_geometry", drawing_id=DRAWING, page=1)),
+        final(text="Drawn plan 5 has no scale [ev_1].", evidence_ids=["ev_1"]),
+    )
+    got = turn(model, Tools(get_plan_geometry=hall), message="Which drawing has no scale?",
+               names=named)  # fmt: skip
+    assert got.text == "Drawn plan 5 has no scale [1]."
+    model = Model(
+        step(call("get_plan_geometry", drawing_id=DRAWING, page=1)),
+        final(text="The hall on Drawn plan 5 is 5 m² [ev_1].", evidence_ids=["ev_1"]),
+    )
+    got = turn(model, Tools(get_plan_geometry=hall), names=named)
+    assert got.text == f"The hall on Drawn plan 5 is 5 m² [1]. {UNRATED}"
+
+
+def test_a_longer_drawing_name_goes_first() -> None:
+    """ "Drawn plan 1" taken out of "Drawn plan 10" left a 0 that a geometry 0 backed."""
+    empty: dict[str, Any] = {"drawing_id": DRAWING, "name": "Drawn plan 10", "page": 1, "doors": 0}
+    model = Model(
+        step(call("get_plan_geometry", drawing_id=DRAWING, page=1)),
+        final(text="Drawn plan 10 has no scale."),
+    )
+    names = {"1" * 16: "Drawn plan 1", DRAWING: "Drawn plan 10"}
+    got = turn(model, Tools(get_plan_geometry=empty), names=names)
+    assert got.text == "Drawn plan 10 has no scale."

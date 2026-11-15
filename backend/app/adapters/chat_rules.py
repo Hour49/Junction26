@@ -47,6 +47,17 @@ ROOM_WORDS = {
     "storage": "storage", "closet": "storage", "sauna": "sauna", "balcony": "balcony",
 }  # fmt: skip
 ROOM_WORD = re.compile(r"\b(" + "|".join(ROOM_WORDS) + r")s?\b")
+# "Which drawing has the largest floor area?": the drawings answer one drawing at a time, so it is
+# asked as each drawing's total and the top one is named from the loop's `answered` list
+WHICH = re.compile(
+    r"\bwhich\s+(?:drawing|plan|sheet|file)s?\b.*?\b(?P<word>largest|biggest|smallest|most|fewest"
+    r"|least)\b(?P<what>[^?]*)"
+)
+BIGGER = {"largest": "largest", "biggest": "largest", "smallest": "smallest"}
+NUMBER_OF = re.compile(r"^(?:total\s+)?(?:number|count|amount)\s+of\s+(?P<things>.+)$")
+# an answer in feet is compared in metres (review-483); the unit said after the winning value
+METRIC = {"ft2": ("m2", 0.09290304), "ft": ("m", 0.3048)}
+SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³"}
 LOAD = (
     "These drawings do not say which walls carry load. A structural drawing, a building model "
     "that marks load-bearing walls, or a structural engineer would settle it."
@@ -70,6 +81,20 @@ ASKS = (  # the network question a message asks, in ask_services' words
     (re.compile(r"\bwhat (does|do)\b.*\bserve\b"), "terminals_served"),
 )
 ELEMENT, WALL = re.compile(r"\be\d{1,6}\b"), re.compile(r"\bsw\d{1,5}\b")
+# "Which radiators are in the bedroom?", "How many sinks are there in Küche 1-3?": the room's
+# services listed (QA #430); sinks and toilets only here, not as something moved
+IN_ROOM_TERMINALS = {**TERMINALS, "sink": "sanitary_terminal", "washbasin": "sanitary_terminal",
+                     "basin": "sanitary_terminal", "toilet": "sanitary_terminal"}  # fmt: skip
+IN_ROOM_TERMINAL = re.compile(r"\b(" + "|".join(IN_ROOM_TERMINALS) + r")s?\b")
+LISTING = re.compile(r"\b(how many|which|what|list|count|are there|is there)\b")
+IN_ROOM = re.compile(  # the LAST "in <room>" at the end, before an "on level 2"
+    r".*\b(?:in|inside)\s+(?:the\s+)?([^?!,]+?)(?:\s+(?:on|at)\s+.*)?[\s?!.]*$", re.I
+)
+NOT_A_ROOM = re.compile(  # "in total", "in the building model", "in all bathrooms", "on a floor"
+    r"\b(total|all|every|each|building|model|project|house|file|floor|floors|storey|storeys|story"
+    r"|stories|level|levels|basement|ground|attic|plan|drawing)\b",
+    re.I,
+)
 
 
 @dataclass
@@ -154,6 +179,12 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         op = next((op for pattern, op in ASKS if pattern.search(words)), None)
         if op is not None and "ask_services" in offered:
             return _ask_services(turn, words, op)
+        kind = IN_ROOM_TERMINAL.search(words)
+        room = IN_ROOM.search(turn.message.strip())
+        if kind and room and LISTING.search(words) and not NOT_A_ROOM.search(room[1]):
+            step = _in_room(turn, words, kind[1], room[1])
+            if step is not None:  # None: no services model, so the drawings answer as before
+                return step
     # a drawn area, or a sideways drag described as "a line ..., not an area" (QA robust-10):
     # propose_room gives the true reason for that one
     regions = [line.split(":")[0] for line in turn.selections if REGION.search(line)]
@@ -171,9 +202,12 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
         return _sure(turn)
     if SHOW.search(words) and "show_on_plan" in offered:
         return _show(turn)
+    which = _which(words)
     found = turn.result("ask_drawings")
     if found is None:
-        return "ask_drawings", {"question": turn.message[:500]}
+        return "ask_drawings", {"question": which[0] if which else turn.message[:500]}
+    if which and found.get("answered"):
+        return _compared(found["answered"], which[1], which[2])
     words = name_words(turn.message)
     if "find_rooms" in offered and words and _refused_room(found):
         rooms = turn.result("find_rooms")
@@ -223,6 +257,42 @@ def _services(turn: _Turn, words: str) -> tuple[str, Json] | Json:
         return "list_services", {"kind": TERMINALS[word[1]]} if word else {}
     why = next((str(f.get("error")) for _, f in listed if isinstance(f, dict)), None)
     return _final("dont_know", f"I can't find the building's services: {why or 'no drawings'}.")
+
+
+def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] | None:
+    """The terminals of one kind in the room the message names, by its name or id
+    (list_services' room_id); None when the project has no services model to list."""
+    found = _services(turn, words)
+    if isinstance(found, tuple):
+        return None if found[0] == "final_answer" else found
+    if _beside(turn, found["drawing_id"]):  # #491 review: the drawings answer, as before
+        return None
+    listed = turn.result("list_services", room_id=room)
+    if listed is None:
+        kind = IN_ROOM_TERMINALS[word]
+        return "list_services", {"drawing_id": found["drawing_id"], "room_id": room, "kind": kind}
+    if not isinstance(listed, dict) or "error" in listed:
+        why = listed.get("error") if isinstance(listed, dict) else None
+        return _final("dont_know", f"I can't tell: {why or 'the services list failed'}.")
+    items: list[Json] = [i for i in listed.get("items") or [] if isinstance(i, dict)]
+    count = len(items) + int(listed.get("more") or 0)
+    name = (listed.get("room") or {}).get("name") or room
+    cited = ", ".join(f"{i.get('label')} ({i['id']})" for i in items[:10])
+    text = f"{count} {word}{'' if count == 1 else 's'} in {name}" + (
+        f": {cited}." if cited else "."
+    )
+    return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
+
+
+def _beside(turn: _Turn, services: str) -> bool:
+    """The project has a drawing besides the services model that is no IFC file (a plan, a
+    picture): a question about a room then goes to the drawings; a project of IFC files only (or
+    none listed, an IFC set aside) asks the services model about a room (#430 R3)."""
+    drawings = turn.result("list_drawings")
+    if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
+        drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    listed: list[Json] = [d for d in drawings or [] if isinstance(d, dict)]  # pyright: ignore[reportUnknownVariableType]
+    return any(d.get("drawing_id") != services and d.get("kind") != "ifc" for d in listed)
 
 
 def _picked(words: str, items: list[Json]) -> tuple[str | None, list[Json]]:
@@ -634,6 +704,65 @@ def _option(suggestion: Json) -> Json:
     quantity = str(suggestion["quantity"])
     label = f"Room {quantity[len(ONE_ROOM) :]}" if quantity.startswith(ONE_ROOM) else None
     return {"label": (label or suggestion["label"])[:60], "message": suggestion["question"][:300]}
+
+
+def _which(words: str) -> tuple[str, str, bool] | None:
+    """A question comparing the drawings: (each drawing's question, what the answer names, whether
+    the largest/most wins), or None. A room word after a size word ("the largest kitchen") is a
+    room question, asked as said; "most"/"fewest" need a thing to count."""
+    found = WHICH.search(words)
+    if found is None:
+        return None
+    word = found["word"]
+    what = re.sub(r"^\s*(?:the\s+)?|\s+$", "", found["what"])
+    top = word in ("largest", "biggest", "most")
+    said = BIGGER.get(word, word)
+    if number := NUMBER_OF.match(what):
+        things = number["things"]
+        return f"How many {things}?", f"the {said} number of {things}", top
+    if "area" in what:
+        what = re.sub(r"^total\s+", "", what)
+        return f"What is the total {what}?", f"the {said} {what}", top
+    if word in BIGGER:
+        if ROOM_WORD.search(what):
+            return None
+        return "What is the total floor area?", f"the {said} floor area", top
+    if not what:
+        return None
+    return f"How many {what}?", f"the {word} {what}", top
+
+
+def _compared(answered: list[Json], named: str, top: bool) -> tuple[str, Json]:
+    """The drawing (or tied drawings) with the largest or smallest answer, cited."""
+    given = [_metric(a) for a in answered if isinstance(a.get("answer"), (int, float))]
+    if not given:
+        return _final("dont_know", "No drawing gives a number for it.")
+    units = sorted({str(a.get("unit")) for a in given})
+    if len(units) > 1:
+        return _final("dont_know", f"The drawings answer in different units ({', '.join(units)}).")
+    best = (max if top else min)(a["answer"] for a in given)
+    winners = [a for a in given if a["answer"] == best]
+    named_all = [str(a["drawing"]) for a in winners]
+    names = (
+        named_all[0] if len(named_all) == 1 else f"{', '.join(named_all[:-1])} and {named_all[-1]}"
+    )
+    verb = "have" if len(winners) > 1 else "has"
+    unit = SAID_UNIT.get(str(winners[0].get("unit")), "")
+    evidence = [str(a["ev"]) for a in winners if a.get("ev")]
+    cites = "".join(f"[{ev}]" for ev in evidence)
+    text = f"{names} {verb} {named}: {best:g}{unit}{' ' + cites if cites else ''}."
+    if len(given) == 1:
+        text += " It is the only drawing that answers."
+    return _final("answer", text, evidence)
+
+
+def _metric(answered: Json) -> Json:
+    """An `answered` line in metres: ft² and ft converted, rounded as the card shows them."""
+    unit = str(answered.get("unit"))
+    if unit not in METRIC:
+        return answered
+    metric, factor = METRIC[unit]
+    return {**answered, "answer": round(answered["answer"] * factor, 2), "unit": metric}
 
 
 def _answer(found: Json) -> tuple[str, Json]:

@@ -296,7 +296,8 @@ Edits
 - SV-30: On a conflict row one "Keep" button per `conflict.values[]` entry sends `settle` with that value ("Keep B:
   30.00 m² (<methodName('printed_label')>)" sends `{"quantity":"area:room|name=1.01","action":"settle","value":30}`). [component] `takeoff.json`
 - SV-31: The Settle field sends `settle` with the typed number (`3` on `door` gives `review_requests.json[3]`); the
-  Settle button is disabled while the field is empty, not a number, or negative. [component]
+  Settle button is disabled while the field is empty, not a number, or negative, and on a count row (unit `count`)
+  while it is not a whole number (`2.5`); a count row's field steps by 1. [component]
 - SV-32: A row with `settled: {"value": 22.401, "at": "2026-11-14T01:30:00Z"}` shows "Settled at 22.40 m²
   (2026-11-14 01:30 UTC). A mark edit clears it." [component] derived
 - SV-33: "Reset this quantity" shows on a row with an edit (status `edited`, `settled` set, or a mark that is

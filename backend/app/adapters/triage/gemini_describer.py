@@ -53,6 +53,7 @@ from typing import Any, Protocol
 from PIL import Image
 from pydantic import ValidationError
 
+from app.adapters import gemini_http
 from app.adapters.eight_bit import eight_bit
 from app.adapters.pdfium_lock import PDFIUM
 from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
@@ -287,7 +288,7 @@ class GeminiDescribeClient:
             headers={"Content-Type": "application/json", "x-goog-api-key": self._key},
         )
         try:
-            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+            with gemini_http.urlopen(request, timeout=self._timeout) as response:
                 answer = json.load(response)
         except urllib.error.HTTPError as error:
             raise GeminiError(f"HTTP {error.code} {_status(error)}".strip()) from None

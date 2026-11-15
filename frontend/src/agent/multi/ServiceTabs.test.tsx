@@ -4,8 +4,17 @@ import { drawing, project } from '../../api/fixtures';
 import { mockApi } from '../../test/mockApi';
 import { EditCard } from '../EditCard';
 import { DID, editTurn, proposal } from '../fixtures';
-import { followed, services, ventilation } from './fixtures';
-import { focusOf, markStatus, ordered, placeOfAction, tabNote } from './services';
+import { followed, heatingPicture, PIC, pictured, services, ventilation } from './fixtures';
+import {
+  focusOf,
+  markStatus,
+  onSheet,
+  ordered,
+  pictureOf,
+  placeOfAction,
+  strikeOf,
+  tabNote,
+} from './services';
 
 afterEach(cleanup);
 
@@ -182,5 +191,114 @@ describe('discipline tabs on the edit card', () => {
     fireEvent.click(tab(/Plumbing/));
     expect(screen.getByRole('button', { name: 'Accept' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reject' })).toBeTruthy();
+  });
+});
+
+describe('a discipline picture with the edit drawn on it (AC-40..44)', () => {
+  const sheet = {
+    ...drawing,
+    id: PIC,
+    file: 'heating/EG-heating.png',
+    pages: drawing.pages.map((pg) => ({ ...pg, url: `/api/drawings/${PIC}/pages/1.png` })),
+  };
+  const pictureCard = async () => {
+    const api = mockApi({
+      [`GET /api/drawings/${DID}`]: drawing,
+      [`GET /api/drawings/${PIC}`]: sheet,
+    });
+    const r = render(
+      <EditCard proposal={pictured} projectId={project.id} chatId={editTurn.chat_id} />,
+    );
+    await waitFor(() => {
+      expect(r.container.querySelector('.ag-overlay')).toBeTruthy();
+    });
+    return { ...r, api };
+  };
+  const pageImage = (c: HTMLElement) => c.querySelector<HTMLImageElement>('.ag-planbox img');
+
+  it('the lane on its sheet: marks at their sheet places, nothing moved or newly run', () => {
+    const lane = onSheet(heatingPicture, heatingPicture.picture);
+    expect(lane.marks.find((m) => m.ref === 'H1')?.at).toEqual([0.448, 0.34]);
+    expect(lane.marks.find((m) => m.ref === 'H2')?.line).toEqual([
+      [0.41, 0.37],
+      [0.5, 0.37],
+    ]);
+    expect(lane.actions.every((a) => a.moved_to === null && a.paths.length === 0)).toBe(true);
+    expect(pictureOf(ventilation)).toBeNull();
+  });
+
+  it('a removed strip is struck along its long side', () => {
+    const strip = heatingPicture.picture.removed[0] ?? [];
+    expect(strikeOf(strip)).toEqual([
+      [0.455, 0.3],
+      [0.455, 0.4],
+    ]);
+  });
+
+  it('AC-40/42 the tab shows its own sheet, the edit struck out there, the marks there, and why it was paired', async () => {
+    const { container } = await pictureCard();
+    expect(pageImage(container)?.getAttribute('src')).toContain(DID); // Plan first
+    fireEvent.click(tab(/Heating/));
+    await waitFor(() => {
+      expect(pageImage(container)?.getAttribute('src')).toContain(PIC);
+    });
+    expect(pageImage(container)?.getAttribute('alt')).toBe(
+      'heating/EG-heating.png, page 1, with the proposed change drawn on it',
+    );
+    expect(container.querySelector('.ag-strike')).toBeTruthy();
+    expect(container.querySelectorAll('.ag-planbox .ag-removed')).toHaveLength(1);
+    const radiator = container.querySelector<HTMLElement>('.ms-dot[title="radiator"]');
+    expect(parseFloat(radiator?.style.left ?? '')).toBeCloseTo(44.8);
+    expect(parseFloat(radiator?.style.top ?? '')).toBeCloseTo(34);
+    expect(radiator?.textContent).toBe('!');
+    expect(
+      screen.getByText("Paired by the sheets' names: same floor in the title block: 'EG' on both"),
+    ).toBeTruthy();
+  });
+
+  it('AC-41 Before: the sheet as drawn, its marks without status, no edit', async () => {
+    const { container } = await pictureCard();
+    fireEvent.click(tab(/Heating/));
+    await waitFor(() => {
+      expect(pageImage(container)?.getAttribute('src')).toContain(PIC);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Before' }));
+    expect(pageImage(container)?.getAttribute('alt')).toBe(
+      'heating/EG-heating.png, page 1, as drawn',
+    );
+    expect(container.querySelector('.ag-strike')).toBeNull();
+    expect(container.querySelector('.ag-planbox .ag-removed')).toBeNull();
+    expect(container.querySelector<HTMLElement>('.ms-dot[title="radiator"]')?.textContent).toBe('');
+  });
+
+  it('AC-43 Not this sheet: back to the plan, the lane not checked, and undone with Use this sheet again', async () => {
+    const { container } = await pictureCard();
+    fireEvent.click(tab(/Heating/));
+    await waitFor(() => {
+      expect(pageImage(container)?.getAttribute('src')).toContain(PIC);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Not this sheet' }));
+    await waitFor(() => {
+      expect(pageImage(container)?.getAttribute('src')).toContain(DID);
+    });
+    expect(
+      screen.getByText("Not checked: you said this is not this floor's heating sheet."),
+    ).toBeTruthy();
+    expect(tab(/Heating/).textContent).toBe('Heatingnot checked');
+    expect(screen.queryByText(/The radiator on the removed wall/)).toBeNull();
+    expect(container.querySelector('.ms-dot')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Use this sheet again' }));
+    await waitFor(() => {
+      expect(pageImage(container)?.getAttribute('src')).toContain(PIC);
+    });
+  });
+
+  it('AC-44 a lane without a picture is drawn over the plan as before', async () => {
+    const { container } = await pictureCard();
+    fireEvent.click(tab(/Ventilation/));
+    expect(pageImage(container)?.getAttribute('src')).toContain(DID);
+    expect(container.querySelector('.ag-strike')).toBeNull();
+    expect(screen.queryByText(/Paired by/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Not this sheet' })).toBeNull();
   });
 });

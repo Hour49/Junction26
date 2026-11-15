@@ -3,8 +3,10 @@ legend and cropped to its ink, is matched over the page (normalised cross-correl
 quarter at a time. Coarse to fine: the page is shrunk once, for all symbols, so the smallest
 symbol's long side is `COARSE_SIDE` px; peaks there above `COARSE_THRESHOLD` are candidates,
 matched again at full size, at three sizes around the legend's, in a window around each. Those above
-`THRESHOLD` are symbols; of two overlapping, the stronger stays. A peak on the legend itself is
-the legend.
+`THRESHOLD` are symbols, on a scan (a page with salt) those above `SCAN_FLOOR` and within `SPREAD`
+of that symbol's best match on the page: blur lifts every correlation, and a symbol's own copies
+score alike, near its best. Of two overlapping, the stronger stays. A peak on a legend row (its
+sample or its label to the right) is the legend. The page is cleaned first (cleanup.py).
 
 The score of a sighting is its correlation peak (0..1). It cannot run without a legend, and it
 does not read a photo the rectifier could not flatten (the caller does not ask it to).
@@ -21,13 +23,18 @@ from app.adapters.discipline_pictures import (
     pixels,
     read_image,
 )
+from app.adapters.discipline_pictures.cleanup import clean_page, to_clean, to_page
 from app.core.ifc_facts import Spot
 from app.core.picture_facts import LegendEntry, PictureReading, Sighting
 from app.core.pipeline.model import DrawingFile, Sheet
 from app.core.pipeline.ports import DrawingFiles
 
 READER = "template"
-THRESHOLD = 0.75  # correlation peak for a symbol; tune on bench dev only
+THRESHOLD = 0.75  # correlation peak for a symbol on a clean page; tuned on the tune half
+# On a scan, a symbol's matches within SPREAD of its best, and above SCAN_FLOOR. Tuned on the
+# tune half (picture bar 2): any floor 0.66-0.70 with a spread 0.05-0.08 gives the same verdicts
+SCAN_FLOOR = 0.68
+SPREAD = 0.07
 SIZES = (0.9, 1.0, 1.1)  # of the legend symbol's size
 # px: the smallest symbol's long side on the shrunk page. On the A1 test page, 16 is twice as
 # fast and misses none, 12 misses some; tune on bench dev
@@ -53,9 +60,13 @@ class TemplateReader:
         return read_symbols(cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY), legend)
 
 
-def read_symbols(gray: np.ndarray, legend: tuple[LegendEntry, ...]) -> PictureReading:
-    """Every legend symbol's matches on the grey page, as sightings on page 1."""
+def read_symbols(page: np.ndarray, legend: tuple[LegendEntry, ...]) -> PictureReading:
+    """Every legend symbol's matches on the grey page, cleaned first (cleanup.py), as sightings
+    on page 1 as given."""
+    cleaned = clean_page(page)
+    gray = cleaned.gray
     height, width = gray.shape
+    boxes = {e.label: to_clean(e.box, cleaned) for e in legend if e.box is not None}
     found: list[tuple[float, int, int, int, int, str]] = []  # score, x, y, w, h, label
     read: list[str] = []
     notes: list[str] = []
@@ -63,7 +74,7 @@ def read_symbols(gray: np.ndarray, legend: tuple[LegendEntry, ...]) -> PictureRe
     for entry in legend:
         if entry.line or entry.box is None:
             continue
-        symbol = _symbol(gray, entry.box)
+        symbol = _symbol(gray, boxes[entry.label])
         if symbol is None:
             notes.append(f"{READER}: the legend's {entry.label!r} has no ink to match")
             continue
@@ -71,14 +82,24 @@ def read_symbols(gray: np.ndarray, legend: tuple[LegendEntry, ...]) -> PictureRe
         symbols.append((entry.label, symbol))
     shrink = min([1.0] + [COARSE_SIDE / max(symbol.shape) for _, symbol in symbols])
     coarse = cv2.resize(gray, None, fx=shrink, fy=shrink, interpolation=cv2.INTER_AREA)
+    # a legend row: its sample and its label to the right (shortcut: a plan drawn right of the
+    # legend at a row's height is taken as legend; a legend left of the plan would need its width)
+    on_legend = [(x0, y0, width, y1) for x0, y0, _, y1 in
+                 (pixels(box, width, height, PAD) for box in boxes.values())]  # fmt: skip
+
+    def on_plan(peak: tuple[float, int, int, int, int]) -> bool:
+        cx, cy = peak[1] + peak[3] / 2, peak[2] + peak[4] / 2
+        return not any(x0 <= cx <= x1 and y0 <= cy <= y1 for x0, y0, x1, y1 in on_legend)
+
+    floor = SCAN_FLOOR if cleaned.salted else THRESHOLD
     for label, symbol in symbols:
-        found += [(*peak, label) for peak in _peaks(gray, coarse, shrink, symbol)]
-    on_legend = [pixels(e.box, width, height, PAD) for e in legend if e.box is not None]
+        peaks = [peak for peak in _peaks(gray, coarse, shrink, symbol, floor) if on_plan(peak)]
+        if cleaned.salted and peaks:  # its best on the plan: the legend's own sample is 1.0
+            best = max(peak[0] for peak in peaks)
+            peaks = [peak for peak in peaks if peak[0] >= best - SPREAD]
+        found += [(*peak, label) for peak in peaks]
     kept: list[tuple[float, int, int, int, int, str]] = []
     for score, x, y, w, h, label in sorted(found, reverse=True):
-        cx, cy = x + w / 2, y + h / 2
-        if any(x0 <= cx <= x1 and y0 <= cy <= y1 for x0, y0, x1, y1 in on_legend):
-            continue
         if all(
             _overlap((x, y, w, h), (kx, ky, kw, kh)) < SAME * min(w * h, kw * kh)
             for _, kx, ky, kw, kh, _ in kept
@@ -87,7 +108,11 @@ def read_symbols(gray: np.ndarray, legend: tuple[LegendEntry, ...]) -> PictureRe
     sightings = tuple(
         Sighting(
             label=label,
-            spot=Spot(page=1, box=page_box(x, y, x + w, y + h, width, height), reader=READER),
+            spot=Spot(
+                page=1,
+                box=to_page(page_box(x, y, x + w, y + h, width, height), cleaned),
+                reader=READER,
+            ),
             score=round(min(score, 1.0), 4),
         )
         for score, x, y, w, h, label in sorted(kept, key=lambda k: (k[2], k[1]))
@@ -109,16 +134,16 @@ def _symbol(gray: np.ndarray, box: tuple[float, float, float, float]) -> np.ndar
 
 
 def _peaks(
-    gray: np.ndarray, coarse: np.ndarray, shrink: float, symbol: np.ndarray
+    gray: np.ndarray, coarse: np.ndarray, shrink: float, symbol: np.ndarray, floor: float
 ) -> list[tuple[float, int, int, int, int]]:
-    """(score, x, y, w, h) on the full page of each match of `symbol` above THRESHOLD, any
+    """(score, x, y, w, h) on the full page of each match of `symbol` above `floor`, any
     quarter turn: candidates on the `coarse` page (`gray` shrunk by `shrink`), each matched
     again at full size in a window around it."""
     peaks: list[tuple[float, int, int, int, int]] = []
     seen: set[bytes] = set()
     for quarter in range(4):
         turned = np.ascontiguousarray(np.rot90(symbol, quarter))
-        key = turned.tobytes() + bytes(turned.shape)
+        key = turned.tobytes() + str(turned.shape).encode()  # a side may be 256 px or more
         if key in seen:  # a symmetric symbol turned onto itself
             continue
         seen.add(key)
@@ -139,7 +164,7 @@ def _peaks(
             best = _refine(
                 gray, round(x / shrink) - margin, round(y / shrink) - margin, margin, sizes
             )
-            if best is not None and best[0] >= THRESHOLD:
+            if best is not None and best[0] >= floor:
                 peaks.append(best)
     return peaks
 
