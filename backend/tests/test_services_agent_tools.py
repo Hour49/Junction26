@@ -490,6 +490,23 @@ def test_an_ifc_type_the_model_lacks_is_an_error_naming_its_types() -> None:
     assert "predefined" in empty["error"], empty
 
 
+def test_listed_items_name_their_type_without_the_exporters_id_and_variant() -> None:
+    """R1 edits 10b / chat S3: the chat's cards showed "Urinal UP Druckspüler:Standard" and
+    "... #6bfeid6#:Standard". The label says the type plainly; the counts by type stay."""
+    doc = wc_room().model_dump(mode="json", by_alias=True)
+    for e in doc["elements"]:
+        if e["id"] == "E301":
+            e["label"] = e["type"] = "Urinal UP Druckspüler:Standard"
+        if e["id"] == "E304":
+            e["label"] = e["type"] = "Viega Eco Plus- WC-Element #6bfeid6#:Standard"
+    store = _store(ServicesModel.model_validate(doc))
+    found = _run(store, "list_services", drawing_id="d1", room_id=WC_ROOM, kind="sanitary_terminal")
+    labels = {i["id"]: i["label"] for i in found["items"]}
+    assert labels["E301"] == "Urinal UP Druckspüler", labels
+    assert labels["E304"] == "Viega Eco Plus- WC-Element", labels
+    assert found["count"] == 10 and found["by_type"]["Urinal UP Druckspüler:Standard"] == 1
+
+
 def test_566_moving_a_washbasin_is_a_refusal_not_a_failure() -> None:
     doc = two_rooms().model_dump(mode="json", by_alias=True)
     e2 = next(e for e in doc["elements"] if e["id"] == "E2")
