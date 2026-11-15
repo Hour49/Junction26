@@ -108,6 +108,8 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
         href={`#/p/${projectId}/f/${file.id}`}
         className="flex min-w-0 font-mono text-[13px] text-foreground no-underline hover:underline"
         title={file.path}
+        // the two flex spans would read "plans/ a.pdf" in Chromium (a space between them): the name is the path
+        aria-label={file.path}
       >
         {/* a long path gives up its folder first: the file name is what tells two rows apart */}
         {folder && (

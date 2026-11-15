@@ -387,6 +387,9 @@ describe('ProgressCard: pipeline view v5', () => {
     );
     const link = within(lane('Image')).getByRole('link', { name: long }); // the full path is still its name
     expect(link.getAttribute('title')).toBe(long);
+    // jsdom joins the two spans with no space; Chromium puts one between the flex items ("…/ Grundriss_OG3.png"),
+    // so the name is set on the link itself (detail's FileMatrix, #593)
+    expect(link.getAttribute('aria-label')).toBe(long);
     expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
     expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');
