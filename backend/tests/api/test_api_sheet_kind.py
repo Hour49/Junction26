@@ -19,6 +19,7 @@ from test_sheet_kind import PIPING, PLAN, STRUCTURAL_UNSURE, reply
 from test_vector_pdf import swiss_sheet
 
 from app.adapters.extraction_v1 import ExtractionV1Writer
+from app.adapters.pipeline_tools import PipelineStore, run_pipeline_tool
 from app.adapters.triage.sheet_kind import MODEL, PROMPT_SHA
 from app.composition import _triage, build_ingest, uses_keys  # pyright: ignore[reportPrivateUsage]
 from app.core.drawing.model import Drawing, Element, Scale
@@ -304,4 +305,34 @@ def test_a_person_reading_a_flagged_doubt_as_a_plan_clears_the_flag(
     assert answer["answer"] == 1 and answer["explanation"] is None
     assert answer["level"]["basis"] != "page"
     assert read_as_plan(client, found, "piping.png").status_code == 409  # once
+    assert network == []
+
+
+def test_list_drawings_gives_the_chat_what_the_sheet_kind_step_called_each_sheet(
+    settings: Settings, tmp_path: Path, network: list[str]
+) -> None:
+    """R3-G4 (Tudor's QA round 3): "What kind of drawing is this?" on T3, a piping plan the step
+    flagged, was answered "a raster floor plan": list_drawings gave triage class floor_plan (a
+    doubt is read) and the raster route, never the step's kind or the sheet's title. It now
+    gives both, with the flag; a plain plan says it looks like one."""
+    client = seeded(settings, tmp_path, sheet_kind_set_aside=False)
+    found = project(client, {"piping.png": PIPING_PNG, "plan.png": PLAN_PNG})
+    store = PipelineStore.of_app(client.app, found["id"])
+    listed = {d["name"]: d for d in json.loads(run_pipeline_tool(store, "list_drawings", "{}"))}
+    piping = listed["piping.png"]["triage"]["sheet"]
+    assert piping == {
+        "looks_like": "a piping, plumbing, ventilation or electrical plan",
+        "decision": "doubt",
+        "title": "PIPING PLAN",
+        "sheet_number": "M-101A",
+        "printed_scale": None,
+        "seen": "a sheet",
+        "flag": (
+            "the sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+            "electrical plan"
+        ),
+    }
+    plan = listed["plan.png"]["triage"]["sheet"]
+    assert plan["looks_like"] == "a floor plan" and plan["flag"] is None
+    assert plan["printed_scale"] == "1:100" and plan["decision"] == "read"
     assert network == []
