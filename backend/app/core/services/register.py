@@ -25,6 +25,12 @@ MIN_SHARE = 0.5  # services lines (pipes, ducts) are no walls: half the sheet's 
 QUADRANTS = 3  # the matched lines lie in this many of the sheet's quarters: not one corner
 TURN_DEG = 3.0  # the pose's turn agrees with the direction histograms' (mod 90) this closely
 MARGIN = 1.3  # the best pose must beat another quarter turn's by this, or it is a guess
+FLIP_MARGIN = 1.5  # ... and, on the lines that tell the pose from the same pose turned half
+# round (refitted from there), beat the turned pose by this: a near-symmetric floor fits both
+# ways. Lines on a wall in both poses (an outline that maps onto itself) decide nothing and are
+# left out (review #554: an outline-dominated right lay was refused). Tudor's bench (#538): 3 of
+# 8 wrong other-floor lays and 2 of 3 wrong same-floor lays were 180 deg flips. Set before runs.
+DECIDE = 0.1  # ... and those lines are at least this share of the sheet's line length
 COVER = (0.75, 1.33)  # the placed sheet spans this share of the plan's extent: a sheet of the
 # same floor draws the same building; a wrong scale shrinks it onto part of a dense plan
 NUDGES = (0.94, 0.96, 0.98, 1.02, 1.04, 1.06)  # the best pose restarted at these scales:
@@ -73,12 +79,17 @@ def register(
     plan_walls: Sequence[Segment],
     sheet_walls: Sequence[Segment],
     expected_scale: float | None = None,
+    expected_rotation_deg: float | None = None,
 ) -> Place | Refusal:
     """How the sheet's lines land on the plan's walls, or why they cannot be laid over. Lines
     with a point that is not a finite number are left out; of the rest, the `LONGEST` longest
     of each side are used (`of_total` counts the sheet's used lines). `expected_scale` (plan
     units per sheet unit, e.g. from both printed scales and the dpi) keeps the scale within
-    -20%/+25% of it."""
+    -20%/+25% of it. `expected_rotation_deg` (e.g. both sheets' north arrows) keeps only the
+    quarter turn nearest it; without it a pose that fits nearly as well turned half round (or a
+    quarter) is refused, since geometry alone cannot tell them apart."""
+    if expected_rotation_deg is not None and not math.isfinite(expected_rotation_deg):
+        return Refusal(reason=f"the expected rotation {expected_rotation_deg} is not a number")
     if expected_scale is not None and not (math.isfinite(expected_scale) and expected_scale > 0):
         return Refusal(reason=f"the expected scale {expected_scale} is not a positive number")
     plan, sheet = _ends(plan_walls), _ends(sheet_walls)
@@ -95,6 +106,8 @@ def register(
     base = _rotation(plan, sheet)
     for turn in range(4):
         deg = base + 90.0 * turn
+        if expected_rotation_deg is not None and _apart(deg, expected_rotation_deg) > 45.0:
+            continue
         guesses, searched = _guesses(plan, sheet, deg, expected_scale)
         for scale, shift in guesses:
             pose = _icp(plan, sheet, deg, scale, shift, searched)
@@ -123,11 +136,15 @@ def register(
             reason=f"only {hits} of {len(sheet)} wall lines match ({share:.0%} of their length; "
             f"{MIN_SHARE:.0%} and {MIN_WALLS} lines needed)"
         )
-    if ranked[1][0] * MARGIN > share:
-        return Refusal(
-            reason=f"wall lines match two ways ({share:.0%} and {ranked[1][0]:.0%} of their "
-            "length): the sheet's turn is a guess"
-        )
+    if len(ranked) > 1:  # judged on the lines that tell the two turns apart (as FLIP_MARGIN)
+        other, _ = _inliers(plan, sheet, *ranked[1][1:])
+        mine, theirs = _apart_share(length, on, other)
+        if theirs * MARGIN > mine:
+            return Refusal(
+                reason=f"wall lines match two ways ({share:.0%} and {ranked[1][0]:.0%} of their "
+                f"length; {mine:.0%} and {theirs:.0%} on the lines that tell them apart): the "
+                "sheet's turn is a guess"
+            )
     cover = _extent(_place(_points(sheet), deg, scale, shift)) / max(_extent(_points(plan)), 1e-12)
     if not COVER[0] <= cover <= COVER[1]:
         return Refusal(
@@ -145,6 +162,16 @@ def register(
             reason=f"the matching wall lines lie in {spread} of the sheet's 4 quarters "
             f"({QUADRANTS} needed)"
         )
+    if expected_rotation_deg is None:
+        mine, flipped = _apart_share(
+            length, on, _flipped_on(plan, sheet, length, deg, scale, shift)
+        )
+        if mine < DECIDE or flipped * FLIP_MARGIN > mine:
+            return Refusal(
+                reason=f"turned half round the sheet fits nearly as well: of the lines that "
+                f"tell the two apart ({mine + flipped:.0%} of its length) {mine:.0%} fit and "
+                f"{flipped:.0%} fit turned; a near-symmetric floor, its turn is a guess"
+            )
     deg = (deg + 180.0) % 360.0 - 180.0
     return Place(
         rotation_deg=deg,
@@ -154,6 +181,48 @@ def register(
         of_total=len(sheet),
         rms_m=rms,
     )
+
+
+def _apart(a: float, b: float) -> float:
+    """How far apart two turns are (deg, 0..180)."""
+    return abs((a - b + 180.0) % 360.0 - 180.0)
+
+
+def _apart_share(length: np.ndarray, on: np.ndarray, other: np.ndarray) -> tuple[float, float]:
+    """The shares of the sheet's line length on a wall in one lay and not the other, both ways:
+    a line on a wall in both (an outline that maps onto itself) decides nothing."""
+    total = max(float(length.sum()), 1e-12)
+    return float(length[on & ~other].sum()) / total, float(length[other & ~on].sum()) / total
+
+
+def _flipped_on(
+    plan: np.ndarray,
+    sheet: np.ndarray,
+    length: np.ndarray,
+    deg: float,
+    scale: float,
+    shift: np.ndarray,
+) -> np.ndarray:
+    """Which sheet lines lie on a wall when the pose is turned half round about the middle of
+    the plan's extent or of the placed sheet's and refitted from there (the quarter-turn search
+    may never have tried that shift), of the turn that matches the most line length. A
+    symmetric floor turns about its middle; a sheet's own middle is off it where services lines
+    or missing walls lean one way."""
+    turned = deg + 180.0
+    best, most = np.zeros(len(sheet), bool), -1.0
+    for middle in (_middle(_points(plan)), _middle(_place(_points(sheet), deg, scale, shift))):
+        # p' = scale R(deg + 180) q + shift' with the middle staying put: shift' = 2 middle - shift
+        pose = _icp(plan, sheet, turned, scale, 2.0 * middle - shift, (scale * 0.9, scale * 1.1))
+        on, _ = _inliers(plan, sheet, *pose)
+        if float(length[on].sum()) > most:
+            best, most = on, float(length[on].sum())
+    return best
+
+
+def _middle(points: np.ndarray) -> np.ndarray:
+    """The middle of the set's extent between the `SPREAD` percentiles."""
+    lo, hi = np.percentile(points, SPREAD, axis=0)
+    return (lo + hi) / 2.0
 
 
 def _ends(walls: Sequence[Segment]) -> np.ndarray:

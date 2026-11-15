@@ -130,7 +130,7 @@ def test_many_walls_and_a_10_km_stray_keep_the_work_bounded(monkeypatch) -> None
     most = 120  # lines per side; the cost grows with their product
     assert max(w for _, w in sizes) <= most
     assert max(p for p, _ in sizes) <= most * register_module.SAMPLES
-    runs = 4 * register_module.POSES + len(register_module.NUDGES) + 1  # + the polish
+    runs = 4 * register_module.POSES + len(register_module.NUDGES) + 3  # + polish, 2 half turns
     assert len(sizes) <= runs * (register_module.ICP_STEPS + 1) + 8
     assert max(votes) <= (2 * most) ** 2
 
@@ -237,3 +237,71 @@ def test_an_expected_scale_that_is_no_positive_number_is_refused() -> None:
     for bad in (0.0, -1.0, math.nan, math.inf):
         out = register(plan, plan, expected_scale=bad)
         assert out == Refusal(reason=f"the expected scale {bad} is not a positive number"), bad
+
+
+def symmetric() -> list[Segment]:
+    """A floor that is the same turned 180 deg about its middle (12, 7)."""
+    walls = [((0, 0), (24, 0)), ((24, 0), (24, 14)), ((24, 14), (0, 14)), ((0, 14), (0, 0))]
+    for x in (4.0, 9.0, 15.0):
+        walls += [((x, 0), (x, 5)), ((24 - x, 14), (24 - x, 9))]
+    walls += [((0, 7), (7, 7)), ((24, 7), (17, 7)), ((10, 5), (10, 9)), ((14, 9), (14, 5))]
+    return [Segment(a=a, b=b) for a, b in walls]
+
+
+def search_misses_the_half_turn(monkeypatch) -> None:
+    """The bench's flips (#538): the quarter-turn search tries no shift near the turned-round
+    pose, so the margin between quarter turns never sees it. Here: every guess at a turn near
+    180 deg is moved 30 m off."""
+    guesses = register_module._guesses
+
+    def missing(plan, sheet, deg, expected=None):
+        found, searched = guesses(plan, sheet, deg, expected)
+        if abs((deg + 180.0) % 360.0 - 180.0) > 90.0:
+            found = [(scale, shift + 30.0) for scale, shift in found]
+        return found, searched
+
+    monkeypatch.setattr(register_module, "_guesses", missing)
+
+
+def test_a_symmetric_floor_is_refused_when_the_search_misses_its_half_turn(monkeypatch) -> None:
+    search_misses_the_half_turn(monkeypatch)
+    plan = symmetric()
+    sheet = onto_sheet(plan, deg=180.0, scale=0.02, shift=(24.0, 14.0), drop=0.0)
+    out = register(plan, sheet)
+    assert isinstance(out, Refusal), out
+    assert "turned half round" in out.reason
+
+
+def test_an_asymmetric_floor_is_placed_when_the_search_misses_its_half_turn(monkeypatch) -> None:
+    search_misses_the_half_turn(monkeypatch)
+    plan = floor(7)
+    out = register(plan, onto_sheet(plan, deg=0.0, scale=0.02, shift=(5.0, -3.0)))
+    assert isinstance(out, Place), out
+    assert abs(out.rotation_deg) < 0.5 and math.dist(out.shift, (5.0, -3.0)) < 0.1
+
+
+def test_an_expected_rotation_settles_a_symmetric_floor() -> None:
+    """Both lays fit a symmetric floor; the caller's turn (north arrows) picks one."""
+    plan = symmetric()
+    sheet = onto_sheet(plan, deg=180.0, scale=0.02, shift=(24.0, 14.0), drop=0.0)
+    assert isinstance(register(plan, sheet), Refusal)
+    for expected in (175.0, -5.0):
+        out = register(plan, sheet, expected_rotation_deg=expected)
+        assert isinstance(out, Place), (expected, out)
+        assert abs((out.rotation_deg - expected + 180) % 360 - 180) < 6, (expected, out)
+    out = register(plan, sheet, expected_rotation_deg=float("nan"))
+    assert isinstance(out, Refusal) and "expected rotation" in out.reason
+
+
+def test_an_outline_dominated_asymmetric_floor_is_placed() -> None:
+    """Review #554: services sheets draw mostly the outline, which maps onto itself turned half
+    round; only the rooms tell the two lays apart, and they do here."""
+    walls = [((0, 0), (24, 0)), ((24, 0), (24, 14)), ((24, 14), (0, 14)), ((0, 14), (0, 0))]
+    walls += [((6, 0), (6, 5)), ((6, 5), (11, 5)), ((15, 10), (15, 14)), ((0, 10), (3, 10))]
+    plan = [Segment(a=a, b=b) for a, b in walls]
+    outline = 2 * (24 + 14)
+    assert outline / sum(math.dist(s.a, s.b) for s in plan) > 0.8
+    sheet = onto_sheet(plan, deg=0.0, scale=0.02, shift=(1.0, 1.0), drop=0.0)[:-8]  # no pipes
+    out = register(plan, sheet)
+    assert isinstance(out, Place), out
+    assert abs(out.rotation_deg) < 0.5 and math.dist(out.shift, (1.0, 1.0)) < 0.1
