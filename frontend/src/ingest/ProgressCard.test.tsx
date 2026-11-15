@@ -8,7 +8,7 @@ import { stubResizeObserver } from '../test/resizeObserver';
 import { LANE_ROWS, splitPath } from './RouteLanes';
 import { ProgressCard } from './ProgressCard';
 import type { RanStep } from './pipeline';
-import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
+import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must, sampleRun } from './testing';
 
 beforeEach(stubResizeObserver);
 afterEach(cleanup);
@@ -70,6 +70,8 @@ const running: ProjectView = {
       stage: null,
     }),
   ],
+  // as the API lists them: one entry per drawing read off the files (backend api/views.py `drawings_of`)
+  drawings: [{ ...must(project.drawings[0]), drawing_id: 'd1', route: 'vector', state: 'ready' }],
 };
 
 const lane = (name: string) => screen.getByRole('region', { name });
@@ -560,6 +562,60 @@ describe('ProgressCard: pipeline view v5', () => {
       />,
     );
     expect(chipsOf('Image').join()).not.toMatch(/did not run|not needed here|✓/);
+  });
+
+  it('IN-126 (trace e2e) a lane counts each drawing read once, never one called not a drawing', () => {
+    // the demo sample: the image lane has the scan, its copy (the same drawing), the plan photo and the site photo
+    render(<ProgressCard project={sampleRun('done')} now={Date.now()} />);
+    expect(lane('Image').textContent).toContain('4 files · 2 drawings read');
+    expect(lane('Drawn PDF').textContent).toContain('4 files · 3 drawings read');
+    expect(lane('IFC model').textContent).toContain('1 file · 1 drawing read');
+    expect(statOf('Drawings ready')).toBe('6 / 7'); // the lanes add up to it
+  });
+
+  it('IN-127 the sorting chips tick from the steps that ran, and dim once theirs cannot run', () => {
+    const sortingChips = () =>
+      within(screen.getByRole('list', { name: 'Sorting' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent);
+    const done = sampleRun('done');
+    render(<ProgressCard project={done} now={Date.now()} />);
+    expect(sortingChips()).toEqual([
+      'scan or photo (Gemini)✓',
+      'sheet kind (Gemini)✓',
+      'describes sheets that are not plans (Gemini)✓',
+      'keep or set aside (rules)✓',
+    ]);
+    cleanup();
+    // mid-run: what ran on the files so far is ticked, the last phase's steps are still to come, nothing dimmed
+    render(<ProgressCard project={sampleRun('mid')} now={Date.now()} />);
+    expect(sortingChips()).toEqual([
+      'scan or photo (Gemini)✓',
+      'sheet kind (Gemini)✓',
+      'describes sheets that are not plans (Gemini)',
+      'keep or set aside (rules)',
+    ]);
+    cleanup();
+    // a done upload whose judge only skipped and with no describe step: dimmed, saying why
+    const index_steps = done.index_steps
+      .filter((s) => s.id !== 'describe')
+      .map((s) => (s.id === 'judge' ? { ...s, state: 'skipped' as const } : s));
+    render(<ProgressCard project={{ ...done, index_steps }} now={Date.now()} />);
+    expect(sortingChips().slice(2)).toEqual([
+      'describes sheets that are not plans (Gemini) · did not run',
+      'keep or set aside (rules) · not needed here',
+    ]);
+    const dim = must(screen.getByText(/did not run/).closest('li'));
+    expect(dim.dataset.dimmed).toBe('true');
+    cleanup();
+    // a file in its classifier step: the sheet-kind chip is the one running
+    const files = sampleRun('mid').files.map((f) =>
+      f.path === 'photos/site.jpg'
+        ? { ...f, stage: 'identify' as const, step_id: 'classifier' }
+        : f,
+    );
+    render(<ProgressCard project={{ ...sampleRun('mid'), files }} now={Date.now()} />);
+    expect(sortingChips()[1]).toBe('running: sheet kind (Gemini)');
   });
 
   it('IN-125 a running last-phase step reads as running, not as a bare label', () => {

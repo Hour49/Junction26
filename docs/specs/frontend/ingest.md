@@ -794,6 +794,17 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   ready, as IN-116: "Drawings ready", the done line and the chat row leave it out, "Open the workspace" opens the
   first drawing that was read, and a done project whose only drawings are such shows IN-72's "Nothing read" card
   with the backend's flag reason, not "Ready" and the chat offer. No new words. [unit: `readDrawings`; component]
+  A lane's "<n> drawings read" counts the same drawings (trace's e2e on the demo sample, 2026-11-15: the image
+  lane said 4 with the site photo and a copy of the scan): each drawing of `readDrawings` read off the lane's
+  files, once, so the lanes add up to "Drawings ready". [component, from the demo sample's real status]
+- IN-127 (trace's e2e, 2026-11-15: the sorting chips never ticked): each "Sorting" chip (IN-119) ticks from the
+  step id that really ran: "scan or photo" ← `probe` (it asks the sheet-kind signal), "plan or not" and "sheet
+  kind" ← `classifier`, both in `ran` on any route; "describes sheets that are not plans" ← `describe` and "keep
+  or set aside" ← `judge` in `index_steps`. Running (a file's `step_id`, or a `running` index step) highlights it
+  as a reader chip; once its step can no longer run (every file ended for `probe`/`classifier`, the project ended
+  for the index steps) a chip whose step did not run dims as IN-124 ("not needed here", "did not run"). No `ran`,
+  or no or empty `index_steps` (an older server or record): as before. [unit: `triageRan`, `triageEnded`;
+  component, from the demo sample's real status]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
