@@ -538,7 +538,7 @@ it('CH-50 methods that disagree say which value was kept and why under the value
   expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(check.reason);
 });
 
-it('CH-36 phone grade: tapping the thumbnail opens the same marks in the full viewer (zoom), Close brings focus back', () => {
+it('CH-51 phone grade: tapping the thumbnail opens the same marks in the full viewer (zoom), Close brings focus back', () => {
   show();
   const before = viewers.length;
   const enlarge = screen.getByRole('button', { name: 'Enlarge the plan' });
