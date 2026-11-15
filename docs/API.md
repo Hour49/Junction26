@@ -908,7 +908,18 @@ Ingest's project status, plus `drawings`:
   "ms": 12.5,
   "cost_usd": 0.0,
   "phase": null,
-  "index_steps": [],
+  "index_steps": [
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
   "drawings": [
     {
       "drawing_id": "adeefbbcc17559fc",
@@ -1121,7 +1132,7 @@ after a restart cut that run off:
   "error": null,
   "ms": 12.5,
   "cost_usd": 0.0,
-  "phase": null,
+  "phase": "files",
   "index_steps": [],
   "drawings": [],
   "skipped": [],
@@ -1179,7 +1190,7 @@ after a restart cut that run off:
   "error": "the server restarted during ingest",
   "ms": 12.5,
   "cost_usd": 0.0,
-  "phase": null,
+  "phase": "files",
   "index_steps": [],
   "drawings": [],
   "skipped": [
@@ -1678,7 +1689,32 @@ photo of an elevation sheet with its register, showing a building that matches n
   "ms": 12.5,
   "cost_usd": 0.0,
   "phase": null,
-  "index_steps": [],
+  "index_steps": [
+    {
+      "id": "judge",
+      "label": "Relevance judge",
+      "did": "4 files judged: 1 related, 2 unrelated, 1 unsure",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {
+        "related": 1,
+        "unrelated": 2,
+        "unsure": 1
+      }
+    },
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
   "drawings": [
     {
       "drawing_id": "6a47e9a1c33db404",
@@ -5075,7 +5111,18 @@ tell, and an uncertain answer with the model's check:
   "ms": 12.5,
   "cost_usd": 0.0,
   "phase": null,
-  "index_steps": [],
+  "index_steps": [
+    {
+      "id": "evidence",
+      "label": "Evidence index",
+      "did": "the index is in step with the project",
+      "at_ms": 2.5,
+      "ms": 12.5,
+      "cost_usd": 0.0,
+      "state": "done",
+      "found": {}
+    }
+  ],
   "drawings": [
     {
       "drawing_id": "44cc9f0d991eafe3",

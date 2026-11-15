@@ -1,12 +1,21 @@
 """Decision 0018: the steps inside an ingest stage, and the live step and phase of a project."""
 
-from conftest import MakeService
+from pathlib import Path
 
+from conftest import MakeService
+from test_ingest_evidence_scope import on
+from test_ingest_service import Blocking
+from test_ingest_triage import PLAN, SCAN, zipped
+from triage_fakes import FakeClassifier, FakeDescriber, WordJudge, steps
+
+from app.adapters.archive import ThreadRunner
+from app.adapters.evidence.store import SqliteEvidenceIndex
 from app.core.drawing.model import Conflict
+from app.core.evidence.chunks import passages
 from app.core.ingest.model import FileStatus, Normalised, ProjectStatus, StageTrace, StepTrace
 from app.core.ingest.steps import frame_steps, second_count_steps, triage_step
 from app.core.pipeline.steps import Span
-from scripts.make_sample_archive import build_archive
+from scripts.make_sample_archive import build_archive, png_bytes, raster_plan
 
 
 def test_a_step_has_empty_defaults_and_old_traces_read_with_no_steps() -> None:
@@ -114,3 +123,42 @@ def test_triage_that_could_not_answer_is_a_failed_step() -> None:
     span = Span(at_ms=0, ms=5, cost_usd=0.001, faults=0)
     step = triage_step(None, "triage not available: timed out; read as today", span)
     assert (step.id, step.state, step.cost_usd) == ("classifier", "failed", 0.001)
+
+
+def test_the_last_phase_lists_the_judge_the_describer_and_the_index(
+    make_service: MakeService, tmp_path: Path
+) -> None:
+    triage = steps(
+        FakeClassifier({SCAN: "other_drawing"}),
+        FakeDescriber({SCAN: ("the south elevation of a house", ("Küche",))}),
+        WordJudge(),
+    )
+    index = SqliteEvidenceIndex(tmp_path / "index", passages, None)
+    service = make_service(triage=triage, evidence=index, evidence_steps=on())
+    status = service.wait(service.start("p.zip", zipped({"plan.pdf": PLAN, "e.png": SCAN})))
+    assert status.phase is None
+    assert [(s.id, s.label) for s in status.index_steps] == [
+        ("judge", "Relevance judge"),
+        ("describe", "Files for the evidence index"),
+        ("evidence", "Evidence index"),
+    ]
+    judge = status.index_steps[0]
+    assert judge.found == {"related": 1} and judge.did == "1 file judged: 1 related"
+    assert [s.at_ms for s in status.index_steps] == sorted(s.at_ms for s in status.index_steps)
+
+
+def test_a_project_is_in_the_files_phase_while_its_files_are_read(
+    make_service: MakeService,
+) -> None:
+    reader = Blocking()
+    ingest = make_service(runner=ThreadRunner(), raster=lambda files: reader)
+    try:
+        project = ingest.start("scan.png", png_bytes(raster_plan()))
+        assert reader.entered.wait(10)
+        assert ingest.status(project).phase == "files"
+        reader.release.set()
+        done = ingest.wait(project, timeout=10)
+    finally:
+        reader.release.set()
+        ingest.close()
+    assert done.phase is None and done.index_steps == ()  # no judge, no index: nothing ran

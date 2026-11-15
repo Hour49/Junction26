@@ -5,7 +5,7 @@ comparison, the EXIF turn) has `ms` 0 and begins with its stage."""
 from collections.abc import Sequence
 
 from app.core.drawing.model import Conflict
-from app.core.ingest.model import Normalised, Probed, Triage
+from app.core.ingest.model import FileStatus, Normalised, Probed, Triage
 from app.core.pipeline.model import StepTrace
 from app.core.pipeline.steps import Span
 from app.core.wording import count
@@ -104,3 +104,56 @@ def second_count_steps(conflicts: Sequence[Conflict] | None) -> list[StepTrace]:
             )
         )
     return steps
+
+
+def judge_step(files: Sequence[FileStatus], span: Span) -> StepTrace:
+    """The relevance judge over the files triage set aside (the project's last phase)."""
+    judged = [f for f in files if f.triage is not None and f.triage.relevance is not None]
+    verdicts: dict[str, int] = {}
+    for file in judged:
+        assert file.triage is not None and file.triage.relevance is not None
+        verdict = file.triage.relevance.verdict
+        verdicts[verdict] = verdicts.get(verdict, 0) + 1
+    said = ", ".join(f"{n} {verdict}" for verdict, n in sorted(verdicts.items()))
+    return StepTrace(
+        id="judge",
+        label="Relevance judge",
+        did=f"{count(len(judged), 'file')} judged" + (f": {said}" if said else ""),
+        at_ms=span.at_ms,
+        ms=span.ms,
+        cost_usd=span.cost_usd,
+        state="failed" if span.faults else "done",
+        found=verdicts,
+    )
+
+
+def describe_step(files: Sequence[FileStatus], span: Span) -> StepTrace:
+    """The evidence step: each file that is not a floor plan, described, read or listed."""
+    how: dict[str, int] = {}
+    for file in files:
+        if file.evidence is not None and file.evidence.how is not None:
+            how[file.evidence.how] = how.get(file.evidence.how, 0) + 1
+    words = {"described": "described", "text": "by their text", "listed": "listed by name"}
+    said = ", ".join(f"{n} {words[kind]}" for kind, n in sorted(how.items()))
+    return StepTrace(
+        id="describe",
+        label="Files for the evidence index",
+        did=f"{count(sum(how.values()), 'file')} indexed" + (f": {said}" if said else ""),
+        at_ms=span.at_ms,
+        ms=span.ms,
+        cost_usd=span.cost_usd,
+        state="failed" if span.faults else "done",
+        found=how,
+    )
+
+
+def evidence_step(span: Span) -> StepTrace:
+    """The project's evidence index brought in step with its status."""
+    return StepTrace(
+        id="evidence",
+        label="Evidence index",
+        did="the index is in step with the project",
+        at_ms=span.at_ms,
+        ms=span.ms,
+        cost_usd=span.cost_usd,
+    )
