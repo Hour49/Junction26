@@ -285,14 +285,14 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
 
 
 def _beside(turn: _Turn, services: str) -> bool:
-    """The project has a drawing besides the services model (a plan, a building model): a
-    question about a room then goes to the drawings; only a project whose one drawing is the
-    services model (or none, an IFC set aside) asks the services model about a room."""
+    """The project has a drawing besides the services model that is no IFC file (a plan, a
+    picture): a question about a room then goes to the drawings; a project of IFC files only (or
+    none listed, an IFC set aside) asks the services model about a room (#430 R3)."""
     drawings = turn.result("list_drawings")
     if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
         drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     listed: list[Json] = [d for d in drawings or [] if isinstance(d, dict)]  # pyright: ignore[reportUnknownVariableType]
-    return any(d.get("drawing_id") != services for d in listed)
+    return any(d.get("drawing_id") != services and d.get("kind") != "ifc" for d in listed)
 
 
 def _picked(words: str, items: list[Json]) -> tuple[str | None, list[Json]]:
