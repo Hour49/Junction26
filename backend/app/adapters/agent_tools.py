@@ -132,13 +132,8 @@ def project_toolbox(
         pass
     else:
         if offers_services(pipeline):  # SERVICES_FOLLOW on and an IFC file in the project
-            from app.adapters.services_store import ServicesBuilds
-
             shared = made() if made is not list else list(proposals.values())
-            builds = getattr(app.state, "services_builds", None)  # one per app: one build at a time
-            if builds is None:
-                cache = pipeline.settings.services_cache_dir
-                builds = app.state.services_builds = ServicesBuilds(cache)
+            builds = app.state.services_builds  # create_app's: one build at a time per app
             services = project_services(pipeline, selection, shared, proposals, builds)
             sets.append((SERVICES_TOOLS, partial(run_services_tool, services)))
             made = lambda: services.proposals  # noqa: E731  (the same list as the plan tools')

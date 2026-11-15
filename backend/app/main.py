@@ -19,6 +19,7 @@ from app.adapters.credits import DatasetCredits
 from app.adapters.law_index import SqliteLawIndex, load_laws
 from app.adapters.review_store import JsonReviewStore
 from app.adapters.rule_packs import load_packs
+from app.adapters.services_store import ServicesBuilds
 from app.api import (
     ask,
     chat,
@@ -140,6 +141,8 @@ def create_app(settings: Settings | None = None, ingest: Ingest | None = None) -
     app.state.chats = JsonChatStore(settings.projects_dir)  # the agent chats (decision 0013)
     app.state.laws = law_index
     app.state.models_3d = build_models_3d(settings)  # None: MODEL_3D off
+    # one per app, made here and not by a chat turn, so two first turns can't run two builds
+    app.state.services_builds = ServicesBuilds(settings.services_cache_dir)  # (SV-8)
     routers = (
         health,
         info,

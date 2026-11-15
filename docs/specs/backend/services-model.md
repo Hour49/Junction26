@@ -115,7 +115,9 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
 - SV-8 **Store**: `<cache>/<sha256>.services.v1.b<builder>.json.gz` beside the fact-sheet cache, written atomically,
   built in the background and never at question time: by the deploy's `python -m app.cli services build`, or,
   for a project file with no stored model, by a capped child process that the first chat turn starts
-  (`services_store.ServicesBuilds`, one at a time, 3000 MB and 600 s; the tools say it is being built meanwhile;
+  (`services_store.ServicesBuilds`, one per app made by `create_app`, one at a time, 3000 MB and 600 s, with
+  the project's architecture model when it has exactly one, models read as listing no plan object first; the
+  tools say it is being built meanwhile;
   a file with no distribution element stores only a marker, `<sha256>.services.none.b<builder>`, so it is tried
   once, and the tools then say it has no services model; a build that times out or runs out of memory is not
   started again until the backend restarts; 2026-11-15, QA B4 and review of #475). `<builder>` is `services_model.BUILDER_VERSION`,

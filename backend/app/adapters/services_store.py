@@ -45,7 +45,8 @@ NO_SERVICES = 3  # the child's exit code for a model with no distribution elemen
 CHILD = [sys.executable, "-m", __name__]  # the builder; run with `-m` from the backend folder
 BACKEND = Path(__file__).resolve().parents[2]
 
-Build = Callable[[bytes, str, Path], None]  # the file's bytes, its name, the cache folder
+# the file's bytes, its name, the cache folder, its building's architecture model's bytes or None
+Build = Callable[[bytes, str, Path, bytes | None], None]
 Start = Callable[[Callable[[], None]], None]
 
 
@@ -118,12 +119,14 @@ def build_apart(
     data: bytes,
     name: str,
     cache: Path,
+    architecture: bytes | None = None,
     memory_mb: int | None = None,
     timeout_s: float | None = None,
 ) -> None:
     """The services model of the file `name` stored in `cache` by a child process held to
     `memory_mb` (BUILD_MEMORY_MB) and `timeout_s` (BUILD_TIMEOUT_S); the parse's memory goes with
-    the child. A file it cannot read, with no distribution element, or that needs more, is an
+    the child. `architecture`: the building's architecture model, for the rooms and walls. A
+    file it cannot read, with no distribution element, or that needs more, is an
     InvalidInputError, and nothing is stored."""
     memory_mb = memory_mb or BUILD_MEMORY_MB
     timeout_s = timeout_s or BUILD_TIMEOUT_S
@@ -131,6 +134,10 @@ def build_apart(
         source = Path(work) / "model.ifc"
         source.write_bytes(data)
         child = [*CHILD, str(source), name, str(cache)]
+        if architecture is not None:
+            building = Path(work) / "architecture.ifc"
+            building.write_bytes(architecture)
+            child.append(str(building))
         limit = None
         if has_systemd_scope():
             child = [*_SCOPE, "-p", f"MemoryMax={memory_mb}M", *child]
@@ -177,9 +184,17 @@ class ServicesBuilds:
         self._busy: set[str] = set()  # sha256s in flight
         self._failed: set[str] = set()
 
-    def building(self, sha256: str, name: str, data: Callable[[], bytes]) -> bool:
+    def building(
+        self,
+        sha256: str,
+        name: str,
+        data: Callable[[], bytes],
+        architecture: Callable[[], bytes] | None = None,
+    ) -> bool:
         """Whether the model of this content is being built: a build starts when none is stored,
-        in flight or failed. False when it is stored, has none or its build failed."""
+        in flight or failed, with the bytes of `architecture` (its building's architecture
+        model) when given. False when it is stored, has none or its build failed. Builds run in
+        the order they start, as near as a lock gives."""
         if self._store.path(sha256).is_file() or self._store.none_path(sha256).is_file():
             return False
         with self._lock:
@@ -193,7 +208,8 @@ class ServicesBuilds:
             failed = False
             try:
                 with self._one:
-                    self._build(data(), name, self._cache)
+                    building = None if architecture is None else architecture()
+                    self._build(data(), name, self._cache, building)
             except Exception:  # the tools said it is being built; said once in the log
                 logger.warning("%s: no services model built", sha256[:12], exc_info=True)
                 failed = True
@@ -210,9 +226,11 @@ def _cap(limit: int) -> None:
     resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
 
 
-def _child(source: str, name: str, cache: str) -> int:
+def _child(source: str, name: str, cache: str, architecture: str | None = None) -> int:
+    building = None if architecture is None else Path(architecture).read_bytes()
     try:
-        model = ServicesStore(Path(cache)).build(name, Path(source).read_bytes(), keep_empty=False)
+        store = ServicesStore(Path(cache))
+        model = store.build(name, Path(source).read_bytes(), building, keep_empty=False)
     except Exception as error:  # ifcopenshell raises its own and plain RuntimeErrors
         print(str(error).replace("\n", " "), file=sys.stderr)
         return NOT_READ
@@ -226,4 +244,4 @@ def _child(source: str, name: str, cache: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(_child(*sys.argv[1:4]))
+    sys.exit(_child(*sys.argv[1:5]))

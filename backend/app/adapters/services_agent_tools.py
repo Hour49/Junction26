@@ -216,19 +216,42 @@ def project_services(
 
 def _building(pipeline: PipelineStore, builds: ServicesBuilds) -> tuple[str, ...]:
     """The ids of the project's model files whose services model is being built, each missing
-    one's build started. Never raises: the tools then say what they find, as before."""
+    one's build started. A file read as a model listing no wall, door, window or room (a
+    services model) starts first, an architecture model (one listing some) last; with exactly
+    one architecture model in the project, every other build gets it for its rooms and walls
+    (#475 review S2, C1). Never raises: the tools then say what they find, as before."""
     try:
         files, _ = _models(pipeline.ingest.status(pipeline.project_id), None)
+        listed = {f.id: _listed(pipeline, f) for f in files}
+        plans = [f for f in files if listed[f.id]]
+        arc = _bytes_of(pipeline, plans[0].id) if len(plans) == 1 else None
+        first = sorted(files, key=lambda f: 0 if listed[f.id] == () else 2 if listed[f.id] else 1)
         return tuple(
             i
-            for f in files
+            for f in first
             if (i := model_id(f))
             and f.sha256
-            and builds.building(f.sha256, PurePosixPath(f.path).name, _bytes_of(pipeline, f.id))
+            and builds.building(
+                f.sha256,
+                PurePosixPath(f.path).name,
+                _bytes_of(pipeline, f.id),
+                None if listed[f.id] else arc,
+            )
         )
     except Exception:
         log.warning("services models not started", exc_info=True)
         return ()
+
+
+def _listed(pipeline: PipelineStore, file: FileStatus) -> tuple[object, ...] | None:
+    """The plan objects (walls, doors, windows, spaces) the file's model drawing lists; None: no
+    drawing read (set aside at upload, or not readable now)."""
+    if file.drawing_id is None:
+        return None
+    try:
+        return pipeline.ingest.drawing(file.drawing_id).model_objects
+    except DomainError:
+        return None
 
 
 def _bytes_of(pipeline: PipelineStore, file_id: str) -> Callable[[], bytes]:

@@ -144,8 +144,8 @@ def take_off(drawing: Drawing, counted: Mapping[str, Counted]) -> dict[str, Quan
     found: dict[str, Quantity] = {}
     if drawing.pages:
         _add_sheet(found, drawing, counted)
-    if drawing.model_objects is not None:
-        _add_model(found, drawing)
+    if drawing.model_objects is not None and (drawing.pages or drawing.model_objects):
+        _add_model(found, drawing)  # not a model file of none of the plan's: a services model
     _mark_partial(found, drawing)
     return _read_only(_with_conflicts(found, drawing), drawing.read)
 

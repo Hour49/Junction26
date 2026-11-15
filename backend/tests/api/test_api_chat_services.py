@@ -16,6 +16,7 @@ from app.adapters.services_store import ServicesBuilds, ServicesStore
 from app.api import chat as chat_api
 from app.composition import build_ingest
 from app.core.agent.ports import Reply
+from app.core.drawing.model import Drawing, ModelObject, Scale
 from app.core.errors import NotFoundError
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.main import create_app
@@ -196,7 +197,7 @@ def test_sv8_a_project_file_without_a_stored_model_is_built_off_the_request(
     app: Any = client.app
     app.state.ingest.upload_bytes = lambda project, file: b"the heating model"
 
-    def build(data: bytes, name: str, folder: Path) -> None:
+    def build(data: bytes, name: str, folder: Path, architecture: bytes | None) -> None:
         assert (data, name) == (b"the heating model", "heating.ifc")
         model = two_rooms()
         ServicesStore(folder).path(model.source.sha256).write_bytes(
@@ -213,6 +214,70 @@ def test_sv8_a_project_file_without_a_stored_model_is_built_off_the_request(
     listed = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
     _turn(client, monkeypatch, listed)
     assert '"E2"' in listed.results[0] and BUILDING not in listed.results[0]
+
+
+class _WithBuilding(_Ingest):
+    """A heating model read alone (a drawing listing no object of the plan's), the building's
+    architecture model (a drawing listing a wall), a ventilation model set aside (no drawing)."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        files = (
+            FileStatus(id="f1", path="m/lft.ifc", size=1, sha256="1" * 64, kind="ifc",
+                       state="set_aside"),
+            FileStatus(id="f2", path="m/arc.ifc", size=1, sha256="2" * 64, kind="ifc",
+                       state="ready", route="bim", drawing_id="d-arc"),
+            FileStatus(id="f3", path="m/hzg.ifc", size=1, sha256="3" * 64, kind="ifc",
+                       state="ready", route="bim", drawing_id="d-hzg"),
+        )  # fmt: skip
+        return ProjectStatus(
+            id=PROJECT, name="p", state="done", created_at="2026-11-15T00:00:00Z", files=files
+        )
+
+    def drawing(self, drawing_id: str) -> Any:
+        wall = ModelObject(id="o1", class_="wall")
+        objects = (wall,) if drawing_id == "d-arc" else ()
+        return Drawing(file=drawing_id, pages=(), scale=Scale(status="scaled", m_per_unit=1.0),
+                       model_objects=objects)  # fmt: skip
+
+    def upload_bytes(self, project_id: str, file_id: str) -> bytes:
+        return f"bytes of {file_id}".encode()
+
+
+def test_sv8_builds_get_the_one_architecture_model_and_known_services_models_go_first(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review of #475 (ifc-ask S2, C1): an on-demand build had no architecture model, so its
+    services model had no rooms or walls for good (it is kept by the file's sha256). With exactly
+    one architecture model in the project (a model listing walls, doors, windows or rooms) each
+    build gets it; a model read as listing none of those (a services model) starts first, the
+    architecture model itself last."""
+    client = _client(settings, tmp_path, ingest=_WithBuilding())
+    started: list[Callable[[], None]] = []
+    built: list[tuple[str, bytes | None]] = []
+    app: Any = client.app
+
+    def build(data: bytes, name: str, folder: Path, architecture: bytes | None) -> None:
+        built.append((name, architecture))
+
+    app.state.services_builds = ServicesBuilds(tmp_path / "s2", build=build, start=started.append)
+    _turn(client, monkeypatch, _dont_know(_call("list_services", 1, drawing_id=MODELLED)))
+    for job in started:
+        job()
+    arc = b"bytes of f2"
+    assert built == [("hzg.ifc", arc), ("lft.ifc", arc), ("arc.ifc", None)]
+
+
+def test_sv8_the_app_has_one_build_queue_from_its_start(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review of #475 (ifc-ask S3): the queue was made by the first chat turn that needed it, so
+    two first turns at once could each make one and run two 3000 MB builds side by side. It is
+    made with the app, and every turn uses that one."""
+    app: Any = client.app
+    queue = app.state.services_builds
+    assert isinstance(queue, ServicesBuilds)
+    _turn(client, monkeypatch, _dont_know(_call("list_services", 1, drawing_id=MODELLED)))
+    assert app.state.services_builds is queue
 
 
 SIX = {"list_services", "ask_services", "propose_move_terminal", "propose_add_terminal",

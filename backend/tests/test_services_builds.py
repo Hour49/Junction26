@@ -48,7 +48,7 @@ class Jobs:
 def test_a_missing_model_starts_one_build_and_says_it_is_being_built(tmp_path: Path) -> None:
     built: list[str] = []
 
-    def build(data: bytes, name: str, cache: Path) -> None:
+    def build(data: bytes, name: str, cache: Path, architecture: bytes | None) -> None:
         built.append(name)
         ServicesStore(cache).build(name, data)
 
@@ -67,7 +67,7 @@ def test_a_missing_model_starts_one_build_and_says_it_is_being_built(tmp_path: P
 def test_a_build_that_fails_is_not_started_again_and_is_not_said_to_be_building(
     tmp_path: Path,
 ) -> None:
-    def build(data: bytes, name: str, cache: Path) -> None:
+    def build(data: bytes, name: str, cache: Path, architecture: bytes | None) -> None:
         raise InvalidInputError("no distribution element: not a services model")
 
     jobs = Jobs()
@@ -103,7 +103,7 @@ def test_a_building_model_is_tried_once_not_again_after_a_restart(tmp_path: Path
     assert _child(str(building), "architecture.ifc", str(cache)) == NO_SERVICES
     started: list[str] = []
     jobs = Jobs()
-    restarted = ServicesBuilds(cache, build=lambda d, n, c: started.append(n), start=jobs)
+    restarted = ServicesBuilds(cache, build=lambda d, n, c, a: started.append(n), start=jobs)
     sha = hashlib.sha256(building.read_bytes()).hexdigest()
     assert not restarted.building(sha, "architecture.ifc", building.read_bytes)
     assert jobs.waiting == [] and started == []
@@ -115,7 +115,7 @@ def test_two_files_are_built_one_at_a_time(tmp_path: Path) -> None:
     release = threading.Event()
     threads: list[threading.Thread] = []
 
-    def build(data: bytes, name: str, cache: Path) -> None:
+    def build(data: bytes, name: str, cache: Path, architecture: bytes | None) -> None:
         entered[name].set()
         if name == "a":
             assert release.wait(10)
@@ -140,6 +140,11 @@ def test_the_capped_child_builds_the_model_the_api_reads(tmp_path: Path) -> None
     build_apart(data, "heating.ifc", tmp_path / "cache")
     model = ServicesStore(tmp_path / "cache").load(hashlib.sha256(data).hexdigest())
     assert model is not None and model.elements
+    assert not model.rooms  # no architecture model: no room
+    building = _architecture(tmp_path / "a.ifc").read_bytes()
+    build_apart(data, "heating.ifc", tmp_path / "with", building)  # #475 review S2
+    model = ServicesStore(tmp_path / "with").load(hashlib.sha256(data).hexdigest())
+    assert model is not None and model.rooms
 
 
 @pytest.mark.parametrize("scope", [True, False], ids=["systemd-scope", "rlimit"])
