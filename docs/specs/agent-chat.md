@@ -211,6 +211,25 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   ask bar and the starter chips; no "What I read" block (removed). The ask box is fully in the first screen
   (390x844, keycheck 334). [component `AgentChat.test.tsx`; browser 1440 and 390: e2e AC-39 asserts the ask box's
   bottom is within the viewport]
+- AC-40 (pics-edit-follow W3, 2026-11-15) A discipline tab whose lane carries a `picture` (the floor's services
+  sheet that lane was read from: `drawing_id`, `page`, `pairing`, and the edit's `removed` / `added` outlines and
+  the lane's marks in THAT sheet's page fractions) shows that sheet's page image instead of the plan, loaded as the
+  viewer loads a page. On it, in its own coordinates: the removed wall's strip struck out (the Demolished look, plus
+  a strike line along it) or the new partition drawn (the New look), and the lane's marks with their status icon
+  and word as on the plan (AC services-follow; colour never alone). The card zooms to the edit on that sheet.
+- AC-41 Before / After on a picture tab: Before shows the sheet as drawn with its marks and no edit, After the edit
+  and each mark's status. The image's alt names the sheet and the state ("Heating plan 1, page 1, with the
+  proposed change drawn on it").
+- AC-42 Above the picture one line says why this sheet was taken to be this floor's <discipline> sheet: "Paired by
+  the title block: 'EG' on both" (`paired_by`: same_page → "Same page as the plan", metadata → "Paired by the
+  sheets' names", geometry → "Paired by the walls", user → "Paired by you"), then the server's `reason`.
+- AC-43 "Not this sheet" (a button beside that line): the tab drops the picture and its actions, says "Not checked:
+  you said this is not this floor's <discipline> sheet." with "Use this sheet again", and its tab note reads "not
+  checked". Kept in the card only (until the pairing override of services-follow SFP-9.. can be called); a wrong
+  pairing is always visible and refusable, never silent.
+- AC-44 A lane without `picture` is drawn over the plan as before; with DISCIPLINE_PICTURES off the API sends no
+  `picture` and nothing changes. 390 px: the picture is full width, the line and the button wrap, no horizontal
+  scroll. [component `ServiceTabs.test.tsx`, `EditCard.test.tsx`; browser 1440 and 390 by hand on a fixture]
 
 ## 4. Tests
 
