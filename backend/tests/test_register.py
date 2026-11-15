@@ -97,20 +97,41 @@ def test_a_far_stray_line_is_fast_and_harmless() -> None:
     sheet = onto_sheet(plan, deg=93.0, scale=0.02, shift=(5.0, -3.0))
     start = time.perf_counter()
     place = register([*plan, Segment(a=(100.0, 100.0), b=(103.0, 100.0))], [*sheet, stray])
-    assert time.perf_counter() - start < 3.0
+    assert time.perf_counter() - start < 30.0  # only the old blow-up (243 s, GBs); work: below
     assert isinstance(place, Place), place
     assert abs(place.scale / 0.02 - 1) < 0.01
 
 
-def test_many_walls_and_a_10_km_stray_take_under_3_s() -> None:
+def test_many_walls_and_a_10_km_stray_keep_the_work_bounded(monkeypatch) -> None:
+    """Deterministic: the work (lines kept, points against walls, vote cells) is capped by
+    LONGEST, whatever the count and spread of the input; a 30 s bound only catches a blow-up."""
     rng = np.random.default_rng(5)
     plan = floor(7) + [
         Segment(a=(x, y), b=(x + 1.0, y)) for x, y in rng.uniform(0, 14, (200, 2)).tolist()
     ]
     sheet = [*plan, Segment(a=(10_000.0, 0.0), b=(10_001.0, 0.0))]
+    sizes: list[tuple[int, int]] = []
+    votes: list[int] = []
+    nearest, unique = register_module._nearest, np.unique
+
+    def counted_nearest(points, walls):
+        sizes.append((len(points), len(walls)))
+        return nearest(points, walls)
+
+    def counted_unique(keys, **kw):
+        votes.append(len(keys))
+        return unique(keys, **kw)
+
+    monkeypatch.setattr(register_module, "_nearest", counted_nearest)
+    monkeypatch.setattr(register_module.np, "unique", counted_unique)
     start = time.perf_counter()
     register(plan, sheet)
-    assert time.perf_counter() - start < 3.0
+    assert time.perf_counter() - start < 30.0
+    most = 120  # lines per side; the cost grows with their product
+    assert max(w for _, w in sizes) <= most
+    assert max(p for p, _ in sizes) <= most * register_module.SAMPLES
+    assert len(sizes) <= 4 * register_module.POSES * (register_module.ICP_STEPS + 1) + 8
+    assert max(votes) <= (2 * most) ** 2
 
 
 def test_a_refined_scale_stays_in_the_searched_range() -> None:
