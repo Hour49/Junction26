@@ -528,9 +528,8 @@ def test_a_listed_space_has_its_solids_footprint_and_the_room_it_is_drawn_as() -
     assert spaces["Corridor"].element == "r2"
 
 
-def test_a_space_s_room_type_is_its_names_and_an_mep_twin_gets_none() -> None:
-    """review-527: duplex-mep lists each room again as "<name> MEP Space" (number "-M"): a
-    services copy of the room, not a second bedroom."""
+def test_a_space_s_room_type_is_what_its_names_say() -> None:
+    """A space's room type is what its names say (qa-a: the vitoria .ifc's "4IZQ-HAB1")."""
 
     def space(name: str, long_name: str | None) -> IfcObject:
         return IfcObject(guid="g", source_class="IfcSpace", storey="L1", parts=(), name=name,
@@ -538,7 +537,6 @@ def test_a_space_s_room_type_is_its_names_and_an_mep_twin_gets_none() -> None:
 
     assert _typed("space", space("A202", "Bedroom 1")) == {"room_type": "bedroom"}
     assert _typed("space", space("4IZQ-HAB1", None)) == {"room_type": "bedroom"}
-    assert _typed("space", space("A202-M", "Bedroom 1 MEP Space")) == {}
     assert _typed("space", space("A101", "Foyer")) == {"room_type": "hall"}
     assert _typed("space", space("X", "Void")) == {}
 

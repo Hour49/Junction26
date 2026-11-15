@@ -373,14 +373,20 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
         _add_model_spaces(found, storey, spaces, rooms, marks, scale)
 
 
+MEP_TWIN = re.compile(r"\bMEP Space\b", re.IGNORECASE)  # a room's services copy (duplex-mep)
+
+
 def _typed_spaces(items: Iterable[ModelObject]) -> dict[str, list[ModelObject]]:
     """The spaces of `items` by their `room_type` (the IFC reader's), a space listed again with
-    the same number, name and storey once (review-527: duplex-m lists every room twice)."""
+    the same number, name and storey once (review-527: duplex-m lists every room twice), and a
+    room's services copy ("Bedroom 1 MEP Space": duplex-mep) not at all."""
     typed: dict[str, list[ModelObject]] = defaultdict(list)
     seen: set[tuple[str, str | None, str | None]] = set()
     for item in items:
         kind = item.attrs.get("room_type")
         if item.class_ != SPACE or not isinstance(kind, str):
+            continue
+        if any(MEP_TWIN.search(name) for name in (item.name, item.long_name) if name):
             continue
         if item.name:
             twin = (item.name, item.long_name, item.storey)

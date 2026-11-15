@@ -1254,13 +1254,16 @@ def test_a_room_type_count_from_a_model_s_space_names_is_never_sure() -> None:
 def test_a_model_space_listed_twice_is_one_room_of_its_type() -> None:
     """review-527: duplex-m-rooms-and-spaces lists each room twice (same number, name and storey),
     so its bedrooms came out 8 for 4. A space whose number, name and storey repeat another's is
-    counted once by type; spaces that only share a name are not twins."""
+    counted once by type, a "<name> MEP Space" copy not at all; spaces that only share a name are
+    not twins."""
     twin = {"attrs": {"room_type": "bedroom"}}
     drawing = model_file(
         {**space("m1", "L2", "A202", "Bedroom 1", 12.0), **twin},
         {**space("m2", "L2", "A202", "Bedroom 1", 12.0), **twin},
         {**space("m3", "L2", "A203", "Bedroom 2", 11.0), **twin},
         {**space("m4", "L2", "B203", "Bedroom 2", 11.0), **twin},
+        # duplex-mep: the room again as its services copy
+        {**space("m5", "L2", "A203-M", "Bedroom 2 MEP Space", 11.0), **twin},
     )
     assert asked("How many bedrooms are there?", drawing).answer.answer == 3
 
