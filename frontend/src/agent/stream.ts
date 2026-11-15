@@ -118,7 +118,11 @@ export type LiveStep = {
 export type Live = {
   steps: LiveStep[];
   now:
-    { kind: 'thinking' } | { kind: 'checking' } | { kind: 'retry'; reason: string | null } | null;
+    | { kind: 'thinking' }
+    | { kind: 'writing' }
+    | { kind: 'checking' }
+    | { kind: 'retry'; reason: string | null }
+    | null;
 };
 
 export const LIVE_START: Live = { steps: [], now: null };
@@ -133,7 +137,16 @@ function put(steps: LiveStep[], s: LiveStep): LiveStep[] {
 export function liveStep(live: Live, e: StreamEvent): Live {
   switch (e.type) {
     case 'thinking':
-      return { ...live, now: { kind: 'thinking' } };
+      // A model step once every tool line has ended is the one that writes the reply (every measured turn is a tool
+      // step, then final_answer: .agents/exp/chat-latency.md); if it picks more tools, their plan replaces this.
+      return {
+        ...live,
+        now:
+          live.steps.length > 0 &&
+          live.steps.every((x) => x.status === 'ok' || x.status === 'error')
+            ? { kind: 'writing' }
+            : { kind: 'thinking' },
+      };
     case 'plan':
       return {
         steps: e.calls.reduce(

@@ -116,6 +116,18 @@ it('each step shows as it is planned, runs and ends with its summary; then the a
   expect(lines()[0]).toBe(
     '✓Asked the drawings: How many doors? (done)Scanned plan 1: 19 doors (Low)',
   );
+  // the step after the tools: the model writes its reply (two steps per turn, chat-latency.md)
+  await push('tool_result', {
+    n: 2,
+    tool: 'list_drawings',
+    label: 'Listed the drawings of the project',
+    status: 'ok',
+    ms: 3,
+    summary: null,
+  });
+  await push('thinking', { step: 2 });
+  expect(screen.getByText('Writing the answer…')).toBeTruthy();
+  expect(screen.queryByText('Thinking…')).toBeNull();
   await push('checking', {
     status: 'retry',
     reason: 'a number in the answer is not in the results',

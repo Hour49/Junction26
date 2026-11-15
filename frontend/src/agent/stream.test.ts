@@ -213,4 +213,26 @@ describe('liveStep', () => {
     });
     expect(live.now).toEqual({ kind: 'retry', reason: 'a number is not in the results' });
   });
+
+  it('the model step after every tool line ended is the one that writes the reply: "writing"', () => {
+    const done = {
+      type: 'tool_result' as const,
+      ...call,
+      status: 'ok' as const,
+      ms: 800,
+      summary: null,
+    };
+    let live = liveStep(LIVE_START, { type: 'thinking', step: 1 });
+    expect(live.now).toEqual({ kind: 'thinking' }); // no tool has run: it is choosing its tools
+    live = liveStep(live, { type: 'plan', step: 1, calls: [call, { ...call, n: 2 }] });
+    live = liveStep(live, done);
+    // one line still to run: the next model step has not started, and a "thinking" now would be another step
+    expect(liveStep(live, { type: 'thinking', step: 2 }).now).toEqual({ kind: 'thinking' });
+    live = liveStep(live, { ...done, n: 2, status: 'error' });
+    live = liveStep(live, { type: 'thinking', step: 2 });
+    expect(live.now).toEqual({ kind: 'writing' });
+    // it chose more tools after all: their lines replace the writing state
+    live = liveStep(live, { type: 'plan', step: 2, calls: [{ ...call, n: 3 }] });
+    expect(live.now).toBeNull();
+  });
 });
