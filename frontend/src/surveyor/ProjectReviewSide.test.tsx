@@ -23,6 +23,25 @@ function renderSide() {
 }
 
 describe('ProjectReviewSide', () => {
+  it('K3 one toggle with both counts folds the lists away (on a phone CSS hides them while folded)', async () => {
+    mockApi({ [reviewPath]: projectReview });
+    const { container } = renderSide();
+    const toggle = await screen.findByRole('button', {
+      name: `Drawings (${String(projectReview.drawings.length)}) · Conflicts (${String(projectReview.conflicts.length)})`,
+    });
+    const side = container.querySelector('.sv-side');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(side?.getAttribute('data-open')).toBe('false');
+    const body = container.querySelector('.sv-side-body');
+    expect(body?.id).toBeTruthy();
+    expect(toggle.getAttribute('aria-controls')).toBe(body?.id);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(side?.getAttribute('data-open')).toBe('true');
+    // the lists stay in the page either way: wider screens show them always (no media query in jsdom)
+    expect(within(body as HTMLElement).getByRole('list', { name: /Drawings/ })).toBeTruthy();
+  });
+
   it('SV-41 lists every drawing with its review counts, marks the current one and links to its surveyor route', async () => {
     mockApi({ [reviewPath]: projectReview });
     renderSide();

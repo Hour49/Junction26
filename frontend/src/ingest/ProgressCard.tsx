@@ -68,14 +68,16 @@ export function ProgressCard({
             {state === 'done' ? 'Ready' : state === 'failed' ? 'Stopped' : STEPS[step - 1]?.name}
           </h2>
         </div>
-        <div
-          className="relative grid size-24 flex-none place-items-center text-xl font-bold before:absolute before:inset-0 before:rounded-full before:bg-[conic-gradient(var(--v-accent)_calc(var(--p)*1%),var(--v-fill)_0)] before:[mask:radial-gradient(farthest-side,transparent_80%,var(--v-text)_81%)] before:content-['']"
-          role="img"
-          aria-label={`${String(percent)} percent done`}
-          style={{ '--p': percent } as CSSProperties}
-        >
-          <span aria-hidden="true">{percent}%</span>
-        </div>
+        {state !== 'failed' && (
+          <div
+            className="relative grid size-24 flex-none place-items-center text-xl font-bold before:absolute before:inset-0 before:rounded-full before:bg-[conic-gradient(var(--v-accent)_calc(var(--p)*1%),var(--v-fill)_0)] before:[mask:radial-gradient(farthest-side,transparent_80%,var(--v-text)_81%)] before:content-['']"
+            role="img"
+            aria-label={`${String(percent)} percent done`}
+            style={{ '--p': percent } as CSSProperties}
+          >
+            <span aria-hidden="true">{percent}%</span>
+          </div>
+        )}
       </div>
       {actions}
       <dl className={STATS}>

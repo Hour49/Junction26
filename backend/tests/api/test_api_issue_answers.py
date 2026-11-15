@@ -1,6 +1,9 @@
 """Tudor's asks on board #14 (1, 3, 4): a person's answer to an issue, kept with the project;
 each issue's answer chips and legend label; the open counts on the single-project GET."""
 
+import csv
+import io
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -48,6 +51,28 @@ def test_an_answer_is_kept_with_the_issue_across_a_restart_and_can_be_taken_back
     assert undone.status_code == 200 and undone.json()["answer"] is None
     assert listed(client, project_id) == [issue]
     assert answer(client, project_id, issue["id"], {"undo": True}).status_code == 200  # no-op
+
+
+def test_the_csv_and_zip_carry_the_answer_who_gave_it_and_when(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, plan_pdf: bytes
+) -> None:
+    """QA fe-ui2: an exported issue list kept "open" and lost every answer given on the screen."""
+    window_conflict(monkeypatch)
+    project_id = upload(client, plan_pdf)
+    (issue,) = listed(client, project_id)
+    said = answer(client, project_id, issue["id"], {"text": "3 is right", "by": "Ana"}).json()
+    reply = client.get(f"/api/projects/{project_id}/issues.csv")
+    (row,) = csv.DictReader(io.StringIO(reply.content.decode("utf-8-sig")))
+    assert (row["answer"], row["answered_by"], row["answered_at"]) == (
+        "3 is right", "Ana", said["answer"]["at"],
+    )  # fmt: skip
+    bundle = client.get(f"/api/projects/{project_id}/issues.zip").content
+    zipped = zipfile.ZipFile(io.BytesIO(bundle))
+    (row,) = csv.DictReader(io.StringIO(zipped.read("issues.csv").decode("utf-8-sig")))
+    assert (row["n"], row["answer"], row["answered_by"]) == ("1", "3 is right", "Ana")
+    answer(client, project_id, issue["id"], {"undo": True})
+    (row,) = csv.DictReader(io.StringIO(client.get(f"/api/projects/{project_id}/issues.csv").text))
+    assert row["answer"] == row["answered_by"] == row["answered_at"] == ""
 
 
 def test_an_answer_to_an_unknown_issue_or_project_is_404_and_a_bad_body_422(

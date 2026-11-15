@@ -608,8 +608,11 @@ def _door_width(drawing: Drawing, rule: CodeRule, quantities: Quantities, pictur
     }
     scale = drawing.scale
     results: list[CheckResult] = []
+    left_out: list[tuple[str, list[RoomType]]] = []  # doors to the rule's rooms it does not check
     for item in (element for element in drawing.elements if element.class_ == door):
         if not _door_applies(item, rule, drawing, pages):
+            if types := _left_out(item, rule, drawing, pages):
+                left_out.append((_door_name(item, drawing, pages), types))
             continue
         mark = _element_mark(item, "subject", quantities)
         name = _door_name(item, drawing, pages)
@@ -671,6 +674,8 @@ def _door_width(drawing: Drawing, rule: CodeRule, quantities: Quantities, pictur
             )
         results.append(_result(rule, subject, status, width, why, [mark], mark.quantity))
     why = f"The drawing shows no {_doors_of(rule)}, so there is nothing to check."
+    if left_out:  # Tudor's QA B3: the doors are there, the rule leaves them out
+        why = _left_out_why(left_out)
     if not rule.applies_to.room_types or _rooms(drawing, rule):
         return results, why, "not_applicable"  # a room it names is there: its doors are not
     return results, *_nothing(drawing, rule, why)
@@ -682,13 +687,47 @@ def _door_applies(
     """A door meeting a room of the rule's room types (any door when it names none) and no room
     of its not_room_types: a door to a bedroom, not one to a closet or a sauna."""
     applies = rule.applies_to
+    met = _met(item, drawing, pages)
+    if applies.room_types and not met & set(applies.room_types):
+        return False
+    return not met & set(applies.not_room_types)
+
+
+def _met(item: Element, drawing: Drawing, pages: Mapping[int, Page]) -> set[str]:
+    """The room types a door meets ("outdoor" too for an outdoor room)."""
     met: set[str] = set()
     for room in drawing.rooms:
         if _meets(item, room, pages, drawing):
             met |= {room.type, "outdoor"} if room.outdoor else {room.type}
+    return met
+
+
+def _left_out(
+    item: Element, rule: CodeRule, drawing: Drawing, pages: Mapping[int, Page]
+) -> list[RoomType]:
+    """The not_room_types that keep a door to one of the rule's room types out of the check, in
+    the rule's order; empty for a door to none of its room types."""
+    applies, met = rule.applies_to, _met(item, drawing, pages)
     if applies.room_types and not met & set(applies.room_types):
-        return False
-    return not met & set(applies.not_room_types)
+        return []
+    return [kind for kind in applies.not_room_types if kind in met]
+
+
+def _left_out_why(doors: list[tuple[str, list[RoomType]]]) -> str:
+    """ "The door between the kitchen "Küche 1.01" and the bathroom "Bad 1.03" also opens into a
+    bathroom, and this rule leaves out such doors, ..." (at most 3 doors named)."""
+    names = [name for name, _ in doors[:3]]
+    named = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    if len(doors) > 3:
+        named = f"{', '.join(names)} and {len(doors) - 3} more"
+    kinds: list[RoomType] = list(dict.fromkeys(kind for _, types in doors for kind in types))
+    nouns = " or ".join(room_noun(kind) for kind in kinds)
+    article = "an" if nouns[:1] in "aeiou" else "a"
+    opens = "opens" if len(doors) == 1 else "open"
+    return (
+        f"{_cap(named)} also {opens} into {article} {nouns}, and this rule leaves out such "
+        "doors, so there is nothing to check."
+    )
 
 
 def _door_name(item: Element, drawing: Drawing, pages: Mapping[int, Page]) -> str:
