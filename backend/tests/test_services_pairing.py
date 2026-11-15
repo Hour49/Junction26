@@ -508,3 +508,51 @@ def test_the_confirmation_runs_wrong_pairings_are_refused() -> None:
         disciplines=("electrical",),
     )
     assert found == "another floor: 'Attic' against 'Roof'"
+
+
+# --- a sheet's own discipline (pic-sync 2026-11-15 04:46) ---------------------------------------
+# The plumbing lane took H-101, the heating sheet whose picture read as plumbing, because its wall
+# match (0.9) beat P-101's page-to-page match (0.7): pairing never compared discipline.
+
+H101 = "set/H-101 Floor 1 heating.png"
+P101 = "set/P-101 Floor 1 plumbing.png"
+
+
+def test_the_plumbing_lane_takes_p101_not_a_better_laid_heating_sheet() -> None:
+    heating_sheet = sheet("d2", name=H101, disciplines=("plumbing",))  # laid by rooms: 0.9
+    plumbing = sheet("d3", name=P101, disciplines=("plumbing",), rooms=(), size_m=(10.0, 10.0))
+    h, p = pair(PLAN, [heating_sheet, plumbing])
+    assert isinstance(p, Pairing) and p.score == 0.7, p  # page to page
+    assert "also offered" not in p.reason
+    assert h == "H-101 Floor 1 heating.png is a heating sheet by its name, not plumbing"
+
+
+def test_a_heating_sheet_alone_in_the_plumbing_lane_is_refused() -> None:
+    found = one(PLAN, sheet(name=H101, disciplines=("plumbing",)))
+    assert found == "H-101 Floor 1 heating.png is a heating sheet by its name, not plumbing"
+
+
+def test_a_sheets_discipline_from_its_number_letter_triage_or_file_name() -> None:
+    scan = {"name": "set/scan Floor 1.png", "disciplines": ("plumbing",)}
+    assert isinstance(one(PLAN, sheet(**scan)), Pairing)  # names none: today's ranking
+    for named in (
+        {"sheet_number": "H-101"},
+        {"discipline": "heating"},
+        {"name": "set/Heizung 1.png"},
+    ):
+        assert isinstance(one(PLAN, sheet(**(scan | named))), str), named
+    assert isinstance(one(PLAN, sheet(**scan, discipline="plumbing")), Pairing)
+    # M: mechanical, heating or ventilation
+    mech = sheet(name="set/M-101 Floor 1.png", disciplines=("heating",))
+    assert isinstance(one(PLAN, mech), Pairing)
+    assert isinstance(one(PLAN, mech.model_copy(update={"disciplines": ("electrical",)})), str)
+    # architecture is no lane: a services sheet triage called a floor plan by its kind is kept
+    assert isinstance(one(PLAN, sheet(**scan, discipline="architecture")), Pairing)
+
+
+def test_a_sheet_marking_two_lanes_is_kept_only_in_the_one_it_names() -> None:
+    both = sheet("d2", name=H101, disciplines=("heating", "plumbing"))
+    plumbing = sheet("d3", name=P101, disciplines=("plumbing",), rooms=(), size_m=(10.0, 10.0))
+    h, p = pair(PLAN, [both, plumbing])
+    assert isinstance(h, Pairing) and isinstance(p, Pairing)
+    assert "also offered" not in h.reason and "also offered" not in p.reason
