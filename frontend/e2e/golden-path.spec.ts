@@ -24,10 +24,10 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await page.getByRole('button', { name: 'Try the sample project' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
     pid = /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
-    await expect(filesThrough(page)).toHaveText('11 / 11', { timeout: 30_000 });
+    await expect(filesThrough(page)).toHaveText('12 / 12', { timeout: 30_000 });
     await expect(page.getByText('All 9 steps done').first()).toBeVisible();
     await expect(page.locator('dt', { hasText: 'Drawings ready' }).locator('+ dd')).toHaveText(
-      '5 / 5',
+      '6 / 6',
     );
     flatB = await drawingOf(page, pid, 'plans/flat-b.pdf');
     // GP-41: exactly Ingest, Chat, Documents (no Conflicts, Issues, Checks or Surveyor tab).
@@ -35,7 +35,7 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
       page.getByRole('banner').getByRole('navigation', { name: 'Views' }).getByRole('link'),
     ).toHaveText(['Ingest', 'Chat', /^Documents/]);
     const main = page.getByRole('main');
-    await expect(main.getByText(/^5 drawings ready\. Conflicts are below\./)).toBeVisible();
+    await expect(main.getByText(/^6 drawings ready\. Conflicts are below\./)).toBeVisible();
     // GP-42: the conflicts under the progress card; the sample's one conflict is settled by the rule.
     const conflicts = main.getByRole('region', { name: 'Conflicts' });
     await expect(
@@ -139,10 +139,10 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
       toAnswer ? new RegExp(`^Documents, ${String(toAnswer)} issues? to answer$`) : 'Documents',
     );
     await expect(main.getByRole('region', { name: 'Drawings' }).getByRole('listitem')).toHaveCount(
-      5,
+      6,
     );
     const files = main.getByRole('region', { name: 'Files' }).getByRole('link');
-    await expect(files).toHaveCount(11);
+    await expect(files).toHaveCount(12);
     // A note is shown, never answered.
     await expect(
       main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
@@ -377,8 +377,8 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(first).toHaveAttribute('aria-pressed', 'true');
     const panel = page.getByRole('region', { name: 'Selected workspace' });
     const stat = (label: string) => panel.locator('dt', { hasText: label }).locator('+ dd');
-    await expect(stat('Files')).toHaveText('11');
-    await expect(stat('Drawings')).toHaveText('5');
+    await expect(stat('Files')).toHaveText('12');
+    await expect(stat('Drawings')).toHaveText('6');
     // #131: the sample's one conflict (Küche · 1.01) is settled and signed off: nothing left to review.
     await expect(stat('To review')).toHaveText('0');
     // One sign-off per room, though #131 signs the room's twin row too (fe-shared counts by room).
