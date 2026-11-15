@@ -283,7 +283,9 @@ class Drawing(Frozen):
 
     @model_validator(mode="after")
     def _a_page_or_a_model(self) -> "Drawing":
-        if not self.pages and not self.model_objects:
+        # a model file's objects may be none of the plan's classes (a services model): [] is a
+        # model read, None a file that is no model (0004 amendment 2026-11-15)
+        if not self.pages and self.model_objects is None:
             raise ValueError("pages: a drawing has a page, unless it is a model file's objects")
         return self
 

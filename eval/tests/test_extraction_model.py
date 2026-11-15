@@ -332,6 +332,13 @@ def test_an_ifc_file_without_pages_carries_only_the_model() -> None:
     assert extraction.strict_v2_problems() == []  # no image, so no scale to ask for
 
 
+def test_an_ifc_file_without_pages_may_list_no_object_of_the_plans_classes() -> None:
+    """A services model (pipes, ducts, radiators) read as a model: [] is read and none of the
+    plan's classes, null is no model (decision 0004, amendment 2026-11-15)."""
+    extraction = Extraction.model_validate({**PAGELESS, "model_objects": []})
+    assert (extraction.pages, extraction.model_objects) == ([], [])
+
+
 def test_an_element_and_a_room_with_one_id_can_each_be_named_once() -> None:
     data = changed("rooms.0.id", "e1", MODEL)
     data["model_objects"][1]["element"] = "e1"  # the space names room e1, the door element e1
@@ -373,7 +380,6 @@ def test_bad_model_objects_are_refused(path: str, value: Any, message: str) -> N
     ("path", "value", "message"),
     [
         ("model_objects", None, "unless an .ifc file has model_objects"),
-        ("model_objects", [], "unless an .ifc file has model_objects"),
         ("file", "data/ifc_models/b1.pdf", "unless an .ifc file has model_objects"),
         ("plans", [{"id": "p1", "page": 1, "box": [0, 0, 1, 1]}], "empty plans, elements"),
         ("elements", [{"id": "e1", "class": "door", "page": 1, "box": [0, 0, 0.1, 0.1]}],

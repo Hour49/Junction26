@@ -731,6 +731,33 @@ def test_without_the_ifc_reader_the_sheet_is_read_alone_and_the_model_is_set_asi
     assert not (out / "demo" / "house.ifc.json").exists()
 
 
+def test_a_services_model_uploaded_alone_is_a_model_drawing_not_set_aside(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA B4 (2026-11-15): a heating model alone (DigitalHub's -hzg-v2.ifc) lists no wall, door,
+    window or space, so ingest set it aside with NO_SHEET and the chat had no drawing to ask.
+    Read and listing none of the plan's classes is not "nothing read": it is a model drawing
+    (its MEP elements are in its fact sheet and the services tools)."""
+    model = IfcFile()
+    ground = model.storey("EG")
+    model.element("IfcSpaceHeater", storey=ground, name="Radiator 1")
+    model.element("IfcPipeSegment", storey=ground, name="Pipe 1")
+    path = "data/services/heating.ifc"
+    (tmp_path / path).parent.mkdir(parents=True)
+    (tmp_path / path).write_bytes(model.ifc())
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "extraction"
+    report = build_pipeline(Settings(), tmp_path).ingest(
+        [path], ExtractionV1Writer(out, {path: "dev"})
+    )
+    assert report.set_aside == ()
+    assert [(sheet.file, sheet.route, sheet.source) for sheet in report.sheets] == [
+        (path, "bim", path)
+    ]
+    written = json.loads((out / "services" / "heating.ifc.json").read_text())
+    assert (written["pages"], written["model_objects"]) == ([], [])
+
+
 # a space's windows (windows.py)
 
 ROOM = (box(0, 0, 4, 3), 0.0, 2.5)  # a room's solid: 4 x 3 m, 2.5 m high, on the ground
