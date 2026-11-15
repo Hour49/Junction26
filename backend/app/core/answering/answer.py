@@ -376,16 +376,17 @@ class RoomByType:
             return parsed
         rooms = rooms_of_type(parsed, self._drawing)
         if len(rooms) > 1:  # "the living room" of two typed living: the one printed so (r11)
-            return self._printed_of(text, rooms) or parsed
+            return self._printed_of(text) or parsed
         if len(rooms) != 1:
             return parsed
         return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
 
-    def _printed_of(self, text: str, rooms: Sequence[Room]) -> Query | None:
-        """The area of the one of `rooms` whose printed label the question holds, when no other
-        room carries that label; None otherwise."""
+    def _printed_of(self, text: str) -> Query | None:
+        """The area of the one room whose printed label the question holds, when no other room
+        carries that label, whatever type the reader gave it ("the Multi-Purpose Hall", typed
+        other, among 11 rooms typed hall: R3-A5); None otherwise."""
         named = printed_rooms(self._parser, self._drawing, text)
-        if named is None or len(named[1]) != 1 or named[1][0] not in rooms:
+        if named is None or len(named[1]) != 1:
             return None
         for _, pattern in _printed_names(named[1][0]):
             # "the living room 1" names a room the label doesn't: refused, as before (review-415)

@@ -7,7 +7,7 @@ when the parser maps it back to that row's key, so asking a suggestion is never 
 """
 
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from typing import NamedTuple
 
@@ -1228,6 +1228,23 @@ def _noun_refusal(noun: str, drawing: Drawing) -> str:
             "(doors, windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms). Rooms "
             f"on this drawing are printed {label}: ask \"How many rooms labelled '{label}' are "
             'there?"'
+        )
+    # R3-A4: rooms printed "Secondary Classroom" hold "classrooms": named with their counts, never
+    # denied (the noun is still not counted from them: vocab-nouns line 3)
+    inside = re.compile(rf"\b(?:{'|'.join(map(re.escape, sorted(forms)))})\b")
+    holding = Counter(
+        " ".join(r.label.split())
+        for r in drawing.rooms
+        if r.label and inside.search(normalised(r.label))
+    )
+    if holding:
+        shown = ", ".join(f"{label} ({n})" for label, n in holding.most_common(LABELS_LISTED))
+        label = holding.most_common(1)[0][0]
+        return (
+            f"I don't count {noun} by that word: they are not one of the things the readers count "
+            "(doors, windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms). Rooms "
+            f'printed with it on this drawing: {shown}. Ask for each label, e.g. "How many rooms '
+            f"labelled '{label}' are there?\""
         )
     words = (
         f"I don't count {noun}: they are not one of the things the readers count (doors, "
