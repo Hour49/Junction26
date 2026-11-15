@@ -78,6 +78,9 @@ NUDGE = "Answer with final_answer."
 UNBACKED = "I could not back that answer with what the drawings say."
 # Levels only where measured (item 4): these tools' numbers are read from the drawing as it is,
 # with no confidence level; an answer whose number rests only on them says so, in no digits
+SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³", "ft2": " ft²", "ft": " ft"}
+# a lead that leaves the values to the answer card under it, as the prompt asks
+TO_THE_CARD = re.compile(r"\bbelow\b", re.I)
 SHOW_THEM = "Show me where they are"  # the "Show them on the plan" chip (contract F)
 AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
 UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
@@ -855,6 +858,8 @@ class _Run:
             # also asked another tool that reports conflicts keeps the model's (review-624 M1)
             kind = "answer"
             answers = self._answers(set(cited) | set(shown), kind)
+        if kind == "answer" and (values := self._values_said(text, answers)):
+            text = f"{text.rstrip()} {values}"
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
         evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
@@ -903,6 +908,27 @@ class _Run:
             ask = f"How big is {named[0]}?"
             out.append(Option(label=ask[:60], message=ask))
         return tuple(out[:3])
+
+    def _values_said(self, text: str, answers: tuple[Json, ...]) -> str | None:
+        """Each answering drawing's value of the ask_drawings answers the turn rests on, as the
+        rules lead says them ("Drawn plan 1: 156 m²."), when `text` points at the card (the
+        prompt's "The answer is below [ev_1].") and states no number of its own; None: it states
+        one, does not point at the card ("The first door is here [1]."), or nothing answered.
+        A drawing's name ("Drawn plan 5") is no number."""
+        if not TO_THE_CARD.search(text):
+            return None
+        for name in sorted(self.names.values(), key=len, reverse=True):
+            text = text.replace(name, " ")
+        if claims(re.sub(r"\[\d+\]", " ", text)):
+            return None
+        listed: list[Json] = []
+        for given in answers:
+            found: Json = _answered(given)
+            items: list[Any] = found.get("answered") or []
+            listed += [item for item in items if isinstance(item, dict)]
+        names = {file: self.names.get(drawing_id) or file for drawing_id, file in self._files()}
+        said = [f"{names.get(str(a['drawing']), a['drawing'])}: {said_value(a)}" for a in listed]
+        return f"{'; '.join(said[:12])}." if said else None
 
     def _unrated(self, text: str) -> str | None:
         """The sentence for a number in `text` that rests only on unrated places (an
@@ -1029,6 +1055,14 @@ def _asked(found: Json, evs: set[str], given: Json) -> Json:
         disputed += _evs(check.get("disputed"))
     ordered = sorted(evs, key=lambda ev: int(ev.removeprefix("ev_")))
     return {"answer": given, "evs": ordered, "marks": marks, "disputed": disputed}
+
+
+def said_value(answered: Json) -> str:
+    """An `answered` value as the card shows it: at most 2 decimals, in the drawing's unit."""
+    value = answered.get("answer")
+    if isinstance(value, float):
+        value = f"{value:.2f}".rstrip("0").rstrip(".")
+    return f"{value}{SAID_UNIT.get(str(answered.get('unit')), '')}"
 
 
 def _answered(found: Any) -> Any:

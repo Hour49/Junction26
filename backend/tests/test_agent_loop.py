@@ -449,6 +449,30 @@ def test_tudor_nit_a_measured_area_reaches_the_model_as_the_card_shows_it() -> N
     assert got.text == "The kitchen is 7.56 m²."  # 7.557 is no longer backed
 
 
+HALL = {"question": "What is the area of the Multi-Purpose Hall?", "parts": [
+    {"drawing_id": DRAWING, "name": "school.png", "answer": {
+        "answer": 156, "unit": "m2", "marks": [{"id": "m1", "page": 1, "box": [0.1, 0.1, 0.2, 0.2],
+                                               "label": "Multi-Purpose Hall"}]}}]}  # fmt: skip
+
+
+def test_an_answer_that_leaves_the_value_to_the_card_says_it() -> None:
+    """Live 2026-11-15 (T1 school): "What is the area of the Multi-Purpose Hall?" got "The area of
+    the Multi-Purpose Hall is shown below [1]." with no number: the prompt sends the values to the
+    card under the text. The server adds each answering drawing's value, as the rules lead says
+    it (R2-A6), when the text states none."""
+    below = "The area of the Multi-Purpose Hall is shown below [ev_1]."
+    model = Model(step(call("ask_drawings", question=HALL["question"])), final(text=below))
+    got = turn(model, Tools(ask_drawings=HALL))
+    assert got.text.startswith("The area of the Multi-Purpose Hall is shown below [1].")
+    assert got.text.endswith(": 156 m².") and got.answers, got.text
+
+
+def test_an_answer_that_states_its_value_is_left_as_it_is() -> None:
+    model = Model(step(call("ask_drawings", question=HALL["question"])),
+                  final(text="The Multi-Purpose Hall is 156 m² [ev_1]."))  # fmt: skip
+    assert turn(model, Tools(ask_drawings=HALL)).text == "The Multi-Purpose Hall is 156 m² [1]."
+
+
 def test_466_the_lead_cites_every_drawing_the_card_shows_though_parts_are_cut() -> None:
     """#466 (Mada's look-check): 4 drawings answered, the card showed 4, the rules lead said "The
     drawing answers this below [1].": the planner read the result cut for the model's window, where
