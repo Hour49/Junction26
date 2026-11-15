@@ -18,6 +18,10 @@ places of the printed values again, and a value it reads differently does not de
 
 `gross_net` (GROSS_NET_CHECK=on): a printed gross floor area is then checked against the rooms
 found summed (app/core/pipeline/gross_net.py).
+
+`door_units` (DOOR_PRIOR_UNITS=on): before the printed scale is applied, a detector door estimate
+on a sheet whose printed text is imperial takes a 3'-0" US door (app/core/pipeline/door_prior.py):
+only here is the sheet's text known.
 """
 
 import io
@@ -28,6 +32,7 @@ from PIL import Image
 
 from app.adapters.beside import beside
 from app.core.pipeline.gross_net import gross_net_checked
+from app.core.pipeline.door_prior import imperial_doors
 from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor, PrintedReader
 from app.core.pipeline.printed import PrintedSheet, trusted_dpi, with_printed
@@ -57,6 +62,7 @@ class PrintedScale:
         answers: bool = False,
         checker: PrintedChecker | None = None,
         gross_net: bool = False,
+        door_units: bool = False,
     ) -> None:
         self._inner = inner
         self._reader = reader
@@ -65,6 +71,7 @@ class PrintedScale:
         self._answers = answers  # PRINTED_TOTAL_ANSWERS: an exactly matching count is reported
         self._checker = checker  # PRINTED_OCR_CHECK=on; None: today's reading
         self._gross_net = gross_net
+        self._door_units = door_units  # DOOR_PRIOR_UNITS=on
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         if not sheet.pages:
@@ -82,6 +89,8 @@ class PrintedScale:
         if self._checker is not None:
             confirmations = confirm_printed(printed, self._checker.tokens(source, sheet, printed))
             printed, second = checked(printed, confirmations)
+        if self._door_units:
+            found = imperial_doors(found, printed, sheet.pages)
         result = with_printed(found, printed, sheet.pages, dpi)
         if second:
             result = result.model_copy(update={"printed": (*result.printed, *second)})
