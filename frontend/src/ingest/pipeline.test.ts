@@ -3,10 +3,13 @@ import { project } from '../api/fixtures';
 import type { FileStatus } from '../api';
 import {
   busySteps,
+  chipWords,
   foundLine,
+  groupReaders,
   headlineStep,
   lanes,
   readDrawings,
+  readerGroup,
   routeReaders,
   routeSummary,
   stepMatches,
@@ -101,6 +104,51 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
         'double check by 2 more readers (not counted)',
       ),
     ).toBe(true);
+  });
+
+  it('IN-120 groupReaders: the readers by what they do, groups in run order, each from the reader itself', () => {
+    const raster = routeReaders(DEMO_READERS).raster;
+    const shape = (g: ReturnType<typeof groupReaders>) => g.map((x) => [x.label, x.readers]);
+    expect(shape(groupReaders(raster))).toEqual([
+      ['Prepare', ['photo flattening', 'printed scale (Gemini)']],
+      ['Count', ['symbol detector', 'Gemini count decision', 'count arbiter', 'room reader']],
+      [
+        'Checks, not counted',
+        ['Gemini cross-check (not counted)', 'double check by 2 more readers (not counted)'],
+      ],
+      ['If few symbols', ['Gemini for sheets with few symbols']],
+      ['Scale', ['scale from door sizes']],
+    ]);
+    // the group comes from the reader, not its position: reversed, the same groups in the same order
+    expect(groupReaders([...raster].reverse()).map((g) => g.label)).toEqual(
+      groupReaders(raster).map((g) => g.label),
+    );
+    expect(shape(groupReaders(routeReaders(DEMO_READERS).vector))).toEqual([
+      ['Count', ['drawn-PDF reader', 'schedule tables']],
+      ['Checks, not counted', ['second count']],
+    ]);
+    // one group: no label
+    expect(shape(groupReaders(['IFC model reader']))).toEqual([[null, ['IFC model reader']]]);
+    // a step the server ran that no reader covers: last, "Also ran"
+    expect(shape(groupReaders(['IFC model reader'], ['Wall tracer']))).toEqual([
+      ['Count', ['IFC model reader']],
+      ['Also ran', ['Wall tracer']],
+    ]);
+    expect(groupReaders([])).toEqual([]);
+    // CARBON_READER=all reads every sheet: it counts
+    expect(readerGroup('Gemini reader')).toBe('count');
+  });
+
+  it('IN-120 chipWords leaves out what the group label says; with no label, the full name', () => {
+    expect(chipWords('Gemini cross-check (not counted)', true)).toBe('Gemini cross-check');
+    expect(chipWords('double check by 2 more readers (not counted)', true)).toBe(
+      'double check by 2 more readers',
+    );
+    expect(chipWords('Gemini for sheets with few symbols', true)).toBe('Gemini reader');
+    expect(chipWords('symbol detector', true)).toBe('symbol detector');
+    expect(chipWords('Gemini cross-check (not counted)', false)).toBe(
+      'Gemini cross-check (not counted)',
+    );
   });
 
   it('IN-119 triageReaders: what sorts every file before its route, from the recorded triage', () => {
