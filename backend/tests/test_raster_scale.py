@@ -235,3 +235,35 @@ def test_the_setting_is_part_of_the_ingest_reuse_key_only_when_on(tmp_path: Path
 
     assert "raster_scale" not in readers()  # the default keeps the keys it had before
     assert readers(raster_scale="priors")["raster_scale"] == "priors"
+
+
+def test_a_box_holding_two_or_more_other_room_boxes_is_not_one_rooms_outline() -> None:
+    """area-root (Tudor R3-G2, T2 USAF dorm): a reader boxed a whole wing row (303 m²) on top of
+    the 14 dorm rooms inside it, so the sheet's room sum (3,019 m²) passed its printed floor total
+    (2,468 m²). Same for an L-shaped corridor's box around the rooms in its bend (T1). Such a box
+    gets no area (never a smaller number); a room with one box inside (a closet) keeps its own."""
+    scale = Scale(status="scaled", m_per_unit=0.01, evidence=("scale_bar",))  # page 10 x 5 m
+    row = Room(id="row", type="other", page=1, box=(0.0, 0.0, 0.6, 0.4))
+    dorms = [Room(id=f"d{i}", type="bedroom", page=1, box=(0.2 * i, 0.0, 0.2 * (i + 1), 0.4))
+             for i in range(3)]  # fmt: skip
+    bedroom = Room(id="bed", type="bedroom", page=1, box=(0.7, 0.0, 1.0, 0.6))
+    closet = Room(id="closet", type="storage", page=1, box=(0.85, 0.0, 1.0, 0.15))
+    across = Room(id="across", type="other", page=1, box=(0.0, 0.5, 0.25, 1.0))
+    halfway = Room(id="half", type="other", page=1, box=(0.2, 0.3, 0.45, 0.7))  # 25% in the row
+    rooms = [row, *dorms, bedroom, closet, across, halfway]
+
+    refused = refused_boxes(rooms, scale, [PAGE])
+
+    assert list(refused) == ["row"]
+    assert refused["row"] == (
+        "its box holds 3 other rooms' boxes (a wing, a group, or a room wrapped around them), "
+        "so it is not one room's outline"
+    )
+    got, notes = rooms_with_areas(rooms, scale, [PAGE])
+    assert got[0].area_m2 is None and AREA_REFUSED in got[0].attrs
+    assert all(room.area_m2 is not None for room in got[1:])
+    assert notes == [f"room area: row not measured, {refused['row']}"]
+    printed = row.model_copy(update={"area_m2": 24.0})  # an area the reader read stays
+    assert "row" not in refused_boxes([printed, *dorms], scale, [PAGE])
+    assert list(refused_boxes([row, *dorms[:2]], scale, [PAGE])) == ["row"]  # two: a group
+    assert refused_boxes([row, *dorms[:1]], scale, [PAGE]) == {}  # one box inside: a closet

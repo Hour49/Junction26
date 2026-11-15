@@ -179,8 +179,8 @@ def test_the_extractor_reads_rooms_only() -> None:
 def test_an_area_printed_in_the_label_is_the_rooms_area_and_a_number_without_m2_is_not() -> None:
     # label-area (fable-rooms item 2): the printed area wins over the box estimate
     labels = ["MH 9,7 m²", "K 12.5 m2", "WC 1.3M2", "OH9.7m²", "KPH 1.01", "MH 2,6", "ET 0 m²"]
-    found = extract(FakeModel(reply(*(room("other", t, [0, 0, 10 + i, 10]) for i, t in
-                                      enumerate(labels)))))  # fmt: skip
+    boxes = [room("other", t, [0, 20 * i, 10 + i, 20 * i + 10]) for i, t in enumerate(labels)]
+    found = extract(FakeModel(reply(*boxes)))  # side by side: none holds another
     assert [r.area_m2 for r in found.rooms] == [9.7, 12.5, 1.3, None, None, None, None]
     assert (found.rooms[0].area_status, found.rooms[0].area_source) == ("exact", "printed")
     assert found.rooms[4].area_status is None
