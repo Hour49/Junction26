@@ -274,7 +274,7 @@ def test_a_scanned_heating_plan_answers_counts_and_lengths_low_with_marks(
     assert len(radiators.evidence) == 6 and radiators.evidence[0].file == "heating.png"
     assert "confidence is Low" in (radiators.explanation or "")
     said = str(metres.answer)
-    length = float(said.split("Total length: ")[1].split(" m")[0])
+    length = float(said.split("HEATING: ")[1].split(" m")[0])  # the system the question names
     assert abs(length - 5.0) <= 0.15, said  # AC-12's 3%
     assert metres.sure is False and len(metres.evidence) == 1  # the run's one piece
     assert "DN20" in str(dn20.answer), dn20
