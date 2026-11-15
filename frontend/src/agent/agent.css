@@ -395,6 +395,9 @@
   padding-right: 24px;
   box-sizing: border-box;
 }
+.ag-nosplit {
+  display: contents; /* no box: the chat lays out as without a wrapper, under the one parent it keeps */
+}
 .ag-split > .en-chat {
   width: 100%;
   margin: 0;
