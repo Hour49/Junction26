@@ -14,8 +14,11 @@ so the same group uploaded again is reused instead of read again, unless the run
 import hashlib
 import logging
 import queue
+import threading
 from collections.abc import Callable, Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import wait as wait_all
+from pathlib import PurePosixPath
 
 from app.core.drawing.model import Drawing, Page
 from app.core.ingest.judge import judge, pipeline_stages, reading_flags, with_sheet_flag
@@ -65,21 +68,7 @@ class Groups:
     ) -> None:
         """`saved` is called after each group, on this thread, so the stored status follows the
         run. A group that raises does not stop the others; the first error is raised at the end."""
-        sources = {
-            path: [drawings[found] for found in readers.finder.sources(path) if found in drawings]
-            for path in drawings
-        }
-        groups = [
-            (members, asked)
-            for members in group(drawings.values(), sources)
-            if (
-                asked := [
-                    file
-                    for file in members.files
-                    if file.path in drawings and key_of(file) == members.key
-                ]
-            )
-        ]
+        groups, sources = _grouped(drawings, readers)
         # Every file's group is known now: publish it before the first group is read, so a poll
         # counts the drawings to expect from the groups, not from the files (QA R4-a-1)
         for members, asked in groups:
@@ -108,6 +97,10 @@ class Groups:
                 saved()
         if errors:
             raise errors[0]
+
+    def feed(self, run: Run, readers: Readers, saved: Callable[[], None]) -> "Feed":
+        """`run` for an upload whose files are still being identified: see `Feed`."""
+        return Feed(self._group, self._in_flight, run, readers, saved)
 
     def _group(
         self, run: Run, readers: Readers, members: DrawingGroup, asked: list[DrawingFile]
@@ -272,6 +265,180 @@ class Groups:
                       output=count(len(outcome.takeoff), "quantity", "quantities"))  # fmt: skip
         run.set(file.path, takeoff=outcome.takeoff, drawing_id=key if drawing is not None else None)
         _finish(run, file.path, outcome)
+
+
+Found = tuple[DrawingGroup, list[DrawingFile]]  # a group and the files it is read for
+
+
+def _grouped(
+    drawings: Mapping[str, DrawingFile], readers: Readers
+) -> tuple[list[Found], dict[str, list[DrawingFile]]]:
+    """Stage 4: the groups of `drawings` (in their order) with the files each is read for, and
+    the sources found for each file."""
+    sources = {
+        path: [drawings[found] for found in readers.finder.sources(path) if found in drawings]
+        for path in drawings
+    }
+    groups = [
+        (members, asked)
+        for members in group(drawings.values(), sources)
+        if (
+            asked := [
+                file
+                for file in members.files
+                if file.path in drawings and key_of(file) == members.key
+            ]
+        )
+    ]
+    return groups, sources
+
+
+def _key(path: str) -> str:
+    """The group a file at `path` would be in by its own name (`key_of`)."""
+    return str(PurePosixPath(path).with_suffix(""))
+
+
+class Feed:
+    """Stages 4-10 while the upload's files are still being identified: a group is read as soon
+    as every file that could join it is identified, not once the whole upload is (codecheck,
+    2026-11-15: the 10 cold files' groups all waited 17.4 s for the slowest check). What could
+    join a group: a file of the same name (`key_of`), a file found as a source of one of its
+    files, a later page of a PDF (`<name>#p<n>`, a file of its own). So each group is the group
+    `Groups.run` reads. Groups that share a file, a source or a content are read one after
+    another in upload order, the later one when the earlier has ended, as `run`'s lanes are.
+
+    A group also waits for an earlier copy of one of its files, so the copy read first is the
+    first one uploaded, whichever check ends first.
+
+    The caller (IngestService._unpack) says each file to identify (`pending`, in upload order),
+    then what it is (`identified`: its drawing, or None), then `unpacked` when the upload holds
+    no more files; `wait` then waits for the groups and raises the first error."""
+
+    def __init__(
+        self,
+        read: Callable[[Run, Readers, DrawingGroup, list[DrawingFile]], None],
+        in_flight: int,
+        run: Run,
+        readers: Readers,
+        saved: Callable[[], None],
+    ) -> None:
+        """`read`: one group's stages 4-10 (`Groups._group`); `in_flight`: groups read at once."""
+        self._read, self._run, self._readers, self._saved = read, run, readers, saved
+        self._order: dict[str, int] = {}  # by path: its place in the upload
+        self._pending: set[str] = set()
+        self._content: dict[str, str] = {}  # by path: its sha256
+        self._drawings: dict[str, DrawingFile] = {}
+        self._unpacked = False
+        self._started: set[str] = set()  # group keys
+        self._after: dict[str, Future[None]] = {}  # a path or content -> its latest group's read
+        self._sources: dict[str, Sequence[str]] = {}  # by path, the finder's answer
+        self._finished: queue.SimpleQueue[Exception | None] = queue.SimpleQueue()
+        self._reads = 0
+        self._pool = ThreadPoolExecutor(in_flight, thread_name_prefix="group")
+        self._lock = threading.Lock()
+
+    def pending(self, path: str, sha256: str) -> None:
+        with self._lock:
+            self._order.setdefault(path, len(self._order))
+            self._content[path] = sha256
+            self._pending.add(path)
+
+    def identified(self, path: str, drawing: DrawingFile | None) -> None:
+        with self._lock:
+            self._pending.discard(path)
+            if drawing is not None:
+                self._drawings[path] = drawing
+            self._release()
+
+    def unpacked(self) -> None:
+        with self._lock:
+            self._unpacked = True
+            self._release()
+
+    def wait(self) -> None:
+        """Every group read, `saved` called after each; the first error raised after them all."""
+        with self._lock:
+            assert self._unpacked and not self._pending, "wait() before every file was identified"
+            reads = self._reads
+        errors: list[Exception] = []
+        for _ in range(reads):  # as each group ends, so the stored status follows the run
+            if (error := self._finished.get()) is not None:
+                errors.append(error)
+            self._saved()
+        self.close()
+        if errors:
+            raise errors[0]
+
+    def close(self) -> None:
+        """Wait for the groups already started (the upload failed before every file was in)."""
+        self._pool.shutdown(wait=True)
+
+    def _sources_of(self, path: str) -> Sequence[str]:
+        if path not in self._sources:
+            self._sources[path] = self._readers.finder.sources(path)
+        return self._sources[path]
+
+    def _waits_for(self, path: str, members: DrawingGroup) -> bool:
+        """Whether `members`'s group waits for the file at `path`, not identified yet: it could
+        join the group, or it is an earlier copy of one of its files (read first, as in upload
+        order, so the later copy is the one that reuses its reading)."""
+        if self._could_join(path, members):
+            return True
+        return any(
+            self._content[path] == file.sha256 and self._order[path] < self._order[file.path]
+            for file in members.files
+            if file.path in self._order
+        )
+
+    def _could_join(self, path: str, members: DrawingGroup) -> bool:
+        """Whether the file at `path`, not identified yet, could be in `members`'s group."""
+        if _key(path) == members.key:
+            return True
+        if any(path in self._sources_of(file.path) for file in members.files):
+            return True
+        return path.lower().endswith(".pdf") and members.key.startswith(f"{_key(path)}#p")
+
+    def _release(self) -> None:
+        """Start every group no file still to identify could join (under the lock)."""
+        if not self._unpacked:
+            return
+        drawings = dict(sorted(self._drawings.items(), key=lambda item: self._order[item[0]]))
+        groups, _ = _grouped(drawings, self._readers)
+        ready = [
+            (members, asked)
+            for members, asked in groups
+            if members.key not in self._started
+            and not any(self._waits_for(path, members) for path in self._pending)
+        ]
+        if not ready:
+            return
+        for members, asked in ready:  # published before it is read (QA R4-a-1)
+            for file in asked:
+                self._run.set(file.path, group=members.key)
+        self._saved()
+        for found in ready:
+            self._start(found)
+
+    def _start(self, found: Found) -> None:
+        members, asked = found
+        files = members.files  # with the sources found for them (`group`)
+        keys = {f"path {file.path}" for file in files} | {f"sha256 {file.sha256}" for file in files}
+        earlier = {self._after[key] for key in keys if key in self._after}
+
+        def read() -> None:
+            wait_all(earlier)  # submitted before this one, so already running or done
+            try:
+                self._read(self._run, self._readers, members, asked)
+            except Exception as error:  # the run fails, after the other groups
+                self._finished.put(error)
+            else:
+                self._finished.put(None)
+
+        started = self._pool.submit(read)
+        for key in keys:
+            self._after[key] = started
+        self._started.add(members.key)
+        self._reads += 1
 
 
 def _lanes[G: tuple[DrawingGroup, list[DrawingFile]]](

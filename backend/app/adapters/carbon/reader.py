@@ -190,8 +190,9 @@ class CarbonReader:
         before = cost.mark()
         name = contract.cache_name(kind, pixel_digest(image))
         path = None if self._cache is None else self._cache / name
-        shared = path if kind == "page" else None  # the printed-scale reader asks it too
-        with flight(shared):
+        # one ask per reply at a time: the printed-scale reader asks the page too, and CarbonThings
+        # and CarbonChecked read a large image at once, each tile (review-422 Should 2)
+        with flight(path):
             check = contract.check_page if kind == "page" else contract.check_tile
             if path is not None and path.is_file():
                 try:

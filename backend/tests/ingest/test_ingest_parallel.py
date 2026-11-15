@@ -14,6 +14,7 @@ from conftest import MakeService
 from PIL import Image
 from test_ingest_carbon import FakeCarbon, carbon_settings, page_form, page_image, tile_form
 
+from app.adapters.ahead import AheadDecisions, AheadExtractor, DecisionsReading
 from app.adapters.archive import FileProbe
 from app.adapters.carbon import reader as carbon
 from app.adapters.one_at_a_time import OneAtATime
@@ -326,6 +327,35 @@ def test_the_composite_s_local_reading_is_wrapped_one_at_a_time(
     client = switch._carbon._reader._model  # pyright: ignore[reportPrivateUsage]
     assert client._in_flight is carbon._in_flight(5)  # pyright: ignore[reportPrivateUsage]
     assert switch._carbon._reader._workers == 7  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.parametrize("photo", ["", "plans=one-plan"])
+def test_the_composite_s_gemini_calls_are_asked_before_its_slot(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, photo: str
+) -> None:
+    """The Decisions and Gemini rooms readers are started by the slot (ahead.py), the same
+    objects the composite asks; with RASTER_PHOTO_COMPONENTS (a photo's composite may not ask
+    them) nothing is."""
+    settings = carbon_settings(
+        monkeypatch,
+        tmp_path,
+        RASTER_COMPONENTS="plans=decisions-s1536:one-plan,rooms=gemini",
+        RASTER_PHOTO_COMPONENTS=photo,
+    )
+    local = build_pipeline(settings, tmp_path).extractors["raster"]._inner  # pyright: ignore[reportAttributeAccessIssue]
+    while not isinstance(local, OneAtATime):
+        local = local._inner  # pyright: ignore[reportAttributeAccessIssue]
+    started = local._ahead  # pyright: ignore[reportPrivateUsage]
+    if photo:
+        assert started == ()
+        return
+    early, rooms = sorted(started, key=lambda call: type(call).__name__)
+    assert isinstance(early, AheadDecisions) and isinstance(rooms, AheadExtractor)
+    composite = local._inner  # pyright: ignore[reportPrivateUsage]
+    counted = composite._plans.reader  # pyright: ignore[reportAttributeAccessIssue]
+    assert isinstance(counted, DecisionsReading)
+    assert counted._inner._reader is early  # pyright: ignore[reportPrivateUsage, reportAttributeAccessIssue]
+    assert composite._rooms.reader is rooms  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class Meeting:

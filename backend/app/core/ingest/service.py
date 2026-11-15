@@ -13,7 +13,7 @@ import logging
 import threading
 from collections import deque
 from collections.abc import Callable, Mapping
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import PurePosixPath
 
 from app.core import cost
@@ -28,7 +28,7 @@ from app.core.errors import (
 from app.core.evidence.pictures import EvidenceSteps
 from app.core.evidence.ports import EvidenceIndex
 from app.core.evidence.step import file_evidence
-from app.core.ingest.groups import Groups
+from app.core.ingest.groups import Feed, Groups
 from app.core.ingest.model import (
     DRAWING_KINDS,
     SECOND_PATH,
@@ -405,13 +405,14 @@ class IngestService:
         run.set_project(state="running", started_at=self._now())
         try:
             frames: dict[str, Normalised] = {}
-            drawings = self._unpack(run, name, data, frames)
-            self._save(run)
-            if drawings:
-                groups = Groups(
-                    self._store, self._clock, self._names, frames, self._groups_in_flight
-                )
-                groups.run(run, self._readers(run.id), drawings, lambda: self._save(run))
+            groups = Groups(self._store, self._clock, self._names, frames, self._groups_in_flight)
+            feed = groups.feed(run, self._readers(run.id), lambda: self._save(run))
+            try:  # each group is read once its files are identified, not after the upload's
+                self._unpack(run, name, data, frames, feed)
+                self._save(run)
+                feed.wait()
+            finally:
+                feed.close()
         except DomainError as failure:
             state, error = "failed", str(failure)
         except Exception as failure:  # a bug: the project says so instead of hanging
@@ -433,27 +434,39 @@ class IngestService:
         logger.info("ingest: project %s %s in %.0f ms", run.id, state, ms)
 
     def _unpack(
-        self, run: Run, name: str, data: bytes, frames: dict[str, Normalised]
-    ) -> dict[str, DrawingFile]:
-        """Stages 1-3 for every file. Returns the drawing files by path, for the pipeline."""
-        drawings: dict[str, DrawingFile] = {}
-        first_of: dict[str, str] = {}  # sha256 -> the first path with that content
+        self, run: Run, name: str, data: bytes, frames: dict[str, Normalised], feed: Feed
+    ) -> None:
+        """Stages 1-3 for every file, each told to `feed` (pending, then identified) for the
+        pipeline, which reads a group as soon as its files are identified."""
+        first_of: dict[str, str] = {}  # sha256 -> the first path with that content, as unpacked
         digests: dict[str, str] = {}  # path -> sha256 of the file read there
         entries = self._unpacker.entries(name, data)
-        # Probed ahead in a bounded window, identified in upload order.
+        # Probed ahead in a bounded window, each identified once its probe has ended (the first
+        # in upload order of those that have), so a slow check holds up only its own file.
         probing: deque[tuple[str, bytes, Future[tuple[Probed, float, float, Triaged]]]] = deque()
 
         def identify_next() -> None:
-            path, read, probed = probing.popleft()
+            ended = [at for at, (_, _, probed) in enumerate(probing) if probed.done()]
+            if not ended:
+                wait([probed for _, _, probed in probing], return_when=FIRST_COMPLETED)
+                ended = [at for at, (_, _, probed) in enumerate(probing) if probed.done()]
+            path, read, probed = probing[ended[0]]
+            del probing[ended[0]]
             found = self._identify(run, path, read, probed, first_of, frames)
-            if found is not None:
-                drawings[path] = found
-            if probed.exception() is None:  # a failed probe was set aside by `_identify`
-                if (cut := probed.result()[0].cut) is not None:
-                    run.cut[path] = cut
-                for page in probed.result()[0].pages:
-                    run.split.add(path)
-                    self._page_file(run, path, page, first_of, frames, drawings)
+            pages = probed.result()[0].pages if probed.exception() is None else ()
+            if probed.exception() is None and (cut := probed.result()[0].cut) is not None:
+                run.cut[path] = cut
+            later: list[str] = []  # a failed probe was set aside by `_identify`
+            for page in pages:  # files of their own, known before the PDF's group may start
+                run.split.add(path)
+                if not run.has(named := page_path(path, page.number)):
+                    feed.pending(named, hashlib.sha256(page.data).hexdigest())
+                    later.append(named)
+            feed.identified(path, found)
+            for page in pages:
+                found = self._page_file(run, path, page, first_of, frames)
+                if (named := page_path(path, page.number)) in later:
+                    feed.identified(named, found)
 
         probes = max(PROBES_IN_FLIGHT, self._groups_in_flight)  # as many files as groups at once
         with ThreadPoolExecutor(probes, thread_name_prefix="probe") as pool:
@@ -486,12 +499,15 @@ class IngestService:
                 self._store.put_file(run.id, entry.path, entry.data)
                 run.stage(entry.path, "unpack", f"path checked, {entry.size} bytes",
                           unpacked + self._ms(started), output=entry.path)  # fmt: skip
+                sha256 = hashlib.sha256(entry.data).hexdigest()
+                first_of.setdefault(sha256, entry.path)
+                feed.pending(entry.path, sha256)
                 probing.append((entry.path, entry.data, pool.submit(self._probed, entry.data)))
                 if len(probing) >= probes:
                     identify_next()
+            feed.unpacked()
             while probing:
                 identify_next()
-        return drawings
 
     def _page_file(
         self,
@@ -500,10 +516,10 @@ class IngestService:
         page: LaterPage,
         first_of: dict[str, str],
         frames: dict[str, Normalised],
-        drawings: dict[str, DrawingFile],
-    ) -> None:
+    ) -> DrawingFile | None:
         """A later drawn page of the PDF at `path`, unpacked as a file of its own
-        (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload."""
+        (`<name>#p<n>.pdf`, its own group) and identified like any file of the upload: its
+        drawing, or None."""
         started = self._clock()
         named = page_path(path, page.number)
         if run.has(named):  # set aside at a free name, not over the record of the file there
@@ -511,16 +527,14 @@ class IngestService:
             run.add(Entry(path=named, size=len(page.data), refused=SECOND_PATH))
             run.stage(named, "unpack", "refused", 0.0, failure=SECOND_PATH)
             run.finish(named, "set_aside", SECOND_PATH)
-            return
+            return None
         run.add(Entry(path=named, size=len(page.data), data=page.data))
         self._store.put_file(run.id, named, page.data)
         run.stage(named, "unpack", f"page {page.number} of {path}, as a PDF of its own",
                   self._ms(started), output=named)  # fmt: skip
         probed: Future[tuple[Probed, float, float, Triaged]] = Future()
         probed.set_result(self._probed(page.data))
-        found = self._identify(run, named, page.data, probed, first_of, frames)
-        if found is not None:
-            drawings[named] = found
+        return self._identify(run, named, page.data, probed, first_of, frames)
 
     def _probed(self, data: bytes) -> tuple[Probed, float, float, Triaged]:
         """Stage 3's probe, then triage's classifier and describer (decision 0010), their time
