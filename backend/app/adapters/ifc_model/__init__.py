@@ -25,6 +25,7 @@ It also passes on what the sheet's own PDF says a second time (its scale bar), a
 has no model goes to that counter alone.
 """
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -183,13 +184,18 @@ def _listed(model: Model, drawn: Mapping[str, str]) -> tuple[ModelObject, ...]:
     )
 
 
+# A room listed again as its services copy ("Bedroom 1 MEP Space", number "A202-M"; review-527)
+MEP_TWIN = re.compile(r"\bMEP Space\b", re.IGNORECASE)
+
+
 def _typed(class_: ModelClass, space: IfcObject) -> dict[str, Attr]:
     """A space's `room_type`: what its names say it is, as a drawn space's label gives a room its
     type (`room_type`), so a model asked on its own counts its bedrooms; nothing when no room word
     names it (qa-a, 2026-11-15: the vitoria .ifc's "4IZQ-HAB1" is a bedroom)."""
-    if class_ != "space":
+    names = " ".join(name for name in (space.long_name, space.name) if name)
+    if class_ != "space" or MEP_TWIN.search(names):  # a services copy of a room (duplex-mep)
         return {}
-    kind = room_type(" ".join(name for name in (space.long_name, space.name) if name))
+    kind = room_type(names)
     return {} if kind == "other" else {"room_type": kind}
 
 

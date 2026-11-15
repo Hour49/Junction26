@@ -66,6 +66,7 @@ from app.core.pipeline.rules import (
     MODEL_COUNT,
     MODEL_MEASURED,
     MODEL_QUANTITY,
+    MODEL_SPACE_TYPES,
     MODEL_SPACES,
     ROOM_AREA,
     ROOM_NAMES,
@@ -350,14 +351,10 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
         if not drawing.pages:  # the model file itself: its spaces of each room type (qa-a)
-            typed: dict[str, list[ModelObject]] = defaultdict(list)
-            for item in items:
-                if item.class_ == SPACE and isinstance(kind := item.attrs.get("room_type"), str):
-                    typed[kind].append(item)
-            for kind, same in sorted(typed.items()):
+            for kind, same in sorted(_typed_spaces(items).items()):
                 for model in (True, False):
                     key = quantity_key("count", f"room:{kind}", storey=storey, model=model)
-                    _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
+                    _put(found, key, "count", len(same), marks(same), MODEL_SPACE_TYPES)
     if not drawing.pages:  # the model file itself: its spaces' areas over every storey too
         spaces = [item for item in objects if item.class_ == SPACE]
         for model in (True, False):
@@ -374,6 +371,24 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
                 _put(found, key, measure, total, marks(same), MODEL_QUANTITY)
         spaces = [item for item in items if item.class_ == SPACE]
         _add_model_spaces(found, storey, spaces, rooms, marks, scale)
+
+
+def _typed_spaces(items: Iterable[ModelObject]) -> dict[str, list[ModelObject]]:
+    """The spaces of `items` by their `room_type` (the IFC reader's), a space listed again with
+    the same number, name and storey once (review-527: duplex-m lists every room twice)."""
+    typed: dict[str, list[ModelObject]] = defaultdict(list)
+    seen: set[tuple[str, str | None, str | None]] = set()
+    for item in items:
+        kind = item.attrs.get("room_type")
+        if item.class_ != SPACE or not isinstance(kind, str):
+            continue
+        if item.name:
+            twin = (item.name, item.long_name, item.storey)
+            if twin in seen:
+                continue
+            seen.add(twin)
+        typed[kind].append(item)
+    return typed
 
 
 def _add_model_spaces(

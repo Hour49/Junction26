@@ -25,8 +25,9 @@ from app.adapters.ifc_model import (
     IfcModelExtractor,
     IfcModels,
     IfcSecondCounter,
+    _typed,
 )
-from app.adapters.ifc_model.objects import read_model
+from app.adapters.ifc_model.objects import IfcObject, read_model
 from app.adapters.ifc_model.svg import read_svg
 from app.adapters.question_templates import TemplateParser
 from app.adapters.vector_pdf.ifc_render import ROOM_WORDS, room_type
@@ -525,6 +526,21 @@ def test_a_listed_space_has_its_solids_footprint_and_the_room_it_is_drawn_as() -
     )
     assert (spaces["Void"].storey, spaces["Void"].element) == ("Level 2", "r3")
     assert spaces["Corridor"].element == "r2"
+
+
+def test_a_space_s_room_type_is_its_names_and_an_mep_twin_gets_none() -> None:
+    """review-527: duplex-mep lists each room again as "<name> MEP Space" (number "-M"): a
+    services copy of the room, not a second bedroom."""
+
+    def space(name: str, long_name: str | None) -> IfcObject:
+        return IfcObject(guid="g", source_class="IfcSpace", storey="L1", parts=(), name=name,
+                         long_name=long_name, quantities={})  # fmt: skip
+
+    assert _typed("space", space("A202", "Bedroom 1")) == {"room_type": "bedroom"}
+    assert _typed("space", space("4IZQ-HAB1", None)) == {"room_type": "bedroom"}
+    assert _typed("space", space("A202-M", "Bedroom 1 MEP Space")) == {}
+    assert _typed("space", space("A101", "Foyer")) == {"room_type": "hall"}
+    assert _typed("space", space("X", "Void")) == {}
 
 
 def test_every_drawn_item_is_named_by_exactly_one_listed_object() -> None:

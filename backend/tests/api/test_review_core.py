@@ -1217,6 +1217,54 @@ def test_a_model_file_counts_its_spaces_of_a_room_type() -> None:
     assert asked("How many rooms are there?", drawing).answer.answer == 5  # unchanged
 
 
+BIM_POLICY = CheckPolicy(
+    thresholds={},
+    routes=frozenset({"bim"}),
+    route_levels={"bim": "high"},
+    route_counts={"bim": Counts(units=372, exact=372)},
+    counts={"high": Counts(units=10, exact=10), "medium": Counts(units=10, exact=9),
+            "low": Counts(units=10, exact=5)},
+)  # fmt: skip
+
+
+def test_a_room_type_count_from_a_model_s_space_names_is_never_sure() -> None:
+    """review-527 M1: the bim route is certified (High) on IFC sheets, and the typed-space counts
+    of a model file rode on it, though the type is a word table's guess at the space's name
+    (the clinic's "FUNDUS CAMERA ROOM" is a bedroom by "camera"). They are Low, unrated, and ask;
+    the room count stays as the model gives it."""
+    drawing = model_file(
+        {**space("m1", "L1", "A202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
+        {**space("m2", "L1", "B202", "Bedroom 1", 12.0), "attrs": {"room_type": "bedroom"}},
+    )
+
+    def on_bim(text: str) -> Asked:
+        return ask(text, drawing, parser=TemplateParser(), clock=lambda: 0.0, prior=NoPrior(),
+                   state=ReviewState(), check=BIM_POLICY, route="bim")  # fmt: skip
+
+    bedrooms = on_bim("How many bedrooms are there?")
+    assert bedrooms.answer.answer == 2
+    assert bedrooms.answer.sure is False
+    assert bedrooms.level is not None
+    assert (bedrooms.level.level, bedrooms.level.basis) == ("low", "unrated")
+    assert bedrooms.check is not None  # Low always asks
+    rooms = on_bim("How many rooms are there?")
+    assert rooms.answer.sure is True and rooms.level is not None and rooms.level.level == "high"
+
+
+def test_a_model_space_listed_twice_is_one_room_of_its_type() -> None:
+    """review-527: duplex-m-rooms-and-spaces lists each room twice (same number, name and storey),
+    so its bedrooms came out 8 for 4. A space whose number, name and storey repeat another's is
+    counted once by type; spaces that only share a name are not twins."""
+    twin = {"attrs": {"room_type": "bedroom"}}
+    drawing = model_file(
+        {**space("m1", "L2", "A202", "Bedroom 1", 12.0), **twin},
+        {**space("m2", "L2", "A202", "Bedroom 1", 12.0), **twin},
+        {**space("m3", "L2", "A203", "Bedroom 2", 11.0), **twin},
+        {**space("m4", "L2", "B203", "Bedroom 2", 11.0), **twin},
+    )
+    assert asked("How many bedrooms are there?", drawing).answer.answer == 3
+
+
 def test_which_of_two_spaces_of_a_model_file_is_larger() -> None:
     """After #479: "Which is larger, the Living Room (B102) or the Kitchen?" on the duplex .ifc
     alone was refused ("the area of ... isn't known"): the two-room form asked only the rooms a

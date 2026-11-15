@@ -135,6 +135,10 @@ RULES: dict[str, str] = {
 }
 SUGGESTIONS = 6
 FACTS_LEVEL = "Low confidence: read from the file's fact sheet, not yet measured." + ASK["low"]
+MODEL_TYPES_LEVEL = (
+    "Low confidence: counted from the model's space names by the word table drawn room labels "
+    "are typed with, not checked against the model's rooms." + ASK["low"]
+)
 FACTS_REASON = (
     "Please double-check this answer against the file: it is read from its fact sheet, and such "
     "answers are not yet measured."
@@ -429,6 +433,15 @@ def ask(
                 level = carbon_checked(
                     level, drawing.carbon_check, carbon, answer.answer, ladder=ladder
                 )
+        if (
+            found is not None
+            and found.rule == rule_pack.MODEL_SPACE_TYPES.id
+            and shown.signed is None
+            and shown.settled is None
+        ):  # typed from the space's names by a word table, never measured (review-527 M1)
+            sure = False
+            if level is not None:
+                level = Level(level="low", basis="unrated", text=MODEL_TYPES_LEVEL)
         if level is not None and found is not None and found.partial is not None:
             # a sum missing rooms is Low whatever its score, in its own words (partial totals)
             said = "Low confidence: " + partial_text(found.partial) + ASK["low"]
