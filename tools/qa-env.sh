@@ -66,7 +66,11 @@ DEMO_ENV=(EXTRACTOR_RASTER=composite RECTIFIER=r3 ANSWER_PRIOR=dev DECISIONS_CON
   IFC_FACTS_CACHE=../data/cache/facts  # all-on-2: fact sheets stored where the deploy's precompute_facts writes them (the env's data/cache/facts), so no IFC question starts a build
   SHEET_DISCIPLINE=gemini  # demo/discipline-on (Bogdan, 2026-11-15 04:30, #562): Carbon names each sheet's discipline, 65/70 right vs 36/70 for rules on services/structural, 0 triage changes on the demo files
   DISCIPLINE_PICTURES=gemini  # demo/discipline-on (Bogdan, 2026-11-15 04:30, #579): Gemini reads a sheet's symbols and legend, held-out P .95 R .92, counts within 10% 46/54, about 0.03 USD a page
-  USER_SCALE=true)  # all-on-2: the agent chat takes a scale from its user for a drawing without one (#432: never sure, the proof names the source)
+  USER_SCALE=true  # all-on-2: the agent chat takes a scale from its user for a drawing without one (#432: never sure, the proof names the source)
+  DOOR_PRIOR_BOXES=on  # acc-settings (#681): a sheet counted only from Carbon's door boxes estimates its scale at Carbon's box width (1.069 m); golden v2 dev: no answer or extraction changed, 0 USD
+  LABEL_SCALE=on  # acc-settings (#675): areas printed in 3+ room labels give a raster sheet's scale when the door estimate is missing or disagrees; golden v2 dev: no answer or extraction changed, 0 USD
+  PRINTED_OCR_CHECK=on  # acc-settings (#678): local PP-OCR (CPU, no model call) reads the printed facts again, a differing value gets a note; golden v2 dev: no answer or extraction changed, 0 USD
+  SCALE_SIGNATURES=bar)  # acc-settings (#677): a bar and its printed ratio a known print slip apart keep the bar, the ratio as a conflict value; golden v2 dev: no answer or extraction changed, 0 USD
 SHARED=(models stoa cache demo external)  # data/ folders the export reads from the repo
 MEMORY=8G
 WAIT_S=180
