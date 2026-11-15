@@ -1496,6 +1496,11 @@ export interface components {
         DrawingEntry: {
             /** Credit */
             credit: string | null;
+            /**
+             * Drawable
+             * @default false
+             */
+            drawable: boolean;
             /** Drawing Id */
             drawing_id: string;
             /** File */
@@ -1506,6 +1511,8 @@ export interface components {
             kind: string | null;
             /** Name */
             name: string;
+            /** Not Drawable Reason */
+            not_drawable_reason?: string | null;
             /** Other Renderings */
             other_renderings: components["schemas"]["Rendering"][];
             /** Route */

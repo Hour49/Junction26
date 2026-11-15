@@ -12,7 +12,7 @@ import {
   projectAsk,
 } from '../api/fixtures';
 import { mockApi, never, reply } from '../test/mockApi';
-import { AskBox } from './AskBox';
+import { AskBox, PHOTO_ACCEPT } from './AskBox';
 import { ProjectChat } from './ProjectChat';
 
 const PID = project.id;
@@ -197,7 +197,7 @@ async function answered(question: string) {
 const line = (turn: HTMLElement, name: string) =>
   within(turn).getByText(name, { selector: '.en-part-name' }).closest('li') as HTMLElement;
 
-it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row with Show it on <name>, its reference', async () => {
+it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row, its reference, no Show it on link (ui-bugs 8)', async () => {
   open(oneAnswers);
   const turn = await answered('How many doors are there?');
   // CH-39: the lead is the value with its noun only, no total_note
@@ -205,8 +205,7 @@ it('CH-4 (amended by CH-32/35) one drawing answers: the total, the note, one row
   expect(within(turn).queryByText(oneAnswers.total_note)).toBeNull();
   const li = line(turn, label(flatA));
   expect(li.textContent).toContain(`${label(flatA)}: 2`);
-  const show = within(li).getByRole('link', { name: `Show it on ${label(flatA)}` });
-  expect(show.getAttribute('href')).toMatch(`#/p/${PID}/d/${flatA.drawing_id}/engineer?ask=`);
+  expect(within(turn).queryByRole('link', { name: /^Show it on/ })).toBeNull();
   expect(
     within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
   ).toHaveLength(1);
@@ -228,20 +227,22 @@ it('CH-47 an arriving answer: the turn to its top, then its first row just above
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-it('CH-5 project_ask.json: two drawings answer, no total, its note, then a line per drawing', async () => {
+it('CH-5 (ui-bugs 6) project_ask.json: two drawings answer, no total, its note, the line of the shown drawing; a reference swaps it', async () => {
   open(projectAsk);
   const turn = await answered('How many doors are there?');
   expect(within(turn).getByText(projectAsk.why_no_total ?? 'x')).toBeTruthy();
   expect(within(turn).queryByTestId('answer-value')).toBeNull();
-  for (const p of [flatA, flatB]) {
-    expect(line(turn, label(p)).textContent).toContain(`${label(p)}: 2`);
-    expect(
-      within(line(turn, label(p))).getByRole('link', { name: `Show it on ${label(p)}` }),
-    ).toBeTruthy();
-  }
-  expect(
-    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem'),
-  ).toHaveLength(2);
+  const perDrawing = () =>
+    within(within(turn).getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem');
+  expect(line(turn, label(flatA)).textContent).toContain(`${label(flatA)}: 2`);
+  expect(perDrawing()).toHaveLength(1);
+  fireEvent.click(
+    within(within(turn).getByRole('list', { name: 'References' })).getAllByRole(
+      'button',
+    )[1] as HTMLElement,
+  );
+  expect(line(turn, label(flatB)).textContent).toContain(`${label(flatB)}: 2`);
+  expect(perDrawing()).toHaveLength(1);
 });
 
 it('CH-13 (CH-42) the total in total_unit with its total_level, never a Sure badge', async () => {
@@ -272,6 +273,48 @@ it('CH-6 nobody answers: one refusal for the project; its questions ask every dr
     { question: 'What colour is the roof?' },
     { question: q },
   ]);
+});
+
+type RefusalCode = NonNullable<ProjectAnswer['parts'][number]['answer']['refusal']>['code'];
+/** Drawing i of project.json refusing with `code`. */
+const refuse = (i: number, code: RefusalCode): ProjectAnswer['parts'][number] => {
+  const id = ids[i] ?? '';
+  const refusal = answerRefused.refusal as NonNullable<typeof answerRefused.refusal>;
+  return {
+    ...refusedPart,
+    drawing_id: id,
+    name: `drawing-${String(i)}.png`,
+    answer: { ...answerRefused, drawing_id: id, refusal: { ...refusal, code } },
+  };
+};
+
+it('K7 nobody answers: each drawing is named with what it lacks; more than 3 are grouped by reason', async () => {
+  const two = [refuse(0, 'no-scale'), refuse(2, 'no-reader')];
+  open({ ...noneAnswers, parts: two });
+  await ask('What colour is the roof?');
+  expect((await screen.findByTestId('refused-drawings')).textContent).toBe(
+    `Not used: ${label(two[0] as (typeof two)[number])} has no scale; ` +
+      `${label(two[1] as (typeof two)[number])} gives no reliable number for it.`,
+  );
+  const turn = screen.getByTestId('refused-drawings').parentElement as HTMLElement;
+  expect(turn.className).toBe('en-turn-group'); // one element carries .en-turn's styles, not two nested
+  expect(turn.querySelector('.en-turn')).toBe(turn.firstElementChild);
+  expect(turn.closest('.en-turn')).toBeNull();
+  cleanup();
+  const five = [
+    refuse(0, 'no-scale'),
+    refuse(1, 'not-in-drawing'),
+    refuse(2, 'no-scale'),
+    refuse(3, 'no-scale'),
+    refuse(4, 'no-drawing'),
+  ];
+  open({ ...noneAnswers, parts: five });
+  await ask('What colour is the roof?');
+  const [a, b, c, d, e] = five.map(label);
+  expect((await screen.findByTestId('refused-drawings')).textContent).toBe(
+    `Not used. Has no scale: ${String(a)}, ${String(c)}, ${String(d)}. ` +
+      `Doesn't show it: ${String(b)}. Has no drawing model: ${String(e)}.`,
+  );
 });
 
 it.each([500, 409])(
@@ -330,24 +373,6 @@ it('CH-15 nothing asked for an empty ?ask=, a project 404, or no askable drawing
   expect([...posts(api), ...posts(failed), ...posts(empty)]).toEqual([]);
 });
 
-it('CH-16 Show it on <name> opens that drawing asking this question; ?pack= is kept (QA R4b-1)', async () => {
-  const q = 'How many doors are there?';
-  const href = (name: string) =>
-    within(line(screen.getByRole('article', { name: q }), name))
-      .getByRole('link', { name: `Show it on ${name}` })
-      .getAttribute('href') ?? '';
-  open(projectAsk);
-  await answered(q);
-  expect(href(label(flatA))).toBe(
-    `#/p/${PID}/d/${flatA.drawing_id}/engineer?${new URLSearchParams({ ask: q }).toString()}`,
-  );
-  cleanup();
-  open(projectAsk, project, drawingRoutes(), 'pack=fi');
-  await answered(q);
-  const query = new URLSearchParams(href(label(flatB)).split('?')[1]);
-  expect([query.get('ask'), query.get('pack')]).toEqual([q, 'fi']);
-});
-
 // Adding a photo (board #203): the new file f4, its drawing askable once read.
 const ADD = `POST /api/projects/${PID}/files`;
 const PHOTO = 'plan.jpg';
@@ -400,11 +425,11 @@ async function pick() {
 const slow = { timeout: 4000 };
 const READ = `${PHOTO} is read: you can ask about it.`; // the why (what was read) is behind "Why"
 
-it('CH-17 the chat has "Add a photo" for png and jpeg; the ask bar without onAttach has none', async () => {
+it('CH-17 the chat has "Add a photo" for png, jpeg, tiff and webp (#425); the ask bar without onAttach has none', async () => {
   openWithPhoto(added, [withPhoto('ready')]);
   render(<ProjectChat projectId={PID} />);
   expect(await screen.findByRole('button', { name: 'Add a photo' })).toBeTruthy();
-  expect(screen.getByTestId('photo-input').getAttribute('accept')).toBe('image/png,image/jpeg');
+  expect(screen.getByTestId('photo-input').getAttribute('accept')).toBe(PHOTO_ACCEPT);
   cleanup();
   render(<AskBox file="x" busy={false} asked={0} onAsk={() => undefined} />);
   expect(screen.queryByRole('button', { name: 'Add a photo' })).toBeNull();
@@ -566,6 +591,11 @@ it('CH-22 on a phone the ask bar says "Ask about the drawings" so the paperclip 
     cleanup();
     render(<AskBox file="plan.pdf" busy={false} asked={0} onAsk={() => undefined} />);
     expect(screen.getByPlaceholderText('Ask about plan.pdf')).toBeTruthy(); // no `short`: unchanged
+    cleanup();
+    // the pen's placeholder is shorter on a phone, so it is not clipped beside the pen
+    const pen = { on: true, can: true, onToggle: () => undefined };
+    render(<AskBox file="plan.pdf" busy={false} asked={0} onAsk={() => undefined} pen={pen} />);
+    expect(screen.getByPlaceholderText('Click or drag on the plan')).toBeTruthy();
   } finally {
     vi.unstubAllGlobals();
   }

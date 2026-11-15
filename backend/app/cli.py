@@ -165,6 +165,12 @@ def run_services_build(args: argparse.Namespace, settings: Settings) -> None:
     )
 
 
+def run_facts_build(args: argparse.Namespace, settings: Settings) -> None:
+    from app.adapters.ifc_model.facts_store import store_facts  # ifcopenshell only when asked
+
+    print(f"stored as {store_facts(args.cache, args.model.name, args.model.read_bytes())}")
+
+
 def run_disc_render(args: argparse.Namespace, settings: Settings) -> None:
     from app.adapters.ifc_model import plan_picture  # ifcopenshell only when asked
 
@@ -220,6 +226,13 @@ def parser() -> argparse.ArgumentParser:
     build.add_argument("--architecture", type=Path, help="the same building's architecture (.ifc)")
     build.add_argument("--cache", type=Path, required=True, help="where models are kept")
     build.set_defaults(run=run_services_build)
+    facts = commands.add_parser("facts", help="IFC fact sheets").add_subparsers(
+        dest="step", required=True
+    )
+    fill = facts.add_parser("build", help="build an IFC model's fact sheet into IFC_FACTS_CACHE")
+    fill.add_argument("--model", type=Path, required=True, help="a building model (.ifc)")
+    fill.add_argument("--cache", type=Path, required=True, help="the IFC_FACTS_CACHE folder")
+    fill.set_defaults(run=run_facts_build)
     bench = commands.add_parser("disc-bench", help="discipline picture bench").add_subparsers(
         dest="step", required=True
     )

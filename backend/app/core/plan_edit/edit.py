@@ -262,9 +262,15 @@ def _lost(
 
 
 def _items(page: PlanPage, wid: str, strip: BaseGeometry, label: str) -> list[Item]:
+    """A strip in several pieces names each piece's part, as a room cut in two does."""
+    pieces = parts(strip)
     return [
-        Item(id=wid if n == 1 else f"{wid}.{n}", polygon=page.ring(piece), label=label)
-        for n, piece in enumerate(parts(strip), start=1)
+        Item(
+            id=wid if n == 1 else f"{wid}.{n}",
+            polygon=page.ring(piece),
+            label=label if len(pieces) == 1 else f"{label} (part {n})",
+        )
+        for n, piece in enumerate(pieces, start=1)
     ]
 
 

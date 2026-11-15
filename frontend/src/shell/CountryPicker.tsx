@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { rulePacksOf } from '../api';
 import { useInfo } from './info';
+import { Tip } from '@/components/ui/tip';
 import { withPack } from './route';
+import { TIPS } from './tips';
 
 /** By ISO country code ("FI"); none for others. */
 function Flag({ country }: { country: string }) {
@@ -68,7 +70,7 @@ const Check = () => (
 
 /** The building-rule pack the project screens pre-check against (#139, shared.md "Country picker"). The choice lives
  * in the URL (`?pack=`): choosing writes it, nothing is stored or sent. Only on project routes, only with packs. */
-export function CountryPicker({ pack }: { pack: string | null }) {
+export function CountryPicker({ projectId, pack }: { projectId: string; pack: string | null }) {
   const { info } = useInfo();
   const packs = rulePacksOf(info);
   const [open, setOpen] = useState(false);
@@ -84,14 +86,16 @@ export function CountryPicker({ pack }: { pack: string | null }) {
   return (
     <div className="country">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          className="header-pill country-button v-press"
-          aria-label={`Country rules: ${chosen ? chosen.country_name : 'none'}`}
-        >
-          {chosen && <Flag country={chosen.country} />}
-          <span className="country-name">{chosen ? chosen.country_name : 'No checks'}</span>
-          <Chevron />
-        </PopoverTrigger>
+        <Tip text={TIPS.country}>
+          <PopoverTrigger
+            className="header-pill country-button v-press"
+            aria-label={`Country rules: ${chosen ? chosen.country_name : 'none'}`}
+          >
+            {chosen && <Flag country={chosen.country} />}
+            <span className="country-name">{chosen ? chosen.country_name : 'No checks'}</span>
+            <Chevron />
+          </PopoverTrigger>
+        </Tip>
         <PopoverContent
           role="group"
           aria-label="Building rules the agent follows"
@@ -99,9 +103,6 @@ export function CountryPicker({ pack }: { pack: string | null }) {
           sideOffset={8}
           className="w-[300px] max-w-[calc(100vw-32px)] rounded-[18px] border-0 p-2 shadow-[var(--v-shadow)]"
         >
-          <p className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
-            Building rules the agent follows
-          </p>
           <Button
             variant="ghost"
             className={option}
@@ -133,10 +134,28 @@ export function CountryPicker({ pack }: { pack: string | null }) {
               {p.id === chosen?.id && <Check />}
             </Button>
           ))}
-          {/* The pack's note, verbatim (#142): a pre-check, not a certificate. */}
-          <p className="px-2.5 py-1.5 text-xs text-muted-foreground">
-            {chosen ? chosen.note : 'Choose a country to pre-check its building rules.'}
-          </p>
+          {chosen && (
+            <Button
+              asChild
+              variant="secondary"
+              size="pill"
+              className="v-press mx-2.5 my-1.5 no-underline"
+            >
+              <a
+                href={withPack(`#/p/${projectId}/checks`, chosen.id)}
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                Building construction rules
+              </a>
+            </Button>
+          )}
+          {!chosen && (
+            <p className="px-2.5 py-1.5 text-xs text-muted-foreground">
+              Choose a country to pre-check its building rules.
+            </p>
+          )}
         </PopoverContent>
       </Popover>
     </div>

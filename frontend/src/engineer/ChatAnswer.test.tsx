@@ -1,10 +1,17 @@
 // chat.md "Demo parity": the chat's answer card (CH-30..CH-35), PageViewer mocked to read what it gets.
 import type { ComponentProps } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import type { ProjectAnswer, ProjectView } from '../api';
 import { drawingLabel } from '../api';
-import { answer, answerArea, answerResolved, project, projectAsk } from '../api/fixtures';
+import {
+  answer,
+  answerArea,
+  answerConflict,
+  answerResolved,
+  project,
+  projectAsk,
+} from '../api/fixtures';
 import { routeLabel } from '../ingest/ingest';
 import type { PageViewer } from '../viewer/PageViewer';
 import { ChatAnswer } from './ChatAnswer';
@@ -18,6 +25,12 @@ vi.mock('../viewer/PageViewer', () => ({
     viewers.push(props);
     return <div data-testid="viewer">{props.file}</div>;
   },
+}));
+
+vi.mock('../model3d/ModelDialog', () => ({
+  ModelDialog: (props: { label: string }) => (
+    <div role="dialog" aria-label={`3D: ${props.label}`} />
+  ),
 }));
 
 type Part = ProjectAnswer['parts'][number];
@@ -57,7 +70,23 @@ const refs = () =>
   within(screen.getByRole('list', { name: 'References' })).getAllByRole('listitem');
 const rows = () =>
   within(screen.getByRole('list', { name: 'Per drawing' })).getAllByRole('listitem');
+/** The one card shown (ui-bugs 6) after choosing reference n. */
+const rowAt = (n: number) => {
+  fireEvent.click(within(refs()[n] as HTMLElement).getByRole('button'));
+  expect(rows()).toHaveLength(1);
+  return rows()[0] as HTMLElement;
+};
 const figure = () => screen.getByRole('figure', { name: /^Reference / });
+
+beforeAll(() => {
+  // Radix (the shared Tip) measures with ResizeObserver, which jsdom lacks; set directly, since mockApi's
+  // cleanup unstubs vi.stubGlobal after each test.
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+});
 
 afterEach(() => {
   cleanup();
@@ -68,7 +97,7 @@ it('CH-30 a sheet that is not a floor plan comes first, in the rows and the refe
   show(projectAsk, projectWith('other_drawing'));
   expect(rows()[0]?.textContent).toContain(LB);
   expect(refs()[0]?.textContent).toContain(LB);
-  expect(rows()[1]?.textContent).toContain(LA);
+  expect(rowAt(1).textContent).toContain(LA);
   cleanup();
   show(projectAsk, projectWith(null));
   expect(rows()[0]?.textContent).toContain(LA);
@@ -101,6 +130,38 @@ it('CH-31 the lead: why_no_total without a total, never the refused drawings; a 
   expect(document.body.textContent).not.toContain('no reader');
 });
 
+it('K7 the drawings that refused are named with what each lacks, under the card', () => {
+  show();
+  const line = screen.getByTestId('refused-drawings');
+  expect(line.textContent).toBe('Not used: ground-floor.png gives no reliable number for it.');
+  cleanup();
+  show({ ...projectAsk, parts: projectAsk.parts.slice(0, 2) });
+  expect(screen.queryByTestId('refused-drawings')).toBeNull();
+});
+
+it('K7 more than 3 refused drawings are grouped by reason, in the order the API sends them', () => {
+  const refusal = projectAsk.parts[2]?.answer.refusal as NonNullable<Part['answer']['refusal']>;
+  const refuse = (id: string, name: string, code: typeof refusal.code): Part => ({
+    ...flatA,
+    drawing_id: id,
+    name,
+    answer: { ...flatA.answer, refusal: { ...refusal, code } },
+  });
+  show({
+    ...projectAsk,
+    parts: [
+      flatA,
+      refuse('r1', 'a.png', 'no-scale'),
+      refuse('r2', 'b.png', 'not-in-drawing'),
+      refuse('r3', 'c.png', 'no-scale'),
+      refuse('r4', 'd.ifc', 'no-drawing'),
+    ],
+  });
+  expect(screen.getByTestId('refused-drawings').textContent).toBe(
+    "Not used. Has no scale: a.png, c.png. Doesn't show it: b.png. Has no drawing model: d.ifc.",
+  );
+});
+
 it('CH-32 reference 1 is drawn large by the viewer with its marks and legend; no credit', () => {
   show();
   expect(figure().getAttribute('aria-label')).toBe('Reference 1 of 2');
@@ -113,18 +174,27 @@ it('CH-32 reference 1 is drawn large by the viewer with its marks and legend; no
   expect(document.body.textContent).not.toMatch(/Credit/);
 });
 
-it('CH-33 the arrows go through the references with a page and wrap; one reference has none', () => {
+it('CH-33 ui-bugs 4: no arrows on the image; the references switch it and sit under it in the figure', () => {
   show();
-  fireEvent.click(screen.getByRole('button', { name: 'Next reference' }));
+  expect(screen.queryByRole('button', { name: /reference$/ })).toBeNull();
+  expect(figure().contains(screen.getByRole('list', { name: 'References' }))).toBe(true);
+  expect(
+    screen
+      .getByTestId('viewer')
+      .compareDocumentPosition(screen.getByRole('list', { name: 'References' })),
+  ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  // W2: the one drawing card sits between the image and the references, in the same column
+  const card = screen.getByRole('list', { name: 'Per drawing' });
+  expect(figure().contains(card)).toBe(true);
+  expect(screen.getByTestId('viewer').compareDocumentPosition(card)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  expect(card.compareDocumentPosition(screen.getByRole('list', { name: 'References' }))).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
   expect(figure().getAttribute('aria-label')).toBe('Reference 2 of 2');
   expect(viewers.at(-1)?.file).toBe(flatB.name);
-  fireEvent.click(screen.getByRole('button', { name: 'Next reference' }));
-  expect(figure().getAttribute('aria-label')).toBe('Reference 1 of 2');
-  fireEvent.click(screen.getByRole('button', { name: 'Previous reference' }));
-  expect(figure().getAttribute('aria-label')).toBe('Reference 2 of 2');
-  cleanup();
-  show({ ...projectAsk, parts: [flatA] });
-  expect(screen.queryByRole('button', { name: /reference$/ })).toBeNull();
 });
 
 it('CH-34 the references: numbered buttons, kind and route in words, the current one pressed', () => {
@@ -141,21 +211,27 @@ it('CH-34 the references: numbered buttons, kind and route in words, the current
   expect(b2.getAttribute('aria-pressed')).toBe('true');
   expect(figure().getAttribute('aria-label')).toBe('Reference 2 of 2');
   cleanup();
-  // a building model has no page: plain text, "no preview", skipped by the arrows
+  // ui-bugs 6: a building model has no page: "no preview", and chosen it shows its card and a placeholder
   show({ ...projectAsk, parts: [flatA, { ...flatB, answer: { ...flatB.answer, pages: [] } }] });
   const model = refs()[1] as HTMLElement;
-  expect(within(model).queryByRole('button')).toBeNull();
   expect(model.textContent).toContain('no preview');
-  expect(figure().getAttribute('aria-label')).toBe('Reference 1 of 1');
+  expect(figure().getAttribute('aria-label')).toBe('Reference 1 of 2');
+  expect(screen.queryByText('No preview for this file')).toBeNull();
+  const n = viewers.length;
+  expect(rowAt(1).textContent).toContain(LB);
+  expect(screen.getByText('No preview for this file')).toBeTruthy();
+  expect(screen.queryByTestId('viewer')).toBeNull();
+  expect(viewers.length).toBe(n);
 });
 
-it('CH-35 one row per answering drawing with its value, status and Show it on; nothing for a refused one', () => {
+it('CH-35 ui-bugs 6/8: only the card of the shown drawing, its value and status, no Show it on link; nothing for a refused one', () => {
   show();
-  expect(rows()).toHaveLength(2);
+  expect(rows()).toHaveLength(1);
   const [a] = rows() as [HTMLElement];
   expect(a.textContent).toContain(`${LA}: 2`);
   expect(a.textContent).toContain('One method');
-  expect(within(a).getByRole('link', { name: `Show it on ${LA}` })).toBeTruthy();
+  expect(screen.queryByRole('link', { name: /^Show it on/ })).toBeNull();
+  expect(rowAt(1).textContent).toContain(`${LB}:`);
   const refused = projectAsk.parts[2]?.name ?? '';
   expect(document.body.textContent).not.toContain(refused);
 });
@@ -186,8 +262,6 @@ it('CH-39 the viewer is bare; each row is one sentence with the value in bold, o
   const [a] = rows() as [HTMLElement];
   expect(a.querySelector('strong')?.textContent).toMatch(/^2/);
   expect(a.querySelectorAll('.v-pill')).toHaveLength(1);
-  const link = within(a).getByRole('link', { name: `Show it on ${LA}` });
-  expect(link.classList.contains('en-show')).toBe(true);
   cleanup();
   show({
     ...projectAsk,
@@ -204,7 +278,6 @@ it('CH-40 drawings by their plain name (#224), files by their path; a part not i
   show();
   const [a] = rows() as [HTMLElement];
   expect(a.textContent).toContain('Drawn plan 1: 2 doors');
-  expect(within(a).getByRole('link', { name: 'Show it on Drawn plan 1' })).toBeTruthy();
   // CH-41: the figure's title and the references by the drawing's name too
   expect(refs()[0]?.textContent).toContain('Drawn plan 1');
   expect(refs()[0]?.textContent).not.toContain(flatA.name);
@@ -214,7 +287,7 @@ it('CH-40 drawings by their plain name (#224), files by their path; a part not i
   expect(rows()[0]?.textContent).toContain('flat-a.pdf: 2 doors');
 });
 
-it('CH-42 one pill per row: Signed off, else the level with its text, else the status; the total level', () => {
+it('CH-42 one pill per row: Signed off, else the level with its text, else the status; the total level', async () => {
   const signed = { ...flatB.answer, level: answerHigh.level };
   if (!signed.quantity) throw new Error('flat-b has a quantity');
   signed.quantity = { ...signed.quantity, status: 'signed' };
@@ -225,11 +298,14 @@ it('CH-42 one pill per row: Signed off, else the level with its text, else the s
       { ...flatB, answer: signed },
     ],
   });
-  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  const a = rows()[0] as HTMLElement;
   const pill = a.querySelector('.v-pill') as HTMLElement;
   expect(pill.textContent).toBe('Medium confidence');
-  expect(pill.getAttribute('title')).toBe(answerMedium.level?.text);
-  expect(b.querySelector('.v-pill')?.textContent).toBe('Signed off');
+  expect(pill.getAttribute('title')).toBeNull();
+  // ui-bugs 7c: the level's sentence is the shared Tip's, on focus or hover
+  (pill.parentElement as HTMLElement).focus();
+  expect((await screen.findByRole('tooltip')).textContent).toBe(answerMedium.level?.text);
+  expect(rowAt(1).querySelector('.v-pill')?.textContent).toBe('Signed off');
   expect(document.body.textContent).not.toMatch(/Sure/);
   cleanup();
   show({ ...projectAsk, total: 4, total_unit: 'count', total_level: 'low', total_sure: true });
@@ -250,11 +326,11 @@ it('RS-23 the chat rows show the pick, cannot_tell and resolver_note lines as th
       { ...flatB, answer: { ...flatB.answer, resolved: null, resolver_note: 'Carbon counted 3.' } },
     ],
   });
-  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  const a = rows()[0] as HTMLElement;
   expect(a.querySelector('.en-resolved')?.textContent).toContain(
     `Picked by Carbon: 2. ${picked.reason}`,
   );
-  expect(b.querySelector('.en-resolvernote')?.textContent).toBe('Carbon counted 3.');
+  expect(rowAt(1).querySelector('.en-resolvernote')?.textContent).toBe('Carbon counted 3.');
   expect(document.body.textContent).not.toMatch(/gemini-4-carbon/);
   cleanup();
   show({
@@ -269,7 +345,7 @@ it('RS-23 the chat rows show the pick, cannot_tell and resolver_note lines as th
   expect(rows()[0]?.querySelector('.en-resolved')?.textContent).toContain('Carbon could not tell');
 });
 
-it('CH-43 each row prints why under its value: check.reason, else level.text, else nothing', () => {
+it('CH-43 ui-bugs 7: check.reason stays under the value; the confidence sentence only behind "Why?"', () => {
   show({
     ...projectAsk,
     parts: [
@@ -277,12 +353,23 @@ it('CH-43 each row prints why under its value: check.reason, else level.text, el
       { ...flatB, answer: { ...answerHigh, check: null } },
     ],
   });
-  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  const a = rows()[0] as HTMLElement;
   expect(a.querySelector('.en-why')?.textContent).toBe(answerMedium.check?.reason);
-  expect(b.querySelector('.en-why')?.textContent).toBe(answerHigh.level?.text);
+  const b = rowAt(1);
+  expect(b.querySelector('.en-why')).toBeNull();
+  const text = answerHigh.level?.text ?? 'x';
+  const toggle = within(b).getByRole('button', { name: 'Why?' });
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(within(b).getByText(text).hidden).toBe(true);
+  fireEvent.click(toggle);
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(within(b).getByText(text).hidden).toBe(false);
+  fireEvent.click(toggle);
+  expect(within(b).getByText(text).hidden).toBe(true);
   cleanup();
   show({ ...projectAsk, parts: [{ ...flatA, answer: { ...answer, check: null, level: null } }] });
   expect(rows()[0]?.querySelector('.en-why')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Why?' })).toBeNull();
 });
 
 it('CH-44 an estimated value adds "about <n> <unit>, <estimate>" under the row', () => {
@@ -301,11 +388,11 @@ it('CH-44 an estimated value adds "about <n> <unit>, <estimate>" under the row',
       { ...flatB, answer: answerArea },
     ],
   });
-  const [a, b] = rows() as [HTMLElement, HTMLElement];
+  const a = rows()[0] as HTMLElement;
   expect(a.querySelector('.en-estimate')?.textContent).toBe(
     'about 180 m², the scale estimated from the doors',
   );
-  expect(b.querySelector('.en-estimate')).toBeNull();
+  expect(rowAt(1).querySelector('.en-estimate')).toBeNull();
 });
 
 it('CH-46 a check reason that already gives the estimate is the one line: no estimate line under it', () => {
@@ -381,27 +468,72 @@ it('CH-48 a printed-table answer (no quantity) still shows its own answer', () =
   expect(row.textContent).toContain(`${LA}: 12`);
 });
 
-it('CH-49 a partial room total: one tag beside that row value with the counts, none on the other rows', () => {
+it('CH-49 a partial room total: one tag beside that row value with the counts, none on the other rows', async () => {
   const partial = {
     ...flatA,
     answer: { ...flatA.answer, partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] },
   };
   show({ ...projectAsk, parts: [partial, ...projectAsk.parts.slice(1)] });
-  const tags = rows().flatMap((row) => [...row.querySelectorAll('.en-partial')]);
+  const tags = [...(rows()[0] as HTMLElement).querySelectorAll('.en-partial')];
+  expect(rowAt(1).querySelector('.en-partial')).toBeNull();
+  fireEvent.click(within(refs()[0] as HTMLElement).getByRole('button'));
   expect(
     tags.map((t) => [t.textContent, t.getAttribute('aria-label'), t.getAttribute('title')]),
   ).toEqual([
     [
       'May be partial',
       'May be partial: sums 7 rooms; 2 not in it',
-      'May be partial: sums 7 rooms; 2 not in it',
+      null, // the words are the shared Tip's now, not a native title
     ],
   ]);
-  expect(rows()[0]?.contains(tags[0] ?? null)).toBe(true);
   expect(rows()[0]?.textContent).not.toContain('Sauna'); // the names are the explanation's to give
+  (rows()[0]?.querySelector('.en-partial')?.closest('[tabindex]') as HTMLElement).focus();
+  expect(
+    (await screen.findAllByText('May be partial: sums 7 rooms; 2 not in it')).length,
+  ).toBeGreaterThan(0);
 });
 
 it('CH-49 nothing when no part is partial', () => {
   show();
   expect(document.querySelector('.en-partial')).toBeNull();
+});
+
+it('W3 the round "3D" button only when the shown drawing has a model; a 2D drawing names the building model', () => {
+  const ready = { state: 'ready' as const, reason: '', elements: 6 };
+  const base = projectWith(null);
+  const [d0, d1] = base.drawings as [ProjectView['drawings'][0], ProjectView['drawings'][0]];
+  const proj = { ...base, drawings: [d0, { ...d1, kind: 'ifc' as const }] };
+  const bim = {
+    ...flatB,
+    answer: { ...flatB.answer, pages: [] },
+    model_file_id: 'f8',
+    model_3d: ready,
+  };
+  show({ ...projectAsk, parts: [flatA, bim] }, proj);
+  // the shown 2D plan has no model of its own: no button, though the answer has a building model
+  expect(screen.queryByRole('button', { name: /in 3D/ })).toBeNull();
+  fireEvent.click(within(refs()[1] as HTMLElement).getByRole('button'));
+  const open = screen.getByRole('button', { name: `View in 3D: ${LB}` });
+  expect(open.textContent).toBe('3D');
+  expect(open.closest('.en-chathead')).toBeTruthy();
+  fireEvent.click(open);
+  expect(screen.getByRole('dialog', { name: `3D: ${LB}` })).toBeTruthy();
+  cleanup();
+  // a 2D drawing linked to the building's model: the button says it is the building model
+  const linked = { ...flatA, model_file_id: 'f8', model_3d: ready };
+  show({ ...projectAsk, parts: [linked, bim] }, proj);
+  expect(screen.getByRole('button', { name: 'View the building model in 3D' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^View in 3D/ })).toBeNull();
+  cleanup();
+  show();
+  expect(screen.queryByRole('button', { name: /in 3D/ })).toBeNull();
+});
+
+it('CH-50 methods that disagree say which value was kept and why under the value; a check reason still wins', () => {
+  show({ ...projectAsk, parts: [{ ...flatA, answer: answerConflict }] });
+  expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(answerConflict.explanation);
+  cleanup();
+  const check = { ...(answerMedium.check as NonNullable<typeof answerMedium.check>) };
+  show({ ...projectAsk, parts: [{ ...flatA, answer: { ...answerConflict, check } }] });
+  expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(check.reason);
 });

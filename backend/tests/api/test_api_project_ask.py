@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.api import project_ask
 from app.api.ask import AnswerView, answer_view
+from app.core.answering.facts import FACTS
 from app.core.drawing.model import Drawing
 from app.core.review.model import Row, Scope
 
@@ -158,6 +159,29 @@ def test_a_room_s_name_has_no_total(client: TestClient) -> None:
     )
 
 
+def test_a_fact_sheets_words_have_no_total_and_are_not_called_a_room_s_name(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An IFC fact sheet's answer is a text (IFC_FACTS): no total, said as words, not as a room's
+    name (review-420-ask N1)."""
+    project = sample(client)
+    model = next(d["drawing_id"] for d in project["drawings"] if d["file"].endswith(".ifc"))
+
+    def in_words(view: AnswerView) -> AnswerView:  # the IFC model answers from its fact sheet
+        if view.drawing_id != model:
+            return view
+        line = view.line.model_copy(update={"answer": "Reinforced concrete", "method": FACTS})
+        return view.model_copy(update={"answer": "Reinforced concrete", "unit": None,
+                                       "method": FACTS, "line": line, "refusal": None})  # fmt: skip
+
+    changed(monkeypatch, in_words)
+    found = ask(client, project["id"], "How many doors are there?")
+    assert found["total"] is None
+    # flat-a, flat-b and flat-c (#427) answer a count: only the model's part is words
+    assert found["total_note"].startswith("1 drawing of 4 answered in words, so there is no total")
+    assert "a room's name" not in found["total_note"]
+
+
 def test_parts_in_different_units_have_no_total(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -173,8 +197,8 @@ def test_parts_in_different_units_have_no_total(
     changed(monkeypatch, in_feet)
     found = ask(client, project["id"], "What is the total indoor area?")
     assert found["total"] is None
-    # the sample's IFC model answers an area too (R4b-4), so three drawings answered
-    assert "3 drawings answered in different units, so there is no total" in found["total_note"]
+    # the sample's IFC model (R4b-4) and its walled flat-c answer an area too: four drawings
+    assert "4 drawings answered in different units, so there is no total" in found["total_note"]
 
 
 def test_a_total_is_sure_only_when_every_summed_part_is(

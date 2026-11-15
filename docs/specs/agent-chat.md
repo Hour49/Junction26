@@ -19,7 +19,7 @@ Project: the real swiss sheet `site980_bldg2055_floor9178.pdf` uploaded as a pro
    unknown ("whether the wall is load-bearing"), the wet-room note, Before / After, Accept / Reject.
 3. Ask "Is that wall load-bearing?" → "I don't know: this drawing does not say which walls carry load", with what
    would settle it (structural drawings, a building model with LoadBearing, an engineer).
-4. Press "Point at the plan", drag a rectangle over part of a room, ask "Put a storage room here" → an edit card
+4. Press the pen in the ask bar, drag a rectangle over part of a room, ask "Put a storage room here" → an edit card
    with the new room, its area, the rooms that shrink and the new walls.
 5. On a scanned plan, ask to remove a wall → "I can't edit this plan: it is a scan, so its walls are not geometry"
    (no fake edit).
@@ -161,30 +161,38 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   "Bagno 1.01 + Stanza 1.02 · 24.04 → 24.56 m²", a legend (Existing · Demolished · New · Changed room; colour never
   alone: dash, hatch and words too). Before / After toggle (`aria-pressed`): Before hides the overlay. Below: the
   change list (one line per removed/added item and per room with before → after and the difference), unknowns,
-  flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked.", and Accept /
+  flags, a note "Proposed from the drawn geometry. Structure, services and permits are not checked." (with the
+  services followed, SERVICES_FOLLOW=on: "Proposed from the drawn geometry; services followed through their models,
+  as each tab shows. Structure and permits are not checked."), and Accept /
   Reject. After a decision the buttons give way to "Accepted" / "Rejected".
-- AC-33 Point at the plan: a button by the ask bar opens a plan picker (the project's drawings with room polygons)
-  then the page; click a room → selection `room`; drag a rectangle (the viewer's existing pick mode) → selection
-  `region`. Chips above the ask bar ("Room Bagno 1.01 ×", "Area on Drawn plan 1 ×") go with the next message and
-  are cleared after it.
+- AC-33 (ui-bugs 1, 2026-11-15) The pen: a pen button in the ask bar next to the paperclip. Pen on: the question
+  box and Ask are disabled, and on each open file in the files list (AC-36) whose drawing can be drawn on, click a
+  room → selection `room`, drag a rectangle (the viewer's pick mode) → selection `region`. Pen again or Escape
+  (outside the viewer) → typing back. Chips above the ask bar ("Room Bagno 1.01 ×", "Area on Drawn plan 1 ×") stay,
+  go with the next message and are cleared after it. A drawing can be drawn on when `canDraw` says so
+  (`engineer/projectAsk.ts`: not `raster`, read with pages; to become the backend's field, board #404). With no
+  open drawable file the pen is greyed out and hover, focus or a tap shows "You can't draw on this plan: it is a
+  photo/scan. Drawing works on drawn PDF plans and building-model sheets." [component `AgentChat.test.tsx`]
 - AC-34 API client: `chatTurn(projectId, {chat_id?, message, selection?})` and `decideProposal(projectId, chatId,
   proposalId, action)` in `src/api/client.ts`; types from `npm run api:gen`.
 - AC-35 Phone width (390): the edit card's plan is full width, the change list below; no horizontal scroll.
-- AC-36 (chat-ux #1, orch 20:30; shapes in `.agents/chat/contract.md` A) The plan beside the chat, at 1200 px and
-  wider: the chat column left, a sticky pane right (`aside` "Plan") with the drawing's name, "Open in workspace"
-  (at the view's page and box) and, with several askable drawings, a switcher. Before any place it shows the first
-  askable drawing. Each turn with a `view` opens its drawing and page, draws its marks numbered as the sources
+- AC-36 (chat-ux #1, orch 20:30; shapes in `.agents/chat/contract.md` A; files list ui-bugs 2 and 13, 2026-11-15)
+  The plan beside the chat, at 1200 px and wider: the chat column left, a sticky pane right (`aside` "Plan") with a
+  list of the project's askable files by name. A name opens its plan under it and closes it again; several can be
+  open; the first is open by default; a file's page images load only while it is open. A file with a 3D model has a
+  round "3D" button over its image. No "Open in workspace" link in the pane.
+  Each turn with a `view` opens its file and page, draws its marks numbered as the sources
   (polygon when sent, else box), focuses `view.box` and shows `view.caption`; a turn without one leaves the plan as
   it was. A server without `view`: the turn's view is the page of `[1]` with every source on that page (contract
-  A's "evidence" rule). `[n]` and a source's "Show it" focus that place on the plan and stay in the chat (a
-  modified click still opens the workspace); a source on another page opens that page with its own mark. Under
-  1200 px: AC-38. A restored thread opens its newest view. [component
+  A's "evidence" rule). `[n]` and a source's "Show it" open that file in the list, scroll to it, focus that place
+  and stay in the chat (a modified click still opens the workspace); a source on another page opens that page with
+  its own mark. Under 1200 px: AC-38. A restored thread opens its newest view. [component
   `plan.test.tsx`, `PageViewer` spy; browser 1440 and 390]
 - AC-38 (chat-ux #9, phone pass) Under 1200 px the same plan opens as a full-screen sheet (`dialog` "The plan",
-  above the site header) instead of beside the chat: from a "Show the plan" chip next to "Point at the plan", and
-  from `[n]` / "Show it" (which then focus that place and stay in the chat, as AC-36). The sheet's head has Close;
-  Escape closes it too, except inside the viewer (there it clears a tip or a drag); focus moves into the sheet,
-  Tab and Shift+Tab wrap inside it, and focus goes back to where it was on close. Scrolling the plan never scrolls
+  above the site header) instead of beside the chat, with the files list inside it: from a "Show the plan" chip
+  above the ask bar, from the pen, and from `[n]` / "Show it" (which then focus that place and stay in the chat, as
+  AC-36). The sheet's head has Close; Escape closes it too, except inside the viewer (there it clears a tip or a
+  drag); focus moves into the sheet, Tab and Shift+Tab wrap inside it, and focus goes back to where it was on close. Scrolling the plan never scrolls
   the chat behind. Widening past 1200 px closes the sheet (the pane shows); narrowing again does not reopen it.
   1200 px and wider: no chip, no Close.
   [component `plan.test.tsx`; browser 390 and 1024]
@@ -199,13 +207,9 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
   `POST .../chat`. Never resent to either route: an HTTP error, a lost connection or an `error` event shows the
   error row; asking again continues the chat. [unit `stream.test.ts`; component `live.test.tsx`, `plan.test.tsx`;
   browser with a streaming mock backend, 1440 and 390]
-- AC-39 (chat-ux #8) The empty agent chat says what was read before the first question: a "What I read" block
-  (`region`) between the title and the ask bar, per askable drawing (at most 3, then "and N more drawings") its
-  plain name, kind and route in words, what its file's takeoff counted ("8 rooms (38.32 m² indoors) · 6 doors ·
-  4 windows", zero counts left out) and the file's `reason` as a sentence (the server's words, flags included).
-  From `GET /api/projects/{id}` alone, no model call; gone once the thread has a turn. Up to 600 px wide the block
-  goes under the ask bar and the starter chips, so the ask box is fully in the first screen (390x844, keycheck 334).
-  [component `WhatIRead.test.tsx`, `AgentChat.test.tsx`; browser 1440 and 390: e2e AC-39 asserts the ask box's
+- AC-39 (chat-ux #8; ui-bugs 2g, 2026-11-15) The empty agent chat shows the project name as its title, then the
+  ask bar and the starter chips; no "What I read" block (removed). The ask box is fully in the first screen
+  (390x844, keycheck 334). [component `AgentChat.test.tsx`; browser 1440 and 390: e2e AC-39 asserts the ask box's
   bottom is within the viewport]
 
 ## 4. Tests

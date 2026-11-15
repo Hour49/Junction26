@@ -9,6 +9,7 @@ import math
 import pypdfium2
 from PIL import Image, ImageOps
 
+from app.adapters.eight_bit import on_white
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.errors import InvalidInputError, NotFoundError
 from app.core.ingest.model import SheetFile
@@ -25,7 +26,7 @@ def render_png(sheet: SheetFile, page: int, width: int) -> bytes:
             raise NotFoundError(f"{sheet.path} is an image with one page, not {page}")
         with Image.open(io.BytesIO(sheet.data)) as found:
             found.load()
-            image = found.convert("RGB")
+            image = on_white(found).convert("RGB")
         size = fitted(image.width, image.height, width)
         image = image.resize(size, Image.Resampling.LANCZOS)
     buffer = io.BytesIO()
@@ -44,7 +45,7 @@ def render_upload(data: bytes, kind: str, width: int) -> bytes:
         else:
             with Image.open(io.BytesIO(data)) as found:
                 found.load()
-                image = (ImageOps.exif_transpose(found) or found).convert("RGB")
+                image = on_white(ImageOps.exif_transpose(found) or found).convert("RGB")
             image = image.resize(fitted(image.width, image.height, width), Image.Resampling.LANCZOS)
     except (OSError, Image.DecompressionBombError, pypdfium2.PdfiumError) as error:
         raise InvalidInputError(

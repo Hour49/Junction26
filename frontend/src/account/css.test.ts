@@ -20,3 +20,9 @@ it("SH-81 the account item focus ring is the shell's 3px", () => {
   // The item is a plain <button>: shell.css's `button:focus-visible` ring applies, and nothing here removes it.
   expect(tsx).not.toMatch(/outline-none|outline-hidden/);
 });
+
+it('qa-c R1 the stat values sit left (no browser dd indent) and never wrap ("0 of 196" on one line)', () => {
+  const dd = /<dd className="([^"]*)"/.exec(tsx)?.[1] ?? '';
+  expect(dd.split(' ')).toContain('m-0');
+  expect(dd.split(' ')).toContain('whitespace-nowrap');
+});

@@ -12,7 +12,7 @@ import {
 import { AskBox } from '../engineer/AskBox';
 import { Suggestions } from '../engineer/DrawingHeader';
 import { usePhotoAdd } from '../engineer/photoAdd';
-import { askable, followUps, starters } from '../engineer/projectAsk';
+import { askable, canDraw, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
 import { Loading } from '../shell/Loading';
@@ -28,11 +28,9 @@ import {
 } from './agent';
 import { LiveSteps } from './LiveSteps';
 import { canShow3d, paneHighlight } from '../model3d/model3d';
-import { PlanPane, PlanSheet } from './PlanPane';
-import { PlanPointer } from './PlanPointer';
+import { PlanPane, PlanSheet, type PaneFile } from './PlanPane';
 import { LIVE_START, liveStep, streamTurn, type Live } from './stream';
 import { TurnCard } from './TurnCard';
-import { WhatIRead } from './WhatIRead';
 import '../engineer/engineer.css';
 
 type Sent = { id: number; message: string; chips: string[] };
@@ -85,6 +83,8 @@ function useWide(): boolean {
   return wide;
 }
 
+const withId = (ids: readonly string[], id: string) => (ids.includes(id) ? [...ids] : [...ids, id]);
+
 /** The newest kept turn's view, so a thread restored after "Show it" opens the plan where it was. */
 function lastShown(rows: Done[]): Shown | null {
   const view = rows
@@ -95,7 +95,7 @@ function lastShown(rows: Done[]): Shown | null {
 }
 
 /** The agent chat thread (AC-30): one turn pending at a time, `chat_id` kept from the first turn, selections from
- * "Point at the plan" go with the next message and are cleared after it (AC-33). As the project chat: `?ask=` is
+ * the pen go with the next message and are cleared after it (AC-33). As the project chat: `?ask=` is
  * sent on open, starter chips when empty, follow-up chips after a turn (chat.md). */
 export function AgentChat({ projectId, query }: { projectId: string; query?: URLSearchParams }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
@@ -129,7 +129,24 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     streams.current = info?.chat?.stream === true;
   }, [info]);
   const [pointed, setPointed] = useState<Pointed[]>([]);
-  const [pointing, setPointing] = useState(false);
+  // ui-bugs 1: the pen; on, a click or drag on an open drawable file becomes a selection and typing waits.
+  const [drawMode, setDrawMode] = useState(false);
+  // ui-bugs 2: the files open in the list; null until the user opens or closes one (then the first, and any shown).
+  const [opened, setOpened] = useState<string[] | null>(null);
+  // "Show it"/[n]: the file to scroll to, bumped on every click.
+  const [reveal, setReveal] = useState<{ drawingId: string; n: number } | null>(null);
+  useEffect(() => {
+    if (!drawMode) return;
+    const off = (e: globalThis.KeyboardEvent) => {
+      // Escape inside the viewer is the viewer's (a drag); elsewhere it puts the pen down.
+      if (e.key === 'Escape' && !(e.target instanceof Element && e.target.closest('.vw')))
+        setDrawMode(false);
+    };
+    document.addEventListener('keydown', off);
+    return () => {
+      document.removeEventListener('keydown', off);
+    };
+  }, [drawMode]);
   const chatId = useRef<string | undefined>(start.chatId);
   const nextId = useRef(Math.max(0, ...start.rows.map((r) => r.id)) + 1);
   const nextSel = useRef(1);
@@ -138,6 +155,12 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   const photo = usePhotoAdd(projectId, (project) => {
     setLoad({ state: 'ready', project });
   });
+
+  // A turn's place: shown, and its file opened in the list (if the user had chosen which are open).
+  const showView = useCallback((view: View) => {
+    setShown({ drawingId: view.drawing_id, view, focus: null });
+    setOpened((o) => (o === null ? o : withId(o, view.drawing_id)));
+  }, []);
 
   const send = useCallback(
     (row: Sent, selection: Selection[]) => {
@@ -158,8 +181,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
             // A new chat's id is known from the first event: a failure later still continues this chat.
             if (e.type === 'turn') chatId.current = e.chat_id;
             // show_on_plan's view moves the plan while the turn runs; the answer's view has the last word.
-            if (e.type === 'view')
-              setShown({ drawingId: e.view.drawing_id, view: e.view, focus: null });
+            if (e.type === 'view') showView(e.view);
             setRows((rs) =>
               rs.map((x) =>
                 x.id === row.id && x.status === 'pending'
@@ -175,14 +197,14 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           settle({ ...row, status: 'done', turn });
           // Every turn with a place moves the plan (contract A); one without leaves it where it is.
           const view = viewOf(turn);
-          if (view) setShown({ drawingId: view.drawing_id, view, focus: null });
+          if (view) showView(view);
         },
         (error: unknown) => {
           settle({ ...row, status: 'error', error, selection });
         },
       );
     },
-    [projectId],
+    [projectId, showView],
   );
 
   const ask = (message: string) => {
@@ -194,7 +216,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       pointed.map((p) => p.sel),
     );
     setPointed([]);
-    setPointing(false);
+    setDrawMode(false);
   };
 
   useEffect(() => {
@@ -295,36 +317,61 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         ? { drawingId: v.drawing_id, view: v, focus: unionBox([e.box]) }
         : { drawingId: e.drawing_id, view: evidenceView(e), focus: null },
     );
+    const id = inView ? v.drawing_id : e.drawing_id;
+    setOpened((o) => withId(o ?? openIds, id));
+    setReveal((r) => ({ drawingId: id, n: (r?.n ?? 0) + 1 }));
     if (!wide) setSheet(true);
   };
-  const paneId = shown?.drawingId ?? plans[0]?.drawing_id;
-  // model-3d.md "More places": the shown drawing's 3D model, its newest answer's elements highlighted
-  const modelFile = project.files.find((f) => f.drawing_id === paneId && canShow3d(f.model_3d));
-  const model =
-    modelFile && paneId
-      ? {
-          fileId: modelFile.id,
-          highlight: paneHighlight(
-            rows.flatMap((r) => (r.status === 'done' ? [r.turn] : [])),
-            paneId,
-          ),
-        }
-      : null;
-  const plan = paneId && (
+  const turns = rows.flatMap((r) => (r.status === 'done' ? [r.turn] : []));
+  const files: PaneFile[] = askable(project.drawings).map((d) => {
+    // model-3d.md "More places": the drawing's 3D model, its newest answer's elements highlighted
+    const modelFile = project.files.find(
+      (f) => f.drawing_id === d.drawing_id && canShow3d(f.model_3d),
+    );
+    return {
+      drawing_id: d.drawing_id,
+      label: drawingLabel(d),
+      model: modelFile
+        ? { fileId: modelFile.id, highlight: paneHighlight(turns, d.drawing_id) }
+        : null,
+      drawable: canDraw(d),
+    };
+  });
+  // The first file is open by default; the shown place's file is open too, until the user closes it.
+  const first = plans[0]?.drawing_id;
+  const openIds =
+    opened ?? withId(first ? [first] : [], shown?.drawingId ?? first ?? '').filter(Boolean);
+  const pen = {
+    on: drawMode,
+    can: files.some((f) => f.drawable && openIds.includes(f.drawing_id)),
+    // Why not, in the backend's words: the first open file that says so.
+    reason:
+      askable(project.drawings).find(
+        (d) => !d.drawable && openIds.includes(d.drawing_id) && d.not_drawable_reason,
+      )?.not_drawable_reason ?? null,
+    onToggle: () => {
+      setDrawMode((d) => !d);
+      if (!drawMode && !wide) setSheet(true); // narrow: the files to draw on are in the sheet
+    },
+  };
+  const plan = first && (
     <PlanPane
       projectId={projectId}
-      pack={pack}
-      drawings={askable(project.drawings).map((d) => ({
-        drawing_id: d.drawing_id,
-        label: drawingLabel(d),
-      }))}
-      drawingId={paneId}
-      drawing={drawn ? (drawn[paneId] ?? null) : undefined}
+      files={files}
+      open={openIds}
+      drawn={drawn}
       view={shown?.view ?? null}
       focus={shown?.focus ?? null}
-      model={model}
-      onDrawing={(id) => {
-        setShown((s) => ({ drawingId: id, view: s?.view ?? null, focus: null }));
+      reveal={reveal}
+      drawMode={drawMode && pen.can}
+      onToggle={(id) => {
+        setOpened(openIds.includes(id) ? openIds.filter((x) => x !== id) : [...openIds, id]);
+      }}
+      onPick={(sel, chip) => {
+        setPointed((ps) => [
+          ...ps,
+          { sel: { ...sel, id: `sel_${String(nextSel.current++)}` }, chip },
+        ]);
       }}
       onClose={
         wide
@@ -406,36 +453,9 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     </article>
   );
 
-  const pointer = pointing && (
-    <PlanPointer
-      projectId={projectId}
-      plans={plans}
-      onAdd={(sel, chip) => {
-        setPointed((ps) => [
-          ...ps,
-          { sel: { ...sel, id: `sel_${String(nextSel.current++)}` }, chip },
-        ]);
-      }}
-      onClose={() => {
-        setPointing(false);
-      }}
-    />
-  );
-
   const bar = (
     <div className="ag-bar">
       <div className="ag-selrow">
-        <button
-          type="button"
-          className="en-chip v-press"
-          aria-expanded={pointing}
-          disabled={plans.length === 0}
-          onClick={() => {
-            setPointing((p) => !p);
-          }}
-        >
-          Point at the plan
-        </button>
         {!wide && plan && (
           <button
             type="button"
@@ -471,6 +491,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         onAttach={photo.attach}
         short="the drawings"
         attaching={photo.attaching}
+        pen={pen}
       />
     </div>
   );
@@ -479,9 +500,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
     return split(
       <div className="en-page en-chat en-chat--empty">
         <h1 className="en-chat-title">{project.name}</h1>
-        <WhatIRead project={project} />
         {photo.line}
-        {pointer}
         {bar}
         {plans.length === 0 ? (
           <p className="en-empty">No drawing in this project can be asked yet.</p>
@@ -493,7 +512,8 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   }
   return split(
     <div className="en-page en-chat">
-      <h1 className="en-sr">{project.name}</h1>
+      {/* W4 (look-check, board #404): the header no longer names the project; the thread does, small */}
+      <h1 className="m-0 truncate text-sm font-semibold text-muted-foreground">{project.name}</h1>
       {photo.line}
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {rows.map(row)}
@@ -520,7 +540,6 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
           <Suggestions items={next} busy={busy} onAsk={ask} label="Follow-up questions" />
         )
       )}
-      {pointer}
       {bar}
     </div>,
   );

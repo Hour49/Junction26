@@ -139,12 +139,20 @@ def open_rgb(image: Image.Image) -> Image.Image:
     return image.convert("RGB")
 
 
+def open_page(image: Image.Image) -> Image.Image:
+    """`open_rgb`, except a plain greyscale page stays greyscale (a third of the memory):
+    `letterbox` makes the RGB canvas, so the model's input is the same."""
+    if image.mode == "L" and "transparency" not in image.info:
+        return image.copy()
+    return open_rgb(image)
+
+
 def letterbox(image: Image.Image, side: int) -> tuple[Image.Image, Letterbox]:
     """The page scaled (Lanczos) so its long side is `side`, centred on white."""
     frame = Letterbox.fit(image.width, image.height, side)
     scaled = image.resize((frame.new_width, frame.new_height), Image.Resampling.LANCZOS)
     canvas = Image.new("RGB", (side, side), (255, 255, 255))
-    canvas.paste(scaled, (frame.dx, frame.dy))
+    canvas.paste(scaled.convert("RGB"), (frame.dx, frame.dy))
     return canvas, frame
 
 

@@ -8,7 +8,14 @@ import { PROJECT_STATE_LABEL, STATE_LABEL, keepPolling, sizeText, uploadedKey } 
 import { ChatRow, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
-import './ingest.css';
+import { MUTED, PAGE, PANEL, TAP } from './ui';
+import { Alert } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS, STATE_TIPS } from '../shell/tips-ingest';
 
 /** Shown when a poll fails after data arrived: the data stays, labelled as stale. */
 export function StaleNote({
@@ -22,30 +29,38 @@ export function StaleNote({
 }) {
   const { detail, code } = errorText(error);
   return (
-    <div className="ingest-stale" role="alert">
+    <Alert className="flex flex-wrap items-center gap-3 rounded-xl border-0 bg-warn-soft px-3 py-2 text-[length:inherit] text-warn">
       <p>{`Not updating since ${formatTime(failedAt ?? '')}: ${detail} (${code})`}</p>
-      <button type="button" className="v-btn v-btn--secondary v-press" onClick={onRetry}>
+      <Button variant="secondary" size="pill" className="font-medium" onClick={onRetry}>
         Retry
-      </button>
-    </div>
+      </Button>
+    </Alert>
   );
 }
 
-const TONE: Record<FileStatus['state'], string> = {
-  queued: '',
-  running: 'v-pill--accent',
-  ready: 'v-pill--ok',
-  flagged: 'v-pill--warn',
-  text_only: '',
-  set_aside: 'v-pill--danger',
-};
+const TONE = {
+  queued: 'secondary',
+  running: 'accent',
+  ready: 'ok',
+  flagged: 'warn',
+  text_only: 'secondary',
+  set_aside: 'danger',
+} as const satisfies Record<FileStatus['state'], string>;
 
 export function StateBadge({ state }: { state: FileStatus['state'] }) {
   const { word, icon } = STATE_LABEL[state];
   return (
-    <span className={`badge v-pill ${TONE[state]}`}>
-      <span aria-hidden="true">{icon}</span> {word}
-    </span>
+    <Tip text={STATE_TIPS[state]} wrap>
+      <Badge
+        variant={TONE[state]}
+        className={cn(
+          'gap-1.5 px-[11px] py-[5px] text-xs',
+          TONE[state] === 'secondary' && 'text-text-2',
+        )}
+      >
+        <span aria-hidden="true">{icon}</span> {word}
+      </Badge>
+    </Tip>
   );
 }
 
@@ -65,14 +80,26 @@ export function TitleRow({
   stack?: boolean;
 }) {
   return (
-    <header className={stack ? 'ingest-head ingest-head--stack' : 'ingest-head'}>
+    <header
+      className={cn(
+        'ingest-head flex flex-wrap justify-between gap-4 max-[720px]:flex-col max-[720px]:items-stretch',
+        stack ? 'flex-col items-start' : 'items-end',
+      )}
+    >
       <div>
-        <p className={ok ? 'ingest-eyebrow ok' : 'ingest-eyebrow'}>
+        <p
+          className={cn(
+            'ingest-eyebrow flex items-center gap-2 text-sm font-semibold',
+            ok ? 'text-ok' : 'text-primary',
+          )}
+        >
           {/* a word gets the accent dot; a badge (the trace) is its own marker */}
-          {typeof eyebrow === 'string' && <span aria-hidden="true" className="ingest-dot" />}
+          {typeof eyebrow === 'string' && (
+            <span aria-hidden="true" className="ingest-dot size-2 rounded-full bg-current" />
+          )}
           {eyebrow}
         </p>
-        <h1 className="v-title path">{title}</h1>
+        <h1 className="v-title mt-1! [overflow-wrap:anywhere]">{title}</h1>
       </div>
       {children}
     </header>
@@ -87,20 +114,26 @@ function NothingRead({ projectId, project }: { projectId: string; project: Proje
     ...project.skipped.filter((s) => !paths.has(s.path)),
   ];
   return (
-    <section aria-label="Nothing read" className="v-card ingest-nothing">
+    <Card role="region" aria-label="Nothing read" className={cn(PANEL, 'grid gap-4')}>
       <h2 className="v-h2">Nothing could be read from this upload</h2>
       {why.length > 0 && (
-        <ul>
+        <ul className="grid gap-3">
           {why.map((w) => (
-            <li key={w.path}>
-              <b className="path">{w.path}</b>
-              {w.reason && <span className="reason">{w.reason}</span>}
+            <li key={w.path} className="grid gap-1 [overflow-wrap:anywhere]">
+              <b>{w.path}</b>
+              {w.reason && <span className={MUTED}>{w.reason}</span>}
             </li>
           ))}
         </ul>
       )}
+      {project.files.some((f) => f.kind === 'dxf' && f.state === 'set_aside') && (
+        // with no drawing at all, a DXF was set aside for want of a page to place it on
+        <p>
+          A DXF is read with the PDF or PNG of the same name: put both in one .zip and upload that.
+        </p>
+      )}
       <a href={`#/p/${projectId}/documents`}>Every file is listed in Documents.</a>
-    </section>
+    </Card>
   );
 }
 
@@ -127,7 +160,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
 
   if (project === null) {
     return (
-      <div className="v-page v-page--narrow ingest">
+      <div className={cn('v-page v-page--narrow', PAGE)}>
         {error !== null ? (
           <ErrorView error={error} onRetry={retry} />
         ) : (
@@ -141,24 +174,26 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7).
   const nothingRead = project.state === 'done' && project.drawings.length === 0;
   return (
-    <div className="v-page v-page--narrow ingest">
+    <div className={cn('v-page v-page--narrow', PAGE)}>
       <TitleRow
         eyebrow={PROJECT_STATE_LABEL[project.state] ?? project.state}
         title={project.name}
         ok={project.state === 'done'}
         stack
       >
-        <div role="group" aria-label="View" className="v-segmented">
-          <a href={base} aria-current={advanced ? undefined : 'page'}>
-            Simple
-          </a>
-          <a href={`${base}?view=advanced`} aria-current={advanced ? 'page' : undefined}>
-            Advanced
-          </a>
-        </div>
+        <Tip text={INGEST_TIPS.view}>
+          <div role="group" aria-label="View" className="v-segmented">
+            <a href={base} aria-current={advanced ? undefined : 'page'}>
+              Simple
+            </a>
+            <a href={`${base}?view=advanced`} aria-current={advanced ? 'page' : undefined}>
+              Advanced
+            </a>
+          </div>
+        </Tip>
       </TitleRow>
       {sent && (
-        <p role="status" aria-label="Upload received" className="ingest-received">
+        <p role="status" aria-label="Upload received" className="text-text-2">
           {`Uploaded: ${sent.name}, ${sizeText(sent.bytes)}, received by the server. `}
           {project.files.length > 0
             ? `${String(project.files.length)} ${project.files.length === 1 ? 'file' : 'files'} found.`
@@ -166,7 +201,20 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
         </p>
       )}
       {project.state === 'failed' && project.error && (
-        <p className="ingest-error">{project.error}</p>
+        <p className="font-semibold text-danger">{project.error}</p>
+      )}
+      {project.state === 'failed' && (
+        // stopped for good: the server does not resume it, so say how to go on
+        <p className="flex flex-wrap gap-x-4">
+          <a className={TAP} href="#/">
+            Upload again
+          </a>
+          {project.drawings.length > 0 && (
+            <a className={TAP} href={`${base}/documents`}>
+              See what was read in Documents
+            </a>
+          )}
+        </p>
       )}
       {error !== null && <StaleNote error={error} failedAt={failedAt} onRetry={retry} />}
       {advanced ? (

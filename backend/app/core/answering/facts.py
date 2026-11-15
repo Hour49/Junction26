@@ -73,7 +73,7 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
     text = _written(query, facts)
     if text is None:
         return None
-    asked = [fact for fact in facts.used if fact.topic.startswith(f"{query.entity}.")]
+    asked = [fact for fact in facts.read if fact.topic.startswith(f"{query.entity}.")]
     seen = dict.fromkeys((s.page, s.box) for fact in asked for s in fact.spots)
     return Answer(
         id=question.id,
@@ -169,9 +169,9 @@ def _text(query: FactQuery, facts: "_Facts", storey: str | None) -> str | None:
 class _Facts:
     def __init__(self, facts: Iterable[Fact]) -> None:
         self.by_topic: dict[str, list[Fact]] = defaultdict(list)
-        self.used: list[Fact] = []  # every fact a lookup returned: the answer's evidence
         for fact in facts:
             self.by_topic[fact.topic].append(fact)
+        self.read: list[Fact] = []  # every fact handed out, in order: the answer's evidence
 
     def get(
         self,
@@ -190,7 +190,7 @@ class _Facts:
             and (anywhere or fact.storey == storey)
             and fact.system is None
         ]
-        self.used += found
+        self.read += found
         return found
 
     def one(self, topic: str, subject: str, storey: str | None = None) -> Fact | None:

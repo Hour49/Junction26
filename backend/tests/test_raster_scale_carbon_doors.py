@@ -15,6 +15,7 @@ from app.adapters.raster_scale.carbon_doors import NO_DOOR, CarbonDoorScale
 from app.composition import build_ingest, build_pipeline
 from app.core.drawing.model import Element, Room
 from app.core.errors import InvalidInputError
+from app.core.pipeline.printed import CARBON_DOORS_REFUSED
 from app.core.pipeline.raster_scale import CARBON_DOOR_M, SPREAD_FEW, SPREAD_MANY
 from app.settings import Settings
 
@@ -165,3 +166,47 @@ def test_carbon_doors_on_s2_the_composition_wraps_carbon_s_things_and_names_it_i
     assert isinstance(wrapped, CarbonDoorScale) and names["scale_carbon_doors"] == "on"
     plain, names = built()
     assert isinstance(plain, CarbonThings) and "scale_carbon_doors" not in names
+
+
+def printed_then(printed: Any, dpi: float | None = None) -> Any:
+    """The sheet read as composition wires it, the printed scale outside the Carbon door scale."""
+    from test_printed_scale import Files, Reader, png
+
+    from app.adapters.printed_scale import PrintedScale
+
+    carbon = Fake(elements=[carbon_door((0.1, 0.1, 0.3, 0.3)), carbon_door((0.5, 0.5, 0.75, 0.6))])
+    inner = CarbonDoorScale(things(Fake(rooms=[LIVING]), carbon))
+    return PrintedScale(inner, Reader(printed), Files(png(dpi))).extract(FILE, SHEET)
+
+
+@pytest.mark.parametrize("text", ['1/4" = 1\'-0"', "bar"])
+def test_carbon_doors_refuse_a_printed_scale_that_could_not_be_read_is_not_replaced(
+    text: str,
+) -> None:
+    from app.core.pipeline.printed import PrintedSheet
+
+    found = printed_then(PrintedSheet(printed_scale=text))  # no trusted dpi, no bar measured
+    assert found.scale.status == "no_scale" and found.scale.m_per_unit is None
+    assert found.rooms[0].area_m2 is None and found.rooms[0].area_status is None
+    assert CARBON_DOORS_REFUSED in found.notes
+    assert not any("the Carbon reader found" in note for note in found.notes)
+
+
+def test_carbon_doors_refuse_no_printed_scale_keeps_the_door_scale() -> None:
+    from app.core.pipeline.printed import PrintedSheet
+
+    found = printed_then(PrintedSheet())
+    assert found.scale.status == "estimated"
+    assert "2 doors the Carbon reader found" in (found.scale.source or "")
+    assert found.rooms[0].area_m2 is not None
+    assert CARBON_DOORS_REFUSED not in found.notes
+
+
+def test_carbon_doors_refuse_a_printed_scale_that_was_read_wins() -> None:
+    from app.core.pipeline.printed import PrintedSheet, ScaleBar
+
+    bar = ScaleBar(page=1, start=(0.1, 0.9), end=(0.9, 0.9), length_m=5.0, text="0 5 m")  # 32 px
+    found = printed_then(PrintedSheet(printed_scale="1:100", bars=(bar,)))
+    assert found.scale.status == "scaled" and "printed scale bar" in (found.scale.source or "")
+    assert found.rooms[0].area_status == "estimated" and found.rooms[0].area_m2 is not None
+    assert CARBON_DOORS_REFUSED not in found.notes

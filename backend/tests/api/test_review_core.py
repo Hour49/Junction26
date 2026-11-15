@@ -240,6 +240,38 @@ def test_the_area_of_the_one_room_of_a_type_is_that_room_s_area() -> None:
         assert found.query == by_number.query  # the same row: its conflict and review go along
 
 
+def test_which_room_is_the_largest_builds_the_drawing_s_takeoff_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """integ r12 chat latency: each room's area question under "Which room is the largest?"
+    rebuilt the same drawing's takeoff and its storey twins (159 takeoffs, 1.7 s of one chat
+    tool call on the demo project). The comparison reads them from the one takeoff, and answers
+    as before."""
+    import app.core.review.ask as asking
+
+    built: list[Drawing] = []
+
+    def counted(drawing: Drawing) -> dict[str, Quantity]:
+        built.append(drawing)
+        return known_quantities(drawing)
+
+    twinned: list[int] = []
+
+    def twins(found: dict[str, Quantity]) -> dict[str, str]:
+        twinned.append(len(found))
+        return storey_twins(found)
+
+    monkeypatch.setattr(asking, "known_quantities", counted)
+    monkeypatch.setattr(asking, "storey_twins", twins)
+    kitchen = Room(id="r1", type="kitchen", label="Küche", page=1, box=BOX_A, area_m2=22.4)
+    bath = Room(id="r2", type="bathroom", label="Bad", page=1, box=BOX_B, area_m2=5.0)
+    found = asked("Which room is the largest?", scaled(kitchen, bath))
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == "Küche"
+    assert len(built) == 1
+    assert len(twinned) == 1
+
+
 def test_the_area_of_a_room_asked_by_its_printed_label_is_that_room_s_area() -> None:
     """R2-2-3: on flat-b "What is the area of the Reduit?" (the room printed "Reduit", whose type
     the parser has no word for) was refused as "isn't a count, area, length or volume"."""
@@ -1259,3 +1291,26 @@ def test_a_low_answer_with_or_without_a_partial_total_is_asked() -> None:
         assert got.answer.answer is not None and got.check is not None, text
         assert got.level is not None and got.level.level != "high", text
         assert (got.partial is not None) is partial, text
+
+
+def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
+    """judge-fresh §10 (r11): "the living room" was refused because the dining room is typed
+    living too, though only one room is printed LIVING ROOM. Two rooms printed so, or none,
+    still refuse; the count of living rooms is unchanged."""
+    living = Room(id="r1", type="living", label="LIVING ROOM", page=1, box=BOX_A, area_m2=23.16)
+    dining = Room(id="r2", type="living", label="DINING ROOM", page=1, box=BOX_B, area_m2=10.62)
+    found = asked("What is the area of the living room?", scaled(living, dining))
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == 23.16
+    assert asked("How many living rooms are there?", scaled(living, dining)).answer.answer == 2
+    # a number or letter the label lacks names another room: refused, as before (review-415)
+    for text in ("What is the area of the living room 1?", "What is the area of the living room B?",
+                 "What is the area of the living room no. 2?"):  # fmt: skip
+        assert asked(text, scaled(living, dining)).refusal is not None, text
+    found = asked("What is the area of the living room in m2?", scaled(living, dining))
+    assert found.answer.answer == 23.16, found.refusal
+    twice = dining.model_copy(update={"label": "LIVING ROOM"})
+    assert asked("What is the area of the living room?", scaled(living, twice)).refusal is not None
+    unlabelled = dining.model_copy(update={"label": None})
+    plain = living.model_copy(update={"label": None})
+    assert asked("What is the area of the living room?", scaled(plain, unlabelled)).refusal

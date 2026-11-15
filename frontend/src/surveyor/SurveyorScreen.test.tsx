@@ -14,6 +14,8 @@ import {
 import { mockApi, never, reply } from '../test/mockApi';
 import type { PageViewerProps } from '../viewer/PageViewer';
 import { SurveyorScreen } from './SurveyorScreen';
+import { stubResizeObserver } from '../test/resizeObserver';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { markWords, statusText } from './words';
 
 // The viewer is a test double: it records its props so a test can read them and call its callbacks.
@@ -93,6 +95,7 @@ const posted = (api: ReturnType<typeof mockApi>, path: string) =>
   api.calls.filter((c) => c.method === 'POST' && c.url.startsWith(path.split(' ')[1] ?? ''));
 
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn(); // jsdom has none; a selection scrolls its detail (SV-53)
   viewer.props = null;
   window.location.hash = `#/p/${pid}/d/${did}/surveyor`;
   localStorage.clear();
@@ -895,26 +898,39 @@ describe('pre-QA (2026-11-14)', () => {
     );
   });
 
-  it('SV-53 on a phone, selecting a row scrolls the detail into view; on a desktop it does not', async () => {
+  it('SV-53 selecting a row scrolls its detail into view, on a phone and on a desktop (QA fe-ui2)', async () => {
+    // At 1440 the detail sits under every row of the takeoff column (3781 px down on the sample): unseen without this.
     const scroll = vi.fn();
     Element.prototype.scrollIntoView = scroll;
-    const narrow = (matches: boolean) => {
-      window.matchMedia = vi.fn().mockReturnValue({ matches });
-    };
-    narrow(false);
     show();
     await ready();
+    expect(scroll).not.toHaveBeenCalled(); // the default selection on open does not scroll
     pick('door count');
-    await waitFor(() => {
-      expect(within(detail()).getByRole('heading').textContent).toContain('door count');
-    });
-    expect(scroll).not.toHaveBeenCalled();
-    narrow(true);
-    pick(rowOf(takeoff, 'area:room|indoor').label);
     await waitFor(() => {
       expect(scroll).toHaveBeenCalledTimes(1);
     });
     expect(scroll.mock.contexts[0]).toBe(detail());
+    pick(rowOf(takeoff, 'area:room|indoor').label);
+    await waitFor(() => {
+      expect(scroll).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('SV-53 on a desktop only the takeoff column scrolls to the detail; the page stays (QA fe-ui2)', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    show();
+    await ready();
+    const column = screen.getByRole('region', { name: 'Takeoff' });
+    // jsdom lays nothing out: make the column taller inside than its box, as the sticky desktop column is
+    Object.defineProperty(column, 'scrollHeight', { value: 4000, configurable: true });
+    Object.defineProperty(column, 'clientHeight', { value: 700, configurable: true });
+    column.scrollTop = 0;
+    pick('door count');
+    await waitFor(() => {
+      expect(column.scrollTop).not.toBe(0);
+    });
+    expect(scroll).not.toHaveBeenCalled();
   });
 
   it('SV-54 a settled conflict marks the value in use in its list', async () => {
@@ -924,5 +940,68 @@ describe('pre-QA (2026-11-14)', () => {
       .getAllByRole('listitem')
       .filter((li) => /^[AB]:/.test(li.textContent));
     expect(items.map((li) => li.textContent.includes('in use'))).toEqual([true, false]);
+  });
+});
+
+/** ui-tooltips: the text of the shared Tip on (or around) this element, opened by keyboard focus. */
+async function tipOf(el: HTMLElement) {
+  const trigger = el.closest<HTMLElement>('[data-slot="tooltip-trigger"]') ?? el;
+  trigger.focus();
+  const text = (await screen.findByRole('tooltip')).textContent;
+  fireEvent.keyDown(trigger, { key: 'Escape' });
+  trigger.blur();
+  return text;
+}
+
+describe('tips (ui-tooltips P1)', () => {
+  beforeEach(stubResizeObserver);
+
+  it('TIP-1 the takeoff heading and the column heads explain themselves', async () => {
+    show();
+    await ready();
+    expect(await tipOf(screen.getByText(/^Takeoff: /))).toBe(REVIEW_TIPS.takeoff);
+    const table = screen.getByRole('table', { name: 'To review' });
+    expect(await tipOf(within(table).getByText('Quantity'))).toBe(REVIEW_TIPS.colQuantity);
+    expect(await tipOf(within(table).getByText('Value'))).toBe(REVIEW_TIPS.colValue);
+    expect(await tipOf(within(table).getByText('State'))).toBe(REVIEW_TIPS.colState);
+  });
+
+  it('TIP-2 First method / Second method says what a method is', async () => {
+    const both = derive('door', {
+      first: { method: 'polygon_x_scale', value: 2 },
+      second: { method: 'printed_label', value: 2 },
+    });
+    show('q=door', { [PATH.takeoff]: both });
+    await ready();
+    expect(await tipOf(within(detail()).getByText(/^First method:/))).toBe(REVIEW_TIPS.methods);
+  });
+
+  it('TIP-3 Keep and Settle: what they do; when locked, why (on a focusable wrapper)', async () => {
+    show();
+    await ready();
+    const keep = screen.getByRole('button', { name: /^Keep A:/ });
+    expect(await tipOf(keep)).toBe(REVIEW_TIPS.keep);
+    const settle = within(detail()).getByRole('button', { name: 'Settle' });
+    expect(settle).toHaveProperty('disabled', true);
+    const wrapper = settle.parentElement as HTMLElement;
+    expect(wrapper.tabIndex).toBe(0);
+    expect(await tipOf(wrapper)).toBe(REVIEW_TIPS.settleLocked);
+  });
+
+  it('TIP-4 Signing as, Sign off (and why it is locked) and Undo sign-off', async () => {
+    localStorage.setItem('countersign.surveyorName', 'Bea');
+    show('q=door');
+    await ready();
+    expect(await tipOf(within(detail()).getByText('Signing as'))).toBe(REVIEW_TIPS.signingAs);
+    const sign = within(detail()).getByRole('button', { name: 'Sign off 2' });
+    expect(await tipOf(sign)).toBe(REVIEW_TIPS.signOff);
+    fireEvent.change(within(detail()).getByLabelText('Signing as'), { target: { value: ' ' } });
+    expect(sign).toHaveProperty('disabled', true); // the same button: the wrapper never remounts it
+    expect(await tipOf(sign.parentElement as HTMLElement)).toBe(REVIEW_TIPS.signOffLocked);
+    cleanup();
+    show('q=door', { [PATH.takeoff]: signedDoor });
+    await ready();
+    const undo = within(detail()).getByRole('button', { name: 'Undo sign-off' });
+    expect(await tipOf(undo)).toBe(REVIEW_TIPS.undoSignOff);
   });
 });

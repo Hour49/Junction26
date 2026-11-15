@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ApiError, getModelGlb, type FileStatus, type Highlight } from '../api';
 import { plural } from '../ingest/ingest';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Tip } from '@/components/ui/tip';
+import { cn } from '@/lib/utils';
 import { failure, model3dOf, ROLE_LABEL, ROLES, UNAVAILABLE } from './model3d';
 import type { Shown, View } from './scene';
 import './model3d.css';
@@ -83,42 +87,54 @@ export function ModelView({
     setAttempt((a) => a + 1);
   };
   const tryAgain = (
-    <button type="button" className="v-btn v-btn--secondary v-press" onClick={again}>
+    <Button variant="secondary" size="pill" className="v-press font-medium" onClick={again}>
       Try again
-    </button>
+    </Button>
   );
   const onKey = (e: KeyboardEvent) => {
     if (e.key === '+' || e.key === '=') view.current?.zoom(0.8);
     else if (e.key === '-') view.current?.zoom(1.25);
   };
+  // The tip says the button's own words (docs/ui-tooltips.md: replaces the slow native title).
   const tool = (label: string, glyph: string, act: (v: View) => void) => (
-    <button
-      type="button"
-      className="v-btn v-btn--secondary v-press m3-tool"
-      aria-label={label}
-      title={label}
-      onClick={() => {
-        if (view.current) act(view.current);
-      }}
-    >
-      <span aria-hidden="true">{glyph}</span>
-    </button>
+    <Tip text={label}>
+      <Button
+        variant="secondary"
+        size="pill-icon"
+        className="v-press bg-card text-xl leading-none shadow-[var(--v-shadow)] hover:bg-accent"
+        aria-label={label}
+        onClick={() => {
+          if (view.current) act(view.current);
+        }}
+      >
+        <span aria-hidden="true">{glyph}</span>
+      </Button>
+    </Tip>
   );
   const ready = status.kind === 'ready';
 
   return (
-    <div className="m3-view">
-      <div className="m3-stage">
+    <div>
+      {/* m3-stage: ModelDialog sets its height */}
+      <div className="m3-stage relative h-[560px] overflow-hidden rounded-[var(--v-radius)] border border-border bg-muted max-[600px]:h-[min(60vh,420px)]">
         <canvas
           ref={canvas}
-          className={ready ? 'm3-canvas' : 'm3-canvas m3-canvas--hidden'}
+          // touch-action none: one finger orbits; the page scrolls outside the view
+          className={cn(
+            'block h-full w-full touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+            !ready && 'invisible',
+          )}
           tabIndex={ready ? 0 : -1}
           role="img"
           aria-label={`3D view of ${name}`}
           onKeyDown={onKey}
         />
         {ready ? (
-          <div className="m3-tools" role="toolbar" aria-label="3D view controls">
+          <div
+            className="absolute top-2 right-2 flex gap-1.5"
+            role="toolbar"
+            aria-label="3D view controls"
+          >
             {tool('Rotate left', '⟲', (v) => {
               v.rotate(-15);
             })}
@@ -136,7 +152,11 @@ export function ModelView({
             })}
           </div>
         ) : (
-          <div className="m3-status" role="status" aria-live="polite">
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center text-text-2 [&_p]:m-0"
+            role="status"
+            aria-live="polite"
+          >
             {status.kind === 'loading' && <p>Loading the 3D view…</p>}
             {status.kind === 'preparing' && (
               <>
@@ -160,17 +180,28 @@ export function ModelView({
   );
 }
 
+// The role colours (shell.css --v-3d-*, the scene's too); removed also half see-through, as in the view.
+const SWATCH: Record<Highlight['role'], string> = {
+  moved: 'bg-[var(--v-3d-moved)]',
+  removed: 'bg-[var(--v-3d-removed)] opacity-50',
+  added: 'bg-[var(--v-3d-added)]',
+  affected: 'bg-[var(--v-3d-affected)]',
+};
+
 /** Colour is never the only cue: each role in words with its count (model-3d.md part 3). */
 function Legend({ shown }: { shown: Shown }) {
   const found = ROLES.filter((r) => shown.counts[r]);
   const total = found.reduce((n, r) => n + (shown.counts[r] ?? 0), 0) + shown.missing;
   return (
-    <div className="m3-legend">
+    <div className="m3-legend mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-text-2 [&_p]:m-0">
       {found.length > 0 ? (
-        <ul aria-label="Highlighted elements">
+        <ul
+          aria-label="Highlighted elements"
+          className="m-0 flex list-none flex-wrap gap-x-4 gap-y-2 p-0"
+        >
           {found.map((r) => (
-            <li key={r}>
-              <span className={`m3-swatch m3-swatch--${r}`} aria-hidden="true" />
+            <li key={r} className="flex items-center gap-1.5">
+              <span className={cn('size-3.5 rounded-[4px]', SWATCH[r])} aria-hidden="true" />
               {ROLE_LABEL[r]}: {shown.counts[r]}
             </li>
           ))}
@@ -193,28 +224,33 @@ export function ModelCard({ projectId, file }: { projectId: string; file: FileSt
   const model = model3dOf(file);
   if (!model) return null;
   return (
-    <section aria-label="3D view" className="v-card m3-card">
-      <h2 className="v-h3">3D view</h2>
+    <Card
+      role="region"
+      aria-label="3D view"
+      className="block rounded-[var(--v-radius)] border-0 p-6 shadow-[var(--v-shadow)] max-[720px]:p-5"
+    >
+      <h2 className="m-0 mb-3 text-2xl leading-tight font-semibold tracking-[-0.01em]">3D view</h2>
       {model.state === 'unavailable' ? (
         <p>3D view unavailable: {model.reason || UNAVAILABLE}</p>
       ) : open ? (
         <ModelView projectId={projectId} fileId={file.id} name={file.path} />
       ) : (
-        <p className="m3-open">
-          <button
-            type="button"
-            className="v-btn v-btn--secondary v-press"
+        <p className="m-0 flex flex-wrap items-center gap-3">
+          <Button
+            variant="secondary"
+            size="pill"
+            className="v-press font-medium"
             onClick={() => {
               setOpen(true);
             }}
           >
             Show in 3D
-          </button>
+          </Button>
           {typeof model.elements === 'number' && (
-            <span className="m3-muted">{plural(model.elements, 'element')}</span>
+            <span className="text-muted-foreground">{plural(model.elements, 'element')}</span>
           )}
         </p>
       )}
-    </section>
+    </Card>
   );
 }

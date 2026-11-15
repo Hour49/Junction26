@@ -38,9 +38,10 @@ from app.adapters.plan_tools import ONE_AT_A_TIME
 from app.adapters.service_tools import _models  # pyright: ignore[reportPrivateUsage]
 from app.adapters.services_store import ServicesStore
 from app.core.errors import DomainError
+from app.core.ingest.model import FileStatus
 from app.core.plan_edit.model import Flag as PlanFlag
 from app.core.plan_edit.model import Proposal, Selection
-from app.core.services.derive import graph
+from app.core.services.derive import discipline_of, graph
 from app.core.services.edit import (
     EditRefusedError,
     Position,
@@ -58,11 +59,18 @@ from app.core.services.stored import Element, Point2, Room, ServicesModel, Store
 log = logging.getLogger(__name__)
 
 LIMIT = 3900  # characters of one result (SV-23: under 4,000)
+# what a person reads in the chat when a project's IFC files have no stored services model
+NOT_READ = (
+    "none of this project's IFC files has been read into a services model yet, so its pipes, "
+    "ducts and cables cannot be followed"
+)
 MAX_ITEMS = 60
 NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
 )
 FROM_PICTURE = "a services model read from a picture is listed and counted, not edited"
+# German exports name heating systems H_* (Heizung) or Heiz-/Wärme-: words facts_mep's table lacks
+HEATING_MARKS = ("heiz", "wärme", "waerme")
 WALL_COVER_M = 0.3  # a wall is on a room side when it covers this much of it (edit.py's rule)
 MOUNTED_M = 0.5  # a terminal this close to a room side is mounted on its wall
 
@@ -111,7 +119,9 @@ class ServicesToolStore:
         except DomainError as error:  # the project could not be read
             raise ToolError(f"no services model: {error}") from error
         if found is None:
-            have = ", ".join(self.models) or "none"
+            if not self.models:  # an upload's IFC files have no model until one is built (SV-8)
+                raise ToolError(NOT_READ)
+            have = ", ".join(self.models)
             raise ToolError(
                 f"drawing {drawing_id!r} has no services model; the project's services models: "
                 f"{have}"
@@ -159,10 +169,16 @@ class _ProjectModels(Mapping[str, ServicesModel]):
         return sum(1 for _ in self)
 
 
+def model_id(file: FileStatus) -> str | None:
+    """The id a services model goes by: its file's drawing id, else (an IFC set aside at upload,
+    which has no drawing) the first 16 characters of its sha256, the same shape as a drawing id."""
+    return file.drawing_id or (file.sha256[:16] if file.sha256 else None)
+
+
 def _project_files(pipeline: PipelineStore) -> dict[str, str]:
-    """Drawing id -> sha256 of the project's IFC files (`service_tools._models`)."""
+    """Model id -> sha256 of the project's IFC files (`service_tools._models`), drawn or not."""
     files, _ = _models(pipeline.ingest.status(pipeline.project_id), None)
-    return {f.drawing_id: f.sha256 for f in files if f.drawing_id and f.sha256}
+    return {i: f.sha256 for f in files if (i := model_id(f)) and f.sha256}
 
 
 def offers_services(pipeline: PipelineStore) -> bool:
@@ -241,7 +257,12 @@ class _DrawingArgs(_Args):
     drawing_id: str = Field(min_length=1, max_length=64, description="the services model's drawing")
 
 
-class _ListArgs(_DrawingArgs):
+class _ListArgs(_Args):
+    drawing_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description="the services model's drawing (default: the only one)",
+    )
     storey: str | None = Field(default=None, max_length=60, description="storey id (L1...) or name")
     system: str | None = Field(default=None, max_length=120, description="a system's name")
     room_id: str | None = Field(default=None, pattern=r"^SR\d{1,5}$", description="a room (SR...)")
@@ -291,7 +312,8 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
         "A building's pipes, ducts and cables: storeys, systems, connectivity, and terminals "
-        "and equipment (ids E...). With room_id: that room's walls (SW...), what hangs on "
+        "and equipment (ids E...); count is how many match, items may be cut: a how-many "
+        "answer states count. With room_id: that room's walls (SW...), what hangs on "
         "them, and whether a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
@@ -355,6 +377,15 @@ def run_services_tool(store: ServicesToolStore, name: str, arguments: str | dict
 
 
 def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
+    if args.drawing_id is None:  # the project's only model: a set-aside IFC is in no drawing list
+        have = list(store.models)
+        if not have:
+            raise ToolError(NOT_READ)
+        if len(have) != 1:
+            raise ToolError(
+                f"name the drawing_id; the project's services models: {', '.join(have)}"
+            )
+        args = args.model_copy(update={"drawing_id": have[0]})
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
     storey = _storey_of(model, args.storey) if args.storey else None
@@ -393,6 +424,7 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         and (room is None or e.room == room.id)
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
+    found["count"] = len(items)
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
     while len(json.dumps(found, ensure_ascii=False)) > LIMIT and found["items"]:
         found["items"].pop()
@@ -583,17 +615,27 @@ def _systems(model: ServicesModel) -> list[dict[str, Any]]:
     for e in model.elements:
         for name in e.systems:
             by.setdefault(name, []).append(e)
+    types = {s.name: s.type for s in model.systems}
     return [
         {
             "name": name,
-            "discipline": max(
-                {e.discipline for e in members}, key=[e.discipline for e in members].count
-            ),
+            "discipline": _discipline(f"{name} {types.get(name, '')}", members),
             "elements": len(members),
             "length_m": round(sum(e.length_m or 0 for e in members), 2),
         }
         for name, members in sorted(by.items())
     ]
+
+
+def _discipline(words: str, members: list[Element]) -> str:
+    """A system's own name and type first; its members' (mostly pipes, read as plumbing) last."""
+    words = words.lower()
+    if words.startswith("h_") or any(mark in words for mark in HEATING_MARKS):
+        return "heating"
+    said = discipline_of(words)
+    if said != "other":
+        return said
+    return max({e.discipline for e in members}, key=[e.discipline for e in members].count)
 
 
 def _walls(model: ServicesModel, room: Room) -> dict[str, Any]:

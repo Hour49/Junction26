@@ -1,13 +1,15 @@
 import { ExportButton } from '../export/ExportButton';
 import { CountryPicker } from './CountryPicker';
 import { useIssuesToAnswer } from './issueCount';
-import { ProjectPicker } from './ProjectPicker';
 import { packOf, routePath, withPack, type Route } from './route';
+import { Tip } from '@/components/ui/tip';
 import { PRODUCT_NAME } from './strings';
+import { TIPS } from './tips';
 import logo from './vellum-logo.png';
 
 interface ViewLink {
   label: string;
+  tip: string;
   href: string;
   current: boolean;
 }
@@ -18,15 +20,16 @@ function viewLinks(route: Route): ViewLink[] {
   if (!('projectId' in route)) return [];
   const pid = route.projectId;
   const pack = packOf(route);
-  const tab = (label: string, path: string, current: boolean) => ({
+  const tab = (label: string, tip: string, path: string, current: boolean) => ({
     label,
+    tip,
     href: withPack(`#/p/${pid}${path}`, pack),
     current,
   });
   return [
-    tab('Ingest', '', route.name === 'project' || route.name === 'file'),
-    tab('Chat', '/chat', route.name === 'chat'),
-    tab('Documents', '/documents', route.name === 'documents'),
+    tab('Ingest', TIPS.tabIngest, '', route.name === 'project' || route.name === 'file'),
+    tab('Chat', TIPS.tabChat, '/chat', route.name === 'chat'),
+    tab('Documents', TIPS.tabDocuments, '/documents', route.name === 'documents'),
   ];
 }
 
@@ -54,45 +57,29 @@ export function Header({ route }: { route: Route }) {
             {links.map((link) => {
               const badge = link.label === 'Documents' && toAnswer ? toAnswer : 0;
               return (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  aria-current={link.current ? 'page' : undefined}
-                  aria-label={
-                    badge
-                      ? `Documents, ${String(badge)} issue${badge === 1 ? '' : 's'} to answer`
-                      : undefined
-                  }
-                >
-                  {link.label}
-                  {badge > 0 && (
-                    <span className="tab-badge" aria-hidden="true">
-                      {badge}
-                    </span>
-                  )}
-                </a>
+                <Tip key={link.label} text={link.tip}>
+                  <a
+                    href={link.href}
+                    aria-current={link.current ? 'page' : undefined}
+                    aria-label={
+                      badge
+                        ? `Documents, ${String(badge)} issue${badge === 1 ? '' : 's'} to answer`
+                        : undefined
+                    }
+                  >
+                    {link.label}
+                    {badge > 0 && (
+                      <span className="tab-badge" aria-hidden="true">
+                        {badge}
+                      </span>
+                    )}
+                  </a>
+                </Tip>
               );
             })}
           </nav>
         )}
-        <ProjectPicker
-          projectId={
-            'projectId' in route
-              ? route.projectId
-              : route.name === 'about'
-                ? route.query.get('project')
-                : null
-          }
-          pack={packOf(route)}
-        />
-        {'projectId' in route && <CountryPicker pack={packOf(route)} />}
-        <a
-          className="header-pill workspaces-link v-press"
-          href="#/workspaces"
-          aria-current={route.name === 'account' ? 'page' : undefined}
-        >
-          Workspaces
-        </a>
+        {'projectId' in route && <CountryPicker projectId={route.projectId} pack={packOf(route)} />}
         {'projectId' in route && (
           <ExportButton key={route.projectId} projectId={route.projectId} pack={packOf(route)} />
         )}

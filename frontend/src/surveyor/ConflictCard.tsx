@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import {
   ApiError,
   errorText,
@@ -10,6 +10,11 @@ import {
   type DrawingView,
 } from '../api';
 import { SourceFigure, type Place, type Source } from '../viewer/SourceFigure';
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   cardState,
   inUseIndex,
@@ -72,12 +77,19 @@ function sourceOf(c: ConflictEntry, d: DrawingView, name: string, who: string | 
 // the label in sentence case: the title of an entry from a backend before #226 (which has no `title`)
 const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// the pill's words and its Badge variant
 const PILL = {
-  open: ['Needs you', 'cf-warn'],
-  rule: ['Settled by rule', 'cf-ok'],
-  picked: ['', 'cf-accent'], // words from `resolved.by`
-  yours: ['Your choice', 'cf-accent'],
+  open: ['Needs you', 'warn'],
+  rule: ['Settled by rule', 'ok'],
+  picked: ['', 'accent'], // words from `resolved.by`
+  yours: ['Your choice', 'accent'],
 } as const;
+
+/** The card's buttons: the demo's 44 px pills (conflicts.md "Demo parity"). */
+export const BTN =
+  'v-press px-5 text-base font-semibold disabled:bg-secondary disabled:text-muted-foreground disabled:opacity-100';
+/** Modify, the demo's .btn-soft: accent text on the soft accent (CF-47). */
+export const SOFT = 'cf-soft bg-accent text-primary hover:bg-accent hover:text-primary';
 
 /** One conflict of the project (conflicts.md "Field map", "States"). */
 export function ConflictCard({
@@ -133,9 +145,9 @@ export function ConflictCard({
 
   const choosing = mode === 'choosing' && !signed;
   const [pillWords, pillClass] = signed
-    ? [`Signed off by ${signed.by}`, 'cf-ok']
+    ? [`Signed off by ${signed.by}`, 'ok' as const]
     : mode === 'choosing' && state !== 'open'
-      ? ['Choosing', 'cf-muted']
+      ? ['Choosing', 'secondary' as const]
       : state === 'picked'
         ? [who ?? '', PILL.picked[1]]
         : PILL[state];
@@ -226,21 +238,26 @@ export function ConflictCard({
       <div className="cf-card-top">
         <div className="cf-card-head">
           <p className="cf-kicker">
-            Conflict {index + 1} of {total} · {kicker ?? 'settled by you'}
+            <Tip text={REVIEW_TIPS.conflictKicker} wrap>
+              <span>
+                Conflict {index + 1} of {total} · {kicker ?? 'settled by you'}
+              </span>
+            </Tip>
           </p>
           <h2 id={`${id}-t`} ref={title} tabIndex={focused ? -1 : undefined}>
             {c.title || sentence(c.label)}
           </h2>
           <p className="cf-file">{drawingName}</p>
         </div>
-        <span className="cf-pill-wrap">
-          <span className={`cf-pill ${pillClass}`} tabIndex={0} aria-describedby={`${id}-tip`}>
+        <Tip text={tip} className="flex-none">
+          <Badge
+            variant={pillClass}
+            className="cf-pill flex-none px-2.5 py-[5px] text-xs font-semibold data-[variant=secondary]:text-text-2"
+            tabIndex={0}
+          >
             {pillWords}
-          </span>
-          <span role="tooltip" id={`${id}-tip`} className="cf-tip">
-            {tip}
-          </span>
-        </span>
+          </Badge>
+        </Tip>
       </div>
 
       {drawing === undefined ? (
@@ -250,15 +267,16 @@ export function ConflictCard({
       ) : 'error' in drawing ? (
         <div role="alert" className="cf-error">
           <p>{errorText(drawing.error).detail}</p>
-          <button
-            type="button"
-            className="cf-btn"
+          <Button
+            variant="secondary"
+            size="pill"
+            className={BTN}
             onClick={() => {
               onNeedDrawing(true);
             }}
           >
             Retry
-          </button>
+          </Button>
         </div>
       ) : (
         <SourceFigure
@@ -269,43 +287,53 @@ export function ConflictCard({
       )}
 
       <div className="cf-tiles">
-        {values.map((v, i) => (
-          <button
-            key={i}
-            type="button"
-            className="cf-tile"
-            aria-label={[
-              `Variant ${String(i + 1)}: ${formatValue(v.value, v.unit ?? null)}`,
-              methodName(v.method),
-              v.page ? `page ${String(v.page)}` : null,
-              i === rule ? "the rule's choice" : null,
-              i === inUse ? 'in use' : null,
-            ]
-              .filter(Boolean)
-              .join(', ')}
-            aria-pressed={i === inUse}
-            disabled={busy || !!signed || mode !== 'choosing'}
-            onClick={() => {
-              pick(i);
-            }}
-          >
-            <span className="cf-tile-kicker">
-              Variant {i + 1}
-              {i === rule ? " · the rule's choice" : ''}
-              {i === inUse && (
-                <svg className="cf-check" viewBox="0 0 20 20" aria-hidden="true">
-                  <circle cx="10" cy="10" r="10" />
-                  <path d="M5.5 10.5l3 3 6-6.5" />
-                </svg>
-              )}
-            </span>
-            <span className="cf-tile-value">{formatValue(v.value, v.unit ?? null)}</span>
-            <span className="cf-tile-source">
-              {methodName(v.method)}
-              {v.page ? `, page ${String(v.page)}` : ''}
-            </span>
-          </button>
-        ))}
+        {values.map((v, i) => {
+          const locked = busy || !!signed || mode !== 'choosing';
+          const tile = (
+            <button
+              type="button"
+              className="cf-tile"
+              aria-label={[
+                `Variant ${String(i + 1)}: ${formatValue(v.value, v.unit ?? null)}`,
+                methodName(v.method),
+                v.page ? `page ${String(v.page)}` : null,
+                i === rule ? "the rule's choice" : null,
+                i === inUse ? 'in use' : null,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              aria-pressed={i === inUse}
+              disabled={locked}
+              onClick={() => {
+                pick(i);
+              }}
+            >
+              <span className="cf-tile-kicker">
+                Variant {i + 1}
+                {i === rule ? " · the rule's choice" : ''}
+                {i === inUse && (
+                  <svg className="cf-check" viewBox="0 0 20 20" aria-hidden="true">
+                    <circle cx="10" cy="10" r="10" />
+                    <path d="M5.5 10.5l3 3 6-6.5" />
+                  </svg>
+                )}
+              </span>
+              <span className="cf-tile-value">{formatValue(v.value, v.unit ?? null)}</span>
+              <span className="cf-tile-source">
+                {methodName(v.method)}
+                {v.page ? `, page ${String(v.page)}` : ''}
+              </span>
+            </button>
+          );
+          // a disabled button gets no hover: the tip sits on a focusable wrapper then (ui-tooltips P1)
+          return locked && (!!signed || busy) ? (
+            <Tip key={i} text={REVIEW_TIPS.choiceLocked} wrap className="flex">
+              {tile}
+            </Tip>
+          ) : (
+            <Fragment key={i}>{tile}</Fragment>
+          );
+        })}
       </div>
 
       {shown && who && (
@@ -326,23 +354,24 @@ export function ConflictCard({
           {chips.length > 0 && (
             <div className="cf-chips">
               {chips.map((x) => (
-                <button
+                <Button
                   key={x}
-                  type="button"
-                  className="cf-chip"
+                  variant="secondary"
+                  className="h-auto min-h-10 rounded-full px-3.5 py-[9px] text-left text-sm font-normal whitespace-normal hover:bg-accent max-[600px]:min-h-11"
                   onClick={() => {
                     setTyped(x); // fills the box; "Use my answer" sends it
                     ownInput.current?.focus();
                   }}
                 >
                   {x}
-                </button>
+                </Button>
               ))}
             </div>
           )}
           <div className="cf-own-row">
             <span className="cf-own-field">
-              <input
+              <Input
+                className="h-auto min-h-11 flex-1 rounded-none border-0 bg-transparent px-0 text-[15px] text-foreground shadow-none focus-visible:ring-0 md:text-[15px] max-[600px]:text-base"
                 ref={ownInput}
                 id={`${id}-own`}
                 autoComplete="off"
@@ -356,9 +385,9 @@ export function ConflictCard({
               />
               {unit && UNIT[unit] && <span>{UNIT[unit]}</span>}
             </span>
-            <button type="submit" className="cf-btn cf-primary" disabled={busy}>
+            <Button type="submit" size="pill" className={BTN} disabled={busy}>
               Use my answer
-            </button>
+            </Button>
           </div>
           {typedError !== null && (
             <p role="alert" id={`${id}-own-err`} className="cf-error">
@@ -389,40 +418,41 @@ export function ConflictCard({
         <p className="cf-action-text">{action}</p>
         <div className="cf-buttons">
           {!signed && state !== 'open' && mode === 'idle' && (
-            <button
-              type="button"
-              className="cf-btn cf-soft"
+            <Button
+              size="pill"
+              className={`${BTN} ${SOFT}`}
               onClick={() => {
                 setMode('choosing');
               }}
             >
               Modify
-            </button>
+            </Button>
           )}
           {!signed && state === 'yours' && mode === 'idle' && c.conflict.resolution && (
-            <button type="button" className="cf-btn" onClick={useRule}>
+            <Button variant="secondary" size="pill" className={BTN} onClick={useRule}>
               Use the rule&apos;s value
-            </button>
+            </Button>
           )}
           {!signed &&
             state === 'yours' &&
             mode === 'idle' &&
             !c.conflict.resolution &&
             r?.verdict === 'picked' && (
-              <button type="button" className="cf-btn" onClick={useRule}>
+              <Button variant="secondary" size="pill" className={BTN} onClick={useRule}>
                 Use {resolverName(r.by)}&apos;s pick
-              </button>
+              </Button>
             )}
           {state !== 'open' && mode === 'choosing' && (
-            <button
-              type="button"
-              className="cf-btn"
+            <Button
+              variant="secondary"
+              size="pill"
+              className={BTN}
               onClick={() => {
                 setMode('idle');
               }}
             >
               Cancel
-            </button>
+            </Button>
           )}
         </div>
       </div>

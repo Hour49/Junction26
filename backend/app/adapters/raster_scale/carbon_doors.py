@@ -11,6 +11,8 @@ is over one kind of box, the kind CARBON_DOOR_M is for, and the source says "the
 door it is sure of", true in both cases.
 No Carbon door: the sheet stays as PriorScale left it (refused, with its note). Every other sheet
 is passed through unchanged.
+A sheet that prints a scale which could not be read loses this scale again in PrintedScale, outside
+(app/core/pipeline/printed.py `CARBON_DOORS_REFUSED`): only the printed reading knows it is there.
 """
 
 from app.adapters.carbon.contract import SOURCE as CARBON

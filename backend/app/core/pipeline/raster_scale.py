@@ -310,6 +310,7 @@ def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
 # the half-1 fit; 11/11 half-2 sheets inside the band (DOOR_M gave 3/21, median -25.2%); USCG fp21
 # alone fit 1.123. shortcut: only 3 real scans behind it (fp21, 2 HABS), refit when more exist
 CARBON_DOOR_M = 1.069  # m
+CARBON_DOORS = "doors the Carbon reader found"  # in the source of every scale made from them
 
 
 def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
@@ -320,7 +321,7 @@ def carbon_door_scale(sides: Sequence[float]) -> Scale | None:
     return Scale(
         status="estimated",
         m_per_unit=CARBON_DOOR_M / statistics.median(sides),
-        source=f"a door is about {CARBON_DOOR_M} m wide; median of {len(sides)} doors the Carbon "
-        "reader found (the detector found no door it is sure of)",
+        source=f"a door is about {CARBON_DOOR_M} m wide; median of {len(sides)} {CARBON_DOORS} "
+        "(the detector found no door it is sure of)",
         uncertainty=SPREAD_FEW,
     )

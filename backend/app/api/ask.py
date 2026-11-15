@@ -27,9 +27,10 @@ from app.core.answering.model import Answer, Unit
 from app.core.answering.ports import AnswerConfidence
 from app.core.drawing.model import Drawing
 from app.core.errors import NotFoundError
+from app.core.ifc_facts import FactSheet
 from app.core.ingest.model import DrawingInfo, FileStatus
 from app.core.ingest.triage import sheet_doubt, sheet_flag
-from app.core.review.ask import Asked, ask
+from app.core.review.ask import Asked, ask, user_scaled
 from app.core.review.check import Check, Level
 from app.core.review.model import (
     MarkView,
@@ -138,6 +139,25 @@ def confidence_of(
     return answering.confidence(_SheetFiles(ingest, drawing_id, info.path))
 
 
+STILL_READING = (
+    "This model is still being read: its facts (counts, areas, materials per storey) are not "
+    "ready yet. Ask again in a minute."
+)
+
+
+def facts_of(
+    answering: Answering, ingest: Ingest, named: DrawingInfo, file: FileStatus | None
+) -> Callable[[], FactSheet | None] | None:
+    """The stored fact sheet of the file the drawing was read from, looked up when the ask first
+    needs it (a miss starts its build apart and answers as today); None when IFC_FACTS is off."""
+    facts = answering.facts
+    if facts is None or file is None or file.sha256 is None or named.project_id is None:
+        return None
+    project_id = named.project_id
+    sha256, file_id = file.sha256, file.id
+    return lambda: facts.facts(sha256, file.path, lambda: ingest.upload_bytes(project_id, file_id))
+
+
 def asked_on(
     question: str,
     drawing: Drawing,
@@ -152,9 +172,10 @@ def asked_on(
     checked id: deps.project_of). The page's flags are the stored reading's plus the sheet-kind
     step's on the file in that project (triage.sheet_flag): its triage, not the cache's."""
     info = ingest.drawing_info(drawing_id)
-    found = file_of(ingest, as_uploaded(ingest, info, project_id))
+    named = as_uploaded(ingest, info, project_id)
+    found = file_of(ingest, named)
     flag = None if found is None else sheet_flag(found.triage)
-    return ask(
+    asked = ask(
         question,
         drawing,
         parser=answering.parser,
@@ -173,7 +194,17 @@ def asked_on(
         scorers=answering.scorers,
         carbon_ladder=answering.carbon_ladder,
         room_words=answering.room_words,
+        facts=facts_of(answering, ingest, named, found),
     )
+    asked = user_scaled(asked, drawing)  # USER_SCALE: a no-op on a drawing at its own scale
+    sha256 = None if found is None else found.sha256
+    if asked.refusal is None or answering.facts is None or sha256 is None:
+        return asked
+    if not answering.facts.reading(sha256):
+        return asked
+    # its facts may answer once read: the takeoff's reason would read as final
+    refusal = asked.refusal.model_copy(update={"text": STILL_READING})
+    return asked.model_copy(update={"refusal": refusal})
 
 
 def file_of(ingest: Ingest, named: DrawingInfo) -> FileStatus | None:

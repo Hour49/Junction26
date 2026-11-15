@@ -29,6 +29,18 @@ def sniff(data: bytes) -> FileKind | None:
     return None
 
 
+_TIFF = (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")
+
+
+def sniff_raster(data: bytes) -> str | None:
+    """ "tiff" or "webp" by the first bytes: images the unpacker writes again as PNG."""
+    if data.startswith(_TIFF):
+        return "tiff"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
 def identify(entry: FileEntry, data: bytes) -> DrawingFile | SetAside:
     kind = sniff(data)
     if kind is None:

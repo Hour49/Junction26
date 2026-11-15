@@ -73,7 +73,7 @@ import pypdfium2
 from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 from pypdfium2 import raw
 
-from app.adapters.eight_bit import eight_bit
+from app.adapters.eight_bit import eight_bit, on_white
 from app.adapters.pdfium_lock import PDFIUM
 from app.core.ingest.model import ContentKind, LaterPage, Probed
 from app.core.pipeline.identify import sniff
@@ -179,9 +179,11 @@ def _pdf_pages(document: pypdfium2.PdfDocument) -> Probed:
             notes.append(str(error))
     if drawn:
         notes.insert(0, _later(drawn))
+    cut = None
     if count > MAX_PAGES + 1:
         notes.append(f"pages after {MAX_PAGES + 1} of {count} were not looked at")
-    return Probed(kind=kind, did="; ".join((did, *notes)), pages=tuple(pages))
+        cut = (MAX_PAGES + 1, count)
+    return Probed(kind=kind, did="; ".join((did, *notes)), pages=tuple(pages), cut=cut)
 
 
 def _page_kind(page: pypdfium2.PdfPage, at: str) -> tuple[ContentKind, str, bool]:
@@ -289,7 +291,7 @@ def _image(data: bytes, image_format: str) -> Probed:
             if _file_source(exif) in SCANNER_SOURCES:
                 camera = ""
             image.draft("RGB", (THUMB, THUMB))  # JPEG: decode at a fraction of the size
-            thumb = eight_bit(image).convert("RGB")
+            thumb = on_white(eight_bit(image)).convert("RGB")
     except (UnidentifiedImageError, OSError) as error:
         return Probed(kind="unknown", did=f"an image that cannot be decoded: {error}")
     name = image_format.upper()
@@ -368,7 +370,7 @@ def _no_drawing(data: bytes, thumb: Image.Image) -> str | None:
     probe's white-balanced grey thumbnail."""
     with Image.open(io.BytesIO(data)) as image:
         image.draft("L", (SHARP_SIDE, SHARP_SIDE))
-        grey = eight_bit(image).convert("L")
+        grey = on_white(eight_bit(image)).convert("L")
     grey.thumbnail((SHARP_SIDE, SHARP_SIDE))
     across, down = _steps(grey)
     levels = ImageChops.lighter(across, down).histogram()

@@ -78,11 +78,15 @@ class ServiceFollower:
     def run(self, proposal: Proposal) -> tuple[ServicesFollow, dict[str, Any]]:
         """The follow-up for the proposal and what the model reads of it."""
         try:
-            followed = self._with_pictures(proposal, self._follow(proposal))
+            followed = self._follow(proposal)
         except Exception as error:  # a bug or an unreadable file: the edit is not lost with it
             log.exception("services follow failed for proposal %s", proposal.proposal_id)
             why = f"the service models could not be read ({type(error).__name__})"
             followed = _unchecked(dict.fromkeys(LANES, why))
+        try:  # on its own: a picture that fails must not take the model's lanes with it
+            followed = self._with_pictures(proposal, followed)
+        except Exception:
+            log.exception("services pictures failed for proposal %s", proposal.proposal_id)
         return followed, for_model(followed)
 
     def warm(self) -> None:

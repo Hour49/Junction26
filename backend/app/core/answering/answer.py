@@ -372,9 +372,26 @@ class RoomByType:
             return unnamed
         if isinstance(parsed, Query) and _sheet_count(parsed) and (inside := self._printed(text)):
             return inside  # "How many doors does Bagno have?" is not the sheet's count
-        if not isinstance(parsed, Query) or len(rooms := rooms_of_type(parsed, self._drawing)) != 1:
+        if not isinstance(parsed, Query):
+            return parsed
+        rooms = rooms_of_type(parsed, self._drawing)
+        if len(rooms) > 1:  # "the living room" of two typed living: the one printed so (r11)
+            return self._printed_of(text, rooms) or parsed
+        if len(rooms) != 1:
             return parsed
         return self._area_of(rooms[0], parsed) or self._only_one(parsed) or parsed
+
+    def _printed_of(self, text: str, rooms: Sequence[Room]) -> Query | None:
+        """The area of the one of `rooms` whose printed label the question holds, when no other
+        room carries that label; None otherwise."""
+        named = printed_rooms(self._parser, self._drawing, text)
+        if named is None or len(named[1]) != 1 or named[1][0] not in rooms:
+            return None
+        for _, pattern in _printed_names(named[1][0]):
+            # "the living room 1" names a room the label doesn't: refused, as before (review-415)
+            if (at := pattern.search(text)) is not None and AFTER_ID.match(text, at.end()):
+                return None
+        return self._area_of(named[1][0], named[0])
 
     def _not_a_room(self, text: str, parsed: Query) -> Unsupported | None:
         """A bare number the parser took as the room ("Area 3.14?", "level 1.5") that no room of
@@ -461,6 +478,11 @@ class RoomByType:
         return self._area_of(rooms[0], again) or again.model_copy(
             update={"name": normalised(rooms[0].label or again.name or "")}
         )
+
+
+# A number or a one-letter identifier right after a room's label ("living room 1", "living room
+# B", "living room no. 2"): it names a room the label alone doesn't
+AFTER_ID = re.compile(r"\s*(?:(?:no|nr|num(?:ber)?)\.?\s*|#\s*)?(?:\d|[a-z]\b(?!'))", re.IGNORECASE)
 
 
 def _printed_names(room: Room) -> list[tuple[str, re.Pattern[str]]]:

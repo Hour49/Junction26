@@ -8,6 +8,7 @@ when the parser maps it back to that row's key, so asking a suggestion is never 
 
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
+from typing import NamedTuple
 
 from app.core.answering.answer import (
     AGREEING_FAMILIES,
@@ -25,6 +26,7 @@ from app.core.answering.answer import (
     printed_rooms,
     rooms_of_type,
 )
+from app.core.answering.facts import FACTS
 from app.core.answering.floors import (
     FLOOR,
     FLOOR_AT,
@@ -61,6 +63,7 @@ from app.core.drawing.model import (
     Table,
     words,
 )
+from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import CARBON_FLAG
 from app.core.model import Frozen
 from app.core.pipeline import rules as rule_pack
@@ -73,6 +76,7 @@ from app.core.pipeline.takeoff import (
     room_names,
     storeys,
 )
+from app.core.pipeline.user_scale import is_user_scale
 from app.core.review.check import (
     ASK,
     LEVELS,
@@ -127,6 +131,11 @@ RULES: dict[str, str] = {
     found.id: found.text for found in vars(rule_pack).values() if isinstance(found, CountingRule)
 }
 SUGGESTIONS = 6
+FACTS_LEVEL = "Low confidence: read from the file's fact sheet, not yet measured." + ASK["low"]
+FACTS_REASON = (
+    "Please double-check this answer against the file: it is read from its fact sheet, and such "
+    "answers are not yet measured."
+)
 # Parser reason (question_templates.py) for a supported kind of question without that quantity
 # ("no area is taken off for door"); NO_SUBJECT (answering/model.py): a subject it didn't recognise
 NO_QUANTITY = re.compile(r"no (count|area|length|volume) is taken off for (\S+)")
@@ -187,6 +196,26 @@ class _Once:
         return self._seen[text]
 
 
+class Known(NamedTuple):
+    """What `ask` looks a question up in: the drawing's takeoff after `_flagged` and `_unsaid`,
+    and its rows' storey twins."""
+
+    quantities: dict[str, Quantity]
+    unread: set[str]
+    unlocated: dict[str, Quantity]
+    unsaid: dict[str, tuple[Room, ...]]
+    twins: dict[str, str]
+
+
+def known_of(drawing: Drawing, flags: Sequence[str], raster: bool) -> Known:
+    """The drawing's takeoff (stages 9-10) as `ask` answers from it: the groups a flagged page's
+    reader did not read and the 0 counts the drawing does not say are left out."""
+    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
+    unsaid = _unsaid(quantities, drawing)
+    kept = {key: found for key, found in quantities.items() if key not in unsaid}
+    return Known(kept, unread, unlocated, unsaid, storey_twins(kept))
+
+
 def ask(
     text: str,
     drawing: Drawing,
@@ -207,6 +236,8 @@ def ask(
     scorers: Mapping[str, Scorer] = NO_SCORERS,
     carbon_ladder: bool = False,
     room_words: RoomWords = no_room_words,
+    facts: Callable[[], FactSheet | None] | None = None,
+    known: Known | None = None,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -228,17 +259,21 @@ def ask(
     and gets no High from Carbon either; its level is otherwise the score's, except Low on an image
     printing words of a plan kind the policy was not measured on (check.unmeasured_room). A 0
     count of a room type whose only candidates are labelled just "room" is refused
-    (check.only_room_word)."""
-    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
-    unsaid = _unsaid(quantities, drawing)
-    quantities = {key: found for key, found in quantities.items() if key not in unsaid}
+    (check.only_room_word). `facts` (IFC_FACTS; a services picture's sheet) gives the drawing's
+    fact sheet, asked only when the takeoff, the schedules and the dev prior give nothing
+    (answer_question): its answer is Low, never sure, marked by the facts' spots. `known`:
+    `drawing`'s takeoff as `known_of` gives it for these `flags` and `raster`, when the caller has
+    it already (which_room's per-room questions)."""
+    if known is None:
+        known = known_of(drawing, flags, raster)
+    quantities, unread, unlocated, unsaid, twins = known
 
     def area_of(asked: str) -> Asked:  # one room's area, as this question would be answered
         return ask(
             asked, drawing, parser=parser, clock=clock, prior=prior, state=state,
             prior_families=prior_families, confidence=confidence, sure_at=sure_at, flags=flags,
             raster=raster, check=check, route=route, disputes=disputes, no_reader=no_reader,
-            scorers=scorers, carbon_ladder=carbon_ladder,
+            scorers=scorers, carbon_ladder=carbon_ladder, facts=facts, known=known,
         )  # fmt: skip
 
     if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
@@ -247,8 +282,9 @@ def ask(
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
-        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at, flags
-    )
+        question, quantities, once, clock, prior, tables, prior_families, confidence, sure_at,
+        flags, facts,
+    )  # fmt: skip
     parsed = once.parse(text)
     query: str | None = None
     if isinstance(parsed, Query):
@@ -256,7 +292,7 @@ def ask(
     elif isinstance(parsed, TableQuery):
         query = parsed.family()
     found = quantities.get(query) if query is not None and answer.method == TAKEOFF else None
-    shared = with_twins(state, storey_twins(quantities))
+    shared = with_twins(state, twins)
     shown = None if found is None else row(found, drawing, shared, RULES)
     notes = [NOT_LOCATED] if found is not None and _unplaced(found, drawing) else []
     if found is not None and parse_key(found.key)[1] == "door" and CLOSET.search(text):
@@ -268,7 +304,7 @@ def ask(
         answer = answer.model_copy(update={"explanation": said})
     if shown is not None:
         marks = shown.marks
-    elif answer.method == SCHEDULE:
+    elif answer.method in (SCHEDULE, FACTS):
         marks = tuple(
             MarkView(
                 id=f"e{at}",
@@ -292,7 +328,7 @@ def ask(
     elif answer.method == SCHEDULE:
         proof = schedule_proof(marks, tables, answer.answer)
     refusal = None
-    if answer.method not in (TAKEOFF, SCHEDULE):
+    if answer.method not in (TAKEOFF, SCHEDULE, FACTS):
         code, words = _refusal(answer.method, parsed, query, drawing)
         if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
@@ -399,6 +435,9 @@ def ask(
     elif check is not None and answer.method == SCHEDULE and _summed(parsed, answer):
         request, level = summed_check(check)
         sure = False
+    elif check is not None and answer.method == FACTS:  # not measured on any gold yet
+        level = Level(level="low", basis="unrated", text=FACTS_LEVEL)
+        request = Check(reason=FACTS_REASON, disputed=())  # as every Low answer: it asks
     elif check is not None and answer.method == SCHEDULE:
         request = schedule_check(check)
         sure = request is None
@@ -418,6 +457,29 @@ def ask(
         level=level,
         partial=None if found is None else found.partial,
     )
+
+
+USER_SCALE_TEXT = (
+    "Low confidence: measured using the scale you gave, which was not checked against the "
+    "drawing." + ASK["low"]
+)
+MEASURED_UNITS = ("m", "m2", "ft", "ft2")
+
+
+def user_scaled(asked: Asked, drawing: Drawing) -> Asked:
+    """USER_SCALE: an area or length measured at a scale the user gave rests on their word, not
+    on a reading: never sure, an estimate, and Low (when the policy gives levels at all)."""
+    if (
+        not is_user_scale(drawing.scale)
+        or asked.refusal is not None
+        or asked.answer.unit not in MEASURED_UNITS
+    ):
+        return asked
+    answer = asked.answer.model_copy(update={"sure": False, "estimate": True})
+    level = (
+        None if asked.level is None else Level(level="low", basis="unrated", text=USER_SCALE_TEXT)
+    )
+    return asked.model_copy(update={"answer": answer, "level": level})
 
 
 def carbon_answer(

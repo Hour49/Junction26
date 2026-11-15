@@ -322,7 +322,8 @@ def _on_wall(
                     "under",
                     "needs_decision",
                     f"{counted(n, word)} ({name}) on the line of the new wall: "
-                    f"{'it has' if n == 1 else 'they have'} to move or the wall to shift.",
+                    f"{'it has' if n == 1 else 'they have'} to move or the wall to shift; "
+                    "a picture shows no heights, so it may sit above or below the wall's line.",
                     found,
                 )
             )
