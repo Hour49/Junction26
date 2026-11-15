@@ -191,7 +191,8 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-38 (chat-ux #9, phone pass) Under 1200 px the same plan opens as a full-screen sheet (`dialog` "The plan",
   above the site header) instead of beside the chat, with the files list inside it: from a "Show the plan" chip
   above the ask bar, from the pen, and from `[n]` / "Show it" (which then focus that place and stay in the chat, as
-  AC-36). The sheet's head has Close; Escape closes it too, except inside the viewer (there it clears a tip or a
+  AC-36). The sheet's head has Close, and "Draw" (the pen, pressed while on) when an open file can be drawn on, since
+  the sheet covers the ask bar's pen (R4-F3); Escape closes it too, except inside the viewer (there it clears a tip or a
   drag); focus moves into the sheet, Tab and Shift+Tab wrap inside it, and focus goes back to where it was on close. Scrolling the plan never scrolls
   the chat behind. Widening past 1200 px closes the sheet (the pane shows); narrowing again does not reopen it.
   1200 px and wider: no chip, no Close.

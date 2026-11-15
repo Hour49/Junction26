@@ -230,6 +230,8 @@ export function PlanPane(props: {
   onPick: (sel: Omit<Selection, 'id'>, chip: string) => void;
   /** Set when the pane is a sheet over the chat (chat-ux #9): a Close button in its head. */
   onClose?: () => void;
+  /** The sheet's own pen (R4-F3): the sheet covers the ask bar's pen. Set only with `onClose`, when drawable. */
+  onPen?: () => void;
 }) {
   const { files, drawn, reveal } = props;
   return (
@@ -237,9 +239,22 @@ export function PlanPane(props: {
       <div className="flex items-center justify-between gap-3">
         <h2 className="m-0 text-[17px] font-semibold">Files</h2>
         {props.onClose && (
-          <Button type="button" variant="secondary" size="pill-sm" onClick={props.onClose}>
-            Close
-          </Button>
+          <span className="flex gap-2">
+            {props.onPen && (
+              <Button
+                type="button"
+                variant={props.drawMode ? 'default' : 'secondary'}
+                size="pill-sm"
+                aria-pressed={props.drawMode}
+                onClick={props.onPen}
+              >
+                Draw
+              </Button>
+            )}
+            <Button type="button" variant="secondary" size="pill-sm" onClick={props.onClose}>
+              Close
+            </Button>
+          </span>
         )}
       </div>
       <ul className="ag-files m-0 flex min-h-0 flex-1 list-none flex-col gap-2 overflow-auto p-0">
