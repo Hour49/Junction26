@@ -31,6 +31,15 @@ describe('advanced.ts', () => {
     }
   });
 
+  it('AV-49 Index says only the files triage set aside are judged, not every set-aside file', () => {
+    const index = must(STEP_VIEW[8]);
+    expect(index.heading).toBe('Indexing for questions');
+    expect(index.explain).toContain(
+      'the files triage set aside are judged against the project (a file set aside for another reason, such as a failed read or a second copy, is not)',
+    );
+    for (const v of STEP_VIEW) expect(v.explain).not.toMatch(/each set-aside file/i);
+  });
+
   it('AV-3 a done project: every step done', () => {
     expect(statuses(project)).toEqual(Array(9).fill('done'));
   });

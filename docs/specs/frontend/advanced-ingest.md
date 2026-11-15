@@ -52,7 +52,7 @@ one line per route:
 | 6 | Second count | `second_count` | Counting a second way | `CheckPairs` | "Quantities that can be measured a second way are measured again by an independent method. When the two disagree, it goes to you as a conflict." |
 | 7 | Takeoff | `takeoff` | Working out the quantities | `ReadyList` | "The counting rules are applied and every quantity of the plan is computed in advance, with the marks it comes from, so questions are answered from it straight away." |
 | 8 | Store | `write` | Storing the drawing model | `PlanMarks` | "One drawing model per plan is stored, with the marks that show where each quantity comes from." |
-| 9 | Index | none (the project's last phase) | Indexing for questions | `FileStrip` | "Once every file is through, each set-aside file is judged against the project, the files that are not plans are described or their text read, and everything goes into the project's search index for the chat." |
+| 9 | Index | none (the project's last phase) | Indexing for questions | `FileStrip` | "Once every file is through, the files triage set aside are judged against the project (a file set aside for another reason, such as a failed read or a second copy, is not), the files that are not plans are described or their text read, and everything goes into the project's search index for the chat." |
 
 Per-route lines (`STEP_VIEW[k].routes`), shown under the explanation as a list, "**<routeLabel>:** <line>", only for routes
 some file of the project is on (`files[].route`), in the order BIM model, CAD, drawn PDF, image:
@@ -403,6 +403,9 @@ Pipeline steps v4 (ingest.md "Pipeline steps v4")
   [unit + component]
 - AV-48: The rail is 9 columns wide at 1440 px and 3 × 3 at 390 px, with no horizontal scroll and no step name
   broken inside a word (`overflow-wrap: normal`). [e2e screenshot]
+- AV-49: The Index explanation says only the files triage set aside are judged, and that a file set aside for
+  another reason (a failed read, a second copy) is not; it never says "each set-aside file" is judged (the
+  backend's `to_judge` takes only files with a triage verdict other than floor plan, #680). [unit]
 
 ## Trace view v5 (ingest UI track, 2026-11-15, worker detail for w18:p3C)
 

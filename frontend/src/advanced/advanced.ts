@@ -103,7 +103,7 @@ export const STEP_VIEW: readonly StepView[] = [
     heading: 'Indexing for questions',
     visual: 'files',
     explain:
-      "Once every file is through, each set-aside file is judged against the project, the files that are not plans are described or their text read, and everything goes into the project's search index for the chat.",
+      "Once every file is through, the files triage set aside are judged against the project (a file set aside for another reason, such as a failed read or a second copy, is not), the files that are not plans are described or their text read, and everything goes into the project's search index for the chat.",
   },
 ];
 
