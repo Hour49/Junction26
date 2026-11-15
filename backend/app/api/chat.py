@@ -7,6 +7,7 @@ import logging
 import queue
 import threading
 from collections.abc import Callable, Iterator
+from functools import partial
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,6 +17,7 @@ from pydantic import Field, StringConstraints
 from app.adapters.agent_tools import project_toolbox
 from app.adapters.chat_store import JsonChatStore
 from app.adapters.ifc_model.glb import GlbModels
+from app.adapters.user_scale import take_scale
 from app.api.checks import RulePacksDep, find_pack
 from app.api.deps import IngestDep, Models3dDep, ProjectId, SettingsDep
 from app.api.project_ask import ProjectAnswer, with_models_3d
@@ -177,16 +179,24 @@ def _turn_runner(
     def run(emit: Callable[[str, Any], None]) -> ChatTurn:
         try:
             current = chats.get(project_id, found.chat_id) if body.chat_id else found
-            tools = project_toolbox(
-                request.app, project_id, body.selection, current.proposals, pack
-            )
             names = {entry.drawing_id: entry.name for entry in drawings_of(status)}
+            said, scales = "", None
+            if settings.user_scale:  # this message's scale, then every scale of the chat
+                held = request.app.state.user_scales
+                keep = partial(held.put, found.chat_id)
+                said = take_scale(body.message, body.selection, ingest, status, names, keep)
+                scales = held.of(found.chat_id)
+            tools = project_toolbox(
+                request.app, project_id, body.selection, current.proposals, pack, scales
+            )
             # the rules planner is free: the Gemini budget never stops it (QA robust-3)
             guard = SpendGuard() if settings.chat_model == "rules" else spend_guard(settings)
             caps = chat_caps(settings)
             context = _country(request.app, pack)
             if settings.services_follow == "on":  # decision 0016
                 context = f"{context}\n{SERVICES}"
+            if said:
+                context = f"{context}\n{said}"
             turn = run_turn(current, body.message, body.selection, model, tools, caps, guard,
                             names=names, context=context, emit=emit)  # fmt: skip
             chats.put(project_id, current)

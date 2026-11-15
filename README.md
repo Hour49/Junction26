@@ -133,7 +133,7 @@ time.
 
 ```mermaid
 flowchart TD
-    IN["Upload: zip, PDF, PNG, JPEG, IFC"] --> ID["Unpack, hash, identify each file by its content"]
+    IN["Upload: zip, PDF, PNG, JPEG, TIFF, WebP, IFC"] --> ID["Unpack, hash, identify each file by its content"]
     ID --> PLAN{"A drawing?"}
     PLAN -- no --> ASIDE["Set aside with a reason, kept"]
     PLAN -- yes --> ROUTE["Pick the richest source of each drawing"]
@@ -223,9 +223,9 @@ uv run uvicorn app.main:create_app --factory
 cd frontend && npm ci && npm run build && npm run preview     # http://127.0.0.1:4173
 ```
 
-On the home page, "Try the sample project" ingests the synthetic archive: 11 files, five drawings, no partner
-data. With no keys, 3 files are ready, 4 flagged, 2 set aside and 2 text only. Last verified on 2026-11-14, main
-7b5d697.
+On the home page, "Try the sample project" ingests the synthetic archive: 12 files, six drawings, no partner
+data. With no keys, 4 files are ready, 4 flagged, 2 set aside and 2 text only; plans/flat-c.pdf is the sheet
+you can draw an edit on. Last verified on 2026-11-15 (offline tests, branch demo/sample-walled).
 
 A Gemini key (`GEMINI_API_KEY`) turns on the readers that need a model: rooms on images and photos, the count
 distributions behind the confidence, large or hard sheets, and the printed scale. `EU_VLM_*` sets an EU open

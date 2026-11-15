@@ -95,6 +95,7 @@ const posted = (api: ReturnType<typeof mockApi>, path: string) =>
   api.calls.filter((c) => c.method === 'POST' && c.url.startsWith(path.split(' ')[1] ?? ''));
 
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn(); // jsdom has none; a selection scrolls its detail (SV-53)
   viewer.props = null;
   window.location.hash = `#/p/${pid}/d/${did}/surveyor`;
   localStorage.clear();
@@ -897,26 +898,39 @@ describe('pre-QA (2026-11-14)', () => {
     );
   });
 
-  it('SV-53 on a phone, selecting a row scrolls the detail into view; on a desktop it does not', async () => {
+  it('SV-53 selecting a row scrolls its detail into view, on a phone and on a desktop (QA fe-ui2)', async () => {
+    // At 1440 the detail sits under every row of the takeoff column (3781 px down on the sample): unseen without this.
     const scroll = vi.fn();
     Element.prototype.scrollIntoView = scroll;
-    const narrow = (matches: boolean) => {
-      window.matchMedia = vi.fn().mockReturnValue({ matches });
-    };
-    narrow(false);
     show();
     await ready();
+    expect(scroll).not.toHaveBeenCalled(); // the default selection on open does not scroll
     pick('door count');
-    await waitFor(() => {
-      expect(within(detail()).getByRole('heading').textContent).toContain('door count');
-    });
-    expect(scroll).not.toHaveBeenCalled();
-    narrow(true);
-    pick(rowOf(takeoff, 'area:room|indoor').label);
     await waitFor(() => {
       expect(scroll).toHaveBeenCalledTimes(1);
     });
     expect(scroll.mock.contexts[0]).toBe(detail());
+    pick(rowOf(takeoff, 'area:room|indoor').label);
+    await waitFor(() => {
+      expect(scroll).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('SV-53 on a desktop only the takeoff column scrolls to the detail; the page stays (QA fe-ui2)', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    show();
+    await ready();
+    const column = screen.getByRole('region', { name: 'Takeoff' });
+    // jsdom lays nothing out: make the column taller inside than its box, as the sticky desktop column is
+    Object.defineProperty(column, 'scrollHeight', { value: 4000, configurable: true });
+    Object.defineProperty(column, 'clientHeight', { value: 700, configurable: true });
+    column.scrollTop = 0;
+    pick('door count');
+    await waitFor(() => {
+      expect(column.scrollTop).not.toBe(0);
+    });
+    expect(scroll).not.toHaveBeenCalled();
   });
 
   it('SV-54 a settled conflict marks the value in use in its list', async () => {
