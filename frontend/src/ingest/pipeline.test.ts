@@ -6,10 +6,12 @@ import {
   foundLine,
   headlineStep,
   lanes,
+  readDrawings,
   routeReaders,
   routeSummary,
   stepMatches,
   thingsFound,
+  unread,
 } from './pipeline';
 import { DEMO_READERS, must } from './testing';
 
@@ -115,6 +117,11 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
       'Read 1 IFC model, 2 drawn PDFs and 1 image. 2 flagged files need a look; 1 set aside.',
     );
     expect(routeSummary(files.slice(0, 1))).toBe('Read 1 drawn PDF.');
+    // QA R2-A1: on a no-keys server the image route's reader is `hello`: its file was not read, nor counted as read
+    expect(routeSummary(files, { ...DEMO_READERS, raster: 'hello' })).toBe(
+      'Read 1 IFC model and 2 drawn PDFs. 1 flagged file needs a look; 1 not read; 1 set aside.',
+    );
+    expect(routeSummary(files.slice(3, 4), { raster: 'hello' })).toBe('1 not read.');
     expect(routeSummary([])).toBe('');
   });
 
@@ -148,5 +155,22 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     expect(stepMatches('Symbol detector, 8 views', 'symbol detector')).toBe(true);
     expect(stepMatches('Room reader (Gemini)', 'room reader')).toBe(true);
     expect(stepMatches('Carbon on a large sheet', 'Carbon level check')).toBe(false);
+  });
+
+  it('IN-116 a drawing on a route whose reader is `hello` is unread, and not among the drawings read', () => {
+    const offline = { ...DEMO_READERS, raster: 'hello' };
+    expect(unread({ route: 'raster' }, offline)).toBe(true);
+    expect(unread({ route: 'raster' }, DEMO_READERS)).toBe(false);
+    expect(unread({ route: 'vector' }, offline)).toBe(false);
+    expect(unread({ route: null }, offline)).toBe(false);
+    expect(unread({ route: 'raster' }, undefined)).toBe(false); // an old server: nothing said, nothing hidden
+    // project.json is a no-keys run: its scan and photo are on `raster: hello`
+    expect(readDrawings(project).map((d) => d.route)).toEqual([
+      'vector',
+      'vector',
+      'vector',
+      'bim',
+    ]);
+    expect(readDrawings({ ...project, readers: DEMO_READERS })).toHaveLength(6);
   });
 });
