@@ -205,6 +205,33 @@ def test_a_space_without_a_stated_height_has_its_bodys_height(facts: list[Fact])
     assert _value(facts, "space.height", "101", "Ground") == pytest.approx(2.5)
 
 
+def test_a_space_cut_by_its_roof_has_no_single_height_only_its_uncut_top() -> None:
+    """pic-reg M1 on #628: an attic clipped by its roof got the uncut extrusion as its height."""
+    model = _model(1.0)
+    kitchen = next(s for s in model.by_type("IfcSpace") if s.Name == "101")
+    body = kitchen.Representation.Representations[0]
+    solid = body.Items[0]
+    plane = model.create_entity(
+        "IfcPlane",
+        Position=model.create_entity(
+            "IfcAxis2Placement3D",
+            Location=model.create_entity("IfcCartesianPoint", Coordinates=(0.0, 0.0, 1.0)),
+        ),
+    )
+    cut = model.create_entity(
+        "IfcBooleanClippingResult",
+        Operator="DIFFERENCE",
+        FirstOperand=solid,
+        SecondOperand=model.create_entity(
+            "IfcHalfSpaceSolid", BaseSurface=plane, AgreementFlag=False
+        ),
+    )
+    body.Items = (cut,)
+    facts = arch_facts(model)
+    assert not [f for f in facts if f.topic == "space.height"]
+    assert _value(facts, "space.height_up_to", "101", "Ground") == pytest.approx(2.5)
+
+
 def test_an_element_one_by_one_has_its_global_id() -> None:
     """Tudor R4-H2: "the width of the door <GUID>" needs the door's GlobalId on the sheet."""
     model = _model(1.0)

@@ -371,6 +371,20 @@ def test_a_room_whose_height_the_file_does_not_state_is_refused_in_words() -> No
     assert said == "The file states no height for Kitchen (Space 001) (not available)."
 
 
+def test_a_room_cut_by_its_roof_gets_its_uncut_top_and_that_its_height_varies() -> None:
+    """pic-reg M1 on #628: never a single uncut height for a clipped room."""
+    attic = FactSheet(model="house", disciplines=["architecture"], facts=[
+        fact("space.long_name", "301", "Attic", None, storey="Roof"),
+        fact("space.height_up_to", "301", 2.581, "m", storey="Roof"),
+    ])  # fmt: skip
+    query = parse_ifc_question("What is the ceiling height in room 301?")
+    assert query is not None
+    assert fact_text(query, attic) == (
+        "Attic (Space 301): up to 2.58 m; its shape is cut (a sloped or clipped ceiling), so its"
+        " height varies"
+    )
+
+
 def test_the_heights_of_rooms_named_by_their_use_are_listed() -> None:
     said = text("What is the ceiling height of the bedrooms?")
     assert said.splitlines() == [
@@ -716,6 +730,7 @@ GUIDS = FactSheet(
     disciplines=["architecture"],
     facts=[
         fact("door.count", "all", 2, "count"),
+        fact("wall.count", "all", 57, "count"),  # walls: no one-by-one facts, so no GUIDs
         fact(
             "door.global_id",
             "Single-Flush:1250 x 2010:146596",
@@ -811,3 +826,18 @@ def test_storeys_apart_or_missing_are_given_as_stated() -> None:
     ]
     said = level_text("What is the floor-to-floor height between the ground floor and tenth floor?")
     assert said.startswith("No storey 'tenth floor' in this file; it has 4 storeys:")
+
+
+def test_a_guid_of_a_class_not_listed_one_by_one_is_not_called_missing() -> None:
+    """pic-reg M2 on #628: 'No wall in this file has GlobalId X' was false (walls have no GUID
+    facts); the same for a space (S1), which got the all-spaces total."""
+    said = guid_text("What is the length of the wall 2O2Fr$t4X7Zf8NOew3FKau?")
+    assert said == (
+        "This file's facts do not list walls one by one, so a wall cannot be found by its GlobalId"
+        " here (not available)."
+    )
+    said = text("What is the area of the space 0BTBFw6f90Nfh9rP1dlXrb?")
+    assert said == (
+        "This file's facts do not list spaces by GlobalId, so a space cannot be found by it here"
+        " (not available)."
+    )

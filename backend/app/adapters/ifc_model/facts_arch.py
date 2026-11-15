@@ -22,7 +22,8 @@ What is read, and the conventions the facts follow:
   objects.py's own `_solid`, so a room has one area wherever it is asked. What the file states
   is kept apart: the Qto areas (`space.net_floor_area`, `space.gross_floor_area`) and the area
   the authoring tool writes in a property set (`space.stated_area`, STATED_AREAS). A space's
-  `space.height` is its Qto Height, else the depth of its upright body extrusion.
+  `space.height` is its Qto Height, else the depth of its body when that is one upright extrusion;
+  a body cut by a boolean (an attic under its roof) gives `space.height_up_to` instead.
 - Derived numbers are computed here, never by the answering side (suffixed topics, whole
   building unless a storey is set): `<entity>.<measure>.min|max|average` per part,
   `<entity>.<measure>.per_storey` (the total over the storeys that hold the class),
@@ -351,10 +352,15 @@ def _spaces(file: Any, scales: Mapping[str, float]) -> Iterator[Fact]:
         if (kind := element_util.get_type(entity)) is not None and kind.Name:
             yield _fact("space.type", name, kind.Name, None, "IfcSpaceType", storey)
         quantities = _quantities(entity)
-        body = None if "Height" in quantities else _extrusion(entity)
+        body, cut = (None, False) if "Height" in quantities else _space_body(entity)
         if body is not None and abs(body.ExtrudedDirection.DirectionRatios[-1]) > 0.99:  # upright
             height = body.Depth * scales["LENGTHUNIT"]
-            yield _fact("space.height", name, height, "m", "body extrusion depth", storey)
+            if cut:  # clipped (an attic under its roof): the extrusion is only its top
+                yield _fact(
+                    "space.height_up_to", name, height, "m", "uncut body extrusion depth", storey
+                )
+            else:
+                yield _fact("space.height", name, height, "m", "body extrusion depth", storey)
         for quantity in SPACE_QUANTITIES:
             if quantity not in quantities:
                 continue
@@ -391,6 +397,29 @@ def _spaces(file: Any, scales: Mapping[str, float]) -> Iterator[Fact]:
         if (topic, subject, storey) == (topic, "all", None) and storeys:
             per_storey = value / len(storeys)
             yield _fact(f"{topic}.per_storey", "all", per_storey, unit, "total / storeys")
+
+
+def _space_body(space: Any) -> tuple[Any | None, bool]:
+    """The extrusion a space's Body is, when it is exactly one (directly or as one mapped item),
+    and whether a boolean cuts it (its height then varies: an attic clipped by its roof). None
+    for a mesh, several solids or anything else: no height is read from those (pic-reg M1)."""
+    shape = getattr(space, "Representation", None)
+    items = [
+        item
+        for representation in (shape.Representations if shape else ())
+        if representation.RepresentationIdentifier == "Body"
+        for item in representation.Items
+    ]
+    if len(items) == 1 and items[0].is_a("IfcMappedItem"):
+        items = list(items[0].MappingSource.MappedRepresentation.Items)
+    if len(items) != 1:
+        return None, False
+    item, cut = items[0], False
+    for _ in range(MAX_NESTING):
+        if not item.is_a("IfcBooleanResult"):
+            break
+        item, cut = item.FirstOperand, True
+    return (item, cut) if item.is_a("IfcExtrudedAreaSolid") else (None, False)
 
 
 def _stated_area(space: Any) -> tuple[float, str] | None:

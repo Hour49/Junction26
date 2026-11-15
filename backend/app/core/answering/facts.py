@@ -483,6 +483,11 @@ def _area_topics(query: FactQuery) -> tuple[str, ...]:
 
 
 def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
+    if query.guid is not None:  # pic-reg S1: never the all-spaces total for one space's GUID
+        return (
+            "This file's facts do not list spaces by GlobalId, so a space cannot be found by it"
+            " here (not available)."
+        )
     names = {fact.subject: fact.storey for fact in facts.get("space.long_name", anywhere=True)}
     for topic in _SPACE_AREAS:
         for fact in facts.get(topic, anywhere=True):
@@ -594,6 +599,9 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     return "\n".join(lines + tail)
 
 
+CUT = "its shape is cut (a sloped or clipped ceiling), so its height varies"
+
+
 def _space_label(name: str, long_name: Mapping[str, str]) -> str:
     said = long_name.get(name)
     return f"Space {name}" if said is None or said == name else f"{said} (Space {name})"
@@ -613,15 +621,29 @@ def _heights(
         for name in chosen
         if (fact := facts.one("space.height", name, storey_of[name])) is not None
     }
+    top = {
+        name: fact
+        for name in chosen
+        if name not in high
+        and (fact := facts.one("space.height_up_to", name, storey_of[name])) is not None
+    }
+
+    def said(name: str) -> str:
+        if name in high:
+            return _num(high[name])
+        if name in top:  # pic-reg M1: a clipped room has no single height
+            return f"up to {_num(top[name])}; {CUT}"
+        return "the file states no height (not available)"
+
     if len(chosen) == 1:
         label = _space_label(chosen[0], long_name)
         if chosen[0] in high:
             return f"Height of {label}: {_num(high[chosen[0]])}"
+        if chosen[0] in top:
+            return f"{label}: {said(chosen[0])}"
         return f"The file states no height for {label} (not available)."
     lines = [f"Heights of the {len(chosen)} spaces named '{' '.join(query.words)}':"]
-    for name in chosen:
-        said = _num(high[name]) if name in high else "the file states no height (not available)"
-        lines.append(f"- {_space_label(name, long_name)}: {said}")
+    lines += [f"- {_space_label(name, long_name)}: {said(name)}" for name in chosen]
     return "\n".join(lines)
 
 
@@ -775,7 +797,13 @@ def _by_guid(query: FactQuery, facts: _Facts) -> str:
     """The asked measures of the one element whose GlobalId the question names (Tudor R4-H2),
     never a count of its class; a GUID the file lacks, or a measure it does not state, is said."""
     guid, noun = query.guid, _noun(query.entity)
-    held = [f for f in facts.get(f"{query.entity}.global_id", anywhere=True) if f.value == guid]
+    listed = facts.get(f"{query.entity}.global_id", anywhere=True)
+    if not listed:  # pic-reg M2: the class has no one-by-one facts, so no GUIDs to look in
+        return (
+            f"This file's facts do not list {_plural(noun)} one by one, so a {noun} cannot be"
+            " found by its GlobalId here (not available)."
+        )
+    held = [f for f in listed if f.value == guid]
     if not held:
         return f"No {noun} in this file has GlobalId {guid} (not available)."
     element = held[0]
