@@ -160,7 +160,9 @@ SUBJECTS: Sequence[tuple[str, str]] = (
     ),
     (
         "room",
-        r"\brooms?\b|\bspaces?\b|\w*räume?n?\b|\braums?\b|\bpièces?\b|\blocal[ei]?\b"
+        # "space" heads a room, not a compound noun: space heaters, frames, trusses (#430 QA)
+        r"\brooms?\b|\bspaces?\b(?![\s-]+(?:heat\w*|frames?|truss\w*|cool\w*))"
+        r"|\w*räume?n?\b|\braums?\b|\bpièces?\b|\blocal[ei]?\b"
         r"|\blocales\b|\bruimtes?\b|\bpomieszcze\w*|\bruum\w*|\brum(?:met)?\b|\bhuone(?:tta|et|ita)\b"
         r"|\bsalles?\b|\bstanz[ae]\b|\bvani\b|\bîncăper\w*|\bspați\w*|\bcamer[ae]\b",
     ),

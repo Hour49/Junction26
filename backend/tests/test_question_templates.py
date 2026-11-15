@@ -46,6 +46,31 @@ def test_a_count_question_names_its_subject(text: str, subject: str) -> None:
     assert PARSE(text) == Query(measure="count", subject=subject)
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many space heaters are there?",
+        "How many space heaters does the model have?",
+        "How many space frames are there?",
+        "How many space trusses are shown?",
+        "How many space-heaters are there?",
+    ],
+)
+def test_space_as_part_of_a_compound_noun_is_not_rooms(text: str) -> None:
+    """Tudor's QA (#430 c6886348353): "space heaters" answered "room count: 1"."""
+    found = PARSE(text)
+    assert not (isinstance(found, Query) and found.subject == "room"), found
+
+
+@pytest.mark.parametrize(
+    "text", ["How many spaces are there?", "How many spaces does the model have?",
+             "How many spaces are shown on this floor plan?"],
+)  # fmt: skip
+def test_spaces_alone_are_still_rooms(text: str) -> None:
+    found = PARSE(text)
+    assert isinstance(found, Query) and (found.measure, found.subject) == ("count", "room")
+
+
 def test_hints_and_excluded_clauses_are_not_the_subject() -> None:
     bathrooms = Query(measure="count", subject="room:bathroom")
     assert PARSE("Leaving out separate WC rooms, how many bathrooms are there?") == bathrooms

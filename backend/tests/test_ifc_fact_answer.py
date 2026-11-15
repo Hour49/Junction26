@@ -5,11 +5,13 @@ from pathlib import Path
 
 from app.adapters.ifc_model import facts_source
 from app.adapters.ifc_model.facts_source import IfcFactSource
+from app.adapters.question_templates import TemplateParser
 from app.core.answering.answer import answer_question
 from app.core.answering.facts import FACTS, FirstSheet, answer_from_facts, fact_text
 from app.core.answering.model import Prior, Query, Question, Unsupported
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import parse_ifc_question
+from app.core.pipeline.model import Quantity
 from tests.ifc_models import IfcFile, box
 
 FILE = "data/ifc_bench/sample_arc.ifc"
@@ -597,3 +599,16 @@ def test_electrical_components_by_level_give_each_storeys_categories_and_share()
     said = storey_text("What is the electrical equipment distribution in level 1?", WIRED)
     assert said.startswith("Level 1 (B): 6 components (60.0% of 10)")
     assert "- Pipes: 1 (16.7%)" in said  # of all the storey's typed elements, whatever discipline
+
+
+def test_space_heaters_are_asked_of_the_fact_sheet_not_counted_as_rooms() -> None:
+    """Tudor's QA (#430 c6886348353): "How many space heaters are there?" answered "room count:
+    1": the template parser read "space" as rooms, so the takeoff's room count answered it."""
+    rooms = Quantity(key="room", value=1, unit="count", marks=(), rule="room")
+    question = Question(id=6, file=FILE, text="How many space heaters are there?")
+    answer = answer_question(
+        question, {"room": rooms}, TemplateParser(), lambda: 0.0, NoPrior(),
+        facts=lambda: SHEET,
+    )  # fmt: skip
+    assert answer.method == FACTS and isinstance(answer.answer, str)
+    assert "3" in answer.answer and answer.answer != 1
