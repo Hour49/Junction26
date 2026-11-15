@@ -80,8 +80,8 @@ class ServicesStore:
     ) -> ServicesModel | None:
         """The model of the file `name` with content `data` (and its building model's bytes),
         built once and kept. None when ifcopenshell cannot read it. `keep_empty=False`: a model
-        with no element is returned and not kept, only marked (a building model is no services
-        model)."""
+        with no distribution element (`has_services`) is returned and not kept, only marked (a
+        building model is no services model)."""
         sha256 = hashlib.sha256(data).hexdigest()
         stored = self.load(sha256)
         if stored is not None:
@@ -100,7 +100,7 @@ class ServicesStore:
             except Exception as error:  # ifcopenshell raises its own and plain RuntimeErrors
                 logger.warning("%s: no services model: %s", name, error)
                 return None
-        if not keep_empty and not model.elements:
+        if not keep_empty and not has_services(model):
             self._write(self.none_path(sha256), b"")
             return model
         self._write(ids_path, json.dumps(ids, indent=0, sort_keys=True).encode())
@@ -114,6 +114,13 @@ class ServicesStore:
         part = path.with_name(path.name + ".part")
         part.write_bytes(data)
         part.replace(path)
+
+
+def has_services(model: ServicesModel) -> bool:
+    """Whether the model holds a distribution element, or a proxy with ports (an exporter's
+    toilet or socket): a building model's portless proxies (parking marks, trees, bike stands)
+    make no services model."""
+    return any(e.group != "building_element_proxy" or e.ports for e in model.elements)
 
 
 def build_apart(
@@ -240,7 +247,7 @@ def _child(source: str, name: str, cache: str, architecture: str | None = None) 
     if model is None:
         print("not an IFC file ifcopenshell can read", file=sys.stderr)
         return NOT_READ
-    if not model.elements:
+    if not has_services(model):
         print("no distribution element: not a services model", file=sys.stderr)
         return NO_SERVICES
     return 0
