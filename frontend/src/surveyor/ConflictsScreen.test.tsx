@@ -216,6 +216,19 @@ describe('ConflictsList', () => {
     expect(cards()).toHaveLength(3);
   });
 
+  it('CF-4b nothing measured (QA R2-E1): no agree line', async () => {
+    const review = {
+      ...withConflicts([]),
+      drawings: projectReview.drawings.map((d) => ({ ...d, quantities: 0 })),
+    };
+    show({ [PATH.review]: review });
+    expect((await ready()).textContent).toBe('No conflicts found');
+    expect(
+      screen.getByText('Nothing was measured on these drawings, so there was nothing to compare.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Both methods agree wherever two of them measured.')).toBeNull();
+  });
+
   it('CF-4 no conflicts: agree line, no segments, no cards', async () => {
     const counts = vi.fn();
     const { container } = show({ [PATH.review]: withConflicts([]) }, undefined, counts);
