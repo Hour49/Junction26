@@ -30,6 +30,7 @@ from app.core.pipeline.ports import (
     SecondCounter,
     SourceFinder,
 )
+from app.core.pipeline.printed_answer import answered
 from app.core.pipeline.route import RICHEST_FIRST, route
 from app.core.pipeline.rules import apply_rules
 from app.core.pipeline.second_count import measured, resolved_rooms, second_count
@@ -219,7 +220,8 @@ def _read_sheet(
     sheet = normalise(file, pages.pages(file))
     found = extract(routed, sheet, extractors)
     again = [*second_counter.measure(routed.source, sheet), *found.printed]
-    compared = second_count(measured(found), again)
+    # PRINTED_TOTAL_ANSWERS: an exactly matching printed count is reported (printed_answer.py)
+    compared = answered(second_count(measured(found), again), found.printed_answers)
     drawing = Drawing(
         file=file.path,
         pages=sheet.pages,

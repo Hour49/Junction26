@@ -3,6 +3,7 @@ import type { FileStatus, FileTrace, ProjectView, StageTrace, StepTrace, Takeoff
 import { formatValue } from '../api/format';
 import { STAGE_LABEL, formatMs, kindLabel, plural, routeLabel } from '../ingest/ingest';
 import { CLASS_LABEL, classLine, planChance } from '../ingest/triage';
+import { calledNotADrawing } from './advanced';
 
 export type Step = StepTrace;
 
@@ -211,6 +212,15 @@ function triageDecision(t: FileTrace): Decision | null {
       if (sheet.advanced && sheet.advanced_why) lines.push(`Read closer: ${sheet.advanced_why}`);
     }
     if (tri.note) lines.push(tri.note);
+    // read because the sheet-kind step only warns, but it called the sheet not a drawing: no "A floor plan" (AD-132)
+    if (calledNotADrawing(f))
+      return {
+        key: 'triage',
+        where: STAGE_LABEL.identify,
+        title: 'Not a drawing, read anyway',
+        lines,
+        tone: 'warn',
+      };
     return {
       key: 'triage',
       where: STAGE_LABEL.identify,

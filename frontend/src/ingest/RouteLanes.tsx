@@ -120,14 +120,28 @@ export function splitPath(path: string): [string, string] {
   return [path.slice(0, i + 1), path.slice(i + 1)];
 }
 
+/** Characters of the stem kept beside the extension when a long file name is cut in the middle. */
+const KEEP_END = 8;
+
+/** A file name as [start, end]: the end is its extension and the last characters before it, the part that tells
+ * "plan_2082_floor3.dxf" from "plan_2082_floor3.pdf" (QA R4-A2), so only the start gives way when it is cut. */
+export function nameEnds(name: string): [string, string] {
+  const dot = name.lastIndexOf('.');
+  const ext = dot > 0 && name.length - dot <= 6 ? name.length - dot : 0;
+  const cut = Math.max(0, name.length - ext - KEEP_END);
+  return [name.slice(0, cut), name.slice(cut)];
+}
+
 function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
   const { word, icon } = STATE_LABEL[file.state];
   const [folder, name] = splitPath(file.path);
+  const [start, end] = nameEnds(name);
   return (
     <li className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-1 border-t border-muted py-2.5 first:border-t-0">
       <a
         href={`#/p/${projectId}/f/${file.id}`}
-        className="flex min-w-0 font-mono text-[13px] text-foreground no-underline hover:underline"
+        // min-h-6: a 24 px tap target (QA R4-E2: 20 px)
+        className="flex min-h-6 min-w-0 items-center font-mono text-[13px] text-foreground no-underline hover:underline"
         title={file.path}
         // the two flex spans would read "plans/ a.pdf" in Chromium (a space between them): the name is the path
         aria-label={file.path}
@@ -136,7 +150,11 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
         {folder && (
           <span className="ingest-folder min-w-0 truncate text-muted-foreground">{folder}</span>
         )}
-        <span className="ingest-name min-w-0 shrink-0 truncate max-w-full">{name}</span>
+        {/* then the name gives up its middle: its end and extension stay (IN-129) */}
+        <span className="ingest-name flex min-w-0 shrink-0 max-w-full">
+          <span className="ingest-name-start min-w-0 truncate">{start}</span>
+          <span className="ingest-name-end shrink-0 whitespace-pre">{end}</span>
+        </span>
       </a>
       <span className={cn('flex items-center gap-1.5 text-xs font-medium', STATE_TONE[file.state])}>
         <span aria-hidden="true">{icon}</span>

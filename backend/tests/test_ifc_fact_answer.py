@@ -719,10 +719,20 @@ def test_a_fixture_kind_the_question_names_leads_with_its_type_count() -> None:
     assert said("How many toilets are there?").startswith(
         "Toilets by the file's type: WCSEAT 4 (of 16 sanitary fixtures)"
     )
+    # R4-C3: a washbasin is a sink too; "the file does not mark which are sinks" was false here
     assert said("How many sinks are there?").startswith(
-        "The file does not mark which sanitary fixtures are sinks (not available)."
+        "Sinks by the file's type: WASHHANDBASIN 12 (of 16 sanitary fixtures)"
     )
     assert said("How many sanitary fixtures are there?").startswith("Total sanitary fixtures: 16")
+    no_basin = FactSheet(model="services", disciplines=["plumbing"], facts=[
+        fact("sanitary_terminal.count", "all", 4, "count"),
+        fact("sanitary_terminal.count_by_predefined_type", "WCSEAT", 4, "count"),
+    ])  # fmt: skip
+    query = parse_ifc_question("How many sinks are there?")
+    assert query is not None
+    assert (fact_text(query, no_basin) or "").startswith(
+        "The file does not mark which sanitary fixtures are sinks (not available)."
+    )
 
 
 GUIDS = FactSheet(

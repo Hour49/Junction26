@@ -349,7 +349,9 @@ describe('DocumentsScreen (documents.md)', () => {
     show(body, { ...projectIssues, project_id: body.id, issues: [] });
     await flush();
     const files = screen.getByRole('region', { name: 'Files' });
-    expect(files.textContent).toContain('A floor plan · Looks like: an elevation');
+    expect(files.textContent).toContain(
+      'Read as a floor plan · the sheet-kind step says it looks like an elevation',
+    );
   });
 
   it('RS-30 RS-31 Carbon’s pick and can-not-tell on a conflict issue, with a link to its card', async () => {

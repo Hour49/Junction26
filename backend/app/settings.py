@@ -57,6 +57,9 @@ ScaleCarbonDoorsName = Literal["off", "on"]
 # off, or carbon: a raster sheet's printed scale and counts, read by the Carbon reader, replace
 # its estimated scale and check its counts (app/adapters/printed_scale/)
 RasterPrintedScaleName = Literal["off", "carbon"]
+# on: a printed count of exactly the subject and floor an entry counts is the answer
+# (app/core/pipeline/printed_answer.py); off: it is only a second value, no rule decides
+PrintedTotalAnswersName = Literal["off", "on"]
 RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # raster: a drawn PDF the vector reader has no sheet style for goes to the raster route
 VectorFallbackName = Literal["off", "raster"]
@@ -116,6 +119,10 @@ class Settings(BaseSettings):
     # Off by default; carbon asks gemini-4-carbon (GEMINI_API_KEY, the spend guard, cached in
     # CARBON_CACHE_DIR: the page reply is the Carbon reader's): about 0.015 USD a sheet
     raster_printed_scale: RasterPrintedScaleName = "off"
+    # on: with RASTER_PRINTED_SCALE, a count the sheet prints for exactly what an entry counts
+    # (same subject, the sheet's one floor, one value: "SECOND FLOOR = 48 DORMS" on a second-floor
+    # plan) is reported, the count read stays as the conflict's other value. off: no rule decides
+    printed_total_answers: PrintedTotalAnswersName = "off"
     # auto: a raster page whose long side is over 4000 px is read by every detector source of
     # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
     # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.
