@@ -16,8 +16,10 @@ import {
   busySteps,
   headlineStep,
   projectPhase,
+  readDrawings,
   routeSummary,
   thingsFound,
+  unread,
 } from './pipeline';
 import { RouteLanes } from './RouteLanes';
 import { PANEL } from './ui';
@@ -101,7 +103,8 @@ export function ProgressCard({
   const { done, total } = progressOf(files);
   const elapsed = elapsedMs(project, now);
   const expected = project.expected_drawings;
-  const ready = String(project.drawings.length);
+  // a drawing on a route with no reader was not read: not ready (IN-116)
+  const ready = String(readDrawings(project).length);
   const status = (i: number) =>
     state === 'done' || i < low
       ? 'done'
@@ -124,7 +127,9 @@ export function ProgressCard({
             {state === 'done' ? 'Ready' : state === 'failed' ? 'Stopped' : STEPS[step - 1]?.name}
           </h2>
           {state === 'done' && (
-            <p className="ingest-summary text-[15px] text-text-2">{routeSummary(files)}</p>
+            <p className="ingest-summary text-[15px] text-text-2">
+              {routeSummary(files, project.readers)}
+            </p>
           )}
         </div>
         {state !== 'failed' && (
@@ -155,7 +160,8 @@ export function ProgressCard({
           {conflicts == null ? '—' : conflicts}
         </Stat>
         <Stat label="Flagged" tip={PIPELINE_TIPS.flagged}>
-          {files.filter((f) => f.state === 'flagged').length}
+          {/* read but needing a look: a file on a route with no reader was not read (IN-116) */}
+          {files.filter((f) => f.state === 'flagged' && !unread(f, project.readers)).length}
         </Stat>
         {/* the demo's stat (IN-86) */}
         <Stat label="Set aside" tip={INGEST_TIPS.setAside}>

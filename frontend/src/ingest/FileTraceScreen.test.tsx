@@ -47,7 +47,6 @@ describe('FileTraceScreen', () => {
       routeLabel(f.route), // IN-83: "drawn PDF route", not "vector"
       must(f.source),
       must(f.group),
-      '$0.00',
     ])
       expect(text).toContain(s);
     expect(text).toContain('ready');
@@ -63,7 +62,7 @@ describe('FileTraceScreen', () => {
     expect(must(route).nextElementSibling?.textContent).toBe(routeLabel(f.route));
   });
 
-  it('IN-33 every stage in order with label, did, ms; output only when it adds something', async () => {
+  it('IN-33 AD-117 every stage in order with label, did, ms; output only when it adds something', async () => {
     mockApi({ [GET]: trace });
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
@@ -73,10 +72,21 @@ describe('FileTraceScreen', () => {
       const item = must(items[i]);
       expect(item.textContent).toContain(s.did);
       expect(item.textContent).toContain(formatMs(s.ms));
-      expect(item.querySelector('.output')?.textContent ?? null).toBe(
-        s.output && s.output !== s.did ? s.output : null,
-      );
     });
+    // only Unpack's path, Group's file count and Store's quantities add to their did line (review of #546)
+    const outputs = items.map((li) => li.querySelector('.output')?.textContent ?? null);
+    expect(outputs).toEqual([
+      'plans/flat-a.pdf',
+      null,
+      null,
+      '2 files',
+      null,
+      null,
+      null,
+      null,
+      null,
+      '141 quantities',
+    ]);
     expect(must(items[0]).querySelector('b')?.textContent).toBe('Unpack');
     expect(must(items.at(-1)).querySelector('b')?.textContent).toBe('Store');
   });
@@ -283,6 +293,57 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(quiet.calls.some((c) => c.url.includes('/takeoff'))).toBe(false);
+  });
+
+  it('AD-120 the end card gives the key counts and a way to the drawing; the full list stays folded', async () => {
+    mockApi({ [GET]: trace });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const card = screen.getByRole('region', { name: 'What it ends as' });
+    const counts = within(card).getByRole('list', { name: 'Key counts' });
+    expect(
+      within(counts)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent)
+        .slice(0, 3),
+    ).toEqual(['5 rooms', '2 doors', '2 windows']);
+    expect(
+      within(card).getByRole('link', { name: 'See these on the drawing' }).getAttribute('href'),
+    ).toBe(`#/p/${PID}/d/${must(trace.file.drawing_id)}/engineer`);
+    expect(must(card.querySelector('details')).open).toBe(false);
+  });
+
+  it('AD-122 the Cost fact shows only a cost above zero (was "$0.00" on every file, IN-32)', async () => {
+    const fact = (label: string) =>
+      [...document.querySelectorAll('.ingest-facts dt')].find((d) => d.textContent === label);
+    mockApi({ [GET]: { ...trace, file: { ...trace.file, cost_usd: 0 } } });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(fact('Time')).toBeTruthy();
+    expect(fact('Cost')).toBeUndefined();
+    expect(document.body.textContent).not.toContain('$0.00');
+    cleanup();
+    mockApi({ [GET]: { ...trace, file: { ...trace.file, cost_usd: 0.031 } } });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    expect(must(fact('Cost')).nextElementSibling?.textContent).toBe('$0.03');
+  });
+
+  it('AD-119 a file read with its group: the Route fact names the file it was read with', async () => {
+    mockApi({
+      [GET]: {
+        ...trace,
+        file: { ...trace.file, path: 'plans/flat-a.png', source: 'plans/flat-a.pdf' },
+      },
+    });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const route = [...document.querySelectorAll('.ingest-facts dt')].find(
+      (d) => d.textContent === 'Route',
+    );
+    expect(must(route).nextElementSibling?.textContent).toBe(
+      'read with plans/flat-a.pdf (drawn PDF route)',
+    );
   });
 
   it('R1-1-1 a takeoff of one quantity reads "What it ends as: 1 quantity"', async () => {

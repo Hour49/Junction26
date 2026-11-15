@@ -61,6 +61,60 @@ export function sideBySide(steps: readonly Step[]): number {
   return peak;
 }
 
+/** One row of a stage's step list (AD-121): a step, the head of steps that ran side by side, or a time no step ran. */
+export type StepRow =
+  | { kind: 'step'; step: Step; span: Span | null; together: boolean }
+  | { kind: 'together'; from: number; to: number; count: number; peak: number }
+  | { kind: 'idle'; from: number; to: number };
+
+/**
+ * A stage's steps in their order, cut where no step was running (AD-121). Steps whose times overlap are one run
+ * "side by side", headed by its time and drawn on its own axis (from its first start to its last end), so overlaps
+ * show at any stage length; a lone step keeps the stage axis. A stretch with no step running, at least 1 s and a
+ * tenth of the stage, gets its own row: "the first step began at …" before the first, else "no step ran …". The
+ * data names no reason for the wait, so neither does the row.
+ */
+export function stepRows(steps: readonly Step[], ms: number): StepRow[] {
+  const end = (s: Step) => s.at_ms + (s.state === 'skipped' ? 0 : Math.max(0, s.ms));
+  const runs: { steps: Step[]; spans: (Span | null)[]; from: number; to: number }[] = [];
+  const onStage = stepSpans(steps, ms);
+  steps.forEach((s, i) => {
+    const run = runs.at(-1);
+    if (run && s.at_ms < run.to) {
+      run.steps.push(s);
+      run.spans.push(onStage[i] ?? null);
+      run.to = Math.max(run.to, end(s));
+    } else runs.push({ steps: [s], spans: [onStage[i] ?? null], from: s.at_ms, to: end(s) });
+  });
+  const axis = Math.max(ms, ...steps.map(end));
+  const idleAt = Math.max(1000, axis / 10);
+  const rows: StepRow[] = [];
+  let ran = 0;
+  for (const run of runs) {
+    if (run.from - ran >= idleAt) rows.push({ kind: 'idle', from: ran, to: run.from });
+    const peak = sideBySide(run.steps);
+    const width = run.to - run.from;
+    if (peak > 1 && width > 0) {
+      rows.push({ kind: 'together', from: run.from, to: run.to, count: run.steps.length, peak });
+      for (const s of run.steps)
+        rows.push({
+          kind: 'step',
+          step: s,
+          together: true,
+          span: {
+            left: Math.min(1, (s.at_ms - run.from) / width),
+            width: Math.min(1, (end(s) - s.at_ms) / width),
+          },
+        });
+    } else
+      run.steps.forEach((s, k) => {
+        rows.push({ kind: 'step', step: s, together: false, span: run.spans[k] ?? null });
+      });
+    ran = Math.max(ran, run.to);
+  }
+  return rows;
+}
+
 /** "31 doors, 12 windows" from a step's counts, largest first; "" with none. */
 export function foundLine(found: Readonly<Record<string, number>> | undefined): string {
   return Object.entries(found ?? {})
@@ -146,6 +200,10 @@ function triageDecision(t: FileTrace): Decision | null {
   };
 }
 
+/** The file a file was read with when its group was read from another one (`source`), else null (AD-119). */
+export const readWith = (f: Pick<FileStatus, 'path' | 'source'>): string | null =>
+  f.source && f.source !== f.path ? f.source : null;
+
 function routeDecision(t: FileTrace): Decision | null {
   const f = t.file;
   const route = stage(t, 'route');
@@ -160,7 +218,11 @@ function routeDecision(t: FileTrace): Decision | null {
   return {
     key: 'route',
     where: STAGE_LABEL.route,
-    title: f.route ? `The ${routeLabel(f.route)}` : 'Not routed',
+    title: readWith(f)
+      ? `Read with ${readWith(f) ?? ''}`
+      : f.route
+        ? `The ${routeLabel(f.route)}`
+        : 'Not routed',
     lines,
     tone: route.failure ? 'bad' : f.route ? 'info' : 'warn',
   };
@@ -217,8 +279,7 @@ function outcomeDecision(t: FileTrace): Decision {
   const lines =
     f.state === 'running' || f.state === 'queued'
       ? [now ? `Last stage: ${STAGE_LABEL[now.stage]}, ${formatMs(f.ms)} so far.` : 'Not started.']
-      : // the backend joins several reasons with "; "
-        f.reason.split('; ').filter(Boolean);
+      : reasonLines(f.reason);
   if (failed) lines.push(`${STAGE_LABEL[failed.stage]} failed: ${failed.failure ?? ''}`);
   return {
     key: 'outcome',
@@ -266,6 +327,46 @@ export const PHASE_LABEL: Record<Phase, string> = {
   check: 'Second count',
   store: 'Takeoff and store',
 };
+
+/** True when a stage's output only repeats its did line: contained in it, the route of a "<route> route" did, or
+ * the whole of a hash whose start the did gives (AD-117). */
+export function repeats(s: StageTrace): boolean {
+  const out = s.output.trim();
+  if (!out || s.did.includes(out)) return true;
+  if (s.stage === 'route' && s.did.includes(routeLabel(out))) return true;
+  const last = s.did.split(' ').at(-1) ?? '';
+  return last.length >= 8 && out.startsWith(last);
+}
+
+/**
+ * A file's reason as plain lines (AD-118): the backend joins reasons with "; " and may end with a bracketed summary
+ * of what was read, "… (room areas) (7 elements, 5 rooms, …)"; that summary becomes its own "Found: …" line.
+ */
+export function reasonLines(reason: string): string[] {
+  const text = reason.trim();
+  const m = /^(.*\S) \(([^()]*,[^()]*)\)$/.exec(text);
+  const lines = (m?.[1] ?? text)
+    .split('; ')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (m?.[2]) lines.push(`Found: ${m[2]}`);
+  return lines.map((l) => (/[.!?]$/.test(l) ? l : `${l}.`));
+}
+
+const COUNT_FIRST = ['room', 'door', 'window'];
+const countRank = (k: string) => {
+  const i = COUNT_FIRST.indexOf(k);
+  return i < 0 ? COUNT_FIRST.length : i;
+};
+
+/** The takeoff's plain class counts above zero ("5 rooms"), rooms, doors, windows first, then by name, at most 8 (AD-120). */
+export function keyCounts(takeoff: Readonly<Record<string, number>> | undefined): string[] {
+  return Object.entries(takeoff ?? {})
+    .filter(([k, n]) => /^[a-z_]+$/.test(k) && n > 0)
+    .sort(([a], [b]) => countRank(a) - countRank(b) || a.localeCompare(b))
+    .slice(0, 8)
+    .map(([k, n]) => plural(n, k.replaceAll('_', ' ')));
+}
 
 /** A file's stages merged into runs of one phase, for a calm bar: five segments at most in pipeline order. */
 export function phaseRuns(

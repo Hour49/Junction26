@@ -323,6 +323,12 @@ class Settings(BaseSettings):
     # set-aside gate failed, 7 of 227 plans): a sheet it would set aside is read and flagged with
     # the kind it looks like, so its answers are never certified and are Low (orchestrator)
     sheet_kind_set_aside: bool = True
+    # Where Sheet.discipline comes from (.agents/exp/pics-pic-cls.md): rules = the title and sheet
+    # number words (discipline_from_sheet; the sheet-kind-2 prompt, replies and cache as before);
+    # gemini = the sheet-kind reply's own discipline field (prompt sheet-kind-3, one call still),
+    # None when the title or number names another one. gemini re-pays one reply per cached sheet.
+    # Off in the demo until Bogdan turns it on with DISCIPLINE_PICTURES (orchestrator, 2026-11-15)
+    sheet_discipline: Literal["rules", "gemini"] = "rules"
     # The evidence index's embedder (decision 0012, app/adapters/evidence/embedder.py): the model
     # folder's manifest. No file there (or ""): the index searches with BM25 alone
     evidence_embedder_manifest: Path = Path("../data/models/rag/manifest.json")

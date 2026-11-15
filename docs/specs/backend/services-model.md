@@ -193,8 +193,13 @@ with a plain reason. The input model is never mutated (test: its hash before and
   model."; "It is already on that wall."; "This wall is too short for it." (shorter than its body plus 0.1 m each
   side); "No free place on this wall: a door or another terminal is in the way."; "Another terminal is already
   there."; "Both ways round this room pass a door."; "No pipe of this circuit in or next to this room." (duct,
-  cable by discipline); "Its branch does not end at a junction: a valve or equipment is in the way."; "Supply and
-  return would cross." (anywhere but at the terminal's ports).
+  cable by discipline); "Its branch does not end at a junction: a valve or equipment is in the way." (an open end;
+  a valve or equipment met on the branch is named: "...: Water heater 3 kW (E4) is in the way."); "Supply
+  and return would cross." (anywhere but at the terminal's ports). A move or add of a terminal with more than two
+  ports: "Washbasin 60x60 (E2) has 3 pipe connections; a terminal with more than two is not moved or copied yet."
+  plus the first named branch refusal; of one with none: "Basin mounting frame (E50) has no pipe
+  connections (likely a mounting frame): choose the fixture that has them." (2026-11-15, #566; a washbasin's cold,
+  hot and waste legs and a waste fall are not routed yet).
 - SV-20 **Flags**: `long_reroute` when the added length is more than three times the removed length plus 2 m
   ("Long reroute: 12.40 m of new pipe replaces 0.50 m."; *measured* old branches: median 0.32 m, 90th percentile
   6.84 m); `through_wall` ("The connection goes through a wall: it needs a core drill."); `crossover` ("Supply
@@ -221,17 +226,22 @@ with a plain reason. The input model is never mutated (test: its hash before and
 - SV-22 A selection on a services picture is 0013's `Selection` (`region` on the drawing and storey page). The
   store resolves it to a room, the nearest wall and a point on it. The model never writes a coordinate or a
   distance.
-- SV-23 `list_services(drawing_id, storey?, system?, room_id?, kind?)` → storeys, systems (name, discipline, element
-  counts, length), `connectivity`, and the terminals and equipment that match (`id`, kind, label, room, room_name,
-  system), at most 60 with a `more` count. With `room_id`: that room's walls (`id`, length, free length, openings,
-  what is mounted on it) and whether a main is in reach. The whole result stays under 4,000 characters. `room_id`
-  is an id or a room's name, in any case and word order ("küche 1-3" is "1-3 Küche"), else the one room whose
-  name holds all its words; several or none is an error naming the rooms (2026-11-15, QA #430). `by_type` and
-  `by_room` ("<id> <name>") count every match even when the items are cut, the 30 largest groups and the rest under
-  "and K more groups" (fewer when the result would pass 4,000 characters); breakdowns are answered from them
-  (2026-11-15, #430 R2). `by_kind` counts them per kind (the IFC class: a water heater, a roof drain or a filter is
-  no `sanitary_terminal`), and `kind` narrows the count and every group to that kind (2026-11-15, #430
-  c6887184725).
+- SV-23 `list_services(drawing_id, storey?, system?, room_id?, kind?, predefined?)` → storeys, systems (name,
+  discipline, element counts, length), `connectivity`, and the terminals and equipment that match (`id`, kind,
+  label, room, room_name, system), at most 60 with a `more` count. With `room_id`: that room's walls (`id`, length,
+  free length, openings, what is mounted on it) and whether a main is in reach. The whole result stays under 4,000
+  characters. `room_id` is an id or a room's name, in any case and word order ("küche 1-3" is "1-3 Küche"), else
+  the one room whose name holds all its words; several or none is an error naming the rooms (2026-11-15, QA #430).
+  `by_type` and `by_room` ("<id> <name>") count every match even when the items are cut, the 30 largest groups and
+  the rest under "and K more groups" (fewer when the result would pass 4,000 characters); breakdowns are answered
+  from them (2026-11-15, #430 R2). `by_kind` counts them per kind (the IFC class: a water heater, a roof drain or a
+  filter is no `sanitary_terminal`), and `kind` narrows the count and every group to that kind (2026-11-15, #430
+  c6887184725). `by_predefined` counts them per IFC PredefinedType (of the element, else its type object; "untyped"
+  when neither gives one), and `predefined` narrows the count, items and every group to that type, with `untyped`
+  the matches that carry none: a WC, a washbasin and their mounting frames are all `sanitary_terminal`, told apart
+  only by TOILETPAN, WASHHANDBASIN and SANITARYFOUNTAIN (2026-11-15, R5). `predefined="untyped"` selects those
+  with none; a type that no terminal of that kind in the whole model has is an error naming the types it has, not
+  a 0 (a type the model has elsewhere is a true 0 in a room without it) (2026-11-15, #559 review S1).
 - SV-24 `ask_services(drawing_id, op, element_id?, to_element_id?, system?, storey?, kind?, size?)` with `op` a
   closed list of SV-10's operations → the value, the elements behind it (ids with boxes, at most 30), or
   `{status: "unknown", reason}`.
@@ -243,10 +253,14 @@ with a plain reason. The input model is never mutated (test: its hash before and
 - SV-26 The rules model (`chat_rules.py`) gets keyword rules so the no-keys mode and the e2e work: move / relocate
   + radiator, socket, outlet, air terminal, diffuser → `list_services` → `propose_move_terminal`; "what feeds",
   "what does … serve", "what is cut off" → `ask_services`; how many / which + a terminal (also sink, basin,
-  toilet) + "in <room>" → `list_services(room_id=<room>, kind)` and the count with the items, or the tool's
-  error, only when the project's drawings besides the services model are IFC files (or none: an IFC set aside);
-  with a plan or a picture beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the
-  drawings answer as before (2026-11-15, QA #430, #491 review, #430 R3).
+  toilet, urinal) + "in <room>" → `list_services(room_id=<room>, kind)` and the count with the items, or the
+  tool's error; a sanitary word also passes its type (sink SINK, (wash)basin WASHHANDBASIN, toilet TOILETPAN,
+  urinal URINAL); a 0 where the room's sanitary terminals carry no type is "I can't tell", and a count beside
+  untyped ones is "at least N" with how many carry none (R5); a type the model has nowhere is "I can't tell" with
+  the types it has, in plain words (toilets, washbasins), never IFC names (#559 review), only when the project's
+  drawings besides the services model are IFC files (or none: an IFC set aside); with a plan or a picture
+  beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the drawings answer as
+  before (2026-11-15, QA #430, #491 review, #430 R3).
 - SV-27 Cost: no model call beyond the chat's own steps. *Sourced*: at $1.50 in / $7.50 out per million tokens a
   four-step turn is about $0.03-0.06, inside `AGENT_TURN_USD` 0.10. The six tool schemas together stay under
   1,500 tokens (test: a character count).

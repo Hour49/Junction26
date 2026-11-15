@@ -38,21 +38,39 @@ CROPS_MARGIN = 1.3  # ... else the best must match this many times the other's w
 # Floor words -> one key per floor ("0" ground, "1" first upper, "-1" basement, "roof").
 # shortcut: one numbering for every set (Finnish "1. krs" is the ground floor, German "EG" is 0);
 # a mixed-language set compares wrong: normalise per set when a real one shows it
+# Level codes E00, E01 (the DigitalHub sheets); an electrical sheet's number E01 is no level, so
+# they are read only from the title's floor and inside a file name, never as its sheet number
+# (review-495 M2)
+_LEVEL_CODE = (r"\be(\d{2})\b", "{}")
 _FLOORS: tuple[tuple[str, str], ...] = (
     (r"\b(?:eg|erdgeschoss|gf|ground(?:\s+floor)?)\b", "0"),
     (r"\b(?:dg|dachgeschoss|roof|attic|ullakko)\b", "roof"),
     (r"\b(?:ug|kg|untergeschoss|kellergeschoss|keller|kellari|basement|cellar)\b", "-1"),
     (r"\b(\d)f\b", "{}"),
     (r"\bb(\d{1,2})\b", "-{}"),  # B1, B01
-    (r"\be(\d{2})\b", "{}"),  # level codes E00, E01 (the DigitalHub sheets)
+    _LEVEL_CODE,
     (r"\b(\d{1,2})\s*\.?\s*(?:og|obergeschoss|krs|kerros|etage|stock)\b", "{}"),
     (
         r"\b(?:og|floor|fl|level|storey|story|etage|niveau|lvl|l|krs|kerros)\s*[-.]?\s*(\d{1,2})\b",
         "{}",
     ),
     (r"\b(\d{1,2})(?:st|nd|rd|th)\s+floor\b", "{}"),
+    # "First Floor", "Second Floor": the USCG sheets' words (pics-answer real set, 2026-11-15)
+    *(
+        (rf"\b{word}\s+floor\b", str(n))
+        for n, word in enumerate(("first", "second", "third", "fourth", "fifth", "sixth"), 1)
+    ),
 )
 _NUMBER = re.compile(r"\b([A-Z]{1,3})[-_ .]?(\d{3,4})\b")
+_YEAR = re.compile(r"(?<!\d)(19[5-9]\d|20[0-4]\d)(?!\d)")  # a year is no sheet number (N1)
+# Top-level folders named by discipline are one delivery, not two sets (review-495 S1)
+_DISCIPLINE_FOLDERS = frozenset(
+    {
+        "architektur", "architecture", "architectural", "arch", "ark", "hvac", "hls", "lvi",
+        "mep", "tga", "haustechnik", "heizung", "heating", "lüftung", "lueftung", "ventilation",
+        "sanitär", "sanitaer", "plumbing", "elektro", "electrical", "sähkö", "sahko", "säh", "sah",
+    }
+)  # fmt: skip
 
 
 def by_room_names(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
@@ -208,23 +226,47 @@ def pair(
             j = best.get(d)
             if j is None or _rank(got) > _rank(found[j]):
                 best[d] = i
+    # Several sheets laid over by geometry alone, none naming a floor, fit alike: the floors
+    # of a building print the same room names, so the first upload would be a guess (review-495 M3)
+    tied: dict[str, list[int]] = {}
+    for d, i in best.items():
+        top = found[i]
+        if isinstance(top, str) or top.paired_by != "geometry":
+            continue
+        alike = [
+            k
+            for k, (other, theirs) in enumerate(zip(candidates, found, strict=True))
+            if d in other.disciplines
+            and not isinstance(theirs, str)
+            and theirs.paired_by == "geometry"
+            and theirs.score == top.score
+        ]
+        if len(alike) > 1:
+            tied[d] = alike
     out: list[Pairing | str] = []
     for i, (sheet, got) in enumerate(zip(candidates, found, strict=True)):
         if isinstance(got, str) or not sheet.disciplines:
             out.append(got)
             continue
-        lost = [d for d in sheet.disciplines if best[d] != i]
+        won = {d for d in sheet.disciplines if best[d] == i and d not in tied}
         # shortcut: a sheet that wins one of its lanes is kept whole; split a sheet's lanes when
         # one picture marks several disciplines and loses some of them
-        if len(lost) == len(sheet.disciplines):
-            out.append(f"another {lost[0]} picture was taken: {_shown(candidates[best[lost[0]]])}")
+        if not won:
+            d = next((d for d in sheet.disciplines if i in tied.get(d, ())), None)
+            if d is not None:
+                names = ", ".join(_shown(candidates[k]) for k in tied[d])
+                out.append(
+                    f"{len(tied[d])} {d} pictures fit this plan alike and none names its floor "
+                    f"({names}): which one is this floor is not known"
+                )
+                continue
+            lost = sheet.disciplines[0]
+            out.append(f"another {lost} picture was taken: {_shown(candidates[best[lost]])}")
             continue
         others = [
             _shown(other)
             for k, (other, theirs) in enumerate(zip(candidates, found, strict=True))
-            if k != i
-            and not isinstance(theirs, str)
-            and set(other.disciplines) & {d for d in sheet.disciplines if best[d] == i}
+            if k != i and not isinstance(theirs, str) and set(other.disciplines) & won
         ]
         if others:
             got = got.model_copy(
@@ -250,7 +292,7 @@ def _pair(plan: Sheet, sheet: Sheet, register: Register) -> Pairing | str:
     if (sheet.drawing_id, sheet.page) == (plan.drawing_id, plan.page):
         return made("same_page", "the plan's own page", None, Affine())
     mine, theirs = _folder(plan), _folder(sheet)
-    if mine and theirs and mine != theirs:
+    if mine and theirs and mine != theirs and not (_by_discipline(mine) and _by_discipline(theirs)):
         return f"another set: folder '{theirs}' against '{mine}'"
     hints, refused = _metadata(plan, sheet)
     if refused:
@@ -277,12 +319,28 @@ def _metadata(plan: Sheet, sheet: Sheet) -> tuple[str, str]:
     """What the two sheets' words agree on ("'Floor 1' on both; sheet numbers A-101 / H-101"),
     "" when they say nothing either way; and the refusal ("another floor: ..."), else ""."""
     mine, theirs = _floors(plan), _floors(sheet)
+    # A folder's floor words ("EG/", "OG 1/") refuse when they differ, but never agree: a set's
+    # folder ("B1/") is on every floor's sheet (review-558)
+    every_mine = mine | {k: v for k, v in _floors(plan, folders=True).items() if k not in mine}
+    every_theirs = theirs | {
+        k: v for k, v in _floors(sheet, folders=True).items() if k not in theirs
+    }
+    only_mine = [k for k in every_mine if k not in every_theirs]
+    only_theirs = [k for k in every_theirs if k not in every_mine]
+    if only_mine and only_theirs:
+        return (
+            "",
+            f"another floor: '{every_theirs[only_theirs[0]]}' against '{every_mine[only_mine[0]]}'",
+        )
     agreed: list[str] = []
     if mine and theirs:
+        # each names a floor the other doesn't: they differ, whatever else both name (a building
+        # folder "B1" shared by every floor of the set; review-495 M1)
+        only_mine = [k for k in mine if k not in theirs]
+        only_theirs = [k for k in theirs if k not in mine]
+        if only_mine and only_theirs:
+            return "", f"another floor: '{theirs[only_theirs[0]]}' against '{mine[only_mine[0]]}'"
         shared = [k for k in theirs if k in mine]
-        if not shared:
-            first = next(iter(theirs))
-            return "", f"another floor: '{theirs[first]}' against '{next(iter(mine.values()))}'"
         a, b = theirs[shared[0]], mine[shared[0]]
         agreed.append(f"'{a}' on both" if a.casefold() == b.casefold() else f"'{a}' and '{b}'")
     n_mine, n_theirs = _number(plan), _number(sheet)
@@ -294,15 +352,25 @@ def _metadata(plan: Sheet, sheet: Sheet) -> tuple[str, str]:
     return "; ".join(agreed), ""
 
 
-def _floors(sheet: Sheet) -> dict[str, str]:
-    """The floors a sheet's title, sheet number and file name name: key -> the words as printed."""
+def _floors(sheet: Sheet, folders: bool = False) -> dict[str, str]:
+    """The floors a sheet's title, sheet number and file name name: key -> the words as printed.
+    Not its folders (a set's folder "B1/" is on every floor's sheet, review-558 M1); with
+    `folders`, only what its folders name."""
     found: dict[str, str] = {}
-    for text in (sheet.storey, sheet.sheet_number, sheet.name):
+    path = PurePosixPath(sheet.name) if sheet.name else None
+    if folders:
+        where = [("folder", " ".join(path.parent.parts))] if path else []
+    else:
+        where = [("title", sheet.storey), ("number", sheet.sheet_number),
+                 ("name", path.name if path else None)]  # fmt: skip
+    for source, text in where:
         if not text:
             continue
         spaced = text.replace("_", " ")
         for pattern, key in _FLOORS:
             for m in re.finditer(pattern, spaced, re.IGNORECASE):
+                if (pattern, key) == _LEVEL_CODE and not _level_code(source, m.start()):
+                    continue
                 k = key.format(int(m.group(1))) if m.groups() else key
                 found.setdefault(k, m.group(0))
     return found
@@ -310,11 +378,24 @@ def _floors(sheet: Sheet) -> dict[str, str]:
 
 def _number(sheet: Sheet) -> tuple[str, str] | None:
     """The sheet number as printed and its part after the discipline letters (H-101 -> 101)."""
-    for text in (sheet.sheet_number, PurePosixPath(sheet.name).name if sheet.name else None):
-        m = _NUMBER.search(text or "")
-        if m:
+    if sheet.sheet_number and (m := _NUMBER.search(sheet.sheet_number)):
+        return m.group(0), m.group(2)
+    for m in _NUMBER.finditer(PurePosixPath(sheet.name).name if sheet.name else ""):
+        if not _YEAR.fullmatch(m.group(2)):  # "KOY_2019" is the project's year (review-495 N1)
             return m.group(0), m.group(2)
     return None
+
+
+def _level_code(source: str, at: int) -> bool:
+    """Whether an E00/E01 code found at `at` in a sheet's title floor, sheet number or file name
+    is a level: always in the title's floor, never as the sheet number, and in the file name only
+    inside it (as the name's first word it is the number: "E01 Elektro.png")."""
+    return source == "title" or (source == "name" and at != 0)
+
+
+def _by_discipline(folder: str) -> bool:
+    """A folder named by its discipline ("Architektur", "02_HVAC")."""
+    return re.sub(r"^[\d\s._-]+", "", folder).casefold() in _DISCIPLINE_FOLDERS
 
 
 def _fractions(placed: Place, size: Point2, plan_m: Point2) -> Affine:

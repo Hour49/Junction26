@@ -286,4 +286,52 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
     expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');
   });
+
+  it('IN-116 (QA R2-A1) a file on a route with no reader is not a drawing ready nor read', () => {
+    const png = file('plan', {
+      route: 'raster',
+      kind: 'png_plan',
+      state: 'flagged',
+      drawing_id: 'dp',
+      source: 'plans/plan.png',
+      reason:
+        'not read: this setup has no reader for the image route (0 elements, 0 rooms, no scale on the sheet)',
+    });
+    const pdf = file('pdf', {
+      route: 'vector',
+      kind: 'pdf_vector',
+      state: 'ready',
+      drawing_id: 'dv',
+      path: 'plans/pdf.pdf',
+      source: 'plans/pdf.pdf',
+    });
+    const drawing = must(project.drawings[0]);
+    const mixed: ProjectView = {
+      ...project,
+      readers: { ...DEMO_READERS, raster: 'hello' },
+      files: [pdf, png],
+      expected_drawings: 2,
+      drawings: [
+        { ...drawing, drawing_id: 'dv', route: 'vector', state: 'ready' },
+        { ...drawing, drawing_id: 'dp', route: 'raster', state: 'flagged' },
+      ],
+    };
+    render(<ProgressCard project={mixed} now={Date.now()} />);
+    const dt = must(
+      [...document.querySelectorAll('.ingest-stats dt')].find(
+        (d) => d.textContent === 'Drawings ready',
+      ),
+    );
+    expect(must(dt.nextElementSibling).textContent).toBe('1 / 2');
+    expect(screen.getByText('Read 1 drawn PDF. 1 not read.')).toBeTruthy();
+    // "Flagged" counts files read that need a look: the unread PNG is not one
+    const flagged = must(
+      [...document.querySelectorAll('.ingest-stats dt')].find((d) => d.textContent === 'Flagged'),
+    );
+    expect(must(flagged.nextElementSibling).textContent).toBe('0');
+    // the lane headers: the drawn PDF was read, the PNG on the image route was not
+    expect(lane('Drawn PDF').textContent).toContain('1 file · 1 drawing read');
+    expect(lane('Image').textContent).toContain('1 file');
+    expect(lane('Image').textContent).not.toContain('drawing read');
+  });
 });

@@ -2,15 +2,19 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { takeoff, trace } from '../api/fixtures';
 import type { FileTrace, StageTrace, StepTrace } from '../api';
-import { sheet, traceVariants } from '../ingest/testing';
+import { must, sheet, traceVariants } from '../ingest/testing';
 import {
   decisions,
   disagreements,
   foundLine,
   foundOf,
+  keyCounts,
   phaseRuns,
+  reasonLines,
+  repeats,
   sideBySide,
   stageSpans,
+  stepRows,
   stepSpans,
   stepsOf,
 } from './trace';
@@ -66,6 +70,80 @@ describe('trace view v5', () => {
     expect(sideBySide([])).toBe(0);
   });
 
+  // the shape of a real raster extract (sample trace f14, 2026-11-15): two Carbon reads at once, 15.7 s with no step
+  // running, six readers starting together with two after them inside the arbiter's time, then a skipped reader
+  const real = [
+    step({ id: 'printed_scale', at_ms: 1.3, ms: 359.3 }),
+    step({ id: 'carbon', at_ms: 4.4, ms: 368.1 }),
+    step({ id: 'decisions', at_ms: 16031.7, ms: 4494 }),
+    step({ id: 'arbiter', at_ms: 16031.8, ms: 5128.4 }),
+    step({ id: 'detector', at_ms: 16031.8, ms: 4486.7 }),
+    step({ id: 'rooms', at_ms: 16031.9, ms: 1369.7 }),
+    step({ id: 'double_check', at_ms: 16032, ms: 793.6 }),
+    step({ id: 'double_check', at_ms: 16032.2, ms: 542.4 }),
+    step({ id: 'detector', at_ms: 20518.5, ms: 89.6 }),
+    step({ id: 'arbiter', at_ms: 20608.2, ms: 551.9 }),
+    step({ id: 'carbon', at_ms: 21161.5, ms: 0, state: 'skipped' }),
+  ];
+
+  it('AD-121 stepRows: runs side by side under a head on their own axis, a long idle stretch said, lone steps kept', () => {
+    const rows = stepRows(real, 21168.7);
+    expect(rows.map((r) => (r.kind === 'step' ? r.step.id : r.kind))).toEqual([
+      'together',
+      'printed_scale',
+      'carbon',
+      'idle',
+      'together',
+      'decisions',
+      'arbiter',
+      'detector',
+      'rooms',
+      'double_check',
+      'double_check',
+      'detector',
+      'arbiter',
+      'carbon',
+    ]);
+    expect(rows[0]).toMatchObject({ kind: 'together', from: 1.3, count: 2, peak: 2 });
+    expect(rows[3]).toEqual({ kind: 'idle', from: 372.5, to: 16031.7 });
+    const run = rows[4];
+    expect(run).toMatchObject({ kind: 'together', from: 16031.7, count: 8, peak: 6 });
+    expect(run?.kind === 'together' && run.to).toBeCloseTo(21160.2, 1);
+    // on the run's own axis: the arbiter spans it, its second detector read starts 87 % in
+    const span = (i: number) => {
+      const r = rows[i];
+      return r?.kind === 'step' ? r.span : undefined;
+    };
+    expect(span(6)?.width).toBeCloseTo(1, 3);
+    expect(span(11)?.left).toBeCloseTo(0.875, 2);
+    // the skipped reader after the run is lone, on the stage axis
+    expect(rows[13]).toMatchObject({ kind: 'step', together: false });
+    expect(span(13)?.left).toBeCloseTo(21161.5 / 21168.7, 4);
+  });
+
+  it('AD-121 the wait before the first step is its own row; short gaps and back-to-back steps are not', () => {
+    const late = stepRows(
+      [step({ at_ms: 16000, ms: 4000 }), step({ at_ms: 16000, ms: 2000 })],
+      20000,
+    );
+    expect(late[0]).toEqual({ kind: 'idle', from: 0, to: 16000 });
+    expect(late[1]).toMatchObject({ kind: 'together', count: 2, peak: 2 });
+    // a drawn PDF: two readers one after the other, 0.02 ms apart: two lone steps on the stage axis
+    const vector = stepRows(
+      [step({ at_ms: 0, ms: 93.25 }), step({ id: 'tables', at_ms: 93.27, ms: 3424.4 })],
+      3517.7,
+    );
+    expect(vector.map((r) => r.kind)).toEqual(['step', 'step']);
+    expect(vector.every((r) => r.kind === 'step' && !r.together)).toBe(true);
+    // 900 ms idle in a 2 s stage is under the 1 s floor: no row
+    expect(
+      stepRows([step({ at_ms: 0, ms: 100 }), step({ at_ms: 1000, ms: 1000 })], 2000).map(
+        (r) => r.kind,
+      ),
+    ).toEqual(['step', 'step']);
+    expect(stepRows([], 0)).toEqual([]);
+  });
+
   it('AD-104 an old server sends no steps: none are drawn', () => {
     const old = { ...stage({}) } as Partial<StageTrace>;
     delete old.steps;
@@ -87,7 +165,11 @@ describe('trace view v5', () => {
     expect(d[1]?.lines).toContain('Grouped: plans/flat-a: flat-a.pdf, flat-a.png');
     expect(d[2]).toMatchObject({ title: 'Both counts agree', tone: 'ok' });
     expect(d[2]?.lines).toEqual(['5 quantities measured a second way: all agree.']);
-    expect(d[3]).toMatchObject({ title: 'Ready to ask', tone: 'ok', lines: [trace.file.reason] });
+    expect(d[3]).toMatchObject({
+      title: 'Ready to ask',
+      tone: 'ok',
+      lines: [`${trace.file.reason}.`],
+    });
   });
 
   it('AD-106 triage, read-from, cache, conflicts with their values, flagged reasons, failure', () => {
@@ -124,7 +206,7 @@ describe('trace view v5', () => {
     );
     expect(d[2]?.lines[1]).toBe('Room 1.01 area: 22.4 m² on the drawing, 30.0 m² the second way.');
     expect(d[3]).toMatchObject({ title: 'Flagged for a look', tone: 'warn' });
-    expect(d[3]?.lines).toEqual(['scale estimated', '1 conflict']);
+    expect(d[3]?.lines).toEqual(['scale estimated.', '1 conflict.']);
     const failed = decisions(traceVariants.failed);
     expect(failed.at(-1)).toMatchObject({ title: 'Set aside', tone: 'bad' });
     expect(failed.at(-1)?.lines).toContain('Extract failed: no page could be read');
@@ -160,6 +242,62 @@ describe('trace view v5', () => {
     expect(foundOf({ ...trace.file, takeoff: {} })).toBe('');
   });
 
+  it('AD-117 a stage output that repeats its did line is shown once', () => {
+    const [unpack, hash, identify, , route, , , , takeoffStage] = trace.stages;
+    expect(repeats(must(hash))).toBe(true); // did "sha256 dd2c…", output the full hash
+    expect(repeats(must(identify))).toBe(true); // "drawn PDF" inside "a drawn PDF (…)"
+    expect(repeats(must(route))).toBe(true); // "vector" is the "drawn PDF route" of the did
+    expect(repeats(must(takeoffStage))).toBe(true); // "takeoff: 141 …" at the end of the did
+    expect(repeats(must(unpack))).toBe(false); // the path adds something
+    expect(repeats(stage({ did: 'x', output: '' }))).toBe(true);
+  });
+
+  it('AD-118 a reason with a trailing summary reads as plain lines, never two brackets in a row', () => {
+    expect(
+      reasonLines(
+        '1 conflict between the two methods (room areas) (7 elements, 5 rooms, scale read from the sheet)',
+      ),
+    ).toEqual([
+      '1 conflict between the two methods (room areas).',
+      'Found: 7 elements, 5 rooms, scale read from the sheet.',
+    ]);
+    expect(reasonLines('scale estimated; 1 conflict')).toEqual(['scale estimated.', '1 conflict.']);
+    expect(reasonLines('read on the drawn PDF route: 7 elements')).toEqual([
+      'read on the drawn PDF route: 7 elements.',
+    ]);
+    expect(reasonLines('')).toEqual([]);
+  });
+
+  it('AD-119 a file read with its group says so: the route decision names the file it was read with', () => {
+    const png: FileTrace = {
+      ...trace,
+      file: { ...trace.file, path: 'plans/flat-a.png', source: 'plans/flat-a.pdf' },
+    };
+    expect(decisions(png)[1]?.title).toBe('Read with plans/flat-a.pdf');
+    expect(decisions(trace)[1]?.title).toBe('The drawn PDF route');
+  });
+
+  it('AD-120 keyCounts: the plain class counts, rooms, doors, windows first, at most 8', () => {
+    expect(
+      keyCounts({
+        window: 2,
+        'door|name=a': 1,
+        room: 5,
+        door: 2,
+        'area:room': 64.7,
+        bathtub: 1,
+        plan: 1,
+      }),
+    ).toEqual(['5 rooms', '2 doors', '2 windows', '1 bathtub', '1 plan']);
+    expect(keyCounts({ toilet_room: 2 })).toEqual(['2 toilet rooms']);
+    // zero counts are left out before the 8 are taken: they would hide the real ones (review of #552)
+    expect(keyCounts({ room: 5, shower: 0, sink: 1 })).toEqual(['5 rooms', '1 sink']);
+    expect(
+      keyCounts({ door: 0, window: 0, a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, toilet: 2 }),
+    ).toEqual(['2 toilets']);
+    expect(keyCounts(undefined)).toEqual([]);
+  });
+
   it('AD-116 trace.css: only --v-* colours, and no animation under reduced motion', () => {
     const css = readFileSync('src/advanced/trace.css', 'utf8');
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
@@ -169,5 +307,13 @@ describe('trace view v5', () => {
     // a segment takes its phase's colour: no background of its own that would win over .phase-*
     const seg = /\.fm-seg \{[^}]*\}/.exec(css)?.[0] ?? '';
     expect(seg).not.toContain('background');
+    // the five phases are told apart: each its own fill (review of #546: read and store were two dark greens)
+    const fills = ['open', 'page', 'read', 'check', 'store'].map(
+      (p) => new RegExp(`\\.phase-${p} \\{[^}]*background: ([^;]*);`).exec(css)?.[1]?.trim() ?? '',
+    );
+    expect(fills.every(Boolean)).toBe(true);
+    expect(new Set(fills).size).toBe(5);
+    // one phase at most in the dark accent family (read and store were --v-accent and --v-accent-strong)
+    expect(fills.filter((f) => /--v-accent(-strong)?\)/.test(f))).toHaveLength(1);
   });
 });

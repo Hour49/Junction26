@@ -25,11 +25,12 @@ MIN_SHARE = 0.5  # services lines (pipes, ducts) are no walls: half the sheet's 
 QUADRANTS = 3  # the matched lines lie in this many of the sheet's quarters: not one corner
 TURN_DEG = 3.0  # the pose's turn agrees with the direction histograms' (mod 90) this closely
 MARGIN = 1.3  # the best pose must beat another quarter turn's by this, or it is a guess
-FLIP_MARGIN = MARGIN  # ... and the same pose turned half round (refitted from there) by the
-# same margin: a near-symmetric floor fits both ways. Tudor's bench (#538): 3 of 8 wrong
-# other-floor lays and 2 of 3 wrong same-floor lays were 180 deg flips. First set at 1.5; the
-# dev1 DigitalHub bench (2026-11-15, post hoc) showed 1.5 refusing right lays at 1.39 and 1.45
-# (the pairing test's floor) while the one wrong lay it caught was at 1.02
+FLIP_MARGIN = 1.5  # ... and, on the lines that tell the pose from the same pose turned half
+# round (refitted from there), beat the turned pose by this: a near-symmetric floor fits both
+# ways. Lines on a wall in both poses (an outline that maps onto itself) decide nothing and are
+# left out (review #554: an outline-dominated right lay was refused). Tudor's bench (#538): 3 of
+# 8 wrong other-floor lays and 2 of 3 wrong same-floor lays were 180 deg flips. Set before runs.
+DECIDE = 0.1  # ... and those lines are at least this share of the sheet's line length
 COVER = (0.75, 1.33)  # the placed sheet spans this share of the plan's extent: a sheet of the
 # same floor draws the same building; a wrong scale shrinks it onto part of a dense plan
 NUDGES = (0.94, 0.96, 0.98, 1.02, 1.04, 1.06)  # the best pose restarted at these scales:
@@ -135,11 +136,15 @@ def register(
             reason=f"only {hits} of {len(sheet)} wall lines match ({share:.0%} of their length; "
             f"{MIN_SHARE:.0%} and {MIN_WALLS} lines needed)"
         )
-    if len(ranked) > 1 and ranked[1][0] * MARGIN > share:
-        return Refusal(
-            reason=f"wall lines match two ways ({share:.0%} and {ranked[1][0]:.0%} of their "
-            "length): the sheet's turn is a guess"
-        )
+    if len(ranked) > 1:  # judged on the lines that tell the two turns apart (as FLIP_MARGIN)
+        other, _ = _inliers(plan, sheet, *ranked[1][1:])
+        mine, theirs = _apart_share(length, on, other)
+        if theirs * MARGIN > mine:
+            return Refusal(
+                reason=f"wall lines match two ways ({share:.0%} and {ranked[1][0]:.0%} of their "
+                f"length; {mine:.0%} and {theirs:.0%} on the lines that tell them apart): the "
+                "sheet's turn is a guess"
+            )
     cover = _extent(_place(_points(sheet), deg, scale, shift)) / max(_extent(_points(plan)), 1e-12)
     if not COVER[0] <= cover <= COVER[1]:
         return Refusal(
@@ -158,11 +163,14 @@ def register(
             f"({QUADRANTS} needed)"
         )
     if expected_rotation_deg is None:
-        flipped = _flipped_share(plan, sheet, length, deg, scale, shift)
-        if flipped * FLIP_MARGIN > share:
+        mine, flipped = _apart_share(
+            length, on, _flipped_on(plan, sheet, length, deg, scale, shift)
+        )
+        if mine < DECIDE or flipped * FLIP_MARGIN > mine:
             return Refusal(
-                reason=f"turned half round the sheet fits nearly as well ({share:.0%} and "
-                f"{flipped:.0%} of its line length): a near-symmetric floor, its turn is a guess"
+                reason=f"turned half round the sheet fits nearly as well: of the lines that "
+                f"tell the two apart ({mine + flipped:.0%} of its length) {mine:.0%} fit and "
+                f"{flipped:.0%} fit turned; a near-symmetric floor, its turn is a guess"
             )
     deg = (deg + 180.0) % 360.0 - 180.0
     return Place(
@@ -180,25 +188,34 @@ def _apart(a: float, b: float) -> float:
     return abs((a - b + 180.0) % 360.0 - 180.0)
 
 
-def _flipped_share(
+def _apart_share(length: np.ndarray, on: np.ndarray, other: np.ndarray) -> tuple[float, float]:
+    """The shares of the sheet's line length on a wall in one lay and not the other, both ways:
+    a line on a wall in both (an outline that maps onto itself) decides nothing."""
+    total = max(float(length.sum()), 1e-12)
+    return float(length[on & ~other].sum()) / total, float(length[other & ~on].sum()) / total
+
+
+def _flipped_on(
     plan: np.ndarray,
     sheet: np.ndarray,
     length: np.ndarray,
     deg: float,
     scale: float,
     shift: np.ndarray,
-) -> float:
-    """The most of the sheet's line length on walls when the pose is turned half round about the
-    middle of the plan's extent or of the placed sheet's, and refitted from there (the
-    quarter-turn search may never have tried that shift). A symmetric floor turns about its
-    middle; a sheet's own middle is off it where services lines or missing walls lean one way."""
+) -> np.ndarray:
+    """Which sheet lines lie on a wall when the pose is turned half round about the middle of
+    the plan's extent or of the placed sheet's and refitted from there (the quarter-turn search
+    may never have tried that shift), of the turn that matches the most line length. A
+    symmetric floor turns about its middle; a sheet's own middle is off it where services lines
+    or missing walls lean one way."""
     turned = deg + 180.0
-    best = 0.0
+    best, most = np.zeros(len(sheet), bool), -1.0
     for middle in (_middle(_points(plan)), _middle(_place(_points(sheet), deg, scale, shift))):
         # p' = scale R(deg + 180) q + shift' with the middle staying put: shift' = 2 middle - shift
         pose = _icp(plan, sheet, turned, scale, 2.0 * middle - shift, (scale * 0.9, scale * 1.1))
         on, _ = _inliers(plan, sheet, *pose)
-        best = max(best, float(length[on].sum() / max(length.sum(), 1e-12)))
+        if float(length[on].sum()) > most:
+            best, most = on, float(length[on].sum())
     return best
 
 

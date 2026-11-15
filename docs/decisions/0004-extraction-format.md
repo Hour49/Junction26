@@ -205,9 +205,10 @@ as before: all gold, every non-BIM file, and every extraction written before thi
 A `space` in `model_objects` may carry `room_type` (string, a room `type` such as `bedroom` or `kitchen`): what the
 space's LongName and Name say it is, by the word table a drawn IFC room's label is typed with
 (`backend/app/adapters/vector_pdf/ifc_render.py` `ROOM_WORDS`: "4IZQ-HAB1" a bedroom, "1DER-COC" a kitchen). Left
-out when no room word names the space, and on a services copy of a room ("Bedroom 1 MEP Space"). It is a guess
-from names, not a measurement: an .ifc asked on its own counts its spaces by it ("How many bedrooms?"), and those
-counts are Low and never sure. `attrs` already takes any JSON scalar, so the schema and the scorer don't change.
+out when no room word names the space. A services copy of a room ("Bedroom 1 MEP Space") keeps the type its name
+gives; it is the count that leaves it out. It is a guess from names, not a measurement: an .ifc asked on its own
+counts its spaces by it ("How many bedrooms?"; `takeoff.typed_spaces`: a space listed again with the same number,
+name and storey once, a services copy not at all), and those counts are Low and never sure. `attrs` already takes any JSON scalar, so the schema and the scorer don't change.
 
 ## Amendment, 2026-11-14 19:57: a room type as a conflict's class
 

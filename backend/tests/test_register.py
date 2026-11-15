@@ -291,3 +291,17 @@ def test_an_expected_rotation_settles_a_symmetric_floor() -> None:
         assert abs((out.rotation_deg - expected + 180) % 360 - 180) < 6, (expected, out)
     out = register(plan, sheet, expected_rotation_deg=float("nan"))
     assert isinstance(out, Refusal) and "expected rotation" in out.reason
+
+
+def test_an_outline_dominated_asymmetric_floor_is_placed() -> None:
+    """Review #554: services sheets draw mostly the outline, which maps onto itself turned half
+    round; only the rooms tell the two lays apart, and they do here."""
+    walls = [((0, 0), (24, 0)), ((24, 0), (24, 14)), ((24, 14), (0, 14)), ((0, 14), (0, 0))]
+    walls += [((6, 0), (6, 5)), ((6, 5), (11, 5)), ((15, 10), (15, 14)), ((0, 10), (3, 10))]
+    plan = [Segment(a=a, b=b) for a, b in walls]
+    outline = 2 * (24 + 14)
+    assert outline / sum(math.dist(s.a, s.b) for s in plan) > 0.8
+    sheet = onto_sheet(plan, deg=0.0, scale=0.02, shift=(1.0, 1.0), drop=0.0)[:-8]  # no pipes
+    out = register(plan, sheet)
+    assert isinstance(out, Place), out
+    assert abs(out.rotation_deg) < 0.5 and math.dist(out.shift, (1.0, 1.0)) < 0.1
