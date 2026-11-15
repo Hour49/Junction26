@@ -161,4 +161,4 @@ def test_only_air_terminals_and_other_kinds_are_confirmed() -> None:
         ("light", box(*at["cross"])),
         ("tap", box(*at["cross"])),
     ]
-    assert dino_match.CONFIRM_KINDS == frozenset({"air_terminal", None})
+    assert frozenset({"air_terminal", None}) == dino_match.CONFIRM_KINDS
