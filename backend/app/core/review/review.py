@@ -24,7 +24,15 @@ from typing import NamedTuple, get_args
 from app.core.drawing.model import Box, Drawing, ElementClass, Polygon, Room, RoomType, words
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
 from app.core.pipeline.model import Measure, Quantity
-from app.core.pipeline.rules import ROOM_NAMES, ROOM_NUMBERS
+from app.core.pipeline.rules import (
+    INDOOR_TOTAL,
+    LARGEST_ROOM,
+    ROOM_AREA,
+    ROOM_AREA_MEASURED,
+    ROOM_NAMES,
+    ROOM_NUMBERS,
+    ROOMS_TOTAL,
+)
 from app.core.pipeline.takeoff import normalised, quantity_key, room_names
 from app.core.review.model import (
     Added,
@@ -43,6 +51,11 @@ from app.core.review.model import (
 )
 
 MEASURES: tuple[Measure, ...] = ("area", "length", "volume", "text")
+# The rows a room's settled area reaches (`_settled_rooms`): the room's own and the sums the
+# takeoff computes from rooms, never an apartment's area, which may be printed (review-718)
+FOLLOWS = frozenset(
+    rule.id for rule in (ROOM_AREA, ROOM_AREA_MEASURED, ROOMS_TOTAL, INDOOR_TOTAL, LARGEST_ROOM)
+)
 # An element or room by where it is: its id, label, outline and (a room) its area.
 Item = tuple[str | None, str | None, Polygon | None, float | None]
 
@@ -548,40 +561,49 @@ def with_rejected_items(state: ReviewState, quantities: Mapping[str, Quantity]) 
 
 def _settled_rooms(state: ReviewState, quantities: Mapping[str, Quantity]) -> ReviewState:
     """The state with a room's area settled on a row of that one room (its number, name or
-    label) taken by the room's other rows, and added into each sum of rooms whose ingest value is
-    its rooms' (big QA R1 row 12: Küche settled at 22.40 kept "label Küche 30.00" and "indoor
-    53.00"). A row a person edited, a sum that is not its rooms' (an apartment's own area) and a
-    sum with its own conflict or estimate keep theirs. Derived for the rows shown, never stored."""
+    label) taken by the room's other rows, and added into the sums the takeoff computes from rooms
+    (all rooms, indoor, a label's rooms) when their ingest value is their rooms' (big QA R1 row
+    12: Küche settled at 22.40 kept "label Küche 30.00" and "indoor 53.00"). An apartment's area
+    (it may be printed, review-718), the largest of several rooms, a row a person edited or signed
+    off and a sum with its own conflict or estimate keep theirs; a row signed off shows the value
+    signed. Within 0.05 m²: room rows are rounded, so a sum is its rooms' within their rounding.
+    Derived for the rows shown, never stored."""
 
-    def room(found: Quantity) -> tuple[int, Box] | None:
-        one = len(found.marks) == 1 and parse_key(found.key)[1].startswith("room")
-        return (found.marks[0].page, found.marks[0].box) if one and found.unit == "m2" else None
+    def room(key: str, found: Quantity) -> tuple[int, Box] | None:
+        group = quantities.get(key.removeprefix("area:").removesuffix("|largest"))  # its rooms
+        alone = not parse_key(key)[2].largest or (group is not None and group.value == 1)
+        one = len(found.marks) == 1 and alone and found.unit == "m2" and found.rule in FOLLOWS
+        return (found.marks[0].page, found.marks[0].box) if one else None
 
-    measured = {at: found.value for found in quantities.values() if (at := room(found))}
+    measured = {at: found.value for key, found in quantities.items() if (at := room(key, found))}
     kept = {
         at: done
         for key, done in state.settled.items()
-        if key in quantities and (at := room(quantities[key]))
+        if key in quantities and (at := room(key, quantities[key]))
     }
     settled = dict(state.settled)
+    for key, done in state.signed.items():  # the value signed, whatever was settled after it
+        found = quantities.get(key)
+        if found and found.rule in FOLLOWS and key not in settled and done.value != found.value:
+            settled[key] = Settled(value=done.value, at=done.at)
+    edits = (state.settled, state.signed, state.rejected, state.added, state.included)
     for key, found in quantities.items():
         places = [(mark.page, mark.box) for mark in found.marks]
-        edits = (state.settled, state.rejected, state.added, state.included)
         if (
             found.unit != "m2"
+            or found.rule not in FOLLOWS
             or not kept.keys() & set(places)
             or any(edit.get(key) for edit in edits)
             or any(at not in measured for at in places)
+            or (len(places) == 1 and room(key, found) is None)  # the largest of several rooms
             or (len(places) > 1 and (found.conflict is not None or found.estimate is not None))
         ):
             continue
-        was = [measured[at] for at in places]
-        now = [kept[at].value if at in kept else measured[at] for at in places]
-        largest = parse_key(key)[2].largest
-        if abs((max(was) if largest else sum(was)) - found.value) > 0.05:
+        if abs(sum(measured[at] for at in places) - found.value) > 0.05:
             continue  # not its rooms' sum: left as read
-        value = _typed(found, max(now) if largest else sum(now))
-        settled[key] = Settled(value=value, at=next(kept[at] for at in places if at in kept).at)
+        now = sum(kept[at].value if at in kept else measured[at] for at in places)
+        at = next(kept[at] for at in places if at in kept).at
+        settled[key] = Settled(value=_typed(found, now), at=at)
     return state.model_copy(update={"settled": settled})
 
 
