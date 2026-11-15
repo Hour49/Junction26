@@ -1,5 +1,13 @@
 import { useRef, useState, type DragEvent } from 'react';
-import { ApiError, errorText, startSample, uploadProject, type Started } from '../api';
+import {
+  ApiError,
+  errorText,
+  listSamples,
+  startSample,
+  uploadProject,
+  type SampleOption,
+  type Started,
+} from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { useInfo } from '../shell/info';
 import { nameTooLong, uploadTooLarge } from '../shell/limits';
@@ -67,7 +75,38 @@ export function UploadBox() {
   const [note, setNote] = useState<string | null>(null);
   const inFlight = useRef(false);
   const picker = useRef<HTMLInputElement>(null);
+  const [samples, setSamples] = useState<SampleOption[] | null>(null);
   const { info } = useInfo();
+
+  const startOne = (sample?: SampleOption) => {
+    setSamples(null);
+    const label = sample ? `Starting ${sample.title}…` : 'Starting the sample…';
+    void start(label, () => startSample({ fresh: true, id: sample?.id }));
+  };
+
+  /** "Try a sample project" (Bogdan 2026-11-15): the curated samples to pick from; with none, or when the list
+   * fails, the synthetic sample starts at once as before. */
+  async function openSamples() {
+    if (samples) {
+      setSamples(null);
+      return;
+    }
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy('Loading the samples…');
+    setError(null);
+    let listed: SampleOption[] = [];
+    try {
+      listed = (await listSamples()).samples;
+    } catch {
+      // the synthetic sample below
+    } finally {
+      inFlight.current = false;
+      setBusy(null);
+    }
+    if (listed.length > 1) setSamples(listed);
+    else startOne();
+  }
 
   async function start(label: string, call: () => Promise<Started>) {
     if (inFlight.current) return;
@@ -198,15 +237,56 @@ export function UploadBox() {
               size="pill"
               className="font-medium"
               disabled={busy !== null || sending !== null}
+              aria-expanded={samples !== null}
+              aria-controls="sample-options"
               onClick={() => {
-                void start('Starting the sample…', () => startSample({ fresh: true }));
+                void openSamples();
               }}
             >
-              Try the sample project
+              Try a sample project
             </Button>
           </Tip>
         </div>
-        <p className="v-caption">The sample starts from scratch each time.</p>
+        {samples && (
+          <ul
+            id="sample-options"
+            aria-label="Sample projects"
+            className="grid w-full max-w-[640px] gap-2 sm:grid-cols-2"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setSamples(null);
+            }}
+          >
+            {samples.map((sample, i) => (
+              <li key={sample.id}>
+                <button
+                  type="button"
+                  autoFocus={i === 0}
+                  className="grid h-full w-full gap-1 rounded-[var(--v-radius)] border border-border bg-card p-3 text-left hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
+                  onClick={() => {
+                    startOne(sample);
+                  }}
+                >
+                  <span className="font-medium">{sample.title}</span>
+                  {sample.blurb !== '' && <span className="v-caption">{sample.blurb}</span>}
+                  {sample.tags.length > 0 && (
+                    <span className="flex flex-wrap gap-1" aria-label="Contains">
+                      {sample.tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="px-2 py-0.5 text-[11px] text-text-2"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="v-caption">A sample starts from scratch each time.</p>
         {busy && (
           <p role="status" aria-live="polite">
             {busy}

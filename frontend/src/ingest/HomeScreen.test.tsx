@@ -10,6 +10,14 @@ import { flush, must } from './testing';
 const LIST = 'GET /api/projects';
 const UPLOAD = 'POST /api/projects';
 const SAMPLE = 'POST /api/projects/sample';
+const SAMPLES = 'GET /api/projects/samples';
+const synthetic = {
+  id: 'sample',
+  title: 'Small sample project',
+  blurb: 'A made-up flat.',
+  tags: ['PDF'],
+};
+const onlySynthetic = { samples: [synthetic] };
 
 function input() {
   return must(document.querySelector<HTMLInputElement>('input[type=file]'));
@@ -17,7 +25,7 @@ function input() {
 function pick(file: File) {
   fireEvent.change(input(), { target: { files: [file] } });
 }
-const sampleButton = () => screen.getByRole('button', { name: 'Try the sample project' });
+const sampleButton = () => screen.getByRole('button', { name: 'Try a sample project' });
 
 beforeEach(() => {
   window.location.hash = '#/';
@@ -25,7 +33,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('HomeScreen', () => {
-  it('IN-1 renders the drop zone, "Choose a file" and "Try the sample project"', async () => {
+  it('IN-1 renders the drop zone, "Choose a file" and "Try a sample project"', async () => {
     mockApi({ [LIST]: projectList });
     render(<HomeScreen />);
     expect(screen.getByRole('region', { name: 'Drop drawings or an archive' })).toBeTruthy();
@@ -57,7 +65,12 @@ describe('HomeScreen', () => {
   });
 
   it('IN-7 while a request is in flight the box says so, controls are disabled, a second click sends nothing', async () => {
-    const api = mockApi({ [LIST]: projectList, [SAMPLE]: never(), [UPLOAD]: never() });
+    const api = mockApi({
+      [LIST]: projectList,
+      [SAMPLE]: never(),
+      [UPLOAD]: never(),
+      [SAMPLES]: onlySynthetic,
+    });
     render(<HomeScreen />);
     fireEvent.click(sampleButton());
     fireEvent.click(sampleButton());
@@ -77,7 +90,12 @@ describe('HomeScreen', () => {
   });
 
   it('IN-8 on 202 the location becomes #/p/<id>', async () => {
-    mockApi({ [LIST]: projectList, [UPLOAD]: projectStarted, [SAMPLE]: projectStarted });
+    mockApi({
+      [LIST]: projectList,
+      [UPLOAD]: projectStarted,
+      [SAMPLE]: projectStarted,
+      [SAMPLES]: onlySynthetic,
+    });
     render(<HomeScreen />);
     pick(new File(['x'], 'plan.pdf'));
     await flush();
@@ -89,7 +107,11 @@ describe('HomeScreen', () => {
   });
 
   it('IN-9 the sample button sends POST /api/projects/sample?fresh=true with no body', async () => {
-    const api = mockApi({ [LIST]: projectList, [SAMPLE]: projectStarted });
+    const api = mockApi({
+      [LIST]: projectList,
+      [SAMPLE]: projectStarted,
+      [SAMPLES]: onlySynthetic,
+    });
     render(<HomeScreen />);
     fireEvent.click(sampleButton());
     await flush();
@@ -104,7 +126,11 @@ describe('HomeScreen', () => {
     [422, 'validation'],
     [404, 'not-found'],
   ])('IN-10 a %i shows detail and code (%s) and re-enables the controls', async (status, code) => {
-    mockApi({ [LIST]: projectList, [SAMPLE]: reply(status, { ...error, code }) });
+    mockApi({
+      [LIST]: projectList,
+      [SAMPLE]: reply(status, { ...error, code }),
+      [SAMPLES]: onlySynthetic,
+    });
     render(<HomeScreen />);
     fireEvent.click(sampleButton());
     await flush();
@@ -112,6 +138,61 @@ describe('HomeScreen', () => {
     expect(screen.queryByText(code, { exact: false })).toBeNull(); // R2-C5: no raw code
     expect((sampleButton() as HTMLButtonElement).disabled).toBe(false);
     expect(input().disabled).toBe(false);
+  });
+
+  it('IN-19 "Try a sample project" lists the samples; picking one starts it by id, fresh', async () => {
+    const flat = {
+      id: 'flat',
+      title: 'Mixed project archive',
+      blurb: 'Plans and a model.',
+      tags: ['PDF', 'IFC'],
+    };
+    const api = mockApi({
+      [LIST]: projectList,
+      [SAMPLES]: { samples: [flat, synthetic] },
+      [SAMPLE]: projectStarted,
+    });
+    render(<HomeScreen />);
+    fireEvent.click(sampleButton());
+    await flush();
+    expect(sampleButton().getAttribute('aria-expanded')).toBe('true');
+    const list = screen.getByRole('list', { name: 'Sample projects' });
+    const options = within(list).getAllByRole('button');
+    expect(options.map((o) => o.textContent)).toEqual([
+      'Mixed project archivePlans and a model.PDFIFC',
+      'Small sample projectA made-up flat.PDF',
+    ]);
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+    fireEvent.click(must(options[0]));
+    await flush();
+    expect(api.calls.find((c) => c.method === 'POST')?.url).toBe(
+      '/api/projects/sample?id=flat&fresh=true',
+    );
+    expect(window.location.hash).toBe(`#/p/${projectStarted.id}`);
+    expect(screen.queryByRole('list', { name: 'Sample projects' })).toBeNull();
+  });
+
+  it('IN-20 Escape closes the sample list; a failed list starts the synthetic sample', async () => {
+    mockApi({
+      [LIST]: projectList,
+      [SAMPLES]: { samples: [synthetic, { ...synthetic, id: 'b' }] },
+    });
+    render(<HomeScreen />);
+    fireEvent.click(sampleButton());
+    await flush();
+    fireEvent.keyDown(screen.getByRole('list', { name: 'Sample projects' }), { key: 'Escape' });
+    expect(screen.queryByRole('list', { name: 'Sample projects' })).toBeNull();
+    cleanup();
+
+    const api = mockApi({
+      [LIST]: projectList,
+      [SAMPLES]: reply(500, error),
+      [SAMPLE]: projectStarted,
+    });
+    render(<HomeScreen />);
+    fireEvent.click(sampleButton());
+    await flush();
+    expect(api.calls.find((c) => c.method === 'POST')?.url).toBe('/api/projects/sample?fresh=true');
   });
 
   it('"Choose a file" is a focusable button that opens the hidden file input', async () => {

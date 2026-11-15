@@ -284,9 +284,31 @@ export interface paths {
         put?: never;
         /**
          * Sample
-         * @description The synthetic sample archive. `fresh`: the review edits of the last sample run are reset.
+         * @description A sample project: `id` one of GET /samples (none or "sample": the synthetic archive).
+         *     `fresh`: the review edits of the last run of that sample are reset.
          */
         post: operations["sample_api_projects_sample_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Samples
+         * @description The sample projects to offer: the curated manifest's (SAMPLE_MANIFEST), then the synthetic
+         *     one, which is always there.
+         */
+        get: operations["samples_api_projects_samples_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3222,6 +3244,31 @@ export interface components {
             /** System */
             system?: string | null;
         };
+        /** SampleList */
+        SampleList: {
+            /** Samples */
+            samples: components["schemas"]["SampleOption"][];
+        };
+        /**
+         * SampleOption
+         * @description One sample project the home screen offers ("Try a sample project").
+         */
+        SampleOption: {
+            /**
+             * Blurb
+             * @default
+             */
+            blurb: string;
+            /** Id */
+            id: string;
+            /**
+             * Tags
+             * @default []
+             */
+            tags: string[];
+            /** Title */
+            title: string;
+        };
         /**
          * ScaleView
          * @description The sheet's scale as read. `ratio`: N of a printed "1:N", None when the text is no ratio.
@@ -4505,6 +4552,7 @@ export interface operations {
         parameters: {
             query?: {
                 fresh?: boolean;
+                id?: string | null;
             };
             header?: never;
             path?: never;
@@ -4528,6 +4576,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    samples_api_projects_samples_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SampleList"];
                 };
             };
         };

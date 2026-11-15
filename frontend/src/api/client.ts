@@ -17,6 +17,7 @@ import type {
   RelevanceRequest,
   TriageRequest,
   SignOffRequest,
+  SampleList,
   Started,
   Takeoff,
   DrawingChecks,
@@ -139,8 +140,16 @@ export function uploadProject(
   });
 }
 
-export const startSample = (opts: Opts & { fresh?: boolean } = {}) =>
-  call<Started>('POST', withQuery('/api/projects/sample', { fresh: opts.fresh }), opts);
+/** `id`: one of listSamples (none: the synthetic sample). */
+export const startSample = (opts: Opts & { fresh?: boolean; id?: string } = {}) =>
+  call<Started>(
+    'POST',
+    withQuery('/api/projects/sample', { id: opts.id, fresh: opts.fresh }),
+    opts,
+  );
+
+/** The sample projects the home screen offers; the synthetic one ("sample") is always there. */
+export const listSamples = (opts?: Opts) => call<SampleList>('GET', '/api/projects/samples', opts);
 
 export const listProjects = (opts?: Opts) => call<ProjectList>('GET', '/api/projects', opts);
 

@@ -94,9 +94,11 @@ describe('API client', () => {
     const api = mockApi({ 'POST /api/projects/sample': fx.projectStarted });
     await startSample();
     await startSample({ fresh: true });
+    await startSample({ fresh: true, id: 'flat' });
     expect(api.calls.map((c) => c.url)).toEqual([
       '/api/projects/sample',
       '/api/projects/sample?fresh=true',
+      '/api/projects/sample?id=flat&fresh=true',
     ]);
     expect(api.calls.every((c) => c.body === undefined || c.body === null)).toBe(true);
   });

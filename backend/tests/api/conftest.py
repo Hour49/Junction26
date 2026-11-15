@@ -21,6 +21,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
     return Settings(
         projects_dir=tmp_path / "projects",
         sample_archive=tmp_path / "sample-project.zip",
+        sample_manifest=tmp_path / "demo" / "samples.json",
         credit_dataset=tmp_path / "dataset",  # absent unless a test writes it: no credits
         credit_photos=tmp_path / "photos",
     )

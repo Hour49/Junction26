@@ -7719,6 +7719,54 @@
         "title": "RunChange",
         "type": "object"
       },
+      "SampleList": {
+        "properties": {
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/SampleOption"
+            },
+            "title": "Samples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "samples"
+        ],
+        "title": "SampleList",
+        "type": "object"
+      },
+      "SampleOption": {
+        "description": "One sample project the home screen offers (\"Try a sample project\").",
+        "properties": {
+          "blurb": {
+            "default": "",
+            "title": "Blurb",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "SampleOption",
+        "type": "object"
+      },
       "ScaleView": {
         "additionalProperties": false,
         "description": "The sheet's scale as read. `ratio`: N of a printed \"1:N\", None when the text is no ratio.",
@@ -10590,7 +10638,7 @@
     },
     "/api/projects/sample": {
       "post": {
-        "description": "The synthetic sample archive. `fresh`: the review edits of the last sample run are reset.",
+        "description": "A sample project: `id` one of GET /samples (none or \"sample\": the synthetic archive).\n`fresh`: the review edits of the last run of that sample are reset.",
         "operationId": "sample_api_projects_sample_post",
         "parameters": [
           {
@@ -10601,6 +10649,23 @@
               "default": false,
               "title": "Fresh",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Id"
             }
           }
         ],
@@ -10627,6 +10692,25 @@
           }
         },
         "summary": "Sample"
+      }
+    },
+    "/api/projects/samples": {
+      "get": {
+        "description": "The sample projects to offer: the curated manifest's (SAMPLE_MANIFEST), then the synthetic\none, which is always there.",
+        "operationId": "samples_api_projects_samples_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SampleList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Samples"
       }
     },
     "/api/projects/{project_id}": {
