@@ -124,7 +124,6 @@ def _ducts() -> FactSheet:
 @pytest.mark.parametrize(
     ("sheet", "text"),
     [
-        ("p101", "How long is each ventilation system?"),
         ("h101", "How long is each heating system?"),
         ("h101", "What is the length of each system?"),
     ],
@@ -148,3 +147,17 @@ def test_each_system_on_a_duct_picture_lists_its_ducts_by_system() -> None:
     assert answer is not None and answer.method == FACTS, answer
     said = str(answer.answer)
     assert said.splitlines()[:2] == ["- V_Abluft: 91.99 m", "- V_Zuluft: 60.50 m"], said
+
+
+def test_a_system_kind_the_picture_has_no_runs_of_names_the_runs_it_has() -> None:
+    """review-741 M1: P-101 "each ventilation system" said "This file holds no systems", though
+    the sheet shows 4; it says what "each heating system" says: none labelled so, and its runs."""
+    for text, asked in (
+        ("How long is each ventilation system?", "ventilation"),
+        ("How long is each heating system?", "heating"),
+    ):
+        said = str(_ask_p101(text).answer)
+        assert said.splitlines()[0] == (
+            f"No run on this sheet is labelled as {asked} (not available); its runs by system:"
+        ), said
+        assert "- S_PWC: 18.86 m" in said and "holds no systems" not in said

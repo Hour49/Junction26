@@ -175,7 +175,13 @@ def _per_system(query: FactQuery, facts: "_Facts") -> FactQuery:
     else:
         return query
     if not facts.topics(f"{entity}.length"):
-        return query
+        other = "duct_segment" if entity == "pipe_segment" else "pipe_segment"
+        asked = query.system or query.discipline
+        if asked is None or not facts.topics(f"{other}.length"):
+            return query  # no runs at all: the facts' not-available line (review-737 S3)
+        # none of the kind asked, others drawn: "No run on this sheet is labelled as ventilation
+        # (not available); its runs by system: ..." (review-741 M1), never "holds no systems"
+        return query.model_copy(update={"entity": other, "by": "system", "system": asked})
     return query.model_copy(update={"entity": entity, "by": "system"})
 
 
