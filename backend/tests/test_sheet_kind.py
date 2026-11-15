@@ -168,6 +168,23 @@ def test_the_same_reply_on_a_scan_is_still_warned(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("kind", "flag"),
+    [
+        ("not_a_drawing", "the sheet may not be a drawing at all"),
+        ("elevation", "the sheet may not be a floor plan: it looks like an elevation"),
+        ("other", "the sheet may not be a floor plan: it looks like another kind of drawing"),
+    ],
+)
+def test_the_flag_reads_right_for_every_kind(tmp_path: Path, kind: str, flag: str) -> None:
+    """R1 ingest QA (w18:p1, 2026-11-15): a screenshot was flagged "the sheet may not be a floor
+    plan: it looks like not a drawing", broken English. A sheet that is not a drawing at all says
+    so; every other kind says what it looks like."""
+    triage = warn_only(tmp_path, form(kind, False, False, 0.95), PNG_PROBED)
+    assert triage.sheet is not None and triage.sheet.decision == "doubt"
+    assert sheet_flag(triage) == flag
+
+
+@pytest.mark.parametrize(
     "found",
     [
         form("not_a_drawing", False, False, 0.95),  # a photo of a room, sure

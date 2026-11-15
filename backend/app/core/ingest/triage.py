@@ -278,10 +278,13 @@ def sheet_flag(triage: Triage | None) -> str | None:
     """The reading flag for a sheet the sheet-kind step doubted and called a non-plan kind (a
     warn-only set-aside, SHEET_KIND_SET_ASIDE=false): the drawing is flagged at upload like a
     Carbon-alone read, so none of its answers is certified and each is Low (orchestrator,
-    2026-11-14). None otherwise, and once a person had it read as a floor plan."""
+    2026-11-14). None otherwise, and once a person had it read as a floor plan. A sheet the step
+    called not a drawing says so, not "it looks like not a drawing" (R1 ingest QA)."""
     if triage is None or triage.read_as_plan is not None or not doubted_not_plan(triage):
         return None
     assert triage.sheet is not None  # doubted_not_plan
+    if triage.sheet.kind == "not_a_drawing":
+        return "the sheet may not be a drawing at all"
     return f"the sheet may not be a floor plan: it looks like {triage.sheet.kind_words}"
 
 

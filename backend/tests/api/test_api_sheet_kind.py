@@ -366,6 +366,8 @@ def test_a_warn_only_sheet_called_not_a_drawing_is_no_drawing_ready(
     (tmp_path / "sheet-kind" / name).write_text(json.dumps(reply(NOT_DRAWING)))
     found = project(client, {"doubt.png": screenshot, "piping.png": PIPING_PNG})
     assert files_of(found)["doubt.png"]["state"] == "flagged"
+    reason = files_of(found)["doubt.png"]["reason"]  # R1 ingest QA: no "looks like not a drawing"
+    assert reason.startswith("the sheet may not be a drawing at all; read on the image route: ")
     drawings = {entry["file"]: entry for entry in found["drawings"]}
     assert drawings["doubt.png"]["not_a_drawing"] is True
     assert "not_a_drawing" not in drawings["piping.png"]  # left out when false
