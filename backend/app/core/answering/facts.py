@@ -679,6 +679,7 @@ _ROOM_WORDS: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"bathroom", "wc"}), r"bath\w*|toilets?|wcs?|restrooms?|washrooms?|lavator\w*"),
     (frozenset({"bedroom"}), r"bedrooms?"),
     (frozenset({"kitchen"}), r"kitchens?"),
+    (frozenset({"living"}), r"living|lounges?"),  # "living room": "room" is no subject word
 )
 
 
@@ -703,7 +704,8 @@ def _flat_unplaced(asked: str, facts: _Facts) -> bool:
 
 
 def _rooms_said(kinds: Iterable[str]) -> str:
-    return " or ".join("WC" if kind == "wc" else kind for kind in sorted(kinds))
+    said = {"wc": "WC", "living": "living room"}
+    return " or ".join(said.get(kind, kind) for kind in sorted(kinds))
 
 
 def _room_kinds(words: Sequence[str]) -> frozenset[str] | None:

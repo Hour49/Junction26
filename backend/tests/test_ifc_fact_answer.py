@@ -1094,3 +1094,39 @@ def test_an_apartment_a_space_name_holds_is_answered() -> None:
     assert query is not None
     said = fact_text(query, sheet)
     assert said is not None and "Apartment B Kitchen" in said and "9.5" in said, said
+
+
+LIVING = ROOMS.model_copy(
+    update={
+        "facts": [
+            *ROOMS.facts,
+            fact("space.long_name", "01.22", "1IZQ-SAL", None, storey="P1"),
+            fact("space.room_type", "01.22", "living", None, storey="P1"),
+            fact("space.stated_area", "01.22", 21.5, "m2", storey="P1"),
+            fact("space.stated_area", "01.20", 9.23, "m2", storey="P1"),
+        ]
+    }
+)
+
+
+@pytest.mark.parametrize(
+    ("text", "kind", "name"),
+    [
+        ("How big is the kitchen?", "kitchen", "1IZQ-COC"),
+        ("How large is the kitchen?", "kitchen", "1IZQ-COC"),
+        ("What is the area of the living room?", "living room", "1IZQ-SAL"),
+        ("How big is the living room?", "living room", "1IZQ-SAL"),
+    ],
+)
+def test_how_big_and_the_living_room_give_that_room_type_never_every_space(
+    text: str, kind: str, name: str
+) -> None:
+    """Demo bug (2026-11-15, vitoria): "How big is the kitchen?" was read as a count with the
+    word "big", and "living" was no room word, so both listed every space. "How big" asks the
+    area, and the living room is a room type as the kitchen is."""
+    query = parse_ifc_question(text)
+    assert query is not None and query.measures == ("area",), query
+    said = fact_text(query, LIVING)
+    assert said is not None, said
+    assert said.splitlines()[0] == f"Spaces typed as {kind} by their names: 1 space", said
+    assert name in said and "BAÑ" not in said and "Spaces: " not in said, said
