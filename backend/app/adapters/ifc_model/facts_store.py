@@ -103,8 +103,17 @@ def _in_background(job: Callable[[], None]) -> None:
 
 
 class StoredFacts:
-    def __init__(self, folder: Path, build: Build = build_apart, start: Start = _in_background):
+    def __init__(
+        self,
+        folder: Path,
+        build: Build = build_apart,
+        start: Start = _in_background,
+        pictures: Callable[[str], FactSheet | None] | None = None,
+    ):
         self._folder = folder
+        # DISCIPLINE_PICTURES: the picture lane's kept sheet of another file by its sha256, as
+        # the batch pipeline's facts have it (composition._facts); None: off
+        self._pictures = pictures
         self._builder = build
         self._start = start
         self._lock = threading.Lock()  # guards the two sets
@@ -116,9 +125,9 @@ class StoredFacts:
 
     def facts(self, sha256: str, path: str, data: Callable[[], bytes]) -> FactSheet | None:
         """The stored sheet of the model with this content, or None (a build starts when none is
-        stored, in flight or failed). Only a building model (.ifc) has one."""
+        stored, in flight or failed). Any other file has the picture lane's kept sheet, if any."""
         if PurePosixPath(path).suffix.lower() != ".ifc":
-            return None
+            return None if self._pictures is None else self._pictures(sha256)
         out = self._folder / f"{sha256}-{CODE}.json"
         if out.is_file():
             try:
