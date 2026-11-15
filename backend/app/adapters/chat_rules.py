@@ -298,9 +298,10 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
             f"model doesn't say which are {word}s.",
         )
     cited = ", ".join(f"{i.get('label')} ({i['id']})" for i in items[:10])
-    text = f"{count} {word}{'' if count == 1 else 's'} in {name}" + (
-        f": {cited}." if cited else "."
-    )
+    text = f"{count} {word}{'' if count == 1 else 's'} in {name}"
+    if untyped:  # never a silent undercount: there may be more (orchestrator, 03:52)
+        text = f"At least {text} ({untyped} more sanitary terminals there carry no IFC type)"
+    text += f": {cited}." if cited else "."
     return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
 
 

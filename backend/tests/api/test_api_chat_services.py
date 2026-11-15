@@ -596,7 +596,19 @@ def test_a_sanitary_word_is_not_counted_where_the_model_types_no_terminal(
 ) -> None:
     """R5: a model whose sanitary terminals carry no PredefinedType can't tell a WC from a basin,
     so the count is refused, not "0 toilets"."""
-    found = _rules(_client(settings, tmp_path, model=wc_room(typed=False)),
+    found = _rules(_client(settings, tmp_path, model=wc_room(untyped=10)),
                    "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
     assert found["kind"] == "dont_know", found
     assert "0 toilet" not in found["text"] and "IFC type" in found["text"], found
+
+
+def test_typed_matches_beside_untyped_fixtures_are_at_least_their_count(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """R5 (orchestrator, 2026-11-15 03:52): typed WCs plus fixtures that carry no type in the
+    same room is "at least N" with how many carry none, never a silent undercount."""
+    found = _rules(_client(settings, tmp_path, model=wc_room(untyped=2)),
+                   "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith(f"At least 3 toilets in {WC_ROOM}"), found
+    assert "2 more sanitary terminals there carry no IFC type" in found["text"], found

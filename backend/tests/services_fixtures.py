@@ -218,14 +218,15 @@ WC_ROOM_FIXTURES = (
 )
 
 
-def wc_room(typed: bool = True) -> ServicesModel:
+def wc_room(untyped: int = 0) -> ServicesModel:
     """The two-room fixture with SR1 named as that WC and holding its 10 sanitary terminals
-    (E301..E310); `typed=False` gives them no PredefinedType, as some exports do."""
+    (E301..E310); the last `untyped` of them carry no PredefinedType, as some exports do."""
     doc = two_rooms().model_dump(mode="json", by_alias=True)
     doc["rooms"][0]["name"] = WC_ROOM
     fixtures = [
         _element(f"E{301 + i}", "sanitary_terminal", "flow_terminal", name, "Trinkwasser",
-                 room="SR1", at=(1.0 + 0.5 * i, 2.0, 0.5), predefined=kind if typed else None,
+                 room="SR1", at=(1.0 + 0.5 * i, 2.0, 0.5),
+                 predefined=kind if i < len(WC_ROOM_FIXTURES) - untyped else None,
                  discipline="plumbing")
         for i, (kind, name) in enumerate(WC_ROOM_FIXTURES)
     ]  # fmt: skip

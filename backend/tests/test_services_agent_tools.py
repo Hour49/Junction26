@@ -437,7 +437,7 @@ def test_an_ifc_type_counts_that_type_only_and_every_list_counts_its_types() -> 
                kind="sanitary_terminal", predefined="toiletpan")  # fmt: skip
     assert wcs["count"] == len(wcs["items"]) == 3 and wcs["by_predefined"] == {"TOILETPAN": 3}
     assert {i["id"] for i in wcs["items"]} == {"E301", "E302", "E303"} and wcs["untyped"] == 0
-    blind = _run(_store(wc_room(typed=False)), "list_services", drawing_id="d1", room_id=WC_ROOM,
+    blind = _run(_store(wc_room(untyped=10)), "list_services", drawing_id="d1", room_id=WC_ROOM,
                  kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
     assert blind["count"] == 0 and blind["untyped"] == 10
     listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
