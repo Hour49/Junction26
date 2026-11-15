@@ -85,6 +85,7 @@ class DecisionsClient:
 
     def decide(self, body: Json) -> Json:
         if self._budget is not None and (refused := self._budget.exhausted()):
+            cost.fail()  # refused, not asked: the reading is partial (as a call with no answer)
             raise DecisionsError(refused)
         raw = json.dumps(body).encode()
         delay = 1.0

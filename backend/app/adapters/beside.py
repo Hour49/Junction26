@@ -3,8 +3,9 @@ sheet used to run one after another, 44 s on a photo, 45 s on a scanned PDF).
 
 `beside(here, there)` runs `there` on a worker thread while `here` runs on the calling thread and
 returns both results, in that order, whichever finishes first. What `there`'s calls cost is
-charged to the calling thread (app/core/cost.py counts per thread). When `here` succeeds it waits
-for `there`, and an error of `there` is raised on the calling thread.
+charged to the calling thread (app/core/cost.py counts per thread), and so are the model calls it
+saw fail (`cost.fail`): a reading is marked partial from the caller's count. When `here`
+succeeds it waits for `there`, and an error of `there` is raised on the calling thread.
 
 When `here` fails, its error is raised at once (review-306 S1): `there` is cancelled if it has not
 started, and is not waited for if it has; a call it has in flight runs to its end in the
@@ -23,13 +24,14 @@ log = logging.getLogger(__name__)
 
 def beside[A, B](here: Callable[[], A], there: Callable[[], B]) -> tuple[A, B]:
     spent = [0.0]
+    failed = [0]
 
     def run() -> B:
-        before = cost.mark()
+        before, faulted = cost.mark(), cost.faults()
         try:
             return there()
         finally:
-            spent[0] = cost.since(before)
+            spent[0], failed[0] = cost.since(before), cost.faults_since(faulted)
 
     pool = ThreadPoolExecutor(1, thread_name_prefix="beside")
     future = pool.submit(run)
@@ -41,9 +43,11 @@ def beside[A, B](here: Callable[[], A], there: Callable[[], B]) -> tuple[A, B]:
         pool.shutdown(wait=False)
         if future.done() and not future.cancelled():
             cost.charge(spent[0])
+            cost.fail(failed[0])
         raise
     pool.shutdown(wait=True)
     cost.charge(spent[0])
+    cost.fail(failed[0])
     return first, future.result()
 
 

@@ -228,8 +228,8 @@ class Groups:
             degraded = failed > 0
             if degraded and state != "set_aside":
                 reason += (
-                    f"; {count(failed, 'model call')} got no answer, so this reading is partial"
-                    " and is asked again on the next upload"
+                    f"; {count(failed, 'model call')} got no answer (or the Gemini budget was used"
+                    " up), so this reading is partial and is asked again on the next upload"
                 )
             self._store_outcome(
                 run, file, drawing, keys[file.path], source, read_on,

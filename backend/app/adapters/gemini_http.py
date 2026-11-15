@@ -21,7 +21,7 @@ DELAYS = (1.0, 2.0)
 def urlopen(
     request: urllib.request.Request,
     timeout: float,
-    sleep: Callable[[float], None] = time.sleep,
+    sleep: Callable[[float], None] | None = None,
 ) -> Any:
     """The response (a context manager, as `urllib.request.urlopen` gives it)."""
     for delay in DELAYS:
@@ -31,5 +31,5 @@ def urlopen(
             if error.code not in RETRIED:
                 raise
             error.close()
-            sleep(delay)
+            (sleep or time.sleep)(delay)  # looked up now, so a test can replace it
     return urllib.request.urlopen(request, timeout=timeout)

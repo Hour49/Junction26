@@ -11,7 +11,7 @@ from PIL import Image
 
 from app.adapters import gemini_http
 from app.adapters.carbon.reader import CarbonClient, CarbonReader
-from app.adapters.raster_ocr.gemini import GeminiError
+from app.adapters.raster_ocr.gemini import NoAnswerError
 from app.core import cost
 
 
@@ -93,7 +93,7 @@ class Down:
     def generate(
         self, jpeg: bytes, prompt: str, schema: dict[str, object], max_tokens: int
     ) -> dict:
-        raise GeminiError("HTTP 503 UNAVAILABLE")
+        raise NoAnswerError("HTTP 503 UNAVAILABLE")
 
 
 def test_a_carbon_read_whose_calls_got_no_answer_counts_the_failures() -> None:
