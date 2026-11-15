@@ -45,6 +45,8 @@ from app.core.answering.model import (
     NO_SUCH_FLOOR,
     NO_SUCH_STOREY,
     NOT_COUNTED,
+    OUTSIDE_FLAT,
+    SEVERAL_FLATS,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
@@ -179,6 +181,10 @@ TEXTS = {
 # A refusal's pointer to its chips, left out when it offers none (a services plan, review-697 S1)
 TRY_THESE = re.compile(r"\s*Try one of these instead\.|;\s*try one of these\.")
 PARTS = {  # an unsupported count that would drop part of the question: which part
+    SEVERAL_FLATS: 'This drawing shows more than one apartment, so "this apartment" doesn\'t say '
+    "which. Ask about one by its letter (apartment A), or about the whole floor.",
+    OUTSIDE_FLAT: "This drawing also shows rooms outside the apartment, and I count across the "
+    "whole drawing, so that count would not be the apartment's alone. Ask about the whole floor.",
     SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
     "the whole drawing. Ask for each one on its own; try one of these.",
     IN_ONE_ROOM: "This question counts what is inside one room, and I count across the whole "
@@ -717,7 +723,8 @@ NOT_LOCATED = "not located on the drawing"
 WHICH_EXTREME = re.compile(
     r"^\s*(?:which|what)\s+(?:(?:room|space)\s+(?:is|has)\s+(?:the\s+)?(?P<a>largest|biggest|smallest)"
     r"(?:\s+(?:one|(?:floor\s+)?area|size))?|is\s+the\s+(?P<b>largest|biggest|smallest)\s+(?:room|space))"
-    r"\s*[?.!]?\s*$",
+    r"(?:\s+(?:in|of|on)\s+(?:the|this)\s+(?P<flat>flat|apartment|dwelling)|\s+(?:in|on)\s+(?:the|this)"
+    r"\s+(?:plan|drawing|floor))?\s*[?.!]?\s*$",
     re.IGNORECASE,
 )
 WHICH_OF_TWO = re.compile(
@@ -773,6 +780,15 @@ def which_room(
                     asks[at] = found[0]
     elif (extreme := WHICH_EXTREME.match(text)) is not None:
         word = (extreme["a"] or extreme["b"]).casefold()
+        if extreme["flat"] and (flats := drawing.apartments):  # "in the flat" (big QA R1 row 7)
+            if len(flats) > 1:
+                letters = ", ".join(a.label or a.id for a in flats)
+                return _not_compared(
+                    f"I can't tell which room is the {word} in the flat: this drawing shows "
+                    f"{len(flats)} apartments ({letters}). Ask about one of them."
+                )
+            rooms = [room for room in rooms if room.apartment in {a.id for a in flats}]
+            among = len(rooms)
         if not rooms and spaces:  # a building model asked on its own draws no room (QA B6)
             # a space of no area (a void, a shaft) is no room to rank: left out, named
             empty = [item for item in spaces if _no_area(item)]

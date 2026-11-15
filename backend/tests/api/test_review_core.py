@@ -1773,12 +1773,81 @@ def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> N
     assert got.partial is None
 
 
+def _in(flat: str | None, *rooms: Room) -> list[Room]:
+    return [r.model_copy(update={"apartment": flat}) for r in rooms]
+
+
+def _site1677(*flats: str) -> Drawing:
+    """site1677's shape: a flat whose largest room is a Zimmer of 36.53 m², and outside every
+    flat a far larger common room (Raum, 153.97 m²); `flats` beyond the first add one each."""
+    from app.core.drawing.model import Apartment
+
+    rooms = [
+        *_in("aA", room("r1", "bedroom", "Zimmer", 36.53), room("r2", "kitchen", "Küche", 11.34)),
+        *_in(None, room("r3", "other", "Raum", 153.97)),
+        *[r for at, f in enumerate(flats[1:], 4)
+          for r in _in(f"a{f}", room(f"r{at}", "bedroom", "Pièce", 15.0))],
+    ]  # fmt: skip
+    found = scaled(*rooms)
+    return found.model_copy(
+        update={"apartments": tuple(Apartment(id=f"a{f}", label=f) for f in flats)}
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Which is the largest room in the flat?", "Which room is the largest in this apartment?"],
+)
+def test_r1_7_the_largest_room_in_the_flat_ranks_that_flat_s_rooms(text: str) -> None:
+    """Big QA R1 row 7: "Which is the largest room in the flat?" was refused as no count or
+    area. In the flat: the flat's rooms, not the common room outside it."""
+    found = asked(text, _site1677("A"))
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == "Zimmer"
+
+
+def test_r1_7_the_flat_on_a_sheet_of_several_flats_is_refused() -> None:
+    found = asked("Which is the largest room in the flat?", _site1677("A", "B", "C"))
+    assert found.refusal is not None and found.answer.answer is None
+    assert "3 apartments" in (found.answer.explanation or ""), found.answer.explanation
+
+
+@pytest.mark.parametrize(
+    "text", ["Wie viele Fenster hat diese Wohnung?", "How many windows does this apartment have?"]
+)
+def test_r1_8_this_flat_is_the_scope_of_a_count_not_a_second_thing(text: str) -> None:
+    """Big QA R1 row 8: "Wie viele Fenster hat diese Wohnung?" was refused as naming two kinds
+    of thing (Fenster, Wohnung). On a sheet of one flat and no other room it counts the sheet;
+    on a sheet of several it says which ones there are. review-689 M1: on site1677 the sheet
+    also shows rooms outside the flat (Raum 2.09, the stairwell), so its 23 windows are not the
+    flat's: refused, never the sheet's count."""
+    windows = tuple(
+        Element(id=f"w{n}", class_="window", page=1, box=(0.1 * n, 0.5, 0.1 * n + 0.05, 0.55))
+        for n in range(1, 4)
+    )
+    with_raum = _site1677("A").model_copy(update={"elements": windows})
+    outside = asked(text, with_raum)
+    assert outside.refusal is not None and outside.answer.answer is None
+    assert outside.refusal.text.startswith("This drawing also shows rooms outside the apartment")
+    flat_only = with_raum.model_copy(
+        update={"rooms": tuple(r for r in with_raum.rooms if r.apartment == "aA")}
+    )
+    found = asked(text, flat_only)
+    assert (found.refusal, found.answer.answer) == (None, 3)
+    several = _site1677("A", "B").model_copy(update={"elements": windows})
+    refused = asked(text, several)
+    assert refused.refusal is not None and refused.answer.answer is None
+    assert "apartment" in refused.refusal.text, refused.refusal
+
+
 def _flats(*, assigned: bool) -> Drawing:
     """Two flats, A and B, each with a kitchen (B's 13.92 m²); `assigned`: the rooms say which
     flat they are in, as the Swiss reader reads them."""
     from app.core.drawing.model import Apartment
 
-    def room(rid: str, kind: str, box: tuple[float, float, float, float], m2: float, flat: str):
+    def room(
+        rid: str, kind: RoomType, box: tuple[float, float, float, float], m2: float, flat: str
+    ):
         return Room(id=rid, type=kind, label=kind.capitalize(), page=1, box=box, area_m2=m2,
                     attrs={"number": rid}, apartment=flat if assigned else None)  # fmt: skip
 
