@@ -11099,7 +11099,7 @@ budget, the same call a third time) ends a turn the same way.
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",
@@ -11184,7 +11184,7 @@ budget, the same call a third time) ends a turn the same way.
             "marks": [],
             "refusal": {
               "code": "unsupported-question",
-              "text": "This question isn't one I can turn into a count, area, length or volume. Try one of these instead.",
+              "text": "This question isn't one I can turn into a count, area, length or volume.",
               "can_answer": []
             },
             "method": "refused:unsupported-question",

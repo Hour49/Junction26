@@ -173,6 +173,8 @@ TEXTS = {
     "policy": "On sheets like this one, our reader got this kind of question wrong too often when "
     "we measured it, so no number is given.",
 }
+# A refusal's pointer to its chips, left out when it offers none (a services plan, review-697 S1)
+TRY_THESE = re.compile(r"\s*Try one of these instead\.|;\s*try one of these\.")
 PARTS = {  # an unsupported count that would drop part of the question: which part
     SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
     "the whole drawing. Ask for each one on its own; try one of these.",
@@ -382,7 +384,11 @@ def ask(
             code, words = "not-in-drawing", room_word_refusal(kind, unsaid[query])
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
-        can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
+        # a services plan (triage is sure): its rooms are the plan under the pipes, so no
+        # floor-plan question is offered (R1 services-second S3: "How many halls are there?")
+        can_answer = (
+            () if no_symbols is not None else suggestions(quantities, parser, SUGGESTIONS, tables)
+        )
         if code == "not-in-drawing" and isinstance(parsed, Query):
             rooms = rooms_of_type(parsed, drawing)
             if len(rooms) > 1 and (each := _room_areas(rooms, quantities, parser)):
@@ -424,6 +430,8 @@ def ask(
             words = _noun_refusal(noun, drawing)  # vocab-nouns P2
         if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
             words += _not_measured(parsed, drawing)  # review-349 S3
+        if not can_answer:
+            words = TRY_THESE.sub(lambda found: "." if found[0][0] == ";" else "", words)
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     level = None
