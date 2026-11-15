@@ -17,11 +17,11 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 
-from app.core.drawing.model import ELEMENT_CLASSES, Box, Drawing, ModelObject, Table
+from app.core.drawing.model import ELEMENT_CLASSES, Box, Drawing, ModelObject, Table, words
 from app.core.model import Frozen
 from app.core.pipeline.rules import MODEL_COUNT, MODEL_QUANTITY, MODEL_SPACE_TYPES, MODEL_SPACES
 from app.core.pipeline.second_count import METHODS
-from app.core.pipeline.takeoff import SPACE, normalised
+from app.core.pipeline.takeoff import SPACE, normalised, typed_spaces
 from app.core.review.model import MarkView, Row
 
 # Colour-blind-safe, distinct on a white sheet; the common classes keep theirs, the rest by name
@@ -223,16 +223,22 @@ def _model(found: Row, drawing: Drawing, keys: tuple[ClassKey, ...]) -> Proof:
         item
         for item in objects
         if item.class_ == wanted
-        and (kind is None or item.attrs.get("room_type") == kind)  # a typed count: that type
         and (scope.storey is None or normalised(item.storey or "") == scope.storey)
     ]
+    if kind is not None:  # a typed count: that type's spaces, as the takeoff counted them
+        chosen = typed_spaces(chosen).get(kind, [])
     # Shown only when it is exactly what was counted (core does not name the objects yet)
     exact = not named and (found.measure != "count" or len(chosen) == found.original_value)
     where = f" on {chosen[0].storey}" if exact and chosen and scope.storey else ""
+    said = (
+        f"{len(chosen)} spaces in the model whose names say {words(kind)}{',' if where else ''}"
+        if kind is not None
+        else f"{len(chosen)} {found.subject} objects in the model"
+    )
     return Proof(
         kind="model",
         legend=keys,
-        arithmetic=f"{len(chosen)} {found.subject} objects in the model{where}" if exact else None,
+        arithmetic=f"{said}{where}" if exact else None,
         objects=tuple(_item(item) for item in chosen) if exact else None,
         storeys=storey_table(objects),
         schedule=None,
