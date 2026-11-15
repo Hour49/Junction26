@@ -79,6 +79,7 @@ from app.core.pipeline.rules import (
     apply_rules,
     combine_totals,
 )
+from app.core.pipeline.scale_signatures import SCALE_SLIP
 from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
 from app.core.pipeline.user_scale import is_user_scale
 
@@ -874,7 +875,11 @@ def label_disputed(drawing: Drawing) -> str | None:
 def disputed_scale(drawing: Drawing) -> str | None:
     """What an area or length rests on, in words a user reads, when the sheet's scale is a
     measured scale bar more than second_count.ESTIMATE_RANGE from the scale estimated from the
-    doors (printed.py: the bar is used, but one of the two is a misread), naming both."""
+    doors (printed.py: the bar is used, but one of the two is a misread), naming both. Also
+    when SCALE_SIGNATURES held the sheet: its note says what the areas rest on (SCALE_SLIP)."""
+    held = next((n for n in drawing.notes if n.startswith(SCALE_SLIP)), None)
+    if held is not None:
+        return held.removeprefix(SCALE_SLIP)
     m_per_unit = drawing.scale.m_per_unit
     if drawing.scale.status != "scaled" or m_per_unit is None:
         return None

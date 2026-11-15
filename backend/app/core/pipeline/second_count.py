@@ -87,6 +87,10 @@ RULES: Mapping[tuple[ConflictQuantity, frozenset[MeasureMethod]], Rule] = {
     ("scale", frozenset({"scale_text", "detector"})): Rule(
         "scale_text", "the printed scale over the scale estimated from the doors"
     ),
+    # SCALE_SIGNATURES: a ratio a known slip off its bar is shown beside the bar and the doors
+    ("scale", frozenset({"scale_text", "scale_bar", "detector"})): Rule(
+        "scale_bar", "the measured scale bar over the scale text and the doors' estimate"
+    ),
     ("element_count", frozenset({"plan_drawing", "ifc_model"})): Rule(
         "plan_drawing", "count what the sheet draws"
     ),

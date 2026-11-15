@@ -66,6 +66,7 @@ PrintedOcrCheckName = Literal["off", "on"]
 GrossNetCheckName = Literal["off", "on"]
 # off, or on: DOOR_PRIOR_UNITS, DOOR_PRIOR_BOXES (app/core/pipeline/door_prior.py)
 DoorPriorName = Literal["off", "on"]
+ScaleSignaturesName = Literal["off", "bar", "on"]
 RasterTilesName = Literal["off", "auto"]  # auto: big sheets read tile by tile by the detector
 # raster: a drawn PDF the vector reader has no sheet style for goes to the raster route
 VectorFallbackName = Literal["off", "raster"]
@@ -148,6 +149,12 @@ class Settings(BaseSettings):
     # box width CARBON_DOOR_M (1.069 m) instead of the detector's DOOR_M
     # (app/core/pipeline/door_prior.py)
     door_prior_boxes: DoorPriorName = "off"
+    # bar (with RASTER_PRINTED_SCALE): a measured bar and the ratio printed beside it a known slip
+    # apart (4/3, sqrt 2, 3/2, 2, ARCH D on 11x17: app/core/pipeline/scale_signatures.py) keep the
+    # bar, with a note naming the cause and the ratio as a conflict value. on: also a ratio against
+    # the door estimate (no bar), decided by the rooms' printed areas, else its areas are held
+    # (measured 2026-11-15: no better than chance against Carbon's doors; not for the demo)
+    scale_signatures: ScaleSignaturesName = "off"
     # auto: a raster page whose long side is over 4000 px is read by every detector source of
     # RASTER_COMPONENTS and DOUBLE_CHECK_READERS on overlapping 2048 px tiles, merged across the
     # seams (app/adapters/raster_detector/tiles.py); its plans still come from the whole page.

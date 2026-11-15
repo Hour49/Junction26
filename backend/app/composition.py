@@ -904,6 +904,8 @@ def build_ingest(
         names["door_prior_boxes"] = settings.door_prior_boxes
     if settings.door_prior_units != "off":  # the same
         names["door_prior_units"] = settings.door_prior_units
+    if settings.scale_signatures != "off":  # the same
+        names["scale_signatures"] = settings.scale_signatures
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -1123,7 +1125,15 @@ def _printed(
             gross_net = settings.gross_net_check == "on"
             door_units = settings.door_prior_units == "on"
             return PrintedScale(  # kind: no camera dpi
-                inner, reader, files, kind_of, answers, checker, gross_net, door_units=door_units
+                inner,
+                reader,
+                files,
+                kind_of,
+                answers=answers,
+                checker=checker,
+                gross_net=gross_net,
+                door_units=door_units,
+                signatures=settings.scale_signatures,
             )
 
 
