@@ -3,7 +3,9 @@ import { Tip } from '@/components/ui/tip';
 import { REVIEW_TIPS } from '../shell/tips-review';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   drawingLabel,
+  formatValue,
   getDrawing,
   getTakeoff,
   postReview,
@@ -11,7 +13,6 @@ import {
   takeoffCsvUrl,
   type DrawingView,
   type Edit,
-  type SignOffRequest,
   type Takeoff,
 } from '../api';
 import { ErrorView } from '../shell/ErrorView';
@@ -20,6 +21,7 @@ import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { useDrawingNames } from './drawingNames';
 import { ProjectReviewSide } from './ProjectReviewSide';
+import { signoffBody } from './signoff';
 import { QuantityDetail } from './QuantityDetail';
 import { TakeoffTable } from './TakeoffTable';
 import { Button } from '@/components/ui/button';
@@ -176,7 +178,8 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     setScrollTick((n) => n + 1); // the detail sits under every row, on a phone and in the desktop column
   }
 
-  async function send(request: () => Promise<Takeoff>) {
+  /** `signing`: the row signed off; a 409 means its value changed since the screen loaded (R4-B10). */
+  async function send(request: () => Promise<Takeoff>, signing?: string) {
     // keep the row acted on selected, so its "Settled at…" / "Signed off by…" shows (pre-QA, frontend-orch)
     if (selectedKey !== null) setPick({ from: q, key: selectedKey });
     setSaving(true);
@@ -185,6 +188,22 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       setTakeoff(await request());
       setReload((n) => n + 1);
     } catch (e) {
+      if (signing !== undefined && e instanceof ApiError && e.status === 409) {
+        try {
+          const fresh = await getTakeoff(drawingId, zq);
+          const now = fresh.quantities.find((r) => r.key === signing);
+          setTakeoff(fresh);
+          setReload((n) => n + 1);
+          if (now) {
+            const value = formatValue(now.value, now.unit);
+            e = new Error(
+              `The value changed to ${value} since you opened it. Check it, then sign off again.`,
+            );
+          }
+        } catch {
+          // the reload failed too: the server's refusal stays the message
+        }
+      }
       setEditError(e);
     } finally {
       setSaving(false);
@@ -304,16 +323,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
                 onSign={(undo) => {
                   const by = name.trim() || (row.signed?.by ?? '');
                   if (!undo) saveName(by);
-                  void send(() =>
-                    postSignoff(
-                      drawingId,
-                      // undo defaults to false server-side; the sign-off body is signoff_request.json as is
-                      undo
-                        ? { quantity: row.key, by, undo: true }
-                        : ({ quantity: row.key, by } as SignOffRequest),
-                      zq,
-                    ),
-                  );
+                  void send(() => postSignoff(drawingId, signoffBody(row, by, undo), zq), row.key);
                 }}
               />
             )}

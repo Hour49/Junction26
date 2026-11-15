@@ -657,6 +657,23 @@ describe('sign-off', () => {
     expect(nth(posted(api, PATH.sign), 0).body).toEqual(signoffRequest);
   });
 
+  it('R4-B10 a sign-off refused because the value changed (409) shows the new value and its Sign off button', async () => {
+    const changed = derive('door', { value: 4 });
+    let reads = 0;
+    show('q=door', {
+      [PATH.takeoff]: () => (reads++ === 0 ? takeoff : changed),
+      [PATH.sign]: reply(409, { detail: 'the value changed', code: 'conflict' }),
+    });
+    await ready();
+    fireEvent.change(within(detail()).getByLabelText('Signing as'), { target: { value: 'Ana' } });
+    fireEvent.click(within(detail()).getByRole('button', { name: 'Sign off 2' }));
+    const alert = await within(detail()).findByRole('alert');
+    expect(alert.textContent).toBe(
+      'The value changed to 4 since you opened it. Check it, then sign off again.',
+    );
+    expect(within(detail()).getByRole('button', { name: 'Sign off 4' })).toBeTruthy();
+  });
+
   it('SV-37 no sign-off while a person must settle; allowed when a rule decides', async () => {
     localStorage.setItem('countersign.surveyorName', 'Ana');
     show('', { [PATH.takeoff]: needsPerson });
