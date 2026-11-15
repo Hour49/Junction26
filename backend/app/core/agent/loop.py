@@ -955,7 +955,7 @@ class _Run:
             for n in claims(text)
             if not backed(n, rated)
             for tool, found in self.unrated
-            if backed(n, numbers([found]))
+            if backed(n, numbers([_counted(found) if tool == FIND_ROOMS else found]))
         }
         said = [FOUND_ONLY] if FIND_ROOMS in tools and not SAID_MISSED.search(text) else []
         rest = tools - {FIND_ROOMS} if not SAID_UNRATED.search(text) else set[str]()
@@ -1177,6 +1177,17 @@ def _json(text: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError:
         return None
+
+
+def _counted(found: str) -> str:
+    """A find_rooms result's own counts: `count` and the rooms listed, not its rooms_read,
+    unlabelled, pages or boxes, which count no rooms found with the label (review-644 S1)."""
+    given = _json(found)
+    if not isinstance(given, dict):
+        return found
+    listed: Any = given.get("rooms") or []  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    count: Any = given.get("count")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return json.dumps({"count": count, "listed": len(listed) if isinstance(listed, list) else 0})  # pyright: ignore[reportUnknownArgumentType]
 
 
 def _labels(found: Any) -> list[str]:
