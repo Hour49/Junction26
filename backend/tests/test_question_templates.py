@@ -11,6 +11,7 @@ from app.core.answering.model import (
     NO_SUBJECT,
     SEVERAL_ROOMS,
     SEVERAL_THINGS,
+    SIZE_FILTER,
     Query,
     Unsupported,
 )
@@ -587,3 +588,40 @@ def test_review_510_a_yes_no_with_a_qualifier_is_left_as_written() -> None:
         assert has_qualifier(thing), thing
     for thing in ["kitchen", "bathtubs", "balconies", "separate WC", "sliding doors"]:
         assert not has_qualifier(thing), thing
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors larger than 1 m?",
+        "How many doors are wider than 90 cm?",
+        "How many windows are taller than 1.2 m on this plan?",
+        "Count the rooms bigger than 20 m².",
+        "How many walls are longer than 5 m?",
+        "How many rooms have more than 2 windows?",
+        "How many doors are over 1 m wide?",
+        "How many windows are at least 1 m wide?",
+        "How many doors with a width of 90 cm are there?",
+        "What is the total length of the walls longer than 5 m?",
+    ],
+)
+def test_a_size_filter_the_parser_cannot_apply_is_refused_not_dropped(text: str) -> None:
+    """A count (or length) of "doors larger than 1 m" read as all the doors is a confident wrong
+    answer: the filter was dropped. The parser takes off whole classes only, so it refuses."""
+    assert PARSE(text) == Unsupported(reason=SIZE_FILTER)
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("How many doors are there on this plan?", "door"),
+        ("How many rooms are there?", "room"),
+        ("How many more doors than windows are there?", None),
+    ],
+)
+def test_words_that_are_no_size_filter_still_parse(text: str, subject: str | None) -> None:
+    found = PARSE(text)
+    if subject is None:
+        assert PARSE(text) != Unsupported(reason=SIZE_FILTER)
+    else:
+        assert isinstance(found, Query) and found.subject == subject
