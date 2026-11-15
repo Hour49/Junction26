@@ -1,9 +1,8 @@
-import { useCallback } from 'react';
-import { getTrace, type FileTrace } from '../api';
+import { useCallback, useEffect, useState } from 'react';
+import { getTakeoff, getTrace, type FileTrace } from '../api';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import {
-  STAGE_LABEL,
   formatCost,
   kindLabel,
   routeLabel,
@@ -17,12 +16,13 @@ import { StaleNote, StateBadge, TitleRow } from './ProjectScreen';
 import { TriageCard } from './TriageCard';
 import { usePoll } from './usePoll';
 import { ModelCard } from '../model3d/ModelView';
-import { MUTED, PAGE, PANEL, SUMMARY, TAP } from './ui';
+import { PAGE, PANEL, SUMMARY, TAP } from './ui';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Tip } from '@/components/ui/tip';
-import { INGEST_TIPS, STAGE_TIPS } from '../shell/tips-ingest';
+import { INGEST_TIPS } from '../shell/tips-ingest';
+import { Decisions, TraceTimeline } from '../advanced/TraceTimeline';
+import { disagreements, type Disagreement } from '../advanced/trace';
 
 /** The file page as the demo's (files.js traceScreen): mono 28 px path (22 px on a phone), hairline facts (IN-83). */
 const FILE_PAGE = cn(
@@ -38,6 +38,27 @@ const FACTS = cn(
 
 const live = (t: FileTrace) => !isFinished(t.file);
 
+/** The values of the file's conflicts (AD-107): its drawing's takeoff, once, only when the second count disagreed. */
+function useConflicts(projectId: string, trace: FileTrace | null): Disagreement[] | null {
+  const drawingId = trace?.file.drawing_id ?? null;
+  const conflicts = trace?.second_count?.conflicts ?? 0;
+  const [rows, setRows] = useState<Disagreement[] | null>(null);
+  useEffect(() => {
+    if (!drawingId || conflicts === 0) return;
+    const controller = new AbortController();
+    getTakeoff(drawingId, { project: projectId, signal: controller.signal }).then(
+      (t) => {
+        setRows(disagreements(t));
+      },
+      () => undefined, // the counts stay; the values are an extra
+    );
+    return () => {
+      controller.abort();
+    };
+  }, [projectId, drawingId, conflicts]);
+  return rows;
+}
+
 /** Route `#/p/<project_id>/f/<file_id>`: one file through every stage. */
 export function FileTraceScreen({ projectId, fileId }: { projectId: string; fileId: string }) {
   const load = useCallback(
@@ -45,6 +66,7 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
     [projectId, fileId],
   );
   const { data: trace, error, failedAt, retry, set } = usePoll(load, live);
+  const conflicts = useConflicts(projectId, trace);
   const back = (
     // the file rows are on Documents now (ingest.md v3, IN-79)
     <a
@@ -120,6 +142,8 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           if (!isFinished(next)) retry(); // read again as a plan: follow it until it is finished
         }}
       />
+      <Decisions trace={trace} conflicts={conflicts} />
+      <TraceTimeline stages={stages} />
       {file.normalised && file.drawing_id && (
         <BeforeAfter
           projectId={projectId}
@@ -129,57 +153,6 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
           normalised={file.normalised}
         />
       )}
-      <Card role="region" aria-label="Stages" className={cn(PANEL, 'block')}>
-        {stages.length === 0 ? (
-          <p>No stages yet.</p>
-        ) : (
-          // folded: the demo's file page shows no stages, and nothing is lost (IN-83)
-          <details>
-            <Tip text={INGEST_TIPS.stages}>
-              <summary className={cn(SUMMARY, 'font-semibold')}>
-                How it was read: {plural(stages.length, 'stage')}
-              </summary>
-            </Tip>
-            <ol className="ingest-trace">
-              {stages.map((s, i) => (
-                <li
-                  key={String(i)}
-                  className={cn(
-                    'grid grid-cols-[28px_1fr_auto] items-center gap-x-3 gap-y-0.5 py-3 [&+li]:border-t [&+li]:border-border [&>p]:col-[2/-1]',
-                    s.failure && 'failed',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'grid size-6 place-items-center rounded-full text-[13px] text-card',
-                      s.failure ? 'bg-danger' : 'bg-primary',
-                    )}
-                    role="img"
-                    aria-label={s.failure ? 'failed' : 'done'}
-                  >
-                    {s.failure ? '✕' : '✓'}
-                  </span>
-                  <Tip text={STAGE_TIPS[s.stage]} wrap className="justify-self-start">
-                    <b>{STAGE_LABEL[s.stage]}</b>
-                  </Tip>
-                  <span className={MUTED}>{formatMs(s.ms)}</span>
-                  <p>{s.stage === 'cache' ? `Cached: ${s.did}` : s.did}</p>
-                  {s.stage === 'cache' && (
-                    <p className={cn('output', MUTED)}>
-                      the stages below are from the first ingest of this content
-                    </p>
-                  )}
-                  {s.output && s.output !== s.did && (
-                    <p className={cn('output', MUTED)}>{s.output}</p>
-                  )}
-                  {s.cost_usd > 0 && <p>Cost: {formatCost(s.cost_usd)}</p>}
-                  {s.failure && <p className="font-semibold text-danger">Failed: {s.failure}</p>}
-                </li>
-              ))}
-            </ol>
-          </details>
-        )}
-      </Card>
       {takeoff.length > 0 && (
         <details className={cn(PANEL, 'ingest-takeoff block')}>
           <Tip text={INGEST_TIPS.endsAs}>
