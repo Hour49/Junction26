@@ -82,6 +82,8 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         return None
     query, facts = _kind_of_sheet(query, sheet), _Facts(sheet.facts)
     picture = bool(sheet.facts) and all(_picture(fact) for fact in sheet.facts)
+    if picture:  # its systems are its runs: "each pipe system" is their length by system
+        query = _per_system(query)
     if picture and query.place is not None:  # a picture's facts are whole-sheet counts only
         return Answer(
             id=question.id,
@@ -147,6 +149,25 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
         sure=False if picture else None,  # a picture's count is never certified (decision 0011)
         explanation=WHY,
     )
+
+
+# A length asked per system (big QA R2 services N1: "How long is each pipe system on P-101?" gave
+# the sheet total, "each plumbing system" said "holds no systems"). Only on a picture, whose
+# systems are its runs; an IFC model answers from its systems' own facts (review-737 M1)
+_EACH_SYSTEM = re.compile(r"\b(?:by|per|each)\s+(?:\w+\s+)?systems?\b", re.I)
+
+
+def _per_system(query: FactQuery) -> FactQuery:
+    """A picture's "how long is each (pipe|plumbing) system": its runs' length by system."""
+    if "length" not in query.measures or not _EACH_SYSTEM.search(query.asked):
+        return query
+    if query.entity == "system":
+        entity = "duct_segment" if query.discipline == "ventilation" else "pipe_segment"
+    elif query.entity in ("pipe_segment", "duct_segment"):
+        entity = query.entity
+    else:
+        return query
+    return query.model_copy(update={"entity": entity, "by": "system"})
 
 
 # A picture's legend rows a question's word names (QA big services R1, P4/P8/P9): the words in
