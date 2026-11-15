@@ -124,6 +124,25 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
+  it('R2-D3 the first Tab stop is "Skip to content", which moves focus to the screen', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    const skip = screen.getByRole('button', { name: 'Skip to content' });
+    const first = document.querySelector('a[href], button, input, [tabindex]:not([tabindex="-1"])');
+    expect(first).toBe(skip);
+    fireEvent.click(skip);
+    expect(document.activeElement).toBe(document.getElementById('main'));
+    await screen.findByText(OFFLINE);
+  });
+
+  it('R2-D5 the not-found link is a 44 px tap target', async () => {
+    window.location.hash = '#/nope';
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    expect(screen.getByRole('link', { name: 'Go to the start' }).className).toMatch(/\bmin-h-11\b/);
+    await screen.findByText(OFFLINE);
+  });
+
   it('SH-5 an unknown route shows the not-found view and asks for nothing else', async () => {
     window.location.hash = '#/nope';
     const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
