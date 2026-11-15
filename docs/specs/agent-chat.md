@@ -236,6 +236,12 @@ scale (`m_per_unit` null) → every plan tool returns `{status: "unknown", reaso
 - AC-44 A lane without `picture` is drawn over the plan as before; with DISCIPLINE_PICTURES off the API sends no
   `picture` and nothing changes. 390 px: the picture is full width, the line and the button wrap, no horizontal
   scroll. [component `ServiceTabs.test.tsx`, `EditCard.test.tsx`; browser 1440 and 390 by hand on a fixture]
+- AC-45 All sheets (Bogdan 2026-11-15: "see all the 3 plans modifying"): when at least one lane has a `picture`
+  the user has not refused, the Discipline group gets an "All sheets" button after Plan. It shows the plan and each
+  such lane's own sheet side by side (one column at 390 px, up to three across on a wide card), each panel zoomed
+  to the edit and named "<Lane>: <file>, with the proposed change", the edit drawn on every one; Before / After
+  switch all of them together. "Open <Lane>" on a panel opens that lane's tab. No picture: no button.
+  [component `ServiceTabs.test.tsx`; browser e2e `pics-sync.spec.ts` on the DigitalHub ZIP]
 
 ## 4. Tests
 

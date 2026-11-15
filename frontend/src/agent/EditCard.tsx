@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { decideProposal, errorText, getDrawing, type PageView } from '../api';
 import { PageFrame } from '../viewer/PageFrame';
 import '../viewer/viewer.css';
@@ -9,6 +9,7 @@ import {
   extentOf,
   pointsOf,
   zoomFor,
+  type Box,
   type Evidence,
   type Point,
   type Proposal,
@@ -135,43 +136,30 @@ export function placeOf(
   return room ? room.polygon : null;
 }
 
-function EditPlan({
-  p,
+/** One sheet's page in a scrolling box, centred on `extent` and zoomed to it, with `children` drawn over it in
+ * that page's fractions. `label`: a panel of the All sheets view (AC-45), named so, with `open` going to its tab. */
+function SheetBox({
   projectId,
-  hot,
-  reveal,
+  source,
+  extent,
+  alt,
+  label,
+  open,
+  children,
 }: {
-  p: Proposal;
   projectId: string;
-  hot: Point[] | null;
-  reveal: number;
+  source: { drawing_id: string; page: number };
+  extent: Box;
+  alt: (file: string) => string;
+  label?: string | ((file: string) => string);
+  open?: { name: string; go: () => void };
+  children: ReactNode;
 }) {
-  const fig = useRef<HTMLElement>(null);
-  // LC-15: a picked subject may be far below the plan (phone): bring the plan into view; so does Show it.
-  useEffect(() => {
-    const reduce =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches; // robust-8
-    if (hot || reveal > 0)
-      fig.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-  }, [hot, reveal]);
   const [loaded, setLoad] = useState<PageLoad>({ state: 'loading' });
-  const [after, setAfter] = useState(true);
-  const [revealed, setRevealed] = useState(reveal);
-  if (reveal !== revealed) {
-    setRevealed(reveal);
-    setAfter(true);
-  }
-  const services = useServiceTabs(p, after); // a tab per discipline (services-follow.md)
-  // AC-40: a tab with its own services sheet shows that sheet; otherwise the plan
-  const sheet = services?.sheet ?? null;
-  const source = sheet ?? { drawing_id: p.drawing_id, page: p.page };
   const key = `${source.drawing_id}#${String(source.page)}`;
   const load: PageLoad =
     loaded.state !== 'loading' && loaded.key === key ? loaded : { state: 'loading' };
-  const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
   const box = useRef<HTMLDivElement>(null);
-  const extent = services?.focus ?? extentOf(p);
   const zoom = zoomFor(extent);
   // Centre the change in the plan box once the page frame has its size.
   useLayoutEffect(() => {
@@ -204,6 +192,96 @@ function EditPlan({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `source` is rebuilt each render; `key` names it
   }, [key, projectId]);
 
+  const body = (
+    <>
+      {load.state === 'loading' && <p className="en-pending">Loading the plan…</p>}
+      {load.state === 'error' && (
+        <p className="en-warn" role="alert">
+          The plan could not be shown: {errorText(load.error).detail}
+        </p>
+      )}
+      {load.state === 'ready' && (
+        <div className="ag-planbox" ref={box}>
+          <PageFrame
+            zoom={zoom}
+            url={load.page.url}
+            width={load.page.width}
+            height={load.page.height}
+            alt={alt(load.file)}
+            page={source.page}
+          >
+            {children}
+          </PageFrame>
+        </div>
+      )}
+    </>
+  );
+  if (label === undefined) return body;
+  const file = load.state === 'ready' ? load.file : '';
+  const named = typeof label === 'string' ? label : label(file);
+  return (
+    <section className="ms-sync-panel" aria-label={named}>
+      <p className="ms-sync-head">
+        <span>{typeof label === 'string' ? 'Plan' : `${open?.name ?? ''} · ${file}`}</span>
+        {open && (
+          <button type="button" className="ag-law-subject" onClick={open.go}>
+            Open {open.name}
+          </button>
+        )}
+      </p>
+      {body}
+    </section>
+  );
+}
+
+function EditPlan({
+  p,
+  projectId,
+  hot,
+  reveal,
+}: {
+  p: Proposal;
+  projectId: string;
+  hot: Point[] | null;
+  reveal: number;
+}) {
+  const fig = useRef<HTMLElement>(null);
+  // LC-15: a picked subject may be far below the plan (phone): bring the plan into view; so does Show it.
+  useEffect(() => {
+    const reduce =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches; // robust-8
+    if (hot || reveal > 0)
+      fig.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  }, [hot, reveal]);
+  const [after, setAfter] = useState(true);
+  const [revealed, setRevealed] = useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    setAfter(true);
+  }
+  const services = useServiceTabs(p, after); // a tab per discipline (services-follow.md)
+  // AC-40: a tab with its own services sheet shows that sheet; otherwise the plan
+  const sheet = services?.sheet ?? null;
+  const source = sheet ?? { drawing_id: p.drawing_id, page: p.page };
+  const hatch = `ag-hatch-${useId().replace(/[^\w-]/g, '')}`;
+  const extent = services?.focus ?? extentOf(p);
+  const sync = services?.sync ?? null;
+  const planLayer = (
+    <>
+      {after && <Overlay p={p} hatch={hatch} />}
+      {hot && (
+        <svg
+          className="vw-overlay ag-overlay"
+          viewBox="0 0 1 1"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <polygon className="ag-hot" points={pointsOf(hot)} vectorEffect="non-scaling-stroke" />
+        </svg>
+      )}
+    </>
+  );
   return (
     <figure className="ag-plan" aria-label="Proposed plan" ref={fig}>
       {/* The legend's hatch, in px. */}
@@ -242,45 +320,51 @@ function EditPlan({
           After
         </button>
       </div>
-      {load.state === 'loading' && <p className="en-pending">Loading the plan…</p>}
-      {load.state === 'error' && (
-        <p className="en-warn" role="alert">
-          The plan could not be shown: {errorText(load.error).detail}
-        </p>
-      )}
-      {load.state === 'ready' && (
-        <div className="ag-planbox" ref={box}>
-          <PageFrame
-            zoom={zoom}
-            url={load.page.url}
-            width={load.page.width}
-            height={load.page.height}
-            alt={
-              sheet
-                ? `${load.file}, page ${String(sheet.page)}, ${after ? 'with the proposed change drawn on it' : 'as drawn'}`
-                : `Page ${String(p.page)}, ${after ? 'with the proposed change' : 'as drawn'}`
-            }
-            page={source.page}
+      {sync ? (
+        // AC-45: the plan and each lane's own sheet side by side, the edit on every one (Before/After for all)
+        <div className="ms-sync">
+          <SheetBox
+            projectId={projectId}
+            source={{ drawing_id: p.drawing_id, page: p.page }}
+            extent={extentOf(p)}
+            label={`Plan, ${after ? 'with the proposed change' : 'as drawn'}`}
+            alt={() => `Page ${String(p.page)}, ${after ? 'with the proposed change' : 'as drawn'}`}
           >
-            {/* the plan's overlay and a picked subject are in the plan's page fractions: not on another sheet */}
-            {after && !sheet && <Overlay p={p} hatch={hatch} />}
-            {services?.layer}
-            {hot && !sheet && (
-              <svg
-                className="vw-overlay ag-overlay"
-                viewBox="0 0 1 1"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                <polygon
-                  className="ag-hot"
-                  points={pointsOf(hot)}
-                  vectorEffect="non-scaling-stroke"
-                />
-              </svg>
-            )}
-          </PageFrame>
+            {planLayer}
+          </SheetBox>
+          {sync.map((s) => (
+            <SheetBox
+              key={s.discipline}
+              projectId={projectId}
+              source={s.sheet}
+              extent={s.focus ?? extentOf(p)}
+              label={(file) =>
+                `${s.name}: ${file}, ${after ? 'with the proposed change' : 'as drawn'}`
+              }
+              alt={(file) =>
+                `${file}, page ${String(s.sheet.page)}, ${after ? 'with the proposed change drawn on it' : 'as drawn'}`
+              }
+              open={{ name: s.name, go: s.open }}
+            >
+              {s.layer}
+            </SheetBox>
+          ))}
         </div>
+      ) : (
+        <SheetBox
+          projectId={projectId}
+          source={source}
+          extent={extent}
+          alt={(file) =>
+            sheet
+              ? `${file}, page ${String(sheet.page)}, ${after ? 'with the proposed change drawn on it' : 'as drawn'}`
+              : `Page ${String(p.page)}, ${after ? 'with the proposed change' : 'as drawn'}`
+          }
+        >
+          {/* the plan's overlay and a picked subject are in the plan's page fractions: not on another sheet */}
+          {!sheet && planLayer}
+          {services?.layer}
+        </SheetBox>
       )}
       <figcaption className="ag-legend">
         <span>

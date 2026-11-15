@@ -215,3 +215,27 @@
   color: var(--v-text-2);
   overflow-wrap: anywhere;
 }
+
+/* AC-45 All sheets: the plan and each discipline's own sheet side by side, the edit on every one. One column on a
+   phone, up to three across on a wide card. */
+.ms-sync {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 0.5rem;
+}
+.ms-sync-panel {
+  min-width: 0;
+}
+.ms-sync-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+.ms-sync-panel .ag-planbox {
+  max-height: 260px;
+}
