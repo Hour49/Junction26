@@ -16,6 +16,23 @@ export const ROUTE_NAME: Record<RouteId, string> = {
 /** What a reader setting names when it reads nothing (API.md: `hello` reads nothing). */
 const NOTHING = 'hello';
 
+/**
+ * A drawing or file on a route this setup has no reader for (`readers[route]` is `hello`): it has a page to look
+ * at, but nothing was read off it (backend core/ingest/judge.py `read_nothing`, "not read: this setup has no reader
+ * for ..."). The server flags it, never ready, and no question is answered from it (R2-A1, IN-116).
+ */
+export function unread(
+  item: { route?: string | null },
+  readers: Record<string, string> | undefined,
+): boolean {
+  return item.route != null && readers?.[item.route] === NOTHING;
+}
+
+/** The drawings something was read off: what "Drawings ready" and the done line count (IN-116). */
+export function readDrawings(project: Pick<ProjectView, 'drawings' | 'readers'>) {
+  return project.drawings.filter((d) => !unread(d, project.readers));
+}
+
 /** The reader a RASTER_COMPONENTS part is, by part (backend app/adapters/raster/__init__.py `GROUPS`). */
 const PART: Record<string, string> = {
   elements: 'symbol detector',
@@ -213,12 +230,22 @@ const ROUTE_PLURAL: Record<RouteId, [string, string]> = {
 
 /**
  * The finished screen's sentence: what was read by which route, then what needs a person. "Read 3 drawn PDFs and
- * 1 image. 2 flagged files need a look; 1 set aside." Each drawing once (another rendering is not counted).
+ * 1 image. 2 flagged files need a look; 1 not read; 1 set aside." Each drawing once (another rendering is not
+ * counted). A flagged file on a route with no reader (`unread`) is counted as "not read", not as read or flagged
+ * (IN-116).
  */
-export function routeSummary(files: readonly FileStatus[]): string {
+export function routeSummary(
+  files: readonly FileStatus[],
+  readers?: Record<string, string>,
+): string {
+  const notRead = files.filter((f) => f.state === 'flagged' && unread(f, readers)).length;
   const read = ROUTES.map(
     (id) =>
-      [id, files.filter((f) => f.route === id && f.drawing_id && readsItself(f)).length] as const,
+      [
+        id,
+        files.filter((f) => f.route === id && f.drawing_id && readsItself(f) && !unread(f, readers))
+          .length,
+      ] as const,
   )
     .filter(([, n]) => n > 0)
     .map(([id, n]) => plural(n, ...ROUTE_PLURAL[id]));
@@ -226,10 +253,11 @@ export function routeSummary(files: readonly FileStatus[]): string {
     read.length > 1
       ? `${read.slice(0, -1).join(', ')} and ${read[read.length - 1] ?? ''}`
       : read[0];
-  const flagged = files.filter((f) => f.state === 'flagged').length;
+  const flagged = files.filter((f) => f.state === 'flagged' && !unread(f, readers)).length;
   const aside = files.filter((f) => f.state === 'set_aside').length;
   const person = [
     flagged ? `${plural(flagged, 'flagged file')} ${flagged === 1 ? 'needs' : 'need'} a look` : '',
+    notRead ? `${String(notRead)} not read` : '',
     aside ? `${String(aside)} set aside` : '',
   ].filter(Boolean);
   return [list ? `Read ${list}.` : '', person.length ? `${person.join('; ')}.` : '']

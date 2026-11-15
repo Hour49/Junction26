@@ -4,8 +4,16 @@ import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
 import { parseRoute, useHash } from '../shell/route';
-import { PROJECT_STATE_LABEL, STATE_LABEL, keepPolling, sizeText, uploadedKey } from './ingest';
+import {
+  PROJECT_STATE_LABEL,
+  STATE_LABEL,
+  isLive,
+  keepPolling,
+  sizeText,
+  uploadedKey,
+} from './ingest';
 import { ChatRow, DoneLine, IngestFinished, type ConflictCounts } from './IngestFinished';
+import { readDrawings } from './pipeline';
 import { ProgressCard } from './ProgressCard';
 import { usePoll } from './usePoll';
 import { MUTED, PAGE, PANEL, TAP } from './ui';
@@ -99,7 +107,10 @@ export function TitleRow({
           )}
           {eyebrow}
         </p>
-        <h1 className="v-title mt-1! [overflow-wrap:anywhere]">{title}</h1>
+        {/* a long upload or file name shows 3 lines at most; the heading's name and its title stay whole (IN-114) */}
+        <h1 className="v-title mt-1! line-clamp-3 [overflow-wrap:anywhere]" title={title}>
+          {title}
+        </h1>
       </div>
       {children}
     </header>
@@ -116,6 +127,7 @@ function NothingRead({ projectId, project }: { projectId: string; project: Proje
   return (
     <Card role="region" aria-label="Nothing read" className={cn(PANEL, 'grid gap-4')}>
       <h2 className="v-h2">Nothing could be read from this upload</h2>
+      {why.length === 0 && <p>There were no files in it.</p>}
       {why.length > 0 && (
         <ul className="grid gap-3">
           {why.map((w) => (
@@ -148,6 +160,13 @@ function uploaded(projectId: string): { name: string; bytes: number } | null {
   }
 }
 
+/** A long name cut in the middle, so its start and its extension both show (IN-114). */
+export function shortName(name: string, max = 60): string {
+  if (name.length <= max) return name;
+  const tail = Math.floor(max / 3);
+  return `${name.slice(0, max - tail - 1)}…${name.slice(-tail)}`;
+}
+
 /** Route `#/p/<project_id>`: the ingest followed live (Simple), or step by step (`?view=advanced`). */
 export function ProjectScreen({ projectId }: { projectId: string }) {
   const load = useCallback((signal: AbortSignal) => getProject(projectId, { signal }), [projectId]);
@@ -171,8 +190,9 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   }
 
   const base = `#/p/${projectId}`;
-  // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7).
-  const nothingRead = project.state === 'done' && project.drawings.length === 0;
+  // An upload with nothing readable ends plainly, not "Ready" with a 0% ring (IN-72, R4-a-7); so does one whose
+  // drawings were all on a route with no reader (IN-116)
+  const nothingRead = project.state === 'done' && readDrawings(project).length === 0;
   return (
     <div className={cn('v-page v-page--narrow', PAGE)}>
       <TitleRow
@@ -194,10 +214,16 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
       </TitleRow>
       {sent && (
         <p role="status" aria-label="Upload received" className="text-text-2">
-          {`Uploaded: ${sent.name}, ${sizeText(sent.bytes)}, received by the server. `}
+          Uploaded: <span title={sent.name}>{shortName(sent.name)}</span>
+          {`, ${sizeText(sent.bytes)}, received by the server. `}
           {project.files.length > 0
             ? `${String(project.files.length)} ${project.files.length === 1 ? 'file' : 'files'} found.`
-            : 'Unpacking…'}
+            : // finished with no files (an empty zip): said plainly, not "Unpacking…" (IN-115)
+              isLive(project)
+              ? 'Unpacking…'
+              : project.state === 'done'
+                ? 'No files found in it.'
+                : 'Nothing was unpacked.'}
         </p>
       )}
       {project.state === 'failed' && project.error && (
