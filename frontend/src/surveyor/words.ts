@@ -10,8 +10,18 @@ const STATUS: Record<Row['status'], string> = {
   single: 'One method',
 };
 
-export function statusText(row: Pick<Row, 'status' | 'needs_person'>): string {
-  return row.needs_person ? `${STATUS[row.status]} · needs you` : STATUS[row.status];
+type StatusRow = Pick<Row, 'status' | 'needs_person'> &
+  Partial<Pick<Row, 'conflict' | 'settled' | 'value' | 'original_value'>>;
+
+export function statusText(row: StatusRow): string {
+  if (row.needs_person) return `${STATUS[row.status]} · needs you`;
+  // R4-B11: a conflict a rule decided reads as the project page's card does, not as an open disagreement
+  if (row.status === 'conflict' && row.conflict?.resolution && !row.settled)
+    return 'Settled by a rule';
+  // R4-B5: settled at the value it already had: nothing changed
+  if (row.status === 'edited' && row.settled && row.value === row.original_value)
+    return 'Settled by you';
+  return STATUS[row.status];
 }
 
 export interface MarkWords {

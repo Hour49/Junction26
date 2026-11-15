@@ -179,8 +179,8 @@ def test_the_extractor_reads_rooms_only() -> None:
 def test_an_area_printed_in_the_label_is_the_rooms_area_and_a_number_without_m2_is_not() -> None:
     # label-area (fable-rooms item 2): the printed area wins over the box estimate
     labels = ["MH 9,7 m²", "K 12.5 m2", "WC 1.3M2", "OH9.7m²", "KPH 1.01", "MH 2,6", "ET 0 m²"]
-    found = extract(FakeModel(reply(*(room("other", t, [0, 0, 10 + i, 10]) for i, t in
-                                      enumerate(labels)))))  # fmt: skip
+    boxes = [room("other", t, [0, 20 * i, 10 + i, 20 * i + 10]) for i, t in enumerate(labels)]
+    found = extract(FakeModel(reply(*boxes)))  # side by side: none holds another
     assert [r.area_m2 for r in found.rooms] == [9.7, 12.5, 1.3, None, None, None, None]
     assert (found.rooms[0].area_status, found.rooms[0].area_source) == ("exact", "printed")
     assert found.rooms[4].area_status is None
@@ -294,3 +294,24 @@ def test_a_paid_call_is_charged_to_the_cost_and_a_cached_reply_is_not(
     reader.read(image)  # cached: no call, no new spend
     assert len(calls) == 1
     assert cost.since(before) == 0
+
+
+@pytest.mark.parametrize(
+    ("label", "area"),
+    [
+        ("MH4 19.0m2", 19.0),  # a room code ending in a digit, then the area (CubiCasa)
+        ("MH1 10.6 m²", 10.6),
+        ("Cuisine\n0.16\n13.92 m²", 13.92),  # Swiss: name, room number, area on their own lines
+        ("Cuisine 0.16 13.92 m²", 13.92),  # the same read onto one line
+        ("Bain\n0.21\n4,75 m2", 4.75),
+    ],
+)
+def test_an_area_after_a_room_code_or_number_is_read(label: str, area: float) -> None:
+    """A digit and a space before the area mean a spaced thousands group ("1 234,5 m²") only
+    when exactly three digits follow; a room code or number before the area is no such group."""
+    assert printed_area(label)["area_m2"] == area
+
+
+@pytest.mark.parametrize("label", ["12 345 m²", "1\u00a0234 m2", "MH4 190 m2"])
+def test_three_digits_after_a_digit_and_a_space_stay_a_thousands_group(label: str) -> None:
+    assert printed_area(label) == {}

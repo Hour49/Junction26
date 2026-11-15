@@ -22,6 +22,7 @@ from pydantic import Field
 
 from app.adapters.discipline_pictures import legend as legend_module
 from app.adapters.discipline_pictures import mask as mask_module
+from app.adapters.discipline_pictures import runs_graph as runs_graph_module
 from app.adapters.discipline_pictures import template as template_module
 from app.adapters.discipline_pictures.legend import OcrLegend
 from app.adapters.discipline_pictures.mask import MaskReader
@@ -45,7 +46,13 @@ CODE = hashlib.sha256(
         [
             *(
                 Path(m.__file__ or "").read_bytes()
-                for m in (legend_module, template_module, mask_module, picture_facts_module)
+                for m in (
+                    legend_module,
+                    template_module,
+                    mask_module,
+                    runs_graph_module,
+                    picture_facts_module,
+                )
             ),
             Path(__file__).read_bytes(),
         ]
@@ -139,6 +146,7 @@ class PictureLane:
         sheets: PictureSheets,
         legend: OcrLegend,
         symbols: PictureReader | None = None,
+        runs: PictureReader | None = None,
         check: PictureReader | None = None,
     ) -> None:
         self._inner = inner
@@ -150,7 +158,8 @@ class PictureLane:
         # a second symbols reader (DISCIPLINE_PICTURES=gemini: template): a label whose count it
         # confirms (`double_check`) is not held; it adds no facts of its own
         self._check = check
-        self._mask = MaskReader(files, legend.legend, legend.scale)
+        # the runs' reader: `mask` unless another is given (DISCIPLINE_RUNS=graph)
+        self._mask = runs or MaskReader(files, legend.legend, legend.scale)
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found = self._inner.extract(source, sheet)

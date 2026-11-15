@@ -320,7 +320,7 @@ class _ListArgs(_Args):
     drawing_id: str | None = Field(
         default=None,
         max_length=64,
-        description="the services model's drawing (default: the only one)",
+        description="the services model's drawing (default: all)",
     )
     storey: str | None = Field(default=None, max_length=60, description="storey id (L1...) or name")
     system: str | None = Field(default=None, max_length=120, description="a system's name")
@@ -331,7 +331,10 @@ class _ListArgs(_Args):
     )
     kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
     predefined: str | None = Field(
-        default=None, min_length=1, max_length=40, description="by_predefined key or untyped"
+        default=None,
+        min_length=1,
+        max_length=80,
+        description="by_predefined key(s) a,b or untyped",
     )
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
@@ -443,16 +446,51 @@ def run_services_tool(store: ServicesToolStore, name: str, arguments: str | dict
 
 
 def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
-    if args.drawing_id is None:  # the project's only model: a set-aside IFC is in no drawing list
-        have = list(store.models)
-        if not have:
-            raise ToolError(f"{NOT_READ}{store.building_note()}")
-        if len(have) != 1:
-            raise ToolError(
-                f"name the drawing_id; the project's services models: {', '.join(have)}"
-                f"{store.building_note()}"
-            )
-        args = args.model_copy(update={"drawing_id": have[0]})
+    if args.drawing_id is not None:
+        return _list_one(store, args, LIMIT)
+    have = list(store.models)  # a set-aside IFC is in no drawing list: models, not drawings
+    if not have:
+        raise ToolError(f"{NOT_READ}{store.building_note()}")
+    if len(have) == 1:
+        return _list_one(store, args.model_copy(update={"drawing_id": have[0]}), LIMIT)
+    return _every_model(store, args, have)
+
+
+SKIPPED_CHARS = 160  # of a skipped model's reason
+
+
+def _every_model(store: ServicesToolStore, args: Any, have: list[str]) -> dict[str, Any]:
+    """No drawing named and several services models: each one listed, within one result's limit,
+    so the first call is not an error the model must recover from (live 2026-11-15: every
+    services turn began with "name the drawing_id"). A model that fits its equal share keeps its
+    whole list; the rest share what is left. A model the filter does not apply to (a room or IFC
+    type it lacks) is skipped with its reason; when every one is, the error."""
+    budget = LIMIT - 120 - len(have) * (SKIPPED_CHARS + 60)
+    found: dict[str, dict[str, Any]] = {}
+    skipped: list[dict[str, str]] = []
+    for drawing_id in have:
+        try:
+            found[drawing_id] = _list_one(store, _on(args, drawing_id), LIMIT)
+        except ToolError as error:
+            skipped.append({"drawing_id": drawing_id, "reason": str(error)[:SKIPPED_CHARS]})
+    if not found:
+        why = "; ".join(f"{s['drawing_id']}: {s['reason']}" for s in skipped)
+        raise ToolError(f"no services model has it ({why})")
+    size = {d: len(json.dumps(m, ensure_ascii=False)) for d, m in found.items()}
+    small = {d for d in found if size[d] <= budget // len(found)}
+    if big := [d for d in found if d not in small]:
+        share = (budget - sum(size[d] for d in small)) // len(big)
+        found |= {d: _list_one(store, _on(args, d), share) for d in big}
+    models = list(found.values())
+    return {"count": sum(m["count"] for m in models), "models": models, "skipped": skipped}
+
+
+def _on(args: Any, drawing_id: str) -> Any:
+    return args.model_copy(update={"drawing_id": drawing_id})
+
+
+def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]:
+    """One services model's list, cut to `limit` characters."""
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
     storey = _storey_of(model, args.storey) if args.storey else None
@@ -485,20 +523,20 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
     if args.predefined is not None:  # R5: a WC, a basin and its frame are one IFC class
-        wanted = args.predefined.upper()
+        wanted = {key.strip().upper() for key in args.predefined.split(",")}  # "SINK,WASHHANDBASIN"
         types = {
             e.predefined or "untyped"
             for e in model.elements
             if (e.group == "flow_terminal" or _equipment(e))
             and (args.kind is None or args.kind in (e.kind, e.group))
         }
-        if wanted not in {t.upper() for t in types}:  # #559 S1: not a confident 0 for a typo
+        if not wanted & {t.upper() for t in types}:  # #559 S1: not a confident 0 for a typo
             raise ToolError(
                 f"no {args.kind or 'terminal'} has the IFC type {args.predefined!r}; "
                 f"its types: {', '.join(sorted(types))}"
             )
         found["untyped"] = sum(e.predefined is None for e in matched)
-        matched = [e for e in matched if (e.predefined or "untyped").upper() == wanted]
+        matched = [e for e in matched if (e.predefined or "untyped").upper() in wanted]
     items = [
         {
             "id": e.id,
@@ -523,7 +561,7 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         found["by_kind"], found["by_type"] = _groups(kinds, top), _groups(types, top)
         found["by_predefined"] = _groups(predefined, top)
         found["by_room"] = _groups(rooms, top)
-        short = len(json.dumps(found, ensure_ascii=False)) <= LIMIT
+        short = len(json.dumps(found, ensure_ascii=False)) <= limit
         if short or (top == 1 and not found["items"]):
             break
         if found["items"]:

@@ -3,6 +3,7 @@ import type { FileStatus, FileTrace, ProjectView, StageTrace, StepTrace, Takeoff
 import { formatValue } from '../api/format';
 import { STAGE_LABEL, formatMs, kindLabel, plural, routeLabel } from '../ingest/ingest';
 import { CLASS_LABEL, classLine, planChance } from '../ingest/triage';
+import { calledNotADrawing } from './advanced';
 
 export type Step = StepTrace;
 
@@ -132,6 +133,14 @@ export function saidByStage(stepDid: string, stageDid: string): boolean {
   return false;
 }
 
+/**
+ * A measured time in the trace (AD-128): under 0.01 ms, which `formatMs` rounds to a fake-looking "0.00 ms", it
+ * reads "<0.01 ms", as `formatCost` says "<$0.01". 0 exactly is not timed: callers show no time for it (`untimed`).
+ */
+export function traceMs(ms: number): string {
+  return ms > 0 && ms < 0.01 ? '<0.01 ms' : formatMs(ms);
+}
+
 /** A step the server did not time: done with 0 ms exactly (the second count's checks today). */
 export const untimed = (s: Step): boolean => s.state === 'done' && s.ms === 0;
 
@@ -203,6 +212,15 @@ function triageDecision(t: FileTrace): Decision | null {
       if (sheet.advanced && sheet.advanced_why) lines.push(`Read closer: ${sheet.advanced_why}`);
     }
     if (tri.note) lines.push(tri.note);
+    // read because the sheet-kind step only warns, but it called the sheet not a drawing: no "A floor plan" (AD-132)
+    if (calledNotADrawing(f))
+      return {
+        key: 'triage',
+        where: STAGE_LABEL.identify,
+        title: 'Not a drawing, read anyway',
+        lines,
+        tone: 'warn',
+      };
     return {
       key: 'triage',
       where: STAGE_LABEL.identify,

@@ -3,6 +3,7 @@ a bad call is {"error": ...}, never an exception."""
 
 import json
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 from pdf_sheets import rect
 from test_vector_pdf import swiss_sheet
 
+from app.adapters import pipeline_tools
 from app.adapters.pipeline_tools import (
     _RUNNERS,
     PIPELINE_TOOLS,
@@ -21,7 +23,10 @@ from app.adapters.pipeline_tools import (
 from app.adapters.vector_pdf.objects import read_page
 from app.adapters.vector_pdf.scale import read_scale
 from app.adapters.vector_pdf.wall_fills import wall_fills
+from app.api.checks import ProjectChecks
 from app.composition import build_ingest
+from app.core.agent.loop import _for_model
+from app.core.checks.model import RulePack
 from app.core.drawing.model import Drawing
 from app.main import create_app
 from app.settings import Settings
@@ -91,6 +96,20 @@ def test_list_drawings_names_each_drawing_of_the_project(
     assert {"kind", "route", "state", "triage"} <= set(found[0])
 
 
+def test_list_drawings_says_what_the_pen_says_whether_an_edit_can_be_drawn(
+    store: PipelineStore, project: dict[str, Any]
+) -> None:
+    """Tudor R3-G10: on a scan the pen is off, yet the agent said "draw the area ... and ask me to
+    propose it". The agent reads the same check as the pen (plan_tools.not_drawable)."""
+    found = {d["drawing_id"]: d for d in call(store, "list_drawings")}
+    for drawing in project["drawings"]:
+        listed = found[drawing["drawing_id"]]
+        assert listed["editable"] is drawing["drawable"], drawing["file"]
+        assert listed.get("not_editable") == drawing["not_drawable_reason"], drawing["file"]
+    assert any(d["editable"] for d in found.values())
+    assert any(not d["editable"] and d["not_editable"] for d in found.values())
+
+
 def test_ask_drawings_is_the_project_ask_route(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
@@ -125,12 +144,122 @@ def test_conflicts_and_issues_are_the_routes_lists(
     assert issues == route["issues"] and issues
 
 
-def test_run_checks_is_the_project_checks_route(
+def test_run_checks_is_the_project_checks_route_failures_first(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
+    """R4-I5: the route's results as the chat reads them: each rule once with its clause and
+    counts, then the fails and cannot-tells (a rule that could not run is a cannot-tell entry of
+    its own), then the passes."""
     found = call(store, "run_checks", pack="test")
     route = checked.get(f"/api/projects/{project['id']}/checks", params={"pack": "test"}).json()
-    assert found == route and found["drawings"]
+    assert {k: found[k] for k in ("project_id", "pack", "note", "status")} == {
+        k: route[k] for k in ("project_id", "pack", "note", "status")
+    }
+    rules = [(d["file"], r) for d in route["drawings"] for r in d["rules"]]
+    results = [(file, r["rule_id"], x) for file, r in rules for x in r["results"]]
+    lists = (("fail", "failures"), ("cannot_tell", "cannot_tell"), ("pass", "passes"))
+    for status, listed in lists:
+        assert [(x["file"], x["rule_id"], x["subject"], x["value"]) for x in found[listed]
+                if "subject" in x] == [
+            (file, rule_id, x["subject"]["label"], x["value"]) for file, rule_id, x in results
+            if x["status"] == status
+        ]  # fmt: skip
+    assert [(x["file"], x["rule_id"]) for x in found["cannot_tell"] if "subject" not in x] == [
+        (file, r["rule_id"]) for file, r in rules
+        if r["status"] == "cannot_tell"
+        and not any(x["status"] == "cannot_tell" for x in r["results"])
+    ]  # fmt: skip
+    for _, r in rules:
+        summary = found["rules"][r["rule_id"]]
+        assert (summary["title"], summary["clause"]) == (r["title"], r["clause"])
+    for rule_id, summary in found["rules"].items():
+        mine = [r for _, r in rules if r["rule_id"] == rule_id]
+        assert summary["drawings"] == dict(Counter(r["status"] for r in mine))
+        assert summary["results"] == dict(Counter(x["status"] for r in mine for x in r["results"]))
+    keys = list(found)
+    assert keys.index("rules") < keys.index("failures") < keys.index("cannot_tell")
+    assert keys.index("cannot_tell") < keys.index("passes") and found["rules"]
+
+
+@pytest.fixture
+def sample(client: TestClient) -> PipelineStore:
+    """The sample project with the app's own rule packs (ch-zh, fi)."""
+    project = client.get(client.post("/api/projects/sample").json()["url"]).json()
+    return PipelineStore.of_app(client.app, project["id"])
+
+
+def pad(monkeypatch: pytest.MonkeyPatch, passing: int, failing: int) -> None:
+    """run_checks with the passing drawings `passing` times over, then the failing ones `failing`
+    times, then the rest (cannot tell), as a long project gives them."""
+    real = pipeline_tools.checks_of
+
+    def padded(project_id: str, pack: RulePack, ingest: Any) -> ProjectChecks:
+        found = real(project_id, pack, ingest)
+        by = {s: [d for d in found.drawings if d.status == s] for s in ("pass", "fail")}
+        rest = [d for d in found.drawings if d.status not in by]
+        drawings = by["pass"] * passing + by["fail"] * failing + rest
+        return found.model_copy(update={"drawings": drawings})
+
+    monkeypatch.setattr(pipeline_tools, "checks_of", padded)
+
+
+@pytest.mark.parametrize("times", [1, 20])
+def test_run_checks_keeps_every_failure_when_the_chat_cuts_a_long_result(
+    sample: PipelineStore, monkeypatch: pytest.MonkeyPatch, times: int
+) -> None:
+    """R4-I5 (Tudor's QA round 4): "Which rooms fail the Zürich building rules?" on the sample
+    could not name Zimmer 1.05 on flat-b (8.06 m²): run_checks gave every drawing's every result,
+    the loop halves the longest list to TOOL_CHARS, and the drawings list was cut to flat-a (whose
+    own Zimmer 1.05 passes). times=20: the passing drawings 20 times over, ahead of flat-b,
+    so the chat still cuts the result, but not the failure."""
+    pad(monkeypatch, passing=times, failing=1)
+    text = _for_model(call(sample, "run_checks", pack="ch-zh"))
+    assert ("_more" in text) == (times > 1), text  # x1 now fits; x20 is still cut
+    read = json.loads(text)  # cut by lists, not as text
+    failures = [(x["file"], x["rule_id"], x["subject"]) for x in read["failures"]]
+    assert failures == [("plans/flat-b.pdf", "ch-zh-room-area", "Zimmer 1.05")], text
+    assert read["failures"][0]["value"] == pytest.approx(8.06, abs=0.01)
+    assert "§ 303" in read["rules"]["ch-zh-room-area"]["clause"]["ref"]
+
+
+def test_run_checks_keeps_a_dozen_failures_whole(
+    sample: PipelineStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """review-621 M1: a failure entry carried its rule's title and full clause (about 1,080
+    characters), so with 12 failing drawings `failures` was the longest list and the chat kept 3.
+    The title and clause are given once per rule (a dict, never cut)."""
+    pad(monkeypatch, passing=20, failing=12)
+    text = _for_model(call(sample, "run_checks", pack="ch-zh"))
+    assert "_more" in text, text  # the chat did cut it
+    read = json.loads(text)
+    assert [x["subject"] for x in read["failures"]] == ["Zimmer 1.05"] * 12, text
+    assert "failures_more" not in read
+    said = 'The bedroom "Zimmer 1.05" is 8.06 m2; the rule asks at least 10 m2.'
+    assert read["failures"][0]["why"] == said
+    assert read["fail_means"].startswith("It would not meet")  # said once
+
+
+def test_run_checks_keeps_every_drawing_it_could_not_check(
+    sample: PipelineStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """review-621 M2: a rule that could not run on a drawing (no rooms read, a building model)
+    has no results, so it was only in `rules`, the list the chat cuts first: with fi on the sample
+    all 9 were there and `cannot_tell` was empty. Each is a cannot-tell entry of its own."""
+    expected = {
+        (d.file, r.rule_id)
+        for d in pipeline_tools.checks_of(
+            sample.project_id, pipeline_tools.find_pack(sample.packs, "fi"), sample.ingest
+        ).drawings
+        for r in d.rules
+        if r.status == "cannot_tell" and not r.results
+    }
+    assert len(expected) == 9
+    pad(monkeypatch, passing=20, failing=1)
+    text = _for_model(call(sample, "run_checks", pack="fi"))
+    assert "_more" in text, text  # the chat did cut it
+    read = json.loads(text)
+    assert {(x["file"], x["rule_id"]) for x in read["cannot_tell"]} == expected, text
+    assert all(x["why"] for x in read["cannot_tell"])
 
 
 def drawing(**fields: object) -> Drawing:
@@ -170,6 +299,24 @@ def test_a_reader_that_does_not_look_for_walls_gives_null_and_why() -> None:
     assert found["walls"] is None and found["walls_sure"] is False
     assert "does not look for walls" in found["reasons"]["walls"]
     assert found["rooms"] == [] and found["reasons"]["rooms"] == "none were found on this page"
+
+
+def test_each_room_carries_its_printed_number_so_rooms_of_one_name_are_told_apart() -> None:
+    """R3-L3 (Tudor's QA round 3): the chat said "Stanza" four times where the engineer page says
+    "Stanza 1.07": the vector reader keeps the number apart from the label (attrs), and the
+    geometry tool gave the label alone."""
+    rooms = [
+        {"id": f"r{n}", "type": "bedroom", "label": "Stanza", "page": 1, "box": BOX,
+         "attrs": {"number": f"1.0{n}"}}
+        for n in range(4, 8)
+    ]  # fmt: skip
+    rooms.append({"id": "r8", "type": "kitchen", "label": "Cucina\n1.08", "page": 1, "box": BOX})
+    found = geometry_of(drawing(rooms=rooms), "vector", "d" * 16, 1)
+    assert [(r["label"], r["number"]) for r in found["rooms"][:4]] == [
+        ("Stanza", "1.04"), ("Stanza", "1.05"), ("Stanza", "1.06"), ("Stanza", "1.07"),
+    ]  # fmt: skip
+    # The raster reader keeps it in the label: a room with no number has no key (review-617 M1)
+    assert found["rooms"][4]["label"] == "Cucina\n1.08" and "number" not in found["rooms"][4]
 
 
 def test_get_plan_geometry_on_a_real_drawing(store: PipelineStore, project: dict[str, Any]) -> None:

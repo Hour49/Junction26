@@ -6,7 +6,7 @@ import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ConflictsList } from '../surveyor/ConflictsScreen';
 import { formatMs, nameParts } from './ingest';
-import { ProjectScreen } from './ProjectScreen';
+import { NOTHING_ROWS, ProjectScreen, whyRows } from './ProjectScreen';
 import { flush, must, triaged, variants } from './testing';
 
 vi.mock('../advanced/AdvancedIngest', () => ({
@@ -236,6 +236,53 @@ describe('ProjectScreen', () => {
     expect(screen.queryByText(/drawings? ready/)).toBeNull();
   });
 
+  it('IN-126 (QA R4-A9) done, its only drawing a screenshot read only to warn: the Nothing-read card, no chat or workspace', async () => {
+    const f = must(project.files[0]);
+    const why = 'This looks like a screenshot of a web page, not a building drawing.';
+    const drawing = must(project.drawings.find((d) => d.route === 'vector'));
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 1,
+        files: [{ ...f, path: 'page.png', state: 'flagged', reason: why }],
+        drawings: [{ ...drawing, file: 'page.png', not_a_drawing: true }],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    expect(panel.textContent).toContain(why); // the backend's flag reason says why
+    expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
+    expect(screen.queryByText(/drawings? ready/)).toBeNull();
+    expect(screen.queryByText('Start a new chat')).toBeNull();
+    expect(screen.queryByText('Open the workspace')).toBeNull();
+  });
+
+  it('IN-126 (QA R4-A9) a screenshot beside a real drawing: 1 ready, and the workspace opens on the real one', async () => {
+    const [f1, f2] = [must(project.files[0]), must(project.files[1])];
+    const [real, shot] = project.drawings.filter((d) => d.route === 'vector');
+    mockApi({
+      [GET]: {
+        ...project,
+        expected_drawings: 2,
+        files: [f1, { ...f2, state: 'flagged' }],
+        // the screenshot first: the workspace link must still skip it
+        drawings: [{ ...must(shot), not_a_drawing: true }, must(real)],
+      },
+    });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(stat('Drawings ready')).toBe('1 / 2');
+    const card = screen.getByRole('region', { name: 'Progress' });
+    expect(card.textContent).toContain('1 drawing ready.');
+    act(() => {
+      must(must(vi.mocked(ConflictsList).mock.lastCall)[0].onCounts)({ total: 0, needsPerson: 0 });
+    });
+    expect(screen.getByRole('link', { name: 'Open the workspace' }).getAttribute('href')).toBe(
+      `#/p/${ID}/d/${must(real).drawing_id}/engineer`,
+    );
+  });
+
   it('no DXF hint when the set-aside files are not DXF', async () => {
     mockApi({
       [GET]: {
@@ -279,6 +326,42 @@ describe('ProjectScreen', () => {
     ).toBe(`#/p/${ID}/documents`);
     expect(screen.queryByText('the conflicts list')).toBeNull();
     expect(screen.queryByText('Start a new chat')).toBeNull();
+  });
+
+  it('IN-128 (QA R4-G4) a 3000-file zip: entries with the same reason are one row, the rows capped', async () => {
+    const txt = Array.from({ length: 3000 }, (_, i) => ({
+      path: `notes/n${String(i)}.txt`,
+      reason: 'plain text, 1 bytes',
+    }));
+    const odd = Array.from({ length: 20 }, (_, i) => ({
+      path: `odd${String(i)}.bin`,
+      reason: `not read: kind ${String(i)}`,
+    }));
+    mockApi({ [GET]: { ...variants.noDrawings, files: [], skipped: [...txt, ...odd] } });
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    const panel = screen.getByRole('region', { name: 'Nothing read' });
+    const rows = within(panel).getAllByRole('listitem');
+    expect(rows).toHaveLength(NOTHING_ROWS);
+    const group = must(rows[0]);
+    expect(within(group).getByText('3000 files')).toBeTruthy();
+    expect(group.textContent).toContain('plain text, 1 bytes');
+    expect(group.textContent).toContain('For example: notes/n0.txt, notes/n1.txt, notes/n2.txt');
+    expect(group.textContent).not.toContain('notes/n3.txt');
+    expect(must(rows[1]).textContent).toContain('odd0.bin');
+    // 1 group + 11 of the 20 odd ones shown: 9 more, still on Documents
+    expect(panel.textContent).toContain('And 9 more files.');
+    expect(
+      within(panel).getByRole('link', { name: 'Every file is listed in Documents.' }),
+    ).toBeTruthy();
+  });
+
+  it('IN-128 under the threshold (3 entries with one reason) each entry keeps its own row, nothing counted', () => {
+    const three = ['a.txt', 'b.txt', 'c.txt'].map((path) => ({ path, reason: 'plain text' }));
+    expect(whyRows(three)).toEqual(three.map((t) => ({ reason: 'plain text', paths: [t.path] })));
+    expect(whyRows([...three, { path: 'd.txt', reason: 'plain text' }])).toEqual([
+      { reason: 'plain text', paths: ['a.txt', 'b.txt', 'c.txt', 'd.txt'] },
+    ]);
   });
 
   it('IN-23 a failed project shows "Ingest failed" and its error, and is not polled', async () => {

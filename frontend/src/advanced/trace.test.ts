@@ -18,6 +18,7 @@ import {
   stepRows,
   stepSpans,
   stepsOf,
+  traceMs,
   untimed,
 } from './trace';
 
@@ -214,6 +215,36 @@ describe('trace view v5', () => {
     expect(failed.at(-1)?.lines).toContain('Extract failed: no page could be read');
   });
 
+  it('AD-132 Identify: a sheet the sheet-kind step called not a drawing is not titled "A floor plan"', () => {
+    // the real demo run's photos/site.jpg: triage class floor_plan (it is read), plan chance 0, sheet kind doubt
+    const t: FileTrace = {
+      ...trace,
+      file: {
+        ...trace.file,
+        path: 'photos/site.jpg',
+        triage: {
+          class: 'floor_plan',
+          p_plan: 0,
+          method: 'sheet kind',
+          read_as_plan: null,
+          sheet: {
+            ...sheet,
+            decision: 'doubt',
+            kind: 'not_a_drawing',
+            kind_words: 'not a drawing',
+          },
+        },
+      },
+    };
+    expect(decisions(t)[0]).toMatchObject({ title: 'Not a drawing, read anyway', tone: 'warn' });
+    // the same sheet once someone had it read as a floor plan: a floor plan again
+    const kept = {
+      ...t,
+      file: { ...t.file, triage: { ...t.file.triage, read_as_plan: { by: 'you' } } },
+    } as unknown as FileTrace;
+    expect(decisions(kept)[0]).toMatchObject({ title: 'A floor plan', tone: 'ok' });
+  });
+
   it('AD-107 disagreements: the disputed conflicts with both values; older servers every conflict', () => {
     const rows = disagreements(takeoff);
     expect(rows.length).toBeGreaterThan(0);
@@ -346,5 +377,15 @@ describe('trace view v5', () => {
     expect(untimed(step({ ms: 0 }))).toBe(true);
     expect(untimed(step({ ms: 0.004 }))).toBe(false);
     expect(untimed(step({ ms: 0, state: 'skipped' }))).toBe(false);
+  });
+
+  it('AD-128 traceMs: a measured time under 0.01 ms reads "<0.01 ms", not "0.00 ms"', () => {
+    // the demo sample's real stage times (hash, group, route of the IFC model and the scan)
+    expect(traceMs(0.0036470009945333004)).toBe('<0.01 ms');
+    expect(traceMs(0.00506901741027832)).toBe('<0.01 ms');
+    expect(traceMs(0.01)).toBe('0.01 ms');
+    expect(traceMs(0.019195984350517392)).toBe('0.02 ms');
+    expect(traceMs(34.83)).toBe('34.8 ms');
+    expect(traceMs(2968.69)).toBe('3.0 s');
   });
 });

@@ -2,6 +2,7 @@
 import { act } from '@testing-library/react';
 import { project, projectList, projectTriaged, trace } from '../api/fixtures';
 import type { FileStatus, FileTrace, ProjectView, Triage } from '../api';
+import sample from './sample-run.json';
 
 /** The value, or a thrown error naming what was missing. */
 export function must<T>(value: T | null | undefined): T {
@@ -265,3 +266,21 @@ export const LIVE_STEPS = {
   vector: ['Drawn-PDF reader (Swiss plan rules)', 'Schedule tables (PDF)'],
   bim: ['IFC model reader'],
 };
+
+/**
+ * The demo sample as the server sent it (trace's e2e on main 9e08a439, 2026-11-15, 0 USD), trimmed to what the
+ * lanes read: `done` the finished project, `mid` a poll while the image route was still reading. The rest of each
+ * file and drawing is the fixture's.
+ */
+export function sampleRun(which: 'done' | 'mid'): ProjectView {
+  const run = sample[which];
+  const file = must(project.files[0]);
+  const drawing = must(project.drawings[0]);
+  return {
+    ...project,
+    ...run,
+    readers: sample.done.readers,
+    files: run.files.map((f) => ({ ...file, ...f }) as FileStatus),
+    drawings: run.drawings.map((d) => ({ ...drawing, ...d })),
+  } as ProjectView;
+}

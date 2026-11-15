@@ -82,6 +82,8 @@ UNBACKED = "I could not back that answer with what the drawings say."
 SHOW_THEM = "Show me where they are"  # the "Show them on the plan" chip (contract F)
 AREA_WORDS = re.compile(r"m²|m2\b|\bsq|square|\barea\b", re.I)
 UNRATED_TOOLS = frozenset({"get_plan_geometry", "get_takeoff", "list_walls"})
+# the tools besides ask_drawings whose results report a conflict (pipeline_tools' descriptions)
+CONFLICT_TOOLS = frozenset({"list_conflicts", "get_takeoff", "list_issues"})
 UNRATED = (
     "That number is read straight from the drawing's geometry and has no confidence level; ask "
     "about it directly for a rated answer."
@@ -116,10 +118,16 @@ ADDRESSED = re.compile(
     re.I,
 )
 QUOTED = 200  # the characters of an addressed passage the turn quotes
+FOUND_ONLY = (  # find_rooms: the labels a reader found, not every such room (R4-A14)
+    "That count is only the rooms a reader found with that label on the drawing; rooms it "
+    "missed or found without a label are not in it, so it has no confidence level."
+)
 # the model already said it (the prompt asks it to): not said twice (review-342 N3)
 SAID_UNRATED = re.compile(
     r"\b(no|without( a)?|not have a|has no) confidence level|\bunrated\b|\bnot rated\b", re.I
 )
+# the model already said a found-rooms count leaves rooms out: FOUND_ONLY not said twice
+SAID_MISSED = re.compile(r"\b(missed|not (all|every)|only the rooms)\b", re.I)
 # a number the user names a place by ("floor 3", "room 102") is no quantity they state
 NAMED_BY = re.compile(
     r"\b(floors?|levels?|storeys?|stor(y|ies)|rooms?|pages?|sheets?|plans?|drawings?|units?|"
@@ -605,7 +613,7 @@ class _Run:
                     self.printed.add(label)
         if name == ASK:
             self.rated += _values(found)  # the answers' own values (review-342 S2)
-        elif name in UNRATED_TOOLS:
+        elif name in UNRATED_TOOLS or name == FIND_ROOMS:
             self.unrated.append((name, text))
         elif name in FILE_TOOLS:
             self.file_results.append(text)
@@ -880,6 +888,14 @@ class _Run:
         answers = self._answers(set(cited) | set(shown), kind)
         if kind == "answer" and any(_conflicted(given) for given in answers):
             kind = "conflict"  # the drawings' methods disagree: never a plain answer (QA answers-9)
+        asked = answers or tuple(e["answer"] for e in self.asked)
+        others = {name for name, _ in self.seen} & CONFLICT_TOOLS
+        if kind == "conflict" and asked and not others and not any(map(_conflicted, asked)):
+            # different rooms' values are not a disagreement: a conflict is one quantity two
+            # sources give different values, and ask_drawings marks that (QA R4-C9); a turn that
+            # also asked another tool that reports conflicts keeps the model's (review-624 M1)
+            kind = "answer"
+            answers = self._answers(set(cited) | set(shown), kind)
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
         evidence = tuple(self._evidence(n, ev) for ev, n in number.items())
@@ -935,9 +951,9 @@ class _Run:
         included, nor the user's message does), worded for the tools that gave it; None: no
         such number, or the text says so already. A label's number ("LOBBY 104") is a name, and
         so is a drawing's ("Drawn plan 5": qa-a, "which drawing has no scale"), or its file's
-        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516)."""
-        if SAID_UNRATED.search(text):
-            return None
+        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516). A
+        number only find_rooms gives is a count of the rooms a reader found (FOUND_ONLY), said
+        unless the text says rooms were missed: "no confidence level" does not say that."""
         labels = _labels([_json(found) for _, found in self.unrated])
         names = [*labels, *self.names.values(), *(file for _, file in self._files())]
         for label in sorted(names, key=len, reverse=True):  # "Drawn plan 10" before "... 1"
@@ -950,11 +966,13 @@ class _Run:
             for tool, found in self.unrated
             if backed(n, numbers([found]))
         }
-        if not tools:
-            return None
-        if tools == {"get_takeoff"}:
-            return UNRATED_TAKEOFF
-        return UNRATED_BOTH if "get_takeoff" in tools else UNRATED
+        said = [FOUND_ONLY] if FIND_ROOMS in tools and not SAID_MISSED.search(text) else []
+        rest = tools - {FIND_ROOMS} if not SAID_UNRATED.search(text) else set[str]()
+        if rest == {"get_takeoff"}:
+            said.append(UNRATED_TAKEOFF)
+        elif rest:
+            said.append(UNRATED_BOTH if "get_takeoff" in rest else UNRATED)
+        return " ".join(said) or None
 
     def _file_only(self, text: str) -> str | None:
         """The sentence for the numbers in `text` that only an uploaded file's words give (a

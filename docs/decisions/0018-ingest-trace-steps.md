@@ -30,6 +30,16 @@ we are doing right now in the actual pipeline."
 - Step ids are stable, never order-dependent: one per reader. The Carbon check is `carbon_check` and the Carbon
   reader `carbon` (before: `carbon` and `carbon-2` when both ran); a comparison with no id of its own is
   `second_count:<quantity>`. A numbered suffix (`detector-2`) is left only for the same id met twice in a stage.
+- The door-size scale estimate (`RASTER_SCALE=priors`) is the `prior_scale` step (added 2026-11-15 05:50), after
+  the inner reader's steps in extract: `did` says the scale it estimated or why none (no door detected: `done`;
+  a scale was read, no page, doors not read: `skipped`), so the "scale from door sizes" item ticks by id. The
+  step is reporting only: the reading (scale, rooms, notes, printed checks) is the same with or without it.
+- A raster reading that waited for the one local slot (`INGEST_LOCAL_IN_FLIGHT`, app/adapters/one_at_a_time.py)
+  reports the wait as the `local_slot` step (added 2026-11-15 06:15), before the readers' steps, from when it
+  asked for the slot (`at_ms`) for as long as it waited (`ms`), so the gap before them is explained, not shown as
+  "the first step began at 2.9 s". Under 10 ms is the lock's own cost: no step. It counts in `ran` like any step
+  (no reader chip stands for it, so no chip changes). Reporting only: the lock, its count and the reading are the
+  same with or without it.
 
 Readers run in parallel, so steps overlap: `at_ms` and `ms` give each one's span inside its stage, and a screen can
 draw them as a timeline. The stage's own `ms` and `cost_usd` stay the totals they were.

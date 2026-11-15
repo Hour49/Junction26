@@ -1,8 +1,10 @@
 """Decision 0018: the steps inside an ingest stage, and the live step and phase of a project."""
 
 import threading
+from itertools import cycle
 from pathlib import Path
 
+import pytest
 from conftest import MakeService
 from test_ingest_evidence_scope import on
 from test_ingest_service import Blocking
@@ -13,6 +15,8 @@ from triage_fakes import FakeClassifier, FakeDescriber, WordJudge, steps
 from app.adapters.archive import ThreadRunner
 from app.adapters.carbon import CarbonThings
 from app.adapters.evidence.store import SqliteEvidenceIndex
+from app.adapters.one_at_a_time import OneAtATime
+from app.adapters.raster_scale import PriorScale
 from app.core.drawing.model import Conflict, Scale
 from app.core.evidence.chunks import passages
 from app.core.ingest.model import (
@@ -301,6 +305,41 @@ def test_a_project_says_which_steps_ran_on_each_route(make_service: MakeService)
     assert {"probe", "vector", "tables"} <= set(vector) and "carbon" not in vector
     assert "ran" in status.model_dump(mode="json")
     assert ingest.status(status.id).ran == status.ran  # the stored project says the same
+
+
+def test_the_door_size_scale_estimate_is_a_step_that_reaches_ran(make_service: MakeService) -> None:
+    """The ingest screen's "scale from door sizes" ticks by the `prior_scale` id in `ran`."""
+    other = png_bytes(raster_plan().resize((900, 640)))
+    ingest = make_service(raster=lambda files: PriorScale(Shipped("a.png")))
+    status = ingest.wait(ingest.start("a.zip", zipped({"a.png": SCAN, "b.png": other})))
+    raster = {step.id: step for step in status.ran["raster"]}
+    # a.png: a door, so a scale; b.png: no door, so none (it ran and says why)
+    assert raster["prior_scale"] == RanStep(id="prior_scale", label="Scale from door sizes", done=2)
+    by_path = {file.path: file for file in status.files}
+    stages = {s.stage: s for s in ingest.trace(status.id, by_path["b.png"].id).stages}
+    assert [(s.id, s.did) for s in stages["extract"].steps] == [
+        ("detector", ""),
+        ("prior_scale", "no scale: no door was detected"),
+    ]
+
+
+def test_a_wait_for_the_local_slot_is_a_step_in_the_trace_and_in_ran(
+    make_service: MakeService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The plan photo's readers began 2.9 s into extract, waiting for the one local slot: the
+    trace says so with a `local_slot` step before them, and `ran` counts it."""
+    waits = cycle([1000.0, 3900.0])  # each reading asks for the slot, then has it 2.9 s later
+    monkeypatch.setattr("app.adapters.one_at_a_time.now_ms", lambda: next(waits))
+    ingest = make_service(raster=lambda files: OneAtATime(Shipped("a.png")))
+    status = ingest.wait(ingest.start("a.zip", zipped({"a.png": SCAN})))
+    raster = {step.id: step for step in status.ran["raster"]}
+    label = "Waited for the local reader"
+    assert raster["local_slot"] == RanStep(id="local_slot", label=label, done=1)
+    stages = {s.stage: s for s in ingest.trace(status.id, status.files[0].id).stages}
+    assert [(s.id, s.did, s.ms) for s in stages["extract"].steps] == [
+        ("local_slot", "waited 2.9 s: the local readers read one sheet at a time", 2900),
+        ("detector", "", 1),
+    ]
 
 
 def test_ran_grows_as_each_file_finishes_and_a_file_read_again_is_counted_once() -> None:

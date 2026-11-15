@@ -159,3 +159,99 @@ test('AD-103: the readers inside a stage, side by side on its time axis', async 
   await shot(page, testInfo, 'detail-steps', offline);
   expect(errors).toEqual([]);
 });
+
+// QA R4-A9 (advanced-ingest.md AD-127): the no-keys sample has no sheet-kind step, so the browser check marks one
+// drawing `not_a_drawing` in the real project response, and gives its file the triage the backend derives it from.
+const NOT_A_DRAWING = 'plans/flat-b.pdf';
+const SHEET_DOUBT = {
+  class: 'floor_plan',
+  p_plan: 0.4,
+  method: 'sheet kind',
+  register: null,
+  description: null,
+  relevance: null,
+  overruled: null,
+  read_as_plan: null,
+  verdict: null,
+  note: null,
+  sheet: {
+    advanced: false,
+    advanced_why: null,
+    confidence: 0.4,
+    decision: 'doubt',
+    kind: 'not_a_drawing',
+    kind_words: 'not a drawing',
+    model: 'gemini-4-carbon',
+    printed_scale: null,
+    seen: 'a screenshot of a web page',
+    sheet_number: null,
+    takeoff_possible: false,
+    title: null,
+  },
+};
+
+test('AD-127 (QA R4-A9): a drawing called not a drawing is tagged on Advanced and on its file page', async ({
+  page,
+}, testInfo) => {
+  const errors = watchErrors(page);
+  const offline = await noKeys(page);
+  const pid = await sampleDone(page);
+  await page.route(
+    (url) => url.pathname === `/api/projects/${pid}`,
+    async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as { drawings: { file: string }[] };
+      for (const d of body.drawings)
+        if (d.file === NOT_A_DRAWING) Object.assign(d, { not_a_drawing: true });
+      await route.fulfill({ response, json: body });
+    },
+  );
+  await page.route('**/api/projects/*/files/*/trace', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { file: { path: string } };
+    if (body.file.path === NOT_A_DRAWING) Object.assign(body.file, { triage: SHEET_DOUBT });
+    await route.fulfill({ response, json: body });
+  });
+
+  // Takeoff (the done project's panel): the raw total with its note, the row tagged and not ready
+  await page.goto(`/#/p/${pid}?view=advanced`);
+  const drawings = page.locator('.adv-stats > div', { hasText: 'Drawings' }).first();
+  await expect(drawings.locator('.adv-stat-note')).toHaveText('1 not a drawing');
+  const row = page.locator('.adv-ready > ul > li', { hasText: `${NOT_A_DRAWING}:` });
+  await expect(row.locator('.adv-tag')).toHaveText('not a drawing');
+  await expect(row.locator('.adv-dot')).not.toHaveClass(/\bon\b/);
+  await row.evaluate((e) => {
+    e.scrollIntoView({ block: 'center' });
+  });
+  await shot(page, testInfo, 'detail-not-a-drawing-takeoff', offline);
+
+  // Extract: picked in the drawing picker, the drawing carries the tag
+  await page
+    .getByRole('navigation', { name: 'Steps' })
+    .getByRole('button', { name: /^Extract/ })
+    .click();
+  const picker = page.locator('.adv-pick select');
+  await picker.selectOption({ label: `${NOT_A_DRAWING} · not a drawing` });
+  await expect(page.locator('.adv-visual .adv-tag')).toHaveText('not a drawing');
+  // the no-keys sample: 4 drawings read (the image route has no reader), flat-b left out (IN-126)
+  await expect(page.locator('.adv-stats > div', { hasText: 'Drawings ready' })).toContainText(
+    '3 / 6',
+  );
+  await picker.evaluate((e) => {
+    e.scrollIntoView({ block: 'center' });
+  });
+  await shot(page, testInfo, 'detail-not-a-drawing-extract', offline);
+
+  // its file page says it in a sentence
+  await page
+    .getByRole('region', { name: 'Files by stage' })
+    .getByRole('link', { name: NOT_A_DRAWING })
+    .click();
+  await expect(
+    page.getByText(
+      'The sheet-kind step called this not a drawing: it was read, but it is not counted as a drawing ready.',
+    ),
+  ).toBeVisible();
+  await shot(page, testInfo, 'detail-not-a-drawing-file', offline);
+  expect(errors).toEqual([]);
+});

@@ -115,6 +115,15 @@ def test_review_360_s3_a_room_holds_every_word_not_just_one(client: TestClient) 
     assert [r["label"] for r in find(client, "stanza 1.02")["rooms"]] == ["Stanza 1.02"]
 
 
+def test_a_plural_word_finds_the_rooms_printed_in_the_singular(client: TestClient) -> None:
+    """R4-A14 (Tudor's QA round 4, T1 school): the chat looked up "classrooms" and found no
+    label holding it, so "How many classrooms are there?" was refused, though the plan prints
+    Secondary Classroom 8 times (round 3's chat had asked for "classroom" and answered 8)."""
+    assert [r["label"] for r in find(client, "stanzas")["rooms"]] == ["Stanza 1.02"]
+    assert [r["label"] for r in find(client, "stanzas 1.02")["rooms"]] == ["Stanza 1.02"]
+    assert find(client, "stanzas 1.01")["status"] == "unknown"  # still every word
+
+
 def test_review_360_s1_offered_rooms_are_only_the_ones_find_rooms_returned() -> None:
     """Gemini mode: the server drops a chip for a room find_rooms did not return."""
     from test_agent_loop import Model, call, final, step
@@ -167,3 +176,40 @@ def test_review_360_n3_more_rooms_than_chips_says_so() -> None:
     many = {**OFFICES, "count": 15}
     got, _ = rules_turn("What is the area of the office?", ask_drawings=REFUSED, find_rooms=many)
     assert got.text.startswith("The drawings print 15 rooms with that name; here are 3:")
+
+
+def test_r4_a14_find_rooms_says_it_lists_only_the_rooms_a_reader_found(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """eu-big live T1 (05:22): the chat said "There are 2 rooms labeled Secondary Classroom" for
+    8 classrooms. find_rooms lists the labels a reader found; the result says so, with how many
+    rooms were read and how many of those carry no printed label."""
+    project = client.post("/api/projects", params={"name": "flat.pdf"},
+                          content=walled_flat()).json()["id"]  # fmt: skip
+    app: Any = client.app
+    ingest = app.state.ingest
+    [entry] = client.get(f"/api/projects/{project}").json()["drawings"]
+    rooms = ingest.drawing(entry["drawing_id"]).rooms
+    toolbox = project_toolbox(client.app, project, [], {})
+    for query, status in (("stanza", "ok"), ("office", "unknown")):
+        found = json.loads(toolbox.run("find_rooms", json.dumps({"query": query})))
+        assert found["status"] == status
+        assert found["rooms_read"] == len(rooms) > 0
+        assert found["unlabelled"] == sum(not room.label for room in rooms)
+        assert found["counts"] == (
+            "only the rooms a reader found on the drawings and read a label for: rooms it "
+            "missed, or found without a label, are not in it, so this is no count of them all"
+        )
+    read = ingest.drawing  # a room read without a label is counted as unlabelled
+
+    def blank(drawing_id: str) -> Any:
+        drawing = read(drawing_id)
+        last = drawing.rooms[-1].model_copy(update={"label": None})
+        return drawing.model_copy(update={"rooms": (*drawing.rooms[:-1], last)})
+
+    monkeypatch.setattr(ingest, "drawing", blank)
+    found = json.loads(toolbox.run("find_rooms", json.dumps({"query": "stanza"})))
+    assert (found["rooms_read"], found["unlabelled"]) == (
+        len(rooms),
+        1 + sum(not r.label for r in rooms),
+    )

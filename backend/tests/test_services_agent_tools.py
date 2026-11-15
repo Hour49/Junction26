@@ -15,6 +15,7 @@ from app.adapters.services_agent_tools import (
     run_services_tool,
 )
 from app.adapters.services_store import ServicesStore
+from app.core.agent.evidence import mint
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.plan_edit.model import Selection
 from app.core.services.stored import Connectivity, ServicesModel, fraction
@@ -143,6 +144,32 @@ def test_sv22_sv26_list_services_narrows_to_the_room_of_a_selection() -> None:
 def test_sv23_list_services_bad_ids_say_so() -> None:
     assert "error" in _run(_store(), "list_services", drawing_id="nope")
     assert "error" in _run(_store(), "list_services", drawing_id="d1", room_id="SR9")
+
+
+def test_with_no_drawing_named_every_services_model_is_listed() -> None:
+    """Live 2026-11-15 05:22 (services demo, three services IFCs): every services chat turn began
+    with an error step, because list_services with no drawing_id refused ("name the drawing_id;
+    the project's services models: ...") and the model then asked each model in turn. With no
+    drawing named it lists each model, within the one result's limit; a model the filter can't
+    apply to (a room it doesn't have) is skipped with its reason."""
+    store = ServicesToolStore(models={"d1": two_rooms(), "d2": wc_room()}, selections={})
+    found = _run(store, "list_services", kind="sanitary_terminal")
+    assert "error" not in found, found
+    assert [m["drawing_id"] for m in found["models"]] == ["d1", "d2"]
+    assert found["count"] == 10 == sum(m["count"] for m in found["models"])
+    places: dict[str, Any] = {}
+    mint(found, places, 1)  # each item is a place on its own model's drawing
+    d2 = found["models"][1]
+    assert len(places) == len(d2["items"]) > 3  # d1 lists none, so d2 gets the most room
+    assert len(d2["items"]) + d2["more"] == 10 and {p["drawing_id"] for p in places.values()} == {
+        "d2"
+    }
+    found = _run(store, "list_services", room_id=WC_ROOM)
+    assert [m["drawing_id"] for m in found["models"]] == ["d2"], found
+    assert [s["drawing_id"] for s in found["skipped"]] == ["d1"] and found["skipped"][0]["reason"]
+    assert "error" in _run(store, "list_services", room_id="SR9")  # no model has it
+    big = _run(store, "list_services")  # every element of both: each cut to its share
+    assert len(json.dumps(big, ensure_ascii=False)) < LIMIT and len(big["models"]) == 2
 
 
 NOT_READ = (

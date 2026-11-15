@@ -356,6 +356,51 @@ describe('AdvancedIngest', () => {
     expect(stat('Drawings ready').textContent).toContain('1 / 6'); // the IFC alone
   });
 
+  it('AD-127 (QA R4-A9) a drawing called not a drawing is kept and read, tagged, never shown as ready', async () => {
+    // flat-b: flagged, read only because the sheet-kind step warns (API.md `not_a_drawing`)
+    const p: ProjectView = {
+      ...project,
+      drawings: project.drawings.map((d) =>
+        d.file === 'plans/flat-b.pdf' ? { ...d, not_a_drawing: true } : d,
+      ),
+    };
+    await show(p);
+    // Takeoff: the raw total stays, with what it holds under it
+    const drawings = must(stat('Drawings').querySelector('dd'));
+    expect(drawings.firstChild?.textContent).toBe('6');
+    expect(drawings.querySelector('.adv-stat-note')?.textContent).toBe('1 not a drawing');
+    const row = (file: string) =>
+      must(
+        [...document.querySelectorAll('.adv-ready > ul > li')].find((li) =>
+          li.textContent.startsWith(`${file}:`),
+        ),
+      );
+    const shot = row('plans/flat-b.pdf');
+    expect(shot.textContent).toContain('141 questions ready to ask');
+    expect(shot.querySelector('.adv-tag')?.textContent).toBe('not a drawing');
+    expect(shot.querySelector('.adv-dot')?.classList.contains('on')).toBe(false);
+    const real = row('plans/flat-a.pdf');
+    expect(real.querySelector('.adv-tag')).toBeNull();
+    expect(real.querySelector('.adv-dot')?.classList.contains('on')).toBe(true);
+    // Extract: the picker names it, and the picked drawing carries the tag
+    await pick(/^Extract/);
+    const select = must(document.querySelector<HTMLSelectElement>('.adv-pick select'));
+    expect([...select.options].map((o) => o.textContent)).toContain(
+      'plans/flat-b.pdf · not a drawing',
+    );
+    // readDrawings leaves it out (IN-126): of the 4 read (the 2 raster ones have no reader), 3 are ready
+    expect(stat('Drawings ready').textContent).toContain('3 / 6');
+    expect(document.querySelector('.adv-visual .adv-tag')).toBeNull(); // flat-a is shown first
+    fireEvent.change(select, { target: { value: must(p.drawings[1]).drawing_id } });
+    await flush();
+    expect(document.querySelector('.adv-visual .adv-tag')?.textContent).toBe('not a drawing');
+    // none called so: no note, no tag
+    cleanup();
+    await show();
+    expect(stat('Drawings').querySelector('dd')?.textContent).toBe('6');
+    expect(document.querySelector('.adv-tag')).toBeNull();
+  });
+
   it('a room pill names its room_type in its title', async () => {
     const d = must(project.drawings[0]);
     const room = { ...must(takeoff.quantities[0]), key: 'room' };
@@ -440,6 +485,7 @@ describe('AdvancedIngest', () => {
       ...must(takeoff.quantities[0]),
       key: `k${String(i)}`,
       status: 'agree' as const,
+      second: { method: 'printed_label', value: i }, // six measurements, not one repeated (AD-131)
       conflict: null, // an agreeing row has no conflict
     });
     const long = {

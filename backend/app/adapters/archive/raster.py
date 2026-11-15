@@ -11,6 +11,7 @@ pages after `MAX_PAGES`.
 """
 
 import io
+import re
 from collections.abc import Iterator
 from pathlib import PurePosixPath
 
@@ -27,6 +28,15 @@ ORIENTATION = 0x0112
 PNG_LEVEL = 3  # a page of 100 Mpx at the default level 6 takes tens of seconds
 
 
+def too_large(error: Image.DecompressionBombError) -> str:
+    """Why Pillow refused to open an image (its decompression-bomb guard), in plain words: never
+    Pillow's own text. The size is read from that text, so it is left out if Pillow rewords it."""
+    found = re.search(r"\((\d+) pixels\)", str(error))
+    size = f"{round(int(found[1]) / 1e6)} megapixels; " if found else ""
+    limit = 2 * (Image.MAX_IMAGE_PIXELS or 0)  # Pillow refuses over twice its warning size
+    return f"an image too large to open safely ({size}the limit is {round(limit / 1e6)})"
+
+
 def converted(entry: Entry) -> Iterator[Entry]:
     """The entry itself, or the PNG entries of the TIFF or WebP it holds."""
     if entry.data is None or sniff_raster(entry.data) is None:
@@ -35,7 +45,10 @@ def converted(entry: Entry) -> Iterator[Entry]:
     path = PurePosixPath(entry.path)
     try:
         image = Image.open(io.BytesIO(entry.data))
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as error:
+    except Image.DecompressionBombError as error:
+        yield Entry(path=entry.path, size=entry.size, refused=too_large(error))
+        return
+    except (UnidentifiedImageError, OSError) as error:
         yield Entry(
             path=entry.path, size=entry.size, refused=f"an image that cannot be read: {error}"
         )
@@ -63,7 +76,9 @@ def _page(image: Image.Image, page: int, path: str, size: int) -> Entry:
         grey = _eight_bit(ImageOps.exif_transpose(image) if turned else image)
         buffer = io.BytesIO()
         grey.save(buffer, "PNG", compress_level=PNG_LEVEL)
-    except (OSError, ValueError, SyntaxError, EOFError, Image.DecompressionBombError) as error:
+    except Image.DecompressionBombError as error:
+        return Entry(path=path, size=size, refused=too_large(error))
+    except (OSError, ValueError, SyntaxError, EOFError) as error:
         return Entry(path=path, size=size, refused=f"an image page that cannot be read: {error}")
     return Entry(path=path, size=size, data=buffer.getvalue())
 

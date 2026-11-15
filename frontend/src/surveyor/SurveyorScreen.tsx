@@ -3,7 +3,9 @@ import { Tip } from '@/components/ui/tip';
 import { REVIEW_TIPS } from '../shell/tips-review';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   drawingLabel,
+  formatValue,
   getDrawing,
   getTakeoff,
   postReview,
@@ -11,7 +13,6 @@ import {
   takeoffCsvUrl,
   type DrawingView,
   type Edit,
-  type SignOffRequest,
   type Takeoff,
 } from '../api';
 import { ErrorView } from '../shell/ErrorView';
@@ -20,6 +21,9 @@ import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { useDrawingNames } from './drawingNames';
 import { ProjectReviewSide } from './ProjectReviewSide';
+import { onPlan } from './outline';
+import { usePhone } from './phone';
+import { signoffBody } from './signoff';
 import { QuantityDetail } from './QuantityDetail';
 import { TakeoffTable } from './TakeoffTable';
 import { Button } from '@/components/ui/button';
@@ -70,6 +74,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
   const [name, setName] = useState(savedName);
   const [reload, setReload] = useState(0);
   const [scrollTick, setScrollTick] = useState(0);
+  const phone = usePhone();
   const panel = useRef<HTMLElement>(null);
   // every takeoff request names this project, so its file names are this project's (R1-4-4)
   const zq = zeros ? { project: projectId, zeros: true } : { project: projectId };
@@ -112,8 +117,11 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       // The column is sticky, so it is the detail's offsetParent; its sticky head stays over the top.
       const head = column.querySelector<HTMLElement>('.sv-panel-head')?.offsetHeight ?? 0;
       column.scrollTop = detail.offsetTop - head - 12;
-    } else detail.scrollIntoView({ block: 'start' }); // phone: the page scrolls
-  }, [scrollTick]);
+    } else if (phone) {
+      // phone: the plan (the panel's sibling before it) and the detail right under it come into view (R4-E10)
+      (column.previousElementSibling ?? detail).scrollIntoView({ block: 'start' });
+    } else detail.scrollIntoView({ block: 'start' }); // one column without the phone query: the page scrolls
+  }, [scrollTick, phone]);
 
   useEffect(() => {
     if (!addMode) return;
@@ -134,7 +142,12 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       <div className="v-page v-page--wide sv-screen">
         {side}
         <ErrorView
-          error={loadError}
+          error={
+            // a link to a project or drawing that is gone: one plain sentence, no ids (R4-B1)
+            loadError instanceof ApiError && loadError.status === 404
+              ? new ApiError(404, loadError.code, 'This project or drawing no longer exists.')
+              : loadError
+          }
           onRetry={() => {
             setLoadError(null);
             setAttempt((n) => n + 1);
@@ -176,7 +189,8 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     setScrollTick((n) => n + 1); // the detail sits under every row, on a phone and in the desktop column
   }
 
-  async function send(request: () => Promise<Takeoff>) {
+  /** `signing`: the row signed off; a 409 means its value changed since the screen loaded (R4-B10). */
+  async function send(request: () => Promise<Takeoff>, signing?: string) {
     // keep the row acted on selected, so its "Settled at…" / "Signed off by…" shows (pre-QA, frontend-orch)
     if (selectedKey !== null) setPick({ from: q, key: selectedKey });
     setSaving(true);
@@ -185,7 +199,24 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       setTakeoff(await request());
       setReload((n) => n + 1);
     } catch (e) {
-      setEditError(e);
+      let shown: unknown = e;
+      if (signing !== undefined && e instanceof ApiError && e.status === 409) {
+        try {
+          const fresh = await getTakeoff(drawingId, zq);
+          const now = fresh.quantities.find((r) => r.key === signing);
+          setTakeoff(fresh);
+          setReload((n) => n + 1);
+          if (now) {
+            const value = formatValue(now.value, now.unit);
+            shown = new Error(
+              `The value changed to ${value} since you opened it. Check it, then sign off again.`,
+            );
+          }
+        } catch {
+          // the reload failed too: the server's refusal stays the message
+        }
+      }
+      setEditError(shown);
     } finally {
       setSaving(false);
     }
@@ -208,6 +239,31 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     </label>
   );
 
+  const detail = row && (
+    <QuantityDetail
+      key={row.key}
+      row={row}
+      saving={saving}
+      error={editError}
+      name={name}
+      onName={setName}
+      addMode={addMode}
+      canAdd={drawing.pages.length > 0}
+      onToggleAdd={() => {
+        setAddMode((on) => !on);
+      }}
+      selectedMark={mark}
+      highlightedMark={hover}
+      onHoverMark={setHover}
+      onEdit={edit}
+      onSign={(undo) => {
+        const by = name.trim() || (row.signed?.by ?? '');
+        if (!undo) saveName(by);
+        void send(() => postSignoff(drawingId, signoffBody(row, by, undo), zq), row.key);
+      }}
+    />
+  );
+
   return (
     <div className="v-page v-page--wide sv-screen sv-work">
       {side}
@@ -226,6 +282,15 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
         onPick={
           addMode && row
             ? (page, box) => {
+                if (!onPlan(takeoff, page, box)) {
+                  // R4-B8: a click on blank paper adds nothing; add mode stays for the next click
+                  setEditError(
+                    new Error(
+                      'That spot is outside the plan. Click on the missed item on the drawing.',
+                    ),
+                  );
+                  return;
+                }
                 edit({ quantity: row.key, action: 'add', page, box });
               }
             : undefined
@@ -284,39 +349,10 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
               </p>
               <progress value={signedCount} max={rows.length} />
             </header>
+            {/* on a phone the detail comes right after the plan, before the lists (R4-E10) */}
+            {phone && detail}
             <TakeoffTable takeoff={takeoff} selected={selectedKey} onSelect={select} />
-            {row && (
-              <QuantityDetail
-                key={row.key}
-                row={row}
-                saving={saving}
-                error={editError}
-                name={name}
-                onName={setName}
-                addMode={addMode}
-                onToggleAdd={() => {
-                  setAddMode((on) => !on);
-                }}
-                selectedMark={mark}
-                highlightedMark={hover}
-                onHoverMark={setHover}
-                onEdit={edit}
-                onSign={(undo) => {
-                  const by = name.trim() || (row.signed?.by ?? '');
-                  if (!undo) saveName(by);
-                  void send(() =>
-                    postSignoff(
-                      drawingId,
-                      // undo defaults to false server-side; the sign-off body is signoff_request.json as is
-                      undo
-                        ? { quantity: row.key, by, undo: true }
-                        : ({ quantity: row.key, by } as SignOffRequest),
-                      zq,
-                    ),
-                  );
-                }}
-              />
-            )}
+            {!phone && detail}
           </>
         )}
       </section>

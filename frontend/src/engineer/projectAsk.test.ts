@@ -13,6 +13,15 @@ it('CH-9 askable: ready and flagged drawings, not queued, running, text_only or 
   expect(askable(list).map((d) => d.drawing_id)).toEqual(ids);
 });
 
+it('CH-9 askable: a sheet the sheet-kind step called not a drawing (a screenshot) is not offered (#638)', () => {
+  const [first, ...rest] = project.drawings as [
+    (typeof project.drawings)[number],
+    ...typeof project.drawings,
+  ];
+  const shot = { ...first, state: 'flagged', not_a_drawing: true } as typeof first;
+  expect(askable([shot, ...rest]).map((d) => d.drawing_id)).toEqual(ids.slice(1));
+});
+
 const s = (quantity: string, question: string) => ({ quantity, question, label: quantity });
 
 it('CH-12 starters: up to 3 distinct questions, a door count, an area and a window count first', () => {

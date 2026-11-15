@@ -69,10 +69,12 @@ PROMPT = (
 # An area printed in a room's label ("MH 9,7 m²", "12.5 m2"): the unit is required, so a room
 # number ("1.01") or a height is never an area. The number stands on its own: not glued to a
 # letter or digit ("R1 m2" is room R1; "OH9.7m²" is refused too, as the two cannot be told
-# apart), not the tail of a spaced thousands group ("1 234,5 m²") or of a range or sum ("9,7-10,2
-# m²" with a hyphen or a dash, "12m2+3m2"). A label with two areas gives none.
+# apart), not the tail of a spaced thousands group ("1 234,5 m²": a digit, one space on the line,
+# exactly three digits) or of a range or sum ("9,7-10,2 m²" with a hyphen or a dash, "12m2+3m2").
+# A room code or number before it is no thousands group: "MH4 19.0m2", "Cuisine\n0.16\n13.92 m²".
+# A label with two areas gives none.
 LABEL_AREA = re.compile(
-    r"(?<![\w.,])(?<!\d\s)(?<![-\u2013\u2014+/~]\s)(?<![-\u2013\u2014+/~])"
+    r"(?<![\w.,])(?:(?<!\d[^\S\n])|(?!\d{3}(?!\d)))(?<![-\u2013\u2014+/~]\s)(?<![-\u2013\u2014+/~])"
     r"(\d+(?:[.,]\d+)?)\s*m(?:²|2)(?!\w)(?!\s*[-\u2013\u2014+/~]\s*\d)",
     re.IGNORECASE,
 )

@@ -271,7 +271,8 @@ Home and upload
   without it the API's 422 read "query.name: String should have at most 255 characters". [component]
 - IN-5: With `/api/info` not loaded (pending or failed), a file of any size is uploaded and the server decides.
   [component]
-- IN-6: Dropping two files shows "Drop one file or one zip at a time." and sends no request; dropping one file
+- IN-6: Dropping two files shows "Drop one file at a time. To send several, such as a DXF or SVG with its PDF, put
+  them in one .zip." (QA R4-G3) and sends no request; dropping one file
   uploads it as IN-3. [component]
 - IN-7: While an upload or sample request is in flight, the box shows the upload's progress (IN-89) or "Starting
   the sample…", both controls are disabled, and a second click sends nothing. [component, pending promise]
@@ -287,7 +288,8 @@ Home and upload
   `{name, bytes}` in sessionStorage `uploaded:<id>`; the project screen then shows "Uploaded: <name>, <MB> MB,
   received by the server." and "Unpacking…" until the server lists files, then "<n> files found.". Failures, with
   a Retry that sends the file again: no answer, "The connection was lost while sending <name> (at <p>%)."; an
-  HTTP error, "The server refused <name>: <detail>". [component `HomeScreen.test.tsx`, `ProjectScreen.test.tsx`,
+  HTTP error, "The server refused <name>: <detail>". A 4xx about the file itself (empty, too large, not a drawing)
+  has no Retry, since the same file would be refused again; 408 and 429 (busy) keep it (QA R4-G6). [component `HomeScreen.test.tsx`, `ProjectScreen.test.tsx`,
   unit `client.test.ts`; e2e `upload.spec.ts` 1440 and 390]
 
 Project list
@@ -382,7 +384,8 @@ File trace
   characters of `sha256`, time and cost. [component, `trace.json`]
 - IN-33: Every stage of `trace.json` is an item in order with its label, `did`, and `ms` formatted by `formatMs`;
   `output` shows only when not empty and not equal to `did`. [component]
-- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234; `formatCost` gives "$0.00"
+- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234, "<0.01 ms" for 0.0042
+  (a measured time above 0 and under 0.01; 0 stays "0.00 ms"); `formatCost` gives "$0.00"
   for 0, "<$0.01" for 0.004, "$0.12" for 0.123; `formatSize` gives "2.2 KB" for 2263 and "1.0 MB" for 1048576.
   [unit]
 - IN-35: `trace-failed` shows the `extract` item as "Failed: no page could be read" with an icon and the word, the
@@ -768,6 +771,50 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
 - IN-122 (QA R3-G8, flag reason cut at 390): a finished file's row note in the lanes (what it found and why it is
   flagged or set aside) is shown whole, wrapping over as many lines as it needs; a queued or running file's note
   stays at 2 lines. [component; browser: screenshot at 390]
+- IN-123 (decision 0018, step ids): each reader chip knows the step ids it stands for. The image route's component
+  chips take theirs from `readers.raster_components` as the backend names its sources (`SOURCE_STEPS`): a
+  `decisions*` source adds `decisions` to its inner reader's chip (the detector reads inside that step) and gives
+  "Gemini count decision" `decisions`; `arbiter-t1` gives "symbol detector" arbiter/base, arbiter/second and "count
+  arbiter" arbiter, arbiter/pick; a detector source `detector`, Gemini rooms `rooms`, `exp`/`dir`/`verda` `reader`.
+  The rest are fixed: "double check by n more readers" ← double_check:*; "second count" ← second_count:*,
+  ifc_vs_sheet, schedule_tags, scale_check, room_areas; "Gemini cross-check" ← carbon_check; "Gemini reader" / "for
+  sheets with few symbols" ← carbon; "printed scale (Gemini)" ← printed_scale; "photo flattening" ← rectifier;
+  "schedule tables" ← tables; "drawn-PDF reader" ← vector; "IFC model reader" ← ifc. The chip running now is found
+  by the file's `step_id`; by its `step` label only when no `step_id` is sent or the chip has no known id ("tiles
+  for big sheets": no step of its own). "scale from door sizes" ← prior_scale (#651, 2026-11-15; before it had no
+  step and was never ticked or dimmed: changed on purpose with IN-123's and IN-124's tests). [unit: `chipStepsOf`, `chipSteps`,
+  `chipHasStep`, `chipCovers`; component]
+- IN-124 (`ProjectStatus.ran`): a chip one of whose ids ended done or failed on a file of its route gets its "ran"
+  tick, also on a finished project opened fresh (nothing seen running). Once every file of the lane has ended, a
+  chip with known ids none of which ran is dimmed and says why: "not needed here" (its steps only skipped) or "did
+  not run" (none appeared). While a lane still has files to read nothing is dimmed; without `ran` (an older
+  project) the chips are as before. [unit: `chipRan`; component]
+- IN-125: in the Index row, a `running` step of `index_steps` reads "<label> … running" in the running tone, not
+  as a bare label. [component]
+- IN-126 (QA R4-A9, a screenshot of a web page): a drawing with `not_a_drawing: true` (the sheet-kind step called
+  it not a drawing at all; it was read only because the step warns, and its file is flagged) is not a drawing
+  ready, as IN-116: "Drawings ready", the done line and the chat row leave it out, "Open the workspace" opens the
+  first drawing that was read, and a done project whose only drawings are such shows IN-72's "Nothing read" card
+  with the backend's flag reason, not "Ready" and the chat offer. No new words. [unit: `readDrawings`; component]
+  A lane's "<n> drawings read" counts the same drawings (trace's e2e on the demo sample, 2026-11-15: the image
+  lane said 4 with the site photo and a copy of the scan): each drawing of `readDrawings` read off the lane's
+  files, once, so the lanes add up to "Drawings ready". [component, from the demo sample's real status]
+- IN-127 (trace's e2e, 2026-11-15: the sorting chips never ticked): each "Sorting" chip (IN-119) ticks from the
+  step id that really ran: "scan or photo" ← `probe` (it asks the sheet-kind signal), "plan or not" and "sheet
+  kind" ← `classifier`, both in `ran` on any route; "describes sheets that are not plans" ← `describe` and "keep
+  or set aside" ← `judge` in `index_steps`. Running (a file's `step_id`, or a `running` index step) highlights it
+  as a reader chip; once its step can no longer run (every file ended for `probe`/`classifier`, the project ended
+  for the index steps) a chip whose step did not run dims as IN-124 ("not needed here", "did not run"). No `ran`,
+  or no or empty `index_steps` (an older server or record): as before. [unit: `triageRan`, `triageEnded`;
+  component, from the demo sample's real status]
+- IN-128 (QA R4-G4, a 3000-file zip of text files): IN-72's "Nothing read" card lists each entry on its own row as
+  before, but a reason shared by 4 or more entries is one row: "<n> files", the reason, and "For example: <the
+  first 3 paths>". It shows 12 rows at most; the entries past them are counted ("And <n> more files.") above the
+  link to Documents. A 3-file upload looks as before. [unit: `whyRows`; component: 3000 + 20 entries]
+- IN-129 (QA R4-A2, R4-E2): a lane file row's name, after its folder gave way (IN-113), gives up its middle, not its
+  end: the extension and the 8 characters before it stay ("site1000_bldg2082_flo…or3_plan.dxf"), so a DXF and its
+  PDF of the same name stay apart, at 390 too. The file link is at least 24 px high (`min-h-6`), a tap target.
+  [unit: `nameEnds`; component: two names with a long shared start; browser at 390, the link box measured]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,

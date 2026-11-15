@@ -158,9 +158,16 @@ drawing's cards. One file per issue, so the preview has no arrows; several need 
   the one count rule, used by fe-shared's `useIssuesToAnswer` (the badge) and preqa-a's done line. [unit]
 - DOC-16: The title row has one link "Building-code checks" → `#/p/<pid>/checks`, with `?pack=<id>` when a pack is
   set. [component]
-- DOC-17: A ready, flagged or text-only file row shows no reason text; a `set_aside` row shows its reason without
-  the trailing parenthetical; a triaged non-plan shows its triage line and pill. [unit] [component]
-- DOC-13: The issues request failing shows its `detail (code)` with Retry, and the lists stay. [component]
+- DOC-17: A ready or text-only file row shows no reason text; a `set_aside` or `flagged` row shows its reason
+  without the trailing parenthetical (QA R4-B4: a flagged row says why); a triaged non-plan shows its triage line and
+  pill. [unit] [component]
+- DOC-18 (QA R4-E15): With flagged files a person should look at (not the "not read" ones, IN-116), Issues on demand
+  ends with the ingest page's words and where to look: "1 flagged file needs a look: why is on its row under
+  Files." / "N flagged files need a look: why is on each row under Files." [component]
+- DOC-19 (QA R4-B12): An answerable issue the server returns with an `answer` (answered before this visit) stays
+  listed, collapsed: pill "Answered", the why, "“<text>” · <by>’s answer, <time>" with Change and Undo, no picture
+  or model note; it is not counted. Undo opens it as on this visit. [component]
+- DOC-13: The issues request failing shows its `detail` with Retry, and the lists stay. [component]
 - DOC-14: At 390 no sideways scroll, every button, chip, link and input at least 44 px tall; Esc closes the source
   preview and focus returns to "Show source" (fe-viewer's component). [e2e]
 - DOC-15: `documents.css` uses only `--v-*` tokens (no colour literals). [unit]

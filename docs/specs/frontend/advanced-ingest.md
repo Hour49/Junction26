@@ -511,6 +511,33 @@ Acceptance criteria
 - AD-126 (orchestrator, 2026-11-15): A path in the Advanced panel's running text (AD-125) breaks only after its own
   separators, the folder's and the name's alike, with `nameParts` from `ingest.ts` (IN-121: after "_", "-", "." and
   "/"), and carries the full path as its title. [component `AdvancedIngest.test.tsx`; screenshots at 1440 and 390]
+- AD-127 (QA R4-A9, 2026-11-15): A drawing with `not_a_drawing: true` (the sheet-kind step called it not a drawing
+  at all; it was read only because the step warns, and its file is flagged) is shown as what the pipeline did: kept
+  and read, never ready. Takeoff's **Drawings** stays the raw total, with "N not a drawing" under it; its row in
+  "Questions ready to ask" keeps its questions, gets a muted "not a drawing" tag and no ready dot. The Extract
+  picker reads "<file> · not a drawing" and the picked drawing carries the tag. The file page says "The sheet-kind
+  step called this not a drawing: it was read, but it is not counted as a drawing ready." under the flag reason
+  (from the file's triage, as the backend's `not_a_drawing`: a doubted `not_a_drawing` sheet nobody had read as a
+  floor plan). Drawings ready leaves it out through `readDrawings` (IN-126). [component `AdvancedIngest.test.tsx`,
+  `FileTraceScreen.test.tsx`; screenshots at 1440 and 390]
+- AD-128 (trace's real-data e2e, 2026-11-15): A measured stage or step time under 0.01 ms reads "<0.01 ms" (it read
+  "0.00 ms" on the hash, group and route stages, which looks like a fake time), as a cost under a cent reads
+  "<$0.01". A stage at 0 ms exactly was not timed (an IFC model's normalise is a trace line, not a measurement) and
+  shows no time, as an untimed step (AD-125); the file matrix's bar names it without a time. [unit `trace.test.ts`;
+  component `FileTraceScreen.test.tsx`]
+- AD-129 (detail audit of the real demo run, 2026-11-15): A log line drops a stage output's leading "<stage>: "
+  (the takeoff's "takeoff: 41 quantities, 25 above zero"): the line's head already names the stage. [unit
+  `advanced.test.ts`]
+- AD-130 (detail audit): Normalise's log line of a corrected image says what was corrected before its page size
+  ("perspective corrected (paper edges); 1 page, …", from `FileStatus.normalised`, as the file page's "After
+  normalisation"): the photo rectifier ran there, and the page size alone hid it. [unit `advanced.test.ts`]
+- AD-131 (detail audit): Second count counts a measurement once. The takeoff lists a room's area under its number
+  and its name (`name=1.02`, `name=reduit`); agreeing rows of one takeoff with the same measure, both values and
+  the same marked places are one pair (the demo run showed "Measured twice 23, Agree 22" where the traces say 12
+  and 11). Disputed rows follow AV-34 as before. [unit `advanced.test.ts`, component `AdvancedIngest.test.tsx`]
+- AD-132 (detail audit): On the file page, Identify's decision for a sheet the sheet-kind step called not a drawing
+  (AD-127's rule) is titled "Not a drawing, read anyway" in the warning tone, not "A floor plan" (the triage class
+  stays floor_plan because the sheet is read; its plan chance is 0 %). [unit `trace.test.ts`]
 
 ## Not in the API
 

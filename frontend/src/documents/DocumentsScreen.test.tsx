@@ -349,7 +349,9 @@ describe('DocumentsScreen (documents.md)', () => {
     show(body, { ...projectIssues, project_id: body.id, issues: [] });
     await flush();
     const files = screen.getByRole('region', { name: 'Files' });
-    expect(files.textContent).toContain('A floor plan · Looks like: an elevation');
+    expect(files.textContent).toContain(
+      'Read as a floor plan · the sheet-kind step says it looks like an elevation',
+    );
   });
 
   it('RS-30 RS-31 Carbon’s pick and can-not-tell on a conflict issue, with a link to its card', async () => {
@@ -420,6 +422,36 @@ describe('DocumentsScreen (documents.md)', () => {
     expect(issuesRegion().getByText(/boom/)).toBeTruthy();
     expect(issuesRegion().getByRole('button', { name: 'Retry' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Files' })).toBeTruthy();
+  });
+
+  it('R4-B4 R4-E15 a flagged file row says why, and the issues line says the files need a look as Ingest does', async () => {
+    show(project, { ...projectIssues, issues: [] });
+    await flush();
+    const files = within(screen.getByRole('region', { name: 'Files' }));
+    const row = must(files.getByText('plans/flat-b.pdf').closest('a'));
+    expect(within(row).getByText('1 conflict between the two methods (room areas)')).toBeTruthy();
+    expect(issuesRegion().getByText('Nothing needs your answer right now.')).toBeTruthy();
+    // the same words as the ingest page's summary (routeSummary), so the two pages agree
+    expect(
+      issuesRegion().getByText('1 flagged file needs a look: why is on its row under Files.'),
+    ).toBeTruthy();
+  });
+
+  it('R4-B12 an issue answered before (a reload) stays listed, collapsed: Answered, the answer, Change and Undo', async () => {
+    const answered: Issue = {
+      ...needs,
+      answer: { text: 'Accepted as drawn', by: 'Ana', at: '2026-11-15T03:15:57Z' },
+    };
+    show(project, { ...projectIssues, issues: [answered] });
+    await flush();
+    const card = must(cards()[0]);
+    expect(within(card).getByText('Answered')).toBeTruthy();
+    expect(within(card).getByText(/“Accepted as drawn” · Ana’s answer/)).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Change' })).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Undo' })).toBeTruthy();
+    expect(vi.mocked(SourceFigure)).not.toHaveBeenCalled(); // collapsed: no picture
+    expect(issuesRegion().queryByText('Nothing needs your answer right now.')).toBeNull();
+    expect(issuesRegion().queryByText(/need.* your answer now/)).toBeNull(); // answered: not counted
   });
 
   it('no issue waiting: nothing needs your answer right now', async () => {

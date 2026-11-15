@@ -83,9 +83,11 @@ ASKS = (  # the network question a message asks, in ask_services' words
 ELEMENT, WALL = re.compile(r"\be\d{1,6}\b"), re.compile(r"\bsw\d{1,5}\b")
 # "Which radiators are in the bedroom?", "How many sinks are there in Küche 1-3?": the room's
 # services listed (QA #430); sinks and toilets only here, not as something moved. A sanitary word
-# counts its IFC PredefinedType: a WC, a basin and their mounting frames are all one IFC class (R5)
-SANITARY_TYPES = {"sink": "SINK", "washbasin": "WASHHANDBASIN", "basin": "WASHHANDBASIN",
-                  "toilet": "TOILETPAN", "urinal": "URINAL"}  # fmt: skip
+# counts its IFC PredefinedType: a WC, a basin and their mounting frames are all one IFC class (R5).
+# A sink is a washbasin too in English: "sinks in Bad 1-3" counted SINK only, a confident 0 where
+# the basins are WASHHANDBASIN (R4-C3); list_services takes the types comma-separated
+SANITARY_TYPES = {"sink": "SINK,WASHHANDBASIN", "washbasin": "WASHHANDBASIN",
+                  "basin": "WASHHANDBASIN", "toilet": "TOILETPAN", "urinal": "URINAL"}  # fmt: skip
 IN_ROOM_TERMINALS = {**TERMINALS, **dict.fromkeys(SANITARY_TYPES, "sanitary_terminal")}
 # the IFC sanitary types in the person's words (#559 qa-a: no raw IFC names in an answer)
 SANITARY_WORDS = {"SINK": "sink", "WASHHANDBASIN": "washbasin", "TOILETPAN": "toilet",
@@ -282,7 +284,8 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
     listed = turn.result("list_services", room_id=room)
     sanitary = word in SANITARY_TYPES  # an architecture model counts sinks and toilets too
     have: Json = found.get("by_predefined") or {}  # the whole model's types of that kind
-    if sanitary and have and SANITARY_TYPES[word] not in have and not _cut(have):
+    lacks = sanitary and not set(SANITARY_TYPES[word].split(",")) & set(have)
+    if lacks and have and not _cut(have):
         if _other_ifc(turn, found["drawing_id"]):
             return None  # the architecture model may type it
         why = (  # #559 S1, in plain words: not "0 urinals", nor the tool's IFC names
