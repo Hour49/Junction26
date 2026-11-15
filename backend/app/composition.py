@@ -755,11 +755,21 @@ def build_answering(settings: Settings) -> Answering:
 
 
 def _chat_facts(settings: Settings) -> StoredFacts | None:
+    """The Ask's and the chat's fact sheets: the IFC store, then the picture lane's kept sheets,
+    as the batch pipeline has them (`_facts`)."""
     if not settings.ifc_facts:
         return None
-    if settings.ifc_facts_cache:
-        return StoredFacts(Path(settings.ifc_facts_cache))
-    return StoredFacts(settings.projects_dir.parent / "cache" / "facts")
+    pictures = (
+        None
+        if settings.discipline_pictures == "off"
+        else PictureSheets(None, _pictures_cache(settings)).sheet
+    )
+    folder = (
+        Path(settings.ifc_facts_cache)
+        if settings.ifc_facts_cache
+        else settings.projects_dir.parent / "cache" / "facts"
+    )
+    return StoredFacts(folder, pictures=pictures)
 
 
 def _scan_confidence(

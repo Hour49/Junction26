@@ -42,6 +42,7 @@ import ifcopenshell.geom
 import ifcopenshell.util.element as element_util
 
 from app.adapters.ifc_model.objects import _solid, _storey, _unit_scales
+from app.adapters.vector_pdf.ifc_render import room_type
 from app.core.ifc_facts import Discipline, Fact
 
 CLASSES: Mapping[str, tuple[str, Discipline]] = {
@@ -351,6 +352,11 @@ def _spaces(file: Any, scales: Mapping[str, float]) -> Iterator[Fact]:
             yield _fact("space.long_name", name, entity.LongName, None, "LongName", storey)
         if (kind := element_util.get_type(entity)) is not None and kind.Name:
             yield _fact("space.type", name, kind.Name, None, "IfcSpaceType", storey)
+        # what its names say it is, by the room words a drawn room is typed with ("BAÑ" a
+        # bathroom), as the model's own takeoff types it (ifc_model `_typed`); big QA R1 E6
+        words = " ".join(text for text in (entity.LongName, entity.Name) if text)
+        if (room := room_type(words)) != "other":
+            yield _fact("space.room_type", name, room, None, "room words of its names", storey)
         quantities = _quantities(entity)
         body, cut = (None, False) if "Height" in quantities else _space_body(entity)
         if body is not None and abs(body.ExtrudedDirection.DirectionRatios[-1]) > 0.99:  # upright
