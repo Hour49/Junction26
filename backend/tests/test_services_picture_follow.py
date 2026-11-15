@@ -252,3 +252,31 @@ def test_a_paired_heating_sheets_plumbing_marks_are_not_the_plumbing_lane() -> N
         "not_aligned",
         "H-101 E00 heating.png is a heating sheet by its name: its plumbing marks are not taken",
     )
+
+
+URINAL = "Urinal UP Druckspüler:Standard"
+WC_FRAME = "Viega Eco Plus- WC-Element für wandhängendes WC Viega 704070 #6bfeid6#:Standard"
+
+
+def test_a_legend_label_that_is_an_ifc_type_name_is_shown_without_its_id_and_variant() -> None:
+    """R1 edits 10b: the plumbing tab showed "Viega ... #6bfeid6#:Standard" and "Urinal UP
+    Druckspüler:Standard", the exporter's ids and default variant; the counts stay."""
+    plumbing = FactSheet(
+        model="d1",
+        disciplines=["plumbing"],
+        facts=[
+            fact("sanitary_terminal.count", URINAL, RADS[:1], discipline="plumbing"),
+            fact("sanitary_terminal.count", WC_FRAME, RADS[1:], discipline="plumbing"),
+        ],
+    )
+    found = picture_follow(
+        Proposal(proposal_id="p1", drawing_id="d1", page=1, removed=(WALL,)),
+        PLAN,
+        [(PLAN, plumbing)],
+    )
+    p = lane(found, "plumbing")
+    said = " | ".join([*(a.label for a in p.actions), *(m.label for m in p.marks)])
+    assert "#6bfeid6#" not in said and ":Standard" not in said, said
+    assert "1 sanitary fixture (Urinal UP Druckspüler) on the removed wall" in said, said
+    assert "(Viega Eco Plus- WC-Element für wandhängendes WC Viega 704070) on the" in said, said
+    assert sorted(len(a.refs) for a in p.actions if a.code == "reseat") == [1, 1]

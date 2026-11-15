@@ -58,6 +58,7 @@ from app.core.services.edit import (
 from app.core.services.ops import EQUIPMENT_CATEGORIES, EQUIPMENT_GROUPS, OPERATIONS, ask
 from app.core.services.route import MAIN_NEAR_M, Edge, room_edges
 from app.core.services.stored import Element, Point2, Room, ServicesModel, Storey, fraction
+from app.core.wording import type_words
 
 log = logging.getLogger(__name__)
 
@@ -546,7 +547,7 @@ def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]
         {
             "id": e.id,
             "kind": e.kind,
-            "label": e.label[:40],
+            "label": type_words(e.label)[:40],
             "room": e.room,
             "room_name": names.get(e.room or ""),
             "system": e.systems[0] if e.systems else None,
