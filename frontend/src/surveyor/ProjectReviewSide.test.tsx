@@ -86,9 +86,9 @@ describe('ProjectReviewSide', () => {
     expect(first).toContain('area of room (name Küche · 1.01)');
     expect(first).toContain('flat-b.pdf'); // no names passed: drawingLabel's file name (SV-56)
     expect(first).toContain('22.40 m² vs 30.00 m²');
-    expect(first).toContain('decided by rule');
+    expect(first).toContain('settled by a rule'); // the project page card's words (R4-B11)
     expect(nth(items, 1).textContent).toContain('needs you');
-    expect(nth(items, 2).textContent).toContain('settled');
+    expect(nth(items, 2).textContent).toContain('settled by you');
     const href = within(nth(items, 0)).getByRole('link').getAttribute('href') ?? '';
     expect(href.startsWith(`#/p/${projectId}/d/${conflict.drawing_id}/surveyor?`)).toBe(true);
     expect(new URLSearchParams(href.split('?')[1]).get('q')).toBe('area:room|name=1.01');
@@ -159,5 +159,24 @@ describe('ProjectReviewSide', () => {
     await waitFor(() => {
       expect(screen.queryByRole('status')).toBeNull();
     });
+  });
+
+  it('R4-B9 R4-B5 the conflicts link lands on the first card that needs you; it says Settle only when one does', async () => {
+    const needs = { ...conflict, quantity: 'door', label: 'door count', needs_person: true };
+    mockApi({ [reviewPath]: { ...projectReview, conflicts: [conflict, needs] } });
+    renderSide();
+    const link = await screen.findByRole('link', { name: 'Settle the conflicts' });
+    const [path, query] = (link.getAttribute('href') ?? '').split('?');
+    expect(path).toBe(`#/p/${projectId}`);
+    const q = new URLSearchParams(query);
+    expect([q.get('d'), q.get('q')]).toEqual([needs.drawing_id, 'door']);
+    cleanup();
+    mockApi({ [reviewPath]: { ...projectReview, conflicts: [conflict] } }); // decided by a rule only
+    renderSide();
+    const see = await screen.findByRole('link', { name: 'See the conflicts' });
+    expect(new URLSearchParams(see.getAttribute('href')?.split('?')[1]).get('q')).toBe(
+      conflict.quantity,
+    );
+    expect(screen.queryByRole('link', { name: 'Settle the conflicts' })).toBeNull();
   });
 });

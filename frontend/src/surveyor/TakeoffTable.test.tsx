@@ -56,3 +56,35 @@ describe('R3-G9 phone order', () => {
     expect(keys()).toEqual(['k0', 'k1', 'k2']);
   });
 });
+
+// R4-B11 / R4-B5: a conflict a rule decided reads as the project page's card does ("settled by a rule"), not
+// "Methods disagree"; a value settled at what it already was reads "Settled by you", not "Changed in review".
+it('R4-B11 R4-B5 a rule-settled conflict and an unchanged settle say so in the state cell', () => {
+  const ruled = takeoff.quantities.find((q) => q.conflict?.resolution);
+  if (!ruled) throw new Error('no ruled conflict in the fixture');
+  const rows: Row[] = [
+    {
+      ...ruled,
+      key: 'ruled',
+      status: 'conflict',
+      needs_person: false,
+      settled: null,
+      resolved: null,
+    },
+    {
+      ...ruled,
+      key: 'same',
+      status: 'edited',
+      needs_person: false,
+      value: ruled.original_value,
+      settled: { value: ruled.original_value, at: '2026-11-15T02:47:00Z' },
+      resolved: null,
+    },
+  ];
+  const t: Takeoff = { ...takeoff, quantities: rows, review_queue: [] };
+  render(<TakeoffTable takeoff={t} selected={null} onSelect={() => undefined} />);
+  const state = (key: string) =>
+    document.querySelector(`tr[data-key="${key}"] .sv-status`)?.textContent;
+  expect(state('ruled')).toBe('Settled by a rule');
+  expect(state('same')).toBe('Settled by you');
+});

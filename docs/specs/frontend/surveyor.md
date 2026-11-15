@@ -96,9 +96,9 @@ Display rules from `words.ts`:
 | `status` | Words in the table and the detail (with the text, never colour alone) |
 | --- | --- |
 | `signed` | "Verified" |
-| `conflict` | "Methods disagree"; with `needs_person: true` also "needs you" |
+| `conflict` | "Methods disagree"; with `needs_person: true` also "needs you"; with `conflict.resolution` and nothing settled "Settled by a rule", the project page card's words (R4-B11) |
 | `estimate` | "Estimate" |
-| `edited` | "Changed in review" |
+| `edited` | "Changed in review"; "Settled by you" when it was settled at the value it already had (R4-B5) |
 | `agree` | "Two methods agree" |
 | `single` | "One method" |
 

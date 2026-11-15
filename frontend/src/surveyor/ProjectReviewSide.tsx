@@ -4,10 +4,12 @@ import {
   drawingLabel,
   formatValue,
   getProjectReview,
+  resolverName,
   type ConflictEntry,
   type ProjectReview,
 } from '../api';
 import { routeHref } from '../shell/route';
+import { cardState } from './conflicts';
 import './surveyor.css';
 import { Button } from '@/components/ui/button';
 import { TOOL } from './ui';
@@ -32,9 +34,13 @@ const surveyorHref = (projectId: string, drawingId: string, key?: string) =>
     query: new URLSearchParams(key === undefined ? {} : { q: key }),
   });
 
+/** The project page card's words for its state (R4-B11: one verdict on both screens). */
 function conflictState(c: ConflictEntry): string {
-  if (c.needs_person) return 'needs you';
-  return c.settled ? 'settled' : 'decided by rule';
+  const state = cardState(c);
+  if (state === 'open') return 'needs you';
+  if (state === 'yours') return 'settled by you';
+  if (state === 'picked') return `picked by ${resolverName(c.resolved?.by ?? '')}`;
+  return 'settled by a rule';
 }
 
 /** The surveyor's side panel: the project's drawings with what is left to review, and its conflicts. */
@@ -96,6 +102,7 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0, names = {}
   }
 
   const { drawings, conflicts } = load.review;
+  const target = conflicts.find((c) => c.needs_person) ?? conflicts[0];
   return (
     <aside className="sv-side" data-open={open}>
       {/* shown only at <= 640 px (surveyor.css); wider screens always show the lists */}
@@ -142,12 +149,17 @@ export function ProjectReviewSide({ projectId, drawingId, reload = 0, names = {}
           })}
         </ul>
         <h2 id="sv-conflicts">Conflicts ({conflicts.length})</h2>
-        {conflicts.length > 0 && (
+        {target && (
+          // lands on the card (its d + q focus and scroll it, CF-29), not the top of the project page (R4-B9)
           <a
             className="sv-settle"
-            href={routeHref({ name: 'project', projectId, query: new URLSearchParams() })}
+            href={routeHref({
+              name: 'project',
+              projectId,
+              query: new URLSearchParams({ d: target.drawing_id, q: target.quantity }),
+            })}
           >
-            Settle the conflicts
+            {target.needs_person ? 'Settle the conflicts' : 'See the conflicts'}
           </a>
         )}
         <ul aria-labelledby="sv-conflicts">

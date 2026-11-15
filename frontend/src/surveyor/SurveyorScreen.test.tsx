@@ -203,7 +203,7 @@ describe('table and detail', () => {
       (q) =>
         screen.getByRole('row', { name: new RegExp(q.label.replace(/[()]/g, '\\$&')) }).textContent,
     );
-    expect(nth(cells, 0)).toContain('Methods disagree');
+    expect(nth(cells, 0)).toContain('Settled by a rule'); // a rule decides its conflict (R4-B11)
     expect(nth(cells, 1)).toContain('One method');
     expect(nth(cells, 2)).toContain('One method');
   });
