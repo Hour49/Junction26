@@ -25,7 +25,7 @@ from app.api.views import View
 from app.core.errors import InvalidInputError
 from app.core.pipeline.takeoff import known_quantities
 from app.core.review.ask import RULES
-from app.core.review.model import Edit, Row
+from app.core.review.model import Edit, ReviewState, Row
 from app.core.review.ports import ReviewStore
 from app.core.review.review import (
     apply,
@@ -39,6 +39,7 @@ from app.core.review.review import (
     sign,
     storey_twins,
     unsign,
+    with_rejected_items,
     with_twins,
 )
 
@@ -101,6 +102,7 @@ def takeoff_rows(
         file, project = named.path, named.project_id
     quantities = known_quantities(drawing)
     state = with_twins(reviews.get(project, drawing_id), storey_twins(quantities))
+    state = with_rejected_items(state, quantities)  # a rejected door is no room's (R4-B2)
     names = room_names_of(drawing)  # once for the drawing, not per row
     rows = [row(found, drawing, state, RULES, names) for found in quantities.values()]
     if not zeros:
@@ -158,13 +160,19 @@ def signoff(
         raise InvalidInputError("settle goes with a sign-off, not with undo")
     owner = project_of(ingest, drawing_id, project)
     drawing = ingest.drawing(drawing_id)
-    found = sheet_row(known_quantities(drawing), body.quantity)
+    quantities = known_quantities(drawing)
+    found = sheet_row(quantities, body.quantity)
     if body.undo:
         reviews.update(owner, drawing_id, lambda state: unsign(state, found.key))
     else:
         at = now()
         signing = settle_and_sign if body.settle else sign
-        reviews.update(owner, drawing_id, lambda state: signing(state, found, drawing, body.by, at))
+
+        def signed(state: ReviewState) -> ReviewState:  # the value the row shows (R4-B2)
+            shown = with_rejected_items(state, quantities)
+            return signing(state, found, drawing, body.by, at, shown=shown)
+
+        reviews.update(owner, drawing_id, signed)
     return takeoff_rows(drawing_id, ingest, reviews, zeros, project)
 
 
