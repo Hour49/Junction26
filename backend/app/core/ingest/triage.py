@@ -28,7 +28,10 @@ from app.core.ingest.model import (
 )
 from app.core.ingest.ports import Classifier, Describer, RelevanceJudge
 from app.core.pipeline.model import FileKind
+from app.core.wording import kind_words
 
+# The triaged kinds the probe calls a drawing (it calls a `photo` not one)
+DRAWN_KINDS: frozenset[ContentKind] = TRIAGED_KINDS - {"photo"}
 CLASS_WORDS: dict[TriageClass, str] = {
     "floor_plan": "a floor plan",
     "other_drawing": "another kind of drawing (an elevation, section, site plan, detail or cover)",
@@ -214,17 +217,26 @@ def plan_kind(kind: ContentKind | None, file_format: FileKind | None) -> Content
 def kind_after(probed: Probed, triage: Triage | None, file_format: FileKind | None) -> Probed:
     """The probe's kind once triage has spoken. With triage on, the classifier alone decides
     plan or not: an image it calls a floor plan is read as one even where the probe (or the kind
-    signal's not-a-drawing rule) said otherwise."""
-    if triage is None or triage.class_ != "floor_plan":
+    signal's not-a-drawing rule) said otherwise. Where the two disagree, `did` says the probe's
+    line was its guess and what triage made of it, so the identify stage's line ends on the
+    outcome (QA R4-A10: "a photo, not of a drawing", then output "photo of a drawing")."""
+    if triage is None:
         return probed
-    said = f"{probed.did}; triage calls it a floor plan, so it is read as one"
+    if triage.class_ == "not_drawing" and probed.kind in DRAWN_KINDS:
+        said = f"the probe guessed {probed.did}; triage calls it not a drawing, so it is not read"
+        return probed.model_copy(update={"did": said})
+    if triage.class_ != "floor_plan":
+        return probed
     if probed.kind == "photo":
-        return Probed(kind="photo_plan", did=said)
-    if probed.kind == "unknown" and file_format == "png":
-        return Probed(kind="png_plan", did=said)
-    if probed.kind == "unknown" and file_format == "jpeg":
-        return Probed(kind="jpeg_plan", did=said)
-    return probed
+        kind: ContentKind = "photo_plan"
+    elif probed.kind == "unknown" and file_format == "png":
+        kind = "png_plan"
+    elif probed.kind == "unknown" and file_format == "jpeg":
+        kind = "jpeg_plan"
+    else:
+        return probed
+    said = f"the probe guessed {probed.did}; triage calls it a floor plan, so it is read as a "
+    return Probed(kind=kind, did=said + kind_words(kind))
 
 
 def set_aside_reason(triage: Triage) -> str:
