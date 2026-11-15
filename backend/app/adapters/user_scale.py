@@ -9,6 +9,7 @@ drawing with a scale from the user comes back re-measured at it
 (app/core/pipeline/user_scale.py).
 """
 
+import re
 import threading
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -76,11 +77,13 @@ def take_scale(
 ) -> str:
     """When `message` states a scale: find its drawing, keep the scale (`keep(drawing_id,
     scale)`), and give the lines the model reads (what was kept, or why not, in words to pass
-    on); "" when the message states none."""
+    on); "" when the message states none. A drawing the message names ("the study on Plan
+    image 5 is 4.9 m wide") is the one it is for, and its name is no part of the room's."""
+    only, message = _drawing_named(message, names)
     given = parse_given(message)
     if given is None:
         return ""
-    found = _target(given, selection, ingest, status, names)
+    found = _target(given, selection, ingest, status, names, only)
     if isinstance(found, str):
         return _line(f"The user stated a scale ({given.text}), but I could not use it: {found}.")
     drawing_id, drawing, room = found
@@ -102,9 +105,20 @@ def _target(
     ingest: Any,
     status: ProjectStatus,
     names: Mapping[str, str],
+    only: str | None = None,
 ) -> tuple[str, Drawing, Room | None] | str:
-    """The drawing (and room) the scale is for, or why none is: the selection's drawing, else
-    the one drawing that takes a scale and fits (the room named, or any for a ratio)."""
+    """The drawing (and room) the scale is for, or why none is: the drawing the message names
+    (`only`), else the selection's drawing, else the one drawing that takes a scale and fits
+    (the room named, or any for a ratio)."""
+    if only is not None:
+        drawing = _drawing(ingest, only)
+        if drawing is None:
+            return f"{names.get(only, only)} was not read"
+        if (reason := why_not(drawing)) is not None:
+            return f"{names.get(only, only)}: {reason}"
+        if given.kind == "ratio":
+            return only, drawing, None
+        return _named(given, [(only, drawing)], names)
     chosen = [s for s in selection if s.kind == "room"] or list(selection)
     if chosen:
         pick = chosen[0]
@@ -155,6 +169,21 @@ def _named(
         )
         return f"{len(found)} rooms fit '{room_name}' ({labels}); select the one you mean"
     return found[0]
+
+
+def _drawing_named(message: str, names: Mapping[str, str]) -> tuple[str | None, str]:
+    """The drawing `message` names by its name in the project ("on Plan image 5"; the longest
+    name first, so "Plan image 15" is not "Plan image 1"), and the message without that name
+    and the word before it (on, in, of, for); (None, message) when it names none."""
+    for drawing_id, name in sorted(names.items(), key=lambda item: -len(item[1])):
+        if not name.strip():
+            continue
+        named = re.compile(
+            rf"(?:\s+(?:on|in|of|for)(?:\s+the)?)?\s*(?<!\w){re.escape(name)}(?!\w)", re.IGNORECASE
+        )
+        if found := named.search(message):
+            return drawing_id, f"{message[: found.start()]} {message[found.end() :]}".strip()
+    return None, message
 
 
 def _says_this(name: str | None) -> bool:
