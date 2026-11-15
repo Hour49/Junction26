@@ -964,6 +964,31 @@ describe('pre-QA (2026-11-14)', () => {
     expect(scroll).not.toHaveBeenCalled();
   });
 
+  it('R4-E10 on a phone the detail sits right under the plan, before the lists; a selection scrolls to the plan', async () => {
+    // At 390 the detail was under all 81 rows, ~5,700 px below the plan with its numbered marks.
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q === '(max-width: 760px)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      show();
+      const table = await ready();
+      expect(
+        detail().compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      pick('door count');
+      await waitFor(() => {
+        expect(scroll).toHaveBeenCalledTimes(1);
+      });
+      expect(scroll.mock.contexts[0]).toBe(screen.getByTestId('viewer'));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('SV-54 a settled conflict marks the value in use in its list', async () => {
     show('', { [PATH.takeoff]: settledA });
     await ready();

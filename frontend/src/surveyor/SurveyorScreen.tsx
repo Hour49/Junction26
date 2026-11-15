@@ -21,6 +21,7 @@ import { routeHref } from '../shell/route';
 import { PageViewer } from '../viewer/PageViewer';
 import { useDrawingNames } from './drawingNames';
 import { ProjectReviewSide } from './ProjectReviewSide';
+import { usePhone } from './phone';
 import { signoffBody } from './signoff';
 import { QuantityDetail } from './QuantityDetail';
 import { TakeoffTable } from './TakeoffTable';
@@ -72,6 +73,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
   const [name, setName] = useState(savedName);
   const [reload, setReload] = useState(0);
   const [scrollTick, setScrollTick] = useState(0);
+  const phone = usePhone();
   const panel = useRef<HTMLElement>(null);
   // every takeoff request names this project, so its file names are this project's (R1-4-4)
   const zq = zeros ? { project: projectId, zeros: true } : { project: projectId };
@@ -114,8 +116,11 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       // The column is sticky, so it is the detail's offsetParent; its sticky head stays over the top.
       const head = column.querySelector<HTMLElement>('.sv-panel-head')?.offsetHeight ?? 0;
       column.scrollTop = detail.offsetTop - head - 12;
-    } else detail.scrollIntoView({ block: 'start' }); // phone: the page scrolls
-  }, [scrollTick]);
+    } else if (phone) {
+      // phone: the plan (the panel's sibling before it) and the detail right under it come into view (R4-E10)
+      (column.previousElementSibling ?? detail).scrollIntoView({ block: 'start' });
+    } else detail.scrollIntoView({ block: 'start' }); // one column without the phone query: the page scrolls
+  }, [scrollTick, phone]);
 
   useEffect(() => {
     if (!addMode) return;
@@ -227,6 +232,30 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     </label>
   );
 
+  const detail = row && (
+    <QuantityDetail
+      key={row.key}
+      row={row}
+      saving={saving}
+      error={editError}
+      name={name}
+      onName={setName}
+      addMode={addMode}
+      onToggleAdd={() => {
+        setAddMode((on) => !on);
+      }}
+      selectedMark={mark}
+      highlightedMark={hover}
+      onHoverMark={setHover}
+      onEdit={edit}
+      onSign={(undo) => {
+        const by = name.trim() || (row.signed?.by ?? '');
+        if (!undo) saveName(by);
+        void send(() => postSignoff(drawingId, signoffBody(row, by, undo), zq), row.key);
+      }}
+    />
+  );
+
   return (
     <div className="v-page v-page--wide sv-screen sv-work">
       {side}
@@ -303,30 +332,10 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
               </p>
               <progress value={signedCount} max={rows.length} />
             </header>
+            {/* on a phone the detail comes right after the plan, before the lists (R4-E10) */}
+            {phone && detail}
             <TakeoffTable takeoff={takeoff} selected={selectedKey} onSelect={select} />
-            {row && (
-              <QuantityDetail
-                key={row.key}
-                row={row}
-                saving={saving}
-                error={editError}
-                name={name}
-                onName={setName}
-                addMode={addMode}
-                onToggleAdd={() => {
-                  setAddMode((on) => !on);
-                }}
-                selectedMark={mark}
-                highlightedMark={hover}
-                onHoverMark={setHover}
-                onEdit={edit}
-                onSign={(undo) => {
-                  const by = name.trim() || (row.signed?.by ?? '');
-                  if (!undo) saveName(by);
-                  void send(() => postSignoff(drawingId, signoffBody(row, by, undo), zq), row.key);
-                }}
-              />
-            )}
+            {!phone && detail}
           </>
         )}
       </section>
