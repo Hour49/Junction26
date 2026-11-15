@@ -403,6 +403,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
               setSheet(false);
             }
       }
+      onPen={wide || !pen.can ? undefined : pen.onToggle}
     />
   );
   const pane = wide && plan;
