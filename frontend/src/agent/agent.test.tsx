@@ -29,7 +29,7 @@ import {
 } from './fixtures';
 import { selectionOf } from './PlanPane';
 import { TurnCard } from './TurnCard';
-import { followed } from './multi/fixtures';
+import { followed, heatingPicture, services } from './multi/fixtures';
 
 const PID = project.id;
 const DRAWING = `GET /api/drawings/${DID}`;
@@ -349,6 +349,44 @@ describe('EditCard', () => {
         'Proposed from the drawn geometry; services followed through their models, as each tab shows. Structure and permits are not checked.',
       ),
     ).toBeTruthy();
+  });
+
+  it('edits R1 1b: the note says what the services were followed through, as the tabs show', () => {
+    mockApi({ [DRAWING]: drawing });
+    const lanes = (status: 'no_model' | 'checked', picture: boolean) =>
+      services.disciplines.map((l) =>
+        picture
+          ? { ...heatingPicture, discipline: l.discipline }
+          : { ...l, status, picture: null, source: status === 'checked' ? l.source : null },
+      );
+    const note = (disciplines: typeof services.disciplines) => {
+      cleanup();
+      mockApi({ [DRAWING]: drawing });
+      render(
+        <EditCard
+          proposal={{ ...followed, services: { ...services, disciplines } }}
+          projectId={PID}
+          chatId={editTurn.chat_id}
+        />,
+      );
+      return screen.getByText(/^Proposed from the drawn geometry/).textContent;
+    };
+    // pics-digitalhub, a floor no services picture covers: every tab says "no model"
+    expect(note(lanes('no_model', false))).toBe(
+      'Proposed from the drawn geometry; no services model or picture covers it, as each tab shows. Structure, services and permits are not checked.',
+    );
+    // review-710: a lane whose model or picture could not be laid on the sheet says "not aligned", not "no model"
+    const aligned = lanes('no_model', false).map((l) => ({ ...l, status: 'not_aligned' as const }));
+    expect(note(aligned)).toBe(
+      'Proposed from the drawn geometry; a services model or picture could not be laid on this drawing, as each tab shows. Structure, services and permits are not checked.',
+    );
+    expect(note(lanes('checked', true))).toBe(
+      'Proposed from the drawn geometry; services followed on their pictures, as each tab shows. Structure and permits are not checked.',
+    );
+    const mixed = [...lanes('checked', false).slice(0, 2), ...lanes('checked', true).slice(2)];
+    expect(note(mixed)).toBe(
+      'Proposed from the drawn geometry; services followed through their models and pictures, as each tab shows. Structure and permits are not checked.',
+    );
   });
 
   it('AC-32 Accept posts the decision and the buttons give way to "Accepted"', async () => {
