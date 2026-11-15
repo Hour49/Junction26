@@ -41,6 +41,22 @@ const PART: Record<string, string> = {
   scale: 'scale reader',
 };
 
+/**
+ * The chips' words, and the step labels (`FileStatus.step`, backend extract steps) each stands for, by the label's
+ * start: the words are for a juror, the labels are the server's ("Gemini Carbon check (never counted)").
+ */
+const LABELS: Record<string, string[]> = {
+  'Gemini count decision': ['Gemini Decisions'],
+  'Gemini cross-check (not counted)': ['Gemini Carbon check'],
+  'Gemini for sheets with few symbols': ['Gemini Carbon reader'],
+  'Gemini reader': ['Gemini Carbon reader'],
+  'printed scale (Gemini)': ['Printed scale'],
+  'drawn-PDF reader': ['Drawn-PDF reader'],
+  'schedule tables': ['Schedule tables'],
+};
+/** The double-check readers' chip starts so: "double check by 2 more readers (not counted)". */
+const DOUBLE_CHECK = 'double check';
+
 /** The readers one `part=source` pair stands for (backend app/composition.py `_raster_component`). */
 function sourceReaders(part: string, source: string): string[] {
   const at = source.indexOf(':');
@@ -49,18 +65,23 @@ function sourceReaders(part: string, source: string): string[] {
   const own = PART[part] ?? part;
   switch (kind) {
     case 'decisions':
-    case 'decisions-s1536': // the inner source counts, Gemini Decisions settles each count
-      return [...sourceReaders(part, inner), 'count arbiter'];
-    case 'arbiter-t1':
-      return [own, 'count arbiter'];
+    case 'decisions-s1536': // the inner source reads, Gemini Decisions picks each count
+      return [...sourceReaders(part, inner), 'Gemini count decision'];
+    case 'arbiter-t1': // the symbol detector read twice, a model picks between the counts
+      return ['symbol detector', 'count arbiter'];
+    case 'detector':
+    case 'detector-v2':
+    case 'detector-v4':
+    case 'detector-v8': // one model finds the symbols and the plans
+      return ['symbol detector'];
     case 'carbon':
-      return ['Carbon'];
+      return ['Gemini reader'];
     case 'gemini':
     case 'regionrooms':
       return ['room reader'];
     case 'one-plan':
       return ['whole page as one plan'];
-    default: // detector*, region, photo, verda, exp, dir: the part's own reader
+    default: // region, photo, verda, exp, dir: the part's own reader
       return [own];
   }
 }
@@ -71,44 +92,73 @@ function parts(spec: string | undefined): [string, string][] {
     .filter((p) => p.includes('='))
     .map((p) => {
       const i = p.indexOf('=');
-      return [p.slice(0, i), p.slice(i + 1)];
+      return [p.slice(0, i).trim(), p.slice(i + 1).trim()];
     });
 }
 
 /**
  * The readers each route runs on this project, as ingest recorded them (`ProjectView.readers`, backend
- * app/composition.py `build_ingest` `names`), in plain words. A route whose reader is `hello` gets none: nothing
- * is shown as read that was not. Unknown settings are left out rather than guessed.
+ * app/composition.py `build_ingest` `names`), in plain words and in the order they run (normalise, then the
+ * extract steps as a raster trace lists them). A route whose reader is `hello` gets none: nothing is shown as read
+ * that was not. Unknown settings are left out rather than guessed.
  */
 export function routeReaders(
   readers: Record<string, string> | undefined,
 ): Record<RouteId, string[]> {
   const r = readers ?? {};
   const on = (key: string) => r[key] !== undefined && r[key] !== '' && r[key] !== 'off';
-  const bim = r.bim && r.bim !== NOTHING ? ['IFC object reader'] : [];
+  const bim = r.bim && r.bim !== NOTHING ? ['IFC model reader'] : [];
   const cad = r.cad && r.cad !== NOTHING ? ['CAD reader'] : [];
   const vector: string[] = [];
   if (r.vector && r.vector !== NOTHING) {
-    vector.push('vector reader');
-    if (r.tables && r.tables !== 'off') vector.push('schedule reader');
-    if (r.second_counter && r.second_counter !== NOTHING) vector.push('second count');
+    vector.push('drawn-PDF reader');
+    if (on('tables')) vector.push('schedule tables');
     if (on('vector_fallback')) vector.push('image reading of unruled sheets');
+    // the IFC counter measures models and hands every other file to the PDF one (composition second_counter_of)
+    if (r.second_counter && r.second_counter !== NOTHING) vector.push('second count');
   }
   const raster: string[] = [];
   if (r.raster && r.raster !== NOTHING) {
+    if (r.rectifier && r.rectifier !== 'none') raster.push('photo flattening');
+    if (on('raster_printed_scale')) raster.push('printed scale (Gemini)');
+    if (on('carbon_levels')) raster.push('Gemini cross-check (not counted)');
     for (const [part, source] of parts(r.raster_components))
       raster.push(...sourceReaders(part, source));
     if (on('raster_photo_components')) raster.push('photo detector');
-    if (on('carbon_reader')) raster.push('Carbon');
-    if (on('raster_scale')) raster.push('scale from doors');
-    if (on('raster_printed_scale')) raster.push('printed scale');
-    const seconds = parts(r.double_check_readers).length;
-    if (seconds) raster.push(`second readers (${String(seconds)})`);
-    if (on('carbon_levels')) raster.push('Carbon level check');
+    const checks = parts(r.double_check_readers).length;
+    if (checks) raster.push(`${DOUBLE_CHECK} by ${plural(checks, 'more reader')} (not counted)`);
+    if (on('carbon_reader'))
+      raster.push(
+        r.carbon_reader?.startsWith('large')
+          ? 'Gemini for sheets with few symbols'
+          : 'Gemini reader',
+      );
+    if (on('raster_scale')) raster.push('scale from door sizes');
     if (on('raster_tiles')) raster.push('tiles for big sheets');
   }
   const unique = (xs: string[]) => [...new Set(xs)];
   return { bim, cad, vector: unique(vector), raster: unique(raster) };
+}
+
+/**
+ * What every file goes through before it takes a route (backend composition `_triage` and `decisions_kind`, the
+ * `triage` name "classifier=off, sheet_kind=carbon, describer=carbon, judge=rules"), in plain words. None when
+ * triage is off or not recorded.
+ */
+export function triageReaders(readers: Record<string, string> | undefined): string[] {
+  const r = readers ?? {};
+  const t = Object.fromEntries(
+    (r.triage ?? '').split(',').map((p) => p.split('=').map((x) => x.trim())),
+  ) as Record<string, string | undefined>;
+  const out: string[] = [];
+  if (r.decisions_kind === 'True') out.push('scan or photo (Gemini)');
+  if (t.classifier === 'rules') out.push('plan or not (rules)');
+  if (t.classifier === 'siglip') out.push('plan or not (image model)');
+  if (t.sheet_kind && t.sheet_kind !== 'off') out.push('sheet kind (Gemini)');
+  if (t.describer && t.describer !== 'off')
+    out.push('describes sheets that are not plans (Gemini)');
+  if (t.judge && t.judge !== 'off') out.push('keep or set aside (rules)');
+  return out;
 }
 
 /** Takeoff keys that are not things on the plan: the plan and apartment counts. */
@@ -164,9 +214,14 @@ export function projectPhase(p: ProjectView): 'files' | 'index' | null {
   return p.phase ?? null;
 }
 
-/** Whether a step label is one of the reader names: "Symbol detector, 8 views" is the "symbol detector". */
+/**
+ * Whether a step label is one of the reader names: "Symbol detector, 8 views" is the "symbol detector", "Gemini
+ * Decisions count swap (1536 px) over …" the "Gemini count decision" (`LABELS`).
+ */
 export function stepMatches(label: string, reader: string): boolean {
-  return label.toLowerCase().startsWith(reader.toLowerCase());
+  const starts = reader.startsWith(DOUBLE_CHECK) ? ['Double-check reader'] : (LABELS[reader] ?? []);
+  const l = label.toLowerCase();
+  return [reader, ...starts].some((s) => l.startsWith(s.toLowerCase()));
 }
 
 export type Lane = {
@@ -219,6 +274,8 @@ export const PIPELINE_TIPS = {
   flagged: 'Files that were read but need a look before you rely on them.',
   cost: 'What the paid model calls of this upload cost. Cached calls are free.',
   readers: 'The readers this server runs on this route, as it recorded them for this upload.',
+  triage:
+    'Every file is sorted before it takes a route: a plan is read, another sheet is described or set aside.',
 };
 
 const ROUTE_PLURAL: Record<RouteId, [string, string]> = {

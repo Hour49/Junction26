@@ -11,6 +11,7 @@ import {
   lanes,
   routeReaders,
   stepMatches,
+  triageReaders,
   unread,
   type Lane,
 } from './pipeline';
@@ -252,10 +253,25 @@ export function RouteLanes({
   const seen = useSeenSteps(project.files);
   const byRoute = routeReaders(project.readers);
   const all = lanes(project.files);
+  const sorting = triageReaders(project.readers);
   if (all.length === 0) return null;
   return (
     <section aria-label="Routes" className="grid content-start gap-3">
       <h3 className="v-caption m-0">How each file is read</h3>
+      {sorting.length > 0 && (
+        <div className="ingest-sorting grid gap-1.5">
+          <p className={cn(MUTED, 'm-0')}>Every file first, before it takes a route:</p>
+          <Tip text={PIPELINE_TIPS.triage} wrap className="justify-self-start">
+            <ul aria-label="Sorting" className="flex flex-wrap gap-1.5">
+              {sorting.map((c) => (
+                <li key={c} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-text-2">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </Tip>
+        </div>
+      )}
       {all.map((lane) => (
         <LaneView
           key={lane.id}

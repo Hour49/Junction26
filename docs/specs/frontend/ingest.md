@@ -665,10 +665,11 @@ Card, top to bottom (`ProgressCard.tsx`, `RouteLanes.tsx`, helpers in `pipeline.
 5. The done line (v3, unchanged).
 
 Readers per route come from `ProjectView.readers`, what ingest recorded for this upload (backend
-`composition.build_ingest` `names`), not from `/api/info`: e.g. the demo's image route reads "symbol detector, count
-arbiter, plan finder, room reader, Carbon, printed scale, second readers (2), Carbon level check". A reader named
-`hello` or `off` is not shown. Step labels a file reports (`FileStatus.step`) light their reader chip while they
-run and tick it ("ran") after; a label no reader name covers gets its own chip.
+`composition.build_ingest` `names`), not from `/api/info`: e.g. the demo's image route reads "photo flattening,
+printed scale (Gemini), Gemini cross-check (not counted), symbol detector, Gemini count decision, count arbiter,
+room reader, double check by 2 more readers (not counted), Gemini for sheets with few symbols, scale from door
+sizes" (IN-117). A reader named `hello` or `off` is not shown. Step labels a file reports (`FileStatus.step`) light
+their reader chip while they run and tick it ("ran") after; a label no reader name covers gets its own chip.
 
 - IN-100: The card has a region "Routes" with the heading "How each file is read" and one region per lane with
   files, named by the lane (`IFC model`, `CAD`, `Drawn PDF`, `Image`, `Not routed yet`, `Not drawings`), its `h3`
@@ -728,6 +729,26 @@ run and tick it ("ran") after; a label no reader name covers gets its own chip.
   sentence's "Read …" leave it out; the sentence counts it as "<n> not read", not as flagged. A done project with no drawing read shows
   IN-72's "Nothing read" card, not "Ready" with a 100% ring. (A real reader that read nothing is not told apart:
   the API has no field for it yet.) [unit: `unread`, `readDrawings`, `routeSummary`; component]
+- IN-117 (live demo readers, trace's sample 2026-11-15): the chips name what each source really is. An
+  `arbiter-t1` part is "symbol detector" and "count arbiter" (never its class: no "door" or "window" chip); a
+  `detector*` source is "symbol detector" for every part (it finds the plans too: no separate "plan finder");
+  `decisions*` adds "Gemini count decision" (not "count arbiter"); `carbon_levels` is "Gemini cross-check (not
+  counted)"; `carbon_reader=large…` is "Gemini for sheets with few symbols" (it reads a sheet only when the shipped
+  reader found fewer than 3 things), any other value "Gemini reader"; `raster_printed_scale` "printed scale
+  (Gemini)"; `double_check_readers` "double check by <n> more readers (not counted)"; `raster_scale=priors` "scale
+  from door sizes"; `rectifier` other than `none` "photo flattening"; the drawn PDF route "drawn-PDF reader",
+  "schedule tables", "second count"; the model route "IFC model reader". Image chips come in the order they run.
+  [unit: pipeline.test.ts; component]
+- IN-118: every step label a file on the demo config reports (the extract steps of a scan, a photo, a drawn PDF and
+  an IFC model in the sample traces) lights a chip of its lane, so none turns into a chip of its own: a chip
+  stands for the labels that start with its words or with the server's name for it ("Gemini Decisions…",
+  "Gemini Carbon check…", "Gemini Carbon reader…", "Printed scale…", "Double-check reader…", "Drawn-PDF reader…",
+  "Schedule tables…"). [unit; component]
+- IN-119: above the lanes, "Every file first, before it takes a route:" and a list "Sorting" from `readers.triage`
+  and `decisions_kind`: "scan or photo (Gemini)" (`decisions_kind=True`), "plan or not (rules)" or "(image
+  model)" (`classifier`), "sheet kind (Gemini)" (`sheet_kind`), "describes sheets that are not plans (Gemini)"
+  (`describer`), "keep or set aside (rules)" (`judge`); `off` parts are left out; no record, no list.
+  [unit: `triageReaders`; component]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
