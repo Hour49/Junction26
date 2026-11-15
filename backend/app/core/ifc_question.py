@@ -195,8 +195,10 @@ _SHEET_WORDS = frozenset(  # the whole sheet, a table on it, or the unit asked i
     """plan plans floorplan drawing drawings sheet sheets page pages picture pictures photo photos
     image images scan scans layout diagram map legend model file building project total all it
     them whole entire set schedule schedules table tables m m² m2 m³ m3 mm cm km sqm metre metres
-    meter meters ft feet units""".split()  # noqa: SIM905 (a word list reads better as text)
+    meter meters ft feet units system systems network circuit circuits""".split()  # noqa: SIM905
 )
+# "in Plan image 1", "in P-101 E00 plumbing.png": the drawing by its name or file (review-721 S1)
+_FILE_END = re.compile(r"\.(?:png|jpe?g|pdf|tiff?|svg|webp|ifc|dwg|dxf)\b", re.I)
 _SHEET_CODE = re.compile(r"[^\W\d_]{1,3}-?\d+[^\W\d_]?")  # H-101, P101, E00: a drawing's own code
 _STOP = frozenset(
     """a an and any are as at be by can could do does each for from give have how i in include
@@ -300,11 +302,12 @@ def parse_ifc_question(text: str) -> FactQuery | None:
 
 def _place(text: str) -> str | None:
     """The first place inside the sheet the question counts in, or None when every "in the ..."
-    names the sheet (its last word a sheet word or the drawing's code: "the heating plan")."""
+    names the sheet, a system or the drawing itself: a sheet word or the drawing's code in it ("the
+    heating plan", "the waste water system", "Plan image 1", "P-101 E00"), or a file name."""
     for found in _IN_PLACE.finditer(text):
         place = found["place"] or found["has"]
-        last = place.split()[-1]
-        if last not in _SHEET_WORDS and not _SHEET_CODE.fullmatch(last):
+        sheet = any(w in _SHEET_WORDS or _SHEET_CODE.fullmatch(w) for w in place.split())
+        if not sheet and not _FILE_END.match(text, found.end()):
             return place
     return None
 

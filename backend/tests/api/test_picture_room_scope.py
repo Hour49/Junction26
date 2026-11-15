@@ -127,3 +127,31 @@ def test_on_the_plumbing_plan_is_the_sheet_and_in_the_plumbing_room_is_refused(
     assert sheet["method"] == FACTS and "8" in sheet["answer"], sheet
     room = ask(client, project, drawing, "How many WCs are in the plumbing room?")
     assert room["answer"] is None and room["method"] != FACTS, room
+
+
+@pytest.mark.parametrize(
+    ("text", "said"),
+    [
+        ("How many radiators are in the heating system?", "6"),  # review-721 M1: a system
+        ("How long are the pipes in the heating system?", "5.5"),
+        ("How many radiators are in Plan image 1?", "6"),  # S1: the drawing's own name
+        ("How many radiators are in H-101 E00 heating.png?", "6"),  # S1: its file
+    ],
+)
+def test_a_system_or_the_drawing_s_own_name_is_no_room(text: str, said: str) -> None:
+    answer = _answer(text)
+    assert answer is not None and answer.method == FACTS and said in str(answer.answer), answer
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How long are the pipes in the waste water system?",  # review-721 M1 (main 31.41 m)
+        "How many fire dampers are in the ventilation system?",  # M1 (main 5)
+        "How many toilets are in Plan image 1?",  # S1 (main 8)
+        "How many toilets are in P-101 E00 plumbing.png?",  # S1 (main 8)
+    ],
+)
+def test_review_721_questions_name_no_place(text: str) -> None:
+    found = parse_ifc_question(text)
+    assert found is not None and found.place is None, found
