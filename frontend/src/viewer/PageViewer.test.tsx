@@ -325,6 +325,62 @@ describe('PageViewer: conflict readings', () => {
     expect(b?.style.top).toBe(a?.style.top);
   });
 
+  // review-505: a tag is placed after it is moved inside the frame, off every tag placed before it
+  const FRAME = 800;
+  const tagRects = (boxes: number[][]) => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(FRAME);
+    const v0 = conflict.values[0];
+    const values = boxes.map((box, i) => ({ ...(conflict.values[i] ?? v0), box }));
+    const { container } = viewer(answerArea, {
+      marks: [],
+      conflict: { ...conflict, values } as QuantityConflict,
+      unit: 'm2',
+    });
+    const page = answerArea.pages.find((p) => p.page === v0?.page) ?? answerArea.pages[0];
+    const H = (FRAME * (page?.height ?? 0)) / (page?.width ?? 1);
+    const rects = [...container.querySelectorAll<HTMLElement>('.vw-tag')].map((t) => ({
+      x: (parseFloat(t.style.left) / 100) * FRAME,
+      y: (parseFloat(t.style.top) / 100) * H,
+    }));
+    return { rects, H };
+  };
+  const apart = (rects: { x: number; y: number }[]) =>
+    rects.every((a, i) =>
+      rects.slice(i + 1).every((b) => Math.abs(a.x - b.x) >= 24 || Math.abs(a.y - b.y) >= 20),
+    );
+
+  it('K2 two tags near the right edge whose corners are 28 px apart do not cover each other once clamped', () => {
+    const { rects } = tagRects([
+      [0.96, 0.2, 1, 0.3],
+      [0.995, 0.2, 1, 0.3],
+    ]);
+    expect(rects).toHaveLength(2);
+    expect(apart(rects)).toBe(true);
+    expect(rects.every((r) => r.x >= 0 && r.x <= FRAME - 24)).toBe(true);
+  });
+
+  it('K2 two tags near the bottom edge whose corners are 21 px apart do not cover each other once clamped', () => {
+    const { H } = tagRects([[0.5, 0.5, 0.6, 0.6]]);
+    cleanup();
+    const { rects } = tagRects([
+      [0.5, (H - 21) / H, 0.6, 1],
+      [0.5, 1, 0.6, 1],
+    ]);
+    expect(rects).toHaveLength(2);
+    expect(apart(rects)).toBe(true);
+    expect(rects.every((r) => r.y >= 0 && r.y <= H - 20 + 0.01)).toBe(true);
+  });
+
+  it('K2 a third tag moved left at the right edge does not land on another tag', () => {
+    const { rects } = tagRects([
+      [0.94, 0.2, 1, 0.3],
+      [0.995, 0.2, 1, 0.3],
+      [0.995, 0.2, 1, 0.3],
+    ]);
+    expect(rects).toHaveLength(3);
+    expect(apart(rects)).toBe(true);
+  });
+
   it('R3 VW-19 conflict readings name the method in words, never the API id', () => {
     const { container } = viewer(answerArea, { marks: conflictRow.marks, conflict, unit: 'm2' });
     const legend = container.querySelector('.vw-legend')?.textContent ?? '';
