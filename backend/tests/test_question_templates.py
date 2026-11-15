@@ -533,6 +533,9 @@ def test_each_drawing_is_the_whole_drawing_not_a_breakdown(text: str, same_as: s
         ("Is there a kitchen?", "How many kitchens?"),
         ("Is there a bathtub on this plan?", "How many bathtubs?"),
         ("Are there any balconies?", "How many balconies?"),
+        ("Which drawings show a kitchen?", "How many kitchens?"),
+        ("Which plans have bathtubs?", "How many bathtubs?"),
+        ("Does any drawing show a bathtub?", "How many bathtubs?"),
     ],
 )
 def test_is_there_a_thing_is_asked_as_its_count(text: str, same_as: str) -> None:
@@ -552,3 +555,18 @@ def test_is_there_a_thing_is_asked_as_its_count(text: str, same_as: str) -> None
 )
 def test_a_breakdown_or_a_yes_no_about_one_thing_stays_unsupported(text: str) -> None:
     assert isinstance(PARSE(text), Unsupported)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Which drawing has the most doors?",
+        "Which drawing has the largest floor area?",
+        "Which plan has more windows?",
+        "Which drawing has no scale?",
+    ],
+)
+def test_which_drawing_has_the_most_is_a_comparison_not_a_count(text: str) -> None:
+    """A comparison between drawings (or "no scale") is not "which drawings show a X": refused on
+    one drawing as before, with the same reason; the chat compares each drawing's own count."""
+    assert PARSE(text) == Unsupported(reason="a breakdown or list is not one quantity")
