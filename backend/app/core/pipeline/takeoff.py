@@ -21,6 +21,7 @@ the entry does not matter.
 
 import math
 import re
+import statistics
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 
@@ -53,7 +54,7 @@ from app.core.pipeline.model import (
     QuantityUnit,
     ValueMark,
 )
-from app.core.pipeline.raster_scale import AREA_REFUSED
+from app.core.pipeline.raster_scale import AREA_REFUSED, outline_m2
 from app.core.pipeline.rules import (
     APARTMENT_AREA,
     AS_GIVEN,
@@ -255,7 +256,7 @@ def _add_sheet(
 ) -> None:
     """What the sheet draws, for the whole sheet and each storey. With a building model, the
     storeys' sums and space areas are the model's (`_add_model`), not the sheet's."""
-    scale = scale_estimate(drawing.scale) or disputed_scale(drawing)
+    scale = label_disputed(drawing) or scale_estimate(drawing.scale) or disputed_scale(drawing)
     sheet = _without_seen_through(counted, drawing)
     cut = frozenset(
         cls
@@ -795,6 +796,44 @@ _AREA_HOW = {
 
 def _percent(spread: float) -> str:
     return f"{round(100 * spread)}%"
+
+
+# The areas printed in the rooms' labels check the sheet's scale (area-root, QA R3-B6): at least
+# LABEL_SCALE_ROOMS of them, their median over their outlines more than LABEL_SCALE_RANGE off in
+# area. Pre-registered 2026-11-15 05:15 on the main run's 12 CubiCasa sheets with >= 3 printed
+# rooms and a scale: medians 0.92-1.19, none over 1.35, as none of those scales is off.
+LABEL_SCALE_RANGE = 1.35
+LABEL_SCALE_ROOMS = 3
+
+
+def label_disputed(drawing: Drawing) -> str | None:
+    """What an area or length rests on, in words a user reads, when the areas printed in the
+    sheet's rooms put its scale more than LABEL_SCALE_RANGE off (their median over the rooms'
+    outlines at that scale), naming both: one of the two is misread (T4: a printed ratio at a
+    camera's dpi came out 23x too small in area). None with fewer than LABEL_SCALE_ROOMS."""
+    m_per_unit = drawing.scale.m_per_unit
+    if m_per_unit is None:
+        return None
+    pages = {page.page: page for page in drawing.pages}
+    ratios = []
+    for room in drawing.rooms:
+        page = pages.get(room.page)
+        if room.area_source != "printed" or not room.area_m2 or page is None:
+            continue
+        outline = outline_m2(room, page, m_per_unit)
+        if outline:
+            ratios.append(room.area_m2 / outline)
+    if len(ratios) < LABEL_SCALE_ROOMS:
+        return None
+    median = statistics.median(ratios)
+    if 1 / LABEL_SCALE_RANGE <= median <= LABEL_SCALE_RANGE:
+        return None
+    way = "larger" if median > 1 else "smaller"
+    times = median if median > 1 else 1 / median
+    return (
+        f"measured at the sheet's scale ({mm_per_px(m_per_unit)}), but the areas printed in "
+        f"{len(ratios)} rooms make them about {times:.1f}x {way}, so one of the two is misread"
+    )
 
 
 def disputed_scale(drawing: Drawing) -> str | None:
