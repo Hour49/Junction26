@@ -21,6 +21,9 @@ type PageLoad =
   { state: 'loading' } | { state: 'error'; error: unknown } | { state: 'ready'; page: PageView };
 
 const NOTE = 'Proposed from the drawn geometry. Structure, services and permits are not checked.';
+// SERVICES_FOLLOW=on: the tabs above show what the change does to each service model
+const NOTE_FOLLOWED =
+  'Proposed from the drawn geometry; services followed through their models, as each tab shows. Structure and permits are not checked.';
 const SERVICES_NOTE =
   'Proposed from the services model in the IFC file. Structure, flow, pressure and permits are not checked.';
 
@@ -358,7 +361,9 @@ export function EditCard(props: {
             </ul>
           </>
         )}
-        <p className="en-small">{p.services_change ? SERVICES_NOTE : NOTE}</p>
+        <p className="en-small">
+          {p.services_change ? SERVICES_NOTE : p.services ? NOTE_FOLLOWED : NOTE}
+        </p>
         {p.state === 'proposed' ? (
           <div className="ag-decide">
             <button
