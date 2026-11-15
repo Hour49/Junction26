@@ -294,7 +294,9 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(area).toContainText('Methods disagree');
     await expect(area).toContainText(`22.40 m² by ${methodName('polygon_x_scale')}`);
     await expect(area).toContainText(`30.00 m² by ${methodName('printed_label')}`);
-    await expect(area.getByRole('button', { name: 'Mark 1: Küche, counted' })).toHaveCount(1);
+    await expect(
+      area.getByRole('button', { name: 'Mark 1: Küche, 30.00 m², counted' }),
+    ).toHaveCount(1);
     // EN-43: the newest turn is scrolled into view
     await expect(area).toBeInViewport({ ratio: 0.2 });
     await shot(page, testInfo, '08-area-conflict', offline);
@@ -453,7 +455,7 @@ test('GP-20: the service is down, then back', async ({ page }) => {
   await page.goto('/#/workspaces');
   const main = page.getByRole('main');
   await expect(main.getByText('internal error').first()).toBeVisible();
-  await expect(main.getByText(/code: internal/).first()).toBeVisible();
+  await expect(main.getByText(/code: internal/)).toHaveCount(0); // R2-C5: no raw code for a person
   await page.unroute('**/api/projects');
   await main.getByRole('button', { name: 'Retry' }).click();
   await expect(page.getByText('internal error')).toHaveCount(0);

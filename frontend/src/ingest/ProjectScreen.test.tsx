@@ -168,7 +168,7 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(error.code, { exact: false })).toBeNull(); // R2-C5: no raw code (shared ErrorView)
     expect(screen.getByRole('link', { name: 'Back to workspaces' }).getAttribute('href')).toBe(
       '#/workspaces',
     );
@@ -182,7 +182,7 @@ describe('ProjectScreen', () => {
     );
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(screen.getByText('network', { exact: false })).toBeTruthy();
+    expect(screen.getByText('cannot reach the server', { exact: false })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     await flush();
     expect(screen.getByRole('heading', { name: project.name })).toBeTruthy();

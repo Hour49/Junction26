@@ -12,11 +12,13 @@ import {
   phaseRuns,
   reasonLines,
   repeats,
+  saidByStage,
   sideBySide,
   stageSpans,
   stepRows,
   stepSpans,
   stepsOf,
+  untimed,
 } from './trace';
 
 const step = (over: Partial<StepTrace>): StepTrace => ({
@@ -315,5 +317,34 @@ describe('trace view v5', () => {
     expect(new Set(fills).size).toBe(5);
     // one phase at most in the dark accent family (read and store were --v-accent and --v-accent-strong)
     expect(fills.filter((f) => /--v-accent(-strong)?\)/.test(f))).toHaveLength(1);
+  });
+
+  it("AD-125 saidByStage: a step's did the stage's line already says, whole or as a part; not mid-sentence", () => {
+    // the real sample (#535, 2026-11-15): identify joins its steps, normalise ends with the page step's did
+    const photo =
+      'a photo of a drawing (1920x1080 px, camera EXIF (SONY DSC-T700)); triage: a floor plan (P(plan) 0.35)';
+    expect(
+      saidByStage('a photo of a drawing (1920x1080 px, camera EXIF (SONY DSC-T700))', photo),
+    ).toBe(true);
+    expect(saidByStage('a floor plan (P(plan) 0.35)', photo)).toBe(true);
+    const normalise =
+      'rectified by page flattening: 1691x1015 px; 1 page, page 1 is 1691 x 1015 px';
+    expect(saidByStage('1 page, page 1 is 1691 x 1015 px', normalise)).toBe(true);
+    expect(saidByStage('paper seen straight on: 1691x1015 px', normalise)).toBe(false);
+    expect(
+      saidByStage('1 page, page 1 is 841.89 x 1190.55 pt', '1 page, page 1 is 841.89 x 1190.55 pt'),
+    ).toBe(true);
+    // a short did inside a sentence is a coincidence, not a repeat
+    expect(saidByStage('1 plan', '0 elements, 26 rooms, 1 plan, no scale on the sheet')).toBe(
+      false,
+    );
+    expect(saidByStage('1 door', '11 doors; 2 rooms')).toBe(false);
+    expect(saidByStage('', 'anything')).toBe(false);
+  });
+
+  it('AD-125 untimed: a done step with 0 ms exactly was not timed; any time, or skipped, is', () => {
+    expect(untimed(step({ ms: 0 }))).toBe(true);
+    expect(untimed(step({ ms: 0.004 }))).toBe(false);
+    expect(untimed(step({ ms: 0, state: 'skipped' }))).toBe(false);
   });
 });

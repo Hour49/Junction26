@@ -7,7 +7,7 @@ when the parser maps it back to that row's key, so asking a suggestion is never 
 """
 
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from typing import NamedTuple
 
@@ -23,6 +23,7 @@ from app.core.answering.answer import (
     answer_question,
     counted_noun,
     noun_forms,
+    number_gaps,
     partial_text,
     printed_rooms,
     rooms_of_type,
@@ -220,13 +221,30 @@ class Known(NamedTuple):
     twins: dict[str, str]
 
 
-def known_of(drawing: Drawing, flags: Sequence[str], raster: bool) -> Known:
+def known_of(
+    drawing: Drawing, flags: Sequence[str], raster: bool, no_symbols: str | None = None
+) -> Known:
     """The drawing's takeoff (stages 9-10) as `ask` answers from it: the groups a flagged page's
-    reader did not read and the 0 counts the drawing does not say are left out."""
-    quantities, unread, unlocated = _flagged(known_quantities(drawing), drawing, flags, raster)
+    reader did not read, the symbols of a sure services sheet and the 0 counts the drawing does
+    not say are left out."""
+    quantities, unread, unlocated = _flagged(
+        known_quantities(drawing), drawing, flags, raster, no_symbols
+    )
     unsaid = _unsaid(quantities, drawing)
     kept = {key: found for key, found in quantities.items() if key not in unsaid}
     return Known(kept, unread, unlocated, unsaid, storey_twins(kept))
+
+
+def _counted(measure: str, drawing: Drawing) -> tuple[bool, list[str]]:
+    """For a partial total's sentence: whether it is a count of rooms, and then the room numbers
+    a reader skipped between the ones it found (QA round 3 R3-G3: 1, 4, 20, 28)."""
+    if measure != "count":
+        return False, []
+    numbers = (
+        room.attrs.get(key) for room in drawing.rooms if "reader" in room.attrs
+        for key in rule_pack.ROOM_NUMBERS
+    )  # fmt: skip
+    return True, number_gaps(n for n in numbers if isinstance(n, str))
 
 
 def ask(
@@ -251,6 +269,7 @@ def ask(
     room_words: RoomWords = no_room_words,
     facts: Callable[[], FactSheet | None] | None = None,
     known: Known | None = None,
+    no_symbols: str | None = None,
 ) -> Asked:
     """`confidence` rates a takeoff answer as the pipeline does (DECISIONS_CONFIDENCE); its raw
     score is on the answer line only, never in the proof (it is not a calibrated probability).
@@ -276,9 +295,11 @@ def ask(
     fact sheet, asked only when the takeoff, the schedules and the dev prior give nothing
     (answer_question): its answer is Low, never sure, marked by the facts' spots. `known`:
     `drawing`'s takeoff as `known_of` gives it for these `flags` and `raster`, when the caller has
-    it already (which_room's per-room questions)."""
+    it already (which_room's per-room questions). `no_symbols` (triage.symbols_refused): the
+    sheet-kind step is sure the sheet is a services plan, so its door, window and fixture counts
+    are refused with these words (R3-C3)."""
     if known is None:
-        known = known_of(drawing, flags, raster)
+        known = known_of(drawing, flags, raster, no_symbols)
     quantities, unread, unlocated, unsaid, twins = known
 
     def area_of(asked: str) -> Asked:  # one room's area, as this question would be answered
@@ -287,6 +308,7 @@ def ask(
             prior_families=prior_families, confidence=confidence, sure_at=sure_at, flags=flags,
             raster=raster, check=check, route=route, disputes=disputes, no_reader=no_reader,
             scorers=scorers, carbon_ladder=carbon_ladder, facts=facts, known=known,
+            no_symbols=no_symbols,
         )  # fmt: skip
 
     if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
@@ -343,7 +365,14 @@ def ask(
     refusal = None
     if answer.method not in (TAKEOFF, SCHEDULE, FACTS):
         code, words = _refusal(answer.method, parsed, query, drawing)
-        if isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
+        if (
+            isinstance(parsed, Query)
+            and query is not None
+            and no_symbols is not None
+            and _groups(query) <= SYMBOLS
+        ):
+            code, words = "not-in-drawing", _symbols_text(no_symbols)
+        elif isinstance(parsed, Query) and query is not None and _groups(query) <= unread:
             code, words = "no-reader", _unread_text(query, flags)
         elif query is not None and query in unlocated:
             code, words = "no-reader", _unlocated_text(unlocated[query], flags, drawing)
@@ -402,7 +431,7 @@ def ask(
         reason = held(shown, drawing)
         if reason is None and found is not None and found.partial is not None:
             reason = f"Please double-check the {shown.noun or shown.label}: " + partial_text(
-                found.partial
+                found.partial, *_counted(shown.measure, drawing)
             )
         family = parsed.family()
         score = score_of(
@@ -444,7 +473,11 @@ def ask(
                 level = Level(level="low", basis="unrated", text=MODEL_TYPES_LEVEL)
         if level is not None and found is not None and found.partial is not None:
             # a sum missing rooms is Low whatever its score, in its own words (partial totals)
-            said = "Low confidence: " + partial_text(found.partial) + ASK["low"]
+            said = (
+                "Low confidence: "
+                + partial_text(found.partial, *_counted(shown.measure, drawing))
+                + ASK["low"]
+            )
             level = Level(level="low", basis="held", text=said)
         if not sure and not (level is not None and level.level == "high"):
             disputed = disputes(drawing, shown)  # its own name: `found` keeps the row's partial
@@ -543,7 +576,11 @@ def _summed(parsed: object, answer: Answer) -> bool:
 
 
 def _flagged(
-    quantities: Mapping[str, Quantity], drawing: Drawing, flags: Sequence[str], raster: bool
+    quantities: Mapping[str, Quantity],
+    drawing: Drawing,
+    flags: Sequence[str],
+    raster: bool,
+    no_symbols: str | None = None,
 ) -> tuple[dict[str, Quantity], set[str], dict[str, Quantity]]:
     """On a page ingest flagged (a phone photo, a scan), a group its reader found nothing of
     (no element at all, no room at all) is unknown, not 0: its keys are left out and the group
@@ -565,6 +602,8 @@ def _flagged(
         empty.update(ELEMENT_CLASSES)
         if CARBON_FLAG in flags and drawing.read is not None:
             empty.difference_update(drawing.read)
+    if no_symbols is not None:
+        empty.update(SYMBOLS)  # a piping plan's tanks are not toilets (R3-C3)
     if (flags or raster) and not drawing.rooms:
         empty.add("room")
     if not flags and not empty:
@@ -606,6 +645,19 @@ def _groups(key: str) -> set[str]:
     """The groups a quantity key rests on: "area:room|indoor" -> {"room"}, "door+window" ->
     {"door", "window"}."""
     return {part.split(":", 1)[0] for part in parse_key(key)[1].split("+")}
+
+
+# Counted from a floor plan's symbols. On a sheet the sheet-kind step is sure is a services plan
+# (triage.symbols_refused) they are refused: T3, a piping plan, answered "6 toilets" from 1 WC
+# and 5 filter-separator tanks (Tudor's QA round 3, R3-C3). Rooms are still answered, flagged.
+SYMBOLS = frozenset({"door", "window", "toilet", "sink", "shower", "bathtub", "sauna_stove"})
+
+
+def _symbols_text(flag: str) -> str:
+    return (
+        f"{flag[:1].upper()}{flag[1:]}, so its symbols are not counted as doors, windows or "
+        'fixtures. If it is a floor plan, use "Read it as a floor plan" on its file.'
+    )
 
 
 def _unread_text(query: str, flags: Sequence[str]) -> str:
@@ -698,7 +750,7 @@ def which_room(
         else:
             asks, left = _extreme_asks(rooms, quantities, parser, largest=word != "smallest")
             if left or len(asks) < 2:
-                why = _left_why(left, asks)
+                why = _left_why(left, asks, rooms, drawing, word)
                 return _not_compared(f"I can't tell which room is the {word}: {why}.")
     else:
         return None
@@ -868,13 +920,50 @@ def _key(parser: QuestionParser, text: str) -> str | None:
     return parsed.key() if isinstance(parsed, Query) else None
 
 
-def _left_why(left: Sequence[Room], asks: Sequence[tuple[str, str]]) -> str:
+def _left_why(
+    left: Sequence[Room],
+    asks: Sequence[tuple[str, str]],
+    rooms: Sequence[Room],
+    drawing: Drawing,
+    word: str,
+) -> str:
+    """Why the rooms `left` (of `rooms`) can't be compared: the ones with no area, with the
+    drawing's note on why, and the rooms that share a printed name with one of them, whose
+    `word` ("largest", "smallest": as asked) is then unknown (R3-G6: not "no name or number");
+    the rest have no name to ask by."""
     if not left:
         return f"this drawing has {len(asks)} room{'' if len(asks) == 1 else 's'} to compare"
-    named = ", ".join(_shown(room) for room in left[:4])
-    if all(room.area_m2 is None for room in left):
-        return f"{len(left)} of its rooms ({named}) have no area measured"
-    return f"{len(left)} of its rooms ({named}) have no name or number to ask their area by"
+    unmeasured = [room for room in left if room.area_m2 is None]
+    if not unmeasured:
+        named = ", ".join(_shown(room) for room in left[:4])
+        return f"{len(left)} of its rooms ({named}) have no name or number to ask their area by"
+    shown = ", ".join(_shown(room) for room in unmeasured[:4])
+    one = len(unmeasured) == 1
+    why = f"{len(unmeasured)} of its rooms ({shown}) {'has' if one else 'have'} no area measured"
+    notes = [note for room in unmeasured[:2] if (note := _unmeasured_note(room, drawing))]
+    if notes:
+        why += f" ({'; '.join(notes)})"
+    printed = Counter(" ".join(room.label.split()) for room in rooms if room.label)
+    shared = list(dict.fromkeys(
+        " ".join(room.label.split()) for room in unmeasured
+        if room.label and printed[" ".join(room.label.split())] > 1
+    ))  # fmt: skip
+    for name in shared:
+        why += f", so the {word} of the {printed[name]} rooms printed {name} isn't known"
+    rest = [
+        room for room in left
+        if room.area_m2 is not None and " ".join((room.label or "").split()) not in shared
+    ]  # fmt: skip
+    if rest:
+        named = ", ".join(_shown(room) for room in rest[:4])
+        why += f"; {len(rest)} more ({named}) have no name or number to ask their area by"
+    return why
+
+
+def _unmeasured_note(room: Room, drawing: Drawing) -> str | None:
+    """The drawing's note on why `room` has no area ("room area: r3 not measured, <why>")."""
+    start = f"room area: {room.id} not measured, "
+    return next((note[len(start) :] for note in drawing.notes if note.startswith(start)), None)
 
 
 def _named(found: Asked, drawing: Drawing) -> str | None:
@@ -1228,6 +1317,23 @@ def _noun_refusal(noun: str, drawing: Drawing) -> str:
             "(doors, windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms). Rooms "
             f"on this drawing are printed {label}: ask \"How many rooms labelled '{label}' are "
             'there?"'
+        )
+    # R3-A4: rooms printed "Secondary Classroom" hold "classrooms": named with their counts, never
+    # denied (the noun is still not counted from them: vocab-nouns line 3)
+    inside = re.compile(rf"\b(?:{'|'.join(map(re.escape, sorted(forms)))})\b")
+    holding = Counter(
+        " ".join(r.label.split())
+        for r in drawing.rooms
+        if r.label and inside.search(normalised(r.label))
+    )
+    if holding:
+        shown = ", ".join(f"{label} ({n})" for label, n in holding.most_common(LABELS_LISTED))
+        label = holding.most_common(1)[0][0]
+        return (
+            f"I don't count {noun} by that word: they are not one of the things the readers count "
+            "(doors, windows, toilets, sinks, showers, bathtubs, sauna stoves and rooms). Rooms "
+            f'printed with it on this drawing: {shown}. Ask for each label, e.g. "How many rooms '
+            f"labelled '{label}' are there?\""
         )
     words = (
         f"I don't count {noun}: they are not one of the things the readers count (doors, "

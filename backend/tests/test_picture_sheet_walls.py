@@ -11,7 +11,13 @@ from app.core.services.register import Segment
 from tests.test_picture_walls import PLAN, PX_PER_M, px, sheet
 
 PLAN_SHEET = Sheet(drawing_id="plan", page=1, size_m=(40.0, 30.0), name="plan.pdf")
-PICTURE = Sheet(drawing_id="pic", page=1, name="heating.png", disciplines=("heating",))
+PICTURE = Sheet(  # its scale bar read: 30 px a metre on a 1000 x 700 px page
+    drawing_id="pic",
+    page=1,
+    name="heating.png",
+    disciplines=("heating",),
+    size_m=(1000 / PX_PER_M, 700 / PX_PER_M),
+)
 
 
 def with_schedule(rgb: np.ndarray) -> np.ndarray:
@@ -41,6 +47,16 @@ def test_a_picture_is_laid_over_its_plan_through_its_parts() -> None:
         x, y = px(corner)
         fx, fy = to_plan.apply((x / w, y / h))
         assert abs(fx * 40 - corner[0]) < 0.3 and abs(fy * 30 - corner[1]) < 0.3, (corner, how)
+
+
+def test_with_no_scale_bar_a_sheet_laid_only_by_its_part_is_refused() -> None:
+    """Review #590 SHOULD: the same picture without its scale bar read. Its whole page (title
+    block, schedule, frame) does not lay; its plan view does, but nothing checks that part's
+    size: refused, said why."""
+    image = with_schedule(sheet())
+    walls = by_walls([Segment(a=a, b=b) for a, b in PLAN], sheet_walls.reader(stored(image), {}))
+    got = walls(PLAN_SHEET, PICTURE.model_copy(update={"size_m": None}))
+    assert isinstance(got, str) and "the sheet has no scale and its whole page does not lay" in got
 
 
 def test_a_big_picture_is_read_shrunk_and_given_back_in_its_own_pixels() -> None:

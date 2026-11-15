@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawing, error, project, takeoff, trace } from '../api/fixtures';
 import type { FileTrace, ProjectView } from '../api';
-import { formatSize } from '../ingest/ingest';
+import { formatSize, nameParts } from '../ingest/ingest';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
@@ -572,6 +572,88 @@ describe('AdvancedIngest', () => {
     expect(text).toContain('5 drawings have none yet');
     await show({ ...p, drawings: project.drawings.slice(0, 2) });
     expect(document.body.textContent).toContain('1 drawing has none yet');
+  });
+
+  it("AD-125 Index: the log ends with the project's index steps, the live line says the latest", async () => {
+    const at = (k: number) => ({ at_ms: k, ms: 1, cost_usd: 0, found: {} });
+    const p: ProjectView = {
+      ...project,
+      files: project.files.map((f, i) =>
+        i === 0
+          ? { ...f, evidence: { indexed: false, why: 'a floor plan: it is read', cost_usd: 0 } }
+          : f,
+      ),
+      index_steps: [
+        { id: 'judge', label: 'Relevance judge', did: '0 files judged', state: 'done', ...at(0) },
+        {
+          id: 'describe',
+          label: 'Files for the evidence index',
+          did: '',
+          state: 'failed',
+          ...at(1),
+        },
+        {
+          id: 'evidence',
+          label: 'Evidence index',
+          did: 'the index is in step with the project',
+          state: 'done',
+          ...at(2),
+        },
+      ],
+    };
+    await show(p);
+    await pick(/^Index/);
+    const items = within(screen.getByRole('list', { name: 'Log' })).getAllByRole('listitem');
+    expect(items.map((li) => li.textContent)).toEqual([
+      `Index ${must(project.files[0]).path} a floor plan: it is read`,
+      'Relevance judge 0 files judged',
+      expect.stringMatching(/^Files for the evidence index ✕ Failed: no reason given$/),
+      'Evidence index the index is in step with the project',
+    ]);
+    expect(must(document.querySelector('.adv-live')).textContent).toBe(
+      'Evidence index: the index is in step with the project',
+    );
+  });
+
+  it('AD-125 a path in the live line, the log and Questions ready: folder muted with breaks after "/", name whole', async () => {
+    const path = 'plans/site1029/site1029_bldg2117_floor9641.pdf';
+    const p: ProjectView = {
+      ...project,
+      files: project.files.map((f, i) => (i === 0 ? { ...f, path } : f)),
+      drawings: project.drawings.map((d, i) => (i === 0 ? { ...d, file: path } : d)),
+    };
+    await show(p, { [TRACE]: traceSet(p.files.slice(0, 1).map(traceOf)) });
+    await pick(/^Takeoff/);
+    const live = must(document.querySelector('.adv-live'));
+    const log = screen.getByRole('list', { name: 'Log' });
+    const name = 'site1029_bldg2117_floor9641.pdf';
+    for (const [where, end] of [
+      [live, ':'],
+      [must(log.querySelector('li')), ''],
+    ] as const) {
+      expect(where.textContent).toContain(`${path}${end}`);
+      const folder = must(where.querySelector('.adv-folder'));
+      expect(folder.textContent).toBe('plans/site1029/');
+      expect(folder.querySelectorAll('wbr')).toHaveLength(1); // after the inner "/"; the name is its own box
+      const box = must(where.querySelector('.adv-name'));
+      expect(box.textContent).toBe(`${name}${end}`);
+      // after each "_" and ".", for a name wider than the line (AD-126)
+      expect(box.querySelectorAll('wbr')).toHaveLength(nameParts(name).length - 1);
+    }
+    // the Unpack file cards: the same parts
+    await pick(/^Unpack/);
+    const card = must(document.querySelector('.adv-strip .adv-path'));
+    expect(card.textContent).toBe(path);
+    expect(card.querySelector('[title]')?.getAttribute('title')).toBe(path);
+    expect(must(card.querySelector('.adv-folder')).textContent).toBe('plans/site1029/');
+    const cardName = must(card.querySelector('.adv-name'));
+    // the parts with a break between each: "site1029_", "bldg2117_", "floor9641.", "pdf" (AD-126)
+    expect(cardName.innerHTML).toBe(nameParts(name).join('<wbr>'));
+    await pick(/^Takeoff/);
+    // Takeoff's visual is "Questions ready to ask"
+    const ready = must(document.querySelector('.adv-ready .adv-path'));
+    expect(ready.textContent).toBe(`${path}:`);
+    expect(ready.querySelector('.adv-name')?.textContent).toBe(`${name}:`);
   });
 
   it('AV-21 takeoffs only once a step needs them; a failure shows Retry', async () => {

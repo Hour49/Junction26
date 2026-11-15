@@ -310,3 +310,53 @@ def test_picture_facts_imports_no_adapter_image_library_model_reader_or_settings
     source = path.read_text()
     assert forbidden_imports(source, "app.core.picture_facts") == []
     assert "ifcopenshell" not in source
+
+
+def test_a_radiator_named_with_its_valve_and_german_compound_valves_and_pumps() -> None:
+    from app.core.picture_facts import kind_of
+
+    def kind(label: str) -> str | None:
+        found = kind_of(label, None)
+        return found and found[0]
+
+    # Revit type names from a German services model (rwth-digitalhub): a radiator named with
+    # its valve's side is a radiator; valves and pumps are compound words
+    assert kind("Heizkörper Plan Ventil Unten:Rechts") == "space_heater"
+    assert kind("Schrägsitzventil DN 12 - 50 - Gewinde:ND 25") == "valve"
+    assert kind("Absperrventil allgemein - Flansch:Standard") == "valve"
+    assert kind("Doppelpumpe DN 32 - 100 - Flansch:DN 50") == "pump"
+    assert kind("RLT-Gerät Ventilatorkammer:Ventilatorkammer 1.0") == "fan"  # not a valve
+    # unchanged: a radiator's valve is a valve, and the plain names keep their kinds
+    assert kind("Radiator valve") == "valve"
+    assert kind("Heizkörperventil") == "valve"
+    assert kind("M_Radiator - Panel") == "space_heater"
+    assert kind("Supply air diffuser") == "air_terminal"
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Radiator lockshield valve",
+        "Radiator return valve",
+        "Radiator angle valve",
+        "Valve - Radiator",
+        "Valve Radiator Oventrop AV 9",
+        "HC_Valve_Radiator_MEPcontent_Oventrop_AV 9_Angle Pattern:DN 15",
+        "HC Valve Radiator MEPcontent Oventrop AV 9 Angle Pattern:DN 15",  # OCR'd, no underscores
+        "Heizkörper Ventil",
+        "Heizkörper-Ventil",
+        "Heizkörper Ventil Typ",
+        "Heizkörper-Thermostatventil",
+        "Radiatorventil",
+        "Patteriventtiili",
+        "Lämpöpatteri venttiili",
+    ],
+)
+def test_a_valve_named_with_its_radiator_is_a_valve(label: str) -> None:
+    found = kind_of(label, None)
+    assert found is not None and found[0] == "valve"
+
+
+def test_only_a_radiator_family_that_names_its_valve_position_is_a_radiator() -> None:
+    for label in ("Heizkörper Plan Ventil Unten:Rechts", "Heizkörper Kompakt Ventil Oben:Links"):
+        assert kind_of(label, None) == ("space_heater", "heating")

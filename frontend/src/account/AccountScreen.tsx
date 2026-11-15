@@ -239,7 +239,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
         </dl>
         {reviewError && (
           <p className="text-danger" role="alert">
-            Review not loaded: {reviewError.detail} ({reviewError.code}){' '}
+            Review not loaded: {reviewError.detail}{' '}
             <Button variant="secondary" size="pill" className="font-medium" onClick={review.retry}>
               Retry
             </Button>
@@ -247,7 +247,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
         )}
         {questionsError && (
           <p className="text-danger" role="alert">
-            Questions not loaded: {questionsError.detail} ({questionsError.code}){' '}
+            Questions not loaded: {questionsError.detail}{' '}
             <Button
               variant="secondary"
               size="pill"
@@ -286,7 +286,7 @@ function Panel({ summary }: { summary: ProjectSummary }) {
         </ol>
         {takeoffError && (
           <p className="text-danger" role="alert">
-            Sign-offs not loaded: {takeoffError.detail} ({takeoffError.code})
+            Sign-offs not loaded: {takeoffError.detail}
           </p>
         )}
       </>

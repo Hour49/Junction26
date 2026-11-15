@@ -151,7 +151,7 @@ describe('3D view on the file page', () => {
   it('M3-6 500 or a scene that cannot mount: the reason with Try again', async () => {
     const api = await open(reply(500, { detail: 'boom', code: 'internal' }));
     await press();
-    expect(screen.getByText('3D view unavailable: boom (internal)')).toBeTruthy();
+    expect(screen.getByText('3D view unavailable: boom')).toBeTruthy();
     cleanup();
     mount.mockRejectedValueOnce(new Error('this browser cannot draw 3D'));
     const api2 = await open('glTF');

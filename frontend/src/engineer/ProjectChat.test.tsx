@@ -323,6 +323,7 @@ it.each([500, 409])(
     const api = open(status);
     const turn = await ask('How many doors are there?');
     expect(await within(turn).findByText(/The question could not be answered/)).toBeTruthy();
+    expect(turn.textContent).not.toMatch(/code:/); // R3-L7
     fireEvent.click(within(turn).getByRole('button', { name: 'Try again' }));
     await within(turn).findByText(/The question could not be answered/);
     expect(posts(api)).toHaveLength(2);

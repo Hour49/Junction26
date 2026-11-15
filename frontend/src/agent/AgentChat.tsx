@@ -418,7 +418,6 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       {r.status === 'error' && (
         <div className="v-card en-error" role="alert">
           <p>The message could not be answered: {errorText(r.error).detail}</p>
-          <p className="en-small">code: {errorText(r.error).code}</p>
           <button
             type="button"
             className="en-chip v-press"
