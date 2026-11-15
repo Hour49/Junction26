@@ -34,7 +34,7 @@ from app.core.pipeline.ports import DrawingFiles, Extractor
 # Gemini rooms call decodes the page (a big sheet: 0.1-0.4 GB) and holds it until the reply
 DECISIONS_AHEAD = 8
 ROOMS_AHEAD = 3
-Paid = tuple[object, float]  # the result (or the exception raised), dollars
+Paid = tuple[object, cost.Carry]  # the result (or the exception raised), its costs
 
 
 class Ahead(Protocol):
@@ -57,13 +57,14 @@ class _Started[T]:
         self._guard = threading.Lock()
 
     def start(self, sheet: Sheet, call: Callable[[], T]) -> None:
+        carried = cost.Carry()
+
         def paid() -> Paid:
-            before = cost.mark()
             try:
-                found: object = call()
+                found: object = carried.run(call)
             except Exception as error:  # handed to the taker, raised there
                 found = error
-            return found, cost.since(before)
+            return found, carried
 
         future = self._pool.submit(paid)
         with self._guard:
@@ -74,8 +75,8 @@ class _Started[T]:
             future = self._started.pop(id(sheet), None)
         if future is None or future.cancel():  # none, or not started yet: ask it here
             return call()
-        found, usd = future.result()
-        cost.charge(usd)
+        found, carried = future.result()
+        carried.hand_back()  # its dollars and failed calls, on the reading's thread
         if isinstance(found, Exception):
             raise found
         return found  # type: ignore[return-value]  # what `call` returned
@@ -84,7 +85,7 @@ class _Started[T]:
         with self._guard:
             future = self._started.pop(id(sheet), None)
         if future is not None and not future.cancel():
-            cost.charge(future.result()[1])
+            future.result()[1].hand_back()
 
 
 class AheadDecisions:

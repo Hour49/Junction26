@@ -176,3 +176,28 @@ def test_without_a_reading_the_decisions_reader_asks_as_before() -> None:
     early = AheadDecisions(model, Files(), workers=1)
     assert early.read(b"x").note == "read x"
     assert model.asked == [b"x"]
+
+
+class NoAnswer(Model):
+    """A call that got no answer: counted on its own thread (`cost.fail`), as the clients do."""
+
+    def read(self, image: bytes) -> PageCounts:
+        cost.fail()
+        return super().read(image)
+
+
+@pytest.mark.parametrize("ends", ["taken", "settled"])
+def test_a_started_call_s_failed_calls_reach_the_reading_s_thread(ends: str) -> None:
+    model = NoAnswer(fail=True)
+    early = AheadDecisions(model, Files(), workers=1)
+    read = sheet()
+    early.start(FILE, read)
+    assert model.started.wait(10)  # running, so the reading uses it rather than asking again
+    before = cost.faults()
+    model.go.set()
+    if ends == "taken":
+        with early.reading(read), pytest.raises(DecisionsError):
+            early.read(b"a.png")
+    else:
+        early.settle(read)
+    assert cost.faults_since(before) == 1  # the reading is marked partial, not kept
