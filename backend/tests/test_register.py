@@ -1,9 +1,11 @@
 """register: a services sheet's wall lines laid over the plan's (rotation, scale, shift)."""
 
 import math
+import time
 
 import numpy as np
 
+from app.core.services import register as register_module
 from app.core.services.model import Point2
 from app.core.services.register import Place, Refusal, Segment, register
 
@@ -78,3 +80,44 @@ def test_too_few_walls_are_refused() -> None:
     out = register(plan, plan[:3])
     assert isinstance(out, Refusal)
     assert out.reason == "only 3 wall lines on the services sheet (6 needed)"
+
+
+def test_non_finite_lines_are_dropped_before_counting() -> None:
+    plan = floor(7)
+    bad = [Segment(a=(math.nan, 0.0), b=(1.0, 1.0)), Segment(a=(0.0, 0.0), b=(math.inf, 2.0))]
+    out = register(plan, [*plan[:4], *bad])
+    assert out == Refusal(reason="only 4 wall lines on the services sheet (6 needed)")
+    place = register([*plan, *bad], [*onto_sheet(plan, 0.0, 1.0, (0.0, 0.0)), *bad])
+    assert isinstance(place, Place), place
+
+
+def test_a_far_stray_line_is_fast_and_harmless() -> None:
+    plan = floor(7)
+    stray = Segment(a=(10_000.0, 10_000.0), b=(10_003.0, 10_000.0))
+    sheet = onto_sheet(plan, deg=93.0, scale=0.02, shift=(5.0, -3.0))
+    start = time.perf_counter()
+    place = register([*plan, Segment(a=(100.0, 100.0), b=(103.0, 100.0))], [*sheet, stray])
+    assert time.perf_counter() - start < 3.0
+    assert isinstance(place, Place), place
+    assert abs(place.scale / 0.02 - 1) < 0.01
+
+
+def test_many_walls_and_a_10_km_stray_take_under_3_s() -> None:
+    rng = np.random.default_rng(5)
+    plan = floor(7) + [
+        Segment(a=(x, y), b=(x + 1.0, y)) for x, y in rng.uniform(0, 14, (200, 2)).tolist()
+    ]
+    sheet = [*plan, Segment(a=(10_000.0, 0.0), b=(10_001.0, 0.0))]
+    start = time.perf_counter()
+    register(plan, sheet)
+    assert time.perf_counter() - start < 3.0
+
+
+def test_a_refined_scale_stays_in_the_searched_range() -> None:
+    """ICP left alone shrinks a pose on lines that match nothing (0.48x here) toward a point,
+    where every line would count as on a wall."""
+    rng = np.random.default_rng(4)
+    sheet = rng.uniform(0, 30, (12, 2, 2))
+    plan = np.array([[w.a, w.b] for w in floor(7)])
+    _, scale, _ = register_module._icp(plan, sheet, 0.0, 1.0, np.zeros(2), (0.9, 1.1))
+    assert 0.9 <= scale <= 1.1
