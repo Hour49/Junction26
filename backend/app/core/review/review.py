@@ -456,6 +456,37 @@ def storey_twins(found: Mapping[str, Quantity] | Mapping[str, Row]) -> dict[str,
     return twins
 
 
+def model_twins(found: Mapping[str, Quantity]) -> dict[str, str]:
+    """Each whole-model row ("door|model") that is its plain row ("door") under another key, with
+    the plain row's key: a building model asked on its own (an .ifc, no page) is keyed both ways
+    so a plain question resolves on it (takeoff._add_model), and the takeoff lists it once, on the
+    plain row, which takes its edits and sign-off (R4-B14). A model row that differs from its
+    plain row in anything (a sheet's drawn count) is its own row."""
+    twins: dict[str, str] = {}
+    for key, item in found.items():
+        measure, subject, scope = parse_key(key)
+        if not scope.model:
+            continue
+        plain = quantity_key(
+            measure, subject, **scope.model_copy(update={"model": False}).model_dump()
+        )
+        other = found.get(plain)
+        if other is not None and item.model_copy(update={"key": plain}) == other:
+            twins[key] = plain
+    return twins
+
+
+def takeoff_twins(found: Mapping[str, Quantity]) -> dict[str, str]:
+    """Each row whose edits and sign-off are another row's (`storey_twins`, `model_twins`), with
+    the key of the row that finally stands for it."""
+    twins = {**model_twins(found), **storey_twins(found)}
+    for key, target in list(twins.items()):
+        while target in twins:
+            target = twins[target]
+        twins[key] = target
+    return twins
+
+
 def with_twins(state: ReviewState, twins: Mapping[str, str]) -> ReviewState:
     """The state with each storey twin (`storey_twins`) taking its sheet row's edits, settled
     value and sign-off: the review lists the disagreement once, on the sheet's row, and what is
@@ -515,8 +546,9 @@ def with_rejected_items(state: ReviewState, quantities: Mapping[str, Quantity]) 
 
 def sheet_row(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:
     """The quantity an edit or sign-off of `key` is made on: a storey twin's sheet row
-    (`storey_twins`), so one disagreement has one decision; else `key`'s own."""
-    return quantity_of(quantities, storey_twins(quantities).get(key or "", key))
+    (`storey_twins`), so one disagreement has one decision, or a model file's plain row
+    (`model_twins`); else `key`'s own."""
+    return quantity_of(quantities, takeoff_twins(quantities).get(key or "", key))
 
 
 def quantity_of(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:

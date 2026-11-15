@@ -126,7 +126,7 @@ from app.core.review.review import (
     parse_key,
     pluralise,
     row,
-    storey_twins,
+    takeoff_twins,
     with_rejected_items,
     with_twins,
 )
@@ -213,7 +213,7 @@ class _Once:
 
 class Known(NamedTuple):
     """What `ask` looks a question up in: the drawing's takeoff after `_flagged` and `_unsaid`,
-    and its rows' storey twins."""
+    and its rows' twins (`takeoff_twins`: storey rows, a model file's model rows)."""
 
     quantities: dict[str, Quantity]
     unread: set[str]
@@ -233,7 +233,7 @@ def known_of(
     )
     unsaid = _unsaid(quantities, drawing)
     kept = {key: found for key, found in quantities.items() if key not in unsaid}
-    return Known(kept, unread, unlocated, unsaid, storey_twins(kept))
+    return Known(kept, unread, unlocated, unsaid, takeoff_twins(kept))
 
 
 def _counted(measure: str, drawing: Drawing) -> tuple[bool, list[str]]:
