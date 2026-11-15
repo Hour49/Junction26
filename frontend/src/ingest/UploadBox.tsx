@@ -35,6 +35,9 @@ const percent = (s: Sending) => (s.total > 0 ? Math.round((100 * s.sent) / s.tot
 /** What failed and where (Bogdan 2026-11-15): lost while sending, or refused by the server with its detail. */
 function failedLine(f: Failed): string {
   const name = f.file.name;
+  // 5xx: the server (or the proxy in front of it) failed, not the file
+  if (f.error instanceof ApiError && f.error.status >= 500)
+    return `The server could not take ${name} right now (${f.error.detail}). Retry in a moment.`;
   if (f.error instanceof ApiError && f.error.status > 0)
     return `The server refused ${name}: ${f.error.detail}`;
   if (f.error instanceof ApiError)
