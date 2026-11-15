@@ -95,6 +95,20 @@ def test_list_drawings_names_each_drawing_of_the_project(
     assert {"kind", "route", "state", "triage"} <= set(found[0])
 
 
+def test_list_drawings_says_what_the_pen_says_whether_an_edit_can_be_drawn(
+    store: PipelineStore, project: dict[str, Any]
+) -> None:
+    """Tudor R3-G10: on a scan the pen is off, yet the agent said "draw the area ... and ask me to
+    propose it". The agent reads the same check as the pen (plan_tools.not_drawable)."""
+    found = {d["drawing_id"]: d for d in call(store, "list_drawings")}
+    for drawing in project["drawings"]:
+        listed = found[drawing["drawing_id"]]
+        assert listed["editable"] is drawing["drawable"], drawing["file"]
+        assert listed.get("not_editable") == drawing["not_drawable_reason"], drawing["file"]
+    assert any(d["editable"] for d in found.values())
+    assert any(not d["editable"] and d["not_editable"] for d in found.values())
+
+
 def test_ask_drawings_is_the_project_ask_route(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
