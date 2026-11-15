@@ -710,6 +710,9 @@ run and tick it ("ran") after; a label no reader name covers gets its own chip.
 - IN-112: At 390 and 1440 the running, index and finished cards have no horizontal scroll; done on a phone the nine
   steps sit in two columns. Screenshots in the PR. [browser: e2e `ingest-steps-<width>.png`, `02-ingest-done.png`;
   the running and index states by a scratch script with the API mocked]
+- IN-113 (orchestrator, 390 check with 40 files): a file row's link shows the folder muted and the file name in
+  its own span that does not shrink, so a long path gives up its folder first and rows of one folder stay apart
+  ("…/Grundriss_OG4…", not "Planunterlagen/Archi…"); the link's name and `title` stay the full path. [component]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
