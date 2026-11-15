@@ -35,6 +35,6 @@ first for context.
 - Mark each finding: ADOPT NOW (fits before the 09:00 EET freeze, small), NEXT (worth doing after), or SKIP (why).
 
 ## Output
-Write ONLY your own file `docs/research/pdf-accuracy/<your-angle>.md` (in this worktree,
-`/home/ubuntu/Repo/J26-pdf-research`). Top: 5-line summary and a ranked table (finding, verdict, number,
+Write ONLY your own file `docs/research/pdf-accuracy/<your-angle>.md` (in this repo).
+Top: 5-line summary and a ranked table (finding, verdict, number,
 licence, effort). Then one section per finding. End: sources list. No commits, no board, don't edit other files.
