@@ -81,23 +81,28 @@ _KINDS: tuple[tuple[str, tuple[Discipline, ...], str], ...] = (
         r"diffuseur|bouche|grille d'air|diffusore|bocchetta|difusor|rejilla|õhujaotur|"
         r"sissepuhke|väljatõmbe",
     ),
-    (  # a radiator's valve, before the radiator: "Radiator valve", "Heizkörperventil"
+    (  # a radiator family named by its valve's position: "Heizkörper Plan Ventil Unten:Rechts"
+        "space_heater",
+        ("heating",),
+        r"heizk[öo]rper\b[^:]*\bventil\s+(?:unten|oben|seitlich|mitte|links|rechts)",
+    ),
+    (  # a radiator's valve: "Radiator valve", "Heizkörperventil"
         "valve",
         ("heating",),
         r"radiator valve|thermostatic valve|heizk[öo]rperventil|thermostatventil|"
         r"patteriventtiili|termostaattiventtiili|radiatorventil|radiatorkraan",
+    ),
+    (  # before the radiator too: "Radiator return valve", "Heizkörper Ventil"
+        "valve",
+        ("plumbing", "heating", "fire"),
+        r"valve|venttiili|ventil(?!at)|\w+ventil(?!at)|afsluiter|klep|vanne|"
+        r"robinet|valvola|válvula|ventiil",
     ),
     (
         "space_heater",
         ("heating",),
         r"radiator|heizk[öo]rper|lämpöpatteri|patteri|konvektor|convector|radiateur|"
         r"radiatore|radiador|radiaator|värmeelement",
-    ),
-    (
-        "valve",
-        ("plumbing", "heating", "fire"),
-        r"valve|venttiili|ventil(?!at)|\w+ventil(?!at)|afsluiter|klep|vanne|"
-        r"robinet|valvola|válvula|ventiil",
     ),
     (
         "fire_suppression_terminal",
