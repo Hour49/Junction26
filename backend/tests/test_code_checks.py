@@ -848,6 +848,14 @@ def test_a_door_drawn_twice_in_one_place_is_checked_once() -> None:
     assert statuses(found) == ["fail"]
 
 
+def test_doors_counted_with_no_position_are_not_twins() -> None:
+    """review-661 S1: each unlocated door carries its plan's box, so one box is not one door."""
+    plan_box = (0.0, 0.0, 1.0, 1.0)
+    doors = [element(n, "door", plan_box, attrs={"located": False}) for n in (1, 2, 3)]
+    found = check_rule(drawing(elements=doors), rule("door-width"))
+    assert statuses(found) == ["cannot_tell"] * 3
+
+
 def test_a_window_drawn_twice_in_one_place_counts_once_for_its_room() -> None:
     plan = drawing(
         rooms=[room(1)], elements=[element(1, "window", ON_WALL), element(2, "window", ON_WALL)]

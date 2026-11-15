@@ -507,10 +507,14 @@ def _window_hold(
 def _distinct(elements: Iterable[Element]) -> list[Element]:
     """The elements less the second and later drawn in exactly one place (class, page, box): a
     Swiss dwelling's PDF draws a door or window twice, once per side (R4-I2, site339 e25/e28).
-    The count keeps both, as the dataset's answers do; a check judges each place once."""
+    The count keeps both, as the dataset's answers do; a check judges each place once. An
+    unlocated element carries its plan's box, which is no place of its own, so it is always kept."""
     seen: set[tuple[str, int, Box]] = set()
     kept: list[Element] = []
     for element in elements:
+        if not _located(element):
+            kept.append(element)
+            continue
         key = (element.class_, element.page, element.box)
         if key not in seen:
             seen.add(key)
