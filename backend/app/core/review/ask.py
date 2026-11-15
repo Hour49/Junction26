@@ -698,7 +698,7 @@ def which_room(
         else:
             asks, left = _extreme_asks(rooms, quantities, parser, largest=word != "smallest")
             if left or len(asks) < 2:
-                why = _left_why(left, asks)
+                why = _left_why(left, asks, rooms, drawing)
                 return _not_compared(f"I can't tell which room is the {word}: {why}.")
     else:
         return None
@@ -868,13 +868,45 @@ def _key(parser: QuestionParser, text: str) -> str | None:
     return parsed.key() if isinstance(parsed, Query) else None
 
 
-def _left_why(left: Sequence[Room], asks: Sequence[tuple[str, str]]) -> str:
+def _left_why(
+    left: Sequence[Room], asks: Sequence[tuple[str, str]], rooms: Sequence[Room], drawing: Drawing
+) -> str:
+    """Why the rooms `left` (of `rooms`) can't be compared: the ones with no area, with the
+    drawing's note on why, and the rooms that share a printed name with one of them, whose
+    largest is then unknown (R3-G6: not "no name or number"); the rest have no name to ask by."""
     if not left:
         return f"this drawing has {len(asks)} room{'' if len(asks) == 1 else 's'} to compare"
-    named = ", ".join(_shown(room) for room in left[:4])
-    if all(room.area_m2 is None for room in left):
-        return f"{len(left)} of its rooms ({named}) have no area measured"
-    return f"{len(left)} of its rooms ({named}) have no name or number to ask their area by"
+    unmeasured = [room for room in left if room.area_m2 is None]
+    if not unmeasured:
+        named = ", ".join(_shown(room) for room in left[:4])
+        return f"{len(left)} of its rooms ({named}) have no name or number to ask their area by"
+    shown = ", ".join(_shown(room) for room in unmeasured[:4])
+    one = len(unmeasured) == 1
+    why = f"{len(unmeasured)} of its rooms ({shown}) {'has' if one else 'have'} no area measured"
+    notes = [note for room in unmeasured[:2] if (note := _unmeasured_note(room, drawing))]
+    if notes:
+        why += f" ({'; '.join(notes)})"
+    printed = Counter(" ".join(room.label.split()) for room in rooms if room.label)
+    shared = list(dict.fromkeys(
+        " ".join(room.label.split()) for room in unmeasured
+        if room.label and printed[" ".join(room.label.split())] > 1
+    ))  # fmt: skip
+    for name in shared:
+        why += f", so the largest of the {printed[name]} rooms printed {name} isn't known"
+    rest = [
+        room for room in left
+        if room.area_m2 is not None and " ".join((room.label or "").split()) not in shared
+    ]  # fmt: skip
+    if rest:
+        named = ", ".join(_shown(room) for room in rest[:4])
+        why += f"; {len(rest)} more ({named}) have no name or number to ask their area by"
+    return why
+
+
+def _unmeasured_note(room: Room, drawing: Drawing) -> str | None:
+    """The drawing's note on why `room` has no area ("room area: r3 not measured, <why>")."""
+    start = f"room area: {room.id} not measured, "
+    return next((note[len(start) :] for note in drawing.notes if note.startswith(start)), None)
 
 
 def _named(found: Asked, drawing: Drawing) -> str | None:
