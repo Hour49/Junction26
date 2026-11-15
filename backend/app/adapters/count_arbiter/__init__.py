@@ -48,6 +48,8 @@ from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor
 from app.core.pipeline.steps import Span, found_of, found_words, starting, timed
 
+# The pick's step label: what L1 is in words, not its name (QA R4, detail's audit)
+PICK = "Count arbiter (a page-level count model)"
 ADDED: Mapping[str, ElementClass] = {
     "door": "door",
     "window": "window",
@@ -196,7 +198,7 @@ class ArbiterCountExtractor:
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         found, by_base = timed(lambda: self._base.extract(source, sheet))
         second, by_second = timed(lambda: self._second.extract(source, sheet))
-        starting("pick", "Count arbiter (L1 page counts)")
+        starting("pick", PICK)
         arbitrated, by_arbiter = timed(lambda: self._arbitrate(source, found, second))
         steps = (
             *found.steps,
@@ -205,7 +207,7 @@ class ArbiterCountExtractor:
             _step("second", "Symbol detector (arbiter second read)", by_second, second),
             StepTrace(
                 id="pick",
-                label="Count arbiter (L1 page counts)",
+                label=PICK,
                 did=arbitrated.notes[-1].removeprefix("arbiter t1: "),
                 at_ms=by_arbiter.at_ms,
                 ms=by_arbiter.ms,

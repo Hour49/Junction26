@@ -227,7 +227,7 @@ class CompositeRasterExtractor:
     ) -> StepTrace:
         """One source's step: what it was read for, what it found of that, its time and cost."""
         parts = [part for part, by in self.parts().items() if by == name]
-        checks = [check for check, by in self._double_check.items() if by.name == name]
+        checks = self._check_numbers(name)
         step_id, label = self._label(name)
         rooms = len(got.rooms) if "rooms" in parts and _looked_for(got.read, "room") else None
         plans = len(got.plans) if "plans" in parts else None
@@ -268,8 +268,18 @@ class CompositeRasterExtractor:
         if name in self.parts().values():
             return step_id, label
         checks = [check for check, by in self._double_check.items() if by.name == name]
-        named = ", ".join(checks)
-        return f"double_check:{named}", f"Double-check reader {named}: {label}"
+        number = ", ".join(self._check_numbers(name))
+        return f"double_check:{', '.join(checks)}", f"Double-check reader {number}: {label}"
+
+    def _check_numbers(self, name: str) -> list[str]:
+        """The double-check readers that read with the source `name`, as the trace words them: by
+        their place in DOUBLE_CHECK_READERS from 1, not by their config names ("l1", "m1"), which
+        stay in the step id (QA R4, detail's audit)."""
+        return [
+            str(number)
+            for number, by in enumerate(self._double_check.values(), start=1)
+            if by.name == name
+        ]
 
     def _components(self) -> list[Component]:
         """Every source this composite reads a sheet with, the parts' first."""

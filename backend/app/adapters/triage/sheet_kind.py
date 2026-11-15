@@ -429,12 +429,17 @@ class GeminiSheetKindClient:
             raise GeminiError("the answer is not JSON") from None
 
 
+# What a trace calls this reader; the model id and prompt version stay in `Sheet.model` and the
+# cache file's name, out of the words on screen (QA R4, detail's audit)
+SAID = "Gemini sheet kind"
+
+
 @dataclass(frozen=True)
 class SheetReply:
     form: dict[str, Any]
     usd: float  # 0 from the cache
     model: str
-    said: str  # "gemini-4-carbon, sheet-kind-1" (+ ", cached")
+    said: str  # the method in words: "Gemini sheet kind" (+ " (cached reply)"), no model id
     contract: Contract = field(default=RULES, repr=False)
 
 
@@ -452,11 +457,10 @@ class SheetKindReader:
         name = f"sheetkind-{digest}-{contract.sha[:12]}-{self._model.model}.json"
         path = self._cache / re.sub(r"[^A-Za-z0-9.-]", "_", name)
         model = self._model.model
-        said = f"{model}, {contract.version}"
         if path.is_file():
             try:
                 form = form_of(json.loads(path.read_text()), contract)
-                return SheetReply(form, 0.0, model, f"{said}, cached", contract)
+                return SheetReply(form, 0.0, model, f"{SAID} (cached reply)", contract)
             except (OSError, ValueError, GeminiError) as error:
                 log.warning("the cached reply %s could not be read (%s), so it is asked again",
                             path.name, error)  # fmt: skip
@@ -475,7 +479,7 @@ class SheetKindReader:
         except GeminiError as error:
             return Unavailable(note=f"{UNAVAILABLE}: {error}")
         write_whole(path, json.dumps(answer, ensure_ascii=False))
-        return SheetReply(form, usd, model, said, contract)
+        return SheetReply(form, usd, model, SAID, contract)
 
 
 def sheet_of(
@@ -537,7 +541,7 @@ class SheetKindClassifier:
         form = found.form
         sheet = sheet_of(found, image, self._cut, self._set_aside, probed.kind == "photo_plan")
         decision = sheet.decision
-        method = f"Gemini sheet kind ({found.said})"
+        method = found.said
         if isinstance(before, Classified):
             method = f"{before.method}; {method}"
         elif isinstance(before, Unavailable):

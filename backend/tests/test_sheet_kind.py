@@ -233,7 +233,7 @@ def test_an_mep_plan_is_set_aside_with_its_kind_title_and_number_and_no_register
     assert (found.class_, found.register_, model.calls) == ("other_drawing", None, 1)
     assert found.p_plan == pytest.approx(0.02)  # 1 - confidence: the model says no plan
     assert found.cost_usd == pytest.approx(0.0128)
-    assert found.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
+    assert found.method == "Gemini sheet kind"  # no model id or prompt version on screen
     assert found.sheet is not None
     assert (found.sheet.decision, found.sheet.title, found.sheet.sheet_number) == (
         "set_aside",
@@ -266,7 +266,7 @@ def test_a_doubt_is_read_keeps_the_inner_register_and_its_answers_say_so(tmp_pat
     )
     assert isinstance(found, Classified)
     assert (found.class_, found.register_) == ("floor_plan", register)
-    assert found.method == "fake classifier; Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
+    assert found.method == "fake classifier; Gemini sheet kind"
     triage = triage_of(found)
     assert sheet_doubt(triage) is None  # a non-plan kind: flagged instead, with its kind
     assert sheet_flag(triage) == (
@@ -336,7 +336,8 @@ def test_a_cached_reply_makes_no_call_and_costs_nothing(tmp_path: Path) -> None:
     again = classifier(tmp_path, model).classify(image, PNG_PROBED)
     assert isinstance(first, Classified) and isinstance(again, Classified)
     assert (model.calls, again.cost_usd, again.class_) == (1, 0.0, "other_drawing")
-    assert again.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-2, cached)"
+    assert again.method == "Gemini sheet kind (cached reply)"
+    assert again.sheet is not None and again.sheet.model == "gemini-4-carbon"  # kept as data
     cached.write_text("{")  # a cache file that does not parse is a miss
     classifier(tmp_path, model).classify(image, PNG_PROBED)
     assert model.calls == 2

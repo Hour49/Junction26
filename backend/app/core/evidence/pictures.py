@@ -72,7 +72,7 @@ def picture_evidence(
         {
             "class": "not_drawing" if sheet.kind in NOT_DRAWING else "other_drawing",
             "p_plan": 1 - sheet.confidence,
-            "method": f"Gemini sheet kind ({found.said})",
+            "method": found.said,
             "cost_usd": found.usd,
             "sheet": sheet,
         }
@@ -85,7 +85,7 @@ def picture_evidence(
         indexed=True,
         how="described",
         kind=sheet.kind,
-        why=f"not a floor plan: {sheet.kind_words} (Gemini sheet kind, {found.said})",
+        why=f"not a floor plan: {sheet.kind_words} ({found.said})",
         sheet=sheet,
         description=described,
         cost_usd=found.usd + described.cost_usd,

@@ -31,7 +31,7 @@ LISTED: frozenset[ContentKind] = frozenset(
     {"dwg", "office", "archive", "pdf_encrypted", "ifc", "unknown"}
 )
 IFC_REASON = "a building model, read by the takeoff"
-CAD = "a CAD file: no kind decision for it yet"
+CAD = "a CAD drawing: the evidence index does not read DXF or SVG files"
 TEXT_MODEL = "no model: the file's own text"
 LISTED_MODEL = "no model: file name and type only"
 

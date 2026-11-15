@@ -59,6 +59,8 @@ def question() -> dict[str, Any]:
     return {KEY: {"type": "choice", "instructions": INSTRUCTIONS, "criteria": dict(KINDS)}}
 
 
+# What a trace calls this signal: the model id stays in the cache file's name (QA R4)
+SAID = "Gemini Decisions"
 QUESTION_SHA = hashlib.sha256(json.dumps(question(), sort_keys=True).encode()).hexdigest()
 
 
@@ -93,7 +95,7 @@ class KindSignal:
         """One readable trace line."""
         top = self.kind
         flag = ", photo of a plan" if self.photo else ""
-        seen = f"sheet kind {top} ({self.probs.get(top, 0.0):.2f})"
+        seen = f"sheet kind {top.replace('_', ' ')} ({self.probs.get(top, 0.0):.2f})"
         return f"{seen}, P(plan drawn) {self.p_plan:.2f}{flag}; {self.note}"
 
 
@@ -157,7 +159,7 @@ class KindReader:
         path = None if self._cache is None else self._cache / f"{name}.json"
         try:
             if path is not None and path.is_file():
-                return KindSignal(parse(json.loads(path.read_text())), f"{self._model} cached")
+                return KindSignal(parse(json.loads(path.read_text())), f"{SAID} (cached reply)")
             start = time.monotonic()
             reply = self._decider.decide(request_body(page_png(data), self._decider.model))
             probs = parse(reply)  # a reply that does not parse is not cached
@@ -165,8 +167,4 @@ class KindReader:
             return KindUnavailable(f"{UNAVAILABLE}: {error}")
         if path is not None:
             write_whole(path, json.dumps(reply))
-        return KindSignal(probs, f"{self._model} in {time.monotonic() - start:.1f} s")
-
-    @property
-    def _model(self) -> str:
-        return self._decider.model
+        return KindSignal(probs, f"{SAID} in {time.monotonic() - start:.1f} s")

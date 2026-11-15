@@ -1964,7 +1964,7 @@ before, and is also described.
   included), `not described: ...` (`no description model is set up` without `TRIAGE_DESCRIBER`), `the evidence
   step failed: ...`, `searched by its own text: 3 pages, 2140 characters` (`, cut at 200,000 characters`; for a
   PDF whose drawing is not a source, `; its drawing is not a source (...)`), `listed by name only: <why>`, `a CAD
-  file: no kind decision for it yet` (DXF, SVG), `no text to index: no page holds text`.
+  drawing: the evidence index does not read DXF or SVG files`, `no text to index: no page holds text`.
 - `sheet`: the kind reply, the same object as `triage.sheet`; null when not asked. `description`: the same
   object as `triage.description` when indexed; for `text` and `listed` it is made by rule, no model: `subject` the
   file name in words, `text` the first 300 characters (or the "not read" sentence), `model` `no model: ...`.

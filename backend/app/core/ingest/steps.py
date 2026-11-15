@@ -118,7 +118,10 @@ def running(step_id: str, label: str, at_ms: float) -> StepTrace:
 
 
 def judge_step(files: Sequence[FileStatus], span: Span) -> StepTrace:
-    """The relevance judge over the files triage set aside (the project's last phase)."""
+    """The relevance judge over the files triage set aside (the project's last phase). A file
+    set aside by anything else (a CAD file with no sheet of its own, a failed read, a second
+    copy) is not one, and the step says so, so "0 files judged" beside a set-aside file reads true
+    (detail's audit: cad/detail.dxf)."""
     judged = [f for f in files if f.triage is not None and f.triage.relevance is not None]
     verdicts: dict[str, int] = {}
     for file in judged:
@@ -126,16 +129,36 @@ def judge_step(files: Sequence[FileStatus], span: Span) -> StepTrace:
         verdict = file.triage.relevance.verdict
         verdicts[verdict] = verdicts.get(verdict, 0) + 1
     said = ", ".join(f"{n} {verdict}" for verdict, n in sorted(verdicts.items()))
+    did = f"{count(len(judged), 'file')} judged" + (f": {said}" if said else "")
+    others = [f.path for f in files if f.state == "set_aside" and not _triage_set_aside(f)]
+    if len(others) == 1:
+        did += f"; {others[0]} is set aside, but not by triage, so the judge does not weigh it"
+    elif others:
+        shown = ", ".join(others[:MAX_NAMED]) + (
+            f" and {len(others) - MAX_NAMED} more" if len(others) > MAX_NAMED else ""
+        )
+        did += (
+            f"; {len(others)} files are set aside, but not by triage, so the judge does not "
+            f"weigh them: {shown}"
+        )
     return StepTrace(
         id="judge",
         label=JUDGE,
-        did=f"{count(len(judged), 'file')} judged" + (f": {said}" if said else ""),
+        did=did,
         at_ms=span.at_ms,
         ms=span.ms,
         cost_usd=span.cost_usd,
         state="failed" if span.faults else "done",
         found=verdicts,
     )
+
+
+MAX_NAMED = 3  # set-aside files the judge step names before "and N more"
+
+
+def _triage_set_aside(file: FileStatus) -> bool:
+    """Whether triage called the file no floor plan: the files the judge weighs (`to_judge`)."""
+    return file.triage is not None and file.triage.class_ != "floor_plan"
 
 
 def describe_step(files: Sequence[FileStatus], span: Span) -> StepTrace:

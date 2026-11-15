@@ -22,6 +22,7 @@ from app.core.ingest.model import (
     ProjectContext,
     ReadAsPlan,
     Relevance,
+    Sheet,
     Triage,
     TriageClass,
     Unavailable,
@@ -39,7 +40,10 @@ CLASS_WORDS: dict[TriageClass, str] = {
 }
 NO_PLAN = "no floor plan in the project to compare with"
 # Triage.note: why `description` or `relevance` is null, in plain words (decision 0010)
-NOTE_PLAN = "a floor plan: it is read, so it is not described or judged"
+# Triage's own step only: the evidence index may still describe the file, by its own sheet-kind
+# call (EVIDENCE_SCOPE, app/core/evidence), so the note never says it is not described (detail's
+# audit: site.jpg read anyway, then described for the index under "it is not described")
+NOTE_PLAN = "read as a floor plan, so triage does not describe or judge it"
 NOTE_NO_DESCRIBER = "not described: no description model is set up, so it is not judged"
 # the same file once a judge that reads no description judged it
 NOTE_NO_DESCRIBER_JUDGED = "not described: no description model is set up"
@@ -160,7 +164,8 @@ def triaged(
     classified = steps.classifier.classify(data, probed)
     if isinstance(classified, Unavailable):
         return Triaged(None, f"triage not available: {classified.note}; read as today")
-    said = f"triage: {_how(classified.class_, classified.p_plan, classified.method)}"
+    how = _how(classified.class_, classified.p_plan, classified.method, classified.sheet)
+    said = f"triage: {how}"
     description: Description | None = None
     if classified.class_ == "floor_plan":
         note = NOTE_PLAN
@@ -172,7 +177,7 @@ def triaged(
             note = f"not described: {found.note}"
         else:
             description, note = found, NOTE_RUNNING
-            said += f"; described as {found.subject} ({found.model})"
+            said += f"; described as {found.subject}"  # the model id is `description.model`
     if description is None and note != NOTE_PLAN:
         said += f"; {note}"
     triage = Triage.model_validate(
@@ -314,8 +319,19 @@ def doubted_not_plan(triage: Triage) -> bool:
     return sheet is not None and sheet.decision == "doubt" and sheet.kind not in SHEET_PLAN_KINDS
 
 
-def _how(found: TriageClass, p_plan: float, method: str) -> str:
-    return f"{CLASS_WORDS[found]} (P(plan) {p_plan:.2f}, {method})"
+def _how(found: TriageClass, p_plan: float, method: str, sheet: Sheet | None = None) -> str:
+    """Triage's call in words. A sheet the sheet kind doubts is read as a plan and flagged, so it
+    is not headlined "a floor plan": the line says what decided it (detail's audit: site.jpg,
+    "a floor plan (P(plan) 0.00, ...)" for a sheet the model called not a drawing)."""
+    words = CLASS_WORDS[found]
+    if found == "floor_plan" and sheet is not None and sheet.decision == "doubt":
+        why = (
+            "the sheet kind is unsure"
+            if sheet.kind == "architectural_floor_plan"
+            else f"the sheet kind calls it {sheet.kind_words}"
+        )
+        words = f"read as a floor plan, but flagged: {why}"
+    return f"{words} (P(plan) {p_plan:.2f}, {method})"
 
 
 def called_not_plan(file: FileStatus) -> bool:
