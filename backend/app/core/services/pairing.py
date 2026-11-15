@@ -20,8 +20,11 @@ from app.core.services.register import Place, Segment, register
 # wall-line fit (rotation and scale, Madalina's side) plugs in here.
 Register = Callable[[Sheet, Sheet], tuple[Affine, str] | str]
 
-# A sheet's wall lines in its own units (pixels) and its page's size in them, or why none.
-SheetWalls = Callable[[Sheet], tuple[Sequence[Segment], Point2] | str]
+# A part of a sheet (x0, y0, x1, y1 in its units, pixels) and its wall lines in the part's own
+# units (from its corner): the whole page, or a plan view the finder cut out (plan_view.py).
+Crop = tuple[tuple[float, float, float, float], Sequence[Segment]]
+# A sheet's parts with their wall lines and its page's size in its units, or why none.
+SheetWalls = Callable[[Sheet], tuple[Sequence[Crop], Point2] | str]
 
 SCORE_BOTH, SCORE_PAGE, SCORE_GEOMETRY = 0.9, 0.7, 0.6
 FACES_M = (0.03, 0.6)  # two parallel faces of the wall mass this far apart are one wall
@@ -29,6 +32,8 @@ FACE_MIN_M = 0.3  # shorter faces (door reveals, wall ends) give no wall line
 PARALLEL_DEG = 3.0
 SCALE_SLACK = 0.05  # a sheet's own scale and the walls' fitted one further apart are named
 SAME_SIZE = 0.02  # two sheets this close in metres are taken to share their frame
+CROPS_AGREE = (2.0, 0.02)  # two crops' lays agree within this turn (deg) and share of the plan
+CROPS_MARGIN = 1.3  # ... else the best must match this many times the other's wall lines
 
 # Floor words -> one key per floor ("0" ground, "1" first upper, "-1" basement, "roof").
 # shortcut: one numbering for every set (Finnish "1. krs" is the ground floor, German "EG" is 0);
@@ -80,8 +85,10 @@ def by_room_names(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
 
 
 def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register:
-    """The wall-line register (`register`): the sheet's lines laid on the plan's walls (metres),
-    the result as a map of page fractions with `register`'s words."""
+    """The wall-line register (`register`): each part of the sheet's lines laid on the plan's
+    walls (metres), the part's corner added back; the best lay as a map of page fractions with
+    `register`'s words. Two parts that lay the sheet two ways with no clear winner are refused
+    (twin views), as is a cut-out part laid off the sheet's own scale (it has no page to fill)."""
 
     def laid(plan: Sheet, sheet: Sheet) -> tuple[Affine, str] | str:
         if plan.size_m is None:
@@ -89,21 +96,68 @@ def by_walls(plan_walls: Sequence[Segment], sheet_walls: SheetWalls) -> Register
         found = sheet_walls(sheet)
         if isinstance(found, str):
             return found
-        lines, size = found
-        placed = register(plan_walls, lines)
-        if not isinstance(placed, Place):
-            return placed.reason
+        crops, size = found
+        places: list[tuple[Place, bool]] = []
+        why: list[str] = []
+        for box, lines in crops:
+            got = register(plan_walls, lines)
+            if isinstance(got, Place):
+                whole = box == (0.0, 0.0, size[0], size[1])
+                places.append((_from_corner(got, box[:2]), whole))
+            else:
+                why.append(got.reason)
+        if not places:
+            return "; ".join(dict.fromkeys(why))
+        placed, whole = max(places, key=lambda p: p[0].inliers)
+        for other, _ in places:
+            if (
+                other is not placed
+                and not _agree(placed, other, size, plan.size_m)
+                and placed.inliers < CROPS_MARGIN * other.inliers
+            ):
+                return (
+                    f"two parts of the sheet lay it two ways ({placed.inliers} and "
+                    f"{other.inliers} wall lines match): which view is the plan is a guess"
+                )
         how = placed.reason
         if sheet.size_m is not None:  # its own scale (a scale bar): say when the walls disagree
             bar = sheet.size_m[0] / size[0]
             if abs(placed.scale / bar - 1) > SCALE_SLACK:
-                how += (
-                    f"; its scale says {bar * 1000:.1f} mm a pixel, the walls "
-                    f"{placed.scale * 1000:.1f} mm: laid by the walls"
+                said = (
+                    f"its scale says {bar * 1000:.1f} mm a pixel, the walls "
+                    f"{placed.scale * 1000:.1f} mm"
                 )
+                if not whole:
+                    return f"a part of the sheet matches the walls, but {said}: not laid"
+                how += f"; {said}: laid by the walls"
         return _fractions(placed, size, plan.size_m), how
 
     return laid
+
+
+def _from_corner(placed: Place, corner: tuple[float, float]) -> Place:
+    """`placed` for the page's units, from a crop's whose corner is `corner`: p = sR(u - o) + t."""
+    t = math.radians(placed.rotation_deg)
+    s, (ox, oy) = placed.scale, corner
+    x = placed.shift[0] - s * (math.cos(t) * ox - math.sin(t) * oy)
+    y = placed.shift[1] - s * (math.sin(t) * ox + math.cos(t) * oy)
+    return placed.model_copy(update={"shift": (x, y)})
+
+
+def _agree(a: Place, b: Place, size: Point2, plan_m: Point2) -> bool:
+    """Whether two lays put the sheet's middle at the same spot of the plan, turned alike."""
+    turn = abs((a.rotation_deg - b.rotation_deg + 180.0) % 360.0 - 180.0)
+    middle = (size[0] / 2, size[1] / 2)
+    return turn <= CROPS_AGREE[0] and math.dist(_lay(a, middle), _lay(b, middle)) <= CROPS_AGREE[
+        1
+    ] * max(plan_m)
+
+
+def _lay(placed: Place, q: Point2) -> Point2:
+    t = math.radians(placed.rotation_deg)
+    x = placed.scale * (math.cos(t) * q[0] - math.sin(t) * q[1]) + placed.shift[0]
+    y = placed.scale * (math.sin(t) * q[0] + math.cos(t) * q[1]) + placed.shift[1]
+    return (x, y)
 
 
 def either(*registers: Register) -> Register:

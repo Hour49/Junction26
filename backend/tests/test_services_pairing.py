@@ -157,6 +157,7 @@ WALLS_M = (
     ((4, 0), (4, 8)), ((4, 5), (10, 5)), ((7, 5), (7, 8)), ((0, 3), (2, 3)),
 )  # fmt: skip
 PAGE_PX = (500.0, 600.0)
+WHOLE = (0.0, 0.0, 500.0, 600.0)  # the whole page as the sheet-walls reader's crop
 
 
 def on_sheet(p: tuple[float, float]) -> tuple[float, float]:
@@ -178,7 +179,7 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
     plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
     picture = sheet(name="scan.png", rooms=(), size_m=None)
     drawn = segments((on_sheet(a), on_sheet(b)) for a, b in WALLS_M)
-    walls = by_walls(segments(WALLS_M), lambda _: (drawn, PAGE_PX))
+    walls = by_walls(segments(WALLS_M), lambda _: ([(WHOLE, drawn)], PAGE_PX))
     laid = walls(plan, picture)
     assert not isinstance(laid, str), laid
     to_plan, how = laid
@@ -199,6 +200,78 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
     blind = by_walls(segments(WALLS_M), lambda _: "no wall lines were read on the sheet")
     [found] = pair(plan, [picture], register=either(by_room_names, blind))
     assert found == ("the services picture has no scale; no wall lines were read on the sheet")
+
+
+# WALLS_M with a few more rooms: 8 lines are too few for a crop's own frame (another quarter
+# turn reaches 80% there, inside register's margin)
+RICH = (
+    *WALLS_M,
+    ((1, 6), (3, 6)), ((8, 1), (8, 3)), ((2, 0), (2, 1.5)), ((5.5, 6.5), (6.5, 6.5)),
+    ((4, 2), (6, 2)), ((8.5, 5), (8.5, 6.5)),
+)  # fmt: skip
+
+
+def cropped(origin: tuple[float, float], lines: list[Segment]) -> list[Segment]:
+    """Lines in a crop's own pixels: the page's less the crop's corner."""
+    ox, oy = origin
+    return [Segment(a=(s.a[0] - ox, s.a[1] - oy), b=(s.b[0] - ox, s.b[1] - oy)) for s in lines]
+
+
+def lands(to_plan: Affine, p: tuple[float, float]) -> bool:
+    x, y = on_sheet(p)
+    fx, fy = to_plan.apply((x / PAGE_PX[0], y / PAGE_PX[1]))
+    return abs(fx - p[0] / 12) < 0.005 and abs(fy - p[1] / 10) < 0.005
+
+
+def test_a_crop_is_laid_with_its_corner_added_back() -> None:
+    """The plan-view finder's crop (the plan without the sheet's legend): its lines are in the
+    crop's pixels, the map is the page's."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    walls = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    to_plan, _ = laid_with(walls, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+
+
+def test_two_crops_that_lay_the_sheet_two_ways_are_refused_unless_one_clearly_wins() -> None:
+    """Twin views (DigitalHub E01's two wings): two crops each fit somewhere; when neither fits
+    clearly better (MARGIN of the wall lines) the lay is a guess and refused."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    right, twin = (40.0, 30.0, 480.0, 580.0), (240.0, 30.0, 500.0, 600.0)  # same lines, other place
+    both = by_walls(
+        segments(RICH),
+        lambda _: (
+            [(right, cropped(right[:2], drawn)), (twin, cropped(right[:2], drawn))],
+            PAGE_PX,
+        ),
+    )
+    refused = both(plan, picture)
+    assert isinstance(refused, str) and "two ways" in refused, refused
+    few = cropped(right[:2], drawn)[:6]  # the twin matches 6 lines, the right crop 8
+    clear = by_walls(
+        segments(RICH),
+        lambda _: ([(twin, few), (right, cropped(right[:2], drawn))], PAGE_PX),
+    )
+    to_plan, _ = laid_with(clear, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+
+
+def test_a_crop_laid_off_the_sheets_own_scale_is_refused() -> None:
+    """A crop has no page to fill (the cover check sees only the crop): bench photo B01 laid a
+    crop 15% off its scale. With a scale bar a crop more than SCALE_SLACK off is refused; the
+    whole page keeps naming it (above)."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    walls = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    agrees = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))
+    laid_with(walls, plan, agrees)
+    off = walls(plan, sheet(name="scan.png", rooms=(), size_m=(12.0, 14.4)))
+    assert isinstance(off, str) and "its scale says 24.0 mm a pixel" in off, off
 
 
 def test_the_plans_wall_lines_are_centre_lines() -> None:
