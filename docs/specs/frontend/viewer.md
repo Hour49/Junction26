@@ -798,6 +798,13 @@ Fixtures: `project_review.json`'s conflict (two values with page 1 boxes) and `d
 - **VW-99** (R1 QA, 2026-11-15) 40 places, minimized: the legend is "1 …", "2 …", "3 …", "and 37 more"; Expand
   lists all 40, Minimize goes back to 4 items; the preview lists all 40. Exactly 3 places: 3 items, no "more" line.
   [component]
+- **VW-100** (Bogdan's QA after #715, #14 c6889731112) A minimized thumbnail with more than `THUMB_NUMBERS` (12)
+  outlined places draws their outlines with no numbers, and under the thumbnail one line `.vw-many` reads "<n>
+  marks, numbered when expanded" (VW-96's count line, for the thumbnail). 12 places: 12 numbers, no line. Expand
+  (the open card) and the preview number every place, as before. [component]
+- **VW-101** A variant's method on a conflict card (tile source, its aria-label and the marks' legend) is in plain
+  words through `methodName` (`src/api/format.ts`, the one wording map): an id the map does not know is never shown
+  raw: snake_case becomes words ("symbol_detector, page 1" reads "symbol detector, page 1"). [unit + component]
 - **VW-95** (follow-up, 390 overlap) Number discs never cover each other: `stackOf` moves a disc right in 24 px
   steps (`--vw-k`, CSS `left: calc(-11px + var(--vw-k) * 24px)`) while it would overlap an earlier disc (20 px
   discs, anchors in px from the measured frame; before measuring only identical anchors count). Three identical

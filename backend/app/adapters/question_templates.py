@@ -339,6 +339,16 @@ SHEET = frozenset(
     """.split()  # noqa: SIM905 (a word list reads better as text)
 )
 _SHEET_WORDS = "|".join(sorted(SHEET, key=len, reverse=True))
+# A discipline's plan is the sheet, not a room: "on the plumbing plan" (big QA R1 services, P-101
+# refused as a count in one room); "the plumbing room" stays a room. Only words for a drawing
+# follow it: "the mechanical floor", "the services building" are parts of the building
+# (review-711 M1), and "the MEP plan" is no storey (M2, _storey_at)
+DISCIPLINE_SHEET = re.compile(
+    r"(?:plumbing|heating|ventilation|hvac|mep|electrical|lighting|power|sanitary|drainage|"
+    r"sprinkler|fire|mechanical|services?|structural) "
+    r"(?:floor ?plan|plan|drawing|sheet|page|layout|diagram|image|picture|map|model)\b",
+    re.IGNORECASE,
+)
 # English words that leave something out, one list for the balcony rule (APPLIED), the exclusion
 # check (ENGLISH_EXCLUDING) and a parenthesis that is an exclusion (NOT_EXCLUSION); answer's nit on
 # #616: "(besides the entrance)" answered every door
@@ -504,7 +514,13 @@ class TemplateParser:
             if (
                 things
                 and INCLUDING.search(lower) is None
-                and (len(subjects) > 1 or any(m[1] not in SHEET for m in IN_PLACE.finditer(body)))
+                and (
+                    len(subjects) > 1
+                    or any(
+                        m[1] not in SHEET and not DISCIPLINE_SHEET.match(body, m.start(1))
+                        for m in IN_PLACE.finditer(body)
+                    )
+                )
             ):
                 return Unsupported(reason=IN_ONE_ROOM)
             subject = subjects[0]
@@ -513,8 +529,20 @@ class TemplateParser:
             return Query(measure="count", subject=subject, **common)
         if len({s for s in subjects if s in ELEMENT_SUBJECTS}) > 1:
             return Unsupported(reason="one sum over several element classes is not taken off")
+        # "the kitchen in apartment B", "apartment B's kitchen", "the kitchen in the apartment":
+        # a room type named anywhere is the subject and the flat its place, never the whole flat
+        # (R1 row 11, review-688 M1); a type after an excluding word is left out, also past a
+        # comma ("all its rooms except balconies, loggias ... and other outdoor spaces")
+        cut = EXCLUDING.search(body)
+        typed = next(
+            (s for at, s in hits if s.startswith("room:") and (cut is None or at < cut.start())),
+            subjects[0] if subjects[0].startswith("room:") else None,  # ROOM_NAMED's
+        )
         if measure == "area" and apartment is not None:
-            return Query(measure="area", subject="apartment", apartment=apartment.group(1))
+            subject = typed or "apartment"
+            return Query(measure="area", subject=subject, apartment=apartment.group(1))
+        if measure == "area" and typed is not None and "apartment" in subjects:
+            subjects = [typed, *(s for s in subjects if s not in (typed, "apartment"))]
         subject = next((s for s in subjects if s in AREA_SUBJECTS), subjects[0])
         code = ROOM_CODE.search(bare)
         if largest:
@@ -590,6 +618,8 @@ def _storey_at(bare: str) -> re.Match[str] | None:
     counted thing, sheet or floor word ("on the Balcony", "on the Plan" stay what they were), and
     a code must have a capital or follow a storey word ("on p1" alone may be a typo)."""
     for found in STOREY_AT.finditer(bare):
+        if DISCIPLINE_SHEET.match(bare, found.start("name" if found.group("name") else "code")):
+            continue  # "the MEP plan", "the Plumbing plan": a discipline's drawing (review-711 M2)
         if (name := found.group("name")) is not None:
             word = name.casefold()
             if not name[0].isupper() or word in SHEET or PLACE.search(word) or _subjects(word)[1]:
