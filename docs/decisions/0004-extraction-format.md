@@ -118,10 +118,11 @@ floor area as the dataset defines it, `side_area_m2` is one face of a wall), `el
 sheet, or the room for a space; null when not drawn here) and `attrs`. A null `model_objects` (left out) means the
 source has no model: every non-BIM file, and all gold today.
 
-The model checks that every `element` names a listed element of the same class (a listed room for a space) and
-that no element or room is named twice. An `.ifc` file with a non-empty `model_objects` may have `pages: []`, and
-then has empty `plans`, `elements` and `rooms`; every other file still needs at least one page. `--strict-v2` asks
-no scale of such a file, since it has no image. Part 1 scoring doesn't change: elements are what is drawn.
+The model checks that every `element` names a listed element of the same class (a listed room for a space) and that
+no element or room is named twice. An `.ifc` file with `model_objects` set (an empty list for a services model, see
+the amendment of 2026-11-15) may have `pages: []`, and then has empty `plans`, `elements` and `rooms`; every other
+file still needs at least one page. `--strict-v2` asks no scale of such a file, since it has no image. Part 1
+scoring doesn't change: elements are what is drawn.
 
 Alternative rejected: a nullable `Element.box`. It would change the Part 1 scorer and every consumer that assumes a
 box, and it would mix "drawn on this sheet" with "in the model".

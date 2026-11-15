@@ -120,7 +120,8 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   tools say it is being built meanwhile;
   a file with no distribution element stores only a marker, `<sha256>.services.none.b<builder>`, so it is tried
   once, and the tools then say it has no services model; a build that times out or runs out of memory is not
-  started again until the backend restarts; 2026-11-15, QA B4 and review of #475). `<builder>` is `services_model.BUILDER_VERSION`,
+  started again until the backend restarts; 2026-11-15, QA B4 and review of #475). `<builder>` is `services_model.BUILDER_VERSION` (2 since 2026-11-15:
+  a model of portless proxies only, a building model's parking marks and trees, is no services model; #503),
   bumped on any change to what the builder writes (also stored as `source.builder`): a model an older builder wrote
   is not served but rebuilt with the saved id map, so a deploy picks up builder fixes and ids survive.
   *Measured*: 1,795 elements → 1.2 MB JSON, 111 KB gzipped, build 15.7 s (10.5 s of it door and window geometry),
