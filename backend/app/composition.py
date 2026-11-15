@@ -46,8 +46,10 @@ from app.adapters.decisions.g1main import G1MainReader
 from app.adapters.decisions.uses import DecisionsConfidence, DecisionsCountExtractor
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
+from app.adapters.discipline_pictures.gemini import GeminiPictureReader
+from app.adapters.discipline_pictures.glyphs import GlyphReader
 from app.adapters.discipline_pictures.lane import CODE as PICTURES_CODE
-from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets
+from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets, kept_in
 from app.adapters.discipline_pictures.legend import OcrLegend
 from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
@@ -356,7 +358,7 @@ def _facts(settings: Settings, files: DrawingFiles) -> FactSource | None:
         cache = Path(settings.ifc_facts_cache) if settings.ifc_facts_cache else None
         sources.append(IfcFactSource(files, cache))
     if settings.discipline_pictures != "off":
-        sources.append(PictureSheets(files, settings.discipline_pictures_cache_dir))
+        sources.append(PictureSheets(files, _pictures_cache(settings)))
     return FirstSheet(sources) if sources else None
 
 
@@ -369,13 +371,31 @@ def _pictures(
     """DISCIPLINE_PICTURES: the picture lane beside the raster reader (lane.py); off: `inner`."""
     if settings.discipline_pictures == "off":
         return inner
+    legend = OcrLegend(files, _ocr())
+    symbols = None
+    if settings.discipline_pictures == "glyphs":
+        symbols = GlyphReader(files, legend.legend, settings.discipline_glyphs_model)
+    elif settings.discipline_pictures == "gemini":
+        key = settings.gemini_api_key.get_secret_value()
+        client = CarbonClient(
+            key,
+            settings.carbon_timeout_s,
+            budget=spend_guard(settings),
+            in_flight=settings.carbon_calls_in_flight,
+        )
+        symbols = GeminiPictureReader(files, client)
     return PictureLane(
         inner,
         files,
         sheets or (lambda _path: None),
-        PictureSheets(files, settings.discipline_pictures_cache_dir),
-        OcrLegend(files, _ocr()),
+        PictureSheets(files, _pictures_cache(settings)),
+        legend,
+        symbols,
     )
+
+
+def _pictures_cache(settings: Settings) -> Path:
+    return kept_in(settings.discipline_pictures_cache_dir, settings.discipline_pictures)
 
 
 @cache

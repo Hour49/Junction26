@@ -35,7 +35,7 @@ from app.core.ingest.model import Sheet as SheetKind
 from app.core.model import Frozen
 from app.core.picture_facts import Checked, picture_facts, storey_of_title
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
-from app.core.pipeline.ports import DrawingFiles, Extractor
+from app.core.pipeline.ports import DrawingFiles, Extractor, PictureReader
 
 log = logging.getLogger(__name__)
 ROUTED = frozenset({"plumbing", "heating", "ventilation", "electrical", "fire", "structural"})
@@ -77,6 +77,12 @@ class PictureFactSheet(FactSheet):
 def routed(found: SheetKind | None) -> bool:
     """The lane reads a page triage names a services or structural discipline and reads."""
     return found is not None and found.discipline in ROUTED and found.decision != "set_aside"
+
+
+def kept_in(cache_dir: Path, reader: str) -> Path:
+    """Where the lane keeps its sheets for DISCIPLINE_PICTURES=`reader`: `glyphs` and `gemini`
+    each in its own folder, so switching readers never serves another reader's sheets."""
+    return cache_dir / reader if reader in ("glyphs", "gemini") else cache_dir
 
 
 class PictureSheets:
@@ -132,12 +138,14 @@ class PictureLane:
         sheet_of: SheetOf,
         sheets: PictureSheets,
         legend: OcrLegend,
+        symbols: PictureReader | None = None,
     ) -> None:
         self._inner = inner
         self._sheet_of = sheet_of
         self._sheets = sheets
         self._legend = legend
-        self._template = TemplateReader(files, legend.legend)
+        # the symbols' reader: `template` unless another is given (DISCIPLINE_PICTURES=glyphs)
+        self._template = symbols or TemplateReader(files, legend.legend)
         self._mask = MaskReader(files, legend.legend, legend.scale)
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
