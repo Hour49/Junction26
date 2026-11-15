@@ -17,16 +17,27 @@ from ifc_models import IfcFile, Schema, Shape, box, sheet_svg
 from jsonschema import Draft202012Validator
 from pdf_sheets import WHITE, SheetPdf, rect
 
+from app.adapters.answer_prior import NoPrior
 from app.adapters.extraction_v1 import ExtractionV1Writer
-from app.adapters.ifc_model import LOOKS_FOR, IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.ifc_model import (
+    LOOKS_FOR,
+    MODEL_SCALE,
+    IfcModelExtractor,
+    IfcModels,
+    IfcSecondCounter,
+)
 from app.adapters.ifc_model.objects import read_model
 from app.adapters.ifc_model.svg import read_svg
+from app.adapters.question_templates import TemplateParser
 from app.adapters.vector_pdf.ifc_render import ROOM_WORDS, room_type
 from app.composition import build_pipeline
-from app.core.drawing.model import MeasuredValue, ModelObject, Page, Subject
+from app.core.drawing.model import Drawing, MeasuredValue, ModelObject, Page, Subject
 from app.core.errors import InvalidInputError, NotFoundError
+from app.core.ingest.judge import judge
 from app.core.pipeline.ingest import no_sheet
 from app.core.pipeline.model import DrawingFile, Extracted, FileKind, Measurement, Sheet
+from app.core.review.ask import SERVICES_ONLY, ask
+from app.core.review.model import ReviewState
 from app.settings import Settings
 
 SHEET = "data/demo/house_plan-01-level-1.pdf"
@@ -729,6 +740,55 @@ def test_without_the_ifc_reader_the_sheet_is_read_alone_and_the_model_is_set_asi
     of_sheet = json.loads((out / "demo" / "house_plan-01-level-1.pdf.json").read_text())
     assert "model_objects" not in of_sheet
     assert not (out / "demo" / "house.ifc.json").exists()
+
+
+def test_a_services_model_uploaded_alone_is_a_model_drawing_not_set_aside(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA B4 (2026-11-15): a heating model alone (DigitalHub's -hzg-v2.ifc) lists no wall, door,
+    window or space, so ingest set it aside with NO_SHEET and the chat had no drawing to ask.
+    Read and listing none of the plan's classes is not "nothing read": it is a model drawing
+    (its MEP elements are in its fact sheet and the services tools)."""
+    model = IfcFile()
+    ground = model.storey("EG")
+    model.element("IfcSpaceHeater", storey=ground, name="Radiator 1")
+    model.element("IfcPipeSegment", storey=ground, name="Pipe 1")
+    path = "data/services/heating.ifc"
+    (tmp_path / path).parent.mkdir(parents=True)
+    (tmp_path / path).write_bytes(model.ifc())
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "extraction"
+    report = build_pipeline(Settings(), tmp_path).ingest(
+        [path], ExtractionV1Writer(out, {path: "dev"})
+    )
+    assert report.set_aside == ()
+    assert [(sheet.file, sheet.route, sheet.source) for sheet in report.sheets] == [
+        (path, "bim", path)
+    ]
+    written = json.loads((out / "services" / "heating.ifc.json").read_text())
+    assert (written["pages"], written["model_objects"]) == ([], [])
+
+
+def test_a_model_with_none_of_the_plans_classes_says_so_in_words() -> None:
+    """QA B4: the services model alone read "read on the BIM model route: 0 model objects"."""
+    services = Drawing(file=MODEL, pages=(), scale=MODEL_SCALE, read=LOOKS_FOR, model_objects=())
+    state, reason = judge(services, "ifc", "bim", "ifc")
+    assert state == "ready" and reason.endswith(": no wall, door, window or room in the model")
+    listed = services.model_copy(update={"model_objects": extract().model_objects})
+    assert judge(listed, "ifc", "bim", "ifc")[1].endswith(": 14 model objects")
+
+
+def test_a_services_model_alone_refuses_plan_counts_instead_of_answering_zero() -> None:
+    """Review of #475 (ifc-ask S1): the heating model alone answered "How many doors?" with 0
+    and no caveat. It lists no wall, door, window or room because it is a services model, not
+    because the building has none: the count is refused (a refusal beats a wrong answer), so the
+    fact sheet or the services tools answer."""
+    services = Drawing(file=MODEL, pages=(), scale=MODEL_SCALE, read=LOOKS_FOR, model_objects=())
+    for question in ("How many doors are there?", "How many rooms are there?"):
+        found = ask(question, services, parser=TemplateParser(), clock=lambda: 0.0,
+                    prior=NoPrior(), state=ReviewState())  # fmt: skip
+        assert found.answer.answer is None and found.refusal is not None
+        assert found.refusal.text == SERVICES_ONLY
 
 
 # a space's windows (windows.py)
