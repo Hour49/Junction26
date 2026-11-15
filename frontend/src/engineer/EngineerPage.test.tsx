@@ -860,7 +860,7 @@ describe('Vellum (screen 4)', () => {
     expect(fig.textContent).toContain('PDF vector · drawn PDF route');
     const also = within(t).getByRole('link', { name: 'flat-a.png' });
     expect(also.getAttribute('href')).toBe(`#/p/${PROJECT}/d/c9b719f715357201/engineer`);
-    expect(within(t).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(t).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it('EN-56 previous and next drawing wrap round; none for one drawing or before the project', async () => {
@@ -879,7 +879,7 @@ describe('Vellum (screen 4)', () => {
     const nav = await screen.findByRole('navigation', { name: 'Drawings' });
     expect(within(nav).getByRole('link', { name: 'Next drawing' })).toBeTruthy();
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5').getAttribute('aria-live')).toBe('polite');
+    expect(within(nav).getByText('1 / 6').getAttribute('aria-live')).toBe('polite');
   });
 
   it.each([
@@ -892,7 +892,7 @@ describe('Vellum (screen 4)', () => {
       `#/p/${PROJECT}/d/${project.drawings[1]?.drawing_id ?? ''}/engineer`,
     );
     expect(within(nav).getByRole('link', { name: 'Previous drawing' })).toBeTruthy();
-    expect(within(nav).getByText('1 / 5')).toBeTruthy();
+    expect(within(nav).getByText('1 / 6')).toBeTruthy();
   });
 
   it.each([
@@ -1324,5 +1324,40 @@ describe('hover tips on the engineer page (docs/ui-tooltips.md)', () => {
     await typeAndAsk(low.question);
     const t = await turn(low.question);
     await tipOf(await within(t).findByText('This drawing was flagged'), TIPS.flagged);
+  });
+});
+
+describe('a text answer from a building model (deep QA, research-lead 1)', () => {
+  const text = '5 storeys:\n- Basement: elevation -3.00 m\n- Ground floor: elevation 0.00 m';
+  const facts = (answerText: string): AnswerView => ({
+    ...answerModel,
+    question: 'How many storeys does the building have?',
+    answer: answerText,
+    unit: null,
+    quantity: null,
+    marks: [],
+    method: 'facts',
+    proof: { ...answerModel.proof, kind: 'none', arithmetic: null, objects: null, storeys: null },
+  });
+
+  it('is set as text with its lines kept, not as the big value; its first line is the sentence', async () => {
+    const a = facts(text);
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(a) });
+    await typeAndAsk(a.question);
+    const t = await turn(a.question);
+    const value = await within(t).findByTestId('answer-value');
+    expect(value.className).toBe('en-value en-value--text');
+    expect(value.textContent).toBe(text);
+    expect(t.querySelector('.en-sentence')?.textContent).toBe('5 storeys.');
+    // the drawing pane is not left empty
+    expect(within(t).getByText('Read from the model data: no sheet to point at.')).toBeTruthy();
+  });
+
+  it('a short text answer stays the big value', async () => {
+    const a = facts('Kitchen');
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(a) });
+    await typeAndAsk(a.question);
+    const value = await within(await turn(a.question)).findByTestId('answer-value');
+    expect(value.className).toBe('en-value');
   });
 });

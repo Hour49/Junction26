@@ -52,7 +52,7 @@ def build_apart(
     with tempfile.TemporaryDirectory(prefix="facts-build-") as work:
         source = Path(work) / "model.ifc"
         source.write_bytes(data)
-        child = [*CHILD, str(source), model, str(out)]
+        child = [*CHILD, str(source), model, str(out.resolve())]  # the child runs in BACKEND
         limit = None
         if has_systemd_scope():
             child = [*_SCOPE, "-p", f"MemoryMax={memory_mb}M", *child]

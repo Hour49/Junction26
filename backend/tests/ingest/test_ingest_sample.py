@@ -17,6 +17,7 @@ EXPECTED = {
     "scans/ground-floor-copy.png": ("png_plan", "flagged"),
     "photos/plan-photo.jpg": ("photo_plan", "flagged"),
     "photos/site.jpg": ("photo", "set_aside"),
+    "plans/flat-c.pdf": ("pdf_vector", "ready"),
     "model/house.ifc": ("ifc", "ready"),
     "cad/detail.dxf": ("dxf", "set_aside"),
     "docs/specification.pdf": ("pdf_text", "text_only"),
@@ -40,8 +41,8 @@ def test_every_file_of_the_sample_ends_as_the_script_says(make_service: MakeServ
     files = by_path(status.files)
     assert {path: (file.kind, file.state) for path, file in files.items()} == EXPECTED
     assert all(file.reason for file in status.files)
-    assert status.counts == {"ready": 3, "flagged": 4, "set_aside": 2, "text_only": 2}
-    assert [file.id for file in status.files] == [f"f{n}" for n in range(1, 12)]
+    assert status.counts == {"ready": 4, "flagged": 4, "set_aside": 2, "text_only": 2}
+    assert [file.id for file in status.files] == [f"f{n}" for n in range(1, 13)]
 
 
 def test_each_file_says_why_it_ends_where_it_does(make_service: MakeService) -> None:

@@ -71,7 +71,7 @@ describe('tips applied in the shell, documents and export (docs/ui-tooltips.md, 
   it('the Issues heading and each file state word explain themselves', async () => {
     mockApi(projectRoutes);
     render(<DocumentsScreen projectId={PID} pack={null} />);
-    const heading = await screen.findByRole('heading', { name: 'Issues' });
+    const heading = await screen.findByRole('heading', { name: 'Issues on demand' });
     (heading.parentElement as HTMLElement).focus();
     await shown(TIPS.issues);
     const flagged = await screen.findAllByText('flagged');

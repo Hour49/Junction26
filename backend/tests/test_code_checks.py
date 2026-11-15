@@ -557,12 +557,27 @@ def test_off_a_picture_a_narrow_door_cannot_tell() -> None:
 
 
 def test_no_door_into_a_habitable_room_is_not_applicable() -> None:
-    to_closet = element(2, "door", (0.38, 0.2, 0.42, 0.26))
-    found = check_rule(drawing(rooms=[room(1), CLOSET], elements=[to_closet]), SCOPED)
+    closet_to_hall = element(2, "door", (0.46, 0.38, 0.49, 0.42))  # closet/hall, not the bedroom
+    hall = room(9, "hall", box=(0.4, 0.4, 0.6, 0.6))
+    plan = drawing(rooms=[room(1), CLOSET, hall], elements=[closet_to_hall])
+    found = check_rule(plan, SCOPED)
     assert (found.status, found.why) == (
         "not_applicable",
         "The drawing shows no door to a bedroom or living room or kitchen, so there is nothing "
         "to check.",
+    )
+
+
+def test_tudor_b3_a_left_out_door_to_a_habitable_room_is_named_not_denied() -> None:
+    """Tudor's QA B3: on the sample's flats both doors open into the bathroom, so the rule leaves
+    them out, and the reason said the drawing "shows no door to a bedroom ... or kitchen" while
+    the takeoff counts a door for the kitchen and the bedroom."""
+    to_closet = element(2, "door", (0.38, 0.2, 0.42, 0.26))  # bedroom/closet wall
+    found = check_rule(drawing(rooms=[room(1), CLOSET], elements=[to_closet]), SCOPED)
+    assert (found.status, found.results) == ("not_applicable", ())
+    assert found.why == (
+        'The door between the bedroom "MH 1" and the storage room "MH 8" also opens into a '
+        "storage room, and this rule leaves out such doors, so there is nothing to check."
     )
 
 

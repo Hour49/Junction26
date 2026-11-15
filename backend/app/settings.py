@@ -203,6 +203,10 @@ class Settings(BaseSettings):
     # does not (app/core/answering/facts.py): off until measured. IFC_FACTS_CACHE: a folder that
     # keeps each sheet as JSON across runs; "" keeps them in memory only
     ifc_facts: bool = False
+    # The agent chat takes a scale from its user for a drawing without one ("the scale is 1:100",
+    # "the kitchen is 12 m2"): that chat's areas on it are measured with it, never sure, and a
+    # no-scale refusal says what to type (app/core/pipeline/user_scale.py). Off until measured
+    user_scale: bool = False
     ifc_facts_cache: str = ""
     # A scanned services or structural plan (triage's Sheet.discipline) read into a fact sheet at
     # ingest by local readers, no model call (app/adapters/discipline_pictures/lane.py; spec

@@ -329,7 +329,10 @@ def test_the_takeoff_exports_as_csv(client: TestClient, drawing_id: str) -> None
     response = client.get(f"/api/drawings/{drawing_id}/takeoff.csv")
     assert response.headers["content-type"] == "text/csv; charset=utf-8"
     assert response.headers["content-disposition"] == 'attachment; filename="plan-takeoff.csv"'
-    rows = {line["key"]: line for line in csv.DictReader(io.StringIO(response.text))}
+    # a UTF-8 BOM first, so Excel reads the umlauts (QA fe-ui2: "KÃ¼che" without it)
+    assert response.content.startswith(b"\xef\xbb\xbf")
+    text = response.content.decode("utf-8-sig")
+    rows = {line["key"]: line for line in csv.DictReader(io.StringIO(text))}
     door = rows["door"]
     assert (door["drawing"], door["value"], door["status"], door["signed_by"]) == (
         "plan.pdf", "2", "signed", "Ana",

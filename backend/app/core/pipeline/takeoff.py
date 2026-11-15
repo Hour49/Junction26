@@ -75,6 +75,7 @@ from app.core.pipeline.rules import (
     combine_totals,
 )
 from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
+from app.core.pipeline.user_scale import is_user_scale
 
 # An element sum an estimated scale makes an estimate (a volume is the model's, not the sheet's).
 SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
@@ -765,6 +766,13 @@ def scale_estimate(scale: Scale) -> str | None:
     """What an area or length on a sheet with this scale rests on, in words a user reads, when
     that is an estimate."""
     match scale.status:
+        case "estimated" if is_user_scale(scale):  # USER_SCALE: the user's, named as theirs
+            band = (
+                f", which may be off by about ±{_percent(scale.uncertainty)}"
+                if scale.uncertainty
+                else ""
+            )
+            return f"measured using {scale.source}{band}"
         case "estimated":
             how = f" ({scale.source})" if scale.source else ""
             band = ""
