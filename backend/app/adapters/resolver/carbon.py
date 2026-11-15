@@ -34,6 +34,7 @@ from typing import Any
 from PIL import Image, ImageDraw
 from pydantic import ValidationError
 
+from app.adapters import gemini_http
 from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
 from app.adapters.whole_file import write_whole
 from app.core import cost
@@ -123,7 +124,7 @@ def call_settings(model: str) -> str:
 
 
 def _urlopen(request: urllib.request.Request, timeout: float) -> dict[str, Any]:
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with gemini_http.urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
 
