@@ -86,7 +86,17 @@ const firstNumbers = (sources: readonly Source[]) =>
 const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
 
 /** One page image cut to `crop`, with the places outlined and numbered from `first`. */
-function SourceImage({ source, first, crop }: { source: Source; first: number; crop: Box }) {
+function SourceImage({
+  source,
+  first,
+  crop,
+  numbered = true,
+}: {
+  source: Source;
+  first: number;
+  crop: Box;
+  numbered?: boolean; // false: outlines only (a crowded minimized thumbnail, VW-100)
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const [cssWidth, setCssWidth] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
@@ -183,7 +193,7 @@ function SourceImage({ source, first, crop }: { source: Source; first: number; c
             style={{ ...at(b), '--vw-k': String(ks[i] ?? 0) } as CSSProperties}
             aria-hidden="true"
           >
-            <b>{first + i}</b>
+            {numbered && <b>{first + i}</b>}
           </span>
         );
       })}
@@ -191,16 +201,25 @@ function SourceImage({ source, first, crop }: { source: Source; first: number; c
   );
 }
 
-function Legend({ places, first }: { places: readonly Place[]; first: number }) {
+/** A minimized thumbnail numbers at most this many outlined places; above it, outlines and a count line (VW-100). */
+export const THUMB_NUMBERS = 12;
+
+/** A minimized figure lists this many places, then "and N more" (Expand or Show source lists them all). */
+export const MIN_LEGEND = 3;
+
+function Legend({ places, first, max }: { places: readonly Place[]; first: number; max?: number }) {
   if (!places.length) return null;
+  const shown = max === undefined ? places : places.slice(0, max);
+  const more = places.length - shown.length;
   return (
     <ol className="vw-hl-legend">
-      {places.map((p, i) => (
+      {shown.map((p, i) => (
         <li key={i}>
           <b aria-hidden="true">{first + i}</b>
           <span>{p.label}</span>
         </li>
       ))}
+      {more > 0 && <li className="pl-7">and {more} more</li>}
     </ol>
   );
 }
@@ -300,7 +319,7 @@ export function SourcePreview({ sources, start = 0, onClose }: SourcePreviewProp
   );
 }
 
-/** A conflict's or issue's source drawing: minimized thumbnail + numbered legend, Expand, Show source. */
+/** A conflict's or issue's source drawing: minimized thumbnail + numbered legend (capped), Expand, Show source. */
 export function SourceFigure({ sources, label, defaultOpen = false }: SourceFigureProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [preview, setPreview] = useState(false);
@@ -309,27 +328,40 @@ export function SourceFigure({ sources, label, defaultOpen = false }: SourceFigu
   const lead = sources[0];
   if (!lead) return null;
   const pictured = lead.page !== null || Boolean(lead.image);
+  const outlined = lead.page ? lead.places.filter((p) => boundsOf(p) !== null).length : 0;
+  const crowded = !open && outlined > THUMB_NUMBERS;
   const toggle = () => {
     setOpen((o) => !o);
   };
   return (
     <figure className={open ? 'vw-src' : 'vw-src vw-src--min'} aria-label={label}>
       {pictured ? (
-        <button
-          type="button"
-          className="vw-src-thumb"
-          aria-expanded={open}
-          aria-label={open ? 'Minimize the drawing' : 'Expand the drawing'}
-          onClick={toggle}
-        >
-          <SourceImage key={String(open)} source={lead} first={1} crop={cropOf(lead.places)} />
-        </button>
+        <div className="vw-src-thumbcol">
+          <button
+            type="button"
+            className="vw-src-thumb"
+            aria-expanded={open}
+            aria-label={open ? 'Minimize the drawing' : 'Expand the drawing'}
+            onClick={toggle}
+          >
+            <SourceImage
+              key={String(open)}
+              source={lead}
+              first={1}
+              crop={cropOf(lead.places)}
+              numbered={!crowded}
+            />
+          </button>
+          {crowded && (
+            <p className="vw-many">{`${String(outlined)} marks, numbered when expanded`}</p>
+          )}
+        </div>
       ) : (
         <span className="vw-src-thumb vw-src-thumb--none">No picture of this file</span>
       )}
       {places.length > 0 && (
         <figcaption>
-          <Legend places={places} first={1} />
+          <Legend places={places} first={1} max={open ? undefined : MIN_LEGEND} />
         </figcaption>
       )}
       <div className="vw-src-btns">

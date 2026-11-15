@@ -38,7 +38,7 @@ from app.adapters.vector_pdf.wall_fills import WallFill, wall_fills
 from app.api.checks import ProjectChecks, checks_of, find_pack
 from app.api.deps import Ingest
 from app.api.issues import issues_of
-from app.api.project_ask import ProjectAnswer, ProjectAskRequest, project_ask
+from app.api.project_ask import ProjectAnswer, ProjectAskRequest, ask_project
 from app.api.projects import review_of
 from app.api.takeoff import takeoff_rows
 from app.api.views import DrawingEntry, drawings_of
@@ -67,6 +67,9 @@ class PipelineStore:
     answering: Answering
     packs: tuple[RulePack, ...] = ()
     user_scale: bool = False  # USER_SCALE: a no-scale refusal says the user can give the scale
+    # the drawings the chat's message names (core.agent.named): ask_drawings asks only those;
+    # empty: every drawing (big QA R1 S2)
+    only: frozenset[str] = frozenset()
     # plan_tools.not_drawable's memo of which pages have wall fills, the project list's own
     # (app.state.drawable_fills), so list_drawings reads no PDF page the list has read
     drawable_fills: dict[tuple[str, str | None, int, float], bool] | None = None
@@ -312,13 +315,14 @@ def _sheet(triage: Triage) -> dict[str, Any] | None:
 
 
 def _ask(store: PipelineStore, args: Any) -> BaseModel:
-    found = project_ask(
+    found = ask_project(
         store.project_id,
         ProjectAskRequest(question=args.question),
         store.ingest,
         store.reviews,
         store.answering,
         store.settings,
+        only=store.only,
     )
     return with_scale_hint(found) if store.user_scale else found
 

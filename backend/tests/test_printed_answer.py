@@ -184,3 +184,33 @@ def test_the_setting_is_off_by_default_and_part_of_the_reuse_key_only_when_on(
 
     assert "printed_total_answers" not in names()
     assert names(printed_total_answers="on")["printed_total_answers"] == "on"
+
+
+@pytest.mark.parametrize(
+    ("text", "subject"),
+    [
+        ("H+ALK+S", "room:sauna"),  # golden dev -6462: a Finnish flat type, S = sauna, no count
+        ("H+ALK+S", "room"),  # the same label read as a count of all rooms (Carbon, 2026-11-15)
+        ("H+ALK+S 38.0 m²", "room:sauna"),  # a number, but the flat's area, not 1
+        ("SAUNA", "room:sauna"),  # a room's name: one sauna, but no count is printed
+    ],
+)
+def test_a_count_the_text_does_not_print_is_never_the_answer(text: str, subject: str) -> None:
+    """Golden dev high_quality_architectural-6462 (Bogdan's A/B, #14 c6889797326): Carbon read the
+    flat type "H+ALK+S" (room, alcove, sauna) as 1 sauna; the rule answered 1, gold 0. A printed
+    count is one the sheet prints as a whole number: Carbon's 1 here is its own inference."""
+    fact = PrintedFact(
+        text=text, subject=subject, value=1, unit="count", box=(0.54, 0.67, 0.58, 0.82)
+    )
+    found = read(Planned(0), (fact,))
+    assert found.printed_answers == ()
+    assert all(c.resolution is None or "printed on the sheet" not in c.resolution.rule
+               for c in drawing_of(found).conflicts or ())  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["SECOND FLOOR = 48 DORMS", "48 DORMS", "DORMS: 48", "SECOND FLOOR 48 DORMS (2ND FLOOR)"],
+)
+def test_a_count_printed_as_a_whole_number_still_counts(text: str) -> None:
+    assert bedrooms(read(Planned(40), (dorms(text),))).value == 48

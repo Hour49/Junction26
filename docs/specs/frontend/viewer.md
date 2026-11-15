@@ -730,7 +730,9 @@ The screen maps its data to `Source[]`; suggested mappings (the screens own them
 - **Minimized (start).** `<figure class="vw-src vw-src--min" aria-label={label}>`: a thumbnail button (named
   "Expand the drawing", `aria-expanded="false"`) showing the crop of source 1, beside a caption with the numbered
   legend (`<ol class="vw-hl-legend">`, one `<li>` per place: number disc + label) and two buttons: "Expand"
-  (`aria-expanded="false"`) and "Show source".
+  (`aria-expanded="false"`) and "Show source". Minimized, the legend lists the first 3 places and then one
+  `<li>` "and N more" (2026-11-15, w18:p1's R1 QA: a count conflict listed every mark and made the Ingest page
+  16,000-19,000 px tall); expanded, and in the preview, it lists them all.
 - **Expanded.** The thumbnail button or "Expand" opens the figure in place: the crop at the card's width (max
   640 px), the thumbnail button renamed "Minimize the drawing" and the caption button "Minimize", both
   `aria-expanded="true"`. Either closes it again. Focus stays on the pressed button.
@@ -793,6 +795,16 @@ Fixtures: `project_review.json`'s conflict (two values with page 1 boxes) and `d
   figure's own row (`.vw-src-btns`, not in the caption): beside the legend at desktop; under 520 px the minimized
   figure wraps and the two buttons sit in one row under the thumbnail and legend (`flex: 1 0 100%`, gap 8).
   [component + css]
+- **VW-99** (R1 QA, 2026-11-15) 40 places, minimized: the legend is "1 …", "2 …", "3 …", "and 37 more"; Expand
+  lists all 40, Minimize goes back to 4 items; the preview lists all 40. Exactly 3 places: 3 items, no "more" line.
+  [component]
+- **VW-100** (Bogdan's QA after #715, #14 c6889731112) A minimized thumbnail with more than `THUMB_NUMBERS` (12)
+  outlined places draws their outlines with no numbers, and under the thumbnail one line `.vw-many` reads "<n>
+  marks, numbered when expanded" (VW-96's count line, for the thumbnail). 12 places: 12 numbers, no line. Expand
+  (the open card) and the preview number every place, as before. [component]
+- **VW-101** A variant's method on a conflict card (tile source, its aria-label and the marks' legend) is in plain
+  words through `methodName` (`src/api/format.ts`, the one wording map): an id the map does not know is never shown
+  raw: snake_case becomes words ("symbol_detector, page 1" reads "symbol detector, page 1"). [unit + component]
 - **VW-95** (follow-up, 390 overlap) Number discs never cover each other: `stackOf` moves a disc right in 24 px
   steps (`--vw-k`, CSS `left: calc(-11px + var(--vw-k) * 24px)`) while it would overlap an earlier disc (20 px
   discs, anchors in px from the measured frame; before measuring only identical anchors count). Three identical

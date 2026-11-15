@@ -641,9 +641,14 @@ def test_a_flagged_photo_whose_reader_found_nothing_refuses_instead_of_counting_
         assert found.row is None and found.refusal is not None, text
         assert found.refusal.code == "no-reader"
         assert PHOTO_FLAG in found.refusal.text and f"no {what}" in found.refusal.text
-    # Not flagged: the reader's 0 stays an answer (a clean scan with no doors has 0 doors)
+    # Not flagged and still no element of any kind: a blind 0 too (big QA R1 services row 12);
+    # a reader that found other elements keeps its 0 (tests/test_blind_zero.py)
     clean = asked_flagged("How many doors are there?", photo(), ())
-    assert clean.refusal is None and clean.answer.answer == 0
+    assert clean.refusal is not None and clean.refusal.code == "no-reader"
+    assert clean.answer.answer is None
+    window = Element(id="w1", class_="window", page=1, box=(0.1, 0.1, 0.2, 0.2))
+    seen = asked_flagged("How many doors are there?", photo(elements=(window,)), ())
+    assert seen.refusal is None and seen.answer.answer == 0
 
 
 def test_a_raster_page_with_no_rooms_read_refuses_room_questions_flagged_or_not() -> None:
@@ -1766,3 +1771,145 @@ def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> N
         prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=False, route="vector",
     )  # fmt: skip
     assert got.partial is None
+
+
+def _in(flat: str | None, *rooms: Room) -> list[Room]:
+    return [r.model_copy(update={"apartment": flat}) for r in rooms]
+
+
+def _site1677(*flats: str) -> Drawing:
+    """site1677's shape: a flat whose largest room is a Zimmer of 36.53 m², and outside every
+    flat a far larger common room (Raum, 153.97 m²); `flats` beyond the first add one each."""
+    from app.core.drawing.model import Apartment
+
+    rooms = [
+        *_in("aA", room("r1", "bedroom", "Zimmer", 36.53), room("r2", "kitchen", "Küche", 11.34)),
+        *_in(None, room("r3", "other", "Raum", 153.97)),
+        *[r for at, f in enumerate(flats[1:], 4)
+          for r in _in(f"a{f}", room(f"r{at}", "bedroom", "Pièce", 15.0))],
+    ]  # fmt: skip
+    found = scaled(*rooms)
+    return found.model_copy(
+        update={"apartments": tuple(Apartment(id=f"a{f}", label=f) for f in flats)}
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Which is the largest room in the flat?", "Which room is the largest in this apartment?"],
+)
+def test_r1_7_the_largest_room_in_the_flat_ranks_that_flat_s_rooms(text: str) -> None:
+    """Big QA R1 row 7: "Which is the largest room in the flat?" was refused as no count or
+    area. In the flat: the flat's rooms, not the common room outside it."""
+    found = asked(text, _site1677("A"))
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == "Zimmer"
+
+
+def test_r1_7_the_flat_on_a_sheet_of_several_flats_is_refused() -> None:
+    found = asked("Which is the largest room in the flat?", _site1677("A", "B", "C"))
+    assert found.refusal is not None and found.answer.answer is None
+    assert "3 apartments" in (found.answer.explanation or ""), found.answer.explanation
+
+
+@pytest.mark.parametrize(
+    "text", ["Wie viele Fenster hat diese Wohnung?", "How many windows does this apartment have?"]
+)
+def test_r1_8_this_flat_is_the_scope_of_a_count_not_a_second_thing(text: str) -> None:
+    """Big QA R1 row 8: "Wie viele Fenster hat diese Wohnung?" was refused as naming two kinds
+    of thing (Fenster, Wohnung). On a sheet of one flat and no other room it counts the sheet;
+    on a sheet of several it says which ones there are. review-689 M1: on site1677 the sheet
+    also shows rooms outside the flat (Raum 2.09, the stairwell), so its 23 windows are not the
+    flat's: refused, never the sheet's count."""
+    windows = tuple(
+        Element(id=f"w{n}", class_="window", page=1, box=(0.1 * n, 0.5, 0.1 * n + 0.05, 0.55))
+        for n in range(1, 4)
+    )
+    with_raum = _site1677("A").model_copy(update={"elements": windows})
+    outside = asked(text, with_raum)
+    assert outside.refusal is not None and outside.answer.answer is None
+    assert outside.refusal.text.startswith("This drawing also shows rooms outside the apartment")
+    flat_only = with_raum.model_copy(
+        update={"rooms": tuple(r for r in with_raum.rooms if r.apartment == "aA")}
+    )
+    found = asked(text, flat_only)
+    assert (found.refusal, found.answer.answer) == (None, 3)
+    several = _site1677("A", "B").model_copy(update={"elements": windows})
+    refused = asked(text, several)
+    assert refused.refusal is not None and refused.answer.answer is None
+    assert "apartment" in refused.refusal.text, refused.refusal
+
+
+def _flats(*, assigned: bool) -> Drawing:
+    """Two flats, A and B, each with a kitchen (B's 13.92 m²); `assigned`: the rooms say which
+    flat they are in, as the Swiss reader reads them."""
+    from app.core.drawing.model import Apartment
+
+    def room(
+        rid: str, kind: RoomType, box: tuple[float, float, float, float], m2: float, flat: str
+    ):
+        return Room(id=rid, type=kind, label=kind.capitalize(), page=1, box=box, area_m2=m2,
+                    attrs={"number": rid}, apartment=flat if assigned else None)  # fmt: skip
+
+    rooms = (
+        room("1.01", "kitchen", BOX_A, 12.25, "aA"),
+        room("1.02", "living", (0.1, 0.3, 0.2, 0.4), 26.72, "aA"),
+        room("2.01", "kitchen", BOX_B, 13.92, "aB"),
+        room("2.02", "living", (0.5, 0.5, 0.6, 0.6), 22.1, "aB"),
+    )
+    flats = (
+        Apartment(id="aA", label="A", area_m2=38.97),
+        Apartment(id="aB", label="B", area_m2=36.02),
+    )
+    return Drawing(file="x.pdf", pages=(PAGE,), scale=Scale(status="scaled"), rooms=rooms,
+                   apartments=flats)  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the area of the kitchen in apartment B?",
+        "How big is the kitchen of apartment B?",
+        "What is the net floor area of the kitchen in apartment B in m²?",
+        "How large is apartment B's kitchen?",  # review-688 M1: the flat named first
+        "In apartment B, what is the area of the kitchen?",
+        "What is the area of apartment B's kitchen?",
+    ],
+)
+def test_r1_11_a_room_type_inside_an_apartment_is_that_room_never_the_whole_flat(text: str) -> None:
+    """Big QA R1 row 11 (S1): "the area of the kitchen in apartment B" answered apartment B's
+    whole area (82.60 m², High) on site1029. The room type inside the flat is that flat's one
+    room of the type."""
+    drawing = _flats(assigned=True)
+    found = asked(text, drawing)
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == 13.92
+    assert found.query == asked("What is the net floor area of room 2.01?", drawing).query
+
+
+def test_r1_11_without_the_rooms_flat_it_refuses_never_the_whole_flat() -> None:
+    """A drawing that does not say which rooms are in which flat: a plain refusal, not B's
+    whole area and not another flat's kitchen."""
+    found = asked("What is the area of the kitchen in apartment B?", _flats(assigned=False))
+    assert found.refusal is not None
+    assert found.answer.answer is None
+    assert found.refusal.text == (
+        "The drawing doesn't say which kitchen is in apartment B, so I can't give its area. Ask "
+        "about the room by its number or name."
+    ), found.refusal
+
+
+def test_r1_11_the_kitchen_in_the_apartment_is_the_one_flat_s_kitchen_never_the_flat() -> None:
+    """review-688 M1: site1677 (one flat) answered the flat's 123.137 m² for "the kitchen in the
+    apartment"; on a sheet of two flats with a kitchen each it is refused, never a flat's area."""
+    two = _flats(assigned=True)
+    one = two.model_copy(update={"rooms": two.rooms[2:], "apartments": (two.apartments or ())[1:]})
+    text = "What is the area of the kitchen in the apartment?"
+    assert (asked(text, one).refusal, asked(text, one).answer.answer) == (None, 13.92)
+    found = asked(text, two)
+    assert found.refusal is not None and found.answer.answer is None
+
+
+def test_r1_11_the_flat_itself_still_answers_its_area() -> None:
+    found = asked("What is the area of apartment B?", _flats(assigned=True))
+    assert (found.refusal, found.answer.answer) == (None, 36.02)

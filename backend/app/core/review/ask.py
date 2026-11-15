@@ -14,6 +14,7 @@ from typing import NamedTuple
 from app.core.answering.answer import (
     AGREEING_FAMILIES,
     NO_DRAWING,
+    NOT_CALLED,
     NOT_IN_DRAWING,
     PRIOR_BY_POLICY,
     SCHEDULE,
@@ -44,6 +45,8 @@ from app.core.answering.model import (
     NO_SUCH_FLOOR,
     NO_SUCH_STOREY,
     NOT_COUNTED,
+    OUTSIDE_FLAT,
+    SEVERAL_FLATS,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
@@ -178,6 +181,10 @@ TEXTS = {
 # A refusal's pointer to its chips, left out when it offers none (a services plan, review-697 S1)
 TRY_THESE = re.compile(r"\s*Try one of these instead\.|;\s*try one of these\.")
 PARTS = {  # an unsupported count that would drop part of the question: which part
+    SEVERAL_FLATS: 'This drawing shows more than one apartment, so "this apartment" doesn\'t say '
+    "which. Ask about one by its letter (apartment A), or about the whole floor.",
+    OUTSIDE_FLAT: "This drawing also shows rooms outside the apartment, and I count across the "
+    "whole drawing, so that count would not be the apartment's alone. Ask about the whole floor.",
     SEVERAL_THINGS: "This question names more than one kind of thing, and I count one kind across "
     "the whole drawing. Ask for each one on its own; try one of these.",
     IN_ONE_ROOM: "This question counts what is inside one room, and I count across the whole "
@@ -320,7 +327,11 @@ def ask(
 
     if (compared := which_room(text, drawing, quantities, parser, area_of)) is not None:
         return compared
-    once = _Once(RoomByType(parser, drawing, quantities))
+
+    def name_type(word: str) -> str | None:  # a printed room name's type: Bagno, bathroom
+        return None if (found := room_words(word)) is None else found.kind
+
+    once = _Once(RoomByType(parser, drawing, quantities, name_type))
     question = Question(id=1, file=drawing.file, text=text)
     tables = drawing.tables or ()
     answer = answer_question(
@@ -402,6 +413,15 @@ def ask(
                     "doesn't say which one. Ask about one of them."
                 )
                 can_answer = each
+            if parsed.apartment is not None and parsed.subject.startswith("room:"):
+                kind, flat = parsed.subject.split(":", 1)[1], parsed.apartment.upper()
+                words = (  # never the whole flat, nor another flat's room (R1 row 11)
+                    f"{len(rooms)} rooms of the type {kind} are in apartment {flat}, so the "
+                    "question doesn't say which one. Ask about one of them."
+                    if rooms
+                    else f"The drawing doesn't say which {kind} is in apartment {flat}, so I "
+                    "can't give its area. Ask about the room by its number or name."
+                )
         if (
             isinstance(parsed, Unsupported)
             and parsed.reason == SEVERAL_PRINTED
@@ -421,6 +441,8 @@ def ask(
                 else _room_counts(rooms, again.subject, quantities, parser)
             )
             can_answer = each or can_answer
+        if isinstance(parsed, Unsupported) and parsed.reason.startswith(NOT_CALLED):
+            code, words = "not-in-drawing", parsed.reason  # "Bagno 1.01" where 1.01 is Küche
         if isinstance(parsed, Unsupported) and parsed.reason in FLOOR_REASONS:
             # "How many toilets are on the second floor?" on a sheet that doesn't name it: which
             # floors it does name, or what each of its unnamed plans holds (fable-rooms r10 10)
@@ -434,6 +456,8 @@ def ask(
             words = _noun_refusal(noun, drawing)  # vocab-nouns P2
         if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
             words += _not_measured(parsed, drawing)  # review-349 S3
+        if answer.explanation == IN_ONE_ROOM:  # a picture's whole-sheet count asked of one room
+            code, words = "unsupported-question", PARTS[IN_ONE_ROOM]  # not "I don't count ..."
         if not can_answer:
             words = TRY_THESE.sub(lambda found: "." if found[0][0] == ";" else "", words)
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
@@ -600,10 +624,14 @@ def _flagged(
     is returned as `unread`, so any question on it is refused, its key in the takeoff or not
     (F4-4b). Every other quantity carries the flag as its estimate, so the answer says what it
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
-    page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
-    the classes it could not count (left out of `read`), so on a drawing whose elements are
-    Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
-    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b.
+    page can have 0 saunas, but not 0 rooms (F4-4). On any sheet, flagged or not, no element at
+    all is unread the same way when it has pages, a reader that read something and no building
+    model (else _refusal's own words: nothing read, a services model): a vector sheet whose
+    reader found 0 elements and 26 rooms answered "0 toilets" High (big QA R1 services row 12).
+    Except a class Carbon counted: Carbon names the classes it could not count (left out of
+    `read`), so on a drawing whose elements are Carbon's (CARBON_FLAG, which ingest sets only
+    then) a class it read with no element is a read 0, still flagged (brief r8 BD). A drawing
+    Carbon read only a part of keeps F4-4b.
     On a flagged page a room count with no located mark ("0 bathrooms", "37 bedrooms" with
     nothing marked) is a guess too: it is left out and returned in `unlocated` by key, so the
     question is refused the same way (brief r8 BM); a class Carbon read keeps its 0. A 0 of a
@@ -611,7 +639,8 @@ def _flagged(
     or more types besides "other": a page can have 0 saunas, F4-4) and a guess when it put every
     room under one type (the hotel photo: 37 "bedrooms", then 0 bathrooms; #285 review)."""
     empty: set[str] = set()
-    if flags and not drawing.elements:
+    read = bool(drawing.pages) and drawing.read != () and not drawing.model_objects
+    if not drawing.elements and (flags or read):  # unflagged: R1 services row 12
         empty.update(ELEMENT_CLASSES)
         if CARBON_FLAG in flags and drawing.read is not None:
             empty.difference_update(drawing.read)
@@ -674,9 +703,14 @@ def _symbols_text(flag: str) -> str:
 
 
 def _unread_text(query: str, flags: Sequence[str]) -> str:
-    if not flags:  # only rooms are unread on a page that wasn't flagged (_flagged)
-        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
     things = "rooms" if parse_key(query)[1].startswith("room") else "elements"
+    if not flags and things == "rooms":
+        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
+    if not flags:
+        return (
+            "The reader found no doors, windows or fixtures of any kind on this drawing, so 0 "
+            "would be a guess, not a count."
+        )
     return (
         f"This drawing was flagged at upload ({'; '.join(flags)}), and its reader found no "
         f"{things} on it, so 0 would be a guess, not a count."
@@ -691,7 +725,8 @@ NOT_LOCATED = "not located on the drawing"
 WHICH_EXTREME = re.compile(
     r"^\s*(?:which|what)\s+(?:(?:room|space)\s+(?:is|has)\s+(?:the\s+)?(?P<a>largest|biggest|smallest)"
     r"(?:\s+(?:one|(?:floor\s+)?area|size))?|is\s+the\s+(?P<b>largest|biggest|smallest)\s+(?:room|space))"
-    r"\s*[?.!]?\s*$",
+    r"(?:\s+(?:in|of|on)\s+(?:the|this)\s+(?P<flat>flat|apartment|dwelling)|\s+(?:in|on)\s+(?:the|this)"
+    r"\s+(?:plan|drawing|floor))?\s*[?.!]?\s*$",
     re.IGNORECASE,
 )
 WHICH_OF_TWO = re.compile(
@@ -747,6 +782,15 @@ def which_room(
                     asks[at] = found[0]
     elif (extreme := WHICH_EXTREME.match(text)) is not None:
         word = (extreme["a"] or extreme["b"]).casefold()
+        if extreme["flat"] and (flats := drawing.apartments):  # "in the flat" (big QA R1 row 7)
+            if len(flats) > 1:
+                letters = ", ".join(a.label or a.id for a in flats)
+                return _not_compared(
+                    f"I can't tell which room is the {word} in the flat: this drawing shows "
+                    f"{len(flats)} apartments ({letters}). Ask about one of them."
+                )
+            rooms = [room for room in rooms if room.apartment in {a.id for a in flats}]
+            among = len(rooms)
         if not rooms and spaces:  # a building model asked on its own draws no room (QA B6)
             # a space of no area (a void, a shaft) is no room to rank: left out, named
             empty = [item for item in spaces if _no_area(item)]

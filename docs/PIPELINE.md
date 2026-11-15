@@ -148,7 +148,9 @@ an element count, a person decides, unless `PRINTED_TOTAL_ANSWERS=on` (default `
 rule "printed on the sheet: <text> (<n> drawn)". Exactly: the same element class, room type or all rooms (Carbon's
 mapping: DORMS is `room:bedroom`); a sheet showing one floor; when any printed count of the subject names a floor,
 only those naming the sheet's floor (not another floor's, not the building's TOTAL), else a sheet-wide one; not one
-wing or block; and every count left printing the same number. Anything less, or an entry another rule already
+wing or block; every count left printing the same number; and the fact's own text printing that number as a whole
+number (not a count Carbon infers from words: the Finnish flat type "H+ALK+S" read as 1 sauna on golden dev
+high_quality_architectural-6462, gold 0). Anything less, or an entry another rule already
 decided (the 2x rule above), keeps the behaviour above. `carbon`
 reads them with the Carbon client (page call shared with `CARBON_READER`, a bars call, one full-resolution call per
 bar), on the process's spend guard.

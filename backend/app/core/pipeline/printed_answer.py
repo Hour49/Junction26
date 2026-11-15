@@ -13,7 +13,11 @@ Exact match only, else nothing changes:
   of the subject names a floor, only those naming the sheet's floor count, so another floor's and
   the building's total ("TOTAL = 144 DORMS") do not; when none names a floor, a sheet-wide count
   counts. A count of one part of the floor (a wing, a block) never does;
-- one value: the counts left must all print the same number.
+- one value: the counts left must all print the same number;
+- printed: the fact's own text prints that number as a whole number ("48" in "SECOND FLOOR = 48
+  DORMS"). Carbon also gives a count it infers from words, such as 1 sauna from the Finnish flat
+  type "H+ALK+S" (room, alcove, sauna; golden dev high_quality_architectural-6462, gold 0 saunas,
+  Bogdan's A/B 2026-11-15): no number is printed, so it is a reading, not the architect's total.
 Then the entry reports it, only when no other rule already decided (second_count's FAR_COUNTS keeps
 a reading more than 2x a printed room count). The entry stays a conflict, both values on it, so a
 person still sees the drawing shows another number. Pure.
@@ -34,6 +38,8 @@ FLOOR = re.compile(
     r"|(?:level|floor|storey|story)\s+\d+)\b",
     re.IGNORECASE,
 )
+# A whole number as printed, thousands grouped or not ("48", "1,200"), not part of a decimal (38.0)
+WHOLE = re.compile(r"(?<![\d.,])(?:\d{1,3}(?:,\d{3})+|\d+)(?![.,]?\d)")
 # A part of a floor a printed count can be of: never the sheet's whole floor
 PART = re.compile(r"\b(?:wing|block|zone|phase|tower|building|bldg|section|house)s?\b", re.I)
 
@@ -47,6 +53,8 @@ def printed_answers(found: Extracted, facts: Sequence[PrintedFact]) -> Extracted
         return found
     keyed: dict[tuple[str, str | None, str], list[tuple[Measurement, PrintedFact]]] = {}
     for fact in facts:
+        if not _prints(fact):
+            continue
         for measured in fact_measurements([fact]):
             key = (measured.quantity, measured.subject.ref, measured.subject.kind)
             keyed.setdefault(key, []).append((measured, fact))
@@ -114,3 +122,8 @@ def _floor_of(text: str) -> int | None:
     """The floor a printed count names, as a number; None when it names none."""
     phrase = FLOOR.search(text)
     return None if phrase is None else storey_number(phrase[0].lower())
+
+
+def _prints(fact: PrintedFact) -> bool:
+    """Whether the fact's text prints its value as a whole number (not inferred from words)."""
+    return any(int(n.replace(",", "")) == fact.value for n in WHOLE.findall(fact.text))

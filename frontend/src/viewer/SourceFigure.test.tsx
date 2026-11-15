@@ -225,6 +225,69 @@ describe('cropOf', () => {
   });
 });
 
+describe('SourceFigure: many marks', () => {
+  it('VW-99 minimized lists 3 places and "and N more"; expanded and the preview list all', () => {
+    const many: Source = {
+      name: 'Doors',
+      page,
+      places: Array.from({ length: 40 }, (_, i) => ({
+        label: `Variant 1: door ${String(i + 1)}`,
+        box: [0.1, 0.1, 0.2, 0.2] as Box,
+      })),
+    };
+    const { container } = render(<SourceFigure sources={[many]} label="S" />);
+    expect(legend(container)).toEqual([
+      '1Variant 1: door 1',
+      '2Variant 1: door 2',
+      '3Variant 1: door 3',
+      'and 37 more',
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    expect(legend(container)).toHaveLength(40);
+    expect(legend(container).at(-1)).toBe('40Variant 1: door 40');
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    expect(legend(container)).toHaveLength(4);
+    fireEvent.click(screen.getByRole('button', { name: 'Show source' }));
+    expect(screen.getByRole('dialog').querySelectorAll('.vw-hl-legend li')).toHaveLength(40);
+    cleanup();
+    // exactly 3: nothing hidden, no "more" line
+    const three = { ...many, places: many.places.slice(0, 3) };
+    const c3 = render(<SourceFigure sources={[three]} label="S" />).container;
+    expect(legend(c3)).toHaveLength(3);
+    expect(screen.queryByText(/more$/)).toBeNull();
+  });
+});
+
+describe('SourceFigure: crowded thumbnail', () => {
+  const doors = (n: number): Source => ({
+    name: 'Doors',
+    page,
+    places: Array.from({ length: n }, (_, i) => ({
+      label: `Variant 1: door ${String(i + 1)}`,
+      box: [0.01 * i, 0.1, 0.01 * i + 0.01, 0.12] as Box,
+    })),
+  });
+  const thumbNumbers = (c: HTMLElement) => c.querySelectorAll('.vw-src-thumb .vw-hl b').length;
+
+  it('VW-100 over 12 marks the minimized thumbnail draws outlines only and a count line', () => {
+    const { container } = render(<SourceFigure sources={[doors(74)]} label="S" />);
+    expect(container.querySelectorAll('.vw-src-thumb .vw-hl')).toHaveLength(74);
+    expect(thumbNumbers(container)).toBe(0);
+    expect(container.querySelector('.vw-many')?.textContent).toBe(
+      '74 marks, numbered when expanded',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Expand' }));
+    expect(thumbNumbers(container)).toBe(74);
+    expect(container.querySelector('.vw-many')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show source' }));
+    expect(screen.getByRole('dialog').querySelectorAll('.vw-hl b')).toHaveLength(74);
+    cleanup();
+    const twelve = render(<SourceFigure sources={[doors(12)]} label="S" />).container;
+    expect(thumbNumbers(twelve)).toBe(12);
+    expect(twelve.querySelector('.vw-many')).toBeNull();
+  });
+});
+
 describe('SourceFigure: image sources', () => {
   it('VW-92 a source with no page but an image shows the image, never outlines', () => {
     const { container } = render(
