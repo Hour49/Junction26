@@ -589,12 +589,27 @@ def which_room(
         return None
     rooms = [room for room in drawing.rooms if not room.outdoor]
     among, aside = len(rooms), ""
+    spaces = [item for item in drawing.model_objects or () if item.class_ == SPACE]
     if (two := WHICH_OF_TWO.match(text)) is not None:
         word = two["more"].casefold()
         asks = [(two[side], f"What is the area of the {two[side]}?") for side in ("x", "y")]
+        if not rooms and spaces:  # a building model asked on its own: its spaces by name
+            for at, side in enumerate(("x", "y")):
+                same = _spaces_named(spaces, two[side])
+                if len(same) > 1:
+                    shown = ", ".join(_space_shown(space) for space in same[:4])
+                    return _not_compared(
+                        f"I can't tell which is {word}: {len(same)} rooms in the model are "
+                        f"named {two[side]} ({shown}). Ask with its number."
+                    )
+                if same:
+                    found, left = _space_asks(same, quantities, parser)
+                    if left:
+                        why = _unasked_why(left, same, found)
+                        return _not_compared(f"I can't tell which is {word}: {why}.")
+                    asks[at] = found[0]
     elif (extreme := WHICH_EXTREME.match(text)) is not None:
         word = (extreme["a"] or extreme["b"]).casefold()
-        spaces = [item for item in drawing.model_objects or () if item.class_ == SPACE]
         if not rooms and spaces:  # a building model asked on its own draws no room (QA B6)
             # a space of no area (a void, a shaft) is no room to rank: left out, named
             empty = [item for item in spaces if round(item.quantities.get("area_m2", 1), 2) == 0]
@@ -722,6 +737,17 @@ def _space_asks(
         else:
             asks.append((_space_shown(space), found))
     return asks, left
+
+
+def _spaces_named(spaces: Sequence[ModelObject], name: str) -> list[ModelObject]:
+    """The spaces a name in a question means: by "<LongName> (<Name>)", its Name or LongName
+    (case and spacing aside; "room B102" is B102)."""
+    want = normalised(re.sub(r"^\s*room\s+", "", name, flags=re.IGNORECASE))
+    return [
+        space
+        for space in spaces
+        if want in {normalised(n) for n in (_space_shown(space), space.name, space.long_name) if n}
+    ]
 
 
 def _space_shown(space: ModelObject) -> str:

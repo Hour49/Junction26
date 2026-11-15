@@ -1161,6 +1161,32 @@ def test_a_model_space_of_no_area_is_left_out_of_the_ranking_and_named() -> None
     assert asked("Which room is the largest?", alone).refusal is not None
 
 
+def test_which_of_two_spaces_of_a_model_file_is_larger() -> None:
+    """After #479: "Which is larger, the Living Room (B102) or the Kitchen?" on the duplex .ifc
+    alone was refused ("the area of ... isn't known"): the two-room form asked only the rooms a
+    sheet draws. Each name is found among the model's spaces (by "<LongName> (<Name>)", its
+    number or its long name) and asked through that space's takeoff row."""
+    drawing = model_file(
+        space("m1", "Level 1", "B102", "Living Room", 27.66),
+        space("m2", "Level 1", "B103", "Kitchen", 12.95),
+        space("m3", "Level 1", "A103", "Kitchen", 12.95),
+        space("m4", "Level 2", "B205", "Utility", 1.4),
+    )
+    larger = asked("Which is larger, the Living Room (B102) or the Kitchen (B103)?", drawing)
+    assert larger.refusal is None, larger.refusal
+    assert larger.answer.answer == "Living Room (B102)"
+    assert larger.answer.explanation is not None
+    assert larger.answer.explanation.startswith(
+        "Living Room (B102) (27.66 m²) is larger than Kitchen (B103) (12.95 m²)"
+    )
+    by_number = asked("Which room is smaller: B205 or the Living Room?", drawing)
+    assert by_number.answer.answer == "Utility (B205)", by_number.refusal
+    # a name two spaces share: which one, with both named
+    shared = asked("Which is larger, the Living Room or the Kitchen?", drawing)
+    assert shared.refusal is not None
+    assert "Kitchen (A103)" in shared.refusal.text and "Kitchen (B103)" in shared.refusal.text
+
+
 def test_a_schedule_s_largest_room_is_left_to_the_schedule() -> None:
     """golden 89437 asks the finish room schedule which room is largest: not the rooms drawn."""
     drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
