@@ -326,6 +326,15 @@ STOREY_AT = re.compile(
     r"|\bon\s+the\s+(?P<name>[A-ZÄÖÜ][^\W\d_]{2,})\b(?!\s+(?:floor|level|storey|story)\b)",
     re.IGNORECASE,
 )
+# The same storey code after "of" a drawing word ("the plumbing plan of P1"; review-711 re-check):
+# only after one (OF_DRAWING), so "the height of P1" or "the doors of P1" read as before; by
+# STOREY_AT's rules (_storey_at). Codes only: "the floor plan of the Villa" names the building
+# (review-719 M1), and a paper size is no storey ("the plan of A1", review-719 S1)
+STOREY_OF = re.compile(
+    rf"\bof\s+(?:the\s+)?(?:(?:level|floor|storey|story)\s+)?(?!A[0-4]\b)(?P<code>{STOREY_CODE})\b",
+    re.IGNORECASE,
+)
+OF_DRAWING = re.compile(r"\b(?:plan|sheet|drawing|layout)\s*$", re.IGNORECASE)
 # A second storey joined to the first ("on P1 and P2", "P1, P2", "level P1 to P3", "EG & OG1"):
 # one storey at a time, never the first one's count for both (review-702 M1)
 STOREY_ALSO = re.compile(
@@ -620,10 +629,12 @@ def _storey_at(bare: str) -> re.Match[str] | None:
     """The storey the question names without quotes (STOREY_AT), or None: a name must be no
     counted thing, sheet or floor word ("on the Balcony", "on the Plan" stay what they were), and
     a code must have a capital or follow a storey word ("on p1" alone may be a typo)."""
-    for found in STOREY_AT.finditer(bare):
-        if DISCIPLINE_SHEET.match(bare, found.start("name" if found.group("name") else "code")):
+    after_of = (f for f in STOREY_OF.finditer(bare) if OF_DRAWING.search(bare, 0, f.start()))
+    for found in (*STOREY_AT.finditer(bare), *after_of):
+        name = found.groupdict().get("name")  # STOREY_OF has codes only
+        if DISCIPLINE_SHEET.match(bare, found.start("name" if name else "code")):
             continue  # "the MEP plan", "the Plumbing plan": a discipline's drawing (review-711 M2)
-        if (name := found.group("name")) is not None:
+        if name is not None:
             word = name.casefold()
             if not name[0].isupper() or word in SHEET or PLACE.search(word) or _subjects(word)[1]:
                 continue

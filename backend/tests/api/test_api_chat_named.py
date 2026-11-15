@@ -36,3 +36,23 @@ def test_review_693_m1_and_the_others_asks_every_drawing(client: TestClient) -> 
         turn = ask(client, project, message)
         asked = [part["name"] for answer in turn["answers"] for part in answer["parts"]]
         assert asked != ["a.pdf"], (message, turn["text"])
+
+
+def test_r2_row_2_a_follow_up_keeps_the_drawing_the_message_before_named(
+    client: TestClient,
+) -> None:
+    """Big QA R2 chat row 2: "and windows?" after "How many doors are there in the building
+    model?" named no drawing, so every drawing answered (the model's 70 and the two sheets'). A
+    message that only goes on from the one before keeps the drawings that one named."""
+    project = upload(
+        client, zipped({"a.pdf": swiss_sheet().pdf(), "b.pdf": walled_flat()}), "two.zip"
+    )
+    first = ask(client, project, "How many rooms are there on Drawn plan 2?")
+    chat = first["chat_id"]
+    for message in ("and doors?", "and windows?"):  # a chain of follow-ups keeps it too
+        turn = ask(client, project, message, chat_id=chat)
+        asked = [part["name"] for answer in turn["answers"] for part in answer["parts"]]
+        assert asked == ["b.pdf"], (message, turn["text"])
+    fresh = ask(client, project, "How many doors are there?", chat_id=chat)  # a new question
+    asked = [part["name"] for answer in fresh["answers"] for part in answer["parts"]]
+    assert asked == ["a.pdf", "b.pdf"], fresh["text"]

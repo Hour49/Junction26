@@ -4,7 +4,7 @@ plain names list_drawings gives, and the project's IFC models by "building model
 those, so the reply's cards and numbers are the named drawing's, not every drawing's."""
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 # The IFC models' plain names start with this (api/views.NAME_WORDS["ifc"])
 MODEL_NAME = "building model"
@@ -48,6 +48,29 @@ def named_drawings(message: str, names: Mapping[str, str]) -> set[str]:
     if MODEL_WORDS.search(rest):
         found |= {d for d, name in names.items() if name.lower().startswith(MODEL_NAME)}
     return found
+
+
+# A message that only goes on from the one before ("and windows?", "what about the doors?", "also
+# the toilets?"): it asks the same drawings (big QA R2 chat row 2)
+FOLLOW_UP = re.compile(
+    r"^\s*(?:and|also|plus|what\s+about|how\s+about|same\s+for)\b", re.IGNORECASE
+)
+
+
+def kept_drawings(message: str, earlier: Sequence[str], names: Mapping[str, str]) -> set[str]:
+    """The drawings `message` names; when it names none and only goes on from the message before
+    (FOLLOW_UP), the ones that one named, back through a chain of follow-ups (`earlier`: the
+    chat's user messages, oldest first). A message about other drawings too names none."""
+    found = named_drawings(message, names)
+    if found or OTHERS.search(message):
+        return found
+    for before in reversed(earlier):
+        if not FOLLOW_UP.match(message):
+            break
+        if found := named_drawings(before, names):
+            return found
+        message = before
+    return set()
 
 
 def unnamed(question: str, names: list[str]) -> str:

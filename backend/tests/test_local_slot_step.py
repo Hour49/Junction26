@@ -1,5 +1,6 @@
 """Decision 0018: a local reading that waited for its slot (INGEST_LOCAL_IN_FLIGHT) reports the
-wait as the `local_slot` step before its reader's steps; one with a slot at once reports none."""
+wait as the `local_slot` step before its reader's steps, and shows it as its live step while it
+waits; one with a slot at once reports and shows none."""
 
 import threading
 from collections.abc import Iterator
@@ -8,7 +9,9 @@ import pytest
 
 from app.adapters.one_at_a_time import OneAtATime
 from app.core.drawing.model import Scale
+from app.core.ingest.timing import StageClock, TimedExtractor
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
+from app.core.pipeline.ports import Extractor
 from app.core.pipeline.steps import without_steps
 
 DETECTOR = StepTrace(id="detector", label="Symbol detector", at_ms=5, ms=1)
@@ -58,7 +61,7 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
     return fake
 
 
-def extract(reader: OneAtATime, path: str, into: dict[str, Extracted]) -> None:
+def extract(reader: Extractor, path: str, into: dict[str, Extracted]) -> None:
     file = drawing(path)
     into[path] = reader.extract(file, Sheet(file=file, pages=()))
 
@@ -120,3 +123,36 @@ def test_a_wait_under_the_threshold_reports_no_step_and_a_longer_one_says_how_lo
             ("local_slot", did, times[0], times[1] - times[0]),
             ("detector", DETECTOR.did, DETECTOR.at_ms, DETECTOR.ms),
         ]
+
+
+def test_a_reading_blocked_on_the_slot_shows_local_slot_as_its_live_step_while_it_waits() -> None:
+    """The live step (`FileStatus.step_id`, through ingest's TimedExtractor) says `local_slot`
+    while b.png waits for a.png's slot; a.png, which had the slot at once, never shows it."""
+    held = Held()
+    reader = OneAtATime(held, 1)
+    heard: dict[str, list[str]] = {"a.png": [], "b.png": []}
+    waiting = threading.Event()
+
+    def live(path: str, step_id: str, label: str) -> None:
+        heard[path].append(step_id)
+        if path == "b.png" and step_id == "local_slot":
+            assert label == "Waited for the local reader"
+            waiting.set()
+
+    def timed(path: str) -> Extractor:  # one per group, as ingest builds them
+        return TimedExtractor(reader, StageClock(clock=lambda: 0.0, on_step=live))
+
+    got: dict[str, Extracted] = {}
+    first = threading.Thread(target=extract, args=(timed("a.png"), "a.png", got))
+    first.start()
+    assert held.inside.wait(10)  # a.png holds the one slot
+    second = threading.Thread(target=extract, args=(timed("b.png"), "b.png", got))
+    second.start()
+    assert waiting.wait(10)  # b.png shows the wait ...
+    assert "b.png" not in got and second.is_alive()  # ... while it is still blocked on the slot
+    assert heard == {"a.png": [], "b.png": ["local_slot"]}
+    held.go.set()
+    first.join(10)
+    second.join(10)
+    assert heard == {"a.png": [], "b.png": ["local_slot"]}  # the live step is started once
+    assert set(got) == {"a.png", "b.png"}
