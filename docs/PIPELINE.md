@@ -345,6 +345,7 @@ edit drawn on it (#490, #499).
 - Laying over by walls (#580, with the register of #538 and #554 and the plan-view finder of #557): each plan view
   of the picture is laid over the plan by its wall lines; two parts that lay it two ways with no clear winner, or a
   part more than 5% off the sheet's own scale, are refused. On the DigitalHub bench (#580): same floor 3 right, 0
-  wrong, 33 refused (the bench's plan side has no outer walls); other floor 0 wrong of 72. Walls are read per
-  proposal, about 0.2-0.5 s a picture plus about 0.3 s of register per part, not cached. #580 lists an end-to-end run of
-  this path as still to do.
+  wrong, 33 refused (the bench's plan side has no outer walls); other floor 0 wrong of 72. A picture's wall parts
+  are read once per file, page and reader version and kept (256 per process); the register runs on every proposal.
+  Measured on 36 DigitalHub renders: the first proposal takes a median 0.45 s a picture, later ones 0.16 s (max
+  0.74), about 0.65 s for a storey of 4 pictures. #580 lists an end-to-end run of this path as still to do.
