@@ -37,7 +37,7 @@ from dataclasses import dataclass
 
 from app.adapters.question_tables import is_table_question, parse_table
 from app.adapters.question_typos import corrected
-from app.core.answering.floors import FLOOR
+from app.core.answering.floors import FLOOR, STOREY_WORD
 from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
@@ -287,8 +287,9 @@ QUALIFIER = re.compile(
 PLACE = re.compile(
     r"\b(?:ground|first|second|third|fourth|fifth|sixth|top|upper|lower|north|south|east|west)\b"
     r"|\bhouse [a-z]\b|\bfa[cç]ade\b|\bwing\b|\bplan \d+[a-z]?\b"
-    # "1st floor", "floor 2" are floors too, not the whole sheet (fable-rooms r10 item 10)
-    rf"|{FLOOR.pattern}",
+    # "1st floor", "floor 2" are floors too, not the whole sheet (fable-rooms r10 item 10); so are
+    # "the attic", "the basement" (samples-curate 2026-11-15)
+    rf"|{FLOOR.pattern}|{STOREY_WORD.pattern}",
     re.IGNORECASE,
 )
 VIEW = re.compile(r"plan \d+[a-z]?")  # PLACE's view of a sheet ("plan 6A")

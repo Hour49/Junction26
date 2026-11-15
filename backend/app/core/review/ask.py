@@ -33,10 +33,12 @@ from app.core.answering.facts import FACTS, NOT_AVAILABLE
 from app.core.answering.floors import (
     FLOOR,
     FLOOR_AT,
+    STOREY_WORD,
     floor_number,
     floor_of,
     glued,
     glued_floors,
+    word_storeys,
 )
 from app.core.answering.model import (
     GLUED_FLOOR,
@@ -1180,9 +1182,14 @@ def _floor_text(
     of which names its floor or several of which carry the floor, how many of the counted thing
     each plan holds."""
     found = FLOOR.search(text)
-    asked = "floor" if found is None else found.group().casefold()
+    word = STOREY_WORD.search(text) if found is None else None  # "the attic"
+    said = word or found
+    asked = "floor" if said is None else said.group().casefold()
     number = None if found is None else floor_number(found)
     named = storeys(drawing)
+    if word is not None and reason == NO_SUCH_FLOOR:
+        storeys_said = ", ".join(named) or "not named"
+        return f"This drawing's storeys are {storeys_said}; none of them is the {asked}."
     if reason == NO_SUCH_STOREY:  # "on P1" on the P2 sheet, "on P9" (big QA R1)
         given = parser.parse(text)
         storey = given.storey if isinstance(given, Query) else None
@@ -1205,13 +1212,21 @@ def _floor_text(
             f"\"How many doors are on '{same[0]}'?\""
         )
     if reason == SEVERAL_FLOORS:
-        same = [storey for storey in named if floor_of(storey) == number]
+        same = (
+            word_storeys(word, named)
+            if word is not None
+            else [storey for storey in named if floor_of(storey) == number]
+        )
         return (
             f"Several storeys of this drawing could be the {asked}: {', '.join(same)}. Ask with "
             f"the storey's name in quotes, as in \"How many doors are on '{same[0]}'?\""
         )
     if reason == SHARED_FLOOR:
-        storey = next(storey for storey in named if floor_of(storey) == number)
+        storey = (
+            word_storeys(word, named)[0]
+            if word is not None
+            else next(storey for storey in named if floor_of(storey) == number)
+        )
         shared = [plan for plan in drawing.plans if str(plan.storey) == storey]
         words = (
             f"{len(shared)} plans on this drawing are labelled {storey}, so I can't tell which "

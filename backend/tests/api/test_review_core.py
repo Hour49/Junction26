@@ -975,6 +975,33 @@ def test_a_basement_level_is_not_the_first_floor() -> None:
     assert asked("How many doors are on the ground floor?", drawing).answer.answer == 2
 
 
+def test_a_storey_word_is_the_storey_of_that_name_or_refused_never_the_sheet() -> None:
+    """samples-curate 2026-11-15 (FZK-Haus, storeys Erdgeschoss and Dachgeschoss): "How many
+    rooms are on the attic floor?" counted the whole model (7, high confidence) and the
+    Erdgeschoss plan answered its 6: "attic" was no floor word, so the floor was dropped. A
+    storey word is the one storey of that name (attic, loft: Dachgeschoss), else refused."""
+    drawing = floors_drawing("Erdgeschoss", "Dachgeschoss")
+    for text in ("How many doors are on the attic floor?", "How many doors are in the loft?"):
+        found = asked(text, drawing)
+        assert found.answer.answer == 2, text  # the Dachgeschoss plan's, not the sheet's 3
+        assert found.query == "door|storey=dachgeschoss"
+    ground = floors_drawing("Erdgeschoss")
+    for text in (
+        "How many doors are on the attic floor?",
+        "How many doors are on the upper floor?",  # no Obergeschoss
+        "How many doors are in the basement?",
+    ):
+        found = asked(text, ground)
+        assert found.answer.answer is None and found.refusal is not None, text
+        assert found.refusal.code == "not-in-drawing", text
+    assert asked("How many doors are on the attic floor?", ground).refusal.text == (  # type: ignore[union-attr]
+        "This drawing's storeys are Erdgeschoss; none of them is the attic floor."
+    )
+    upper = asked("How many doors are on the upper floor?", floors_drawing("EG", "1. OG"))
+    assert upper.answer.answer == 2
+    assert asked("How many doors are there?", drawing).answer.answer == 3  # the sheet: unchanged
+
+
 def test_a_hyphen_glued_to_a_floor_number_is_level_n_or_minus_n_and_is_refused() -> None:
     """review-352 N5: "LEVEL-1" read as level -1, but many sheets write LEVEL-1 for level 1. A
     hyphen glued between the word and the number names neither floor; a space before it makes
