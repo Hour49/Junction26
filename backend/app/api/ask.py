@@ -139,6 +139,12 @@ def confidence_of(
     return answering.confidence(_SheetFiles(ingest, drawing_id, info.path))
 
 
+STILL_READING = (
+    "This model is still being read: its facts (counts, areas, materials per storey) are not "
+    "ready yet. Ask again in a minute."
+)
+
+
 def facts_of(
     answering: Answering, ingest: Ingest, named: DrawingInfo, file: FileStatus | None
 ) -> Callable[[], FactSheet | None] | None:
@@ -149,7 +155,7 @@ def facts_of(
         return None
     project_id = named.project_id
     sha256, file_id = file.sha256, file.id
-    return lambda: facts(sha256, file.path, lambda: ingest.upload_bytes(project_id, file_id))
+    return lambda: facts.facts(sha256, file.path, lambda: ingest.upload_bytes(project_id, file_id))
 
 
 def asked_on(
@@ -169,7 +175,7 @@ def asked_on(
     named = as_uploaded(ingest, info, project_id)
     found = file_of(ingest, named)
     flag = None if found is None else sheet_flag(found.triage)
-    return ask(
+    asked = ask(
         question,
         drawing,
         parser=answering.parser,
@@ -190,6 +196,14 @@ def asked_on(
         room_words=answering.room_words,
         facts=facts_of(answering, ingest, named, found),
     )
+    sha256 = None if found is None else found.sha256
+    if asked.refusal is None or answering.facts is None or sha256 is None:
+        return asked
+    if not answering.facts.reading(sha256):
+        return asked
+    # its facts may answer once read: the takeoff's reason would read as final
+    refusal = asked.refusal.model_copy(update={"text": STILL_READING})
+    return asked.model_copy(update={"refusal": refusal})
 
 
 def file_of(ingest: Ingest, named: DrawingInfo) -> FileStatus | None:

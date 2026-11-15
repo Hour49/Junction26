@@ -67,6 +67,21 @@ def test_a_build_that_fails_is_not_started_again_in_this_process(tmp_path: Path)
     assert facts.facts("bad", "a.ifc", lambda: b"x") is None and jobs.waiting == []
 
 
+def test_start_builds_once_without_reading_and_says_while_it_is_reading(tmp_path: Path) -> None:
+    """QA research-lead MUST-FIX: the build starts when ingest is done with the model, so the
+    first question finds its sheet; while it runs, `reading` says so."""
+    built: list[str] = []
+    facts, jobs = store(tmp_path, built)
+    facts.start("abc", "model/house.ifc", lambda: b"ifc")
+    facts.start("abc", "model/house.ifc", lambda: b"ifc")  # in flight: no second build
+    assert len(jobs.waiting) == 1 and facts.reading("abc") and not facts.reading("other")
+    jobs.run()
+    assert built == ["house"] and not facts.reading("abc")
+    facts.start("abc", "model/house.ifc", lambda: b"ifc")  # stored: nothing to do
+    facts.start("def", "plans/flat-a.pdf", lambda: b"pdf")  # not a model
+    assert jobs.waiting == []
+
+
 def test_only_a_building_model_has_a_sheet(tmp_path: Path) -> None:
     facts, jobs = store(tmp_path, [])
     assert facts.facts("abc", "plans/flat-a.pdf", lambda: b"pdf") is None and jobs.waiting == []

@@ -1,6 +1,7 @@
 """POST /api/ask on a building model with IFC_FACTS: a question the takeoff has no row for is
 answered from the model's fact sheet, read once per file content (sha256)."""
 
+import threading
 import time
 from typing import Any
 
@@ -8,7 +9,8 @@ import ifcopenshell
 import pytest
 from fastapi.testclient import TestClient
 
-from app.adapters.ifc_model import facts_source
+from app.adapters.ifc_model import facts_source, facts_store
+from app.api.ask import STILL_READING
 from app.composition import build_ingest
 from app.main import create_app
 from app.settings import Settings
@@ -36,17 +38,52 @@ def test_off_a_question_the_takeoff_cannot_answer_is_refused(settings: Settings)
     assert found["refusal"] is not None and found["method"] != "facts"
 
 
-def test_on_the_first_ask_is_as_today_and_once_the_sheet_is_stored_it_answers(
+def test_the_build_starts_when_the_project_is_read_so_the_first_ask_answers(
     settings: Settings,
 ) -> None:
-    client, first = model_ask(settings, WALLS, ifc_facts=True)
-    assert first["refusal"] is not None  # nothing stored yet: the build starts in the background
-    stored(client)
-    body = {"drawing_id": first["drawing_id"], "question": WALLS}
-    found = client.post("/api/ask", json=body).json()
+    """QA research-lead MUST-FIX: the first fact question on a new model was refused, as the
+    sheet was built only on that ask. Reading the project after ingest starts the build."""
+    client, project = sample(settings)
+    stored(client)  # no question asked yet
+    found = client.post("/api/ask", json=on_model(project, WALLS)).json()
     assert found["refusal"] is None and found["method"] == "facts"
     assert "Total walls: 4" in found["answer"] and "length 8.00 m" in found["answer"]
     assert "Low" in (found["explanation"] or "")
+
+
+def test_a_question_while_the_model_is_read_says_so(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gate, store = threading.Event(), facts_store.store_facts
+
+    def held(*args: Any, **kwargs: Any) -> Any:
+        gate.wait(30)
+        return store(*args, **kwargs)
+
+    monkeypatch.setattr(facts_store, "store_facts", held)
+    client, project = sample(settings)
+    first = client.post("/api/ask", json=on_model(project, WALLS)).json()
+    assert first["refusal"]["text"] == STILL_READING
+    asked = client.post(f"/api/projects/{project['id']}/ask", json={"question": WALLS}).json()
+    assert STILL_READING in [p["answer"]["refusal"]["text"] for p in asked["parts"]]
+    gate.set()
+    stored(client)
+    answered = client.post("/api/ask", json=on_model(project, WALLS)).json()
+    assert answered["method"] == "facts"
+
+
+def sample(settings: Settings) -> tuple[TestClient, dict[str, Any]]:
+    """The sample project ingested and read once, as the screen reads it when ingest is done."""
+    settings = settings.model_copy(update={"ifc_facts": True})
+    client = TestClient(
+        create_app(settings, build_ingest(settings, settings.projects_dir, background=False))
+    )
+    return client, client.get(client.post("/api/projects/sample").json()["url"]).json()
+
+
+def on_model(project: dict[str, Any], question: str) -> dict[str, Any]:
+    model = next(d for d in project["drawings"] if d["file"] == "model/house.ifc")
+    return {"drawing_id": model["drawing_id"], "question": question, "project_id": project["id"]}
 
 
 def test_on_a_takeoff_answer_is_unchanged(settings: Settings) -> None:
@@ -76,8 +113,7 @@ def test_the_api_process_never_opens_a_model_for_a_chat_question(
     monkeypatch.setattr(ifcopenshell, "open", never)  # after ingest, which reads the model itself
     monkeypatch.setattr(facts_source, "read_facts", never)
     body = {"drawing_id": first["drawing_id"], "question": WALLS}
-    again = client.post("/api/ask", json=body).json()
-    assert again["refusal"] is not None  # a miss: answered as today, the build runs apart
+    client.post("/api/ask", json=body)  # the build runs apart
     stored(client)
     answered = client.post("/api/ask", json=body).json()
     assert answered["method"] == "facts" and "Total walls: 4" in answered["answer"]
