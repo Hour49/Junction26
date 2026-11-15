@@ -2615,8 +2615,9 @@ that is not an evidence id. `description.detail` is a model's description no per
   began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`; `running` for a step of `index_steps` that has started and not ended) and
   `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
   (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
-  (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the Carbon reader, whole sheet or things
-  drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `prior_scale` (the scale
+  (normalise); `local_slot` (the wait for the one local reading slot, `INGEST_LOCAL_IN_FLIGHT`, before the
+  readers' steps; only when it waited 10 ms or more), `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the
+  Carbon reader, whole sheet or things drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `prior_scale` (the scale
   estimated from door sizes, `skipped` when not made), `double_check`, `plans`,
   `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
   `room_areas`, `schedule_tags`, `second_count:<quantity>` (any other comparison) (second_count: `found` is
@@ -4488,6 +4489,22 @@ upload lists the files, instead of one request per file.
           "railing|storey=ground floor": 0,
           "railing|storey=ground floor|model": 0,
           "room": 2,
+          "room:balcony": 0,
+          "room:balcony|model": 0,
+          "room:balcony|storey=ground floor": 0,
+          "room:balcony|storey=ground floor|model": 0,
+          "room:bathroom": 0,
+          "room:bathroom|model": 0,
+          "room:bathroom|storey=ground floor": 0,
+          "room:bathroom|storey=ground floor|model": 0,
+          "room:bedroom": 0,
+          "room:bedroom|model": 0,
+          "room:bedroom|storey=ground floor": 0,
+          "room:bedroom|storey=ground floor|model": 0,
+          "room:hall": 0,
+          "room:hall|model": 0,
+          "room:hall|storey=ground floor": 0,
+          "room:hall|storey=ground floor|model": 0,
           "room:kitchen": 1,
           "room:kitchen|model": 1,
           "room:kitchen|storey=ground floor": 1,
@@ -4496,6 +4513,26 @@ upload lists the files, instead of one request per file.
           "room:living|model": 1,
           "room:living|storey=ground floor": 1,
           "room:living|storey=ground floor|model": 1,
+          "room:outdoor": 0,
+          "room:outdoor|model": 0,
+          "room:outdoor|storey=ground floor": 0,
+          "room:outdoor|storey=ground floor|model": 0,
+          "room:sauna": 0,
+          "room:sauna|model": 0,
+          "room:sauna|storey=ground floor": 0,
+          "room:sauna|storey=ground floor|model": 0,
+          "room:shaft": 0,
+          "room:shaft|model": 0,
+          "room:shaft|storey=ground floor": 0,
+          "room:shaft|storey=ground floor|model": 0,
+          "room:storage": 0,
+          "room:storage|model": 0,
+          "room:storage|storey=ground floor": 0,
+          "room:storage|storey=ground floor|model": 0,
+          "room:wc": 0,
+          "room:wc|model": 0,
+          "room:wc|storey=ground floor": 0,
+          "room:wc|storey=ground floor|model": 0,
           "room|model": 2,
           "room|storey=ground floor": 2,
           "room|storey=ground floor|model": 2,
@@ -4617,9 +4654,9 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "takeoff",
-          "did": "takeoff: 59 quantities, 43 above zero",
+          "did": "takeoff: 95 quantities, 43 above zero",
           "ms": 12.5,
-          "output": "takeoff: 59 quantities, 43 above zero",
+          "output": "takeoff: 95 quantities, 43 above zero",
           "failure": null,
           "cost_usd": 0.0,
           "steps": []
@@ -4628,7 +4665,7 @@ upload lists the files, instead of one request per file.
           "stage": "write",
           "did": "drawing model 1db9bcf1e67e27a3 stored",
           "ms": 12.5,
-          "output": "59 quantities",
+          "output": "95 quantities",
           "failure": null,
           "cost_usd": 0.0,
           "steps": []
@@ -7037,8 +7074,9 @@ so every client shows the same one: show `level` as the pill and `text` with it,
   - `unrated`: nothing was measured for it (a question outside the rated families, no score on this drawing, a
     route with no level). Low.
   - `carbon` (`CARBON_LEVELS=demote` or `ladder`): Gemini Carbon read the raster sheet beside the reader. A Medium
-    answer it counted differently is low; with `ladder`, one it counted the same is high ("checked by Carbon: two
-    readers agree"). When Carbon could not check the sheet, the level stays as it was and `text` says so.
+    answer it counted differently is low; with `ladder`, one it counted the same is high ("two readers agree: a
+    second AI reader counted the same here"). When Carbon could not check the sheet, the level stays as it was and
+    `text` says so.
 - `text`: one plain sentence to show with the pill. For `certified` and `score` it quotes the validation counts of
   that level from the policy file, e.g. `Medium confidence: on our validation plans, 91% of the answers rated this
   way were exact (1084 of 1185). Please double-check it.`; for `route`, the route's reference counts.
@@ -8416,7 +8454,7 @@ A sum of rooms, with the item the rule left out (`marks` trimmed to two here):
     "needs_person": false,
     "rule": {
       "id": "indoor-rooms-total",
-      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
+      "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in"
     },
     "estimate": null,
     "first": null,
@@ -11977,7 +12015,7 @@ any project, which no project shows. A project that does not hold the drawing is
       "needs_person": false,
       "rule": {
         "id": "indoor-rooms-total",
-        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in, though the question says shafts are left out"
+        "text": "every room that is not outdoor; shafts, lifts and stairwells are counted in"
       },
       "estimate": null,
       "first": null,
@@ -13110,6 +13148,9 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018): step id `local_slot` in extract, the wait for the local reading slot
+  (`INGEST_LOCAL_IN_FLIGHT`) before the readers' steps (`did`: "waited 2.9 s: the local readers read one sheet at a
+  time"; only when the wait was 10 ms or more). Reporting only: the lock and the reading do not change.
 - 2026-11-15, additive (decision 0018): step id `prior_scale` in extract under `RASTER_SCALE=priors`, the scale
   estimated from door sizes (`did`: the scale, or why none; `skipped` when not made). Reporting only: no reading
   changes.

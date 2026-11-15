@@ -59,8 +59,9 @@ def test_a_medium_answer_carbon_counts_the_same_becomes_high_and_asks_nothing() 
     found = laddered(carbon=AGREES)
     assert made(found) == ("high", "carbon")
     assert found.level is not None and found.level.text.startswith(
-        "High confidence: checked by Carbon: two readers agree."
+        "High confidence: two readers agree: a second AI reader counted the same here."
     )
+    assert "Carbon" not in found.level.text  # QA R4-C10: no internal reader name
     assert f"({CARBON_AGREED.exact} of {CARBON_AGREED.units})" in found.level.text
     assert found.check is None  # High never asks for a double-check
     assert found.answer.sure is False  # Carbon never certifies: the check policy's verdict stays
@@ -89,7 +90,7 @@ def test_a_failed_check_keeps_today_s_level_and_says_so() -> None:
     assert made(found) == ("medium", "score") and found.check is not None
     assert found.level is not None
     assert found.level.text.endswith(
-        "Gemini Carbon did not check it: the check failed: ValueError."
+        "A second AI reader did not check it: the check failed: ValueError."
     )
 
 

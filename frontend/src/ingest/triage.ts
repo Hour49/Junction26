@@ -55,19 +55,22 @@ export function notPlanLine(t: Triage): string {
 // the backend's SHEET_PLAN_KINDS (app/core/ingest/model.py)
 const SHEET_PLAN_KINDS = new Set(['architectural_floor_plan', 'multi_view_sheet']);
 
-/** FT-25: "Looks like: <kind_words>" for a sheet the model doubts (read anyway) of a non-plan kind; else null. */
+/** FT-25: what the sheet-kind step says a sheet it doubts (read anyway) looks like, for a non-plan kind; else null.
+ * Said as that step's words, not as a fact: triage's class may say otherwise (QA R4-E16). */
 export function looksLike(t: Triage): string | null {
   const s = t.sheet;
-  return s?.decision === 'doubt' && !SHEET_PLAN_KINDS.has(s.kind)
-    ? `Looks like: ${s.kind_words}`
-    : null;
+  if (s?.decision !== 'doubt' || SHEET_PLAN_KINDS.has(s.kind)) return null;
+  return s.kind === 'not_a_drawing'
+    ? 'the sheet-kind step says it does not look like a drawing'
+    : `the sheet-kind step says it looks like ${s.kind_words}`;
 }
 
-/** The class words with what the sheet looks like (FT-25); a non-plan's per FT-24. */
+/** The class words with what the sheet-kind step says (FT-25); a non-plan's per FT-24. A plan the step doubts reads
+ * "Read as a floor plan" (what happened to it), not "A floor plan" (a claim the step disputes). */
 export function classLine(t: Triage): string {
   const hint = looksLike(t);
-  const line = t.class === 'floor_plan' ? 'A floor plan' : notPlanLine(t);
-  return hint ? `${line} · ${hint}` : line;
+  if (t.class !== 'floor_plan') return hint ? `${notPlanLine(t)} · ${hint}` : notPlanLine(t);
+  return hint ? `Read as a floor plan · ${hint}` : 'A floor plan';
 }
 
 export function rowLine(t: Triage): string {
