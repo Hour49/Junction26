@@ -8,7 +8,10 @@ legend does not have is dropped. Measured on the rendered held-out building (pic
 .agents/exp/pics-pic-det.md); its price is the Carbon client's, charged to the spend guard.
 """
 
+import hashlib
 import json
+import re
+from pathlib import Path
 from typing import Any
 
 from PIL import Image
@@ -17,6 +20,7 @@ from app.adapters.carbon import contract
 from app.adapters.carbon.reader import CarbonModel, jpeg
 from app.adapters.discipline_pictures import NO_LEGEND, nothing, read_image
 from app.adapters.raster_ocr.gemini import GeminiError
+from app.adapters.whole_file import write_whole
 from app.core.ifc_facts import Spot
 from app.core.picture_facts import LegendEntry, PictureReading, Sighting
 from app.core.pipeline.model import DrawingFile, Sheet
@@ -62,35 +66,55 @@ SCHEMA = {
     },
     "required": ["legend", "symbols"],
 }
+PROMPT_SHA = hashlib.sha256((PROMPT + json.dumps(SCHEMA, sort_keys=True)).encode()).hexdigest()
 
 
 class GeminiPictureReader:
-    """`PictureReader`; `legend_of` is not asked: the reply carries its own legend."""
+    """`PictureReader`; `legend_of` is not asked: the reply carries its own legend.
 
-    def __init__(self, files: DrawingFiles, client: CarbonModel) -> None:
+    Replies are cached whole in `cache_dir` by the page file's sha256, the prompt (and schema)
+    hash and the model, so a page is paid for once; only a reply that parses is kept. A failed
+    call (no answer, budget spent) or a reply that is not the asked JSON raises `GeminiError`:
+    the lane then keeps no sheet for the page (a sheet already kept stays), and the next ingest
+    asks again."""
+
+    def __init__(self, files: DrawingFiles, client: CarbonModel, cache_dir: Path) -> None:
         self._files = files
         self._client = client
+        self._cache = cache_dir
 
     def read(self, source: DrawingFile, sheet: Sheet) -> PictureReading:
-        rgb = read_image(READER, self._files.read(source.path), source, sheet)
+        data = self._files.read(source.path)
+        name = f"vlm-{hashlib.sha256(data).hexdigest()}-{PROMPT_SHA[:12]}-{contract.MODEL}.json"
+        path = self._cache / re.sub(r"[^A-Za-z0-9.-]", "_", name)
+        if path.is_file():
+            try:
+                return reading_of(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, ValueError):  # unreadable: asked again
+                pass
+        rgb = read_image(READER, data, source, sheet)
         if isinstance(rgb, PictureReading):
             return rgb
-        image = Image.fromarray(rgb)
+        answer = self._client.generate(
+            jpeg(Image.fromarray(rgb)), PROMPT, SCHEMA, contract.PAGE_MAX_TOKENS
+        )  # GeminiError goes to the lane
         try:
-            answer = self._client.generate(jpeg(image), PROMPT, SCHEMA, contract.PAGE_MAX_TOKENS)
-        except GeminiError as error:  # no answer, budget spent, unusable reply
-            return nothing(READER, None, f"{READER}: {error}")
+            reading = reading_of(answer)
+        except ValueError as error:
+            raise GeminiError(f"{READER}: {error}") from None
+        write_whole(path, json.dumps(answer, ensure_ascii=False))
         usd = contract.price(answer.get("usageMetadata") or {})
-        return reading_of(answer).model_copy(update={"cost_usd": round(usd, 6)})
+        return reading.model_copy(update={"cost_usd": round(usd, 6)})
 
 
 def reading_of(answer: dict[str, Any]) -> PictureReading:
-    """The reply as a reading: its legend, and its boxes of the legend's symbols."""
+    """The reply as a reading: its legend, and its boxes of the legend's symbols. ValueError: the
+    reply is not the asked JSON."""
     try:
         parts = answer["candidates"][0]["content"]["parts"]
         found = contract_json("".join(p.get("text", "") for p in parts if not p.get("thought")))
     except (KeyError, IndexError, TypeError, ValueError):
-        return nothing(READER, None, f"{READER}: the reply is not the asked JSON")
+        raise ValueError("the reply is not the asked JSON") from None
     legend: list[LegendEntry] = []
     for row in found.get("legend") or []:
         label = str(row.get("label", "")).strip()
@@ -125,7 +149,9 @@ def contract_json(text: str) -> dict[str, Any]:
 
 def _box(raw: Any) -> tuple[float, float, float, float] | None:
     """box_2d [ymin, xmin, ymax, xmax] in 0..1000 as a page-fraction box; None if malformed."""
-    if not isinstance(raw, list) or len(raw) != 4 or not all(isinstance(v, int) for v in raw):
+    if not isinstance(raw, list) or len(raw) != 4:
+        return None
+    if not all(isinstance(v, int | float) and not isinstance(v, bool) for v in raw):
         return None
     y0, x0, y1, x1 = (min(max(v, 0), 1000) / 1000 for v in raw)
     if x1 <= x0 or y1 <= y0:

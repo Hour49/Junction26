@@ -3,12 +3,16 @@ A fake client gives the replies; no key, no network, no partner data."""
 
 import io
 import json
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from PIL import Image
 
 from app.adapters.discipline_pictures.gemini import GeminiPictureReader, reading_of
-from app.adapters.raster_ocr.gemini import NoAnswerError
+from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets
+from app.adapters.raster_ocr.gemini import GeminiError, NoAnswerError
 from app.core.drawing.model import Page
 from app.core.pipeline.model import DrawingFile, Sheet
 
@@ -63,10 +67,9 @@ def test_malformed_boxes_are_dropped_and_no_legend_reads_nothing() -> None:
     assert empty.legend is None and empty.read == () and "no legend" in empty.notes[0]
 
 
-def test_a_reply_that_is_not_the_asked_json_reads_nothing() -> None:
-    answer = {"candidates": [{"content": {"parts": [{"text": "sorry"}]}}]}
-    reading = reading_of(answer)
-    assert reading.sightings == () and "not the asked JSON" in reading.notes[0]
+def test_a_reply_that_is_not_the_asked_json_is_refused() -> None:
+    with pytest.raises(ValueError, match="not the asked JSON"):
+        reading_of({"candidates": [{"content": {"parts": [{"text": "sorry"}]}}]})
 
 
 class Files:
@@ -93,15 +96,88 @@ def sheet() -> tuple[DrawingFile, Sheet]:
     return source, Sheet(file=source, pages=(Page(page=1, width=400, height=300, unit="px"),))
 
 
-def test_the_reader_sends_the_page_once_and_charges_the_reply() -> None:
+def reader(client: Client, tmp_path: Path) -> GeminiPictureReader:
+    return GeminiPictureReader(Files(), client, tmp_path / "replies")  # type: ignore[arg-type]
+
+
+def test_the_reader_sends_the_page_once_and_charges_the_reply(tmp_path: Path) -> None:
     client = Client(
         reply({"legend": LEGEND, "symbols": [{"label": "Valve", "boxes": [[1, 1, 9, 9]]}]})
     )
-    reading = GeminiPictureReader(Files(), client).read(*sheet())  # type: ignore[arg-type]
+    reading = reader(client, tmp_path).read(*sheet())
     assert client.calls == 1 and len(reading.sightings) == 1 and reading.cost_usd > 0
 
 
-def test_no_answer_reads_nothing_and_says_why() -> None:
+def test_a_page_is_paid_for_once_the_reply_is_cached(tmp_path: Path) -> None:
+    client = Client(
+        reply({"legend": LEGEND, "symbols": [{"label": "Valve", "boxes": [[1, 1, 9, 9]]}]})
+    )
+    first = reader(client, tmp_path).read(*sheet())
+    again = reader(client, tmp_path).read(*sheet())  # a re-ingest: a new reader, the same cache
+    assert client.calls == 1
+    assert again.sightings == first.sightings and again.cost_usd == 0.0
+
+
+def test_a_failed_call_raises_and_caches_nothing(tmp_path: Path) -> None:
     client = Client(NoAnswerError("HTTP 503"))
-    reading = GeminiPictureReader(Files(), client).read(*sheet())  # type: ignore[arg-type]
-    assert reading.sightings == () and "HTTP 503" in reading.notes[0]
+    with pytest.raises(GeminiError, match="HTTP 503"):
+        reader(client, tmp_path).read(*sheet())
+    assert not (tmp_path / "replies").exists()
+
+
+def test_a_reply_that_is_not_the_asked_json_raises_and_is_not_cached(tmp_path: Path) -> None:
+    client = Client({"candidates": [{"content": {"parts": [{"text": "sorry"}]}}]})
+    with pytest.raises(GeminiError, match="not the asked JSON"):
+        reader(client, tmp_path).read(*sheet())
+    client.answer = reply({"legend": LEGEND, "symbols": []})
+    reader(client, tmp_path).read(*sheet())
+    assert client.calls == 2  # the bad reply was not kept
+
+
+def test_float_boxes_are_read() -> None:
+    reading = reading_of(
+        reply(
+            {"legend": LEGEND, "symbols": [{"label": "Valve", "boxes": [[600.0, 400.5, 610, 410]]}]}
+        )
+    )
+    assert len(reading.sightings) == 1
+
+
+class Inner:
+    def extract(self, source: Any, sheet: Any) -> str:
+        return "drawing"
+
+
+def lane(client: Client, tmp_path: Path) -> tuple[PictureLane, PictureSheets]:
+    sheets = PictureSheets(Files(), tmp_path / "sheets")  # type: ignore[arg-type]
+    legend = SimpleNamespace(
+        legend=lambda source, sheet: None,
+        scale=lambda source, sheet: SimpleNamespace(m_per_unit=None),
+    )
+    made = PictureLane(
+        Inner(),  # type: ignore[arg-type]
+        Files(),  # type: ignore[arg-type]
+        lambda path: None,
+        sheets,
+        legend,  # type: ignore[arg-type]
+        reader(client, tmp_path),
+    )
+    return made, sheets
+
+
+def named_sheet() -> tuple[DrawingFile, Sheet]:
+    source = DrawingFile(path="H-101 heating.png", size=1, sha256="1" * 64, kind="png")
+    return source, Sheet(file=source, pages=(Page(page=1, width=400, height=300, unit="px"),))
+
+
+def test_after_a_failed_call_the_lane_keeps_the_sheet_it_had(tmp_path: Path) -> None:
+    good = reply({"legend": LEGEND, "symbols": [{"label": "Valve", "boxes": [[1, 1, 9, 9]]}]})
+    made, sheets = lane(Client(good), tmp_path)
+    made.extract(*named_sheet())
+    kept = sheets.sheet("1" * 64)
+    assert kept is not None and kept.facts
+    for path in (tmp_path / "replies").glob("*.json"):
+        path.unlink()  # the cached reply gone: the next read calls again, and fails
+    failing, _ = lane(Client(NoAnswerError("HTTP 503")), tmp_path)
+    assert failing.extract(*named_sheet()) == "drawing"  # ingest goes on
+    assert sheets.sheet("1" * 64) == kept  # not overwritten by a sheet without symbols

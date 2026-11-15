@@ -383,7 +383,8 @@ def _pictures(
             budget=spend_guard(settings),
             in_flight=settings.carbon_calls_in_flight,
         )
-        symbols = GeminiPictureReader(files, client)
+        replies = kept_in(settings.discipline_pictures_cache_dir, "gemini") / "replies"
+        symbols = GeminiPictureReader(files, client, replies)
     return PictureLane(
         inner,
         files,
