@@ -9,9 +9,10 @@ is joined to the element or room it marks by page and box, for its label, id and
 recount is the ingest value minus the rejected marks' values plus the added and counted-in ones',
 so a count without marks behind it (a model's object count) still recounts. A sum with a mark of
 unknown value cannot be recounted, so only `settle` changes it. A settled value holds until the
-next mark edit. An edit changes its own quantity only, with one exception as the rows show it:
+next mark edit. An edit changes its own quantity only, with two exceptions as the rows show them:
 an item rejected on a sheet-wide count is rejected on every count of its class that shows it
-(`with_rejected_items`, R4-B2).
+(`with_rejected_items`, R4-B2), and a room's area settled on a row of that one room is its area
+on the room's other rows and in the sums that add it (`_settled_rooms`, big QA R1 row 12).
 
 Two rules keep a demo honest: a signed-off quantity is not edited until the sign-off is undone,
 and a conflict no rule decides is settled by a person before it can be signed off.
@@ -23,7 +24,15 @@ from typing import NamedTuple, get_args
 from app.core.drawing.model import Box, Drawing, ElementClass, Polygon, Room, RoomType, words
 from app.core.errors import DomainError, InvalidInputError, NotFoundError
 from app.core.pipeline.model import Measure, Quantity
-from app.core.pipeline.rules import ROOM_NAMES, ROOM_NUMBERS
+from app.core.pipeline.rules import (
+    INDOOR_TOTAL,
+    LARGEST_ROOM,
+    ROOM_AREA,
+    ROOM_AREA_MEASURED,
+    ROOM_NAMES,
+    ROOM_NUMBERS,
+    ROOMS_TOTAL,
+)
 from app.core.pipeline.takeoff import normalised, quantity_key, room_names
 from app.core.review.model import (
     Added,
@@ -42,6 +51,11 @@ from app.core.review.model import (
 )
 
 MEASURES: tuple[Measure, ...] = ("area", "length", "volume", "text")
+# The rows a room's settled area reaches (`_settled_rooms`): the room's own and the sums the
+# takeoff computes from rooms, never an apartment's area, which may be printed (review-718)
+FOLLOWS = frozenset(
+    rule.id for rule in (ROOM_AREA, ROOM_AREA_MEASURED, ROOMS_TOTAL, INDOOR_TOTAL, LARGEST_ROOM)
+)
 # An element or room by where it is: its id, label, outline and (a room) its area.
 Item = tuple[str | None, str | None, Polygon | None, float | None]
 
@@ -514,7 +528,8 @@ def with_rejected_items(state: ReviewState, quantities: Mapping[str, Quantity]) 
     apartment or storey: "door") is rejected on every count of its class that shows it ("door|
     name=kitchen", "door+window"), so no room counts a door the surveyor said is no door (R4-B2).
     A rejection on a narrower row stays there: a door between two rooms is both rooms', and "not
-    this room's" is not "not a door". Derived for the rows shown, never stored."""
+    this room's" is not "not a door". Derived for the rows shown, never stored; a room's settled
+    area reaches its other rows here too (`_settled_rooms`)."""
     gone: dict[tuple[int, Box], set[str]] = {}  # an item -> the classes it is not
     for key, ids in state.rejected.items():
         found = quantities.get(key)
@@ -528,7 +543,7 @@ def with_rejected_items(state: ReviewState, quantities: Mapping[str, Quantity]) 
                 mark = found.marks[int(mark_id[1:]) - 1]
                 gone.setdefault((mark.page, mark.box), set()).update(subject.split("+"))
     if not gone:
-        return state
+        return _settled_rooms(state, quantities)
     rejected = dict(state.rejected)
     for key, found in quantities.items():
         if found.unit != "count":
@@ -541,7 +556,55 @@ def with_rejected_items(state: ReviewState, quantities: Mapping[str, Quantity]) 
         ]
         if also:
             rejected[key] = tuple(dict.fromkeys((*rejected.get(key, ()), *also)))
-    return state.model_copy(update={"rejected": rejected})
+    return _settled_rooms(state.model_copy(update={"rejected": rejected}), quantities)
+
+
+def _settled_rooms(state: ReviewState, quantities: Mapping[str, Quantity]) -> ReviewState:
+    """The state with a room's area settled on a row of that one room (its number, name or
+    label) taken by the room's other rows, and added into the sums the takeoff computes from rooms
+    (all rooms, indoor, a label's rooms) when their ingest value is their rooms' (big QA R1 row
+    12: Küche settled at 22.40 kept "label Küche 30.00" and "indoor 53.00"). An apartment's area
+    (it may be printed, review-718), the largest of several rooms, a row a person edited or signed
+    off and a sum with its own conflict or estimate keep theirs; a row signed off shows the value
+    signed. Within 0.05 m²: room rows are rounded, so a sum is its rooms' within their rounding.
+    Derived for the rows shown, never stored."""
+
+    def room(key: str, found: Quantity) -> tuple[int, Box] | None:
+        group = quantities.get(key.removeprefix("area:").removesuffix("|largest"))  # its rooms
+        alone = not parse_key(key)[2].largest or (group is not None and group.value == 1)
+        one = len(found.marks) == 1 and alone and found.unit == "m2" and found.rule in FOLLOWS
+        return (found.marks[0].page, found.marks[0].box) if one else None
+
+    measured = {at: found.value for key, found in quantities.items() if (at := room(key, found))}
+    kept = {
+        at: done
+        for key, done in state.settled.items()
+        if key in quantities and (at := room(key, quantities[key]))
+    }
+    settled = dict(state.settled)
+    for key, done in state.signed.items():  # the value signed, whatever was settled after it
+        found = quantities.get(key)
+        if found and found.rule in FOLLOWS and key not in settled and done.value != found.value:
+            settled[key] = Settled(value=done.value, at=done.at)
+    edits = (state.settled, state.signed, state.rejected, state.added, state.included)
+    for key, found in quantities.items():
+        places = [(mark.page, mark.box) for mark in found.marks]
+        if (
+            found.unit != "m2"
+            or found.rule not in FOLLOWS
+            or not kept.keys() & set(places)
+            or any(edit.get(key) for edit in edits)
+            or any(at not in measured for at in places)
+            or (len(places) == 1 and room(key, found) is None)  # the largest of several rooms
+            or (len(places) > 1 and (found.conflict is not None or found.estimate is not None))
+        ):
+            continue
+        if abs(sum(measured[at] for at in places) - found.value) > 0.05:
+            continue  # not its rooms' sum: left as read
+        now = sum(kept[at].value if at in kept else measured[at] for at in places)
+        at = next(kept[at] for at in places if at in kept).at
+        settled[key] = Settled(value=_typed(found, now), at=at)
+    return state.model_copy(update={"settled": settled})
 
 
 def sheet_row(quantities: Mapping[str, Quantity], key: str | None) -> Quantity:
