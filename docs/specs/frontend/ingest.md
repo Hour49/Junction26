@@ -384,7 +384,8 @@ File trace
   characters of `sha256`, time and cost. [component, `trace.json`]
 - IN-33: Every stage of `trace.json` is an item in order with its label, `did`, and `ms` formatted by `formatMs`;
   `output` shows only when not empty and not equal to `did`. [component]
-- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234; `formatCost` gives "$0.00"
+- IN-34: `formatMs` gives "0.68 ms" for 0.6838, "12.5 ms" for 12.5, "1.2 s" for 1234, "<0.01 ms" for 0.0042
+  (a measured time above 0 and under 0.01; 0 stays "0.00 ms"); `formatCost` gives "$0.00"
   for 0, "<$0.01" for 0.004, "$0.12" for 0.123; `formatSize` gives "2.2 KB" for 2263 and "1.0 MB" for 1048576.
   [unit]
 - IN-35: `trace-failed` shows the `extract` item as "Failed: no page could be read" with an icon and the word, the

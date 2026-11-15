@@ -196,6 +196,8 @@ export function plural(n: number, one: string, many = `${one}s`): string {
 }
 
 export function formatMs(ms: number): string {
+  // a real time too short to show in hundredths is not "0.00 ms" (trace's e2e, 2026-11-15); 0 stays 0
+  if (ms > 0 && ms < 0.01) return '<0.01 ms';
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
   return `${ms >= 10 ? ms.toFixed(1) : ms.toFixed(2)} ms`;
 }
