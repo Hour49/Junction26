@@ -176,7 +176,7 @@ def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
             continue  # not read
         for room in rooms:
             printed = _printed(room.label, room.attrs.get("number"))
-            if printed and words <= set(TOKEN.findall(printed.lower())):
+            if printed and _holds(printed, words):
                 place = {"drawing_id": entry.drawing_id, "page": room.page, "box": list(room.box)}
                 found.append({"room": room.id, "label": printed, "name": entry.name, **place})
     if not found:
@@ -184,6 +184,21 @@ def _find_rooms(store: PipelineStore, name: str, arguments: str) -> str:
         return json.dumps({"status": "unknown", "reason": reason}, ensure_ascii=False)
     out: Json = {"status": "ok", "count": len(found), "rooms": found[:ROOMS_LISTED]}
     return json.dumps(out, ensure_ascii=False)
+
+
+def _holds(printed: str, words: set[str]) -> bool:
+    """Whether the printed label holds every word, a plural as its singular and back
+    ("classrooms" finds Secondary Classroom: R4-A14)."""
+    tokens = {form for token in TOKEN.findall(printed.lower()) for form in _forms(token)}
+    return all(_forms(word) & tokens for word in words)
+
+
+def _forms(word: str) -> set[str]:
+    """`word` and, when it may be an English plural, its singulars: offices -> office (and
+    offic), classes -> class; not a word ending in ss (class, glass) or of three letters."""
+    if len(word) <= 3 or not word.endswith("s") or word.endswith("ss"):
+        return {word}
+    return {word, word[:-1], *([word[:-2]] if word.endswith("es") else [])}
 
 
 def _printed(label: str | None, number: Any) -> str | None:
