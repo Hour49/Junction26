@@ -164,6 +164,9 @@ def build(dataset, out, stem, picks):
         files.append(entry)
     if not any("image" in f for f in files):
         sys.exit(f"{stem} has no PNG to show")
+    # stoa.js places the conflicts and issues on the PDF's page image: without it they show an empty box
+    if any(f["path"].endswith(".pdf") and "image" not in f for f in files):
+        sys.exit(f"{stem}.pdf has no page image: run this with a Python that has pypdfium2 (the backend venv has it)")
     data = {
         "archive": stem,
         "source": SOURCE,
