@@ -382,7 +382,11 @@ def ask(
             code, words = "not-in-drawing", room_word_refusal(kind, unsaid[query])
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
-        can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
+        # a services plan (triage is sure): its rooms are the plan under the pipes, so no
+        # floor-plan question is offered (R1 services-second S3: "How many halls are there?")
+        can_answer = (
+            () if no_symbols is not None else suggestions(quantities, parser, SUGGESTIONS, tables)
+        )
         if code == "not-in-drawing" and isinstance(parsed, Query):
             rooms = rooms_of_type(parsed, drawing)
             if len(rooms) > 1 and (each := _room_areas(rooms, quantities, parser)):
