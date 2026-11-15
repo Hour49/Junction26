@@ -1063,6 +1063,53 @@ def test_two_names_that_read_as_one_room_are_not_compared() -> None:
     )
 
 
+def space(at: str, storey: str, name: str, long_name: str | None, area: float | None) -> dict:
+    quantities = {} if area is None else {"area_m2": area}
+    return {"id": at, "class": "space", "storey": storey, "name": name, "long_name": long_name,
+            "quantities": quantities}  # fmt: skip
+
+
+def model_file(*spaces: dict) -> Drawing:
+    """A building model asked on its own (an uploaded .ifc): no page, no drawn room, its spaces."""
+    return Drawing.model_validate(
+        {
+            "file": "duplex.ifc",
+            "pages": [],
+            "scale": {"status": "no_scale"},
+            "model_objects": list(spaces),
+        }
+    )
+
+
+def test_the_largest_room_of_a_model_file_is_ranked_from_its_spaces() -> None:
+    """Tudor's QA batch 1 B6: on the duplex .ifc, "How many rooms are there?" said 21 (the model's
+    spaces) while "What is the largest room?" said "this drawing has 0 rooms to compare": the
+    comparison read only the rooms a sheet draws, and a model file draws none."""
+    drawing = model_file(
+        space("m1", "Level 1", "A102", "Living Room", 39.4),
+        space("m2", "Level 2", "A203", "Bedroom 2", 22.04),
+        space("m3", "Level 2", "B203", "Bedroom 2", 22.04),
+        space("m4", "Level 1", "A104", "Bathroom", 4.1),
+    )
+    assert asked("How many rooms are there?", drawing).answer.answer == 4
+    found = asked("What is the largest room?", drawing)
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == "Living Room (A102)"
+    assert found.answer.explanation is not None
+    assert found.answer.explanation.startswith(
+        "Living Room (A102) (39.40 m²) is the largest of the 4 rooms; next is "
+    )
+    smallest = asked("Which room is the smallest?", drawing)
+    assert smallest.answer.answer == "Bathroom (A104)", smallest.refusal
+    # a space whose area the model doesn't state is named, not skipped
+    unknown = model_file(
+        *[space("m1", "L1", "A1", "Hall", 9.0), space("m2", "L1", "A2", "Store", None)]
+    )
+    refused = asked("Which room is the largest?", unknown)
+    assert refused.refusal is not None
+    assert "Store (A2)" in refused.refusal.text and "no area" in refused.refusal.text
+
+
 def test_a_schedule_s_largest_room_is_left_to_the_schedule() -> None:
     """golden 89437 asks the finish room schedule which room is largest: not the rooms drawn."""
     drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))
