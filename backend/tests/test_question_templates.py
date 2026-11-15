@@ -265,6 +265,7 @@ def test_room_types_and_rooms_named_as_included_still_count() -> None:
 
 def test_a_question_about_the_building_is_about_the_model_not_the_sheet() -> None:
     assert PARSE("How many doors are there in this building?") == Query(subject="door", model=True)
+    assert PARSE("How many doors in the entire building?") == Query(subject="door", model=True)
 
 
 def test_the_largest_room_of_a_label_or_type_by_area() -> None:
@@ -519,6 +520,10 @@ def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
         ("How many doors are there in the whole project?", "How many doors are there?"),
         ("How many doors are there in the project?", "How many doors are there?"),
         ("How many windows across the entire project?", "How many windows?"),
+        # review-529 S1: near phrasings read "project" as the building model and refused on a sheet
+        ("How many doors are there in this project?", "How many doors are there?"),
+        ("How many doors does the project have?", "How many doors are there?"),
+        ("How many windows does this project have?", "How many windows are there?"),
     ],
 )
 def test_each_drawing_is_the_whole_drawing_not_a_breakdown(text: str, same_as: str) -> None:

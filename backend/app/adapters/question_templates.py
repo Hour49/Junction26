@@ -325,7 +325,10 @@ INCLUDING = re.compile(  # rooms named to say they count too ("sinks, kitchen in
     r"\bincluding\b|\bincluded\b|\bmukaan lukien\b|\bmukaan\b|\beinschlie\w*|\binklusive\b"
     r"|\by compris\b|\bincluid\w*|\bcompres[aoie]\b|\binclus\w*|\btogether\b|\bzusammen\b"
 )
-BUILDING = re.compile(r"\bbuilding\b|\bproject\b")  # the whole model, not this sheet
+# The whole model, not this sheet. "project" is not the model: the project chat asks each drawing
+# the question as written, so "in this project" or "does the project have" is that drawing's own
+# quantity, as "in the whole project" is (EACH_SHEET; review-529 S1)
+BUILDING = re.compile(r"\bbuilding\b")
 # In English the counted thing comes right after these words ("how many X-ray rooms" is not a
 # count of rooms); the words in FILLER may come between.
 ENGLISH_COUNT = re.compile(r"\b(?:how many|number of|count of|count the|count)\s+")
