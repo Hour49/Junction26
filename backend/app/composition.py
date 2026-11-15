@@ -926,6 +926,8 @@ def build_ingest(
         names["door_prior_units"] = settings.door_prior_units
     if settings.scale_signatures != "off":  # the same
         names["scale_signatures"] = settings.scale_signatures
+    if settings.label_scale != "off":  # the same
+        names["label_scale"] = settings.label_scale
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same

@@ -221,3 +221,29 @@ def test_label_scale_off_leaves_the_raster_reader_as_it_is(name: str, wrapped: b
     inner = Inner(found(Scale(status="no_scale"), LABELLED))
     reader = _labelled(Settings(label_scale=name), inner, lambda p: None, lambda p: False)  # type: ignore[arg-type]
     assert (reader is not inner) is wrapped
+
+
+@pytest.mark.parametrize("door_factor", [1.8, 2.5, 0.3])  # 2.5x and 0.3x: over ESTIMATE_RANGE
+def test_the_scale_conflict_is_decided_for_the_label_scale(door_factor: float):
+    from app.core.pipeline.second_count import measured, second_count
+
+    out = with_label_scale(found(door(M * door_factor), LABELLED), [PAGE])
+    (entry,) = [c for c in second_count(measured(out), out.printed) if c.quantity == "scale"]
+    assert entry.status == "conflict"
+    assert entry.resolution is not None
+    assert entry.resolution.value == out.scale.m_per_unit
+    assert "room labels" in entry.resolution.rule
+
+
+def test_label_scale_is_part_of_the_ingest_reuse_key(tmp_path):
+    from app.composition import build_ingest
+    from app.settings import Settings
+
+    def names(value: str) -> dict[str, str]:
+        settings = Settings(label_scale=value)  # type: ignore[arg-type]
+        ingest = build_ingest(settings, tmp_path / value, background=False)
+        ingest.close()
+        return ingest._names  # pyright: ignore[reportPrivateUsage]
+
+    assert "label_scale" not in names("off")  # the default keeps its cache keys
+    assert names("on")["label_scale"] == "on"
