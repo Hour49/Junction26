@@ -54,8 +54,9 @@ def test_a_count_of_the_whole_picture_is_answered_as_before(text: str) -> None:
     assert answer is not None and answer.method == FACTS and "6" in str(answer.answer), answer
 
 
-def test_a_model_s_facts_still_answer_a_room_question() -> None:
-    """Only a picture's facts are whole-sheet: an IFC model's sheet is not touched."""
+def test_a_model_s_facts_refuse_a_room_count_too() -> None:
+    """An IFC model's facts count by type and storey, not room: its whole count is no answer for
+    one room either (sample services-mep, tests/test_model_room_scope.py)."""
     model = FactSheet(
         model="m1",
         disciplines=["heating"],
@@ -71,7 +72,9 @@ def test_a_model_s_facts_still_answer_a_room_question() -> None:
         ],
     )
     answer = _answer("How many radiators are in the cafeteria?", model)
-    assert answer is None or not answer.method.startswith("refused:unsupported"), answer
+    assert answer is not None and answer.explanation == IN_ONE_ROOM, answer
+    whole = _answer("How many radiators are there?", model)
+    assert whole is not None and whole.method == FACTS and "4" in str(whole.answer), whole
 
 
 def test_the_ask_and_the_chat_refuse_one_room_on_a_picture(settings: Settings) -> None:
