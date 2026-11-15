@@ -58,6 +58,9 @@ from app.adapters.decisions.uses import (
 )
 from app.adapters.decisions_kind import KindReader
 from app.adapters.decisions_kind.probe import KindProbe
+from app.adapters.discipline_pictures.lane import CODE as PICTURES_CODE
+from app.adapters.discipline_pictures.lane import PictureLane, PictureSheets
+from app.adapters.discipline_pictures.legend import OcrLegend
 from app.adapters.evidence.embedder import load_embedder
 from app.adapters.evidence.pictures import SheetKindPictures
 from app.adapters.evidence.project import CreditOf, ProjectEvidence
@@ -72,6 +75,7 @@ from app.adapters.hello import (
 )
 from app.adapters.ifc_model import IfcModelExtractor, IfcModels, IfcSecondCounter
 from app.adapters.ifc_model.facts_source import IfcFactSource
+from app.adapters.ifc_model.facts_store import StoredFacts
 from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.llm_chat import OpenAiChatModel
 from app.adapters.local_gate import load_local_gate
@@ -91,6 +95,7 @@ from app.adapters.raster.photo import PHOTO, PhotoSwitch
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster.room_words import room_word, swiss_label_rooms
 from app.adapters.raster_detector import OnnxDetector
+from app.adapters.raster_ocr.engine import RapidOcrEngine
 from app.adapters.raster_ocr.gemini import GeminiClient, GeminiRoomExtractor, GeminiRoomReader
 from app.adapters.raster_ocr.region_rooms import RegionRooms, SegmenterRegion
 from app.adapters.raster_region import RegionDetector, load_region
@@ -137,8 +142,10 @@ from app.core.drawing.model import Room
 from app.core.errors import DomainError, InvalidInputError
 from app.core.evidence.chunks import passages
 from app.core.evidence.pictures import EvidenceSteps
+from app.core.ifc_facts import FactSheet
 from app.core.ingest.judge import reading_flags
 from app.core.ingest.model import CarbonRead, ContentKind, ProjectStatus
+from app.core.ingest.model import Sheet as SheetKind
 from app.core.ingest.ports import Classifier, ContentProbe, Describer, Rectifier
 from app.core.ingest.service import IngestService
 from app.core.ingest.triage import TriageSteps
@@ -284,12 +291,14 @@ def build_pipeline(
     dataset: Path,
     kinds: Callable[[str], str | None] | None = None,
     advanced: Callable[[str], bool] | None = None,
+    sheets: Callable[[str], SheetKind | None] | None = None,
 ) -> Pipeline:
     """`dataset` is the folder that the drawings' paths (`data/<source>/<name>`) are relative to.
     `kinds` gives the content kind ingest identified a file as, by its path; None: the content
     probe is asked (the CLI reads the dataset's files as they are). `advanced`: whether the
     sheet-kind step called a file advanced, by its path (CARBON_READER=advanced); None: none
-    was."""
+    was. `sheets`: the sheet-kind step's reply for a file, by its path (DISCIPLINE_PICTURES
+    routes on its discipline); None: no file has one (the CLI)."""
     files = DatasetFiles(dataset)
     unruled = _unruled(settings)
     as_image = _as_image(unruled)  # the PDFs the raster route reads: scans, and unruled ones
@@ -317,12 +326,19 @@ def build_pipeline(
             # A precomputed arm finds an uploaded sheet in the Stoa dataset by its content. A PDF
             # whose page 1 is not a vector plan is read here, so its schedules are read (and its
             # schedule checks noted) as on the vector route.
-            "raster": _tables(
-                settings.tables,
-                _printed(
-                    settings, _raster(settings, scans, decisions, kind_of, use_carbon, took), scans
+            "raster": _pictures(
+                settings,
+                _tables(
+                    settings.tables,
+                    _printed(
+                        settings,
+                        _raster(settings, scans, decisions, kind_of, use_carbon, took),
+                        scans,
+                    ),
+                    files,
                 ),
-                files,
+                scans,
+                sheets,
             ),
         },
         second_counter=_checked(
@@ -352,7 +368,45 @@ def _facts(settings: Settings, files: DrawingFiles) -> FactSource | None:
     if settings.ifc_facts:
         cache = Path(settings.ifc_facts_cache) if settings.ifc_facts_cache else None
         sources.append(IfcFactSource(files, cache))
+    if settings.discipline_pictures != "off":
+        sources.append(PictureSheets(files, settings.discipline_pictures_cache_dir))
     return FirstSheet(sources) if sources else None
+
+
+def _pictures(
+    settings: Settings,
+    inner: Extractor,
+    files: DrawingFiles,
+    sheets: Callable[[str], SheetKind | None] | None,
+) -> Extractor:
+    """DISCIPLINE_PICTURES: the picture lane beside the raster reader (lane.py); off: `inner`."""
+    if settings.discipline_pictures == "off":
+        return inner
+    return PictureLane(
+        inner,
+        files,
+        sheets or (lambda _path: None),
+        PictureSheets(files, settings.discipline_pictures_cache_dir),
+        OcrLegend(files, _ocr()),
+    )
+
+
+@cache
+def _ocr() -> RapidOcrEngine:
+    """One OCR engine per process: loading its models takes a second (raster_ocr/engine.py)."""
+    return RapidOcrEngine()
+
+
+def _stored_sheets(store: DiskProjectStore, project_id: str) -> Callable[[str], SheetKind | None]:
+    """The sheet-kind step's reply for a project's file (`triage.sheet`, saved before the
+    readers run); None for a file it did not classify."""
+
+    def sheet(path: str) -> SheetKind | None:
+        status, _ = store.load_project(project_id)
+        file = next((file for file in status.files if file.path == path), None)
+        return None if file is None or file.triage is None else file.triage.sheet
+
+    return sheet
 
 
 def _unruled(settings: Settings) -> Callable[[bytes], bool] | None:
@@ -618,6 +672,9 @@ class Answering:
     resolver: Resolver | None = None  # RESOLVER; None: off
     carbon_ladder: bool = False  # CARBON_LEVELS=ladder: a Medium answer Carbon reads alike is High
     room_words: RoomWords = no_room_words  # what a room's printed label names (room_word_doubt)
+    # IFC_FACTS: a file's stored fact sheet by (sha256, path, its bytes when a build must start),
+    # never parsed in this process (adapters/ifc_model/facts_store.py). None: off
+    facts: Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None = None
 
 
 def build_answering(settings: Settings) -> Answering:
@@ -650,7 +707,18 @@ def build_answering(settings: Settings) -> Answering:
         resolver=_resolver(settings),
         carbon_ladder=settings.carbon_levels == "ladder",
         room_words=room_word,
+        facts=_chat_facts(settings),
     )
+
+
+def _chat_facts(
+    settings: Settings,
+) -> Callable[[str, str, Callable[[], bytes]], FactSheet | None] | None:
+    if not settings.ifc_facts:
+        return None
+    if settings.ifc_facts_cache:
+        return StoredFacts(Path(settings.ifc_facts_cache)).facts
+    return StoredFacts(settings.projects_dir.parent / "cache" / "facts").facts
 
 
 def _scan_confidence(
@@ -829,6 +897,8 @@ def build_ingest(
         )
         # +storey: a plan's floor from its caption or the sheet's title (contract.py)
         names["carbon_reader"] = f"{rule}+storey:{READER_SHA[:12]}"
+    if settings.discipline_pictures != "off":  # the same; with the lane's code version
+        names["discipline_pictures"] = f"{settings.discipline_pictures}:{PICTURES_CODE}"
     if settings.carbon_levels != "off":  # the same; demote and ladder store the same reading
         # (ladder acts only when answering), so they share one name and a switch reads nothing again
         names["carbon_levels"] = f"demote:{READER_SHA[:12]}"
@@ -843,6 +913,7 @@ def build_ingest(
             store.files_dir(project_id),
             _stored_kinds(store, project_id),
             _stored_advanced(store, project_id),
+            _stored_sheets(store, project_id),
         ),
         reader_names=names,
         runner=ThreadRunner() if background else InlineRunner(),

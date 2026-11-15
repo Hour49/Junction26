@@ -37,23 +37,22 @@ async function uploaded(page: Page, name: string, body: Buffer): Promise<string>
 
 async function ask(page: Page, message: string) {
   // A cold load shows the ask chat until /api/info answers (chat.md CH-43): type into the agent chat.
-  await expect(page.getByRole('button', { name: 'Point at the plan' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Draw on the plan' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Question' }).fill(message);
   await page.getByRole('button', { name: 'Ask' }).click();
   return page.getByRole('article', { name: message }).last();
 }
 
-test('AC-39: the empty chat says what was read, and the ask box stays above the fold', async ({
+test('AC-39: the empty chat has no "What I read", and the ask box stays above the fold', async ({
   page,
 }, testInfo) => {
   const errors = watchErrors(page);
   const offline = await noKeys(page);
   const id = await sampleDone(page);
   await page.goto(`/#/p/${id}/chat`);
-  await expect(page.getByRole('button', { name: 'Point at the plan' })).toBeVisible();
-  const read = page.getByRole('region', { name: 'What I read' });
-  await expect(read).toBeVisible();
-  // the first screen is where a judge types: its ask box is fully in view, the block notwithstanding (keycheck 334)
+  await expect(page.getByRole('button', { name: 'Draw on the plan' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'What I read' })).toHaveCount(0); // ui-bugs 2g
+  // the first screen is where a judge types: its ask box is fully in view (keycheck 334)
   const box = await page.getByRole('textbox', { name: 'Question' }).boundingBox();
   const viewport = page.viewportSize();
   expect(box && viewport).toBeTruthy();
@@ -144,8 +143,12 @@ const STORAGE_BOX = { x0: 0.44, y0: 0.27, x1: 0.49, y1: 0.45 };
 async function storageEdit(page: Page, e2eDir: string, pack: string | null) {
   const id = await uploaded(page, 'walled-flat.pdf', walledFlat(e2eDir));
   await page.goto(`/#/p/${id}/chat${pack ? `?pack=${pack}` : ''}`);
-  await page.getByRole('button', { name: 'Point at the plan' }).click();
-  const frame = page.getByRole('region', { name: 'Point at the plan' }).locator('.vw-frame');
+  // ui-bugs 1: the pen in the ask bar; drawable once the first file's pages have come. Under 1200 px it opens the
+  // plan sheet, where the first file is open.
+  const pen = page.getByRole('button', { name: 'Draw on the plan' });
+  await expect(pen).not.toHaveAttribute('aria-disabled', 'true');
+  await pen.click();
+  const frame = page.locator('.ag-drawing .vw-frame').first();
   const img = frame.locator('img');
   await expect
     .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth))
@@ -168,6 +171,14 @@ async function storageEdit(page: Page, e2eDir: string, pack: string | null) {
   });
   await page.mouse.up();
   await expect(page.getByRole('button', { name: /^Remove Area on .+, page 1$/ })).toBeVisible();
+  // Pen down (Escape outside the viewer) so typing is back; on a narrow window close the sheet over the chat.
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
+  await page.keyboard.press('Escape');
+  await expect(pen).toHaveAttribute('aria-pressed', 'false');
+  const sheet = page.getByRole('dialog', { name: 'The plan' });
+  if (await sheet.isVisible()) await sheet.getByRole('button', { name: 'Close' }).click();
   const turn = await ask(page, 'Put a storage room here');
   const card = turn.locator('.ag-card--edit');
   await expect(card).toBeVisible({ timeout: 30_000 });

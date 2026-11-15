@@ -14,6 +14,8 @@ import {
 import { mockApi, never, reply } from '../test/mockApi';
 import type { PageViewerProps } from '../viewer/PageViewer';
 import { SurveyorScreen } from './SurveyorScreen';
+import { stubResizeObserver } from '../test/resizeObserver';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { markWords, statusText } from './words';
 
 // The viewer is a test double: it records its props so a test can read them and call its callbacks.
@@ -924,5 +926,68 @@ describe('pre-QA (2026-11-14)', () => {
       .getAllByRole('listitem')
       .filter((li) => /^[AB]:/.test(li.textContent));
     expect(items.map((li) => li.textContent.includes('in use'))).toEqual([true, false]);
+  });
+});
+
+/** ui-tooltips: the text of the shared Tip on (or around) this element, opened by keyboard focus. */
+async function tipOf(el: HTMLElement) {
+  const trigger = el.closest<HTMLElement>('[data-slot="tooltip-trigger"]') ?? el;
+  trigger.focus();
+  const text = (await screen.findByRole('tooltip')).textContent;
+  fireEvent.keyDown(trigger, { key: 'Escape' });
+  trigger.blur();
+  return text;
+}
+
+describe('tips (ui-tooltips P1)', () => {
+  beforeEach(stubResizeObserver);
+
+  it('TIP-1 the takeoff heading and the column heads explain themselves', async () => {
+    show();
+    await ready();
+    expect(await tipOf(screen.getByText(/^Takeoff: /))).toBe(REVIEW_TIPS.takeoff);
+    const table = screen.getByRole('table', { name: 'To review' });
+    expect(await tipOf(within(table).getByText('Quantity'))).toBe(REVIEW_TIPS.colQuantity);
+    expect(await tipOf(within(table).getByText('Value'))).toBe(REVIEW_TIPS.colValue);
+    expect(await tipOf(within(table).getByText('State'))).toBe(REVIEW_TIPS.colState);
+  });
+
+  it('TIP-2 First method / Second method says what a method is', async () => {
+    const both = derive('door', {
+      first: { method: 'polygon_x_scale', value: 2 },
+      second: { method: 'printed_label', value: 2 },
+    });
+    show('q=door', { [PATH.takeoff]: both });
+    await ready();
+    expect(await tipOf(within(detail()).getByText(/^First method:/))).toBe(REVIEW_TIPS.methods);
+  });
+
+  it('TIP-3 Keep and Settle: what they do; when locked, why (on a focusable wrapper)', async () => {
+    show();
+    await ready();
+    const keep = screen.getByRole('button', { name: /^Keep A:/ });
+    expect(await tipOf(keep)).toBe(REVIEW_TIPS.keep);
+    const settle = within(detail()).getByRole('button', { name: 'Settle' });
+    expect(settle).toHaveProperty('disabled', true);
+    const wrapper = settle.parentElement as HTMLElement;
+    expect(wrapper.tabIndex).toBe(0);
+    expect(await tipOf(wrapper)).toBe(REVIEW_TIPS.settleLocked);
+  });
+
+  it('TIP-4 Signing as, Sign off (and why it is locked) and Undo sign-off', async () => {
+    localStorage.setItem('countersign.surveyorName', 'Bea');
+    show('q=door');
+    await ready();
+    expect(await tipOf(within(detail()).getByText('Signing as'))).toBe(REVIEW_TIPS.signingAs);
+    const sign = within(detail()).getByRole('button', { name: 'Sign off 2' });
+    expect(await tipOf(sign)).toBe(REVIEW_TIPS.signOff);
+    fireEvent.change(within(detail()).getByLabelText('Signing as'), { target: { value: ' ' } });
+    expect(sign).toHaveProperty('disabled', true); // the same button: the wrapper never remounts it
+    expect(await tipOf(sign.parentElement as HTMLElement)).toBe(REVIEW_TIPS.signOffLocked);
+    cleanup();
+    show('q=door', { [PATH.takeoff]: signedDoor });
+    await ready();
+    const undo = within(detail()).getByRole('button', { name: 'Undo sign-off' });
+    expect(await tipOf(undo)).toBe(REVIEW_TIPS.undoSignOff);
   });
 });

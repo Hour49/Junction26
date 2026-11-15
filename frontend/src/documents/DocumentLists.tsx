@@ -5,6 +5,8 @@ import { isNotPlan, looksLike, rowLine, verdictOf } from '../ingest/triage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tip } from '@/components/ui/tip';
+import { fileStateTip } from '../shell/tips';
 import { shortReason } from './documents';
 import { CARD, MONO, MUTED, SMALL } from './ui';
 
@@ -99,7 +101,9 @@ export function DocumentLists({ project }: { project: ProjectView }) {
                     )}
                   </span>
                   <span className="flex flex-col items-end gap-1 max-[520px]:flex-row max-[520px]:flex-wrap max-[520px]:items-start">
-                    <StateBadge state={f.state} />
+                    <Tip text={fileStateTip(f.state)} wrap>
+                      <StateBadge state={f.state} />
+                    </Tip>
                     <span className={SMALL}>
                       {kindLabel(f.kind)} · {formatSize(f.size)}
                     </span>

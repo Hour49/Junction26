@@ -119,13 +119,13 @@ describe('IngestFinished and DoneLine (ingest.md v3)', () => {
       cleanup();
       return text;
     };
-    expect(line(null, null)).toBe('5 drawings ready.');
-    expect(line({ total: 0, needsPerson: 0 }, 0)).toBe('5 drawings ready.');
+    expect(line(null, null)).toBe('6 drawings ready.');
+    expect(line({ total: 0, needsPerson: 0 }, 0)).toBe('6 drawings ready.');
     expect(line({ total: 3, needsPerson: 1 }, 2)).toBe(
-      '5 drawings ready. Conflicts are below. 2 issues in Documents need you.',
+      '6 drawings ready. Conflicts are below. 2 issues in Documents need you.',
     );
     expect(line({ total: 3, needsPerson: 1 }, 1)).toBe(
-      '5 drawings ready. Conflicts are below. 1 issue in Documents needs you.',
+      '6 drawings ready. Conflicts are below. 1 issue in Documents needs you.',
     );
     vi.mocked(useIssuesToAnswer).mockReturnValue(2);
     render(<DoneLine projectId={ID} project={project} counts={null} />);

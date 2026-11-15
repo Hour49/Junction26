@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS, STATE_TIPS } from '../shell/tips-ingest';
 
 /** Shown when a poll fails after data arrived: the data stays, labelled as stale. */
 export function StaleNote({
@@ -48,15 +50,17 @@ const TONE = {
 export function StateBadge({ state }: { state: FileStatus['state'] }) {
   const { word, icon } = STATE_LABEL[state];
   return (
-    <Badge
-      variant={TONE[state]}
-      className={cn(
-        'gap-1.5 px-[11px] py-[5px] text-xs',
-        TONE[state] === 'secondary' && 'text-text-2',
-      )}
-    >
-      <span aria-hidden="true">{icon}</span> {word}
-    </Badge>
+    <Tip text={STATE_TIPS[state]} wrap>
+      <Badge
+        variant={TONE[state]}
+        className={cn(
+          'gap-1.5 px-[11px] py-[5px] text-xs',
+          TONE[state] === 'secondary' && 'text-text-2',
+        )}
+      >
+        <span aria-hidden="true">{icon}</span> {word}
+      </Badge>
+    </Tip>
   );
 }
 
@@ -171,14 +175,16 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
         ok={project.state === 'done'}
         stack
       >
-        <div role="group" aria-label="View" className="v-segmented">
-          <a href={base} aria-current={advanced ? undefined : 'page'}>
-            Simple
-          </a>
-          <a href={`${base}?view=advanced`} aria-current={advanced ? 'page' : undefined}>
-            Advanced
-          </a>
-        </div>
+        <Tip text={INGEST_TIPS.view}>
+          <div role="group" aria-label="View" className="v-segmented">
+            <a href={base} aria-current={advanced ? undefined : 'page'}>
+              Simple
+            </a>
+            <a href={`${base}?view=advanced`} aria-current={advanced ? 'page' : undefined}>
+              Advanced
+            </a>
+          </div>
+        </Tip>
       </TitleRow>
       {sent && (
         <p role="status" aria-label="Upload received" className="text-text-2">

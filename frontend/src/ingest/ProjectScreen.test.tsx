@@ -471,7 +471,7 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     const card = screen.getByRole('region', { name: 'Progress' });
-    expect(card.textContent).toContain('5 drawings ready.');
+    expect(card.textContent).toContain('6 drawings ready.');
     const list = screen.getByText('the conflicts list');
     const chat = screen.getByRole('button', { name: 'Start a new chat' });
     expect(card.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -494,7 +494,7 @@ describe('ProjectScreen', () => {
     act(() => {
       must(props.onCounts)({ total: 2, needsPerson: 0 });
     });
-    expect(card.textContent).toContain('5 drawings ready. Conflicts are below.');
+    expect(card.textContent).toContain('6 drawings ready. Conflicts are below.');
     expect(card.contains(screen.getByRole('link', { name: 'Start a new chat' }))).toBe(true);
     expect(card.contains(screen.getByRole('link', { name: 'Open the workspace' }))).toBe(true);
   });

@@ -62,7 +62,7 @@ test('CH-49 a partial room total has one tag beside its value; the missing rooms
   const tag = page.getByRole('note', { name: TIP });
   await expect(tag).toHaveCount(1, { timeout: 30_000 });
   await expect(tag).toHaveText('May be partial');
-  await expect(tag).toHaveAttribute('title', TIP);
+  await expect(tag).toHaveAttribute('aria-label', TIP); // the full text is the shared Tip on hover/focus (#421), not a title
   await tag.scrollIntoViewIfNeeded();
   await expect(tag).toBeVisible();
   const box = await tag.boundingBox();

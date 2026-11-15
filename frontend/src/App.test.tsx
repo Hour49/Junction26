@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, type Screens } from './App';
-import type { Issue, ProjectList } from './api';
+import type { Issue } from './api';
 import {
   error as errorBody,
   info,
@@ -16,6 +16,7 @@ import { issuesChanged } from './shell/issueCount';
 import { InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
+import { stubResizeObserver } from './test/resizeObserver';
 
 const P = '5e0c1a2b3d4f';
 const D = 'adeefbbcc17559fc';
@@ -103,6 +104,8 @@ function links() {
 beforeEach(() => {
   window.location.hash = '';
 });
+// The header's hover tips (components/ui/tip.tsx) need it when focus returns to the country pill.
+beforeEach(stubResizeObserver);
 afterEach(cleanup);
 
 describe('shell', () => {
@@ -205,36 +208,28 @@ describe('shell', () => {
       go(hash);
       expect(about(), hash).toBe('#/about');
     }
-    for (const hash of [
-      `#/p/${P}`,
-      `#/p/${P}/chat`,
-      `#/p/${P}/documents`,
-      `#/p/${P}/d/${D}/engineer`,
-    ]) {
+    for (const hash of [`#/p/${P}`, `#/p/${P}/chat`, `#/p/${P}/d/${D}/engineer`]) {
       go(hash);
       expect(about(), hash).toBe(`#/about?project=${P}`);
       expect(document.querySelector('.credit'), hash).toBeNull();
       expect(screen.queryByText(/^Credit:/), hash).toBeNull();
     }
+    go(`#/p/${P}/documents`); // Documents has no footer link
+    expect(screen.queryByRole('link', { name: 'About and credits' })).toBeNull();
     go('#/about');
     expect(screen.getByRole('heading', { level: 1, name: 'About Vellum' })).toBeTruthy();
     expect(links()).toEqual([]);
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-86 the About page: no footer link to itself; the picker shows its ?project', async () => {
+  it('SH-86 the About page: no footer link to itself', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     window.location.hash = `#/about?project=${P}`;
     render(<App screens={stubs} />);
     await screen.findByText(OFFLINE);
     expect(screen.queryByRole('link', { name: 'About and credits' })).toBeNull();
-    const picker = await screen.findByRole<HTMLSelectElement>('combobox', { name: 'Project' });
-    await waitFor(() => {
-      expect(picker.value).toBe(P);
-    });
     go('#/about');
     expect(screen.queryByRole('link', { name: 'About and credits' })).toBeNull();
-    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Project' }).value).toBe('');
   });
 
   it('SH-64 the chat route mounts ProjectChat with its query', async () => {
@@ -259,7 +254,7 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-55 the header: logo link, Workspaces link, picker; no country picker or avatar', async () => {
+  it('SH-55 the header: logo link; no Workspaces link, project picker, country picker or avatar', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);
     const banner = screen.getByRole('banner');
@@ -270,15 +265,13 @@ describe('shell', () => {
     expect(img?.getAttribute('alt')).toBe('');
     expect(img?.getAttribute('src')).toBe(logo);
     expect(banner.querySelectorAll('img')).toHaveLength(1);
-    const workspaces = () => within(banner).getByRole('link', { name: 'Workspaces' });
-    expect(workspaces().getAttribute('href')).toBe('#/workspaces');
-    expect(workspaces().getAttribute('aria-current')).toBeNull();
-    expect(within(banner).getByRole('combobox', { name: 'Project' })).toBeTruthy();
     expect(within(banner).queryByText(/Country rules/)).toBeNull();
-    go('#/workspaces');
-    expect(workspaces().getAttribute('aria-current')).toBe('page');
-    go(`#/p/${P}`);
-    expect(workspaces().getAttribute('aria-current')).toBeNull();
+    // ui-bugs 10 and 11: earlier projects are on #/workspaces, linked from the home page, not the header.
+    for (const hash of ['#/', '#/workspaces', `#/p/${P}`, `#/p/${P}/checks`, '#/about']) {
+      go(hash);
+      expect(within(banner).queryByRole('link', { name: 'Workspaces' }), hash).toBeNull();
+      expect(banner.querySelector('select'), hash).toBeNull();
+    }
     await screen.findByText(OFFLINE);
   });
 
@@ -379,22 +372,6 @@ describe('shell', () => {
     await screen.findByText(OFFLINE);
   });
 
-  it('SH-68 the project picker keeps ?pack', async () => {
-    window.location.hash = `#/p/${P}/checks?pack=fi`;
-    const other = { ...projectList.projects[0], id: 'aaaaaaaaaaaa', name: 'second.zip' };
-    mockApi({
-      'GET /api/info': info,
-      'GET /api/projects': { projects: [...projectList.projects, other] },
-      ...noIssues,
-    });
-    render(<App screens={stubs} />);
-    await screen.findByRole('option', { name: /^second\.zip/ });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Project' }), {
-      target: { value: other.id },
-    });
-    expect(window.location.hash).toBe(`#/p/${other.id}?pack=fi`);
-  });
-
   it('SH-69 the country picker lists the rule packs and writes ?pack; no request, no pending', async () => {
     window.location.hash = `#/p/${P}/d/${D}/surveyor?q=door`;
     const api = mockApi({
@@ -418,13 +395,20 @@ describe('shell', () => {
     expect(
       within(group()).getByText('Choose a country to pre-check its building rules.'),
     ).toBeTruthy();
+    // the rules page link shows only once a country is chosen
+    expect(within(group()).queryByRole('link', { name: 'Building construction rules' })).toBeNull();
     fireEvent.click(fi);
     expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door&pack=fi`);
     go(window.location.hash);
     expect(button().getAttribute('aria-label')).toBe('Country rules: Finland');
     expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
     fireEvent.click(button());
-    expect(within(group()).getByText(rulePackFi.note)).toBeTruthy();
+    expect(within(group()).queryByText(rulePackFi.note)).toBeNull();
+    expect(
+      within(group())
+        .getByRole('link', { name: 'Building construction rules' })
+        .getAttribute('href'),
+    ).toBe(`#/p/${P}/checks?pack=fi`);
     expect(
       within(group())
         .getByRole('button', { name: /^Finland/ })
@@ -542,129 +526,27 @@ describe('shell', () => {
   });
 });
 
-const other = { ...projectList.projects[0], id: 'aaaaaaaaaaaa', name: 'second.zip' };
-const two = { projects: [...projectList.projects, other] } as ProjectList;
-
-function picker() {
-  return screen.getByRole<HTMLSelectElement>('combobox', { name: 'Project' });
-}
-
-describe('project picker', () => {
-  it('SH-8 lists the project with its name and creation time', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
-    render(<App screens={stubs} />);
-    await screen.findByRole('option', { name: 'sample-project.zip · 2026-11-14 08:00 UTC' });
-  });
-
-  it('SH-9 the route project is selected; choosing another opens it', async () => {
-    window.location.hash = `#/p/${P}`;
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': two, ...noIssues });
-    render(<App screens={stubs} />);
-    await screen.findByRole('option', { name: /^second\.zip/ });
-    expect(picker().value).toBe(P);
-    fireEvent.change(picker(), { target: { value: other.id } });
-    expect(window.location.hash).toBe(`#/p/${other.id}`);
-  });
-
-  it('SH-10 a route project missing from the list asks for the list again, once', async () => {
-    const api = mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
-    render(<App screens={stubs} />);
-    await screen.findByRole('option', { name: /^sample-project/ });
-    go('#/p/bbbbbbbbbbbb');
-    await waitFor(() => {
-      expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(2);
-    });
-    go('#/p/bbbbbbbbbbbb/f/f1');
-    go(`#/p/${P}`);
-    await screen.findByText(OFFLINE);
-    expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(2);
-  });
-
-  it('SH-11 loading, empty and error states, and Retry', async () => {
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': never() });
-    const { unmount } = render(<App screens={stubs} />);
-    expect(picker().disabled).toBe(true);
-    expect(picker().textContent).toBe('Loading projects…');
-    unmount();
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': { projects: [] } });
-    const second = render(<App screens={stubs} />);
-    await screen.findByRole('option', { name: 'No projects yet' });
-    expect(picker().disabled).toBe(true);
-    second.unmount();
-    let fail = true;
-    const api = mockApi({
-      'GET /api/info': info,
-      'GET /api/projects': () => {
-        const answer = fail
-          ? reply(500, { detail: 'internal error', code: 'internal' })
-          : projectList;
-        fail = false;
-        return answer;
-      },
-    });
-    render(<App screens={stubs} />);
-    await screen.findByText('Projects: internal error (internal)');
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    await screen.findByRole('option', { name: /^sample-project/ });
-    expect(api.calls.filter((c) => c.url === '/api/projects')).toHaveLength(2);
-  });
-
-  it('SH-12 a project name renders as text, never HTML', async () => {
-    const name = '<img src=x onerror=alert(1)>';
-    const list = { projects: [{ ...projectList.projects[0], name }] } as ProjectList;
-    mockApi({ 'GET /api/info': info, 'GET /api/projects': list });
-    const { container } = render(<App screens={stubs} />);
-    await screen.findByRole('option', { name: `${name} · 2026-11-14 08:00 UTC` });
-    expect(container.querySelector('img:not(.brand-logo)')).toBeNull();
-  });
-});
-
 describe('info strip', () => {
-  it('SH-17 with keys there is no offline text, and What runs stays', async () => {
+  it('SH-17 with keys there is no info strip at all: no offline text, no empty bar', async () => {
     mockApi({
       'GET /api/info': { ...info, no_keys: false },
       'GET /api/projects': projectList,
       ...noIssues,
     });
-    render(<App screens={stubs} />);
-    await screen.findByText('What runs');
+    const { container } = render(<App screens={stubs} />);
+    await waitFor(() => {
+      expect(container.querySelector('.info-bar')).toBeNull();
+    });
     expect(screen.queryByText(OFFLINE)).toBeNull();
+    expect(screen.queryByText('What runs')).toBeNull();
   });
 
-  it('SH-18 What runs lists every port with its label and reader', async () => {
-    const readers = { ...info.readers, new_port: 'thing' };
-    mockApi({
-      'GET /api/info': { ...info, readers },
-      'GET /api/projects': projectList,
-      ...noIssues,
-    });
+  it('SH-18 without keys the strip shows the offline badge only, no "What runs" (ui-bugs 12)', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     const { container } = render(<App screens={stubs} />);
-    await screen.findByText('What runs');
-    const rows = Array.from(container.querySelectorAll('.what-runs dl > div')).map((row) => [
-      row.querySelector('dt')?.textContent,
-      row.querySelector('dd')?.textContent,
-    ]);
-    expect(rows).toHaveLength(11);
-    expect(rows).toContainEqual(['CAD (DXF)', 'not read']);
-    expect(rows).toContainEqual(['Scans and photos', 'not read']);
-    expect(rows).toContainEqual(['Vector PDF', 'PDF vector reader']);
-    expect(rows).toContainEqual(['Questions', 'question templates']);
-    expect(rows).toContainEqual(['Photo rectifier', 'none']);
-    expect(rows).toContainEqual(['photo/sheet check', 'off']);
-    expect(rows).toContainEqual(['new_port', 'thing']);
-  });
-
-  it('R2-qa-3-3 (SH-18) decisions_kind reads photo/sheet check: on / off', async () => {
-    mockApi({
-      'GET /api/info': { ...info, readers: { ...info.readers, decisions_kind: 'True' } },
-      'GET /api/projects': projectList,
-      ...noIssues,
-    });
-    const { container } = render(<App screens={stubs} />);
-    await screen.findByText('What runs');
-    const row = Array.from(container.querySelectorAll('.what-runs dl > div')).find(
-      (r) => r.querySelector('dt')?.textContent === 'photo/sheet check',
-    );
-    expect(row?.querySelector('dd')?.textContent).toBe('on');
+    await screen.findByText(OFFLINE);
+    expect(screen.queryByText('What runs')).toBeNull();
+    expect(container.querySelector('.info-bar details')).toBeNull();
+    expect(container.querySelector('.info-bar')?.textContent).toBe(OFFLINE);
   });
 });

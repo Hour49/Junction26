@@ -16,7 +16,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from typing import Protocol
 
-from app.core.answering.model import Answer, Question
+from app.core.answering.model import Answer, Evidence, Question
 from app.core.discipline import SYSTEM_DISCIPLINE
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
@@ -24,6 +24,12 @@ from app.core.ifc_question import FactQuery, parse_ifc_question, storey_number
 FACTS = "facts"  # `method` of an answer read from the fact sheet
 WHY = "read from the file's fact sheet; not yet measured, so confidence is Low"
 UNAVAILABLE = "This information is not available in the file"
+# A picture's sheet holds facts only of what its legend lists (discipline-pictures.md Outputs)
+NOT_READ = "not read on this picture"
+PICTURE_ROUTES = ("picture", "vector")  # a Fact.source's route, before its colon
+SAME_KIND = {"heat_exchanger": "space_heater"}  # a radiator is an IfcSpaceHeater in a model too
+# What a question asks about that is not a drawn thing: never refused as not read
+NOT_DRAWN = frozenset({"project", "storey", "space", "system", "discipline", "port"})
 
 
 class FactSource(Protocol):
@@ -47,23 +53,60 @@ def answer_from_facts(question: Question, sheet: FactSheet, latency_s: float) ->
     """The answer the facts give, or None when the rules can't read the question or the facts
     hold nothing for it."""
     query = parse_ifc_question(question.text)
-    text = None if query is None else fact_text(query, sheet)
+    if query is None:
+        return None
+    query, facts = _kind_of_sheet(query, sheet), _Facts(sheet.facts)
+    picture = bool(sheet.facts) and all(_picture(fact) for fact in sheet.facts)
+    if picture and query.entity not in NOT_DRAWN and not facts.topics(f"{query.entity}."):
+        return Answer(
+            id=question.id,
+            answer=None,
+            unit=None,
+            evidence=(),
+            method="refused:not-read",
+            cost_usd=0.0,
+            latency_s=latency_s,
+            abstain=True,
+            explanation=f"{NOT_READ}: its legend lists no {_plural(_noun(query.entity))}",
+        )
+    text = _written(query, facts)
     if text is None:
         return None
+    asked = [fact for fact in facts.read if fact.topic.startswith(f"{query.entity}.")]
+    seen = dict.fromkeys((s.page, s.box) for fact in asked for s in fact.spots)
     return Answer(
         id=question.id,
         answer=text,
         unit=None,
-        evidence=(),
+        evidence=tuple(Evidence(file=question.file, page=p, box=b) for p, b in seen),
         method=FACTS,
         cost_usd=0.0,
         latency_s=latency_s,
+        sure=False if picture else None,  # a picture's count is never certified (decision 0011)
         explanation=WHY,
     )
 
 
+def _picture(fact: Fact) -> bool:
+    return fact.source.split(":", 1)[0] in PICTURE_ROUTES
+
+
+def _kind_of_sheet(query: FactQuery, sheet: FactSheet) -> FactQuery:
+    """The query about the kind the sheet writes when it has none of the kind asked
+    (radiators: heat exchangers in the question's words, space heaters in a model's)."""
+    same = SAME_KIND.get(query.entity)
+    if same is None or any(f.topic.startswith(f"{query.entity}.") for f in sheet.facts):
+        return query
+    if not any(f.topic.startswith(f"{same}.") for f in sheet.facts):
+        return query
+    return query.model_copy(update={"entity": same})
+
+
 def fact_text(query: FactQuery, sheet: FactSheet) -> str | None:
-    facts = _Facts(sheet.facts)
+    return _written(_kind_of_sheet(query, sheet), _Facts(sheet.facts))
+
+
+def _written(query: FactQuery, facts: "_Facts") -> str | None:
     if query.aggregate == "unavailable":
         return f"{UNAVAILABLE}: a building file does not record it."
     storey = None if query.storey is None else _storey_of(query.storey, facts)
@@ -127,6 +170,7 @@ class _Facts:
         self.by_topic: dict[str, list[Fact]] = defaultdict(list)
         for fact in facts:
             self.by_topic[fact.topic].append(fact)
+        self.read: list[Fact] = []  # every fact handed out, in order: the answer's evidence
 
     def get(
         self,
@@ -138,13 +182,15 @@ class _Facts:
         """Facts of `topic` (of `subject`), of the whole building or, with `storey`, of that
         storey; with `anywhere`, of any storey. A system's own facts (`system` set) are left
         out: they are asked for by system."""
-        return [
+        found = [
             fact
             for fact in self.by_topic.get(topic, ())
             if (subject is None or fact.subject == subject)
             and (anywhere or fact.storey == storey)
             and fact.system is None
         ]
+        self.read += found
+        return found
 
     def one(self, topic: str, subject: str, storey: str | None = None) -> Fact | None:
         found = self.get(topic, subject, storey)
@@ -244,6 +290,8 @@ def _storeys_by_height(facts: _Facts) -> list[tuple[str, float]]:
         for fact in facts.get("storey.elevation", anywhere=True)
         if not isinstance(fact.value, str)
     }
+    if not found:  # a sheet that names its storey but no height (a picture's title)
+        found = {f.storey: 0.0 for fs in facts.by_topic.values() for f in fs if f.storey}
     return sorted(found.items(), key=lambda item: (item[1], item[0]))
 
 
@@ -564,7 +612,12 @@ _LISTED = {  # per type: the measures a question's words ask for
 
 def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     entity = query.entity
-    if not facts.get(f"{entity}.count", "all", storey) and not facts.get(f"{entity}_type.count"):
+    runs = facts.get(f"{entity}.length", "all", storey)  # a picture's runs: lengths, no count
+    if (
+        not facts.get(f"{entity}.count", "all", storey)
+        and not facts.get(f"{entity}_type.count")
+        and not runs
+    ):
         return _by_name(query, facts, storey)
     noun = _noun(entity)
     where = f" on {_label(storey, facts)}" if storey else ""
@@ -572,14 +625,15 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
     said = "" if part == "all" else part.replace("_", "-").replace("non-", "non-") + " "
     total = facts.one(f"{entity}.count", part, storey)
     count = 0 if total is None else int(total.value)
-    lines = [f"Total {said}{_plural(noun)}{where}: {count}"]
+    runs_only = total is None and bool(runs)
+    lines = [] if runs_only else [f"Total {said}{_plural(noun)}{where}: {count}"]
     totals = [
         f"{_TOTALS[entity].capitalize()}s in all: {f.topic.split('.')[1]} {_num(f)}"
         for topic in sorted(facts.topics(f"{_TOTALS.get(entity, entity)}."))
         if entity in _TOTALS and topic.endswith(".total")
         for f in facts.get(topic, "all")
     ]
-    if not count and not totals:  # the sheet truly lacks the kind, and any wider group of it
+    if not count and not totals and not runs_only:  # the sheet lacks the kind and its groups
         lines.insert(0, f"No {said}{_plural(noun)}{where} in this file.")
     if query.part != part:
         asked = query.part.replace("_", "-")
@@ -603,6 +657,13 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
         if count and named and measure in _LISTED and measure != "size" and not stated:
             said = measure.replace("_", " ")
             lines.append(f"The file states no {said} for its {_plural(noun)} (not available).")
+    words = {w.replace(" ", "").lower() for w in query.words}
+    sized = [  # a printed size the question names ("DN20 pipe"): its own length first
+        f"Length of {fact.subject}: {_num(fact)}"
+        for fact in facts.get(f"{entity}.size_length", storey=storey)
+        if fact.subject.replace(" ", "").lower() in words
+    ]
+    lines = sized + lines
     if query.aggregate == "share" or (query.part != "all" and query.aggregate == "list"):
         lines += _shares(entity, facts, storey)
     if query.aggregate in ("max", "min", "average"):

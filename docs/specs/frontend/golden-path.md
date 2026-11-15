@@ -33,7 +33,7 @@ checks on every screenshot (offline strip, no horizontal scroll, no console erro
 | V5 | Settle the conflicts, `#/p/<id>/conflicts` (3) | header "Conflicts"; on the "Küche · 1.01" card Modify, tap A, then "Use the rule's value" (CF-22) | "1 conflict found" (#131: one per room); the card on `plans/flat-b.pdf` "Settled by rule", then "Your choice" with Modify (never "Change"), then "Settled by rule"; "Start a new chat" (below the cards) is the primary link, "Open the workspace" a quiet link; no "Ask anything …" line |
 | V5a | New chat, `#/p/<id>/chat` (chat.md) | "Start a new chat" | the project name, the ask bar in the upper middle and the group "Suggested questions": "How many doors are there?", "What is the net floor area of all indoor rooms in m²?", "How many windows are there?"; no "Ask anything …" line, no plan, image or marks |
 | V5b | (chat) | click the chip "How many doors are there?" (the chips go, the bar moves to the bottom) | one card from one `POST /api/projects/{pid}/ask` (#135): several drawings answer, so no total and the backend's note "… they may show the same rooms, so the numbers are not added up"; a line per drawing ("plans/flat-b.pdf: 2"), each with "Show it on <file>"; no image |
-| V6 | Ask, with proof, `…/d/<did>/engineer` (4) | "Show it on plans/flat-b.pdf" | as GP-5: the page, its credit, the suggested questions |
+| V6 | Ask, with proof, `…/d/<did>/engineer` (4) | by its URL (ui-bugs 8) | as GP-5: the page, its credit, the suggested questions |
 | V7-V9 | (4) | the door count, the room 1.01 area, the roof refusal | as GP-6, GP-7, GP-8 |
 | V10-V12 | Surveyor, `…/surveyor` (restyle) | settle 1.01 on 22.40 m², sign off as "Ana" | as GP-9, GP-10, GP-11 |
 | V13 | (4) | ask the 1.01 area again | as GP-12: "22.40 m²", "Verified by Ana, …" |
@@ -52,8 +52,8 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
   is reached from Simple's file list (V4, GP-4; the Advanced view has no per-file trace link). [e2e]
 - GP-31 V5: `#/p/<id>/conflicts` shows "2 conflicts found" and both conflicts with "22.40 m² vs 30.00 m²"; no
   conflict "needs you" on the sample. [e2e]
-- GP-32 V6: in the chat answer, "Show it on plans/flat-b.pdf" reaches flat-b's `#/p/<id>/d/<16 hex>/engineer`
-  (chat.md). The path no longer goes through the card's surveyor link or "Open the workspace". [e2e]
+- GP-32 V6: flat-b's `#/p/<id>/d/<16 hex>/engineer?ask=<question>` opened by its URL (ui-bugs 8/13: the chat
+  and the plan pane have no link to a drawing's workspace any more) shows the drawing asking that question. The path no longer goes through the card's surveyor link or "Open the workspace". [e2e]
 - GP-33 V15: "Workspaces" in the header reaches `#/workspaces`; the first workspace is "sample-project.zip" with
   `aria-pressed="true"`; the stats read Files 11, Drawings 5, To review 0 and Signed off matching `/^1 of \d+$/` (one per room).
   [e2e]
@@ -71,7 +71,7 @@ Acceptance criteria (Vellum; GP-1 … GP-28 keep their checks, read against the 
   questions" with exactly the three chips above; no "Ask anything …" line; inside `main` no `img`, `figure` or
   canvas. Clicking the doors chip asks it (V5b), and the group is gone after the first ask. [e2e]
 - GP-40 V5b: the doors question gives one turn with no `answer-value`, text matching "may show the same rooms, so
-  the numbers are not added up", "plans/flat-b.pdf: 2", the link "Show it on plans/flat-b.pdf", and no `img` or
+  the numbers are not added up", "plans/flat-b.pdf: 2", one card (the reference chosen), no "Show it on" link, and no `img` or
   `figure` in the turn. The Chat tab is `aria-current="page"` on the chat page. [e2e]
 - GP-36 No screen on the path shows a user name, initials, avatar or country picker, and no mock value from the
   canvas ("harbour-block-archive.zip", "Beatrice", "Hour49"). [e2e: text checks on every screenshot step]

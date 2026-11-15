@@ -72,7 +72,9 @@ frontend-orch's 21:50 GO.
    - `unavailable`: no button, the line "3D view unavailable: <reason>" (`reason`, else "the model cannot be shown
      in 3D" when it is empty).
    - `model_3d` null (every 2D file, an IFC set aside, `MODEL_3D` off): no card.
-2. **Chat References** (part 2). In `ChatAnswer`'s References list, each part with `model_3d` set and not
+2. **Chat answer** (part 2; ui-bugs 5, 2026-11-15: now ONE round "3D" button above the image's top-right, the
+   shown part's model, else the answer's building model, tip "Open the 3D model"; the per-reference buttons below
+   are replaced). In `ChatAnswer`'s References list, each part with `model_3d` set and not
    `unavailable` gets a second button after its row, "View in 3D" (`aria-label` "View in 3D: <label>", visible text first, 44 px tall);
    the row itself is unchanged (a button when the part has pages, plain text with "· no preview" when not). It opens
    `ModelDialog` titled "3D view: <label>" with `ModelView` on `model_file_id`, highlighting the part's `highlight`
@@ -214,8 +216,8 @@ Same `ModelDialog`, `canShow3d` and highlight as parts 2-3; no new dependency; m
    `ChatEvidence` is a place on a page (`page`, `box`); IFC drawings have no pages, so the agent never cites one (probe
    on the e2e fixture, 22:58: "How many doors / walls are there?", "Where is the door?", "Show me the slab", "What is
    the floor area?" each gave `evidence: []`). The other agent place that names a drawing is the **plan pane** (beside
-   the chat at >= 1200 px, a sheet below): when the shown drawing's file can show 3D, the pane head gets "View in 3D"
-   after "Open in workspace", opening `ModelDialog` with the newest answered turn's `highlight` for that drawing (its
+   the chat at >= 1200 px, a sheet below): when a listed file can show 3D, its open row gets a round "3D" button
+   (`aria-label` "View in 3D: <name>") over its image (ui-bugs 2, 2026-11-15), opening `ModelDialog` with the newest answered turn's `highlight` for that drawing (its
    part in `turn.answers`), else `[]`.
 2. **Documents issue cards** (Bogdan #14 c6883948897, additive; feature/model-3d-issues). Backend: a check's
    `CheckSubject` gets `global_id` when the drawing's model lists the room or door as drawn here
@@ -231,9 +233,9 @@ Same `ModelDialog`, `canShow3d` and highlight as parts 2-3; no new dependency; m
 own Esc/Tab handlers, which would close the sheet behind the dialog.
 
 Criteria:
-- M3-21: `PlanPane` with a `model` shows "View in 3D" in its head, none without; it opens the dialog with the given
-  highlight; Esc inside the dialog closes the dialog only (a `PlanSheet` around it stays open). `AgentChat` passes the
-  file and the newest answered part's `highlight` for the shown drawing. [component]
+- M3-21: a `PlanPane` file with a `model` shows "View in 3D: <name>" when open, none without; it opens the dialog with the given
+  highlight; Esc inside the dialog closes the dialog only (a `PlanSheet` around it stays open). `AgentChat` passes each
+  file's model and the newest answered part's `highlight` for that drawing. [component]
 - M3-22: [e2e 1440 and 390] the fixture's agent chat after "How many walls are there?": the plan pane (390: "Show the
   plan") -> "View in 3D" -> "Affected: 4"; Esc closes the dialog, the pane stays; screenshots `model3d-pane`. [e2e]
 - M3-23: (backend) `check_rule` puts the model object's GlobalId on a subject the model lists as drawn

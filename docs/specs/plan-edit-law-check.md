@@ -37,7 +37,7 @@ is **no, not reliably**. This spec makes it yes for the rules we can check, and 
 Project: the swiss sheet `site980_bldg2055_floor9178.pdf` (as in agent-chat §1); country picker on **Canton of
 Zürich** (`?pack=ch-zh`).
 
-1. Press "Point at the plan", drag a box over part of Stanza 1.02 (16.48 m²), ask "Put a storage room here".
+1. Press the pen in the ask bar, drag a box over part of Stanza 1.02 (16.48 m²), ask "Put a storage room here".
 2. The edit card shows the new room and Stanza 1.02 shrinking to e.g. 8.9 m², and a section **Building rules ·
    Canton of Zürich** with one row: ✕ **Would not meet** · "A bedroom or living room is at least 10 m2 (canton of
    Zürich)" · Stanza 1.02: 16.48 → 8.9 m², at least 10 m² · PBG § 303 Abs. 1 (link, quote on open). Under it:

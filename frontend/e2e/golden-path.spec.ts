@@ -24,10 +24,10 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await page.getByRole('button', { name: 'Try the sample project' }).click();
     await expect(page).toHaveURL(/#\/p\/[0-9a-f]{12}$/);
     pid = /#\/p\/([0-9a-f]{12})$/.exec(page.url())?.[1] ?? '';
-    await expect(filesThrough(page)).toHaveText('11 / 11', { timeout: 30_000 });
+    await expect(filesThrough(page)).toHaveText('12 / 12', { timeout: 30_000 });
     await expect(page.getByText('All 9 steps done').first()).toBeVisible();
     await expect(page.locator('dt', { hasText: 'Drawings ready' }).locator('+ dd')).toHaveText(
-      '5 / 5',
+      '6 / 6',
     );
     flatB = await drawingOf(page, pid, 'plans/flat-b.pdf');
     // GP-41: exactly Ingest, Chat, Documents (no Conflicts, Issues, Checks or Surveyor tab).
@@ -35,7 +35,7 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
       page.getByRole('banner').getByRole('navigation', { name: 'Views' }).getByRole('link'),
     ).toHaveText(['Ingest', 'Chat', /^Documents/]);
     const main = page.getByRole('main');
-    await expect(main.getByText(/^5 drawings ready\. Conflicts are below\./)).toBeVisible();
+    await expect(main.getByText(/^6 drawings ready\. Conflicts are below\./)).toBeVisible();
     // GP-42: the conflicts under the progress card; the sample's one conflict is settled by the rule.
     const conflicts = main.getByRole('region', { name: 'Conflicts' });
     await expect(
@@ -47,7 +47,7 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(card).toContainText('22.40 m²');
     await expect(card).toContainText('30.00 m²');
     // No issues and no file list on Ingest: they are in Documents.
-    await expect(main.getByRole('region', { name: 'Issues' })).toHaveCount(0);
+    await expect(main.getByRole('region', { name: 'Issues on demand' })).toHaveCount(0);
     await expect(main.locator('a[href*="/f/f"]')).toHaveCount(0);
     // GP-45: nothing needs a person, so the chat is open; the workspace link is there.
     await expect(main.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
@@ -139,14 +139,14 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
       toAnswer ? new RegExp(`^Documents, ${String(toAnswer)} issues? to answer$`) : 'Documents',
     );
     await expect(main.getByRole('region', { name: 'Drawings' }).getByRole('listitem')).toHaveCount(
-      5,
+      6,
     );
     const files = main.getByRole('region', { name: 'Files' }).getByRole('link');
-    await expect(files).toHaveCount(11);
+    await expect(files).toHaveCount(12);
     // A note is shown, never answered.
-    await expect(main.getByRole('region', { name: 'Issues' }).getByRole('textbox')).toHaveCount(
-      toAnswer ? toAnswer : 0,
-    );
+    await expect(
+      main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
+    ).toHaveCount(toAnswer ? toAnswer : 0);
     await shot(page, testInfo, '05-documents', offline);
   });
 
@@ -199,11 +199,17 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     // Several drawings answer: no total (they may show the same rooms), then one line per drawing.
     await expect(answer.getByTestId('answer-value')).toHaveCount(0);
     await expect(answer).toContainText(/may show the same rooms/);
+    // ui-bugs 4/6/8: the references under the image switch it and the one card beside it; no Show it on link
+    await answer
+      .getByRole('list', { name: 'References' })
+      .getByRole('button', { name: new RegExp(flatB.label) })
+      .click();
     const perDrawing = answer.getByRole('list', { name: 'Per drawing' });
+    await expect(perDrawing.getByRole('listitem')).toHaveCount(1);
     await expect(perDrawing).toContainText(`${flatB.label}: 2`);
-    await expect(perDrawing.getByRole('link', { name: `Show it on ${flatB.label}` })).toBeVisible();
-    // GP-50: the reference image with its name above, the references list, follow-up chips.
-    await expect(answer.getByRole('figure', { name: /^Reference 1 of \d+$/ })).toBeVisible();
+    await expect(answer.getByRole('link', { name: /^Show it on/ })).toHaveCount(0);
+    // GP-50: the reference image with its name above (flat-b is the second reference, just clicked), the references list, follow-up chips.
+    await expect(answer.getByRole('figure', { name: /^Reference 2 of \d+$/ })).toBeVisible();
     await expect(answer.getByRole('list', { name: 'References' })).toBeVisible();
     await expect(main.getByRole('group', { name: 'Suggested questions' })).toHaveCount(0);
     const followUps = main.getByRole('group', { name: 'Follow-up questions' }).getByRole('button');
@@ -212,11 +218,11 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
   });
 
   let drawingUrl = '';
-  await test.step('GP-32 GP-51 V6: "Show it on" the flat-b drawing opens it as engineer', async () => {
-    await turn(DOORS)
-      .getByRole('link', { name: `Show it on ${flatB.label}` })
-      .click();
-    // QA R4b: the link carries the chat's question (engineer?ask=<question>[&pack=]).
+  await test.step('GP-32 GP-51 V6: the flat-b drawing opened as engineer, asking the chat question', async () => {
+    // ui-bugs 8/13: the chat has no link to a drawing's workspace any more; its deep link opens it.
+    await page.goto(
+      `/#/p/${pid}/d/${flatB.id}/engineer?${new URLSearchParams({ ask: DOORS }).toString()}`,
+    );
     await expect(page).toHaveURL(new RegExp(`#/p/${pid}/d/${flatB.id}/engineer(\\?.*)?$`));
     expect(new URLSearchParams(page.url().split('?')[1] ?? '').get('ask')).toBe(DOORS);
     drawingUrl = page.url().replace(/\/engineer(\?.*)?$/, '');
@@ -276,6 +282,9 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     // No Surveyor tab (SH-75) and no surveyor link on the conflict card (CF-47): the area answer sends it there.
     await turn(AREA).getByRole('link', { name: 'Send to surveyor' }).click();
     await expect(page).toHaveURL(new RegExp(`^${escape(drawingUrl)}/surveyor(\\?.*)?$`));
+    // K3: on a phone the drawings and conflicts fold behind one toggle; the drawing comes first
+    const fold = page.getByRole('button', { name: /^Drawings \(\d+\) · Conflicts \(\d+\)$/ });
+    if ((page.viewportSize()?.width ?? 0) <= 640) await fold.click();
     for (const text of [
       'area of room (name Küche · 1.01)',
       '22.40 m² vs 30.00 m²',
@@ -360,15 +369,16 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
   });
 
   await test.step('GP-33 GP-34 V15: the workspace history', async () => {
-    await page.getByRole('banner').getByRole('link', { name: 'Workspaces' }).click();
+    // ui-bugs 10: no Workspaces pill in the header any more; the list is at #/workspaces
+    await page.goto('/#/workspaces');
     await expect(page).toHaveURL(/#\/workspaces$/);
     const first = page.locator('button[aria-pressed]').first();
     await expect(first).toContainText('sample-project.zip');
     await expect(first).toHaveAttribute('aria-pressed', 'true');
     const panel = page.getByRole('region', { name: 'Selected workspace' });
     const stat = (label: string) => panel.locator('dt', { hasText: label }).locator('+ dd');
-    await expect(stat('Files')).toHaveText('11');
-    await expect(stat('Drawings')).toHaveText('5');
+    await expect(stat('Files')).toHaveText('12');
+    await expect(stat('Drawings')).toHaveText('6');
     // #131: the sample's one conflict (Küche · 1.01) is settled and signed off: nothing left to review.
     await expect(stat('To review')).toHaveText('0');
     // One sign-off per room, though #131 signs the room's twin row too (fe-shared counts by room).
@@ -401,15 +411,13 @@ test('GP-20: the service is down, then back', async ({ page }) => {
       ? route.fulfill({ status: 500, json: { detail: 'internal error', code: 'internal' } })
       : route.fallback(),
   );
-  // Home lists no projects any more (IN-53): the list is on #/workspaces, the picker in the header.
+  // Home lists no projects any more (IN-53): the list is on #/workspaces (no header picker since ui-bugs 10).
   await page.goto('/#/workspaces');
   const main = page.getByRole('main');
   await expect(main.getByText('internal error').first()).toBeVisible();
   await expect(main.getByText(/code: internal/).first()).toBeVisible();
   await page.unroute('**/api/projects');
   await main.getByRole('button', { name: 'Retry' }).click();
-  const pickerRetry = page.getByRole('banner').getByRole('button', { name: 'Retry' });
-  if (await pickerRetry.isVisible()) await pickerRetry.click();
   await expect(page.getByText('internal error')).toHaveCount(0);
   await expect(main.getByRole('heading', { level: 1, name: 'Your workspaces' })).toBeVisible();
   await expect(
