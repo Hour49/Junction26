@@ -46,9 +46,20 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(card).toContainText('Settled by rule');
     await expect(card).toContainText('22.40 m²');
     await expect(card).toContainText('30.00 m²');
-    // No issues and no file list on Ingest: they are in Documents.
+    // No issues on Ingest: they are in Documents. Files show only in the pipeline's route lanes (IN-100).
     await expect(main.getByRole('region', { name: 'Issues on demand' })).toHaveCount(0);
-    await expect(main.locator('a[href*="/f/f"]')).toHaveCount(0);
+    const routes = main.getByRole('region', { name: 'Routes' });
+    await expect(routes.getByRole('heading', { level: 3 })).toHaveText([
+      'How each file is read',
+      'IFC model route',
+      'CAD route',
+      'Drawn PDF route',
+      'Image route',
+      'Not drawings',
+    ]);
+    await expect(main.locator('a[href*="/f/f"]')).toHaveCount(
+      await routes.locator('a[href*="/f/f"]').count(),
+    );
     // GP-45: nothing needs a person, so the chat is open; the workspace link is there.
     await expect(main.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
     await expect(main.getByRole('link', { name: 'Open the workspace' })).toBeVisible();
