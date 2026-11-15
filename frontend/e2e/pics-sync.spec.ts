@@ -54,7 +54,13 @@ test('sync: a wall removed on the plan, then each discipline sheet with the edit
     console.log(`${testInfo.project.name} ${name}: ${(await tab.textContent()) ?? ''}`);
     console.log(`  ${(await card.locator('.ms-pairing, .ms-line').allTextContents()).join(' | ')}`);
     // the sheet itself in view (the card is taller than the screen), once its page has loaded
-    await card.locator('.ag-planbox img').waitFor();
+    await expect
+      .poll(() =>
+        card
+          .locator('.ag-planbox img')
+          .evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+      )
+      .toBe(true);
     await card.locator('.ag-planbox').scrollIntoViewIfNeeded();
     await shot(page, testInfo, `pics-sync-${name.toLowerCase()}`, offline);
   }
