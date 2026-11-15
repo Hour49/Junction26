@@ -204,3 +204,29 @@ def two_rooms() -> ServicesModel:
 def _wall(wid: str, polygon: list[list[float]], rooms: list[str]) -> dict:
     return {"id": wid, "ref": {"guid": f"guid-{wid}"}, "storey": "L1", "polygon": polygon,
             "rooms": rooms}  # fmt: skip
+
+
+# The sanitary terminals of DigitalHub's "13 WC Damen Ost - EG" (plumbing IFC, 2026-11-15): 3 WCs,
+# 2 washbasins and the Viega mounting frame of each, all IfcSanitaryTerminal, told apart only by
+# their PredefinedType (the WC's own type is named after its cistern).
+WC_ROOM = "13 WC Damen Ost - EG"
+WC_ROOM_FIXTURES = (
+    [("TOILETPAN", "WC UP-Spülkasten Betätigung vorne:35 x 60cm")] * 3
+    + [("SANITARYFOUNTAIN", "Viega Eco Plus- WC-Element für wandhängendes WC")] * 3
+    + [("WASHHANDBASIN", "Waschtisch:60 x 60cm")] * 2
+    + [("SANITARYFOUNTAIN", "Viega Eco-Waschtisch-Element, 1130x490")] * 2
+)
+
+
+def wc_room(typed: bool = True) -> ServicesModel:
+    """The two-room fixture with SR1 named as that WC and holding its 10 sanitary terminals
+    (E301..E310); `typed=False` gives them no PredefinedType, as some exports do."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    doc["rooms"][0]["name"] = WC_ROOM
+    fixtures = [
+        _element(f"E{301 + i}", "sanitary_terminal", "flow_terminal", name, "Trinkwasser",
+                 room="SR1", at=(1.0 + 0.5 * i, 2.0, 0.5), predefined=kind if typed else None,
+                 discipline="plumbing")
+        for i, (kind, name) in enumerate(WC_ROOM_FIXTURES)
+    ]  # fmt: skip
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *fixtures]})

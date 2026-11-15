@@ -330,6 +330,9 @@ class _ListArgs(_Args):
         description="a room: its id (SR...) or its name, e.g. 1-3 Küche",
     )
     kind: str | None = Field(default=None, max_length=60, description="a by_kind key; narrows all")
+    predefined: str | None = Field(
+        default=None, max_length=40, description="a by_predefined key (IFC type)"
+    )
     selection_id: str | None = Field(
         default=None, pattern=r"^sel_\d{1,4}$", description="or: the room the user drew in"
     )
@@ -370,26 +373,26 @@ class _ResizeArgs(_DrawingArgs):
     size: str = Field(min_length=1, max_length=30, description="a size its system has, e.g. DN20")
 
 
-_CHANGES = " Changes nothing: the person accepts or rejects the proposal."
+_CHANGES = " Changes nothing until accepted."
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_services",
         "Pipes, ducts, cables: storeys, systems, connectivity, terminals and equipment "
-        "(ids E...) with room. count, by_kind, by_type, by_room: all matches (items may be cut); "
-        "state totals and breakdowns from them. room_id (id or name): its "
+        "(ids E...) with room. count, by_kind, by_predefined, by_type, by_room: all matches (items "
+        "may be cut); state totals and breakdowns from them. room_id (id or name): its "
         "walls (SW...), what hangs on them, if a pipe is in reach. Use before proposing.",
         _ListArgs,
     ),
     (
         "ask_services",
-        "One question about the network: what feeds an element, what it serves, what is cut "
-        "off when it closes, run lengths, open ends, ...",
+        "What feeds an element, what it serves, what is cut off when it closes, run lengths, "
+        "open ends, ...",
         _AskArgs,
     ),
     (
         "propose_move_terminal",
         "Propose moving a terminal (radiator, air terminal) to another wall of its room "
-        "(wall_id, or the user's selection_id), its pipes rerouted along the walls." + _CHANGES,
+        "(wall_id or selection_id), pipes rerouted along walls." + _CHANGES,
         _MoveArgs,
     ),
     (
@@ -481,6 +484,9 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         and (room is None or e.room == room.id)
         and (args.kind is None or args.kind in (e.kind, e.group))
     ]
+    if args.predefined is not None:  # R5: a WC, a basin and its frame are one IFC class
+        found["untyped"] = sum(e.predefined is None for e in matched)
+        matched = [e for e in matched if (e.predefined or "").upper() == args.predefined.upper()]
     items = [
         {
             "id": e.id,
@@ -497,11 +503,13 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
     found["count"] = len(items)
     found["items"], found["more"] = items[:MAX_ITEMS], max(0, len(items) - MAX_ITEMS)
     kinds, types = Counter(e.kind for e in matched), Counter(e.type for e in matched)
+    predefined = Counter(e.predefined or "untyped" for e in matched)
     rooms = Counter(f"{e.room} {names.get(e.room, '')}".strip() if e.room else "no room"
                     for e in matched)  # fmt: skip
     top = MAX_GROUPS
     while True:  # the groups count every match: items go first, then the smallest groups
         found["by_kind"], found["by_type"] = _groups(kinds, top), _groups(types, top)
+        found["by_predefined"] = _groups(predefined, top)
         found["by_room"] = _groups(rooms, top)
         short = len(json.dumps(found, ensure_ascii=False)) <= LIMIT
         if short or (top == 1 and not found["items"]):

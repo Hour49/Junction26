@@ -22,7 +22,7 @@ from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.services.stored import ServicesModel
 from app.main import create_app
 from app.settings import Settings
-from tests.services_fixtures import two_rooms
+from tests.services_fixtures import WC_ROOM, two_rooms, wc_room
 
 PROJECT, MODELLED = "a" * 12, "0123456789abcdef"
 
@@ -479,7 +479,7 @@ def test_in_a_project_of_ifc_files_only_a_room_question_reaches_the_services_too
     doc["rooms"][0]["name"] = "1-3 Küche"
     radiator = next(e for e in doc["elements"] if e["id"] == "E2")
     sink = {**radiator, "id": "E20", "ref": {"guid": "sink"}, "kind": "sanitary_terminal",
-            "type": "Spüle", "label": "Spüle", "ports": []}  # fmt: skip
+            "type": "Spüle", "label": "Spüle", "ports": [], "predefined": "SINK"}  # fmt: skip
     model = ServicesModel.model_validate({**doc, "elements": [*doc["elements"], sink]})
     client = _client(settings, tmp_path, ingest=_AllIfc(), model=model)
     found = _rules(client, "How many sinks are there in Küche 1-3?")
@@ -531,11 +531,14 @@ class _FourIfc(_Ingest):
 
 
 def _stored_as(model: ServicesModel, sha256: str, kinds: dict[str, str]) -> ServicesModel:
-    """`model` stored for another file: its elements of `kinds` turned into another kind."""
+    """`model` stored for another file: its elements of `kinds` turned into another kind (a
+    sanitary terminal a sink, by its PredefinedType)."""
     doc = model.model_dump(mode="json", by_alias=True)
     doc["source"]["sha256"] = sha256
     for element in doc["elements"]:
         element["kind"] = kinds.get(element["id"], element["kind"])
+        if element["kind"] == "sanitary_terminal":
+            element["predefined"] = "SINK"
     return ServicesModel.model_validate(doc)
 
 
@@ -566,3 +569,34 @@ def test_a_room_count_asks_the_model_that_holds_that_kind_however_many_ifc_files
     found = _rules(client, message)
     assert found["kind"] == "answer", found
     assert found["text"].startswith(answer) and "E2" in found["text"], found
+
+
+@pytest.mark.parametrize(
+    ("message", "answer"),
+    [
+        ("How many toilets are in 13 WC Damen Ost - EG?", f"3 toilets in {WC_ROOM}: "),
+        ("How many washbasins are in 13 WC Damen Ost - EG?", f"2 washbasins in {WC_ROOM}: "),
+        ("How many urinals are in 13 WC Damen Ost - EG?", f"0 urinals in {WC_ROOM}."),
+    ],
+)
+def test_a_sanitary_word_counts_its_ifc_type_not_every_sanitary_terminal(
+    settings: Settings, tmp_path: Path, message: str, answer: str
+) -> None:
+    """R5 (live check on main 26cc6433, 2026-11-15): "10 toilets in 13 WC Damen Ost - EG" counted
+    its WCs, basins and their mounting frames, every IfcSanitaryTerminal (truth 3)."""
+    found = _rules(_client(settings, tmp_path, model=wc_room()), message)
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith(answer), found
+    if answer.startswith("3"):
+        assert "E301" in found["text"] and "E304" not in found["text"], found
+
+
+def test_a_sanitary_word_is_not_counted_where_the_model_types_no_terminal(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """R5: a model whose sanitary terminals carry no PredefinedType can't tell a WC from a basin,
+    so the count is refused, not "0 toilets"."""
+    found = _rules(_client(settings, tmp_path, model=wc_room(typed=False)),
+                   "How many toilets are in 13 WC Damen Ost - EG?")  # fmt: skip
+    assert found["kind"] == "dont_know", found
+    assert "0 toilet" not in found["text"] and "IFC type" in found["text"], found

@@ -18,7 +18,7 @@ from app.adapters.services_store import ServicesStore
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.plan_edit.model import Selection
 from app.core.services.stored import Connectivity, ServicesModel, fraction
-from tests.services_fixtures import SUPPLY, two_rooms
+from tests.services_fixtures import SUPPLY, WC_ROOM, two_rooms, wc_room
 
 LIMIT = 4000
 
@@ -424,3 +424,21 @@ def test_a_kind_counts_that_kind_only_and_every_list_counts_its_kinds() -> None:
     assert fixtures["by_kind"] == {"sanitary_terminal": 5}
     listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
     assert "by_kind" in json.dumps(listing)
+
+
+def test_an_ifc_type_counts_that_type_only_and_every_list_counts_its_types() -> None:
+    """R5 (live check, 2026-11-15): "toilets in 13 WC Damen Ost" counted all 10 sanitary
+    terminals of the room (truth 3): only the PredefinedType tells a WC from a basin or a frame."""
+    room = _run(_store(wc_room()), "list_services", drawing_id="d1", room_id=WC_ROOM,
+                kind="sanitary_terminal")  # fmt: skip
+    assert room["count"] == 10
+    assert room["by_predefined"] == {"SANITARYFOUNTAIN": 5, "TOILETPAN": 3, "WASHHANDBASIN": 2}
+    wcs = _run(_store(wc_room()), "list_services", drawing_id="d1", room_id=WC_ROOM,
+               kind="sanitary_terminal", predefined="toiletpan")  # fmt: skip
+    assert wcs["count"] == len(wcs["items"]) == 3 and wcs["by_predefined"] == {"TOILETPAN": 3}
+    assert {i["id"] for i in wcs["items"]} == {"E301", "E302", "E303"} and wcs["untyped"] == 0
+    blind = _run(_store(wc_room(typed=False)), "list_services", drawing_id="d1", room_id=WC_ROOM,
+                 kind="sanitary_terminal", predefined="TOILETPAN")  # fmt: skip
+    assert blind["count"] == 0 and blind["untyped"] == 10
+    listing = next(t for t in SERVICES_TOOLS if t["function"]["name"] == "list_services")
+    assert "by_predefined" in json.dumps(listing) and "predefined" in json.dumps(listing)
