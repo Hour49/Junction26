@@ -79,15 +79,17 @@ from app.core.pipeline.rules import (
 from app.core.pipeline.second_count import differ, far_apart, mm_per_px, of_its_plans_storey
 
 # What a wall count rests on when the sheet draws walls, columns and other parts in one style (an
-# IFC model rendered to PDF): the listed cut solids, of which some are not walls
+# IFC model rendered to PDF): the listed cut solids, of which some are not walls, so the count can
+# only be too high. Said in plain words for a judge (review-455 S2), one or many (S4).
 _CUT_SOLID_WALLS = (
-    "{n} cut solids are counted as walls: this sheet draws walls, columns and other cut parts "
-    "in one style, so the number of walls may be lower"
+    "{n} solid {shapes} counted as {walls}: this drawing shows walls, columns and other cut parts "
+    "the same way, so there may be fewer walls"
 )
-# The same for doors grouped from drawn frame and swing shapes (4 of 9 golden IFC sheets: one short)
+# The same for doors grouped from drawn frame and swing shapes (4 of 9 golden IFC sheets: one
+# short): a missed door makes the drawing hold more doors than read, never fewer (review-455 M1)
 _DOORS_FROM_SHAPES = (
-    "{n} doors are read from drawn shapes: a door drawn edge-on or over another can be "
-    "missed, so the number of doors may be lower"
+    "{n} {doors} read from drawn shapes: a door drawn edge-on or over another can be missed, so "
+    "there may be more doors"
 )
 # An element sum an estimated scale makes an estimate (a volume is the model's, not the sheet's).
 SCALED_MEASURES: tuple[Measure, ...] = ("area", "length")
@@ -257,7 +259,7 @@ def _add_sheet(
     _add_scope(found, sheet, drawing.elements, drawing.rooms, storey=None, scale=scale, cut=cut)
     _add_apartments(found, drawing, scale)
     _add_room_sides(found, drawing, scale)
-    _add_room_counts(found, drawing)
+    _add_room_counts(found, drawing, cut)
     plans = {plan.id: plan.storey for plan in drawing.plans}
     elements_by: dict[str, list[Element]] = defaultdict(list)
     rooms_by: dict[str, list[Room]] = defaultdict(list)
@@ -840,7 +842,9 @@ def _mark(item: Element | Room) -> Mark:
     return Mark(page=item.page, box=item.box)
 
 
-def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
+def _add_room_counts(
+    found: dict[str, Quantity], drawing: Drawing, cut: frozenset[str] = frozenset()
+) -> None:
     """What is drawn in each room one name selects (`room_names`; a name two rooms share selects
     neither), counted by the sheet's rules ("How many doors does Bagno 1.01 have?" counted the
     whole sheet; Tudor's chat QA, 2026-11-14). A fixture is the room's when its box centre lies
@@ -848,7 +852,8 @@ def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
     (floor9178: all 19, about half a wall from the outline), so it is the room's when its centre
     lies within its box's short side (the wall's depth) of the outline: a door between two rooms
     is both rooms'. A room with no outline, only its box, gets none: a box is not the room's
-    shape (review/ask.py says so)."""
+    shape (review/ask.py says so). `cut`: as `_add_scope`'s, so a room's door count from grouped
+    shapes is an estimate as the sheet's is (review-455 S3)."""
     named: dict[str, list[Room]] = defaultdict(list)
     for room in drawing.rooms:
         for name in room_names(room):
@@ -862,8 +867,16 @@ def _add_room_counts(found: dict[str, Quantity], drawing: Drawing) -> None:
             if not key.startswith("room"):
                 count = quantity_key("count", key, name=name)
                 marks = chosen.marks
+                estimate = _shape_estimate(key, len(marks)) if key in cut else None
                 _put(
-                    found, count, "count", len(marks), marks, chosen.rule, excluded=chosen.excluded
+                    found,
+                    count,
+                    "count",
+                    len(marks),
+                    marks,
+                    chosen.rule,
+                    estimate,
+                    excluded=chosen.excluded,
                 )
 
 
@@ -1044,8 +1057,15 @@ def room_names(room: Room) -> tuple[str, ...]:
 
 
 def _shape_estimate(cls: str, n: int) -> str | None:
-    template = {"wall": _CUT_SOLID_WALLS, "door": _DOORS_FROM_SHAPES}.get(cls)
-    return None if template is None else template.format(n=n)
+    one = n == 1
+    match cls:
+        case "wall":
+            shapes, walls = ("shape is", "a wall") if one else ("shapes are", "walls")
+            return _CUT_SOLID_WALLS.format(n=n, shapes=shapes, walls=walls)
+        case "door":
+            return _DOORS_FROM_SHAPES.format(n=n, doors="door is" if one else "doors are")
+        case _:
+            return None
 
 
 def _add_scope(
