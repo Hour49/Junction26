@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { useState } from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, type Screens } from './App';
 import type { Issue } from './api';
 import {
@@ -13,7 +13,7 @@ import {
   rulePackFi,
 } from './api/fixtures';
 import { issuesChanged } from './shell/issueCount';
-import { InfoProvider, useInfo } from './shell/info';
+import { INFO_RETRY_MS, InfoProvider, useInfo } from './shell/info';
 import logo from './shell/vellum-logo.png';
 import { never, mockApi, reply } from './test/mockApi';
 import { stubResizeObserver } from './test/resizeObserver';
@@ -505,6 +505,30 @@ describe('shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await screen.findByText(OFFLINE);
     expect(api.calls.filter((c) => c.url === '/api/info')).toHaveLength(2);
+  });
+
+  it('SH-20b after an info error it asks again by itself, and the strip clears once the server answers', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let first = true;
+      const api = mockApi({
+        'GET /api/info': () => {
+          const answer = first ? reply(500, errorBody) : info;
+          first = false;
+          return answer;
+        },
+        'GET /api/projects': projectList,
+        ...noIssues,
+      });
+      render(<App screens={stubs} />);
+      await screen.findByRole('alert');
+      await act(() => vi.advanceTimersByTimeAsync(INFO_RETRY_MS));
+      await screen.findByText(OFFLINE);
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(api.calls.filter((c) => c.url === '/api/info')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('SH-21 useInfo gives the limits once loaded, null before', async () => {
