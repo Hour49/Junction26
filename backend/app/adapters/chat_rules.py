@@ -271,17 +271,31 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
     if listed is None:
         kind = IN_ROOM_TERMINALS[word]
         return "list_services", {"drawing_id": found["drawing_id"], "room_id": room, "kind": kind}
+    sanitary = word not in TERMINALS  # an architecture model counts sinks and toilets too
     if not isinstance(listed, dict) or "error" in listed:
+        if sanitary and _other_ifc(turn, found["drawing_id"]):
+            return None  # review-517: its room and fixtures are in the other model
         why = listed.get("error") if isinstance(listed, dict) else None
         return _final("dont_know", f"I can't tell: {why or 'the services list failed'}.")
     items: list[Json] = [i for i in listed.get("items") or [] if isinstance(i, dict)]
     count = len(items) + int(listed.get("more") or 0)
+    if sanitary and not count and _other_ifc(turn, found["drawing_id"]):
+        return None  # not "0 sinks": the services model holds none, the architecture model may
     name = (listed.get("room") or {}).get("name") or room
     cited = ", ".join(f"{i.get('label')} ({i['id']})" for i in items[:10])
     text = f"{count} {word}{'' if count == 1 else 's'} in {name}" + (
         f": {cited}." if cited else "."
     )
     return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
+
+
+def _other_ifc(turn: _Turn, services: str) -> bool:
+    """The project lists another IFC drawing besides the services model (an architecture model)."""
+    drawings = turn.result("list_drawings")
+    if isinstance(drawings, dict):  # a cut list, as loop._for_model gives it
+        drawings = drawings.get("items")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    listed: list[Json] = [d for d in drawings or [] if isinstance(d, dict)]  # pyright: ignore[reportUnknownVariableType]
+    return any(d.get("drawing_id") != services and d.get("kind") == "ifc" for d in listed)
 
 
 def _beside(turn: _Turn, services: str) -> bool:

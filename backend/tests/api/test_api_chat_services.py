@@ -485,3 +485,23 @@ def test_in_a_project_of_ifc_files_only_a_room_question_reaches_the_services_too
     found = _rules(client, "How many sinks are there in Küche 1-3?")
     assert found["kind"] == "answer", found
     assert found["text"].startswith("1 sink in 1-3 Küche") and "E20" in found["text"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "How many sinks are there in 1 Living?",
+        "How many toilets are in 1 Living?",
+        "How many sinks are in the kitchen?",
+    ],
+)
+def test_a_sanitary_count_the_services_model_cannot_make_is_left_to_the_architecture_model(
+    settings: Settings, tmp_path: Path, message: str
+) -> None:
+    """review-517 (story): in a project of IFC files only, a services model with no sink or toilet
+    said "0 sinks in 1 Living." (or "no room named") where the architecture model counts them."""
+    client = _client(settings, tmp_path, ingest=_AllIfc())
+    found = _rules(client, message)
+    assert "0 sink" not in found["text"] and "0 toilet" not in found["text"], found
+    assert "no room named" not in found["text"], found
+    assert "ask the drawings" in found["text"] or "drawings" in found["text"], found
