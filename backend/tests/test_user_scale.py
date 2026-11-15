@@ -70,7 +70,14 @@ def test_a_stated_scale_is_read(
 
 @pytest.mark.parametrize(
     "message",
-    ["What is the area of the kitchen?", "How many doors are there?", "Is the kitchen 12 m2?"],
+    [
+        "What is the area of the kitchen?",
+        "How many doors are there?",
+        "Is the kitchen 12 m2?",
+        "Is the kitchen 12 m2",  # no "?"
+        # review-480 S1: a statement inside, a question by its first word alone (no "?")
+        "Is it true that the kitchen is 12 m2",
+    ],
 )
 def test_a_question_states_no_scale(message: str) -> None:
     assert parse_given(message) is None
@@ -360,3 +367,30 @@ def test_room_301_on_the_hotel_photo(entries: None) -> None:
 def test_questions_still_set_no_scale(entries: None, message: str) -> None:
     ingest = FakeIngest({"d1": drawing(PT), "d2": numbered()})
     assert take(ingest, message, names=TWO) == ("", {})
+
+
+def test_a_named_drawing_with_a_selected_room_uses_the_selection() -> None:
+    """review-480 S2: naming the selected room's drawing dropped the selection ("name the room
+    ..., or select it on the plan" with the room selected)."""
+    pick = Selection(id="sel_1", kind="room", drawing_id="d1", page=1, ref="r2")
+    said, kept = take(FakeIngest({"d1": drawing()}), "This room on Scan 1 is 4 m wide", [pick])
+    assert list(kept) == ["d1"], said
+    assert kept["d1"].m_per_unit == pytest.approx(4 / 200)  # as without the name
+
+
+def test_a_selection_on_another_drawing_does_not_override_the_named_one() -> None:
+    pick = Selection(id="sel_1", kind="room", drawing_id="d2", page=1, ref="r2")
+    ingest = FakeIngest({"d1": drawing(), "d2": drawing()})
+    _, kept = take(ingest, "The kitchen on Plan image 5 is 4 m wide", [pick], names=TWO)
+    assert list(kept) == ["d1"]
+
+
+def test_rooms_selected_on_two_drawings_the_named_one_is_scaled() -> None:
+    """review-496: with rooms selected on two drawings, the one on the drawing the message names
+    is used, not the first selection (the scale landed on Plan photo 2)."""
+    picks = [Selection(id="sel_1", kind="room", drawing_id="d2", page=1, ref="r2"),
+             Selection(id="sel_2", kind="room", drawing_id="d1", page=1, ref="r2")]  # fmt: skip
+    ingest = FakeIngest({"d1": drawing(), "d2": drawing()})
+    _, kept = take(ingest, "This room on Plan image 5 is 4 m wide", picks, names=TWO)
+    assert list(kept) == ["d1"]
+    assert kept["d1"].m_per_unit == pytest.approx(4 / 200)
