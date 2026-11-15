@@ -17,6 +17,7 @@ from app.adapters.evidence_tools import EVIDENCE_TOOLS, run_evidence_tool
 from app.adapters.pipeline_tools import PIPELINE_TOOLS, PipelineStore, run_pipeline_tool
 from app.adapters.user_scale import ScaledIngest
 from app.api.views import drawings_of
+from app.core.agent.named import unnamed
 from app.core.agent.rooms import FIND_ROOMS, TOKEN, name_words
 from app.core.checks.model import RulePack
 from app.core.drawing.model import Scale
@@ -99,17 +100,23 @@ def project_toolbox(
     proposals: dict[str, Proposal],
     pack: RulePack | None = None,
     scales: Mapping[str, Scale] | None = None,
+    named: Mapping[str, str] | None = None,
 ) -> AgentToolbox:
     """The tools of `project_id` in `app` (create_app()'s state). `proposals`: the chat's
     proposals so far, so the plan tools number new ones after them. `pack`: the rule pack this
     turn's plan edits are checked against (LC-6), None: not checked. `scales`: USER_SCALE on,
-    the scales the chat's user gave by drawing id: every tool reads those drawings at them."""
-    pipeline = PipelineStore.of_app(app, project_id)
+    the scales the chat's user gave by drawing id: every tool reads those drawings at them.
+    `named`: the drawings this turn's message names (id → plain name): ask_drawings asks only
+    them, its question without their names (big QA R1 S2)."""
+    pipeline = replace(PipelineStore.of_app(app, project_id), only=frozenset(named or {}))
     if scales is not None:
         pipeline = replace(pipeline, ingest=ScaledIngest(pipeline.ingest, scales), user_scale=True)
     pipe: Runner = partial(run_pipeline_tool, pipeline)
     sets: list[tuple[list[Json], Runner]] = [
-        (PIPELINE_TOOLS, partial(_by_number, pipe)),
+        (
+            PIPELINE_TOOLS,
+            partial(_by_number, partial(_unnamed, pipe, list((named or {}).values()))),
+        ),
         (FIND_TOOLS, partial(_find_rooms, pipeline)),
     ]
     sets.append((COUNTING_TOOLS, run_counting_tool))  # read-only conventions, no project state
@@ -239,6 +246,18 @@ def _by_number(run: Runner, name: str, arguments: str) -> str:
     question: Any = given.get("question") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     if name == "ask_drawings" and isinstance(question, str):
         arguments = json.dumps({**given, "question": room_by_number(question)})  # pyright: ignore[reportUnknownArgumentType]
+    return run(name, arguments)
+
+
+def _unnamed(run: Runner, names: list[str], name: str, arguments: str) -> str:
+    """ask_drawings without the names of the drawings it asks only (`names`; core.agent.named)."""
+    try:
+        given: Any = json.loads(arguments)
+    except json.JSONDecodeError:
+        return run(name, arguments)
+    question: Any = given.get("question") if isinstance(given, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    if names and name == "ask_drawings" and isinstance(question, str):
+        arguments = json.dumps({**given, "question": unnamed(question, names) or question})  # pyright: ignore[reportUnknownArgumentType]
     return run(name, arguments)
 
 
