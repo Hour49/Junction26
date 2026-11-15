@@ -35,6 +35,8 @@ CLASS_WORDS: dict[TriageClass, str] = {
     "not_drawing": "not a drawing",
 }
 NO_PLAN = "no floor plan in the project to compare with"
+# How sheet_flag's flag starts: an ask on its page refuses symbol counts (review.ask, R3-C3)
+SHEET_FLAG = "the sheet may not be a floor plan"
 # Triage.note: why `description` or `relevance` is null, in plain words (decision 0010)
 NOTE_PLAN = "a floor plan: it is read, so it is not described or judged"
 NOTE_NO_DESCRIBER = "not described: no description model is set up, so it is not judged"
@@ -265,7 +267,7 @@ def sheet_flag(triage: Triage | None) -> str | None:
     if triage is None or triage.read_as_plan is not None or not doubted_not_plan(triage):
         return None
     assert triage.sheet is not None  # doubted_not_plan
-    return f"the sheet may not be a floor plan: it looks like {triage.sheet.kind_words}"
+    return f"{SHEET_FLAG}: it looks like {triage.sheet.kind_words}"
 
 
 def doubted_not_plan(triage: Triage) -> bool:

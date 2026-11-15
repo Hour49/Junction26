@@ -713,6 +713,50 @@ def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
     assert plain.row is not None and plain.row.status == "single" and plain.row.estimate is None
 
 
+# triage.sheet_flag on T3 (USACE M-101A piping plan): what asked_on adds to the page's flags
+SERVICES_FLAG = (
+    "the sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+    "electrical plan"
+)
+
+
+def test_a_sheet_triage_calls_a_non_plan_kind_refuses_door_and_fixture_counts() -> None:
+    """R3-C3/B7 (Tudor's QA round 3): T3, a piping plan the sheet-kind step flagged, answered
+    "6 toilets" (1 WC + 5 marks on filter-separator tanks) with only an estimate note. On such a
+    sheet a symbol is not a door or a fixture, so element counts are refused with the flag's
+    words; rooms are still answered, flagged; a person's "read as a floor plan" drops the flag."""
+    toilets = tuple(Element(id=f"e{at}", class_="toilet", page=1, box=BOX_A) for at in range(1, 7))
+    door = Element(id="d1", class_="door", page=1, box=BOX_B)
+    drawing = photo(
+        Room(id="r1", type="bathroom", page=1, box=BOX_B), elements=(*toilets, door)
+    ).model_copy(update={"read": ("door", "window", "toilet", "sink", "room")})
+    for text in (
+        "How many toilets are there?",
+        "How many doors are there?",
+        "How many sinks are there?",
+        "How many windows are there?",
+    ):
+        for flags in ((SERVICES_FLAG,), (PHOTO_FLAG, SERVICES_FLAG)):
+            found = asked_flagged(text, drawing, flags, raster=True)
+            assert found.row is None and found.refusal is not None, (text, flags)
+            assert found.refusal.code == "not-in-drawing", (text, flags)
+            assert found.refusal.text == (
+                "The sheet may not be a floor plan: it looks like a piping, plumbing, "
+                "ventilation or electrical plan, so its symbols are not counted as doors, "
+                'windows or fixtures. If it is a floor plan, use "Read it as a floor plan" on '
+                "its file."
+            ), (text, flags)
+    rooms = asked_flagged("How many bathrooms are there?", drawing, (SERVICES_FLAG,), raster=True)
+    assert rooms.refusal is None and rooms.answer.answer == 1
+    assert rooms.row is not None and rooms.row.estimate is not None
+    assert SERVICES_FLAG in rooms.row.estimate
+    # Another flag (a photo) keeps its counts, flagged; no flag (read as a plan): plain counts
+    photo_only = asked_flagged("How many toilets are there?", drawing, (PHOTO_FLAG,), raster=True)
+    assert photo_only.refusal is None and photo_only.answer.answer == 6
+    plain = asked_flagged("How many toilets are there?", drawing, (), raster=True)
+    assert plain.refusal is None and plain.answer.answer == 6
+
+
 def test_a_printed_label_with_digits_names_its_room_only_as_printed() -> None:
     """R3-qa-5-2: "What is the area of the MH1?" on colorful-13019 was refused (printed names
     with digits were skipped). Letters and digits match as printed, case-sensitive, a whole
