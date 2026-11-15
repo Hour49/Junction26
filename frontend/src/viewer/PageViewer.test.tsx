@@ -1490,4 +1490,23 @@ describe('PageViewer: crowded pages (carbon flag, item 4)', () => {
     expect(badges(container)).toHaveLength(60);
     expect(container.querySelector('.vw-many')).toBeNull();
   });
+
+  it('VW-98 bare (chat card): marks whose number had no room are counted under the image', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    // QA R3-C10: 6 of 155 door numbers had no free spot and vanished from the chat card without a word
+    const stacked = many(120).map((m) => ({
+      ...m,
+      box: [0.5, 0.5, 0.51, 0.51] as [number, number, number, number],
+    }));
+    const { container } = viewer(answer, { marks: stacked, bare: true });
+    const shown = badges(container).length;
+    expect(shown).toBeLessThan(120);
+    expect(container.querySelector('.vw-many')?.textContent).toBe(
+      `${String(120 - shown)} label(s) had no room on the page`,
+    );
+    cleanup();
+    expect(
+      viewer(answer, { marks: many(10), bare: true }).container.querySelector('.vw-many'),
+    ).toBeNull();
+  });
 });

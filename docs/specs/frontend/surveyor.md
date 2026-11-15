@@ -299,7 +299,8 @@ Edits
   Settle button is disabled while the field is empty, not a number, or negative, and on a count row (unit `count`)
   while it is not a whole number (`2.5`); a count row's field steps by 1. [component]
 - SV-32: A row with `settled: {"value": 22.401, "at": "2026-11-14T01:30:00Z"}` shows "Settled at 22.40 m²
-  (2026-11-14 01:30 UTC). A mark edit clears it." [component] derived
+  (2026-11-14 01:30 UTC). A mark edit clears it." [component] derived; a conflict no rule decides says "No rule decides: you settled it." once settled, not
+  "Settle a value before signing off." (QA R3-B5, test in SV-37)
 - SV-33: "Reset this quantity" shows on a row with an edit (status `edited`, `settled` set, or a mark that is
   `rejected`, `added`, or counted with a `reason`) and sends `review_requests.json[4]` for `door`; it is hidden on
   an untouched row. [component] derived

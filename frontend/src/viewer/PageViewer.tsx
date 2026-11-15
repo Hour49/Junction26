@@ -933,6 +933,9 @@ export function PageViewer({
           {!bare && ': zoom in to see their numbers'}
         </p>
       )}
+      {/* bare has no legend, so a mark it can't number still gets said (QA R3-C10) */}
+      {bare && unplaced > 0 && <p className="vw-many">{unplaced} mark(s) could not be placed</p>}
+      {bare && noRoom > 0 && <p className="vw-many">{noRoom} label(s) had no room on the page</p>}
       {!bare && (
         <p className="vw-pagemeta">
           {pageMeta.map((text) => `${text} · `)}

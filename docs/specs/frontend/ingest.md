@@ -749,6 +749,25 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   model)" (`classifier`), "sheet kind (Gemini)" (`sheet_kind`), "describes sheets that are not plans (Gemini)"
   (`describer`), "keep or set aside (rules)" (`judge`); `off` parts are left out; no record, no list.
   [unit: `triageReaders`; component]
+- IN-120 (orchestrator, `whole-390.png`: ten image chips in one wall): a lane's readers are grouped by what they
+  do, the groups in the order they run, each with a short label beside its chips (above them on a phone):
+  "Prepare" (photo flattening, printed scale, tiles), "Count" (every reader that counts: symbol detector, Gemini
+  count decision, count arbiter, room reader, …), "Checks, not counted" (Gemini cross-check, the double-check
+  readers, the drawn PDF's second count), "If few symbols" (`carbon_reader=large…`), "Scale" (scale from door
+  sizes), "Also ran" (a step the server ran that no reader covers). The group comes from the reader
+  (`readerGroup`), never from its position. Under a label a chip leaves out what the label says: "Gemini
+  cross-check", "double check by 2 more readers", "Gemini reader" (IN-117's names stay the readers' full names and
+  are what a lane with one group shows, with no label). The running highlight and the "ran" ticks work as before.
+  The whole is a group "Readers", each group a list named by its label. Changed on purpose with it: IN-100's,
+  IN-105's and IN-118's expected chip texts. [unit: `groupReaders`, `chipWords`; component; browser: screenshots
+  at 1440 and 390]
+- IN-121 (QA R3-G8, "Bauprojekt_Mehrfamilienhaus_Zuerich-Nord_2026.zip" at 390): the title `h1` wraps a long
+  name after its own separators (`_`, `-`, `.`, `/`: a `<wbr>` after each, `nameParts`) before it breaks inside a
+  word; `overflow-wrap:anywhere` stays only for a part longer than a line. Its accessible name and `title` stay the
+  exact name (IN-114). [unit: `nameParts`; component; browser: screenshots at 390 and 1440]
+- IN-122 (QA R3-G8, flag reason cut at 390): a finished file's row note in the lanes (what it found and why it is
+  flagged or set aside) is shown whole, wrapping over as many lines as it needs; a queued or running file's note
+  stays at 2 lines. [component; browser: screenshot at 390]
 
 Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
 advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,

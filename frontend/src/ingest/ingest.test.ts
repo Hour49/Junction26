@@ -5,6 +5,7 @@ import type { StageTrace } from '../api';
 import {
   STAGE_LABEL,
   amount,
+  nameParts,
   sizeText,
   STEPS,
   activeStep,
@@ -223,4 +224,19 @@ it('IN-89 sizes: KB under 1 MB (never 0 KB for a total), MB with one decimal abo
   expect(amount(15_000, 30_000)).toBe('15');
   expect(amount(0, 30_000)).toBe('0');
   expect(amount(2 ** 19, 2 ** 21)).toBe('0.5');
+});
+
+it('IN-121 nameParts: a name breaks after its own separators, the parts joined are the name', () => {
+  const name = 'Bauprojekt_Mehrfamilienhaus_Zuerich-Nord_2026.zip';
+  expect(nameParts(name)).toEqual([
+    'Bauprojekt_',
+    'Mehrfamilienhaus_',
+    'Zuerich-',
+    'Nord_',
+    '2026.',
+    'zip',
+  ]);
+  expect(nameParts('plans/A-101.pdf')).toEqual(['plans/', 'A-', '101.', 'pdf']);
+  expect(nameParts('Grundriss')).toEqual(['Grundriss']);
+  expect(nameParts('a__b').join('')).toBe('a__b');
 });

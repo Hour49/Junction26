@@ -19,6 +19,7 @@ afterEach(() => {
 
 it('SH-43 formatValue and formatTime follow the shared rule', () => {
   expect(formatValue(2, 'count')).toBe('2');
+  expect(formatValue(28, 'rooms')).toBe('28'); // the backend's room counts (second_count.py), not '28.00 rooms'
   expect(formatValue(52.27, 'm2')).toBe('52.27 m²');
   expect(formatValue(22.401, 'm2')).toBe('22.40 m²');
   expect(formatValue(30.0, 'm2')).toBe('30.00 m²');

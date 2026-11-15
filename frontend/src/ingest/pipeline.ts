@@ -224,6 +224,63 @@ export function stepMatches(label: string, reader: string): boolean {
   return [reader, ...starts].some((s) => l.startsWith(s.toLowerCase()));
 }
 
+/** What a reader does, in the order the groups run (IN-120). */
+export type ReaderGroup = 'prepare' | 'count' | 'checks' | 'few' | 'scale' | 'other';
+const GROUP_ORDER: readonly ReaderGroup[] = ['prepare', 'count', 'checks', 'few', 'scale', 'other'];
+export const GROUP_LABEL: Record<ReaderGroup, string> = {
+  prepare: 'Prepare',
+  count: 'Count',
+  checks: 'Checks, not counted',
+  few: 'If few symbols',
+  scale: 'Scale',
+  other: 'Also ran',
+};
+/** The readers that do not count (every other configured reader does: `count`). */
+const GROUP_OF: Record<string, ReaderGroup> = {
+  'photo flattening': 'prepare',
+  'printed scale (Gemini)': 'prepare',
+  'tiles for big sheets': 'prepare',
+  'Gemini cross-check (not counted)': 'checks',
+  'second count': 'checks',
+  'Gemini for sheets with few symbols': 'few',
+  'scale from door sizes': 'scale',
+  'scale reader': 'scale',
+};
+
+/** The group a configured reader (a `routeReaders` name) is in, by what it is, not where it sits. */
+export function readerGroup(reader: string): ReaderGroup {
+  if (reader.startsWith(DOUBLE_CHECK)) return 'checks';
+  return GROUP_OF[reader] ?? 'count';
+}
+
+/**
+ * A lane's readers by what they do, groups in the order they run, readers in theirs. `extra`: step labels the
+ * server ran that no reader name covers ("Also ran"). One group: no label (the chips say it all).
+ */
+export function groupReaders(
+  readers: readonly string[],
+  extra: readonly string[] = [],
+): { group: ReaderGroup; label: string | null; readers: string[] }[] {
+  const of = (r: string) => (extra.includes(r) ? 'other' : readerGroup(r));
+  const all = [...readers, ...extra];
+  const groups = GROUP_ORDER.map((group) => ({
+    group,
+    label: GROUP_LABEL[group],
+    readers: all.filter((r) => of(r) === group),
+  })).filter((g) => g.readers.length > 0);
+  return groups.length === 1 ? groups.map((g) => ({ ...g, label: null })) : groups;
+}
+
+/**
+ * A chip's words under its group's label: what the label already says is left out ("Gemini cross-check" under
+ * "Checks, not counted", "Gemini reader" under "If few symbols"). With no label, the reader's full name.
+ */
+export function chipWords(reader: string, labelled: boolean): string {
+  if (!labelled) return reader;
+  if (readerGroup(reader) === 'few') return 'Gemini reader';
+  return reader.replace(/ \(not counted\)$/, '');
+}
+
 export type Lane = {
   id: RouteId | 'waiting' | 'other';
   name: string;

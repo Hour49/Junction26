@@ -667,6 +667,17 @@ describe('sign-off', () => {
     );
     expect(detail().textContent).toContain('Settle a value before signing off.');
     cleanup();
+    // QA R3-B5: once a person settled it, the conflict no longer asks for a value
+    show('', {
+      [PATH.takeoff]: derive(CONFLICT, {
+        conflict: { ...conflictOf(CONFLICT), resolution: null },
+        settled: { value: 30, at: '2026-11-14T01:30:00Z' },
+      }),
+    });
+    await ready();
+    expect(detail().textContent).not.toContain('Settle a value before signing off.');
+    expect(detail().textContent).toContain('No rule decides: you settled it.');
+    cleanup();
     show();
     await ready();
     expect(within(detail()).getByRole('button', { name: 'Sign off 30.00 m²' })).toHaveProperty(

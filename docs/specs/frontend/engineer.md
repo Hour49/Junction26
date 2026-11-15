@@ -95,7 +95,7 @@ Enter, a suggestion click or a `can_answer` click. Fixtures: `answer.json` (coun
 | --- | --- |
 | `question` | the user's bubble (the server's echo, so a trimmed question shows as sent) |
 | `answer`, `unit` | the big value and unit (format below). Null: no number anywhere in the card. A string `answer` (schedule) shows as text, `unit` null shows no unit. |
-| `confidence.score`, `confidence.calibrated` | the score line: "Second reader's score 0.87 (not a probability)". `calibrated: false` is the only value in the contract; the score is never shown as a percent, claimed as a probability, or called a confidence. `confidence` null: the line is absent (no made-up figure). |
+| `confidence.score`, `confidence.calibrated` | the score line: "Second reader's score 0.87 (not a probability)". `calibrated: false` is the only value in the contract; the score is never shown as a percent, claimed as a probability, or called a confidence. `confidence` null: the line is absent (no made-up figure). Also absent when the checks line says "one method; no second check" (EN-93). |
 | `line.sure`, `confidence.score` | the "Grade" block (Bogdan's rule, #14 c6874945888): `line.sure === true` "High"; else with `confidence` "Medium" when the score is 0.8 or more, "Low" below; no `confidence` and not sure: no block. Pill (`.v-pill--ok/--warn/--danger`), a 3-step bar (`aria-hidden`), and the line "From the Sure check and the second reader's score (0.8 or more: Medium)." Labelled "Grade", never "Confidence" (D3: the score is not a confidence) |
 | `confidence.signal` | only in Details: "Signal: <signal>" (an internal name, never on the card itself) |
 | `quantity.label`, `quantity.noun` | the answer sentence (Vellum: no separate card title), composed, not mocked (#14 c6874945888): with a noun "There are **<value>** <noun>." ("There is 1 door." for 1), else "<Label>: **<value>**."; the noun also right after the big value (outside `answer-value`). `noun` is in the API since PR #120 (`answer.json` "doors"; null for areas) |
@@ -173,7 +173,7 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text` (no code line), one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
 | Answer, count | `answer.json` | value `2`, title "door count", viewer with marks 1 and 2, mark list "1 door", "2 door", rule "every element, room and plan the drawing lists counts once", status "One method" |
 | Answer, sum | `answer_area.json` | value `52.27 m²`, rooms shaded, mark list with "Küche 22.40 m²"…, the arithmetic line with what was left out, the viewer's colour key |
-| Answer with a model score | `answer_confidence.json` (`confidence: {"signal": "g1main", "score": 0.87, "calibrated": false}`) | as count plus "Second reader's score 0.87 (not a probability)"; Details has "Signal: g1main"; no "Picture of this answer" link |
+| Answer with a model score | `answer_confidence.json` (`confidence: {"signal": "g1main", "score": 0.87, "calibrated": false}`, `first`/`second` null) | as count with "Measured by one method; no second check." and no score line (EN-93); Details has "Signal: g1main"; no "Picture of this answer" link. Derived with `status: "agree"` and `first`/`second` set: plus "Second reader's score 0.87 (not a probability)" |
 | Answer, building model | `answer_model.json` | value `2`, no viewer; `ModelProof` with "Door 1", "Door 2", their storey and GlobalId, the storey table, the arithmetic line |
 | Answer, schedule | see Open points (no fixture yet) | the string answer, the schedule table, no rule or checks panel |
 | Verified | derived: `answer.json` with `quantity.status: "signed"`, `quantity.signed: {"by": "Ana", "at": "2026-11-14T01:40:00Z", "value": 2}` | status "Verified", "Verified by Ana, 2026-11-14 01:40 UTC" next to the value |
@@ -382,7 +382,7 @@ Answers
 - EN-20 The viewer gets `proof.legend` as `legend`: the Küche polygon's stroke is `#d62728` and the Reduit polygon's `#1f77b4` (VW-21); a derived legend `note` "1 counted without a mark (second reader)" shows as text. [component, `answer_area.json`, derived `answer.json`]
 - EN-21 An excluded mark shows in the list with the sign "–" and no number, as "– Balkon left out by the rule: outdoor room". [component, derived `answer_area.json`]
 - EN-22 The viewer gets `quantity.conflict` as `conflict`: tags "A" and "B" are on the page for the derived conflict answer; `answer.json` (conflict null) has no tag. [component, derived conflict, `answer.json`]
-- EN-23 With the `confidence` object, "Second reader's score 0.87 (not a probability)" shows; the signal name ("g1main") is not on the card outside Details, and Details shows "Signal: g1main". The card has no "%" next to the score, no word "confidence", and "probability" only in "not a probability". For `answer.json` (confidence null) no score line and no "Signal:" line show. [component, `answer_confidence.json`]
+- EN-23 With the `confidence` object, "Second reader's score 0.87 (not a probability)" shows; the signal name ("g1main") is not on the card outside Details, and Details shows "Signal: g1main". The card has no "%" next to the score, no word "confidence", and "probability" only in "not a probability". For `answer.json` (confidence null) no score line and no "Signal:" line show. Only where the checks line names a second method or a conflict (EN-93). [component, `answer_confidence.json` derived `agree`]
 - EN-24 The footer shows "Cost $0" and "Time 2.0 ms" for `answer.json`. [component]
 - EN-25 `engineer/format.ts` gives: cost 0 → "$0", 0.0004 → "$0.0004", 0.123 → "$0.12"; latency 0.0001622 → "0.2 ms", 0.002 → "2.0 ms", 1.25 → "1.25 s"; score 0.87 → "0.87". Values and times on screen come from the shared `formatValue`/`formatTime` (their criteria are in shared.md). [unit]
 - EN-26 (Vellum: the sentence is the where-line of reference 1, "Original file"; the heading is "References") "Where this came from" shows "PDF vector reader read plans/flat-a.pdf (drawn PDF route), no second count" for `answer.json` (`second_counter: "none"`), and "PDF vector reader read plans/flat-a.pdf (drawn PDF route), second count by IFC model" with `second_counter: "ifc"`. [component, `answer.json`, derived `answer.json`]
@@ -519,6 +519,10 @@ Thread and pages
   read" line) stays above the thread while every turn is a refusal; the first turn that is not a refusal (pending, an
   answer or an error) replaces it as before (EN-78). A judge whose first question is refused still sees the drawing.
   [component]
+- EN-93 (QA round 3, R3-A2) Where the checks line says "Measured/Estimated by one method; no second check." (no
+  conflict, `first` or `second` null) the card shows no "Second reader's score" line: beside "no second check" a score
+  reads as a contradiction, and a 0.00 alarms a reader. Details still has "Signal: g1main". With a conflict or two
+  agreeing methods, or no takeoff row, the score shows as in EN-23. [component, `answer_confidence.json`]
 - EN-66 The e2e names stay: `answer-value` test id, `article` named by the question, textbox "Question", button "Ask", "Mark <n>: …" badges (viewer), "One method", "Methods disagree", "I can't answer that from this drawing.", the suggestion buttons by question text. [e2e, golden-path run]
 
 ## Not in the API (Vellum design elements; Bogdan's triage #14 c6874945888)

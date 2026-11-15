@@ -1,5 +1,5 @@
 // The conflicts screen's pure parts (docs/specs/frontend/conflicts.md "Field map").
-import { pickInUse, resolverName, type ConflictEntry } from '../api';
+import { isCountUnit, pickInUse, resolverName, type ConflictEntry } from '../api';
 
 export type CardState = 'open' | 'rule' | 'picked' | 'yours';
 
@@ -79,7 +79,8 @@ export function parseAnswer(text: string, unit: string | null): Answer | string 
   const bare = t.replace(/\s*(m²|m2|m³|m3|m)$/i, '').replace(',', '.');
   if (!/^\d+(\.\d+)?$|^\.\d+$/.test(bare)) return { note: t };
   const n = Number(bare);
-  if (unit === 'count') return Number.isInteger(n) ? { value: n } : 'Type a whole number, like 12.';
+  if (isCountUnit(unit))
+    return Number.isInteger(n) ? { value: n } : 'Type a whole number, like 12.';
   return n > 0 ? { value: n } : 'Type a number above 0, or a few words.';
 }
 
