@@ -19,6 +19,7 @@ from app.core.agent.ports import Reply
 from app.core.drawing.model import Drawing, ModelObject, Scale
 from app.core.errors import NotFoundError
 from app.core.ingest.model import FileStatus, ProjectStatus
+from app.core.services.stored import ServicesModel
 from app.main import create_app
 from app.settings import Settings
 from tests.services_fixtures import two_rooms
@@ -51,6 +52,30 @@ class _SetAside(_Ingest):
     """The IFC file was set aside at upload ("no PDF, PNG or JPEG in its group"): no drawing."""
 
     drawing_key: str | None = None
+
+
+class _WithPlan(_Ingest):
+    """The services IFC and a floor plan PDF: the plan rules answer what is no services question."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        done = super().status(project_id)
+        plan = FileStatus(
+            id="f2", path="m/plan.pdf", size=1, sha256="e" * 64, kind="pdf_vector", state="ready",
+            route="vector", drawing_id="fedcba9876543210",
+        )  # fmt: skip
+        return done.model_copy(update={"files": (*done.files, plan)})
+
+
+class _AllIfc(_Ingest):
+    """Only IFC files (#430 c6886940069 R3): the services model and an architecture model."""
+
+    def status(self, project_id: str) -> ProjectStatus:
+        done = super().status(project_id)
+        arc = FileStatus(
+            id="f2", path="m/arc.ifc", size=1, sha256="2" * 64, kind="ifc", state="ready",
+            route="bim", drawing_id="fedcba9876543210",
+        )  # fmt: skip
+        return done.model_copy(update={"files": (arc, *done.files)})
 
 
 class _PdfOnly(_Ingest):
@@ -97,12 +122,16 @@ def client(settings: Settings, tmp_path: Path) -> TestClient:
 
 
 def _client(
-    settings: Settings, tmp_path: Path, follow: str = "on", ingest: _Ingest | None = None
+    settings: Settings,
+    tmp_path: Path,
+    follow: str = "on",
+    ingest: _Ingest | None = None,
+    model: ServicesModel | None = None,
 ) -> TestClient:
     """The services tools are offered behind SERVICES_FOLLOW (on here unless `follow`)."""
     cache = tmp_path / "services"
     cache.mkdir(exist_ok=True)
-    model = two_rooms()
+    model = model or two_rooms()
     ServicesStore(cache).path(model.source.sha256).write_bytes(
         gzip.compress(model.model_dump_json().encode())
     )
@@ -390,3 +419,69 @@ def test_sv25_a_set_aside_ifc_is_offered_and_listed_by_its_sha256_prefix(
 def test_sv26_the_rules_model_finds_a_set_aside_ifc(settings: Settings, tmp_path: Path) -> None:
     turn = _rules(_client(settings, tmp_path, ingest=_SetAside()), "move the radiator")
     assert turn["kind"] in ("edit", "needs_input"), turn["text"]
+
+
+# --- room names in a chat turn (QA #430 c6886540832) ---
+
+
+def test_a_services_question_naming_a_room_reaches_the_services_tools(client: TestClient) -> None:
+    found = _rules(client, "Which radiators are in the bedroom?")
+    assert found["kind"] == "answer", found
+    assert "E3" in found["text"] and "2 Bedroom" in found["text"] and "E2" not in found["text"]
+    counted = _rules(client, "How many radiators are there in Living 1?")
+    assert counted["kind"] == "answer" and counted["text"].startswith("1 radiator in 1 Living")
+
+
+def test_a_room_the_services_model_lacks_is_said_with_its_rooms(client: TestClient) -> None:
+    found = _rules(client, "How many radiators are in the kitchen?")
+    assert found["kind"] == "dont_know", found
+    assert "no room named 'kitchen'" in found["text"] and "2 Bedroom" in found["text"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "How many toilets are in the bathroom?",
+        "How many toilets are there in the second floor?",
+        "How many toilets are in all bathrooms?",
+        "Which radiators are in the bedroom?",
+        "How many radiators are there in total in the building?",
+        "How many radiators are in the building model?",
+        "How many sinks are in room 1?",
+        "How many toilets are in the bathroom in the second floor?",
+    ],
+)
+def test_with_a_plan_beside_the_services_model_the_drawings_answer_as_before(
+    settings: Settings, tmp_path: Path, message: str
+) -> None:
+    """#491 review (fail-1): the room path is for a project whose only drawing is the services
+    model; with a plan beside it the question goes to the drawings, as on main."""
+    found = _rules(_client(settings, tmp_path, ingest=_WithPlan()), message)
+    assert "ask the drawings" in found["text"], found  # the fake ingest has no drawing read
+    assert "no room named" not in found["text"]
+
+
+def test_a_name_two_rooms_hold_is_answered_with_both(settings: Settings, tmp_path: Path) -> None:
+    model = two_rooms()
+    renamed = model.model_copy(
+        update={"rooms": (model.rooms[0], model.rooms[1].model_copy(update={"name": "2 Living"}))}
+    )
+    found = _rules(_client(settings, tmp_path, model=renamed), "Which radiators are in the living?")
+    assert found["kind"] == "dont_know", found
+    assert "SR1 '1 Living'" in found["text"] and "SR2 '2 Living'" in found["text"]
+
+
+def test_in_a_project_of_ifc_files_only_a_room_question_reaches_the_services_tools(
+    settings: Settings, tmp_path: Path
+) -> None:
+    """#430 c6886940069 R3: another IFC file is no drawing that answers about a room."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    doc["rooms"][0]["name"] = "1-3 Küche"
+    radiator = next(e for e in doc["elements"] if e["id"] == "E2")
+    sink = {**radiator, "id": "E20", "ref": {"guid": "sink"}, "kind": "sanitary_terminal",
+            "type": "Spüle", "label": "Spüle", "ports": []}  # fmt: skip
+    model = ServicesModel.model_validate({**doc, "elements": [*doc["elements"], sink]})
+    client = _client(settings, tmp_path, ingest=_AllIfc(), model=model)
+    found = _rules(client, "How many sinks are there in Küche 1-3?")
+    assert found["kind"] == "answer", found
+    assert found["text"].startswith("1 sink in 1-3 Küche") and "E20" in found["text"]
