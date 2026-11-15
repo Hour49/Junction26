@@ -167,10 +167,10 @@ def test_the_demo_config_follows_services_models() -> None:
     assert "SERVICES_FOLLOW=on" in found.stdout.split()
 
 
-def test_the_demo_config_is_all_on_with_five_measured_worse_off() -> None:
+def test_the_demo_config_is_all_on_with_four_measured_worse_off() -> None:
     """demo/all-on-2 (Bogdan, 2026-11-15 01:44: "switch on all the implemented features", and "None of
-    these" for the five measured worse): the fact sheets are stored
-    where the deploy's precompute writes them, and the five stay off."""
+    these" for the measured worse; DISCIPLINE_PICTURES moved to on, 04:30): the fact sheets are stored
+    where the deploy's precompute writes them, and the four stay off."""
     found = run("config")
     assert found.returncode == 0, found.stderr
     config = found.stdout.split()
@@ -185,6 +185,16 @@ def test_the_demo_config_is_all_on_with_five_measured_worse_off() -> None:
         "RASTER_TILES",
         "VECTOR_FALLBACK",
         "RESOLVER",
-        "DISCIPLINE_PICTURES",
     ):
         assert not any(line.startswith(off + "=") for line in config), off
+
+
+def test_the_demo_config_reads_discipline_and_pictures_with_gemini() -> None:
+    """demo/discipline-on (Bogdan, 2026-11-15 04:30: "562 merge flag ON. 2. on"): Carbon names each
+    sheet's discipline (#562) and Gemini reads its symbols and legend (#579). The backend defaults
+    are rules and off."""
+    found = run("config")
+    assert found.returncode == 0, found.stderr
+    config = found.stdout.split()
+    assert "SHEET_DISCIPLINE=gemini" in config
+    assert "DISCIPLINE_PICTURES=gemini" in config
