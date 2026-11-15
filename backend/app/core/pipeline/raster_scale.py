@@ -325,6 +325,19 @@ def label_area_checks(
     return found, notes
 
 
+def outline_m2(room: Room, page: Page, m_per_unit: float) -> float | None:
+    """A room's outline area at `m_per_unit`: its polygon, else its box over BOX_RATIO; None for
+    a box under MIN_BOX_M2, which boxes a label, not the room (as `label_area_checks`)."""
+    x0, y0, x1, y1 = room.box
+    if (
+        room.polygon is None
+        and (x1 - x0) * page.width * (y1 - y0) * page.height * m_per_unit**2 < MIN_BOX_M2
+    ):
+        return None
+    share = _shoelace(room.polygon) if room.polygon else (x1 - x0) * (y1 - y0) / BOX_RATIO
+    return share * page.width * page.height * m_per_unit**2
+
+
 def _shoelace(polygon: Sequence[tuple[float, float]]) -> float:
     pairs = zip(polygon, [*polygon[1:], polygon[0]], strict=True)
     return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in pairs)) / 2
