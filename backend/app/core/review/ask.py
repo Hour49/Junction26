@@ -434,6 +434,8 @@ def ask(
             words = _noun_refusal(noun, drawing)  # vocab-nouns P2
         if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
             words += _not_measured(parsed, drawing)  # review-349 S3
+        if answer.explanation == IN_ONE_ROOM:  # a picture's whole-sheet count asked of one room
+            code, words = "unsupported-question", PARTS[IN_ONE_ROOM]  # not "I don't count ..."
         if not can_answer:
             words = TRY_THESE.sub(lambda found: "." if found[0][0] == ";" else "", words)
         refusal = Refusal(code=code, text=words, can_answer=can_answer)

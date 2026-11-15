@@ -11,6 +11,7 @@ from app.core.answering.facts import FACTS, answer_from_facts
 from app.core.answering.model import IN_ONE_ROOM, Answer, Question
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import parse_ifc_question
+from app.core.review.ask import PARTS
 from app.settings import Settings
 from tests.test_picture_answers import _sheet
 
@@ -77,6 +78,9 @@ def test_the_ask_and_the_chat_refuse_one_room_on_a_picture(settings: Settings) -
     client, project, drawing = picture_project(settings, kept=True)
     found = ask(client, project, drawing, "How many radiators are in the cafeteria?")
     assert found["answer"] is None and found["refusal"] is not None, found
+    # the existing one-room words, not "I don't count radiators" (the picture does count them)
+    assert found["refusal"]["text"].startswith(PARTS[IN_ONE_ROOM].split(" Try")[0]), found
+    assert "don't count" not in found["refusal"]["text"], found
     assert found["method"] != FACTS and "29" not in (found["explanation"] or ""), found
     asked = client.post(
         f"/api/projects/{project['id']}/ask",
