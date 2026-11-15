@@ -58,6 +58,9 @@ def reading(legend: tuple[LegendEntry, ...], seen: list[tuple[str, tuple[int, in
     return PictureReading(reader="template", legend=legend, read=None, sightings=sightings)
 
 
+TOY = {"keep": 0.5, "keeps": {}}  # the fakes' cosines are not the model's: no tuned keep here
+
+
 class Thumbnails:
     """A stand-in for DINOv2: every patch token is the crop's 8 x 8 thumbnail, centred."""
 
@@ -71,6 +74,33 @@ class Thumbnails:
         return [tokens]
 
 
+class Biased(Thumbnails):
+    """Thumbnails without centring, on a large shared offset: what DINOv2's patches share across
+    every crop. The mean patch then calls everything alike; the grid minus a blank's does not."""
+
+    def run(self, output_names, input_feed):
+        batch = input_feed["pixel_values"]
+        grey = batch[:, 0].reshape(len(batch), 8, 14, 8, 14).mean(axis=(2, 4)).reshape(-1, 64)
+        tokens = np.full((len(batch), 65, 384), 50.0, np.float32)
+        tokens[:, 1:, :64] += grey[:, :, None] * np.eye(64, dtype=np.float32)[None]
+        return [tokens]
+
+
+def test_the_grid_minus_a_blank_drops_a_blank_despite_a_shared_offset() -> None:
+    gray, legend, at = page()
+    seen = [("light", at["circle"]), ("light", at["blank"])]
+    kept = dino_match.confirm(gray, reading(legend, seen), Biased(), **TOY)
+    assert [s.spot.box for s in kept.sightings] == [box(*at["circle"])]
+
+
+def test_the_keep_is_per_kind() -> None:
+    gray, legend, at = page()
+    seen = [("light", at["circle"]), ("valve", at["ell"])]
+    strict = {"valve": 1.01}  # no valve passes; the light keeps the default
+    kept = dino_match.confirm(gray, reading(legend, seen), Thumbnails(), keep=0.5, keeps=strict)
+    assert [s.label for s in kept.sightings] == ["light"]
+
+
 def test_keeps_its_own_symbol_turned_and_drops_a_look_alike_and_a_blank() -> None:
     gray, legend, at = page()
     seen = [
@@ -79,7 +109,7 @@ def test_keeps_its_own_symbol_turned_and_drops_a_look_alike_and_a_blank() -> Non
         ("valve", at["ell"]),  # turned a quarter
         ("light", at["blank"]),
     ]
-    kept = dino_match.confirm(gray, reading(legend, seen), Thumbnails())
+    kept = dino_match.confirm(gray, reading(legend, seen), Thumbnails(), **TOY)
     assert [(s.label, s.spot.box) for s in kept.sightings] == [
         ("light", box(*at["circle"])),
         ("valve", box(*at["ell"])),

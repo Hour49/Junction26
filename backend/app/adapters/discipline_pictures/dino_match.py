@@ -4,9 +4,11 @@ where blur and salt make plain outlines correlate everywhere).
 
 Each sighting's box, and each legend symbol cropped to its ink, is padded by `CONTEXT`, put on a
 white square and shrunk to `SIDE` px; DINOv2-small (facebook/dinov2-small, Apache-2.0, the
-onnx-community ONNX export, quantized, CPU) turns it into the mean of its patch features. A
-sighting stays when its cosine to its own legend symbol (best of the four quarter turns, as the
-template reader turns them) is at least `KEEP`, and no other legend symbol is closer by more than
+onnx-community ONNX export, quantized, CPU) turns it into its 8 x 8 grid of patch features
+minus a blank white square's grid ("gridc": the mean patch hides layout and calls radiators
+alike, and every crop shares much of the blank's features). A sighting stays when its cosine to
+its own legend symbol (best of the four quarter turns, as the template reader turns them) is at
+least its kind's keep (`KEEPS`, else `KEEP`), and no other legend symbol is closer by more than
 `MARGIN`. Scores are untouched; a dropped sighting is gone, so this only raises precision.
 
 Shortcut: it confirms the template's candidates and does not find new ones. Tiling the whole page
@@ -17,7 +19,7 @@ The model file is local only (data/models/dinov2-small/, gitignored), checked by
 """
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from functools import cache
 from pathlib import Path
 from typing import Any, Protocol
@@ -27,7 +29,7 @@ import numpy as np
 
 from app.adapters.discipline_pictures import pixels
 from app.core.errors import InvalidInputError, NotFoundError
-from app.core.picture_facts import LegendEntry, PictureReading
+from app.core.picture_facts import LegendEntry, PictureReading, kind_of
 
 READER = "dino"
 MODEL = Path(__file__).resolve().parents[4] / "data" / "models" / "dinov2-small"
@@ -36,12 +38,17 @@ SHA256 = "c179f8f7f592449c4c1bca4cd124a7538021428c5ffb89afde9503935b197efb"
 THREADS = 4
 SIDE = 112  # px of the square a crop is shrunk to: 8 x 8 patches of 14
 CONTEXT = 0.25  # share of the box's long side added around it
-KEEP = 0.5  # cosine to its own legend symbol a sighting needs; tune on the bench tune half
+# Cosine to its own legend symbol a sighting needs, by IFC kind (`kind_of`), else KEEP. From
+# w4:p1's gridc sweep on the bench tune half (scans): keep ~0.70-0.75 took sanitary precision
+# 0.11 -> 0.60 at recall 0.92 and lights 0.06 -> 0.79 at recall 0.82.
+KEEP = 0.70
+KEEPS: dict[str, float] = {"light_fixture": 0.75, "sanitary_terminal": 0.70}
 MARGIN = 0.0  # how much closer another legend symbol may be before the sighting is dropped
 INK = 200  # grey level below which a pixel is drawn (as the template reader)
 PAD = 2  # pixels kept around a legend symbol's ink (as the template reader)
 BATCH = 64
-MEAN, STD = np.float32([0.485, 0.456, 0.406]), np.float32([0.229, 0.224, 0.225])
+MEAN = np.array([0.485, 0.456, 0.406], np.float32)
+STD = np.array([0.229, 0.224, 0.225], np.float32)
 
 
 class Session(Protocol):
@@ -70,18 +77,28 @@ def confirm(
     reading: PictureReading,
     session: Session,
     keep: float = KEEP,
+    keeps: Mapping[str, float] = KEEPS,
     margin: float = MARGIN,
 ) -> PictureReading:
     """`reading` (the template reader's, on the grey page `gray`) without the sightings that do
-    not look like their legend symbol."""
+    not look like their legend symbol. This is the one call the picture lane makes, after
+    `template.read_symbols`."""
     own, other = similarities(gray, reading, session)
+    groups = {entry.label: entry.group for entry in reading.legend or ()}
+
+    def needs(label: str) -> float:
+        kind = kind_of(label, groups.get(label))
+        return keeps.get(kind[0], keep) if kind else keep
+
     kept = tuple(
         s
         for s, o, b in zip(reading.sightings, own, other, strict=True)
-        if o >= keep and b <= o + margin
+        if o >= needs(s.label) and b <= o + margin
     )
     dropped = len(reading.sightings) - len(kept)
-    notes = (f"{READER}: dropped {dropped} of {len(reading.sightings)} sightings",) if dropped else ()
+    notes = (
+        (f"{READER}: dropped {dropped} of {len(reading.sightings)} sightings",) if dropped else ()
+    )
     return reading.model_copy(update={"sightings": kept, "notes": reading.notes + notes})
 
 
@@ -96,7 +113,9 @@ def similarities(
     height, width = gray.shape
     symbols = _legend_symbols(gray, reading.legend or ())
     labels = list(symbols)
-    turns = [np.ascontiguousarray(np.rot90(symbols[label], q)) for label in labels for q in range(4)]
+    turns = [
+        np.ascontiguousarray(np.rot90(symbols[label], q)) for label in labels for q in range(4)
+    ]
     crops = [
         gray[y0:y1, x0:x1]
         for x0, y0, x1, y1 in (pixels(s.spot.box, width, height) for s in reading.sightings)
@@ -140,13 +159,15 @@ def _square(crop: np.ndarray) -> np.ndarray:
 
 
 def _embed(crops: list[np.ndarray], session: Session) -> np.ndarray:
-    """Unit-length mean patch feature of each crop."""
+    """Unit-length "gridc" of each crop: its patch grid minus a blank square's, flattened."""
+    squares = [np.full((SIDE, SIDE), 255, np.uint8)] + [_square(c) for c in crops]
     out = []
-    for start in range(0, len(crops), BATCH):
-        grey = np.stack([_square(c) for c in crops[start : start + BATCH]]).astype(np.float32)
+    for start in range(0, len(squares), BATCH):
+        grey = np.stack(squares[start : start + BATCH]).astype(np.float32)
         rgb = np.repeat(grey[..., None] / 255.0, 3, axis=3)
         batch = ((rgb - MEAN) / STD).transpose(0, 3, 1, 2).astype(np.float32)
         tokens = np.asarray(session.run(None, {"pixel_values": batch})[0])
-        out.append(tokens[:, 1:].mean(axis=1))  # skip the class token
-    vectors = np.concatenate(out)
+        out.append(tokens[:, 1:])  # skip the class token
+    grids = np.concatenate(out)
+    vectors = (grids[1:] - grids[:1]).reshape(len(crops), -1)
     return vectors / np.maximum(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-9)
