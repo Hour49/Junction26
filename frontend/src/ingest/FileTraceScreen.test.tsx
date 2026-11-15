@@ -5,7 +5,7 @@ import type { FileTrace } from '../api';
 import { mockApi, reply } from '../test/mockApi';
 import { FileTraceScreen } from './FileTraceScreen';
 import { formatMs, kindLabel, normalisedSteps, routeLabel } from './ingest';
-import { flush, must, traceVariants } from './testing';
+import { flush, must, sheet, traceVariants, triaged } from './testing';
 
 const PID = trace.project_id;
 const FID = trace.file.id;
@@ -328,6 +328,65 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(must(fact('Cost')).nextElementSibling?.textContent).toBe('$0.03');
+  });
+
+  it('AD-127 (QA R4-A9) a file the sheet-kind step called not a drawing says it is no drawing ready', async () => {
+    const line = 'The sheet-kind step called this not a drawing';
+    const triage = must(triaged.files[1]?.triage);
+    const file = (kind: typeof sheet.kind, readAsPlan: unknown = null) => ({
+      ...trace.file,
+      state: 'flagged' as const,
+      triage: {
+        ...triage,
+        class: 'floor_plan' as const,
+        read_as_plan: readAsPlan as typeof triage.read_as_plan,
+        sheet: { ...sheet, decision: 'doubt' as const, kind, kind_words: 'not a drawing' },
+      },
+    });
+    const showFile = async (f: FileTrace['file']) => {
+      cleanup();
+      mockApi({ [GET]: { ...trace, file: f } });
+      render(<FileTraceScreen projectId={PID} fileId={FID} />);
+      await flush();
+      return document.body.textContent;
+    };
+    expect(await showFile(file('not_a_drawing'))).toContain(
+      `${line}: it was read, but it is not counted as a drawing ready.`,
+    );
+    // a doubted kind of drawing (an elevation) is a drawing; a person's "read as a floor plan" clears it
+    expect(await showFile(file('elevation'))).not.toContain(line);
+    expect(
+      await showFile(file('not_a_drawing', { by: 'Ana', at: '2026-11-15T03:00:00Z' })),
+    ).not.toContain(line);
+    expect(await showFile(trace.file)).not.toContain(line);
+  });
+
+  it('AD-128 a stage under 0.01 ms reads "<0.01 ms"; a stage at 0 ms (not timed) shows no time', async () => {
+    // the demo sample's IFC model (real trace, 2026-11-15): hash, group and route took almost nothing; its
+    // normalise stage is a line with no timing (0 exactly)
+    const ms: Record<string, number> = {
+      hash: 0.019195984350517392,
+      group: 0.0031060189940035343,
+      route: 0.004208006430417299,
+      normalise: 0,
+    };
+    mockApi({
+      [GET]: { ...trace, stages: trace.stages.map((s) => ({ ...s, ms: ms[s.stage] ?? s.ms })) },
+    });
+    render(<FileTraceScreen projectId={PID} fileId={FID} />);
+    await flush();
+    const time = (label: string) =>
+      must(
+        [...document.querySelectorAll('.tl-stage')].find(
+          (li) => li.querySelector('.tl-head b')?.textContent === label,
+        ),
+      ).querySelector('.tl-head .tl-ms')?.textContent;
+    expect(time('Hash')).toBe('0.02 ms');
+    expect(time('Group')).toBe('<0.01 ms');
+    expect(time('Route')).toBe('<0.01 ms');
+    expect(time('Normalise')).toBeUndefined();
+    expect(time('Extract')).toBe('12.5 ms');
+    expect(must(document.querySelector('.ingest-trace')).textContent).not.toContain('0.00 ms');
   });
 
   it('AD-119 a file read with its group: the Route fact names the file it was read with', async () => {

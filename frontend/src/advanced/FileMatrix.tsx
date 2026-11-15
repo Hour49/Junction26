@@ -18,6 +18,7 @@ import {
   readWith,
   reasonLines,
   stepsAfter,
+  traceMs,
   type Phase,
 } from './trace';
 import { StepList } from './TraceTimeline';
@@ -93,7 +94,9 @@ function FileRow({
             role="img"
             aria-label={
               stages.length
-                ? stages.map((s) => `${STAGE_LABEL[s.stage]} ${formatMs(s.ms)}`).join(', ')
+                ? stages
+                    .map((s) => `${STAGE_LABEL[s.stage]}${s.ms > 0 ? ` ${traceMs(s.ms)}` : ''}`)
+                    .join(', ')
                 : formatMs(file.ms)
             }
             style={{ width: `${(100 * share).toFixed(1)}%` }}

@@ -3,6 +3,7 @@ a bad call is {"error": ...}, never an exception."""
 
 import json
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -95,6 +96,20 @@ def test_list_drawings_names_each_drawing_of_the_project(
     assert {"kind", "route", "state", "triage"} <= set(found[0])
 
 
+def test_list_drawings_says_what_the_pen_says_whether_an_edit_can_be_drawn(
+    store: PipelineStore, project: dict[str, Any]
+) -> None:
+    """Tudor R3-G10: on a scan the pen is off, yet the agent said "draw the area ... and ask me to
+    propose it". The agent reads the same check as the pen (plan_tools.not_drawable)."""
+    found = {d["drawing_id"]: d for d in call(store, "list_drawings")}
+    for drawing in project["drawings"]:
+        listed = found[drawing["drawing_id"]]
+        assert listed["editable"] is drawing["drawable"], drawing["file"]
+        assert listed.get("not_editable") == drawing["not_drawable_reason"], drawing["file"]
+    assert any(d["editable"] for d in found.values())
+    assert any(not d["editable"] and d["not_editable"] for d in found.values())
+
+
 def test_ask_drawings_is_the_project_ask_route(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
@@ -132,26 +147,38 @@ def test_conflicts_and_issues_are_the_routes_lists(
 def test_run_checks_is_the_project_checks_route_failures_first(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
-    """R4-I5: the route's results, the fails and cannot-tells listed with their drawing and rule,
-    the passes only counted per rule (the chat lists the failing rooms, not the passing ones)."""
+    """R4-I5: the route's results as the chat reads them: each rule once with its clause and
+    counts, then the fails and cannot-tells (a rule that could not run is a cannot-tell entry of
+    its own), then the passes."""
     found = call(store, "run_checks", pack="test")
     route = checked.get(f"/api/projects/{project['id']}/checks", params={"pack": "test"}).json()
     assert {k: found[k] for k in ("project_id", "pack", "note", "status")} == {
         k: route[k] for k in ("project_id", "pack", "note", "status")
     }
-    results = [
-        (d["drawing_id"], r["rule_id"], x)
-        for d in route["drawings"] for r in d["rules"] for x in r["results"]
+    rules = [(d["file"], r) for d in route["drawings"] for r in d["rules"]]
+    results = [(file, r["rule_id"], x) for file, r in rules for x in r["results"]]
+    lists = (("fail", "failures"), ("cannot_tell", "cannot_tell"), ("pass", "passes"))
+    for status, listed in lists:
+        assert [(x["file"], x["rule_id"], x["subject"], x["value"]) for x in found[listed]
+                if "subject" in x] == [
+            (file, rule_id, x["subject"]["label"], x["value"]) for file, rule_id, x in results
+            if x["status"] == status
+        ]  # fmt: skip
+    assert [(x["file"], x["rule_id"]) for x in found["cannot_tell"] if "subject" not in x] == [
+        (file, r["rule_id"]) for file, r in rules
+        if r["status"] == "cannot_tell"
+        and not any(x["status"] == "cannot_tell" for x in r["results"])
     ]  # fmt: skip
-    for status, listed in (("fail", "failures"), ("cannot_tell", "cannot_tell")):
-        assert [x["id"] for x in found[listed]] == [x["id"] for _, _, x in results
-                                                    if x["status"] == status]  # fmt: skip
-    rules = [(d["drawing_id"], r["rule_id"], r["status"]) for d in route["drawings"]
-             for r in d["rules"]]  # fmt: skip
-    assert [(r["drawing_id"], r["rule_id"], r["status"]) for r in found["rules"]] == rules
-    passes = sum(r["counts"].get("pass", 0) for r in found["rules"])
-    assert passes == sum(x["status"] == "pass" for _, _, x in results) and found["rules"]
-    assert list(found)[4:6] == ["failures", "cannot_tell"]  # before the per-rule list
+    for _, r in rules:
+        summary = found["rules"][r["rule_id"]]
+        assert (summary["title"], summary["clause"]) == (r["title"], r["clause"])
+    for rule_id, summary in found["rules"].items():
+        mine = [r for _, r in rules if r["rule_id"] == rule_id]
+        assert summary["drawings"] == dict(Counter(r["status"] for r in mine))
+        assert summary["results"] == dict(Counter(x["status"] for r in mine for x in r["results"]))
+    keys = list(found)
+    assert keys.index("rules") < keys.index("failures") < keys.index("cannot_tell")
+    assert keys.index("cannot_tell") < keys.index("passes") and found["rules"]
 
 
 @pytest.fixture
@@ -161,30 +188,78 @@ def sample(client: TestClient) -> PipelineStore:
     return PipelineStore.of_app(client.app, project["id"])
 
 
-@pytest.mark.parametrize("times", [1, 8])
+def pad(monkeypatch: pytest.MonkeyPatch, passing: int, failing: int) -> None:
+    """run_checks with the passing drawings `passing` times over, then the failing ones `failing`
+    times, then the rest (cannot tell), as a long project gives them."""
+    real = pipeline_tools.checks_of
+
+    def padded(project_id: str, pack: RulePack, ingest: Any) -> ProjectChecks:
+        found = real(project_id, pack, ingest)
+        by = {s: [d for d in found.drawings if d.status == s] for s in ("pass", "fail")}
+        rest = [d for d in found.drawings if d.status not in by]
+        drawings = by["pass"] * passing + by["fail"] * failing + rest
+        return found.model_copy(update={"drawings": drawings})
+
+    monkeypatch.setattr(pipeline_tools, "checks_of", padded)
+
+
+@pytest.mark.parametrize("times", [1, 20])
 def test_run_checks_keeps_every_failure_when_the_chat_cuts_a_long_result(
     sample: PipelineStore, monkeypatch: pytest.MonkeyPatch, times: int
 ) -> None:
     """R4-I5 (Tudor's QA round 4): "Which rooms fail the Zürich building rules?" on the sample
     could not name Zimmer 1.05 on flat-b (8.06 m²): run_checks gave every drawing's every result,
     the loop halves the longest list to TOOL_CHARS, and the drawings list was cut to flat-a (whose
-    own Zimmer 1.05 passes). times=8: the passing drawings eight times over, ahead of flat-b,
+    own Zimmer 1.05 passes). times=20: the passing drawings 20 times over, ahead of flat-b,
     so the chat still cuts the result, but not the failure."""
-    real = pipeline_tools.checks_of
-
-    def padded(project_id: str, pack: RulePack, ingest: Any) -> ProjectChecks:
-        found = real(project_id, pack, ingest)
-        failing = [d for d in found.drawings if d.status == "fail"]
-        rest = [d for d in found.drawings if d.status != "fail"]
-        return found.model_copy(update={"drawings": rest * times + failing})
-
-    monkeypatch.setattr(pipeline_tools, "checks_of", padded)
+    pad(monkeypatch, passing=times, failing=1)
     text = _for_model(call(sample, "run_checks", pack="ch-zh"))
-    assert ("_more" in text) == (times > 1), text  # x1 now fits; x8 is still cut
+    assert ("_more" in text) == (times > 1), text  # x1 now fits; x20 is still cut
     read = json.loads(text)  # cut by lists, not as text
-    failures = [(x["file"], x["rule_id"], x["subject"]["label"]) for x in read["failures"]]
+    failures = [(x["file"], x["rule_id"], x["subject"]) for x in read["failures"]]
     assert failures == [("plans/flat-b.pdf", "ch-zh-room-area", "Zimmer 1.05")], text
     assert read["failures"][0]["value"] == pytest.approx(8.06, abs=0.01)
+    assert "§ 303" in read["rules"]["ch-zh-room-area"]["clause"]["ref"]
+
+
+def test_run_checks_keeps_a_dozen_failures_whole(
+    sample: PipelineStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """review-621 M1: a failure entry carried its rule's title and full clause (about 1,080
+    characters), so with 12 failing drawings `failures` was the longest list and the chat kept 3.
+    The title and clause are given once per rule (a dict, never cut)."""
+    pad(monkeypatch, passing=20, failing=12)
+    text = _for_model(call(sample, "run_checks", pack="ch-zh"))
+    assert "_more" in text, text  # the chat did cut it
+    read = json.loads(text)
+    assert [x["subject"] for x in read["failures"]] == ["Zimmer 1.05"] * 12, text
+    assert "failures_more" not in read
+    said = 'The bedroom "Zimmer 1.05" is 8.06 m2; the rule asks at least 10 m2.'
+    assert read["failures"][0]["why"] == said
+    assert read["fail_means"].startswith("It would not meet")  # said once
+
+
+def test_run_checks_keeps_every_drawing_it_could_not_check(
+    sample: PipelineStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """review-621 M2: a rule that could not run on a drawing (no rooms read, a building model)
+    has no results, so it was only in `rules`, the list the chat cuts first: with fi on the sample
+    all 9 were there and `cannot_tell` was empty. Each is a cannot-tell entry of its own."""
+    expected = {
+        (d.file, r.rule_id)
+        for d in pipeline_tools.checks_of(
+            sample.project_id, pipeline_tools.find_pack(sample.packs, "fi"), sample.ingest
+        ).drawings
+        for r in d.rules
+        if r.status == "cannot_tell" and not r.results
+    }
+    assert len(expected) == 9
+    pad(monkeypatch, passing=20, failing=1)
+    text = _for_model(call(sample, "run_checks", pack="fi"))
+    assert "_more" in text, text  # the chat did cut it
+    read = json.loads(text)
+    assert {(x["file"], x["rule_id"]) for x in read["cannot_tell"]} == expected, text
+    assert all(x["why"] for x in read["cannot_tell"])
 
 
 def drawing(**fields: object) -> Drawing:

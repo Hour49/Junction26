@@ -17,6 +17,7 @@ import {
   type Span,
   type Step,
   type Tone,
+  traceMs,
   untimed,
 } from './trace';
 import './trace.css';
@@ -71,7 +72,7 @@ function StepRow({
       </span>
       <span className="tl-step-label">{step.label}</span>
       <span className="tl-ms">
-        {step.state === 'skipped' ? 'skipped' : timed && formatMs(step.ms)}
+        {step.state === 'skipped' ? 'skipped' : timed && traceMs(step.ms)}
         {step.cost_usd > 0 &&
           `${timed || step.state === 'skipped' ? ' · ' : ''}${formatCost(step.cost_usd)}`}
       </span>
@@ -148,7 +149,8 @@ function StageRow({ s, span }: { s: StageTrace; span: Span | null }) {
           <Tip text={STAGE_TIPS[s.stage]} wrap className="justify-self-start">
             <b>{label}</b>
           </Tip>
-          <span className="tl-ms">{formatMs(s.ms)}</span>
+          {/* 0 ms exactly: a stage the server did not time (an IFC model's normalise), no time shown (AD-128) */}
+          {s.ms > 0 && <span className="tl-ms">{traceMs(s.ms)}</span>}
         </div>
         <Track span={span} className={`phase-${PHASE[s.stage]}`} />
         <p>{s.stage === 'cache' ? `Cached: ${s.did}` : s.did}</p>

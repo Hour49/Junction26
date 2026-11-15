@@ -31,9 +31,13 @@ export function unread(
   return item.route != null && readers?.[item.route] === NOTHING;
 }
 
-/** The drawings something was read off: what "Drawings ready" and the done line count (IN-116). */
+/**
+ * The drawings something was read off: what "Drawings ready" and the done line count (IN-116). A sheet the
+ * sheet-kind step called not a drawing at all (a screenshot) is read only because the step warns: not a drawing
+ * ready either (QA R4-A9, API.md `not_a_drawing`, left out when false).
+ */
 export function readDrawings(project: Pick<ProjectView, 'drawings' | 'readers'>) {
-  return project.drawings.filter((d) => !unread(d, project.readers));
+  return project.drawings.filter((d) => !unread(d, project.readers) && !d.not_a_drawing);
 }
 
 /** The reader a RASTER_COMPONENTS part is, by part (backend app/adapters/raster/__init__.py `GROUPS`). */

@@ -82,3 +82,34 @@ def test_a_request_is_not_a_yes_no_question() -> None:
 def test_by_building_level_is_by_storey() -> None:
     assert parsed("How are the lights distributed across the building levels?").by == "storey"
     assert parsed("What is the count of electrical components by building level?").by == "storey"
+
+
+def test_an_elements_guid_is_kept_whole() -> None:
+    """Tudor R4-H2: the GUID was split at its '_' into two subject words and lost."""
+    query = parsed("What is the width of the door 1hOSvn6df7F8_7GcBWlRGQ ?")
+    assert (query.entity, query.measures, query.guid) == (
+        "door",
+        ("width",),
+        "1hOSvn6df7F8_7GcBWlRGQ",
+    )
+    window = parsed("What are the dimensions of the window with guid 0otfaO0qPDAhynjJ6DmgH8?")
+    assert (window.entity, window.guid) == ("window", "0otfaO0qPDAhynjJ6DmgH8")
+    assert parsed("What is the GUID of the ceiling in the living room of house A?").guid is None
+    assert parsed("How many doors has the abcdefghijklmnopqrstuv house?").guid is None  # 22 letters
+
+
+def test_the_two_storeys_a_floor_to_floor_height_is_between() -> None:
+    """Tudor R4-H2: "between the ground floor and first floor" named no storey: all were listed."""
+    query = parsed("What is the floor-to-floor height between the ground floor and first floor?")
+    assert (query.entity, query.between) == ("storey", ("ground floor", "first floor"))
+    query = parsed("What is the floor to floor height between the first and the second floor?")
+    assert query.between == ("first", "second floor")
+    assert (
+        parsed("What are the floor-to-floor heights between all consecutive levels?").between
+        is None
+    )
+
+
+def test_a_ceiling_names_no_room() -> None:
+    query = parsed("What is the height of the ceiling in room A203?")
+    assert (query.entity, query.measures, query.words) == ("space", ("height",), ("a203",))

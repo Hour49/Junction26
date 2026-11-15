@@ -56,6 +56,11 @@ export function PathText({ path, end = '' }: { path: string; end?: string }) {
   );
 }
 
+/** A drawing the sheet-kind step called not a drawing (`notDrawings`): a muted tag beside it, nothing more. */
+function NotADrawing() {
+  return <span className="adv-tag">not a drawing</span>;
+}
+
 /** An image that says so when it cannot load, instead of a broken icon. */
 function Img({ src, alt, missing }: { src: string; alt: string; missing: string }) {
   const [broken, setBroken] = useState(false);
@@ -260,11 +265,16 @@ export function PlanMarks({
         >
           {drawings.map((d) => (
             <option key={d.drawing_id} value={d.drawing_id}>
-              {d.file}
+              {d.not_a_drawing ? `${d.file} · not a drawing` : d.file}
             </option>
           ))}
         </select>
       </label>
+      {drawing.not_a_drawing && (
+        <p className="adv-note">
+          <NotADrawing />
+        </p>
+      )}
       {drawing.kind === 'ifc' ? (
         <p className="adv-missing">A model, no sheet to show.</p>
       ) : (
@@ -457,7 +467,8 @@ export function ReadyList({
       <strong>Questions ready to ask</strong>
       <ul>
         {asked.map(({ d, n }) => {
-          const ready = d.state === 'ready' || d.state === 'flagged';
+          // called not a drawing by the sheet-kind step: read, so its questions are listed, but no drawing ready
+          const ready = (d.state === 'ready' || d.state === 'flagged') && !d.not_a_drawing;
           return (
             <li key={d.drawing_id}>
               <span className={ready ? 'adv-dot on' : 'adv-dot'} aria-hidden="true" />
@@ -465,6 +476,12 @@ export function ReadyList({
                 <PathText path={d.file} end=":" />
               </span>{' '}
               {plural(n, 'question')} ready to ask
+              {d.not_a_drawing && (
+                <>
+                  {' '}
+                  <NotADrawing />
+                </>
+              )}
               <ul>
                 {(views.get(d.drawing_id)?.suggestions ?? []).map((s) => (
                   <li key={s.quantity}>{s.label}</li>
