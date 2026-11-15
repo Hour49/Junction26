@@ -104,7 +104,7 @@ _MEASURES: tuple[tuple[str, str], ...] = (
     ("volume", r"volume|cubic"),
     ("thickness", r"thick"),
     ("width", r"width|\bwide\b"),
-    ("height", r"height|\btall\b|\bhigh\b"),
+    ("height", r"(?:ceiling\s+)?height|\btall\b|\bhigh\b"),  # "ceiling" names no room
     ("elevation", r"elevation"),
     ("depth", r"depth|\bdeep\b"),
     ("material", r"material|made\s+of|composition|layers?|construction|concrete|insulation|finish"),
