@@ -305,3 +305,43 @@ def test_the_lane_gives_a_label_that_names_no_discipline_the_sheets_discipline(
         Reads("vlm", "Valve", BOXES), Reads("t", "Valve", BOXES), tmp_path / "b", lambda _: plumbing
     )
     assert valves(by_triage) == {"plumbing"}
+
+
+# Part of the recorded reply for the demo's P-101 plumbing picture (gemini-4-carbon, vlm-1,
+# 2026-11-15), as the model wrote it: its legend is drawn "Spüle", "Druckspüler", "Betätigung",
+# but the model wrote ü and ä as \u0081 and \u0084, their cp437 bytes (.agents/exp/umlauts.md)
+P101 = (
+    r'{"legend": [{"label": "Sp\u0081le Geschirrsp\u0081ler:140 x 60cm", "line": false, '
+    r'"box": [96, 834, 112, 839]}, {"label": "Urinal UP Drucksp\u0081ler:Standard", "line": '
+    r'false, "box": [114, 834, 131, 839]}, {"label": "WC UP-Sp\u0081lkasten Bet\u0084tigung '
+    r'vorne:35 x 60cm", "line": false, "box": [245, 834, 261, 839]}], "symbols": [{"label": '
+    r'"Urinal UP Drucksp\u0081ler:Standard", "boxes": [[504, 217, 522, 222]]}, {"label": '
+    r'"WC UP-Sp\u0081lkasten Bet\u0084tigung vorne:35 x 60cm", "boxes": [[488, 250, 507, 255]]}]}'
+)
+
+
+def test_a_control_character_in_a_label_is_read_as_its_cp437_letter(tmp_path: Path) -> None:
+    """U+0080-U+009F are never text: the model meant the cp437 letter (0x81 ü, 0x84 ä), so the
+    labels read as printed and every sighting still pairs with its legend row."""
+    answer = {"candidates": [{"content": {"parts": [{"text": P101}]}}]}
+    assert "\x81" in json.loads(P101)["legend"][0]["label"]  # what json.loads alone gives
+    reading = reading_of(answer)
+    assert [e.label for e in reading.legend or ()] == [
+        "Spüle Geschirrspüler:140 x 60cm",
+        "Urinal UP Druckspüler:Standard",
+        "WC UP-Spülkasten Betätigung vorne:35 x 60cm",
+    ]
+    paired = ["Urinal UP Druckspüler:Standard", "WC UP-Spülkasten Betätigung vorne:35 x 60cm"]
+    assert sorted(s.label for s in reading.sightings) == paired
+    client = Client(answer)  # the cache keeps the reply as written: repaired on every read
+    reader(client, tmp_path).read(*sheet())
+    again = reader(client, tmp_path).read(*sheet())
+    assert client.calls == 1 and sorted(s.label for s in again.sightings) == paired
+
+
+def test_the_lane_s_version_hashes_the_gemini_reader() -> None:
+    """A change to how a reply is read (the labels above) rebuilds the kept sheets: the replies
+    stay cached, so it costs no call."""
+    from app.adapters.discipline_pictures import lane
+
+    assert gemini in lane.HASHED

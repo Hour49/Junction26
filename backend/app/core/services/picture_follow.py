@@ -43,6 +43,7 @@ from app.core.services.model import (
     Status,
     Summary,
 )
+from app.core.wording import type_words
 
 ON_M = 0.15  # a symbol this close to a wall strip is on it (follow.py's ON_M)
 IN_M = 0.02  # tolerance of "inside the strip"
@@ -161,6 +162,12 @@ class _Thing:
     @property
     def name(self) -> str:
         return f"{self.label} ({self.size})" if self.size else self.label
+
+    @property
+    def said(self) -> str:
+        """`name` as a person reads it: a legend label that is an IFC type name in plain words."""
+        label = type_words(self.label)
+        return f"{label} ({self.size})" if self.size else label
 
 
 @dataclass
@@ -390,7 +397,7 @@ def _thing(
     sx0, sy0, sx1, sy1 = spot.box
     x0, y0 = place((sx0, sy0))
     x1, y1 = place((sx1, sy1))
-    word = _WORDS.get(kind) or (label if kind == "symbol" else kind.replace("_", " "))
+    word = _WORDS.get(kind) or (type_words(label) if kind == "symbol" else kind.replace("_", " "))
     if not run:
         centre = (round((x0 + x1) / 2, 5), round((y0 + y1) / 2, 5))
         shape = box(x0 * unit[0], y0 * unit[1], x1 * unit[0], y1 * unit[1])
@@ -445,8 +452,8 @@ def _on_wall(
         groups[(how, t.name)].append(t)
         metres[(how, t.name)] += length
     out: list[_Found] = []
-    for (how, name), found in groups.items():
-        word, n = found[0].word, len(found)
+    for (how, key), found in groups.items():  # grouped by the label as printed, said plainly
+        word, n, name = found[0].word, len(found), found[0].said
         if how == "symbol" and which == "removed":
             they = "it has" if n == 1 else "they have"
             out.append(
@@ -479,7 +486,7 @@ def _on_wall(
                 _Found(
                     "in_wall" if which == "removed" else "under",
                     "needs_decision",
-                    f"{metres[(how, name)]:.1f} m of {name} {word} runs {where}; {CANNOT}.",
+                    f"{metres[(how, key)]:.1f} m of {name} {word} runs {where}; {CANNOT}.",
                     found,
                 )
             )
@@ -533,7 +540,7 @@ def _lane(
             ref=refs[id(t)],
             global_id="",  # a picture has no model ids
             kind=t.word,
-            label=", ".join(filter(None, (t.word, t.label, t.size))),
+            label=", ".join(filter(None, (t.word, type_words(t.label), t.size))),
             line=t.frac if t.run else (),
             at=None if t.run else t.frac[0],
         )
