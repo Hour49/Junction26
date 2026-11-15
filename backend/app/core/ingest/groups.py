@@ -351,8 +351,10 @@ class Feed:
         with self._lock:
             assert self._unpacked and not self._pending, "wait() before every file was identified"
             reads = self._reads
-        errors = [error for _ in range(reads) if (error := self._finished.get()) is not None]
-        for _ in range(reads):
+        errors: list[Exception] = []
+        for _ in range(reads):  # as each group ends, so the stored status follows the run
+            if (error := self._finished.get()) is not None:
+                errors.append(error)
             self._saved()
         self.close()
         if errors:

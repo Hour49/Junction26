@@ -249,3 +249,38 @@ def test_files_with_nothing_in_common_are_read_side_by_side() -> None:
     read.go.set()
     fed.wait()
     assert read.most == 2
+
+
+def test_the_status_is_saved_as_each_group_ends() -> None:
+    """b ends while a is still held: a save follows b's end before a ends (review-453 Should 1:
+    the saves all came at the end)."""
+    read = Recorded(held="a")
+    ended: list[str] = []
+    saves: list[tuple[str, ...]] = []
+    saved = threading.Event()
+
+    def save() -> None:
+        saves.append(tuple(ended))
+        if ended:
+            saved.set()
+
+    def reading(run: Any, readers: Any, members: DrawingGroup, asked: Any) -> None:
+        read(run, readers, members, asked)
+        ended.append(members.key)
+
+    run = Run(ProjectStatus(id="p", name="p", state="running", created_at="now"), fresh=False)
+    for path in ("a.pdf", "b.pdf"):
+        run.add(Entry(path=path, size=1))
+    fed = Feed(reading, 2, run, SimpleNamespace(finder=Finder({})), save)  # pyright: ignore[reportArgumentType]
+    for path in ("a.pdf", "b.pdf"):
+        fed.pending(path, path)
+    fed.unpacked()
+    fed.identified("a.pdf", drawing("a.pdf"))
+    fed.identified("b.pdf", drawing("b.pdf"))
+    waiting = threading.Thread(target=fed.wait)
+    waiting.start()
+    assert saved.wait(10)  # b's end is saved while a is still held
+    assert ("b",) in saves
+    read.go.set()
+    waiting.join(10)
+    assert saves[-1] == ("b", "a")
