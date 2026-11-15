@@ -876,7 +876,10 @@ class _Run:
         number = {ev: n for n, ev in enumerate(dict.fromkeys([*cited, *shown]), start=1)}
         text = re.sub(r"\[?(ev_\d+)\]?", lambda found: f"[{number[found[1]]}]", answer.text)
         for drawing_id, file in self._files():  # a drawing by its plain name, not its file
-            text = text.replace(file, self.names.get(drawing_id) or file)
+            name = self.names.get(drawing_id) or file
+            text = text.replace(file, name)
+            # "Drawn plan 3 (plan.pdf)" became "Drawn plan 3 (Drawn plan 3)": said once (QA R1)
+            text = text.replace(f"{name} ({name})", name)
         text = _plain_ids(text)
         kind: TurnKind = answer.kind
         if kind == "dont_know" and self.reviewed_refusal and not self.asked:
