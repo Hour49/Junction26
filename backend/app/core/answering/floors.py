@@ -5,6 +5,7 @@ the spelling. Only the number is compared; which floor a number means (ground fl
 above it) is the drawing's own word, never guessed (fable-rooms r10 items 10 and 11)."""
 
 import re
+from collections.abc import Sequence
 
 ORDINALS = {
     "ground": 0, "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6,
@@ -68,3 +69,27 @@ def floor_name(text: str | None) -> str | None:
         return None
     match = FLOOR.search(text or "")
     return None if match is None else match.group()
+
+
+# A floor named by a word, not a number ("the attic floor", "the loft", "the upper floor"), and
+# the storey names that are that floor: "How many rooms are on the attic floor?" counted the whole
+# FZK-Haus model (7) and its Erdgeschoss plan (6), as "attic" named no floor (samples-curate
+# 2026-11-15). Such a floor is the one storey of that name, else none: never the whole sheet.
+STOREY_WORD = re.compile(
+    rf"\b(?P<storey_word>attic|loft|upper|basement|cellar)(?:\s+{_LEVEL})?\b", re.IGNORECASE
+)
+STOREY_WORD_AT = re.compile(
+    rf"(?:\b(?:on|in|at|of|for)\s+(?:the\s+)?)?(?:{STOREY_WORD.pattern})", re.IGNORECASE
+)
+_ATTIC = r"dachgeschoss|\bdg\b|attic|loft"
+_BASEMENT = r"basement|cellar|keller|untergeschoss|\bug\b"
+_WORD_STOREYS = {
+    "attic": _ATTIC, "loft": _ATTIC, "upper": r"obergeschoss|\bog\b|upper",
+    "basement": _BASEMENT, "cellar": _BASEMENT,
+}  # fmt: skip
+
+
+def word_storeys(word: re.Match[str], storeys: Sequence[str]) -> list[str]:
+    """The storeys (by name) a STOREY_WORD match names: "attic" is Dachgeschoss or DG."""
+    pattern = _WORD_STOREYS[word.group("storey_word").casefold()]
+    return [storey for storey in storeys if re.search(pattern, storey, re.IGNORECASE)]

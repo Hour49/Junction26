@@ -628,10 +628,14 @@ def _storey_of(phrase: str, facts: _Facts) -> str | None:
     numbered = [name for name in names if number in _numbers(name)]
     if len(numbered) == 1:
         return numbered[0]
-    if numbered:
-        first = [name for name in numbered if _numbers(name)[0] == number]
-        return (first or numbered)[0]
     at = at_ground + number
+    if numbered:
+        first = [name for name in numbered if _numbers(name)[0] == number] or numbered
+        if len(first) == 1:
+            return first[0]
+        # B01_OKRD and E01_OKRD both hold 1: the one that many floors above the ground, else
+        # none (the basement's count answered "the first floor", DigitalHub 2026-11-15)
+        return names[at] if 0 <= at < len(names) and names[at] in first else None
     return names[at] if 0 <= at < len(names) else None
 
 

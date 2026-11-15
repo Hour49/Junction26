@@ -12,10 +12,13 @@ from app.core.answering.facts import FactSource, answer_from_facts
 from app.core.answering.floors import (
     FLOOR,
     FLOOR_AT,
+    STOREY_WORD,
+    STOREY_WORD_AT,
     floor_number,
     floor_of,
     glued,
     glued_floors,
+    word_storeys,
 )
 from app.core.answering.model import (
     GLUED_FLOOR,
@@ -603,6 +606,9 @@ class RoomByType:
         if parsed.reason != UNQUOTED_PLACE:
             return None
         matches = list(FLOOR.finditer(text))
+        if not matches and (word := STOREY_WORD.search(text)) is not None:
+            named = word_storeys(word, storeys(self._drawing))
+            return self._on_storey(text, named, STOREY_WORD, STOREY_WORD_AT)
         if any(glued(match) for match in matches):  # "level-1": 1 or -1 (review-352 N5)
             return Unsupported(reason=GLUED_FLOOR)
         asked = {floor_number(match) for match in matches}
@@ -610,18 +616,26 @@ class RoomByType:
             return None
         number = asked.pop()
         named = [storey for storey in storeys(self._drawing) if floor_of(storey) == number]
+        if len(named) == 0 and any(number in glued_floors(s) for s in storeys(self._drawing)):
+            return Unsupported(reason=GLUED_FLOOR)  # a storey printed "LEVEL-1"
+        return self._on_storey(text, named, FLOOR, FLOOR_AT)
+
+    def _on_storey(
+        self, text: str, named: list[str], floor: re.Pattern[str], floor_at: re.Pattern[str]
+    ) -> Query | Unsupported | None:
+        """The question asked of the one storey `named` (the storeys the `floor` phrase in
+        `text` can be, `floor_at` with the words that put it there); NO_SUCH_FLOOR when none
+        is, SEVERAL_FLOORS when several are, SHARED_FLOOR when several plans carry it."""
         if len(named) > 1:
             return Unsupported(reason=SEVERAL_FLOORS)
-        if not named and any(number in glued_floors(s) for s in storeys(self._drawing)):
-            return Unsupported(reason=GLUED_FLOOR)  # a storey printed "LEVEL-1"
         if not named:
-            rest = self._parser.parse(FLOOR_AT.sub(" ", text))
+            rest = self._parser.parse(floor_at.sub(" ", text))
             return Unsupported(reason=NO_SUCH_FLOOR) if isinstance(rest, Query) else None
         (storey,) = named
         if sum(str(plan.storey) == storey for plan in self._drawing.plans) > 1:
             return Unsupported(reason=SHARED_FLOOR)  # alternatives or parts: never summed
         quote = "'{}'" if "'" not in storey else "„{}“"
-        again = self._parser.parse(FLOOR.sub(lambda _: quote.format(storey), text))
+        again = self._parser.parse(floor.sub(lambda _: quote.format(storey), text))
         if isinstance(again, Query) and again.storey == storey:
             return again
         return None

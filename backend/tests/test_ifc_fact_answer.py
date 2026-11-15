@@ -9,7 +9,14 @@ from app.adapters.ifc_model import facts_source
 from app.adapters.ifc_model.facts_source import IfcFactSource
 from app.adapters.question_templates import TemplateParser
 from app.core.answering.answer import answer_question
-from app.core.answering.facts import FACTS, FirstSheet, answer_from_facts, fact_text
+from app.core.answering.facts import (
+    FACTS,
+    FirstSheet,
+    _Facts,
+    _storey_of,
+    answer_from_facts,
+    fact_text,
+)
 from app.core.answering.model import Prior, Query, Question, Unsupported
 from app.core.ifc_facts import Fact, FactSheet
 from app.core.ifc_question import parse_ifc_question
@@ -1153,3 +1160,19 @@ def test_a_room_type_the_model_lacks_is_not_available_never_every_space(
     assert answer is not None and answer.startswith("No space"), answer
     assert f"typed as {said} (not available)" in answer, answer
     assert "BAÑ" not in answer and "COC" not in answer, answer
+
+
+def test_a_floor_two_storey_codes_could_be_is_the_one_that_many_floors_up() -> None:
+    """DigitalHub heating (2026-11-15): "How many radiators are on the first floor?" answered
+    the basement's 1 unitary equipment, not E01's 34 space heaters: B01_OKRD and E01_OKRD both
+    hold the number 1 and the first was taken. Of several, the one that many floors above the
+    ground floor (E00) is meant, else none."""
+    storeys = (("B01_OKRD", -3.37), ("E00_OKRD", -0.15), ("E01_OKRD", 3.75))
+    facts = _Facts([fact("storey.elevation", name, height, "m") for name, height in storeys])
+    assert _storey_of("first floor", facts) == "E01_OKRD"
+    assert _storey_of("ground floor", facts) == "E00_OKRD"
+    odd = (("B01", -3.0), ("E00", 0.0), ("Mezzanine", 2.0), ("E01", 6.0))  # neither one floor up
+    assert (
+        _storey_of("first floor", _Facts([fact("storey.elevation", n, h, "m") for n, h in odd]))
+        is None
+    )
