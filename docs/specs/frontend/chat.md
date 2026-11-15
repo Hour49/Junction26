@@ -268,6 +268,11 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
   backend's explanation and double-check reason (the row's "why" line) already name the missing rooms, so they show
   once. Nothing when `partial` is absent or false. The engineer's answer card shows the same tag (EN-90). [unit
   `partialTip`; component; browser 1440/390 with the fixture's fields and the backend's sentence]
+- CH-50 (QA 2026-11-15, amends CH-43) A part whose two methods disagree (`quantity.status` "conflict") and that has
+  no `check.reason` prints the backend's `explanation` as its why ("two methods disagree (the room outlines at the
+  sheet's scale 22.401, the printed room areas 30); kept 30: ..."): its "Methods disagree" pill says the reason is
+  below. Before: nothing was below, so the chat never said which value was kept or why. [component,
+  `answer_conflict.json`]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 

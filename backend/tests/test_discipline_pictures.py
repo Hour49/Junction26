@@ -330,6 +330,15 @@ def test_mask_measures_a_coloured_run_within_three_percent() -> None:
     assert all(r.spots for r in reading.runs)
 
 
+def test_mask_takes_a_run_s_size_from_its_legend_label() -> None:
+    from app.adapters.discipline_pictures.mask import size_of
+
+    assert size_of("Heating pipe DN20") == "DN20"
+    assert size_of("Supply duct Ø125") == "Ø125"
+    assert size_of("Heating flow") is None
+    assert {r.size for r in read_mask(Scale(status="scaled", m_per_unit=M_PER_PX)).runs} == {None}
+
+
 def test_mask_without_a_scale_gives_no_run_and_says_no_scale() -> None:
     reading = read_mask(Scale(status="no_scale"))
     assert reading.runs == () and NO_SCALE in reading.notes

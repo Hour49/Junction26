@@ -208,17 +208,14 @@ describe('shell', () => {
       go(hash);
       expect(about(), hash).toBe('#/about');
     }
-    for (const hash of [
-      `#/p/${P}`,
-      `#/p/${P}/chat`,
-      `#/p/${P}/documents`,
-      `#/p/${P}/d/${D}/engineer`,
-    ]) {
+    for (const hash of [`#/p/${P}`, `#/p/${P}/chat`, `#/p/${P}/d/${D}/engineer`]) {
       go(hash);
       expect(about(), hash).toBe(`#/about?project=${P}`);
       expect(document.querySelector('.credit'), hash).toBeNull();
       expect(screen.queryByText(/^Credit:/), hash).toBeNull();
     }
+    go(`#/p/${P}/documents`); // Documents has no footer link
+    expect(screen.queryByRole('link', { name: 'About and credits' })).toBeNull();
     go('#/about');
     expect(screen.getByRole('heading', { level: 1, name: 'About Vellum' })).toBeTruthy();
     expect(links()).toEqual([]);
@@ -398,13 +395,20 @@ describe('shell', () => {
     expect(
       within(group()).getByText('Choose a country to pre-check its building rules.'),
     ).toBeTruthy();
+    // the rules page link shows only once a country is chosen
+    expect(within(group()).queryByRole('link', { name: 'Building construction rules' })).toBeNull();
     fireEvent.click(fi);
     expect(window.location.hash).toBe(`#/p/${P}/d/${D}/surveyor?q=door&pack=fi`);
     go(window.location.hash);
     expect(button().getAttribute('aria-label')).toBe('Country rules: Finland');
     expect(screen.queryByRole('group', { name: 'Building rules the agent follows' })).toBeNull();
     fireEvent.click(button());
-    expect(within(group()).getByText(rulePackFi.note)).toBeTruthy();
+    expect(within(group()).queryByText(rulePackFi.note)).toBeNull();
+    expect(
+      within(group())
+        .getByRole('link', { name: 'Building construction rules' })
+        .getAttribute('href'),
+    ).toBe(`#/p/${P}/checks?pack=fi`);
     expect(
       within(group())
         .getByRole('button', { name: /^Finland/ })

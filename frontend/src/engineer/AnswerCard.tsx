@@ -379,6 +379,8 @@ function Answer(props: {
     typeof a.answer === 'number'
       ? shownValue(a.answer, a.unit, Boolean(row?.estimate))
       : (a.answer ?? '');
+  // An IFC model's fact answer is lines of text, not one value: set as text, never in the big value's type.
+  const text = typeof a.answer === 'string' && (a.answer.includes('\n') || a.answer.length > 60);
   const surveyor =
     row &&
     routeHref({
@@ -453,7 +455,7 @@ function Answer(props: {
         ) : (
           <>
             {row && `${cap(row.label)}: `}
-            <strong>{value}</strong>.
+            <strong>{text ? (value.split('\n')[0] ?? '').replace(/:$/, '') : value}</strong>.
           </>
         )}
         {/* The whole page is in doubt: no generic counting rule (EN-85). */}
@@ -463,7 +465,10 @@ function Answer(props: {
         {/* EN-86: its own grid area, first in the card on phones so the value and the reason are above the fold */}
         <div className="en-head">
           <div className="en-value-row">
-            <span className="en-value" data-testid="answer-value">
+            <span
+              className={text ? 'en-value en-value--text' : 'en-value'}
+              data-testid="answer-value"
+            >
               {value}
             </span>
             {noun && <span className="en-noun">{noun}</span>}
@@ -504,6 +509,9 @@ function Answer(props: {
             <div className="en-planbox">
               <DrawingNav place={place} />
               {a.proof.kind === 'model' && <ModelProof proof={a.proof} />}
+              {a.method === 'facts' && (
+                <p className="en-small">Read from the model data: no sheet to point at.</p>
+              )}
               {overlay}
             </div>
           )}

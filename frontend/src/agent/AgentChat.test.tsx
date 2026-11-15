@@ -221,6 +221,14 @@ it('ui-bugs 1 no "Point at the plan" chip; pen on: typing and sending wait; Esca
   expect(document.querySelector('.ag-drawing')).toBeNull();
 });
 
+it('W4 after the first message the project name still shows, above the thread', async () => {
+  open(answerTurn);
+  await send('How big is the bathroom?');
+  await screen.findByText(/is 7.56 m²/);
+  const title = screen.getByRole('heading', { level: 1, name: project.name });
+  expect(title.className).not.toContain('en-sr'); // visible, not only for screen readers
+});
+
 it('ui-bugs 1 the pen click again puts it down too', async () => {
   open(answerTurn);
   await pointer();
@@ -309,3 +317,13 @@ it('CH-18 agent chat: a photo read as a plan makes a project with no askable dra
   await send('How many doors are there?');
   expect(await screen.findByText(/is 7.56 m²/)).toBeTruthy();
 }, 8000);
+
+it('#425 the photo picker takes TIFF and WebP too, by type and by extension', async () => {
+  open(answerTurn);
+  const accept = ((await screen.findByTestId('photo-input')).getAttribute('accept') ?? '').split(
+    ',',
+  );
+  for (const kind of ['image/png', 'image/jpeg', 'image/tiff', 'image/webp'])
+    expect(accept).toContain(kind);
+  for (const ext of ['.tif', '.tiff', '.webp']) expect(accept).toContain(ext);
+});

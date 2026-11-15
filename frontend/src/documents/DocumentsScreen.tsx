@@ -4,7 +4,6 @@ import {
   getDrawing,
   getIssues,
   getProject,
-  issuesZipUrl,
   type DrawingView,
   type FileStatus,
   type Issue,
@@ -17,11 +16,11 @@ import { Loading } from '../shell/Loading';
 import { DocumentLists } from './DocumentLists';
 import { IssueCard } from './IssueCard';
 import { issueModel } from '../model3d/model3d';
-import { documentIssues, needsYou } from './documents';
+import { documentIssues, needsYou, waitsForYou } from './documents';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/ui/tip';
 import { TIPS } from '../shell/tips';
-import { MUTED, SMALL, TITLE } from './ui';
+import { MUTED, TITLE } from './ui';
 
 /** Route `#/p/<pid>/documents` (documents.md): the issues to answer, the drawings, every file. */
 export function DocumentsScreen({
@@ -36,6 +35,8 @@ export function DocumentsScreen({
   const done = project?.state === 'done';
   const [issues, setIssues] = useState<{ list: Issue[] } | { error: unknown } | null>(null);
   const [reload, setReload] = useState(0);
+  // answered on this visit: kept on screen (Answered, Change, Undo) until the page is left
+  const [answeredHere, setAnsweredHere] = useState<ReadonlySet<string>>(new Set());
   const [drawings, setDrawings] = useState<Record<string, DrawingView | null>>({});
 
   useEffect(() => {
@@ -55,7 +56,10 @@ export function DocumentsScreen({
   }, [done, projectId, pack, reload]);
 
   const list = issues && 'list' in issues ? issues.list : null;
-  const rows = list ? documentIssues(list) : [];
+  // Issues on demand: only what waits for the person's answer now, plus what they answered on this visit
+  const rows = list
+    ? documentIssues(list.filter((i) => waitsForYou(i) || answeredHere.has(i.id)))
+    : [];
   // one getDrawing per drawing with a located issue; a failure shows that drawing's cards with no picture
   const wanted = [
     ...new Set(
@@ -89,16 +93,20 @@ export function DocumentsScreen({
       </div>
     );
 
+  const keep = (ids: string[]) => {
+    setAnsweredHere((s) => new Set([...s, ...ids]));
+  };
   const onFile = (file: FileStatus) => {
+    keep((list ?? []).filter((i) => i.file_id === file.id).map((i) => i.id));
     set({ ...project, files: project.files.map((f) => (f.id === file.id ? file : f)) });
     setReload((n) => n + 1); // the issue's state follows the call
     issuesChanged(projectId); // and so does the header badge
   };
   const onIssue = (issue: Issue) => {
+    keep([issue.id]);
     if (list) setIssues({ list: list.map((i) => (i.id === issue.id ? issue : i)) });
     issuesChanged(projectId); // the header badge asks again
   };
-  const q = pack ? `?pack=${encodeURIComponent(pack)}` : '';
   const left = list ? needsYou(list) : 0;
   const failed = issues && 'error' in issues ? errorText(issues.error) : null;
 
@@ -110,44 +118,20 @@ export function DocumentsScreen({
             {project.name}
           </span>
           <h1 className="v-title m-0">Documents</h1>
-          <p className={MUTED}>
-            {plural(project.files.length, 'file')} ingested,{' '}
-            {plural(project.drawings.length, 'drawing')} read from them
-          </p>
         </div>
-        <Button
-          asChild
-          variant="secondary"
-          size="pill"
-          className="v-press font-medium no-underline"
-        >
-          <a href={`#/p/${projectId}/checks${q}`}>Building-code checks</a>
-        </Button>
       </div>
-      <section aria-label="Issues" className="flex flex-col gap-3">
+      <section aria-label="Issues on demand" className="flex flex-col gap-3">
         <div className={TITLE}>
           <div>
             <Tip text={TIPS.issues} wrap>
-              <h2 className="m-0 text-xl">Issues</h2>
+              <h2 className="m-0 text-xl">Issues on demand</h2>
             </Tip>
             {rows.length > 0 && (
               <p className={MUTED}>
-                {left
-                  ? `${plural(left, 'issue')} need${left === 1 ? 's' : ''} your answer.`
-                  : 'Every issue is answered.'}{' '}
-                Notes are for your information.
+                {`${plural(left, 'issue')} need${left === 1 ? 's' : ''} your answer now.`}
               </p>
             )}
           </div>
-          {done && (
-            <a
-              className={`${SMALL} inline-flex min-h-11 items-center`}
-              href={issuesZipUrl(projectId, pack ?? undefined)}
-              download
-            >
-              Export
-            </a>
-          )}
         </div>
         {!done ? (
           <p className={MUTED}>The issues are listed once the project is read.</p>
@@ -169,7 +153,7 @@ export function DocumentsScreen({
         ) : list === null ? (
           <Loading label="Loading issues…" />
         ) : rows.length === 0 ? (
-          <p className={MUTED}>No issues: nothing needs a look.</p>
+          <p className={MUTED}>Nothing needs your answer right now.</p>
         ) : (
           <ol className="m-0 flex list-none flex-col gap-2.5 p-0">
             {rows.map(({ issue, n }) => (

@@ -73,6 +73,13 @@ test("M3-17 the chat answer's References open the 3D view with the counted door 
   const errors = watchErrors(page);
   const id = await uploaded(page, testInfo);
   await page.goto(`/#/p/${id}/chat?ask=${encodeURIComponent('How many doors are there?')}`);
+  // W3: the 3D button belongs to the SHOWN drawing; the first shown is a 2D plan, so choose the building
+  // model's reference (an IFC file has no page: "no preview") first.
+  await page
+    .getByRole('list', { name: 'References' })
+    .getByRole('button', { name: /no preview/ })
+    .first()
+    .click({ timeout: 30_000 });
   // the 3D button sits in the answer figure's header, beside the drawing's name
   const open = page
     .getByRole('figure', { name: /^Reference \d+ of \d+$/ })
@@ -99,7 +106,12 @@ test("M3-22 the agent chat's plan pane opens the model with the newest answer's 
   const errors = watchErrors(page);
   const id = await uploaded(page, testInfo);
   await page.goto(`/#/p/${id}/chat?ask=${encodeURIComponent('How many walls are there?')}`);
-  // ui-bugs 5: one round "3D" button in the answer figure's header (no longer in References).
+  // ui-bugs 5 / W3: one round "3D" button in the answer figure's header, once the IFC reference is shown.
+  await page
+    .getByRole('list', { name: 'References' })
+    .getByRole('button', { name: /no preview/ })
+    .first()
+    .click({ timeout: 30_000 });
   await expect(
     page
       .getByRole('figure', { name: /^Reference / })
