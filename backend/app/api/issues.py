@@ -279,7 +279,7 @@ def _csv(found: list[Issue], numbered: bool) -> str:
         )  # fmt: skip
         row = ["" if cell is None else csv_cell(cell) for cell in cells]
         writer.writerow(([n] if numbered else []) + row)
-    return out.getvalue()
+    return "\ufeff" + out.getvalue()  # a BOM, so Excel reads UTF-8 (umlauts, law text)
 
 
 def _by_page(found: list[Issue]) -> dict[tuple[str, int], list[tuple[int, Issue]]]:
