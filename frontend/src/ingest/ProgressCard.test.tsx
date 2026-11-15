@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { project } from '../api/fixtures';
 import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
-import { LANE_ROWS } from './RouteLanes';
+import { LANE_ROWS, splitPath } from './RouteLanes';
 import { ProgressCard } from './ProgressCard';
 import { DEMO_READERS, must } from './testing';
 
@@ -268,5 +268,22 @@ describe('ProgressCard: pipeline view v5', () => {
         .getByRole('link', { name: '3 more files in Documents' })
         .getAttribute('href'),
     ).toBe(`#/p/${project.id}/documents`);
+  });
+
+  it('IN-113 a long path gives up its folder first: the file name has its own span that does not shrink', () => {
+    expect(splitPath('Plan/OG1/Grundriss.pdf')).toEqual(['Plan/OG1/', 'Grundriss.pdf']);
+    expect(splitPath('plan.pdf')).toEqual(['', 'plan.pdf']);
+    const long = 'Planunterlagen/Architektur/Grundrisse/Obergeschoss-3/Grundriss_OG3.png';
+    render(
+      <ProgressCard
+        project={{ ...running, files: [file('x', { route: 'raster', path: long })] }}
+        now={Date.now()}
+      />,
+    );
+    const link = within(lane('Image')).getByRole('link', { name: long }); // the full path is still its name
+    expect(link.getAttribute('title')).toBe(long);
+    expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
+    expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
+    expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');
   });
 });

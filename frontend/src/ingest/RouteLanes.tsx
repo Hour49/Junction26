@@ -89,16 +89,27 @@ function rowNote(file: FileStatus): string {
   return file.reason;
 }
 
+/** "a/b/c.pdf" as ["a/b/", "c.pdf"]; no folder: ["", path]. */
+export function splitPath(path: string): [string, string] {
+  const i = path.lastIndexOf('/');
+  return [path.slice(0, i + 1), path.slice(i + 1)];
+}
+
 function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
   const { word, icon } = STATE_LABEL[file.state];
+  const [folder, name] = splitPath(file.path);
   return (
     <li className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-1 border-t border-muted py-2.5 first:border-t-0">
       <a
         href={`#/p/${projectId}/f/${file.id}`}
-        className="min-w-0 truncate font-mono text-[13px] text-foreground no-underline hover:underline"
+        className="flex min-w-0 font-mono text-[13px] text-foreground no-underline hover:underline"
         title={file.path}
       >
-        {file.path}
+        {/* a long path gives up its folder first: the file name is what tells two rows apart */}
+        {folder && (
+          <span className="ingest-folder min-w-0 truncate text-muted-foreground">{folder}</span>
+        )}
+        <span className="ingest-name min-w-0 shrink-0 truncate max-w-full">{name}</span>
       </a>
       <span className={cn('flex items-center gap-1.5 text-xs font-medium', STATE_TONE[file.state])}>
         <span aria-hidden="true">{icon}</span>
