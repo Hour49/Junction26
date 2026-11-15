@@ -204,7 +204,8 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
 
 # WALLS_M with a few more rooms: 8 lines are too few for a crop's own frame (another quarter
 # turn reaches 80% there, inside register's margin)
-RICH = WALLS_M + (
+RICH = (
+    *WALLS_M,
     ((1, 6), (3, 6)), ((8, 1), (8, 3)), ((2, 0), (2, 1.5)), ((5.5, 6.5), (6.5, 6.5)),
     ((4, 2), (6, 2)), ((8.5, 5), (8.5, 6.5)),
 )  # fmt: skip
