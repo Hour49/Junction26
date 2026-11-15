@@ -10,14 +10,16 @@ reader is wrapped in (CarbonThings, CarbonChecked, PrintedScale run them beside 
 
 A reading that waited for a slot reports the wait as the `local_slot` step, before the inner
 reader's steps (decision 0018), so the ingest screen shows why its readers began late; a reading
-that got a slot at once (under `WAITED_MS`) reports no step. The step is reporting only: the lock,
-its count and what it wraps are the same with or without it."""
+that got a slot at once (under `WAITED_MS`) reports no step. While a reading waits, `local_slot` is
+its running step (`starting`, ingest's live `FileStatus.step`), so the screen shows the wait as it
+happens; a reading that gets its slot at once never starts it. The step is reporting only: the
+lock, its count and what it wraps are the same with or without it."""
 
 import threading
 
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor
-from app.core.pipeline.steps import now_ms
+from app.core.pipeline.steps import now_ms, starting
 
 STEP_ID = "local_slot"  # stable (docs/API.md)
 LABEL = "Waited for the local reader"
@@ -38,9 +40,14 @@ class OneAtATime:
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
         asked = now_ms()
-        with self._slots:
+        if not self._slots.acquire(blocking=False):  # taken: the wait is shown while it lasts
+            starting(STEP_ID, LABEL)
+            self._slots.acquire()
+        try:
             waited = now_ms() - asked
             found = self._inner.extract(source, sheet)
+        finally:
+            self._slots.release()
         if waited < WAITED_MS:
             return found
         step = _waited(asked, waited, self._count)

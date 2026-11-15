@@ -299,6 +299,27 @@ describe('FileMatrix', () => {
     );
   });
 
+  it('AD-134 a file waiting for the local reader says the wait in its running form', () => {
+    const files = project.files.map((f, i) =>
+      i === 0
+        ? {
+            ...f,
+            state: 'running' as const,
+            stage: 'extract' as const,
+            step_id: 'local_slot',
+            step: 'Waited for the local reader',
+          }
+        : f,
+    );
+    const p = { ...project, state: 'running' as const, files };
+    render(
+      <FileMatrix projectId={PID} project={p} traces={traces(p, (f) => ({ ...trace, file: f }))} />,
+    );
+    const rows = screen.getAllByRole('listitem').filter((li) => li.classList.contains('fm-row'));
+    expect(rows[0]?.textContent).toContain('Now: waiting for the local reader');
+    expect(rows[0]?.textContent).not.toContain('Waited');
+  });
+
   it('AD-115 a file that found nothing says why on its own full-width line', () => {
     const files = [
       {

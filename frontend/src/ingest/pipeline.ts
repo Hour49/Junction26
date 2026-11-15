@@ -212,24 +212,35 @@ export function triageReaders(readers: Record<string, string> | undefined): stri
  * `ProjectStatus.ran[route]` (`probe` asks the sheet-kind signal, `classifier` is triage and its sheet-kind step),
  * or in the project's last phase, `index_steps` (the describer indexes the sheets that are not plans; the judge).
  */
-const TRIAGE_STEP: Record<string, { ran: string } | { index: string }> = {
+const TRIAGE_STEP: Record<string, { ran: string } | { index: string; empty?: string }> = {
   'scan or photo (Gemini)': { ran: 'probe' },
   'plan or not (rules)': { ran: 'classifier' },
   'plan or not (image model)': { ran: 'classifier' },
   'sheet kind (Gemini)': { ran: 'classifier' },
   'describes sheets that are not plans (Gemini)': { index: 'describe' },
-  'keep or set aside (rules)': { index: 'judge' },
+  'keep or set aside (rules)': { index: 'judge', empty: 'nothing to judge' },
 };
+
+/**
+ * Why a sorting chip whose step ended having weighed no file is dimmed, not ticked (`triageRan` "empty"): the
+ * judge's "0 files judged". null: the chip has no such case.
+ */
+export function triageEmpty(chip: string): string | null {
+  const where = TRIAGE_STEP[chip];
+  return where !== undefined && 'empty' in where ? (where.empty ?? null) : null;
+}
 
 /**
  * What the upload says of a sorting chip (IN-127), by step id: "running" while its step runs (a file's `step_id`,
  * or a `running` index step), "ran" once it ended done or failed, "skipped" when it only appeared skipped,
- * "absent" when it did not appear. null: nothing to tell (an older server: no `ran`, no or empty `index_steps`).
+ * "absent" when it did not appear. "empty" (IN-133, a chip with `triageEmpty` words): its index step ended done
+ * and its `found` counts no file (the judge's `found` is its verdicts, so `{}` is "0 files judged"; no `found`:
+ * "ran", its `did` is not read). null: nothing to tell (an older server: no `ran`, no or empty `index_steps`).
  */
 export function triageRan(
   chip: string,
   project: Pick<ProjectView, 'files' | 'ran'> & Partial<Pick<ProjectView, 'index_steps'>>,
-): 'running' | 'ran' | 'skipped' | 'absent' | null {
+): 'running' | 'ran' | 'empty' | 'skipped' | 'absent' | null {
   const where = TRIAGE_STEP[chip];
   if (where === undefined) return null;
   if ('ran' in where) {
@@ -247,8 +258,11 @@ export function triageRan(
   if (steps.length === 0) return null;
   const mine = steps.filter((s) => s.id === where.index);
   if (mine.some((s) => s.state === 'running')) return 'running';
-  if (mine.some((s) => s.state === 'done' || s.state === 'failed')) return 'ran';
-  return mine.length > 0 ? 'skipped' : 'absent';
+  const ended = mine.filter((s) => s.state === 'done' || s.state === 'failed');
+  if (ended.length === 0) return mine.length > 0 ? 'skipped' : 'absent';
+  const none = (s: (typeof ended)[number]) =>
+    s.state === 'done' && s.found !== undefined && Object.values(s.found).every((n) => n === 0);
+  return triageEmpty(chip) !== null && ended.every(none) ? 'empty' : 'ran';
 }
 
 /**
@@ -307,6 +321,19 @@ export function foundLine(takeoff: Record<string, number> | undefined, top = 4):
 /** The reader running on a file now (`FileStatus.step`, ingest-ui contract); null from an older server. */
 export function fileStep(f: FileStatus): string | null {
   return f.step ?? null;
+}
+
+/** The wait for the local reader (decision 0018 `local_slot`): a step while a sheet waits its turn, not a reader. */
+export const LOCAL_SLOT = 'local_slot';
+
+/**
+ * A running file's step as its row says it (IN-134): the wait for the local reader in its running form ("Waited
+ * for the local reader" → "waiting for the local reader"), any other step by its label. null: none.
+ */
+export function rowStep(f: FileStatus): string | null {
+  const label = fileStep(f);
+  if (label === null || f.step_id !== LOCAL_SLOT) return label;
+  return label.replace(/^wait(ed|ing)\b/i, 'waiting');
 }
 
 /** The project's phase while it runs (`ProjectStatus.phase`); null from an older server. */

@@ -1013,12 +1013,22 @@ class _Run:
         if claims(CODE.sub(" ", re.sub(r"\[\d+\]", " ", text))):
             return None
         listed: list[Json] = []
+        nouns: dict[str, str] = {}  # a count's noun by drawing ("doors": the card's "68 doors")
         for given in answers:
             found: Json = _answered(given)
             items: list[Any] = found.get("answered") or []
             listed += [item for item in items if isinstance(item, dict)]
+            nouns |= _nouns(given)
         names = {file: self.names.get(drawing_id) or file for drawing_id, file in self._files()}
-        said = [f"{names.get(str(a['drawing']), a['drawing'])}: {said_value(a)}" for a in listed]
+        said = [
+            f"{names.get(str(a['drawing']), a['drawing'])}: {said_value(a)}"
+            + (
+                f" {noun}"
+                if (noun := nouns.get(str(a["drawing"]))) and a.get("unit") in (None, "count")
+                else ""
+            )
+            for a in listed
+        ]
         return f"{'; '.join(said[:12])}." if said else None
 
     def _unrated(self, text: str) -> str | None:
@@ -1184,6 +1194,20 @@ def said_value(answered: Json) -> str:
     if isinstance(value, float):
         value = f"{value:.2f}".rstrip("0").rstrip(".")
     return f"{value}{SAID_UNIT.get(str(answered.get('unit')), '')}"
+
+
+def _nouns(given: Json) -> dict[str, str]:
+    """The counted noun of each drawing of an ask_drawings result ("doors"), by the name
+    `_answered` lists it under; a measure has none (its unit says it)."""
+    out: dict[str, str] = {}
+    parts: list[Any] = given.get("parts") or []
+    for part in parts:
+        each: Json = part if isinstance(part, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+        answer: Json = each.get("answer") or {}
+        quantity: Json = answer.get("quantity") or {}
+        if isinstance(noun := quantity.get("noun"), str) and noun:
+            out[str(each.get("name") or each.get("drawing_id"))] = noun
+    return out
 
 
 def _answered(found: Any) -> Any:
