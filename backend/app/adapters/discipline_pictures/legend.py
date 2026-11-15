@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 
 from app.adapters.discipline_pictures import page_box, read_image
+from app.adapters.discipline_pictures.cleanup import clean_page
 from app.adapters.printed_scale import stated_dpi
 from app.adapters.raster_ocr.reader import Quad
 from app.core.drawing.model import Scale
@@ -71,7 +72,8 @@ def read_legend(
 ) -> tuple[tuple[LegendEntry, ...] | None, PrintedSheet]:
     """The page's legend (None: none found) and its printed scale: ratio text and scale bars."""
     lines = _lines(rgb, engine)
-    gray = (rgb.min(axis=2) if rgb.ndim == 3 else rgb).copy()
+    # salt out and light even, not straightened: the legend's boxes are on the page as given
+    gray = clean_page(rgb.min(axis=2) if rgb.ndim == 3 else rgb, straighten=False).gray.copy()
     texts = [line for line in lines if _is_text(line[0])]
     for _, (x0, y0, x1, y1) in texts:  # a sample is ink that is not text
         gray[int(y0) : int(y1) + 1, int(x0) : int(x1) + 1] = 255

@@ -6,10 +6,11 @@ import io
 import math
 import time
 
+import numpy as np
 from pdf_sheets import BLACK, Point, SheetPdf, rect, ring
 from PIL import Image, ImageDraw
 
-from app.adapters.discipline_pictures.mask import MaskReader
+from app.adapters.discipline_pictures.mask import MaskReader, read_runs
 from app.adapters.discipline_pictures.paths import PathsReader
 from app.adapters.discipline_pictures.template import TemplateReader
 from app.adapters.vector_pdf.objects import read_page
@@ -328,6 +329,21 @@ def test_mask_measures_a_coloured_run_within_three_percent() -> None:
     length = sum(r.length_m for r in reading.runs if r.label == "Heating flow")
     assert abs(length - 5.0) <= 0.03 * 5.0, length
     assert all(r.spots for r in reading.runs)
+
+
+def test_mask_measures_a_run_drawn_as_short_stubs() -> None:
+    """A run seen mostly from above (risers) is drawn as stubs a few widths long: measured."""
+    page = Image.new("RGB", (MW, MH), (255, 255, 255))
+    draw = ImageDraw.Draw(page)
+    for x in range(100, 700, 30):  # 20 stubs of 6 x 2 px: 1.20 m at 0.01 m/px
+        draw.rectangle((x, 300, x + 5, 301), fill=PIPE_RED)
+    draw.rectangle((40, 100, 52, 112), fill=PIPE_RED)  # a blob in the run's colour: not a run
+    draw.line((800, 550, 850, 550), fill=PIPE_RED, width=4)
+    legend = (LegendEntry(label="Heating flow", group="Heating", line=True,
+                          box=fractions(795, 540, 855, 560, MW, MH)),)  # fmt: skip
+    reading = read_runs(np.asarray(page), legend, M_PER_PX)
+    length = sum(r.length_m for r in reading.runs)
+    assert abs(length - 1.2) <= 0.1 * 1.2, length
 
 
 def test_mask_takes_a_run_s_size_from_its_legend_label() -> None:
