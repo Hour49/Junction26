@@ -551,6 +551,9 @@ def test_is_there_a_thing_is_asked_as_its_count(text: str, same_as: str) -> None
     [
         "How many doors are in each room?",
         "Does the kitchen have a window?",
+        "Is there a door larger than 1 m?",
+        "Is there a door wider than 1 m on this plan?",
+        "Does this drawing show a bedroom with a balcony?",
     ],
 )
 def test_a_breakdown_or_a_yes_no_about_one_thing_stays_unsupported(text: str) -> None:
@@ -570,3 +573,17 @@ def test_which_drawing_has_the_most_is_a_comparison_not_a_count(text: str) -> No
     """A comparison between drawings (or "no scale") is not "which drawings show a X": refused on
     one drawing as before, with the same reason; the chat compares each drawing's own count."""
     assert PARSE(text) == Unsupported(reason="a breakdown or list is not one quantity")
+
+
+def test_review_510_a_yes_no_with_a_qualifier_is_left_as_written() -> None:
+    """review-510 must 1: "is there a door larger than 1 m" was asked as the count of all doors, a
+    confident yes to a question the count does not answer. A qualified thing is not rewritten,
+    so it is refused as on main; a bare noun phrase still is."""
+    from app.adapters.question_templates import has_qualifier
+
+    for thing in ["door larger than 1 m", "bedroom with a balcony", "kitchen that has a window",
+                  "room between the hall and the kitchen", "door of at least 90 cm",
+                  "toilet next to the kitchen", "only bathroom"]:  # fmt: skip
+        assert has_qualifier(thing), thing
+    for thing in ["kitchen", "bathtubs", "balconies", "separate WC", "sliding doors"]:
+        assert not has_qualifier(thing), thing
