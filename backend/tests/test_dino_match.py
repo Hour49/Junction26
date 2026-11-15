@@ -58,7 +58,8 @@ def reading(legend: tuple[LegendEntry, ...], seen: list[tuple[str, tuple[int, in
     return PictureReading(reader="template", legend=legend, read=None, sightings=sightings)
 
 
-TOY = {"keep": 0.5, "keeps": {}}  # the fakes' cosines are not the model's: no tuned keep here
+# the fakes' cosines are not the model's: no tuned keep here; every kind confirmed
+TOY = {"keep": 0.5, "keeps": {}, "kinds": None}
 
 
 class Thumbnails:
@@ -97,7 +98,9 @@ def test_the_keep_is_per_kind() -> None:
     gray, legend, at = page()
     seen = [("light", at["circle"]), ("valve", at["ell"])]
     strict = {"valve": 1.01}  # no valve passes; the light keeps the default
-    kept = dino_match.confirm(gray, reading(legend, seen), Thumbnails(), keep=0.5, keeps=strict)
+    kept = dino_match.confirm(
+        gray, reading(legend, seen), Thumbnails(), keep=0.5, keeps=strict, kinds=None
+    )
     assert [s.label for s in kept.sightings] == ["light"]
 
 
@@ -139,5 +142,23 @@ def test_load_refuses_a_missing_or_different_model_file(tmp_path) -> None:
 def test_the_real_model_keeps_the_circle_and_drops_the_cross() -> None:
     gray, legend, at = page()
     seen = [("light", at["circle"]), ("light", at["cross"])]
-    kept = dino_match.confirm(gray, reading(legend, seen), dino_match.load())
+    kept = dino_match.confirm(gray, reading(legend, seen), dino_match.load(), kinds=None)
     assert [s.spot.box for s in kept.sightings] == [box(*at["circle"])]
+
+
+def test_only_air_terminals_and_other_kinds_are_confirmed() -> None:
+    """Tudor's re-measure: confirming lights, sanitary and the rest hurts clean pages; only air
+    terminals and labels of no IFC kind ("other") gain. The others stay as the template read
+    them, look-alikes and all."""
+    gray, legend, at = page()
+    seen = [
+        ("light", at["cross"]),  # a light read on a cross: not confirmed, kept
+        ("tap", at["circle"]),  # "tap" names no IFC kind: other, confirmed, dropped
+        ("tap", at["cross"]),  # its own symbol: kept
+    ]
+    got = dino_match.confirm(gray, reading(legend, seen), Thumbnails(), keep=0.5, keeps={})
+    assert [(s.label, s.spot.box) for s in got.sightings] == [
+        ("light", box(*at["cross"])),
+        ("tap", box(*at["cross"])),
+    ]
+    assert dino_match.CONFIRM_KINDS == frozenset({"air_terminal", None})
