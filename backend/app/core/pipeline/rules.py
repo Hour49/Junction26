@@ -28,6 +28,10 @@ SHOWERS_AND_BATHTUBS = CountingRule(
     id="showers-and-bathtubs", text="showers and bathtubs together, each counted once"
 )
 ROOM_AREA = CountingRule(id="room-area", text="the room's net floor area as the drawing gives it")
+# A room whose area is an estimate (its outline at a scale): not given by the drawing (R1 row 18)
+ROOM_AREA_MEASURED = CountingRule(
+    id="room-area-measured", text="the room's net floor area, measured from its outline"
+)
 ROOMS_TOTAL = CountingRule(
     id="rooms-total",
     text="the sum of the rooms' net floor areas; unknown when one of them has no area",
