@@ -242,6 +242,37 @@ misses by more than 0.5 m. Otherwise the lane is `not_aligned` with the reason (
 sheets (3 are needed)", "the services picture has no scale", "the services picture is of another floor (…)").
 A lane with no picture is `no_model`: "this project has no <lane> picture of this floor".
 
+**Pairing a picture with the plan's floor** (`app/core/services/pairing.py`, `pair(plan, candidates, register)`;
+pics-edit-follow W1). Pure, one result per candidate sheet in the candidates' order: a `Pairing` (`drawing_id`,
+`page`, `paired_by`, `reason` in plain words, `score` 0..1, `to_plan` the sheet's page fractions on the plan's) or
+the reason it is refused. Metadata first, cheapest first, then geometry:
+
+- The plan's own page: `same_page`, identity, "the plan's own page".
+- Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name with ZIP
+  folders: floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, L1 → 1;
+  UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1; DG, roof, attic → roof) and the sheet number's part after its discipline letters
+  (A-101 / H-101 → 101). A floor word both sides name agrees ("same floor: 'Floor 1' on both"), equal number parts
+  agree ("sheet numbers A-101 / H-101"). Floor words that differ refuse ("another floor: 'Floor 2' against
+  'Floor 1'"); number parts that differ refuse only when no floor word agrees.
+- Then the sheet is laid over the plan by `register(plan, sheet)`: an affine map with the words of how
+  ("laid over by 3 room names"), or why not. The default is the room-name shift above; the wall-line fit
+  (rotation and scale, Madalina's side) plugs in here.
+- Metadata agrees and it is laid over: `metadata`, score 0.9, both reasons. Metadata agrees, not laid over, both
+  sheets have a scale and the same size within 2 %: `metadata`, score 0.7, laid over page to page. Metadata agrees
+  and neither: refused, "same floor (…), but it cannot be laid over the plan: <why>". No hint either way and laid
+  over: `geometry`, score 0.6. No hint and not laid over: refused with the register's reason.
+- One set only: when both upload paths sit in a top-level folder and the folders differ, the sheet is refused
+  ("another set: folder 'B' against 'A'"); a file at the top of the upload says nothing either way.
+- Laid over by walls (`by_walls`, around `register` in `app/core/services/register.py`): the plan's wall lines are
+  the centre lines of its drawn wall mass in metres (each pair of parallel faces 3–60 cm apart, outer walls
+  included); the sheet's come from the sheet-walls reader in its own pixels with its page size. The map is
+  `register`'s rotation, scale and shift turned into page fractions, and its words are `register`'s ("walls match:
+  41 of 47 within 0.2 m after rotation 0.3 deg"); when the sheet has its own scale (a scale bar) and the walls' fitted
+  one differs by more than 5 %, the words name both and say the walls were used. The follower tries room names first, then walls; a refusal of
+  both gives both reasons. Without a sheet-walls reader only room names are tried.
+- Several sheets paired for one discipline: the highest score wins (the plan's own page first, then the candidates'
+  order); its reason names the others; each other is refused "another <discipline> picture was taken: <name>".
+
 **Unknowns** (when any lane was checked): a services picture shows where things are drawn, not how they connect
 (what a run feeds and whether it can be rerouted); a picture shows no heights (what is on a wall's line may run in
 the floor or under the ceiling); the symbols and runs are read by vision, so one the readers missed is not there.
@@ -273,6 +304,34 @@ Acceptance criteria (tests in `tests/test_services_picture_follow.py` and `tests
   model's text names it (`test_a_wall_removed_on_a_picture_plan_gets_the_picture_lane_of_its_services_marks`).
 - **SFP-8** Without a services picture the follow-up is as before
   (`test_without_a_services_picture_the_follow_up_is_as_before`).
+
+Pairing (tests in `tests/test_services_pairing.py`):
+
+- **SFP-9** The plan's own page pairs `same_page` with the identity, score None
+  (`test_the_plans_own_page_pairs_same_page`).
+- **SFP-10** "A-101 Floor 1 plan.pdf" and "set/H-101 Floor 1 heating.png" with 3 shared room names: `metadata`,
+  0.9, the reason names floor 1, the sheet numbers and the room names (`test_same_floor_and_sheet_number_and_rooms`).
+- **SFP-11** "H-102 Floor 2 heating.png" against the floor 1 plan is refused as another floor even when its room
+  names fit; "EG" against "OG 1" in the title blocks likewise (`test_another_floor_is_refused_whatever_the_rooms`).
+- **SFP-12** Same floor, no shared room names, same sheet size in metres: `metadata`, 0.7, page to page; a
+  different size: refused with "same floor" and the register's reason
+  (`test_same_floor_without_rooms_is_laid_page_to_page_only_on_the_same_sheet_size`).
+- **SFP-13** No floor hint on either sheet, 3 shared room names: `geometry`, 0.6; 2 shared names: refused "only 2
+  room names appear on both sheets (3 are needed)" (`test_no_hint_falls_back_to_geometry`).
+- **SFP-14** Two heating sheets paired: the better wins and names the other; the other is refused "another heating
+  picture was taken: …" (`test_the_best_of_two_heating_sheets_wins_and_names_the_other`).
+- **SFP-15** The register is a parameter: a stub register's map and words come back in the pairing
+  (`test_the_register_plugs_in`).
+- **SFP-16** `ServiceFollower` follows only on the pictures `pair` keeps: a heating picture of another floor in the
+  project leaves the lane `not_aligned` with the floor reason
+  (`test_a_heating_picture_of_another_floor_is_not_followed`).
+- **SFP-17** "A/plan.pdf" and "B/heating.png" are refused as another set; "plan.pdf" and "B/heating.png" are not
+  (`test_sheets_of_two_folders_are_two_sets`).
+- **SFP-18** A sheet drawn turned a quarter at 50 px a metre, its walls in pixels: `by_walls` gives the map that puts its
+  corners back on the plan's page fractions and `register`'s words; with no room names the follower's register
+  (room names, then walls) pairs it `geometry`; both refusing gives both reasons; a sheet scale 20 % off the walls' is named
+  (`test_walls_lay_a_turned_half_size_sheet_over_the_plan`).
+- **SFP-19** The wall mass of a 0.2 m walled box gives its four centre lines (`test_the_plans_wall_lines_are_centre_lines`).
 
 **The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
 `picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the

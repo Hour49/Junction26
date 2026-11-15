@@ -5,23 +5,28 @@ with its spots as evidence. Off (the default), nothing is built and ingest is un
 Every page is drawn in the test: no partner data."""
 
 import io
+import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-from app.adapters.discipline_pictures.lane import PictureLane
+from app.adapters.discipline_pictures.lane import FROM_FILE_NAME, PictureLane, PictureSheets
 from app.adapters.discipline_pictures.legend import read_legend
+from app.adapters.ifc_model.facts_source import read_facts
 from app.adapters.raster_ocr import RapidOcrEngine
 from app.composition import build_ingest, build_pipeline
 from app.core.answering.facts import FACTS
 from app.core.answering.model import Answer, Question
+from app.core.drawing.model import Page
+from app.core.ifc_facts import FactSheet
 from app.core.ingest.model import Classified
 from app.core.ingest.triage import TriageSteps
 from app.core.picture_facts import storey_of_title
+from app.core.pipeline.printed import printed_scale
 from app.settings import Settings
-from scripts.make_sample_archive import build_archive
+from scripts.make_sample_archive import build_archive, ifc_model
 
 W, H, TILE, DPI = 2000, 1400, 40, 150
 M_PER_PX = 50 * 0.0254 / DPI  # printed 1:50 at the file's 150 dpi
@@ -53,9 +58,10 @@ RADIATORS = [(200, 200, 0), (600, 200, 90), (1000, 200, 180), (200, 700, 270), (
 VALVES = [(300, 450), (800, 450), (1200, 450)]
 
 
-def heating_scan() -> bytes:
+def heating_scan(scaled: bool = True) -> bytes:
     """A scanned heating plan: grey walls, 6 radiators, 3 valves, a red 5.00 m run, a legend
-    headed LEGEND with a group heading, the printed scale, the file's own 150 dpi."""
+    headed LEGEND with a group heading, the printed scale, the file's own 150 dpi (`scaled`
+    False: neither the printed scale nor a dpi, so the page has no scale)."""
     page = Image.new("RGB", (W, H), (255, 255, 255))
     draw = ImageDraw.Draw(page)
     draw.rectangle((20, 20, W - 20, H - 20), outline=(0, 0, 0), width=3)
@@ -75,8 +81,11 @@ def heating_scan() -> bytes:
     draw.text((x + 70, 1056), "Valve", fill=(0, 0, 0), font=FONT)
     draw.line((x, 1130, x + 50, 1130), fill=RED, width=4)
     draw.text((x + 70, 1116), "Heating pipe DN20", fill=(0, 0, 0), font=FONT)
-    draw.text((60, 1300), "SCALE 1:50", fill=(0, 0, 0), font=FONT)
     out = io.BytesIO()
+    if not scaled:
+        page.save(out, "PNG")
+        return out.getvalue()
+    draw.text((60, 1300), "SCALE 1:50", fill=(0, 0, 0), font=FONT)
     page.save(out, "PNG", dpi=(DPI, DPI))
     return out.getvalue()
 
@@ -125,10 +134,10 @@ class _NoDrawings:
         return None
 
 
-def _ask(settings: Settings, files: str, *texts: str) -> list[Answer]:
+def _ask(settings: Settings, files: str, *texts: str, file: str = "heating.png") -> list[Answer]:
     pipeline = build_pipeline(settings, Path(files))
     sink = _Sink()
-    asked = [Question(id=n, file="heating.png", text=t) for n, t in enumerate(texts, 1)]
+    asked = [Question(id=n, file=file, text=t) for n, t in enumerate(texts, 1)]
     pipeline.answer_questions(asked, _NoDrawings(), sink)
     return sink.answers
 
@@ -140,7 +149,7 @@ def test_the_legend_is_read_by_ocr_with_its_group_symbols_and_line() -> None:
     rgb = Image.open(io.BytesIO(heating_scan())).convert("RGB")
     import numpy as np
 
-    legend, scale_text = read_legend(np.asarray(rgb), RapidOcrEngine())
+    legend, printed = read_legend(np.asarray(rgb), RapidOcrEngine())
     assert legend is not None
     by = {e.label: e for e in legend}
     assert set(by) == {"Radiator", "Valve", "Heating pipe DN20"}
@@ -148,14 +157,93 @@ def test_the_legend_is_read_by_ocr_with_its_group_symbols_and_line() -> None:
     assert by["Heating pipe DN20"].line and not by["Radiator"].line and not by["Valve"].line
     x0, y0, x1, y1 = by["Radiator"].box or (0, 0, 0, 0)
     assert 1560 / W - 0.01 < x0 < x1 < 1600 / W + 0.01 and 990 / H < y0 < y1 < 1030 / H
-    assert scale_text is not None and "1:50" in scale_text
+    assert printed.printed_scale is not None and "1:50" in printed.printed_scale
+    assert printed.bars == ()  # no bar printed: the ratio at the file's dpi is the scale
 
 
-def test_a_page_with_no_legend_header_has_no_legend() -> None:
+def test_a_blank_page_has_no_legend_and_no_scale() -> None:
     import numpy as np
 
     blank = np.full((400, 600, 3), 255, dtype=np.uint8)
-    assert read_legend(blank, RapidOcrEngine()) == (None, None)
+    legend, printed = read_legend(blank, RapidOcrEngine())
+    assert legend is None and printed.printed_scale is None and printed.bars == ()
+
+
+GREEN = (30, 160, 30)
+BAR_PX = 591  # a 5 m bar at 1:50 and 150 dpi
+
+
+def revit_sheet() -> tuple[bytes, dict[str, tuple[int, int, int, int]]]:
+    """A services plan as Revit exports it: a legend with no heading word, its rows tight (system
+    headings without a sample, line samples, symbols left of family names), a printed scale bar
+    "5 m 1:50", and no dpi in the file. Returns the png and each symbol's drawn box."""
+    page = Image.new("RGB", (W, H), (255, 255, 255))
+    draw = ImageDraw.Draw(page)
+    for y in (300, 800):
+        draw.line((60, y, 1000, y), fill=(0, 0, 0), width=4)
+    draw.ellipse((400, 500, 430, 530), outline=(0, 0, 0), width=2)  # a radiator on the plan
+    x, step = 1150, 34
+    rows = [
+        (None, "Unit A Hydronic Supply In", 0),
+        ("red", "Unit A Hydronic Supply In", 130),
+        ("square", "M_Ball Valve - 50 mm", 75),
+        (None, "Unit A Hydronic Supply In,Unit A Hydronic Supply Out", 0),
+        ("circle", "M_Radiator - Hosted:Readiator - 25", 75),
+        ("green", "Unit B Hydronic Supply In", 130),
+    ]
+    symbols: dict[str, tuple[int, int, int, int]] = {}
+    for n, (sample, label, indent) in enumerate(rows):
+        y = 60 + n * step
+        mid = y + 15
+        if sample in ("red", "green"):
+            draw.line((x, mid, x + 100, mid), fill=RED if sample == "red" else GREEN, width=3)
+        elif sample == "square":
+            symbols[label] = (x + 15, mid - 11, x + 37, mid + 11)
+            draw.rectangle(symbols[label], outline=(0, 0, 0), width=2)
+        elif sample == "circle":
+            symbols[label] = (x + 15, mid - 11, x + 37, mid + 11)
+            draw.ellipse(symbols[label], outline=(0, 0, 0), width=2)
+        draw.text((x + indent, y), label, fill=(0, 0, 0), font=FONT)
+    draw.rectangle((30, 1320, 30 + BAR_PX - 1, 1329), fill=(0, 0, 0))
+    draw.text((30 + BAR_PX + 15, 1308), "5 m   1:50", fill=(0, 0, 0), font=FONT)
+    out = io.BytesIO()
+    page.save(out, "PNG")  # no dpi: the bar is the only scale
+    return out.getvalue(), symbols
+
+
+def test_a_legend_with_no_heading_word_is_read_with_tight_symbol_crops() -> None:
+    import numpy as np
+
+    data, symbols = revit_sheet()
+    legend, _ = read_legend(
+        np.asarray(Image.open(io.BytesIO(data)).convert("RGB")), RapidOcrEngine()
+    )
+    assert legend is not None
+    by = {e.label.split(" - ")[0]: e for e in legend}
+    assert set(by) == {"Unit A Hydronic Supply In", "M_Ball Valve", "M_Radiator",
+                       "Unit B Hydronic Supply In"}, legend  # fmt: skip
+    assert by["Unit A Hydronic Supply In"].line and by["Unit B Hydronic Supply In"].line
+    assert not by["M_Ball Valve"].line and not by["M_Radiator"].line
+    assert by["M_Ball Valve"].group == "Unit A Hydronic Supply In"
+    assert (by["M_Radiator"].group or "").startswith("Unit A Hydronic Supply In,")
+    for name, drawn in symbols.items():  # the symbol only: no heading or label ink in the crop
+        x0, y0, x1, y1 = by[name.split(" - ")[0]].box or (0, 0, 0, 0)
+        dx0, dy0, dx1, dy1 = drawn
+        pad = 4
+        assert (dx0 - pad) / W <= x0 <= dx0 / W and dx1 / W <= x1 <= (dx1 + pad) / W, name
+        assert (dy0 - pad) / H <= y0 <= dy0 / H and dy1 / H <= y1 <= (dy1 + pad) / H, name
+
+
+def test_a_printed_scale_bar_gives_metres_without_a_dpi() -> None:
+    import numpy as np
+
+    data, _ = revit_sheet()
+    _, printed = read_legend(
+        np.asarray(Image.open(io.BytesIO(data)).convert("RGB")), RapidOcrEngine()
+    )
+    assert [bar.length_m for bar in printed.bars] == [5.0]
+    scale = printed_scale(printed, [Page(page=1, width=W, height=H, unit="px")], None)
+    assert scale is not None and scale.m_per_unit == pytest.approx(5.0 / BAR_PX, rel=0.01)
 
 
 def test_the_storey_is_the_one_the_title_names() -> None:
@@ -205,6 +293,56 @@ def test_a_sheet_triage_names_no_discipline_is_not_read(
     assert not any((tmp_path / "facts").glob("*.json"))
 
 
+# --- no sheet-kind reply: the discipline from the file name (sheet code or strong word) ----------
+
+
+def _untriaged(settings: Settings, name: str) -> tuple[Any, str]:
+    """`name` ingested with triage off (no sheet-kind step), as the no-keys backend does."""
+    ingest = build_ingest(settings, settings.projects_dir, background=False)
+    status = ingest.wait(ingest.start(name, heating_scan()))
+    return status, str(settings.projects_dir / status.id / "files")
+
+
+def test_a_picture_no_sheet_kind_step_saw_is_routed_by_its_file_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    _, files = _untriaged(settings, "H-102 heating plan.png")
+    [sheet] = (tmp_path / "facts").glob("*.json")
+    sources = {f["source"] for f in json.loads(sheet.read_text())["facts"]}
+    assert sources and all(FROM_FILE_NAME in s and s.startswith("picture:") for s in sources)
+    # Low, as every picture fact
+    [answer] = _ask(settings, files, "How many radiators are there?", file="H-102 heating plan.png")
+    assert answer.method == FACTS and answer.sure is False
+    assert "confidence is Low" in (answer.explanation or "")
+
+
+def test_a_file_name_that_names_no_discipline_leaves_the_picture_unread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    _untriaged(settings, "pipe layout 7.png")  # "pipe" is a weak word: plumbing or heating
+    assert not any((tmp_path / "facts").glob("*.json"))
+
+
+def test_off_the_file_name_changes_no_route_flag_or_drawing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, tuple[Any, ...]] = {}
+    for mode in ("off", "template"):
+        (tmp_path / mode).mkdir()
+        settings = _settings(tmp_path / mode, monkeypatch, discipline_pictures=mode,
+                             discipline_pictures_cache_dir=tmp_path / mode / "facts")  # fmt: skip
+        status, _ = _untriaged(settings, "H-102 heating plan.png")
+        drawings = sorted(p.read_bytes() for p in (settings.projects_dir / "drawings").glob("*"))
+        flags = [(f.path, f.state, f.route, f.reason) for f in status.files]
+        seen[mode] = (flags, drawings)
+    assert seen["off"] == seen["template"]
+    assert not (tmp_path / "off" / "facts").exists()
+
+
 # --- AC-14: off is the default and changes nothing ----------------------------------------------
 
 
@@ -235,3 +373,37 @@ def test_ac14_ingest_output_is_byte_identical_with_the_lane_on_or_off(
         drawings = settings.projects_dir / "drawings"  # named by key: the readers' names differ
         stored[mode] = sorted(p.read_bytes() for p in drawings.glob("*.json"))
     assert stored["off"] and stored["off"] == stored["template"]
+
+
+# --- the page's scale beside the facts (W1/W4: the services overlay on a picture needs it) -------
+
+
+@pytest.mark.parametrize("scaled", [True, False])
+def test_the_lane_keeps_the_pages_scale_when_it_reads_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scaled: bool
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    status, _ = _ingest(settings, heating_scan(scaled), SheetKind())
+    sha = status.files[0].sha256
+    kept = PictureSheets(None, tmp_path / "facts").sheet(sha)
+    assert kept is not None and kept.facts  # the symbols are read with or without a scale
+    if not scaled:
+        assert kept.scale is None
+        assert "scale" not in json.loads(
+            PictureSheets(None, tmp_path / "facts").path(sha).read_text()
+        )
+        return
+    assert kept.scale is not None
+    assert kept.scale.width_px * kept.scale.m_per_px == pytest.approx(W * M_PER_PX, rel=0.01)
+    assert kept.scale.height_px * kept.scale.m_per_px == pytest.approx(H * M_PER_PX, rel=0.01)
+
+
+def test_an_ifc_fact_sheet_is_the_json_it_was() -> None:
+    """Prebuilt IFC sheets are kept by CODE, which hashes core/ifc_facts.py: the picture's scale
+    lives picture-side, so an IFC sheet has the same fields and the same bytes."""
+    assert set(FactSheet.model_fields) == {"model", "disciplines", "facts"}
+    sheet = read_facts(ifc_model(), "house")
+    said = sheet.model_dump_json()
+    assert set(json.loads(said)) == {"model", "disciplines", "facts"}
+    assert FactSheet.model_validate_json(said).model_dump_json() == said

@@ -205,14 +205,17 @@ def test_only_a_model_files_drawing_may_have_no_page(tmp_path: Path) -> None:
     Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
     assert (body["pages"], body["elements"], body["rooms"]) == ([], [], [])
     assert ExtractionV1Reader(tmp_path).drawing(model_file.file) == model_file
-    for objects in (None, ()):
-        with pytest.raises(ValidationError, match="pages"):
-            Drawing(
-                file="data/demo/tower.ifc",
-                pages=(),
-                scale=Scale(status="no_scale"),
-                model_objects=objects,
-            )
+    with pytest.raises(ValidationError, match="pages"):
+        Drawing(file="data/demo/tower.ifc", pages=(), scale=Scale(status="no_scale"))
+    # a services model read as a model lists none of the plan's classes: still its drawing
+    services = Drawing(
+        file="data/demo/heating.ifc", pages=(), scale=Scale(status="no_scale"), model_objects=()
+    )
+    ExtractionV1Writer(tmp_path, {services.file: "dev"}).write(services)
+    body = json.loads((tmp_path / "demo" / "heating.ifc.json").read_text(encoding="utf-8"))
+    Draft202012Validator(schema("extraction_v1.schema.json")).validate(body)
+    assert (body["pages"], body["model_objects"]) == ([], [])
+    assert ExtractionV1Reader(tmp_path).drawing(services.file) == services
 
 
 @pytest.mark.parametrize("read", [(), ("door", "room")], ids=["nothing", "two"])

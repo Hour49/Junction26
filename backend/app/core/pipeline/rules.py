@@ -68,8 +68,9 @@ MODEL_QUANTITY = CountingRule(
 )
 MODEL_SPACES = CountingRule(
     id="model-spaces",
-    text="the net floor area the model states for each of the storey's spaces, drawn on this "
-    "sheet or not, else the area of the room the sheet draws it as; unknown when a space has "
+    text="the floor area of each of the storey's spaces as the footprint of its shape in the "
+    "model, drawn on this sheet or not (not the net floor area the file may state, which can "
+    "differ), else the area of the room the sheet draws it as; unknown when a space has "
     "neither",
 )
 ROOM_SIDE = CountingRule(
