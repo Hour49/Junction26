@@ -68,7 +68,9 @@ def test_printed_room_areas_just_past_the_range_flag(factor: float) -> None:
 def test_one_misread_label_among_right_ones_flags_nothing() -> None:
     """The median, not the mean: 3 labels agree, 1 lost its decimal comma (10x)."""
     right = sheet(DOORS, factor=1.0)
-    outlier = label_room("m", BOXES[3], round(10 * right.rooms[0].area_m2, 2))
+    area = right.rooms[0].area_m2
+    assert area is not None
+    outlier = label_room("m", BOXES[3], round(10 * area, 2))
     drawing = right.model_copy(update={"rooms": (*right.rooms[:3], outlier)})
     assert label_disputed(drawing) is None
 
