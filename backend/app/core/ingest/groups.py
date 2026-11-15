@@ -394,7 +394,7 @@ class Feed:
         if not self._unpacked:
             return
         drawings = dict(sorted(self._drawings.items(), key=lambda item: self._order[item[0]]))
-        groups, sources = _grouped(drawings, self._readers)
+        groups, _ = _grouped(drawings, self._readers)
         ready = [
             (members, asked)
             for members, asked in groups
@@ -408,11 +408,11 @@ class Feed:
                 self._run.set(file.path, group=members.key)
         self._saved()
         for found in ready:
-            self._start(found, sources)
+            self._start(found)
 
-    def _start(self, found: Found, sources: Mapping[str, list[DrawingFile]]) -> None:
+    def _start(self, found: Found) -> None:
         members, asked = found
-        files = [*members.files, *(source for file in asked for source in sources[file.path])]
+        files = members.files  # with the sources found for them (`group`)
         keys = {f"path {file.path}" for file in files} | {f"sha256 {file.sha256}" for file in files}
         earlier = {self._after[key] for key in keys if key in self._after}
 

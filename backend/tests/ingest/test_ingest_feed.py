@@ -6,8 +6,10 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from conftest import MakeService
 from PIL import Image
+from test_ingest_multipage import permit_set
 from test_ingest_parallel import zipped
 
 from app.adapters.archive import FileProbe
@@ -284,3 +286,56 @@ def test_the_status_is_saved_as_each_group_ends() -> None:
     read.go.set()
     waiting.join(10)
     assert saves[-1] == ("b", "a")
+
+
+def test_a_sheet_and_its_model_s_own_group_are_read_one_after_the_other() -> None:
+    """a.pdf's group reads m.ifc, found as its source: m.ifc's own group waits for it (the
+    readers keep the parsed model), so the two are never read at once."""
+    read = Recorded(held="a")
+    fed = feed(read, {"a.pdf": ["m.ifc"]})
+    for path in ("a.pdf", "m.ifc"):
+        fed.pending(path, path)
+    fed.unpacked()
+    fed.identified("a.pdf", drawing("a.pdf"))
+    fed.identified("m.ifc", drawing("m.ifc"))
+    with read.changed:  # a is held: m must not start
+        assert not read.changed.wait_for(lambda: len(read.groups) > 1, timeout=0.5)
+    read.go.set()
+    fed.wait()
+    assert [key for key, _ in read.groups] == ["a", "m"]
+    assert read.most == 1
+
+
+class PdfAfter:
+    """A probe that holds the PDF until the file `first` has been identified."""
+
+    def __init__(self, first: str) -> None:
+        self.first, self.identified = first, threading.Event()
+
+    def probe(self, data: bytes) -> Probed:
+        if data.startswith(b"%PDF"):
+            assert self.identified.wait(10)
+        return FileProbe().probe(data)
+
+
+def test_a_pdf_s_later_page_joins_the_group_of_its_name(
+    make_service: MakeService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """set#p2.png is identified first, then set.pdf, whose page 2 is the file set#p2.pdf, of the
+    same group: the page is pending before the PDF counts as identified, so group set#p2 is
+    read with both files, not started with the png alone and the page left out."""
+    probe = PdfAfter("set#p2.png")
+    told = Feed.identified
+
+    def identified(self: Feed, path: str, drawing: DrawingFile | None) -> None:
+        told(self, path, drawing)
+        if path == probe.first:
+            probe.identified.set()
+
+    monkeypatch.setattr(Feed, "identified", identified)
+    ingest = make_service(probe=probe, groups_in_flight=2)
+    files = {"set#p2.png": plans(1)[0], "set.pdf": permit_set()}
+    status = ingest.wait(ingest.start("set.zip", zipped(files)))
+    by_path = {file.path: file for file in status.files}
+    assert by_path["set#p2.pdf"].group == by_path["set#p2.png"].group == "set#p2"
+    assert by_path["set#p2.pdf"].state in ("ready", "flagged"), by_path["set#p2.pdf"]
