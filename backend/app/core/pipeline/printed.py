@@ -112,8 +112,41 @@ _RATIO = re.compile(
 # architect's scale: any other number there is a view, level or sheet number ("LEVEL 2 1/4\"",
 # "A-301 1/8\""), not inches.
 _FRACTION = r"(?<![\d.])(?:(1)[\s-]+(?=1\s*/\s*2(?!\d)))?(\d+(?:\.\d+)?)(?:\s*/\s*(\d+))?"
-_INCHES = r"(?:\"|''|\u201d|in(?:ch(?:es)?)?\b)"  # ", '', a right double quote, in, inch
-_FEET = r"(?:'|\u2019|ft\b|feet\b|foot\b)"  # ', a right single quote, ft, feet
+_INCHES = r"(?:\"|''|\u201d|in(?:ch(?:es)?)?\b\.?)"  # ", '', a right double quote, in(.), inch
+_FEET = r"(?:'|\u2019|ft\b\.?|feet\b|foot\b)"  # ', a right single quote, ft(.), feet
+# How old and typeset sheets print a scale (QA R3-C1, USCG Building 407: "SIZE \u00bc\"=1'-0\""):
+# a fraction glyph is " n/d" (1\u00bd is 1 1/2), the fraction slash a slash, primes quotes
+_GLYPHS = str.maketrans(
+    {
+        "\u00bc": " 1/4",
+        "\u00bd": " 1/2",
+        "\u00be": " 3/4",
+        "\u215b": " 1/8",
+        "\u215c": " 3/8",
+        "\u215d": " 5/8",
+        "\u215e": " 7/8",
+        "\u2044": "/",  # the fraction slash
+        "\u2032": "'",  # prime
+        "\u2033": '"',  # double prime
+    }
+)
+# A glyph right after a digit is that many inches and more: 1\u00bc" is 1.25" (review-612 S1)
+_AFTER_DIGIT = re.compile("(\\d+)([\u00bc\u00bd\u00be\u215b\u215c\u215d\u215e])")
+
+
+def _plain(text: str) -> str:
+    """`text` with its fraction glyphs, fraction slash and primes as `_IMPERIAL` reads them."""
+    mixed = _AFTER_DIGIT.sub(
+        lambda m: f"{int(m.group(1)) + _fraction(_GLYPHS[ord(m.group(2))]):g}", text
+    )
+    return mixed.translate(_GLYPHS)
+
+
+def _fraction(text: str) -> float:
+    numerator, denominator = text.split("/")
+    return float(numerator) / float(denominator)
+
+
 _IMPERIAL = re.compile(
     rf"{_FRACTION}\s*{_INCHES}\s*=\s*(\d+(?:\.\d+)?)\s*{_FEET}(?:\s*-?\s*(\d+(?:\.\d+)?)\s*{_INCHES})?",
     re.IGNORECASE,
@@ -129,7 +162,7 @@ def ratio_of(text: str | None) -> float | None:
         grouped, plain = found.groups()
         ratio = float(re.sub(_GROUPED, "", grouped) if grouped else plain.replace(",", "."))
         return ratio if ratio > 0 else None
-    if (found := _IMPERIAL.search(text)) is not None:
+    if (found := _IMPERIAL.search(_plain(text))) is not None:
         return _imperial_ratio(found)
     return None
 
@@ -138,7 +171,8 @@ def imperial_scales(text: str) -> list[tuple[float, str]]:
     """Every imperial scale `text` prints, as `ratio_of` reads it, with the scale as printed:
     "1/4\" = 1'-0\"" is (48, "1/4\" = 1'-0\""). The text should be one label: a 1 before 1/2" is
     read as a whole inch, so a view number 1 next to a 1/2" scale would be."""
-    found = ((_imperial_ratio(match), match.group(0).strip()) for match in _IMPERIAL.finditer(text))
+    plain = _plain(text)
+    found = ((_imperial_ratio(m), m.group(0).strip()) for m in _IMPERIAL.finditer(plain))
     return [(ratio, printed) for ratio, printed in found if ratio is not None]
 
 
