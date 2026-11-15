@@ -192,14 +192,19 @@ class ServiceFollower:
         plan = self._sheet(plan_file, proposal.page, self.pictures(proposal.drawing_id))
         pairings = pair(plan, [sheet for sheet, _ in sheets], self._register(proposal))
         seen = picture_follow(proposal, plan, sheets, pairings=pairings)
-        names = {e.file: e.name for e in drawings_of(status)}
+        # every drawing id a picture may be read from, its renderings' too, to the drawing's name
+        names = {
+            drawing_id: entry.name
+            for entry in drawings_of(status)
+            for drawing_id in (entry.drawing_id, *(r.drawing_id for r in entry.other_renderings))
+        }
 
         def named(lane: DisciplineFollow) -> DisciplineFollow:
-            """A picture lane's sheets by their names in the project, as a model lane's model."""
+            """A picture lane's sheets by their names in the project, each once (review-544 S1),
+            as a model lane's model."""
             if not lane.source:
                 return lane
-            ids = lane.source.split(", ")
-            said = (_name(files[i], names) if i in files else i for i in ids)
+            said = dict.fromkeys(names.get(i, i) for i in lane.source.split(", "))
             return lane.model_copy(update={"source": ", ".join(said)})
 
         lanes = tuple(
