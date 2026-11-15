@@ -1361,7 +1361,8 @@ the `identify` stage's line.
   (the default; `false` makes such a sheet a `doubt` instead: read and flagged, below), the file is set
   aside with the reason "not a floor plan: <kind_words> (<title>, <sheet_number>)" and `POST …/triage` reads it;
   `doubt`: it is read; with a non-plan kind, in either mode (an unsure one with `SHEET_KIND_SET_ASIDE=true` too), the
-  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; "), none of
+  file is `flagged` (its `reason` starts "the sheet may not be a floor plan: it looks like <kind_words>; ", or
+  "the sheet may not be a drawing at all; " for `not_a_drawing`), none of
   its answers is certified, each is Low with that flag in its `explanation`, and the drawing has a `reading_flag`
   issue; the flag follows the project's triage, also when the reading is reused from the cache (a partial reading is
   never reused, #439), and `POST …/triage` drops it; with a plan kind every answer with a value ends its
