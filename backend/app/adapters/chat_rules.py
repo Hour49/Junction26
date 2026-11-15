@@ -57,7 +57,7 @@ BIGGER = {"largest": "largest", "biggest": "largest", "smallest": "smallest"}
 NUMBER_OF = re.compile(r"^(?:total\s+)?(?:number|count|amount)\s+of\s+(?P<things>.+)$")
 # an answer in feet is compared in metres (review-483); the unit said after the winning value
 METRIC = {"ft2": ("m2", 0.09290304), "ft": ("m", 0.3048)}
-SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³"}
+SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³", "ft2": " ft²", "ft": " ft"}
 LOAD = (
     "These drawings do not say which walls carry load. A structural drawing, a building model "
     "that marks load-bearing walls, or a structural engineer would settle it."
@@ -808,13 +808,27 @@ def _answer(found: Json) -> tuple[str, Json]:
         more: Json = {"options": options} if options and related else {}
         return _final("dont_know", dont_know(why), **more)
     # The turn carries the ask_drawings result, shown in full under the text: one sentence that
-    # cites each answering drawing's first mark. `answered` (the loop's) lists every one; `parts`
-    # may be cut for the window (#466)
-    listed: list[Json] = [a for a in found.get("answered") or [] if isinstance(a, dict)]
-    firsts = [marks[0]["ev"] for p in answering[:12] if (marks := [
-        m for m in p["answer"].get("marks", []) if isinstance(m, dict) and "ev" in m])]  # fmt: skip
-    evidence = [str(a["ev"]) for a in listed if a.get("ev")][:12] or firsts
-    cites = "".join(f"[{ev}]" for ev in evidence)
-    # No count of drawings in the sentence: the card under it lists every drawing's value, and
-    # a sentence that says "the drawing" or "the drawings" is wrong for some turn (#430).
-    return _final("answer", f"The answer is below{' ' + cites if cites else ''}.", evidence)
+    # gives each answering drawing's value and cites its first mark (R2-A6: not "The answer is
+    # below"). `answered` (the loop's) lists every one; `parts` may be cut for the window (#466).
+    # No count of drawings: "the drawing" or "the drawings" is wrong for some turn (#430).
+    listed: list[Json] = [a for a in found.get("answered") or [] if isinstance(a, dict)] or [
+        {"drawing": p.get("name") or p.get("drawing_id"), "answer": p["answer"]["answer"],
+         "unit": p["answer"].get("unit"), "ev": _first_ev(p["answer"])} for p in answering
+    ]  # fmt: skip
+    listed = listed[:12]
+    said = "; ".join(f"{a['drawing']}: {_said(a)}" + (f" [{a['ev']}]" if a.get("ev") else "")
+                     for a in listed)  # fmt: skip
+    return _final("answer", f"{said}.", [str(a["ev"]) for a in listed if a.get("ev")])
+
+
+def _first_ev(answer: Json) -> str | None:
+    marks = [m for m in answer.get("marks") or [] if isinstance(m, dict) and "ev" in m]
+    return str(marks[0]["ev"]) if marks else None
+
+
+def _said(answered: Json) -> str:
+    """An `answered` value as the card shows it: at most 2 decimals, in the drawing's unit."""
+    value = answered.get("answer")
+    if isinstance(value, float):
+        value = f"{value:.2f}".rstrip("0").rstrip(".")
+    return f"{value}{SAID_UNIT.get(str(answered.get('unit')), '')}"
