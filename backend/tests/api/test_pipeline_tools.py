@@ -172,6 +172,23 @@ def test_a_reader_that_does_not_look_for_walls_gives_null_and_why() -> None:
     assert found["rooms"] == [] and found["reasons"]["rooms"] == "none were found on this page"
 
 
+def test_each_room_carries_its_printed_number_so_rooms_of_one_name_are_told_apart() -> None:
+    """R3-L3 (Tudor's QA round 3): the chat said "Stanza" four times where the engineer page says
+    "Stanza 1.07": the vector reader keeps the number apart from the label (attrs), and the
+    geometry tool gave the label alone."""
+    rooms = [
+        {"id": f"r{n}", "type": "bedroom", "label": "Stanza", "page": 1, "box": BOX,
+         "attrs": {"number": f"1.0{n}"}}
+        for n in range(4, 8)
+    ]  # fmt: skip
+    rooms.append({"id": "r8", "type": "kitchen", "label": "Cucina\n1.08", "page": 1, "box": BOX})
+    found = geometry_of(drawing(rooms=rooms), "vector", "d" * 16, 1)
+    assert [(r["label"], r["number"]) for r in found["rooms"]] == [
+        ("Stanza", "1.04"), ("Stanza", "1.05"), ("Stanza", "1.06"), ("Stanza", "1.07"),
+        ("Cucina\n1.08", None),  # the raster reader keeps it in the label
+    ]  # fmt: skip
+
+
 def test_get_plan_geometry_on_a_real_drawing(store: PipelineStore, project: dict[str, Any]) -> None:
     drawing_id = project["drawings"][0]["drawing_id"]
     found = call(store, "get_plan_geometry", drawing_id=drawing_id, page=1)

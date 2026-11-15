@@ -43,10 +43,11 @@ from app.api.takeoff import takeoff_rows
 from app.api.views import DrawingEntry, drawings_of
 from app.composition import Answering
 from app.core.checks.model import RulePack
-from app.core.drawing.model import Drawing
+from app.core.drawing.model import Drawing, Room
 from app.core.errors import DomainError
 from app.core.ingest.model import FileStatus, ProjectStatus, Triage
 from app.core.ingest.triage import sheet_flag
+from app.core.pipeline.rules import ROOM_NUMBERS
 from app.core.pipeline.user_scale import HINT as SCALE_HINT
 from app.core.review.ports import ReviewStore
 from app.settings import Settings
@@ -462,8 +463,14 @@ def _item(element: Any) -> dict[str, Any]:
     return out
 
 
-def _room(room: Any) -> dict[str, Any]:
-    return _dump(room, "id", "type", "label", "box", "polygon", "area_m2", "outdoor")
+def _room(room: Room) -> dict[str, Any]:
+    """A room with its printed number when the reader keeps it apart from the label (the vector
+    reader's attrs), so rooms of one name are told apart ("Stanza" four times: R3-L3)."""
+    number = next((v for key in ROOM_NUMBERS if isinstance(v := room.attrs.get(key), str)), None)
+    return {
+        **_dump(room, "id", "type", "label", "box", "polygon", "area_m2", "outdoor"),
+        "number": number,
+    }
 
 
 Runner = Callable[[PipelineStore, Any], Any]
