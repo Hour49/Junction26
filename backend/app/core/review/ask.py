@@ -600,10 +600,14 @@ def _flagged(
     is returned as `unread`, so any question on it is refused, its key in the takeoff or not
     (F4-4b). Every other quantity carries the flag as its estimate, so the answer says what it
     rests on (R3-qa4-1). On any raster page, flagged or not, no room at all is unread too: a
-    page can have 0 saunas, but not 0 rooms (F4-4). Except a class Carbon counted: Carbon names
-    the classes it could not count (left out of `read`), so on a drawing whose elements are
-    Carbon's (CARBON_FLAG, which ingest sets only then) a class it read with no element is a
-    read 0, still flagged (brief r8 BD). A drawing Carbon read only a part of keeps F4-4b.
+    page can have 0 saunas, but not 0 rooms (F4-4). On any sheet, flagged or not, no element at
+    all is unread the same way when it has pages, a reader that read something and no building
+    model (else _refusal's own words: nothing read, a services model): a vector sheet whose
+    reader found 0 elements and 26 rooms answered "0 toilets" High (big QA R1 services row 12).
+    Except a class Carbon counted: Carbon names the classes it could not count (left out of
+    `read`), so on a drawing whose elements are Carbon's (CARBON_FLAG, which ingest sets only
+    then) a class it read with no element is a read 0, still flagged (brief r8 BD). A drawing
+    Carbon read only a part of keeps F4-4b.
     On a flagged page a room count with no located mark ("0 bathrooms", "37 bedrooms" with
     nothing marked) is a guess too: it is left out and returned in `unlocated` by key, so the
     question is refused the same way (brief r8 BM); a class Carbon read keeps its 0. A 0 of a
@@ -611,7 +615,8 @@ def _flagged(
     or more types besides "other": a page can have 0 saunas, F4-4) and a guess when it put every
     room under one type (the hotel photo: 37 "bedrooms", then 0 bathrooms; #285 review)."""
     empty: set[str] = set()
-    if flags and not drawing.elements:
+    read = bool(drawing.pages) and drawing.read != () and not drawing.model_objects
+    if not drawing.elements and (flags or read):  # unflagged: R1 services row 12
         empty.update(ELEMENT_CLASSES)
         if CARBON_FLAG in flags and drawing.read is not None:
             empty.difference_update(drawing.read)
@@ -674,9 +679,14 @@ def _symbols_text(flag: str) -> str:
 
 
 def _unread_text(query: str, flags: Sequence[str]) -> str:
-    if not flags:  # only rooms are unread on a page that wasn't flagged (_flagged)
-        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
     things = "rooms" if parse_key(query)[1].startswith("room") else "elements"
+    if not flags and things == "rooms":
+        return "No rooms were read on this drawing, so 0 would be a guess, not a count."
+    if not flags:
+        return (
+            "The reader found no doors, windows or fixtures of any kind on this drawing, so 0 "
+            "would be a guess, not a count."
+        )
     return (
         f"This drawing was flagged at upload ({'; '.join(flags)}), and its reader found no "
         f"{things} on it, so 0 would be a guess, not a count."
