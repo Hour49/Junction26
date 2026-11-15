@@ -975,3 +975,28 @@ def _storeys_named_for(text: str, sheet: FactSheet) -> list[str]:
     from app.core.answering.facts import _Facts, _storeys_named
 
     return _storeys_named(text, _Facts(sheet.facts))
+
+
+def test_a_numbered_storey_is_not_read_from_a_height() -> None:
+    """review-708 S1 (orchestrator: must): sixty5 names its storeys "00 begane grond" .. "17
+    dak", and "How many windows are at 12 m height or above?" answered "Total windows on Level
+    12 ...: 36". A number with a unit after it is a height, not a storey."""
+    sheet = _storeys_sheet(("11 elfde verdieping", 33.0), ("12 twaalfde verdieping", 36.0))
+    assert _storeys_named_for("How many windows are at 12 m height or above?", sheet) == []
+    assert _storeys_named_for("What is the floor area at 12m?", sheet) == []
+    assert _storeys_named_for("What is the floor area at 12 metres?", sheet) == []
+    assert _storeys_named_for("Which spaces are on 12?", sheet) == ["12 twaalfde verdieping"]
+
+
+def test_the_storey_a_question_names_is_no_word_a_space_is_named_by() -> None:
+    """review-708 S2: "How many spaces are on P1?" counts P1's spaces; with the storey left in
+    the words it said "No space on Level 1 (P1) in this file is named 'p1'"."""
+    demo = _storeys_sheet(("P0", 0.0), ("P1", 4.4), ("P2", 7.4))
+    said = said_on("How many spaces are on P1?", demo)
+    assert "named 'p1'" not in said and said.startswith("Spaces on Level 1 (P1)"), said
+    assert "Room A1" in said and "Room B1" in said and "Room A0" not in said, said
+    office = _storeys_sheet(("EG", 0.0), ("OG1", 3.7))
+    assert _storeys_named_for("Which spaces are on EG?", office) == ["EG"]
+    assert _storeys_named_for("Which spaces are on Eg?", office) == []  # only as written
+    clinic = _storeys_sheet(("First Floor", 0.0), ("Roof - Main", 9.25))
+    assert _storeys_named_for("Which spaces are on the Main level?", clinic) == []

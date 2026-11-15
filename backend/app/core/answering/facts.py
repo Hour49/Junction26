@@ -438,7 +438,9 @@ def _storeys_named(text: str, facts: _Facts) -> list[str]:
             parts = [name, *(t for t in re.split(r"[\W_]+", name) if re.search(r"\d", t))]
             for part in dict.fromkeys(p.strip() for p in parts if len(p.strip()) >= 2):
                 exact = part.isalpha() and len(part) <= 3  # "EG" never as "eg"
-                pattern = rf"{lead}(?P<at>{re.escape(part)})(?![\w.])"
+                # a number with a unit after it is a height ("at 12 m"), not storey "12 ..."
+                unit = r"(?!\s*(?:mm|cm|m²|m2|m|ft|metres?|meters?|%|°)(?!\w))" * part.isdigit()
+                pattern = rf"{lead}(?P<at>{re.escape(part)})(?![\w.]){unit}"
                 if lead.startswith(r"\s*") and not found:
                     continue  # "and P2" counts only after a storey named by on/in/at
                 hit = re.search(pattern, text, 0 if exact else re.I)
