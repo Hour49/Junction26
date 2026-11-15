@@ -646,6 +646,75 @@ Index has no stage id: the backend keeps the project `running` with every file f
   (`ProjectScreen.tsx`). [component: ProjectScreen.test.tsx "a lone DXF set aside: the Nothing-read card says to
   upload it with its PDF or PNG in one zip", "no DXF hint when the set-aside files are not DXF"]
 
+## Pipeline view v5 (ingest UI track, 2026-11-15, brief `ingest-ui/live`; Bogdan 03:20: "I want the ingestion pipeline to look much better, and then to be more representative of the operations we are doing right now in the actual pipeline.")
+
+Simple's progress card becomes the pipeline as it runs: the steps on the left, on the right the files by the route
+they take, each lane with the readers that route runs on this server, and per file its stage, the reader running
+now and, once read, what it found. Advanced and the file page are not changed here. API: decision 0018
+(`FileStatus.step`, `ProjectStatus.phase`, `index_steps`); every new field is optional, so an older server still
+renders from `stage`, `state` and `takeoff`.
+
+Card, top to bottom (`ProgressCard.tsx`, `RouteLanes.tsx`, helpers in `pipeline.ts`):
+
+1. Caption ("Step n of 9" / "All 9 steps done"), the `h2` (the step, "Ready" or "Stopped"), the ring. Once done, a
+   sentence under "Ready" says what was read by which route and what needs a person (`routeSummary`).
+2. The chat row (IN-88, unchanged).
+3. Eight live totals: Elapsed, Files through, Drawings ready, Things found, Conflicts, Flagged, Set aside, Cost.
+4. Two columns from 720 px (one under it): the nine steps (names and order as v4) and "How each file is read":
+   one lane per route with files (IFC model, CAD, Drawn PDF, Image), then "Not routed yet", then "Not drawings".
+5. The done line (v3, unchanged).
+
+Readers per route come from `ProjectView.readers`, what ingest recorded for this upload (backend
+`composition.build_ingest` `names`), not from `/api/info`: e.g. the demo's image route reads "symbol detector, count
+arbiter, plan finder, room reader, Carbon, printed scale, second readers (2), Carbon level check". A reader named
+`hello` or `off` is not shown. Step labels a file reports (`FileStatus.step`) light their reader chip while they
+run and tick it ("ran") after; a label no reader name covers gets its own chip.
+
+- IN-100: The card has a region "Routes" with the heading "How each file is read" and one region per lane with
+  files, named by the lane (`IFC model`, `CAD`, `Drawn PDF`, `Image`, `Not routed yet`, `Not drawings`), its `h3`
+  "<name> route" for a route; each lane lists its readers (list "Readers") and its files, each file a link to
+  `#/p/<id>/f/<fid>`. [component: ProgressCard.test.tsx; e2e: golden-path GP-3 "the finished screen"]
+- IN-101: `routeReaders(readers)` gives each route's readers in words from the recorded settings; a reader `hello`
+  or `off` gives none; no record gives none. A route with files whose reader reads nothing says "No reader for this
+  route on this server: nothing on it is counted."; with no record of the readers it says nothing.
+  [unit: pipeline.test.ts; component]
+- IN-102: "Things found" is the sum of a file's plain takeoff counts (no `area:`, `length:`, `room:` or `|` keys,
+  no `plan` or `apartment`) over finished files that read themselves (another rendering of a drawing is not counted
+  again); "—" while running with no file finished. `foundLine` names the biggest four ("5 rooms, 3 windows, 2
+  doors"), then "+n more". [unit; component]
+- IN-103: Lanes come in the order model, CAD, drawn PDF, image, not routed yet, not drawings; inside a lane:
+  running, flagged, ready, then the rest, in upload order; empty lanes are left out. [unit]
+- IN-104: Done, the sentence under "Ready" reads e.g. "Read 1 IFC model, 3 drawn PDFs and 3 images. 4 flagged
+  files need a look; 2 set aside." (each drawing once). [unit; component]
+- IN-105: A step label seen on a file (`FileStatus.step`) stays ticked on its lane's reader chip after it ends; a
+  running one is marked "running:" (screen-reader text) and in the accent; a label no reader name starts with is
+  shown as its own chip. [component]
+- IN-106: A file row says, running: "<Stage>: <step>" ("Extract: Symbol detector, 8 views"), or the stage alone
+  from an older server; queued: "waiting for a free reader"; another rendering: "same drawing as <source>"; ready:
+  what it found; flagged or set aside: what it found, then its reason. An 8-tick track beside it shows its step
+  (the current tick pulses, `motion-safe` only). [component]
+- IN-107: With no `step`, `phase` or `readers` (an older server) the card renders from `stage` and `state`, with no
+  reader chips and no "No reader" line. [component]
+- IN-108: The totals are, in order: Elapsed, Files through, Drawings ready, Things found, Conflicts
+  (`conflicts_open`, "—" until the server counts them), Flagged, Set aside, Cost (`formatCost(cost_usd)`). This
+  brings Cost back beside Set aside (IN-86 said "not Cost"; changed with its test). [component]
+- IN-109: With `phase: "index"` the card names step 9 "Index" even if a file still runs, its hint reads "judging
+  what was set aside, describing the rest, indexing it all for the chat" (was "every file made searchable for
+  questions": IN-89 changed with its test), and its row lists `index_steps` as "<label>: <did>". [component]
+- IN-110: A lane shows at most 6 files; the rest are a link "<n> more files in Documents" to `#/p/<id>/documents`.
+  [component]
+- IN-111: While running, the step named is the one most files are read in now (a tie: the later step), not the
+  lowest step a file waits in; with none running, the lowest (v4's `activeStep`). Every step a file is in now is
+  "working" with its file bar; the hint shows on the named step only. (IN-57's examples hold: one file running in
+  Extract.) [unit: `headlineStep`; component]
+- IN-112: At 390 and 1440 the running, index and finished cards have no horizontal scroll; done on a phone the nine
+  steps sit in two columns. Screenshots in the PR. [browser: e2e `ingest-steps-<width>.png`, `02-ingest-done.png`;
+  the running and index states by a scratch script with the API mocked]
+
+Changed on purpose: IN-86 (Cost is back as the 8th total), IN-89's hint text, the golden path's "no file list on
+Ingest" (v3): file links now appear on Ingest, only inside the route lanes. "Showing `readers` and `counts` on these
+screens" leaves Out of scope.
+
 ## Out of scope
 
 - Upload progress in bytes (fetch gives none; would need XMLHttpRequest).
@@ -656,7 +725,7 @@ Index has no stage id: the backend keeps the project `running` with every file f
 - The design's "Choose files" (plural): one file per upload, zip several.
 - The mock's end-of-ingest conflict list with approve / modify / pick a variant: conflicts live in the surveyor
   workspace (`GET /api/projects/{id}/review` is the surveyor spec's).
-- Showing `readers`, `counts` and the drawing model on these screens.
+- Showing the drawing model on these screens (readers and counts are shown since v5).
 - A preview of files with no drawing (a set-aside photo); `preview.png` exists for them but nothing links it here.
 - Deleting or renaming projects (no endpoint), refreshing the project list on a timer.
 
