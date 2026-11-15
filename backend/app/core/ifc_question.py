@@ -36,7 +36,10 @@ _ENTITIES: tuple[tuple[str, str], ...] = (
     ("light_fixture", r"light(?:ing)?\s*fixtures?|luminaires?|lights?|lamps?"),
     ("switch", r"(?:light\s*)?switch(?:es)?"),
     ("outlet", r"outlets?|receptacles?|sockets?"),
-    ("sanitary_terminal", r"sanitary|plumbing\s*fixtures?|toilets?|wcs?|basins?|sinks?|lavator\w*"),
+    (
+        "sanitary_terminal",
+        r"sanitary|plumbing\s*fixtures?|toilets?|wcs?|urinals?|(?:wash)?basins?|sinks?|lavator\w*",
+    ),
     ("valve", r"valves?"),
     ("pump", r"pumps?"),
     ("fan", r"fans?"),

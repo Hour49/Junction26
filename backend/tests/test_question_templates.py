@@ -10,6 +10,7 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SIZE_FILTER,
     Query,
@@ -844,3 +845,62 @@ def test_r1_8_this_flat_is_where_the_count_is_not_what_is_counted(text: str) -> 
 
 def test_r1_8_apartments_and_another_thing_still_name_two_kinds() -> None:
     assert PARSE("How many apartments and windows are there?") == Unsupported(reason=SEVERAL_THINGS)
+
+
+@pytest.mark.parametrize(
+    ("text", "storey"),
+    [
+        ("How many doors are there on P1?", "P1"),
+        ("How many doors are there on level P1?", "P1"),
+        ("How many doors are there on floor P1?", "P1"),
+        ("How many windows are shown on the P1 plan?", "P1"),
+        ("How many doors are there on OG2?", "OG2"),
+        ("How many doors are there on EG?", "EG"),
+        ("How many doors are there on E00?", "E00"),
+        ("How many doors are there on 1OG?", "1OG"),
+        ("How many doors are there on the Erdgeschoss?", "Erdgeschoss"),
+        ("How many doors are there on 'P1'?", "P1"),  # as before
+    ],
+)
+def test_r1_a_storey_named_by_its_code_or_name_without_quotes(text: str, storey: str) -> None:
+    """Big QA R1 (local-dec): only a quoted storey was read, so "on P1" counted the whole file
+    and "on the Erdgeschoss" was read as a room; the drawing then resolves the name (answer.py)."""
+    parsed = PARSE(text)
+    assert isinstance(parsed, Query) and parsed.storey == storey, parsed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are on this floor plan?",
+        "How many doors are there on the plan?",
+        "How many doors are on it?",
+        "How many doors are on the ground floor?",  # a floor word: RoomByType._floor, as before
+        "How many doors are on 3rd floor?",
+        "How many doors are on floor 2?",
+        "How many doors are there on the Balcony?",  # a room, not a storey
+        "How many doors are there in the kitchn?",
+        "How many windows are on the North facade?",
+    ],
+)
+def test_r1_sheet_floor_and_room_words_are_no_storey_code(text: str) -> None:
+    parsed = PARSE(text)
+    assert not (isinstance(parsed, Query) and parsed.storey is not None), parsed
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are there on P1 and P2?",
+        "How many doors are there in total on P1 and P2?",
+        "How many doors are there on P1, P2?",
+        "How many doors are there on P1 or P2?",
+        "How many doors are there on level P1 to P3?",
+        "How many doors are there on EG & OG1?",
+        "How many doors are there on the Erdgeschoss and OG1?",
+    ],
+)
+def test_r1_two_storeys_named_are_refused_not_the_first_one(text: str) -> None:
+    """review-702 M1: "on P1 and P2" read P1 alone and answered P1's 16 for both; one storey at
+    a time, as one room at a time."""
+    assert PARSE(text) == Unsupported(reason=SEVERAL_STOREYS)

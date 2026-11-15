@@ -38,7 +38,7 @@ def find_disputes(drawing: Drawing, row: Row) -> Found:
         if kind not in get_args(RoomType):
             return Found()
         return Found(places=tuple(_rooms(drawing, row, cast(RoomType, kind))))
-    readers = reader_elements(drawing, family)
+    readers = _numbered(reader_elements(drawing, family))
     if family == "window":
         return _windows(drawing, row, readers)
     if not readers:
@@ -52,6 +52,13 @@ def find_disputes(drawing: Drawing, row: Row) -> Found:
             for m in marks
         )
     )
+
+
+def _numbered(readers: Mapping[str, Sequence[Element]]) -> dict[str, Sequence[Element]]:
+    """The readers by number ("reader 1", "reader 2"), in their order: the places' cards show
+    these names, and the readers' own (l1, m1) are ours, not words a person reads (R1 plans row
+    15)."""
+    return {f"reader {n}": elements for n, elements in enumerate(readers.values(), 1)}
 
 
 def _windows(drawing: Drawing, row: Row, readers: Mapping[str, Sequence[Element]]) -> Found:

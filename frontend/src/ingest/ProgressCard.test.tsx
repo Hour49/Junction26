@@ -381,7 +381,12 @@ describe('ProgressCard: pipeline view v5', () => {
   it('IN-104 done: under "Ready", what was read by which route and what needs a person', () => {
     render(<ProgressCard project={project} now={Date.now()} />);
     expect(screen.getByRole('heading', { level: 2, name: 'Ready' })).toBeTruthy();
-    expect(screen.getByText('Read 2 drawn PDFs. 1 flagged file needs a look.')).toBeTruthy();
+    // IN-131: the drawings "Drawings ready" counts (4 / 6 here), by route; changed on purpose from the 2 files
+    // with a drawing that the trimmed fixture lists
+    expect(
+      screen.getByText('Read 1 IFC model and 3 drawn PDFs. 1 flagged file needs a look.'),
+    ).toBeTruthy();
+    expect(statOf('Drawings ready')).toBe('4 / 6');
   });
 
   it(`IN-110 a lane shows at most ${String(LANE_ROWS)} files, the rest counted with a link to Documents`, () => {
@@ -629,7 +634,41 @@ describe('ProgressCard: pipeline view v5', () => {
     expect(lane('Image').textContent).toContain('4 files · 2 drawings read');
     expect(lane('Drawn PDF').textContent).toContain('4 files · 3 drawings read');
     expect(lane('IFC model').textContent).toContain('1 file · 1 drawing read');
-    expect(statOf('Drawings ready')).toBe('6 / 7'); // the lanes add up to it
+    expect(statOf('Drawings ready')).toBe('6 / 6'); // the lanes add up to it (IN-131: the site photo is out of 7)
+  });
+
+  it('IN-131 (QA ingest R1-2) the demo sample: the tile, the summary and the done line count the same 6 drawings', () => {
+    render(<ProgressCard project={sampleRun('done')} now={Date.now()} footer={<p>footer</p>} />);
+    // all 7 open; the site photo is named for what it is, not one drawing short of 7 nor a 4th image read
+    expect(statOf('Drawings ready')).toBe('6 / 6');
+    expect(must(document.querySelector('.ingest-summary')).textContent).toBe(
+      'Read 1 IFC model, 3 drawn PDFs and 2 images; 1 image is not a drawing (flagged). ' +
+        '3 flagged files need a look; 1 set aside.',
+    );
+  });
+
+  it('IN-132 (QA ingest R1-3) Elapsed from the run start, and the wait for a free slot said under it', () => {
+    const created = Date.parse('2026-11-15T03:00:00Z');
+    const at = (s: number) => new Date(created + s * 1000).toISOString();
+    // done: 1.1 s of reading after 64 s in the queue
+    const done = {
+      ...project,
+      created_at: at(0),
+      started_at: at(64),
+      finished_at: at(65.1),
+      ms: 1100,
+    };
+    render(<ProgressCard project={done} now={created + 70_000} />);
+    expect(statOf('Elapsed')).toBe('1.1 safter 64 s waiting for a free slot');
+    cleanup();
+    // still queued: "—" and how long it has waited so far
+    const queued = { ...running, state: 'queued' as const, created_at: at(0), started_at: null };
+    render(<ProgressCard project={queued} now={created + 12_000} />);
+    expect(statOf('Elapsed')).toBe('—waiting 12 s for a free slot');
+    cleanup();
+    // no real wait: Elapsed alone, as before
+    render(<ProgressCard project={{ ...done, started_at: at(1) }} now={created + 70_000} />);
+    expect(statOf('Elapsed')).toBe('1.1 s');
   });
 
   it('IN-127 the sorting chips tick from the steps that ran, and dim once theirs cannot run', () => {

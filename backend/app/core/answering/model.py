@@ -148,6 +148,8 @@ SEVERAL_FLATS = "asks about 'the flat' on a sheet of several flats"
 IN_ONE_ROOM = "a count within one room is not taken off"
 SIZE_FILTER = "a size or count filter on the items (larger than, at least...) is not applied"
 SEVERAL_ROOMS = "a question about one room that names more than one"
+# "on P1 and P2" (review-702 M1): one storey at a time, never the first one's count for both
+SEVERAL_STOREYS = "a question about one storey that names more than one"
 # A printed room name several rooms carry ("How big is Bagno?"): review/ask.py lists them
 SEVERAL_PRINTED = "a room name several rooms carry"
 # A floor, facade or wing named in words, not as a quoted storey name: answer.RoomByType reads a
@@ -158,6 +160,9 @@ ONE_VIEW = "asks about one view of a sheet with several views; counts are per sh
 # A floor the drawing names no storey for, or names several for: review/ask.py says which floors
 # it has, or how much is on each of its unnamed plans
 NO_SUCH_FLOOR = "a floor the drawing does not name"
+# a storey asked by its code or name ("on P1", "on the Erdgeschoss") the drawing does not name: big
+# QA R1, never the whole file's count
+NO_SUCH_STOREY = "a storey the drawing does not name"
 SEVERAL_FLOORS = "a floor several of the drawing's storeys could be"
 # A floor several plans of the drawing are labelled ("1st Floor Plan - Option 1/2/3"): never their
 # sum (review-352 B2); review/ask.py gives each plan's count

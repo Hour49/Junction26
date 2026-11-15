@@ -1,14 +1,24 @@
 import { useEffect, useState, type JSX } from 'react';
 import type { FileStatus, ProjectView } from '../api';
 import { DoneLine, IngestFinished, type ConflictCounts } from '../ingest/IngestFinished';
-import { STEPS, formatCost, formatMs, formatSize, isFinished, stepOf } from '../ingest/ingest';
-import { readDrawings } from '../ingest/pipeline';
+import {
+  STEPS,
+  elapsedMs,
+  formatCost,
+  formatMs,
+  formatSize,
+  formatWait,
+  isFinished,
+  isLive,
+  queueWaitMs,
+  stepOf,
+} from '../ingest/ingest';
+import { drawingTally } from '../ingest/pipeline';
 import {
   STATUS_WORD,
   STEP_VIEW,
   currentStep,
   defaultStep,
-  elapsedMs,
   notDrawings,
   pairsOf,
   planCounts,
@@ -81,9 +91,20 @@ export function AdvancedIngest({
   const pairs = pairsOf(takeoffs, project);
 
   const takeoffFailed = (id: string) => data.failed.has(`takeoff:${id}`);
+  // Elapsed and the wait for a free slot under it: the Simple view's helpers, so both say the same (IN-132, AD-133)
   const elapsed = (): Stat => {
     const ms = elapsedMs(project, now);
-    return { label: 'Elapsed', value: ms === null ? '–' : formatMs(ms) };
+    const wait = queueWaitMs(project, now);
+    return {
+      label: 'Elapsed',
+      value: ms === null ? '–' : formatMs(ms),
+      note:
+        wait === null
+          ? undefined
+          : ms === null && isLive(project)
+            ? `waiting ${formatWait(wait)} for a free slot`
+            : `after ${formatWait(wait)} waiting for a free slot`,
+    };
   };
   const stats = (): Stat[] => {
     const files = project.files;
@@ -114,16 +135,19 @@ export function AdvancedIngest({
       }
       case 'plan': {
         const c = planCounts(project);
-        const expected = project.expected_drawings;
-        // a drawing on a route whose reader is `hello` was not read: not ready (AD-123, as Simple's IN-116)
-        const ready = readDrawings(project).filter((d) => isFinished(d)).length;
+        // the Simple tile's rule (IN-116, IN-130): a drawing with no reader is not ready, and a sheet called not a
+        // drawing is out of both numbers (AD-123, AD-133)
+        const tally = drawingTally(project);
         return [
           { label: 'Rooms', value: dash(c.room) },
           { label: 'Doors', value: dash(c.door) },
           { label: 'Windows', value: dash(c.window) },
           {
             label: 'Drawings ready',
-            value: expected === null ? String(ready) : `${String(ready)} / ${String(expected)}`,
+            value:
+              tally.of === null
+                ? String(tally.ready)
+                : `${String(tally.ready)} / ${String(tally.of)}`,
           },
         ];
       }

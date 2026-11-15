@@ -42,11 +42,13 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
+    NO_SUCH_STOREY,
     NOT_COUNTED,
     SEVERAL_FLATS,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SHARED_FLOOR,
     Answer,
@@ -174,6 +176,8 @@ TEXTS = {
     "policy": "On sheets like this one, our reader got this kind of question wrong too often when "
     "we measured it, so no number is given.",
 }
+# A refusal's pointer to its chips, left out when it offers none (a services plan, review-697 S1)
+TRY_THESE = re.compile(r"\s*Try one of these instead\.|;\s*try one of these\.")
 PARTS = {  # an unsupported count that would drop part of the question: which part
     SEVERAL_FLATS: 'This drawing shows more than one apartment, so "this apartment" doesn\'t say '
     "which. Ask about one by its letter (apartment A), or about the whole floor.",
@@ -183,6 +187,8 @@ PARTS = {  # an unsupported count that would drop part of the question: which pa
     "drawing. Try one of these instead.",
     SEVERAL_ROOMS: "This question names more than one room, and I answer for one room at a time. "
     "Ask for each room on its own.",
+    SEVERAL_STOREYS: "This question names more than one storey, and I answer for one storey at a "
+    "time. Ask for each storey on its own.",
 }
 
 
@@ -385,7 +391,11 @@ def ask(
             code, words = "not-in-drawing", room_word_refusal(kind, unsaid[query])
         if no_reader and code == "no-reader":
             words = TEXTS["no-reader-yet"]
-        can_answer = suggestions(quantities, parser, SUGGESTIONS, tables)
+        # a services plan (triage is sure): its rooms are the plan under the pipes, so no
+        # floor-plan question is offered (R1 services-second S3: "How many halls are there?")
+        can_answer = (
+            () if no_symbols is not None else suggestions(quantities, parser, SUGGESTIONS, tables)
+        )
         if code == "not-in-drawing" and isinstance(parsed, Query):
             rooms = rooms_of_type(parsed, drawing)
             if len(rooms) > 1 and (each := _room_areas(rooms, quantities, parser)):
@@ -427,6 +437,8 @@ def ask(
             words = _noun_refusal(noun, drawing)  # vocab-nouns P2
         if code == "not-in-drawing" and isinstance(parsed, Query) and parsed.measure == "area":
             words += _not_measured(parsed, drawing)  # review-349 S3
+        if not can_answer:
+            words = TRY_THESE.sub(lambda found: "." if found[0][0] == ";" else "", words)
         refusal = Refusal(code=code, text=words, can_answer=can_answer)
     request = None
     level = None
@@ -1099,7 +1111,7 @@ def suggestions(
     return tuple(found)
 
 
-FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR)
+FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR, NO_SUCH_STOREY)
 
 
 def _floor_text(
@@ -1117,6 +1129,13 @@ def _floor_text(
     asked = "floor" if found is None else found.group().casefold()
     number = None if found is None else floor_number(found)
     named = storeys(drawing)
+    if reason == NO_SUCH_STOREY:  # "on P1" on the P2 sheet, "on P9" (big QA R1)
+        given = parser.parse(text)
+        storey = given.storey if isinstance(given, Query) else None
+        return (
+            f"This drawing's storeys are {', '.join(named)}; none of them is "
+            f"{storey or 'the storey asked'}, so it does not answer for that storey."
+        )
     if reason == GLUED_FLOOR and found is not None and number is not None:
         n = abs(number)
         if glued(found):
@@ -1445,4 +1464,9 @@ def _refusal(
                 f"Room {parsed.name} has no outline on this drawing, only a box around it, so I "
                 "can't tell what is inside it.",
             )
+    if parsed.storey is not None and not storeys(drawing):  # "on P1" on a plain plan (review-702)
+        return (
+            "not-in-drawing",
+            f"This drawing doesn't name its storeys, so I can't tell if it shows {parsed.storey}.",
+        )
     return "not-in-drawing", f"This drawing doesn't give the {label(query, drawing)}."

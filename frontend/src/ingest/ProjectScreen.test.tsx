@@ -231,6 +231,10 @@ describe('ProjectScreen', () => {
     await flush();
     const panel = screen.getByRole('region', { name: 'Nothing read' });
     expect(panel.textContent).toContain(why);
+    // IN-130: nothing was read off it, so nothing could be read
+    expect(within(panel).getByRole('heading', { level: 2 }).textContent).toBe(
+      'Nothing could be read from this upload',
+    );
     expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
     expect(screen.queryByRole('img', { name: '100 percent done' })).toBeNull();
     expect(screen.queryByText(/drawings? ready/)).toBeNull();
@@ -252,6 +256,10 @@ describe('ProjectScreen', () => {
     await flush();
     const panel = screen.getByRole('region', { name: 'Nothing read' });
     expect(panel.textContent).toContain(why); // the backend's flag reason says why
+    // IN-130 (QA ingest R1-1): it was read, it just is not a drawing; not "Nothing could be read"
+    expect(within(panel).getByRole('heading', { level: 2 }).textContent).toBe(
+      'No drawing found in this upload',
+    );
     expect(screen.queryByRole('heading', { level: 2, name: 'Ready' })).toBeNull();
     expect(screen.queryByText(/drawings? ready/)).toBeNull();
     expect(screen.queryByText('Start a new chat')).toBeNull();
@@ -272,7 +280,8 @@ describe('ProjectScreen', () => {
     });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(stat('Drawings ready')).toBe('1 / 2');
+    // IN-131: the screenshot is out of the total too, not one drawing short (changed on purpose from "1 / 2")
+    expect(stat('Drawings ready')).toBe('1 / 1');
     const card = screen.getByRole('region', { name: 'Progress' });
     expect(card.textContent).toContain('1 drawing ready.');
     act(() => {
@@ -589,7 +598,8 @@ describe('ProjectScreen', () => {
     mockApi({ [GET]: variants.queued });
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(stat('Elapsed')).toBe('—');
+    // "—" before it starts, and (IN-132) how long it has waited for a free slot so far
+    expect(stat('Elapsed')).toBe('—waiting 5 s for a free slot');
   });
 
   it('IN-68 Drawings ready: the count over expected_drawings; the count alone while it is null', async () => {

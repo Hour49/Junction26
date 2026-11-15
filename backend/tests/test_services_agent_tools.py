@@ -19,7 +19,7 @@ from app.core.agent.evidence import mint
 from app.core.ingest.model import FileStatus, ProjectStatus
 from app.core.plan_edit.model import Selection
 from app.core.services.stored import Connectivity, ServicesModel, fraction
-from tests.services_fixtures import SUPPLY, WC_ROOM, two_rooms, wc_room
+from tests.services_fixtures import SUPPLY, WC_ROOM, controllers, two_rooms, wc_room
 
 LIMIT = 4000
 
@@ -155,12 +155,13 @@ def test_with_no_drawing_named_every_services_model_is_listed() -> None:
     store = ServicesToolStore(models={"d1": two_rooms(), "d2": wc_room()}, selections={})
     found = _run(store, "list_services", kind="sanitary_terminal")
     assert "error" not in found, found
-    assert [m["drawing_id"] for m in found["models"]] == ["d1", "d2"]
+    assert [m["drawing_id"] for m in found["models"]] == ["d2"]  # d1 has none: skipped, not 0
+    assert [s["drawing_id"] for s in found["skipped"]] == ["d1"]
     assert found["count"] == 10 == sum(m["count"] for m in found["models"])
     places: dict[str, Any] = {}
     mint(found, places, 1)  # each item is a place on its own model's drawing
-    d2 = found["models"][1]
-    assert len(places) == len(d2["items"]) > 3  # d1 lists none, so d2 gets the most room
+    d2 = found["models"][0]
+    assert len(places) == len(d2["items"]) > 3
     assert len(d2["items"]) + d2["more"] == 10 and {p["drawing_id"] for p in places.values()} == {
         "d2"
     }
@@ -488,6 +489,43 @@ def test_an_ifc_type_the_model_lacks_is_an_error_naming_its_types() -> None:
     assert loose["count"] == 2 and {i["id"] for i in loose["items"]} == {"E309", "E310"}, loose
     empty = _run(store, "list_services", drawing_id="d1", predefined="")
     assert "predefined" in empty["error"], empty
+
+
+def test_dampers_and_valves_are_listed_and_counted_by_storey() -> None:
+    """R1 services row 7 (S1): "How many fire dampers are on the ground floor?" said 0, truth 5:
+    the list kept only terminals and equipment, so no IfcDamper or IfcValve (flow controllers)
+    was ever listed and kind="damper" was a confident 0."""
+    store = ServicesToolStore(
+        models={"lft": controllers("ventilation"), "hzg": controllers("heating")}, selections={}
+    )
+    dampers = _run(store, "list_services", kind="damper", storey="E00_OKRD")
+    assert dampers["count"] == 5, dampers
+    assert [m["drawing_id"] for m in dampers["models"]] == ["lft"]
+    assert dampers["models"][0]["by_predefined"] == {"FIREDAMPER": 5}
+    fire = _run(store, "list_services", drawing_id="lft", storey="B01_OKRD", kind="damper",
+                predefined="FIREDAMPER")  # fmt: skip
+    assert fire["count"] == 2, fire
+    valves = _run(store, "list_services", drawing_id="hzg", kind="valve", storey="E00_OKRD")
+    assert valves["count"] == 20 and valves["by_predefined"] == {"ISOLATING": 8, "untyped": 12}
+    heating = _run(store, "list_services", drawing_id="hzg")  # review-699: as the tool says
+    assert heating["count"] == 3 and "valve" not in heating["by_kind"], heating
+    assert _run(store, "list_services", drawing_id="lft", storey="E00_OKRD")["count"] == 0
+
+
+def test_a_kind_no_listed_element_has_is_an_error_naming_the_kinds_not_a_zero() -> None:
+    """R1 services row 7: a kind filter that matches nothing in the model gave count 0 with no
+    error, and the chat stated it as a fact. A kind the model has elsewhere is a true 0."""
+    lone = _store(controllers("ventilation"))
+    wrong = _run(lone, "list_services", drawing_id="d1", kind="sprinkler")
+    assert "sprinkler" in wrong["error"] and "damper" in wrong["error"], wrong
+    assert "space_heater" in wrong["error"], wrong  # the radiators: every listed kind is named
+    store = ServicesToolStore(
+        models={"lft": controllers("ventilation"), "hzg": controllers("heating")}, selections={}
+    )
+    nowhere = _run(store, "list_services", kind="sprinkler")
+    assert "no services model has it" in nowhere["error"], nowhere
+    none_here = _run(lone, "list_services", drawing_id="d1", kind="damper", room_id="SR2")
+    assert none_here["count"] == 0 and "error" not in none_here, none_here
 
 
 def test_566_moving_a_washbasin_is_a_refusal_not_a_failure() -> None:

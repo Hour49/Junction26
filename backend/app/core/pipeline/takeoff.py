@@ -72,6 +72,7 @@ from app.core.pipeline.rules import (
     MODEL_SPACE_TYPES,
     MODEL_SPACES,
     ROOM_AREA,
+    ROOM_AREA_MEASURED,
     ROOM_NAMES,
     ROOM_NUMBERS,
     ROOM_SIDE,
@@ -1255,7 +1256,8 @@ def _add_scope(
     for name, same in named.items():
         if sums and len(same) == 1:  # a name two rooms share names neither
             key = quantity_key("area", "room", name=name, storey=storey)
-            _area_sum(found, key, same, ROOM_AREA, scale)
+            rule = ROOM_AREA if rooms_estimate(same, scale) is None else ROOM_AREA_MEASURED
+            _area_sum(found, key, same, rule, scale)
     for (cls, measure), attr in MEASURED.items():
         of_class = [element for element in elements if element.class_ == cls]
         values = [element.attrs.get(attr) for element in of_class]

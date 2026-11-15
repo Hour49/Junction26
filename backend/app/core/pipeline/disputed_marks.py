@@ -163,11 +163,5 @@ def _of(against: int, readers: int) -> str:
 
 
 def _says(element: Element | None, noun: str) -> str:
-    if element is None:
-        return "nothing"
-    parts = [noun]
-    if "score" in element.attrs:
-        parts.append(f"score {_score(element):.2f}")
-    if views := _views(element):
-        parts.append(f"{views.count('1')} of {len(views)} views")
-    return ", ".join(parts)
+    """What a reader sees at a place, in words a person reads: no score (R1 plans row 15)."""
+    return "nothing" if element is None else noun
