@@ -123,7 +123,7 @@ def test_takeoff_and_csv_name_the_drawing_as_each_project_uploaded_it(client: Te
         signed = client.post(f"{url}/signoff", params=at, json={**door, "undo": True})
         assert signed.json()["file"] == name
         sheet = client.get(f"{url}/takeoff.csv", params=at)
-        assert sheet.text.splitlines()[1].startswith(f"{name},")
+        assert sheet.content.decode("utf-8-sig").splitlines()[1].startswith(f"{name},")
         stem = name.removesuffix(".pdf")
         assert sheet.headers["content-disposition"] == f'attachment; filename="{stem}-takeoff.csv"'
     other = upload(client, b"site notes", "notes.txt")
