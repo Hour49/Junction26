@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Tip } from '@/components/ui/tip';
 import { REVIEW_TIPS } from '../shell/tips-review';
 import {
@@ -18,6 +19,31 @@ interface Props {
   selected: string | null;
   onSelect: (key: string) => void;
 }
+
+const PHONE = '(max-width: 640px)'; // surveyor.css's card layout
+
+/** Whether the window is phone-wide (PHONE), following resizes; false where matchMedia is missing. */
+function usePhone(): boolean {
+  const [phone, setPhone] = useState(
+    () => typeof window.matchMedia === 'function' && window.matchMedia(PHONE).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(PHONE);
+    const follow = () => {
+      setPhone(query.matches);
+    };
+    query.addEventListener('change', follow);
+    return () => {
+      query.removeEventListener('change', follow);
+    };
+  }, []);
+  return phone;
+}
+
+/** R3-G9: on a phone the cards that need the surveyor come first (a person's call, then a conflict); stable. */
+const rank = (row: Row) => (row.needs_person ? 0 : row.conflict ? 1 : 2);
+const needsFirst = (rows: Row[]) => [...rows].sort((a, b) => rank(a) - rank(b));
 
 function Rows({ rows, selected, onSelect }: { rows: Row[] } & Omit<Props, 'takeoff'>) {
   return rows.map((row) => (
@@ -68,6 +94,8 @@ export function TakeoffTable({ takeoff, selected, onSelect }: Props) {
   const byKey = new Map(takeoff.quantities.map((q) => [q.key, q]));
   const queue = takeoff.review_queue.flatMap((key) => byKey.get(key) ?? []);
   const rest = takeoff.quantities.filter((q) => !queue.includes(q));
+  const phone = usePhone();
+  const order = phone ? needsFirst : (rows: Row[]) => rows;
   const head = (
     <thead>
       <tr>
@@ -100,7 +128,7 @@ export function TakeoffTable({ takeoff, selected, onSelect }: Props) {
         {head}
         <tbody>
           {queue.length ? (
-            <Rows rows={queue} selected={selected} onSelect={onSelect} />
+            <Rows rows={order(queue)} selected={selected} onSelect={onSelect} />
           ) : (
             <tr>
               <td colSpan={3}>Nothing left to review.</td>
@@ -116,7 +144,7 @@ export function TakeoffTable({ takeoff, selected, onSelect }: Props) {
         </caption>
         {head}
         <tbody>
-          <Rows rows={rest} selected={selected} onSelect={onSelect} />
+          <Rows rows={order(rest)} selected={selected} onSelect={onSelect} />
         </tbody>
       </table>
     </>
