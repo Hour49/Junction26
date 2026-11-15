@@ -12,6 +12,7 @@ import {
   formatSize,
   isFinished,
   kindLabel,
+  nameParts,
   normalisedSteps,
   plural,
   routeLabel,
@@ -26,9 +27,9 @@ import { Button } from '@/components/ui/button';
 export const VERDICT_BUTTON =
   'v-press min-h-11 border-current bg-card px-3.5 text-[length:inherit] font-normal text-inherit hover:bg-card hover:text-inherit';
 
-/** Text with a line break allowed after each of `after`'s characters (none is added to the text itself). */
-function breaksAfter(text: string, after: RegExp) {
-  return text.split(after).map((p, i) => (
+/** Text with a line break allowed after each of its own separators (`nameParts`, IN-121); nothing is added to it. */
+function withBreaks(text: string) {
+  return nameParts(text).map((p, i) => (
     <Fragment key={String(i)}>
       {i > 0 && <wbr />}
       {p}
@@ -37,17 +38,18 @@ function breaksAfter(text: string, after: RegExp) {
 }
 
 /**
- * A path inside running text (AD-125): the folder muted, a line may break after each "/"; the file name is one box,
- * whole on its line, and only a name wider than the line itself breaks, after a "_" or "-" of its own. `end` (the
- * ":" after it) stays with the name. The text is the path as it is, nothing added (no aria-label needed).
+ * A path inside running text (AD-125, AD-126): the folder muted, a line may break after each of its separators; the
+ * file name is one box, whole on its line, and only a name wider than the line itself breaks, after a "_", "-" or
+ * "." of its own (`nameParts`). `end` (the ":" after it) stays with the name. The text is the path as it is, and
+ * the title is the full path.
  */
 export function PathText({ path, end = '' }: { path: string; end?: string }) {
   const [folder, name] = splitPath(path);
   return (
-    <span className="adv-path-text">
-      {folder && <span className="adv-folder">{breaksAfter(folder, /(?<=\/)/)}</span>}
+    <span className="adv-path-text" title={path}>
+      {folder && <span className="adv-folder">{withBreaks(folder)}</span>}
       <span className="adv-name">
-        {breaksAfter(name, /(?<=[_-])/)}
+        {withBreaks(name)}
         {end}
       </span>
     </span>

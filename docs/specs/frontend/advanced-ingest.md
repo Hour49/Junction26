@@ -508,6 +508,9 @@ Acceptance criteria
   the file name as one box: whole on its line when it fits, else broken after a "_" or "-" of its own, never
   mid-token. [unit `trace.test.ts`; component `FileMatrix.test.tsx`, `AdvancedIngest.test.tsx`; e2e
   `ingest-detail.spec.ts`; screenshots at 1440 and 390]
+- AD-126 (orchestrator, 2026-11-15): A path in the Advanced panel's running text (AD-125) breaks only after its own
+  separators, the folder's and the name's alike, with `nameParts` from `ingest.ts` (IN-121: after "_", "-", "." and
+  "/"), and carries the full path as its title. [component `AdvancedIngest.test.tsx`; screenshots at 1440 and 390]
 
 ## Not in the API
 

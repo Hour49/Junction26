@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawing, error, project, takeoff, trace } from '../api/fixtures';
 import type { FileTrace, ProjectView } from '../api';
-import { formatSize } from '../ingest/ingest';
+import { formatSize, nameParts } from '../ingest/ingest';
 import { flush, variants, must } from '../ingest/testing';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from './AdvancedIngest';
@@ -637,13 +637,18 @@ describe('AdvancedIngest', () => {
       expect(folder.querySelectorAll('wbr')).toHaveLength(1); // after the inner "/"; the name is its own box
       const box = must(where.querySelector('.adv-name'));
       expect(box.textContent).toBe(`${name}${end}`);
-      expect(box.querySelectorAll('wbr')).toHaveLength(2); // after each "_", for a name wider than the line
+      // after each "_" and ".", for a name wider than the line (AD-126)
+      expect(box.querySelectorAll('wbr')).toHaveLength(nameParts(name).length - 1);
     }
     // the Unpack file cards: the same parts
     await pick(/^Unpack/);
     const card = must(document.querySelector('.adv-strip .adv-path'));
     expect(card.textContent).toBe(path);
-    expect(card.querySelector('.adv-name')?.textContent).toBe(name);
+    expect(card.querySelector('[title]')?.getAttribute('title')).toBe(path);
+    expect(must(card.querySelector('.adv-folder')).textContent).toBe('plans/site1029/');
+    const cardName = must(card.querySelector('.adv-name'));
+    // the parts with a break between each: "site1029_", "bldg2117_", "floor9641.", "pdf" (AD-126)
+    expect(cardName.innerHTML).toBe(nameParts(name).join('<wbr>'));
     await pick(/^Takeoff/);
     // Takeoff's visual is "Questions ready to ask"
     const ready = must(document.querySelector('.adv-ready .adv-path'));
