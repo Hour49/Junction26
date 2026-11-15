@@ -954,3 +954,88 @@ def test_toilets_with_no_fixture_in_the_file_are_its_wc_rooms_never_a_wall_type(
     assert said is not None and "Toilettentrennwand" not in said, said
     assert said.splitlines()[0].endswith(": 2 spaces"), said
     assert "WC Damen West" in said and "Gruppenbüro" not in said
+
+
+def _storeys_sheet(*storeys: tuple[str, float]) -> FactSheet:
+    """Two spaces on each storey (an "A" of 10 m² and a "B" of 20 m² + the storey's index), so
+    the largest of a storey is its own B."""
+    facts = [fact("space.stated_area", "all", 0.0, "m2")]
+    for i, (name, elevation) in enumerate(storeys):
+        facts += [
+            fact("storey.elevation", name, elevation, "m", storey=name),
+            fact("space.long_name", f"{i}.A", f"Room A{i}", None, storey=name),
+            fact("space.long_name", f"{i}.B", f"Room B{i}", None, storey=name),
+            fact("space.stated_area", f"{i}.A", 10.0, "m2", storey=name),
+            fact("space.stated_area", f"{i}.B", 20.0 + i, "m2", storey=name),
+        ]
+    return FactSheet(model="storeys_arc", disciplines=["architecture"], facts=facts)
+
+
+def said_on(question: str, sheet: FactSheet) -> str:
+    query = parse_ifc_question(question)
+    assert query is not None
+    said = fact_text(query, sheet)
+    assert said is not None
+    return said
+
+
+def test_a_storey_named_by_the_files_own_code_scopes_the_question() -> None:
+    """Big QA R1 E13: "What is the largest room on P1?" on the demo IFC (storeys P0-P6) named the
+    largest of the whole building (5BAJO CUBIERTA on P5): the question parser reads floor words
+    only, so "P1" was a word no space is named. The file's own storey names are read too."""
+    demo = _storeys_sheet(("P0", 0.0), ("P1", 4.4), ("P2", 7.4), ("P5", 16.4))
+    said = said_on("What is the largest room on P1?", demo)
+    assert "Room B1" in said.splitlines()[-1] and "B3" not in said.splitlines()[-1], said
+    hub = _storeys_sheet(("B01_OKRD", -3.37), ("E00_OKRD", -0.15), ("E01_OKRD", 3.75))
+    assert "Room B2" in said_on("What is the largest room on E01?", hub).splitlines()[-1]
+    office = _storeys_sheet(("EG", 0.0), ("OG1", 3.7), ("OK OG2", 7.4))
+    assert "Room B2" in said_on("What is the largest room on OG2?", office).splitlines()[-1]
+    ac20 = _storeys_sheet(("Keller", -3.0), ("Erdgeschoss", 0.0), ("1. Obergeschoss", 3.0))
+    on_eg = said_on("What is the largest room on the Erdgeschoss?", ac20)
+    assert "Room B1" in on_eg.splitlines()[-1], on_eg
+
+
+def test_two_storeys_named_or_one_the_file_lacks_is_refused_not_the_whole_file() -> None:
+    demo = _storeys_sheet(("P0", 0.0), ("P1", 4.4), ("P2", 7.4))
+    both = said_on("What is the largest room on P1 and P2?", demo)
+    assert "Room B" not in both and "P1" in both and "P2" in both, both
+    assert said_on("What is the largest room?", demo).splitlines()[-1].endswith("22.00 m²")
+
+
+def test_a_storey_named_like_a_building_part_is_read_only_when_capitalised() -> None:
+    """A storey called "Roof": "the insulation in the roof construction" asks about roofs, not
+    about that storey (an R1 E13 review probe); "on the Roof" names it."""
+    sheet = _storeys_sheet(("Level 1", 0.0), ("Roof", 6.0))
+    assert _storeys_named_for("Which spaces are on the Roof?", sheet) == ["Roof"]
+    assert _storeys_named_for("How thick is the insulation in the roof construction?", sheet) == []
+
+
+def _storeys_named_for(text: str, sheet: FactSheet) -> list[str]:
+    from app.core.answering.facts import _Facts, _storeys_named
+
+    return _storeys_named(text, _Facts(sheet.facts))
+
+
+def test_a_numbered_storey_is_not_read_from_a_height() -> None:
+    """review-708 S1 (orchestrator: must): sixty5 names its storeys "00 begane grond" .. "17
+    dak", and "How many windows are at 12 m height or above?" answered "Total windows on Level
+    12 ...: 36". A number with a unit after it is a height, not a storey."""
+    sheet = _storeys_sheet(("11 elfde verdieping", 33.0), ("12 twaalfde verdieping", 36.0))
+    assert _storeys_named_for("How many windows are at 12 m height or above?", sheet) == []
+    assert _storeys_named_for("What is the floor area at 12m?", sheet) == []
+    assert _storeys_named_for("What is the floor area at 12 metres?", sheet) == []
+    assert _storeys_named_for("Which spaces are on 12?", sheet) == ["12 twaalfde verdieping"]
+
+
+def test_the_storey_a_question_names_is_no_word_a_space_is_named_by() -> None:
+    """review-708 S2: "How many spaces are on P1?" counts P1's spaces; with the storey left in
+    the words it said "No space on Level 1 (P1) in this file is named 'p1'"."""
+    demo = _storeys_sheet(("P0", 0.0), ("P1", 4.4), ("P2", 7.4))
+    said = said_on("How many spaces are on P1?", demo)
+    assert "named 'p1'" not in said and said.startswith("Spaces on Level 1 (P1)"), said
+    assert "Room A1" in said and "Room B1" in said and "Room A0" not in said, said
+    office = _storeys_sheet(("EG", 0.0), ("OG1", 3.7))
+    assert _storeys_named_for("Which spaces are on EG?", office) == ["EG"]
+    assert _storeys_named_for("Which spaces are on Eg?", office) == []  # only as written
+    clinic = _storeys_sheet(("First Floor", 0.0), ("Roof - Main", 9.25))
+    assert _storeys_named_for("Which spaces are on the Main level?", clinic) == []
