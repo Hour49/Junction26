@@ -50,11 +50,14 @@ _FLOORS: tuple[tuple[str, str], ...] = (
         "{}",
     ),
     (r"\b(\d{1,2})(?:st|nd|rd|th)\s+floor\b", "{}"),
+    # "First Floor", "Second Floor": the USCG sheets' words (pics-answer real set, 2026-11-15)
+    *(
+        (rf"\b{word}\s+floor\b", str(n))
+        for n, word in enumerate(("first", "second", "third", "fourth", "fifth", "sixth"), 1)
+    ),
 )
 _NUMBER = re.compile(r"\b([A-Z]{1,3})[-_ .]?(\d{3,4})\b")
-# A year in an upload's path: a set's date ("Bestand 2015", "plan 2024.pdf"; review-495 S2)
-_YEAR = re.compile(r"(?<!\d)(19[5-9]\d|20[0-4]\d)(?!\d)")
-YEARS_APART = 1  # two dates further apart than this are two sets, not one set exported twice
+_YEAR = re.compile(r"(?<!\d)(19[5-9]\d|20[0-4]\d)(?!\d)")  # a year is no sheet number (N1)
 # Top-level folders named by discipline are one delivery, not two sets (review-495 S1)
 _DISCIPLINE_FOLDERS = frozenset(
     {
@@ -237,13 +240,6 @@ def _pair(plan: Sheet, sheet: Sheet, register: Register) -> Pairing | str:
     mine, theirs = _folder(plan), _folder(sheet)
     if mine and theirs and mine != theirs and not (_by_discipline(mine) and _by_discipline(theirs)):
         return f"another set: folder '{theirs}' against '{mine}'"
-    years_mine, years_theirs = _years(plan), _years(sheet)
-    if (
-        years_mine
-        and years_theirs
-        and min(abs(a - b) for a in years_mine for b in years_theirs) > YEARS_APART
-    ):
-        return f"another set: {years_theirs[0]} against {years_mine[0]}"
     hints, refused = _metadata(plan, sheet)
     if refused:
         return refused
@@ -324,11 +320,6 @@ def _level_code(sheet: Sheet, source: str, at: int) -> bool:
         return source == "title"
     name = sheet.name or ""
     return "electrical" not in sheet.disciplines and at != name.rfind("/") + 1
-
-
-def _years(sheet: Sheet) -> list[int]:
-    """The years an upload's path names, in order; a sheet number ("A-2001") is no year."""
-    return [int(y) for y in _YEAR.findall(_NUMBER.sub(" ", sheet.name or ""))]
 
 
 def _by_discipline(folder: str) -> bool:

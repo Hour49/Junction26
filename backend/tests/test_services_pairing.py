@@ -272,20 +272,21 @@ def test_discipline_folders_are_one_set() -> None:
     assert isinstance(found, Pairing)
 
 
-def test_sets_years_apart_are_refused() -> None:
-    # review-495 S2: an existing-state set and a later one, in one ZIP root or uploaded apart
-    plan = PLAN.model_copy(update={"name": "Projekt/Bestand 2015/A-101 Floor 1 plan.pdf"})
-    found = one(plan, sheet(name="Projekt/Umbau 2024/H-101 Floor 1 heating.png"))
-    assert found == "another set: 2024 against 2015"
-    plan = PLAN.model_copy(update={"name": "A-101 Floor 1 plan 2015.pdf"})
-    found = one(plan, sheet(name="H-101 Floor 1 heating 2024.png"))
-    assert found == "another set: 2024 against 2015"
-    # a year apart is one set exported on two dates; one year only says nothing
-    assert isinstance(one(plan, sheet(name="H-101 Floor 1 heating 2016.png")), Pairing)
-    assert isinstance(one(plan, sheet(name="H-101 Floor 1 heating.png")), Pairing)
-    # a four-digit sheet number is no year
-    plan = PLAN.model_copy(update={"name": "A-2001 Floor 1 plan.pdf"})
-    assert isinstance(one(plan, sheet(name="H-2003 Floor 1 heating.png")), Pairing)
+def test_sheets_drawn_years_apart_still_pair() -> None:
+    # a real set's services sheets are often redrawn years after the plan (USCG building 110: as
+    # built 1965, heating 1958, electrical 1981, one basement), so years refuse nothing
+    plan = PLAN.model_copy(update={"name": "Building 110 Basement Plan As Built, 1965.png"})
+    found = one(plan, sheet(name="Building 110 Basement Plan Heating, May 26, 1958.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
+
+
+def test_written_floor_ordinals_name_a_floor() -> None:
+    # "Second Floor" is floor 2 (the USCG sheets): another floor is refused, not laid by geometry
+    plan = PLAN.model_copy(update={"name": "Building 407 Second Floor Plan.png"})
+    found = one(plan, sheet(name="Building 407 Heating Layout First Floor Plan.png"))
+    assert found == "another floor: 'First Floor' against 'Second Floor'"
+    found = one(plan, sheet(name="Building 407 Heating Layout Second Floor Plan.png"))
+    assert isinstance(found, Pairing) and found.paired_by == "metadata"
 
 
 def test_a_project_year_is_not_a_sheet_number() -> None:

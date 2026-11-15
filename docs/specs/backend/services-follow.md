@@ -249,7 +249,7 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
 
 - The plan's own page: `same_page`, identity, "the plan's own page".
 - Floor hints, read from each sheet's title-block floor (`storey`), its sheet number and its file name with ZIP
-  folders: floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, L1 → 1;
+  folders: floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, first floor, L1 → 1;
   UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1, read from the title's floor and from inside a file
   name, never as a sheet number nor on an electrical sheet's file name, where E01 is its first sheet; DG, roof,
   attic → roof) and the sheet number's part after its discipline letters
@@ -267,9 +267,9 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
   over: `geometry`, score 0.6. No hint and not laid over: refused with the register's reason.
 - One set only: when both upload paths sit in a top-level folder and the folders differ, the sheet is refused
   ("another set: folder 'B' against 'A'"), unless both folders are named by discipline (Architektur, HVAC, LVI,
-  Elektro, ...: one delivery); a file at the top of the upload says nothing either way. When both paths name years
-  (1950-2049) and the nearest two are more than a year apart, the sheet is refused ("another set: 2024 against
-  2015"): an existing-state set and a later one, in one ZIP or uploaded apart.
+  Elektro, ...: one delivery); a file at the top of the upload says nothing either way. Years refuse nothing: on
+  real sets a floor's services sheets are often drawn years after or before its plan (USCG building 110: plan as
+  built 1965, heating 1958, electrical 1981; 4 right pairings lost to a years rule, pics-answer 2026-11-15).
 - Laid over by walls (`by_walls`, around `register` in `app/core/services/register.py`): the plan's wall lines are
   the centre lines of its drawn wall mass in metres (each pair of parallel faces 3–60 cm apart, outer walls
   included); the sheet's come from the sheet-walls reader in its own pixels with its page size. The map is
@@ -355,11 +355,13 @@ Pairing (tests in `tests/test_services_pairing.py`):
 - **SFP-23** A plan naming no floor and two heating sheets laid over alike by room names: both refused, the reason
   names both; a sheet naming the plan's floor still wins over one by geometry
   (`test_two_floors_that_fit_alike_and_name_no_floor_are_both_refused`).
-- **SFP-24** "Architektur/…" and "Heizung/…" are one set (`test_discipline_folders_are_one_set`); "Projekt/Bestand
-  2015/…" against "Projekt/Umbau 2024/…", or "… 2015.pdf" against "… 2024.png", are refused "another set: 2024
-  against 2015"; years one apart, or one side naming none, are not (`test_sets_years_apart_are_refused`).
+- **SFP-24** "Architektur/…" and "Heizung/…" are one set (`test_discipline_folders_are_one_set`); a basement plan
+  of 1965 and its heating sheet of 1958 pair (`test_sheets_drawn_years_apart_still_pair`).
 - **SFP-25** "KOY_2019 plan.pdf" and "KOY_2019 heating.png" share no sheet number: with no rooms they are refused
   with the register's reason, not laid page to page (`test_a_project_year_is_not_a_sheet_number`).
+- **SFP-26** "Second Floor Plan" against "Heating Layout First Floor Plan" is refused "another floor: 'First Floor'
+  against 'Second Floor'"; against a second floor heating layout it pairs `metadata`
+  (`test_written_floor_ordinals_name_a_floor`).
 
 **The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
 `picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the
