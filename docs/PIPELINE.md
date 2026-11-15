@@ -330,10 +330,10 @@ or runs out of memory is not started again until the backend restarts. From that
   lose their connection. No model call; the result rides on the proposal. It needs the edited sheet on the IFC
   route with its wall geometry (KNOWN K6).
 
-Services pictures (`DISCIPLINE_PICTURES=template`, off in the demo; spec `docs/specs/backend/services-follow.md`).
-A services picture (a scan or photo of a heating, plumbing or ventilation sheet) can follow a plan edit like a services
-model: it is paired with the plan's floor, laid over the plan, and the edit card's discipline tab shows it with the
-edit drawn on it (#490, #499).
+Services pictures (`DISCIPLINE_PICTURES` with any of its readers, off in the demo; spec
+`docs/specs/backend/services-follow.md`). A services picture (a scan or photo of a heating, plumbing or ventilation
+sheet) can follow a plan edit like a services model: it is paired with the plan's floor, laid over the plan, and the
+edit card's discipline tab shows it with the edit drawn on it (#490, #499).
 
 - Pairing by words first (#495, #558, #575): floor words, level codes and listed or ranged floors in titles and file
   names; another floor or another set is refused with the reason, and so is a floor name no rule reads. Measured on

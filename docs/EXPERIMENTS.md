@@ -1344,10 +1344,18 @@ fitted on the test split or on the eval half of golden v2.
 - Fixes without an experiment (TIFF and WebP uploads, the services-only IFC, the evidence-index lock, set-aside
   wording) are in their PRs, not here.
 
-## 17. Services on pictures: pairing and laying over (2026-11-15 03:00-04:30)
+## 17. Services on pictures: symbol readers, pairing and laying over (2026-11-15 03:00-04:35)
 
-All of it is behind `DISCIPLINE_PICTURES=template`, off in the demo. The numbers are from the PR bodies and the
-handoff comments named in each entry; the logs are on the machines that ran them.
+All of it is behind `DISCIPLINE_PICTURES` (any of its readers), off in the demo. The numbers are from the PR
+bodies and the handoff comments named in each entry; the logs are on the machines that ran them.
+
+- **Symbol readers** (PR #579, merged). On a held-out rendered building (DigitalHub, 36 pages, 1,155 symbols;
+  glyphs was trained on the clinic only), the template reader with its OCR legend got P 0.07, R 0.29 and counts within
+  10% on 8 of 54. The rule was written before any arm ran. `gemini` (one Carbon call a page reads the legend and
+  the symbols, $0.030 a page) got P 0.95, R 0.92, 46 of 54, and passes. `glyphs` (a YOLO glyph detector on the
+  CPU) got P 0.92, R 0.38, 9 of 54 with the OCR legend and misses by one count unit (air terminals). The OCR
+  legend holds both local readers back on scans. The bench is one synthetic building whose legend is always
+  printed, so this is not a pass on real sheets, and the facts stay Low.
 
 - **Wall register hardening** (PR #538, merged; Tudor's bench in his handoff on #281). Rendered DigitalHub pairs:
   other-floor sheets laid wrong 17 of 72 times with #498, 8 of 72 with #538 (5 on the identical twin storeys E00/E01,
