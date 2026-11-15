@@ -392,8 +392,8 @@ def test_the_list_tool_says_breakdowns_come_from_the_groups() -> None:
 
 def _plumbing() -> ServicesModel:
     """The fixture plus a plumbing system: 3 WCs and 2 basins (sanitary terminals), a water
-    heater (unitary equipment), a roof drain (waste terminal) and a filter, as the RWTH SAN model
-    has them (#430 c6887184725: "91 in total" for its 72 sanitary fixtures)."""
+    heater (unitary equipment), a roof drain (waste terminal) and a filter, as a real plumbing
+    model has them (#430 c6887184725: "91 in total" for its 72 sanitary fixtures)."""
     doc = two_rooms().model_dump(mode="json", by_alias=True)
     radiator = next(e for e in doc["elements"] if e["id"] == "E3")
     made = (
