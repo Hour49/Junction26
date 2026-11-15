@@ -537,3 +537,21 @@ it('CH-50 methods that disagree say which value was kept and why under the value
   show({ ...projectAsk, parts: [{ ...flatA, answer: { ...answerConflict, check } }] });
   expect(rows()[0]?.querySelector('.en-why')?.textContent).toBe(check.reason);
 });
+
+it('CH-51 phone grade: tapping the thumbnail opens the same marks in the full viewer (zoom), Close brings focus back', () => {
+  show();
+  const before = viewers.length;
+  const enlarge = screen.getByRole('button', { name: 'Enlarge the plan' });
+  enlarge.focus();
+  fireEvent.click(enlarge);
+  const sheet = screen.getByRole('dialog', { name: 'The plan' });
+  const v = viewers.slice(before).find((p) => !p.bare);
+  expect(v?.marks).toEqual(flatA.answer.marks);
+  expect(v?.pages).toEqual(flatA.answer.pages);
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Enlarge the plan' }));
+  // a tap on the image itself (not on a mark) opens it too
+  fireEvent.click(screen.getAllByTestId('viewer')[0] as HTMLElement);
+  expect(screen.getByRole('dialog', { name: 'The plan' })).toBeTruthy();
+});

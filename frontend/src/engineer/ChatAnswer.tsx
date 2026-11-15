@@ -5,6 +5,8 @@ import { GRADE_TONE, PartialTag, StatusPill, TipIf, WhyToggle } from './AnswerCa
 import { ResolverLines } from './Resolver';
 import { estimateLine, gradeOf, kindName, levelWord, shownValue, type Grade } from './format';
 import { Plan } from './Plan';
+import { PlanSheet } from '../agent/PlanPane';
+import { PageViewer } from '../viewer/PageViewer';
 import { orderParts } from './projectAsk';
 import { ModelDialog } from '../model3d/ModelDialog';
 import { canShow3d } from '../model3d/model3d';
@@ -86,6 +88,15 @@ const LevelPill = ({ grade, text }: { grade: Grade; text?: string }) => (
 
 /** A project answer from one or more drawings (chat.md "Demo parity", CH-30..CH-35; ui-bugs 4-9): the lead line,
  * the chosen reference drawn large with the numbered references under it, and that one drawing's card beside it. */
+const viewerOf = (p: { name: string; answer: ProjectAnswer['parts'][number]['answer'] }) => ({
+  file: p.name,
+  pages: p.answer.pages,
+  marks: p.answer.marks,
+  credit: null,
+  unit: p.answer.unit,
+  legend: p.answer.proof.legend,
+});
+
 export function ChatAnswer(props: {
   ask: ProjectAnswer;
   project: ProjectView;
@@ -105,6 +116,13 @@ export function ChatAnswer(props: {
   const [model, setModel] = useState<(typeof parts)[number] | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
   const current = parts[Math.min(at, parts.length - 1)];
+  // phone grade: the shown reference in the full viewer (zoom, legend), over the chat
+  const [big, setBig] = useState(false);
+  const enlarge = useRef<HTMLButtonElement | null>(null);
+  const closeBig = () => {
+    setBig(false);
+    enlarge.current?.focus();
+  };
   const has3d = (p: (typeof parts)[number]) => canShow3d(p.model_3d) && Boolean(p.model_file_id);
   // W3 (look-check #404): the button only when the SHOWN drawing has a model; an IFC file is its own model,
   // a 2D drawing's model is the building's (another file), so it says so
@@ -198,18 +216,46 @@ export function ChatAnswer(props: {
                 )}
               </div>
               {current.answer.pages.length > 0 ? (
-                <Plan
-                  place={null}
-                  viewer={{
-                    bare: true,
-                    file: current.name,
-                    pages: current.answer.pages,
-                    marks: current.answer.marks,
-                    credit: null,
-                    unit: current.answer.unit,
-                    legend: current.answer.proof.legend,
-                  }}
-                />
+                <>
+                  {/* phone grade: a tap on the image (not a mark) opens the full viewer with its zoom */}
+                  <div
+                    className="en-chatthumb"
+                    onClick={(e) => {
+                      if (!(e.target as HTMLElement).closest('button')) setBig(true);
+                    }}
+                  >
+                    <Plan place={null} viewer={{ ...viewerOf(current), bare: true }} />
+                  </div>
+                  <Button
+                    ref={enlarge}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="en-enlarge min-h-11"
+                    onClick={() => {
+                      setBig(true);
+                    }}
+                  >
+                    Enlarge the plan
+                  </Button>
+                  {big && (
+                    <PlanSheet onClose={closeBig}>
+                      <div className="flex min-w-0 flex-1 flex-col overflow-auto overscroll-contain">
+                        <div className="flex justify-end p-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11"
+                            onClick={closeBig}
+                          >
+                            Close
+                          </Button>
+                        </div>
+                        <PageViewer {...viewerOf(current)} />
+                      </div>
+                    </PlanSheet>
+                  )}
+                </>
               ) : (
                 <p className="en-nopreview">No preview for this file</p>
               )}
