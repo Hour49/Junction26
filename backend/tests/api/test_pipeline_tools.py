@@ -22,6 +22,7 @@ from app.adapters.vector_pdf.objects import read_page
 from app.adapters.vector_pdf.scale import read_scale
 from app.adapters.vector_pdf.wall_fills import wall_fills
 from app.composition import build_ingest
+from app.core.agent.prompt import SYSTEM
 from app.core.drawing.model import Drawing
 from app.main import create_app
 from app.settings import Settings
@@ -89,6 +90,21 @@ def test_list_drawings_names_each_drawing_of_the_project(
     assert [d["name"] for d in found] == [d["file"] for d in project["drawings"]]
     assert all(isinstance(d["pages"], int) for d in found)  # a model file has 0 pages
     assert {"kind", "route", "state", "triage"} <= set(found[0])
+
+
+def test_list_drawings_says_what_the_pen_says_whether_an_edit_can_be_drawn(
+    store: PipelineStore, project: dict[str, Any]
+) -> None:
+    """Tudor R3-G10: on a scan the pen is off, yet the agent said "draw the area ... and ask me to
+    propose it". The agent reads the same check as the pen (plan_tools.not_drawable)."""
+    found = {d["drawing_id"]: d for d in call(store, "list_drawings")}
+    for drawing in project["drawings"]:
+        listed = found[drawing["drawing_id"]]
+        assert listed["editable"] is drawing["drawable"], drawing["file"]
+        assert listed.get("not_editable") == drawing["not_drawable_reason"], drawing["file"]
+    assert any(d["editable"] for d in found.values())
+    assert any(not d["editable"] and d["not_editable"] for d in found.values())
+    assert "never ask the user to draw an area" in SYSTEM  # the Gemini path is told so too
 
 
 def test_ask_drawings_is_the_project_ask_route(

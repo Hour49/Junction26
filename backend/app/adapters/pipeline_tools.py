@@ -64,11 +64,16 @@ class PipelineStore:
     answering: Answering
     packs: tuple[RulePack, ...] = ()
     user_scale: bool = False  # USER_SCALE: a no-scale refusal says the user can give the scale
+    # plan_tools.not_drawable's memo of which pages have wall fills, the project list's own
+    # (app.state.drawable_fills), so list_drawings reads no PDF page the list has read
+    drawable_fills: dict[tuple[str, str | None, int, float], bool] | None = None
 
     @classmethod
     def of_app(cls, app: Any, project_id: str) -> "PipelineStore":
         """From a FastAPI app (`create_app()`'s state), for one project."""
         state = app.state
+        if getattr(state, "drawable_fills", None) is None:
+            state.drawable_fills = {}
         return cls(
             project_id,
             state.ingest,
@@ -76,6 +81,7 @@ class PipelineStore:
             state.settings,
             state.answering,
             state.rule_packs,
+            drawable_fills=state.drawable_fills,
         )
 
 
@@ -125,8 +131,9 @@ def _tool(name: str, description: str, model: type[_Args]) -> dict[str, Any]:
 _TOOLS: list[tuple[str, str, type[_Args]]] = [
     (
         "list_drawings",
-        "The drawings of the project: id, file name, kind, read state, page count and, for a "
-        "file that is not a floor plan, what triage thinks it shows and whether it belongs.",
+        "The drawings of the project: id, file name, kind, read state, page count, whether a "
+        "plan edit can be drawn on it (editable; not_editable says why not, e.g. a scan) and, "
+        "for a file that is not a floor plan, what triage thinks it shows and whether it belongs.",
         _NoArgs,
     ),
     (
@@ -249,7 +256,11 @@ def _list_drawings(store: PipelineStore, args: Any) -> list[dict[str, Any]]:
 
 
 def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) -> dict[str, Any]:
+    from app.adapters.plan_tools import not_drawable  # here: plan_tools imports this module
+
     triage = None if file is None else file.triage
+    # the pen's own check (R3-G10: the agent asked for an area drawn on a scan)
+    why = not_drawable(store, entry, store.drawable_fills)
     try:
         pages: int | None = len(store.ingest.drawing(entry.drawing_id).pages)
     except DomainError:
@@ -261,6 +272,8 @@ def _listed(store: PipelineStore, entry: DrawingEntry, file: FileStatus | None) 
         "route": entry.route,
         "state": entry.state,
         "pages": pages,
+        "editable": why is None,
+        **({"not_editable": why} if why else {}),
         "triage": None
         if triage is None
         else {
