@@ -192,7 +192,6 @@ def main() -> None:
     args = ap.parse_args()
 
     from app.core.services.pairing import pair  # W1 (pics/pairing)
-
     from app.core.services.picture_follow import Sheet
 
     floors = json.loads(args.floors.read_text())
