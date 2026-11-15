@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup as unmount, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   drawingLabel,
@@ -57,6 +57,12 @@ const scoredAgree = {
     second: { method: 'ifc_model', value: 2 },
   },
 };
+
+/** A fresh page: unmounted, and no engineer thread kept in the tab (R3-L2). */
+function cleanup() {
+  unmount();
+  sessionStorage.clear();
+}
 
 const PROJECT = '5e0c1a2b3d4f';
 const DRAWING = drawing.id;
@@ -510,6 +516,28 @@ describe('thread', () => {
     const articles = screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'));
     expect(articles).toEqual([answer.question, answerArea.question]);
     expect(screen.getByText('2 asked')).toBeTruthy();
+  });
+
+  it('R3-L2 the answered turns come back after a reload of the tab; the counter goes on', async () => {
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answer, answerArea) });
+    await typeAndAsk(answer.question);
+    await within(await turn(answer.question)).findByTestId('answer-value');
+    unmount(); // the reload: the page mounts again in the same tab, its storage kept
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(answerArea) });
+    expect(await within(await turn(answer.question)).findByTestId('answer-value')).toBeTruthy();
+    expect(screen.getByText('1 asked')).toBeTruthy();
+    await typeAndAsk(answerArea.question);
+    await within(await turn(answerArea.question)).findByTestId('answer-value');
+    const articles = screen.getAllByRole('article').map((a) => a.getAttribute('aria-label'));
+    expect(articles).toEqual([answer.question, answerArea.question]);
+  });
+
+  it('R3-L2 a thread kept for another drawing or a bad stored value starts empty', async () => {
+    sessionStorage.setItem(`engineer-thread:${PROJECT}:other`, JSON.stringify([{ id: 1 }]));
+    sessionStorage.setItem(`engineer-thread:${PROJECT}:${DRAWING}`, '{not json');
+    open({ [DRAWING_ROUTE]: drawing });
+    expect(await screen.findByText('Ask a question about this drawing.')).toBeTruthy();
+    expect(screen.getByText('0 asked')).toBeTruthy();
   });
 
   it('EN-47 each turn is an article named by its question', async () => {
