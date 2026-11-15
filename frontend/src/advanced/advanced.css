@@ -502,6 +502,22 @@
   border-radius: 12px;
   background: var(--v-bg);
 }
+.adv-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 980px;
+  background: var(--v-fill);
+  color: var(--v-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.adv-stat-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--v-muted);
+}
 .adv-ready-rest {
   color: var(--v-muted);
 }

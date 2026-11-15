@@ -18,6 +18,7 @@ import {
   stepRows,
   stepSpans,
   stepsOf,
+  traceMs,
   untimed,
 } from './trace';
 
@@ -346,5 +347,15 @@ describe('trace view v5', () => {
     expect(untimed(step({ ms: 0 }))).toBe(true);
     expect(untimed(step({ ms: 0.004 }))).toBe(false);
     expect(untimed(step({ ms: 0, state: 'skipped' }))).toBe(false);
+  });
+
+  it('AD-128 traceMs: a measured time under 0.01 ms reads "<0.01 ms", not "0.00 ms"', () => {
+    // the demo sample's real stage times (hash, group, route of the IFC model and the scan)
+    expect(traceMs(0.0036470009945333004)).toBe('<0.01 ms');
+    expect(traceMs(0.00506901741027832)).toBe('<0.01 ms');
+    expect(traceMs(0.01)).toBe('0.01 ms');
+    expect(traceMs(0.019195984350517392)).toBe('0.02 ms');
+    expect(traceMs(34.83)).toBe('34.8 ms');
+    expect(traceMs(2968.69)).toBe('3.0 s');
   });
 });
