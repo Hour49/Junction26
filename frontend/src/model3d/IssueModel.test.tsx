@@ -80,7 +80,7 @@ describe('the issue card', () => {
     return api;
   }
   const card = () =>
-    within(screen.getByRole('region', { name: 'Issues' })).getAllByRole('listitem')[0];
+    within(screen.getByRole('region', { name: 'Issues on demand' })).getAllByRole('listitem')[0];
 
   it('M3-25 "View in 3D" opens the model with the checked door; Esc closes, focus back', async () => {
     const api = await show({ ...project, files: files(null, READY) });
