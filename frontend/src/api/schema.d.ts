@@ -2745,6 +2745,10 @@ export interface components {
             not_plans?: number | null;
             /** Phase */
             phase?: ("files" | "index") | null;
+            /** Ran */
+            ran?: {
+                [key: string]: components["schemas"]["RanStep"][];
+            };
             /** Readers */
             readers?: {
                 [key: string]: string;
@@ -2846,6 +2850,32 @@ export interface components {
             value_marks: components["schemas"]["ValueMark"][][];
             /** Values */
             values: components["schemas"]["MeasuredValue"][];
+        };
+        /**
+         * RanStep
+         * @description One step that ran on a route's files in this upload (decision 0018): its id and label, and
+         *     on how many files it ended done, skipped or failed (each file counted once per id).
+         */
+        RanStep: {
+            /**
+             * Done
+             * @default 0
+             */
+            done: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped: number;
         };
         /**
          * ReadAsPlan

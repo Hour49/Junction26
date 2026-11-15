@@ -256,11 +256,21 @@ def test_carbon_alone_and_carbon_as_a_check_are_steps() -> None:
     assert alone.steps[1].found == {"window": 1, "plan": 1}
     checked = CarbonChecked(Fake(plans=PLANS), carbon).extract(FILE, SHEET)
     (step,) = checked.steps
-    assert (step.label, step.found, step.cost_usd) == (
+    assert (step.id, step.label, step.found, step.cost_usd) == (
+        "carbon_check",
         "Gemini Carbon check (never counted)",
         {"window": 1, "plan": 1},
         0.01,
     )
+
+
+def test_the_carbon_check_over_carbon_things_keeps_both_ids_without_a_number() -> None:
+    carbon = Paid(elements=[element("window", LEFT)], plans=PLANS, read=["window"])
+    things = CarbonThings(Fake(plans=PLANS), carbon, lambda _: True)
+    got = CarbonChecked(things, carbon).extract(FILE, SHEET)
+    stage = StageTrace(stage="extract", did="read", ms=1.0)
+    (traced,) = with_steps([stage], {"extract": list(got.steps)})
+    assert sorted(step.id for step in traced.steps) == ["carbon", "carbon_check"]
 
 
 def test_the_printed_scale_is_a_step_after_the_inner_readers() -> None:

@@ -2,11 +2,12 @@
 second count did inside, from what they already return. A step not timed on its own (a
 comparison, the EXIF turn) has `ms` 0 and begins with its stage."""
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from typing import Literal
 
 from app.core.drawing.model import Conflict
-from app.core.ingest.model import FileStatus, Normalised, Probed, Triage
-from app.core.pipeline.model import StepTrace
+from app.core.ingest.model import FileStatus, Normalised, Probed, RanStep, StageTrace, Triage
+from app.core.pipeline.model import Route, StepTrace
 from app.core.pipeline.steps import Span
 from app.core.wording import count
 
@@ -85,7 +86,8 @@ def second_count_steps(conflicts: Sequence[Conflict] | None) -> list[StepTrace]:
             (COMPARED[name] for name in ("ifc_model", "schedule") if name in methods),
             COMPARED.get(
                 entry.quantity,
-                ("second_count", f"{entry.quantity.replace('_', ' ').capitalize()}: "
+                (f"second_count:{entry.quantity}",
+                 f"{entry.quantity.replace('_', ' ').capitalize()}: "
                  + " vs ".join(sorted(m.replace("_", " ") for m in methods))),
             ),
         )  # fmt: skip
@@ -166,3 +168,35 @@ def evidence_step(span: Span) -> StepTrace:
         ms=span.ms,
         cost_usd=span.cost_usd,
     )
+
+
+Ended = Literal["done", "skipped", "failed"]
+FileRan = dict[str, tuple[str, Ended]]  # step id -> (label, how it ended on one file)
+WORST: dict[Ended, int] = {"skipped": 0, "done": 1, "failed": 2}  # one id twice: the worse
+
+
+def file_ran(stages: Sequence[StageTrace]) -> FileRan:
+    """What ran on one file, each step id once: failed if it failed anywhere, else done if it
+    ran, else skipped. A step still `running` is not counted."""
+    found: FileRan = {}
+    for stage in stages:
+        for step in stage.steps:
+            state = step.state
+            if state == "running":
+                continue
+            seen = found.get(step.id)
+            if seen is None or WORST[state] > WORST[seen[1]]:
+                found[step.id] = (seen[0] if seen else step.label, state)
+    return found
+
+
+def ran_by_route(files: Iterable[tuple[Route, FileRan]]) -> dict[Route, tuple[RanStep, ...]]:
+    """ProjectStatus.ran: per route, each step id that ran on its files with how many files it
+    ended done, skipped or failed on, in first-seen order."""
+    counts: dict[Route, dict[str, RanStep]] = {}
+    for route, steps in files:
+        by_id = counts.setdefault(route, {})
+        for step_id, (label, state) in steps.items():
+            step = by_id.get(step_id) or RanStep(id=step_id, label=label)
+            by_id[step_id] = step.model_copy(update={state: getattr(step, state) + 1})
+    return {route: tuple(by_id.values()) for route, by_id in counts.items() if by_id}

@@ -7,24 +7,29 @@ from conftest import MakeService
 from test_ingest_evidence_scope import on
 from test_ingest_service import Blocking
 from test_ingest_triage import PLAN, SCAN, zipped
+from test_raster_composite import LEFT, element
 from triage_fakes import FakeClassifier, FakeDescriber, WordJudge, steps
 
 from app.adapters.archive import ThreadRunner
+from app.adapters.carbon import CarbonThings
 from app.adapters.evidence.store import SqliteEvidenceIndex
-from app.core.drawing.model import Conflict
+from app.core.drawing.model import Conflict, Scale
 from app.core.evidence.chunks import passages
 from app.core.ingest.model import (
     Description,
+    Entry,
     FileStatus,
     Normalised,
     ProjectContext,
     ProjectStatus,
+    RanStep,
     Relevance,
     StageTrace,
     StepTrace,
     TriageClass,
     Unavailable,
 )
+from app.core.ingest.progress import Run
 from app.core.ingest.steps import frame_steps, second_count_steps, triage_step
 from app.core.pipeline.model import DrawingFile, Extracted, Sheet
 from app.core.pipeline.steps import Span, starting
@@ -120,15 +125,17 @@ def test_each_kind_of_comparison_is_a_step() -> None:
             compared("element_count", ("plan_drawing", "ifc_model"), "agree"),
             compared("element_count", ("detector", "schedule"), "agree"),
             compared("room_count", ("detector", "annotation"), "agree"),
+            compared("storey_count", ("detector", "annotation"), "conflict"),
         ]
     )
     assert [(s.id, s.found) for s in steps] == [
         ("scale_check", {"agree": 1, "conflict": 0}),
         ("ifc_vs_sheet", {"agree": 1, "conflict": 1}),
         ("schedule_tags", {"agree": 1, "conflict": 0}),
-        ("second_count", {"agree": 1, "conflict": 0}),
+        ("second_count:room_count", {"agree": 1, "conflict": 0}),
+        ("second_count:storey_count", {"agree": 0, "conflict": 1}),
     ]
-    assert steps[-1].label == "Room count: annotation vs detector"
+    assert steps[-2].label == "Room count: annotation vs detector"
     assert second_count_steps(None) == []
 
 
@@ -251,3 +258,67 @@ def test_a_project_mid_index_lists_the_step_running_now(make_service: MakeServic
         judge.release.set()
         ingest.close()
     assert [(s.id, s.state) for s in done.index_steps] == [("judge", "done"), ("describe", "done")]
+
+
+class Shipped:
+    """The shipped raster reader: one door on `doors`, none elsewhere, its own detector step."""
+
+    def __init__(self, doors: str) -> None:
+        self._doors = doors
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+
+        found = [element("door", LEFT)] if source.path == self._doors else []
+        step = StepTrace(id="detector", label="Symbol detector", ms=1)
+        return Extracted(
+            method="detector", scale=Scale(status="no_scale"), elements=tuple(found), steps=(step,)
+        )
+
+
+class CarbonDoors:
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+
+        return Extracted(method="detector", scale=Scale(status="no_scale"), read=("door",))
+
+
+def test_a_project_says_which_steps_ran_on_each_route(make_service: MakeService) -> None:
+
+    other = png_bytes(raster_plan().resize((900, 640)))
+    ingest = make_service(
+        raster=lambda files: CarbonThings(Shipped("a.png"), CarbonDoors(), lambda _: False, 1),
+    )
+    status = ingest.wait(ingest.start("a.zip", zipped({"a.png": SCAN, "b.png": other,
+                                                        "plan.pdf": PLAN})))  # fmt: skip
+    assert {file.path: file.route for file in status.files} == {
+        "a.png": "raster", "b.png": "raster", "plan.pdf": "vector"
+    }  # fmt: skip
+    raster = {step.id: step for step in status.ran["raster"]}
+    # a.png: the detector found a door, so Carbon's things drawn were not needed; b.png: none
+    assert raster["detector"] == RanStep(id="detector", label="Symbol detector", done=2)
+    assert (raster["carbon"].done, raster["carbon"].skipped, raster["carbon"].failed) == (1, 1, 0)
+    assert raster["probe"].done == 2
+    vector = [step.id for step in status.ran["vector"]]
+    assert {"probe", "vector", "tables"} <= set(vector) and "carbon" not in vector
+    assert "ran" in status.model_dump(mode="json")
+    assert ingest.status(status.id).ran == status.ran  # the stored project says the same
+
+
+def test_ran_grows_as_each_file_finishes_and_a_file_read_again_is_counted_once() -> None:
+
+    created = ProjectStatus(id="p", name="n", state="running", created_at="2026-11-15T00:00:00Z")
+    assert "ran" not in created.model_dump(mode="json")  # left out while empty
+    run = Run(created, fresh=False)
+    detector = StepTrace(id="detector", label="Symbol detector")
+    for path in ("a.png", "b.png"):
+        run.add(Entry(path=path, size=1))
+        run.set(path, route="raster")
+        run.stage(path, "extract", "read", 1.0, steps=[detector])
+    run.finish("a.png", "ready", "read")
+    assert run.status().ran == {
+        "raster": (RanStep(id="detector", label="Symbol detector", done=1),)
+    }
+    run.finish("b.png", "ready", "read")
+    assert run.status().ran["raster"][0].done == 2
+    again = Run.resumed(run.status(), run.traces())
+    again.finish("a.png", "ready", "read again")
+    assert again.status().ran["raster"][0].done == 2  # replaced, not added

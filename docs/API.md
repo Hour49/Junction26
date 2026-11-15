@@ -920,6 +920,86 @@ Ingest's project status, plus `drawings`:
       "found": {}
     }
   ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "raster": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "bim": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "ifc",
+        "label": "IFC model reader",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "cad": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "adeefbbcc17559fc",
@@ -1081,6 +1161,12 @@ Ingest's project status, plus `drawings`:
   judging relevance, describing, the evidence index); null otherwise. `index_steps`: what ran in that last phase,
   as a trace's `steps` (`at_ms` after the phase began); `[]` until it runs. Each step shows as it starts
   (`state` `running`) and is replaced by the step that ended; the evidence index's step is added once it ends.
+- `ran` on the project (decision 0018, additive; left out while empty): per route (`raster`, `vector`, `bim`,
+  `cad`), each step `id` that ran on that route's finished files, in first-seen order, as `{id, label, done,
+  skipped, failed}` (the number of files it ended on in each state; a file counts once per id, as `failed` if
+  the step failed anywhere in it, else `done`, else `skipped`). It grows as each file finishes and is final when
+  the project is done; a file read again replaces its own count. A screen ticks the readers that ran (`done` or
+  `failed` > 0) and dims the ones that did not, by id. A reused file counts the steps of the ingest it reuses.
 - A project a restart cut off is `failed` with `error` "the server restarted during ingest", its unfinished files
   `set_aside`: no screen polls it for ever.
 
@@ -1717,6 +1803,52 @@ photo of an elevation sheet with its register, showing a building that matches n
       "found": {}
     }
   ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "classifier",
+        "label": "Triage: is it a floor plan?",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "6a47e9a1c33db404",
@@ -2476,9 +2608,11 @@ that is not an evidence id. `description.detail` is a model's description no per
   began: readers that run at the same time overlap), `ms`, `cost_usd`, `state` (`done`, `failed`, `skipped`; `running` for a step of `index_steps` that has started and not ended) and
   `found` (counts by class when the step counts things: `{"door": 31, "window": 12}`, else `{}`). Ids: `probe`
   (with the sheet-kind signal), `classifier` (triage, and its describer) (identify); `exif`, `rectifier`, `pages`
-  (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon`, `printed_scale`, `double_check`, `plans`,
+  (normalise); `detector`, `decisions`, `arbiter`, `rooms`, `carbon` (the Carbon reader, whole sheet or things
+  drawn), `carbon_check` (the Carbon check, never counted), `printed_scale`, `double_check`, `plans`,
   `reader` (any other raster source), `vector`, `tables`, `ifc` (extract); `ifc_vs_sheet`, `scale_check`,
-  `room_areas`, `schedule_tags`, `second_count` (second_count: `found` is `{"agree": n, "conflict": m}`); `judge`,
+  `room_areas`, `schedule_tags`, `second_count:<quantity>` (any other comparison) (second_count: `found` is
+  `{"agree": n, "conflict": m}`); `judge`,
   `describe`, `evidence` (the project's `index_steps`). An id is unique in its stage: a double-check reader's is
   `double_check:<reader name>` (`double_check:l1`), a raster source's own steps are `<its id>/<inner id>` and
   follow it (`arbiter/base`, `arbiter/second`, `arbiter/pick`: the count arbiter's reads and its pick), and an id
@@ -5136,6 +5270,45 @@ tell, and an uncertain answer with the model's check:
       "found": {}
     }
   ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "44cc9f0d991eafe3",
@@ -12907,6 +13080,10 @@ unofficial translation. An unknown id is 404 `not-found`.
 
 ## Changelog
 
+- 2026-11-15, additive (decision 0018): `ProjectStatus.ran` (left out while empty): per route, the steps that ran
+  on this upload's finished files with file counts (`RanStep`: `id`, `label`, `done`, `skipped`, `failed`). Step
+  ids are stable: the Carbon check is `carbon_check` (was `carbon`, or `carbon-2` beside the Carbon reader), an
+  unnamed comparison `second_count:<quantity>` (was `second_count`). Fixtures regenerated.
 - 2026-11-15, additive (decision 0018): `StepTrace.state` gains `running`; `ProjectStatus.index_steps` fills while the
   last phase runs (a running step, then the step that ended).
 - 2026-11-15, additive (decision 0018, ingest trace steps): `StageTrace.steps` (a `StepTrace` list: `id`, `label`,

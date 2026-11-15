@@ -17,6 +17,8 @@ from app.core.ingest.model import (
     StageTrace,
     StepTrace,
 )
+from app.core.ingest.steps import FileRan, file_ran, ran_by_route
+from app.core.pipeline.model import Route
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ class Run:
         self._files: list[FileStatus] = []
         self._stages: dict[str, list[StageTrace]] = {}
         self._index: dict[str, int] = {}  # by path
+        self._ran: dict[str, tuple[Route, FileRan]] = {}  # by file id: what ran on a finished file
         self._lock = threading.Lock()
 
     @classmethod
@@ -44,6 +47,11 @@ class Run:
         run._index = {file.path: at for at, file in enumerate(status.files)}
         run._stages = {file.id: list(traces[file.id].stages) for file in status.files}
         run.kinds = {file.path: file.kind for file in status.files if file.kind is not None}
+        run._ran = {
+            file.id: (file.route, file_ran(run._stages[file.id]))
+            for file in status.files
+            if file.route is not None and file.state not in ("queued", "running")
+        }
         return run
 
     @property
@@ -119,8 +127,15 @@ class Run:
             self._stages[file_id] = list(failed_stage(self._stages[file_id], did, failure))
 
     def finish(self, path: str, state: FileState, reason: str) -> None:
+        """Ends a file, and counts the steps that ran on it into the project's `ran` (a file read
+        again replaces its earlier count)."""
         self.set(path, state=state, reason=reason, step=None, step_id=None)
         status = self.file(path)
+        with self._lock:
+            if status.route is not None:
+                self._ran[status.id] = (status.route, file_ran(self._stages[status.id]))
+                ran = ran_by_route(self._ran.values())
+                self._status = self._status.model_copy(update={"ran": ran})
         logger.info(
             "ingest: %s %s %s in %.1f ms: %s", status.path, status.kind, state, status.ms, reason
         )

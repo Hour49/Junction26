@@ -532,6 +532,86 @@
       "found": {}
     }
   ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 4,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "raster": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 3,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "bim": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "ifc",
+        "label": "IFC model reader",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ],
+    "cad": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "adeefbbcc17559fc",

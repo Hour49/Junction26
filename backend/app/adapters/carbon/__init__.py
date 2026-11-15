@@ -200,7 +200,7 @@ class CarbonChecked:
         )
         rooms = len(check.rooms) if "room" in check.read else None
         seen = found_of(check.elements, check.read, rooms=rooms, plans=len(check.plans))
-        step = _carbon_step("Gemini Carbon check (never counted)", span, seen)
+        step = _carbon_step("Gemini Carbon check (never counted)", span, seen, "carbon_check")
         if check.failed is not None:
             step = step.model_copy(update={"did": check.failed, "state": "failed"})
         steps = (*found.steps, step)
@@ -231,13 +231,17 @@ class CarbonChecked:
 THINGS = "Gemini Carbon reader (things drawn)"
 
 
-def _carbon_step(label: str, span: Span, found: dict[str, int]) -> StepTrace:
-    """Carbon's step: what it found, failed when one of its model calls got no answer."""
+def _carbon_step(
+    label: str, span: Span, found: dict[str, int], step_id: str = "carbon"
+) -> StepTrace:
+    """Carbon's step: what it found, failed when one of its model calls got no answer. Its id is
+    `carbon` for the reader and `carbon_check` for the check, so both keep theirs side by side
+    (decision 0018)."""
     did = found_words(found)
     if span.faults:
         did += f"; {count(span.faults, 'model call')} got no answer"
     return StepTrace(
-        id="carbon",
+        id=step_id,
         label=label,
         did=did,
         at_ms=span.at_ms,

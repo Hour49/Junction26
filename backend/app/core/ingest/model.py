@@ -492,6 +492,17 @@ class FileStatus(Frozen):
     step_id: str | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
+class RanStep(Frozen):
+    """One step that ran on a route's files in this upload (decision 0018): its id and label, and
+    on how many files it ended done, skipped or failed (each file counted once per id)."""
+
+    id: str
+    label: str
+    done: int = Field(default=0, ge=0)
+    skipped: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+
+
 class ProjectStatus(Frozen):
     id: str
     name: str
@@ -510,6 +521,11 @@ class ProjectStatus(Frozen):
     # While running: reading the files, or the last phase (judge, describe, evidence index)
     phase: ProjectPhase | None = None
     index_steps: tuple[StepTrace, ...] = ()  # what ran in the last phase, in start order
+    # Per route, the steps that ran on its finished files so far, in first-seen order; left out
+    # of the JSON while empty
+    ran: dict[Route, tuple[RanStep, ...]] = Field(
+        default_factory=dict[Route, tuple[RanStep, ...]], exclude_if=lambda value: not value
+    )
 
 
 class SecondCount(Frozen):

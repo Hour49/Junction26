@@ -6416,6 +6416,24 @@
             ],
             "title": "Phase"
           },
+          "ran": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/RanStep"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "enum": [
+                "bim",
+                "cad",
+                "vector",
+                "raster"
+              ]
+            },
+            "title": "Ran",
+            "type": "object"
+          },
           "readers": {
             "additionalProperties": {
               "type": "string"
@@ -6732,6 +6750,44 @@
           "resolution"
         ],
         "title": "QuantityConflict",
+        "type": "object"
+      },
+      "RanStep": {
+        "additionalProperties": false,
+        "description": "One step that ran on a route's files in this upload (decision 0018): its id and label, and\non how many files it ended done, skipped or failed (each file counted once per id).",
+        "properties": {
+          "done": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Done",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "skipped": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "RanStep",
         "type": "object"
       },
       "ReadAsPlan": {

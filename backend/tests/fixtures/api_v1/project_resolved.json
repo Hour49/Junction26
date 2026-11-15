@@ -198,6 +198,45 @@
       "found": {}
     }
   ],
+  "ran": {
+    "vector": [
+      {
+        "id": "probe",
+        "label": "Content probe",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "pages",
+        "label": "Page size",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "vector",
+        "label": "Drawn-PDF reader (Swiss plan rules)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "tables",
+        "label": "Schedule tables (PDF)",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      {
+        "id": "room_areas",
+        "label": "Room areas: printed vs measured",
+        "done": 1,
+        "skipped": 0,
+        "failed": 0
+      }
+    ]
+  },
   "drawings": [
     {
       "drawing_id": "44cc9f0d991eafe3",
