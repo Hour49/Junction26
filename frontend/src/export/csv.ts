@@ -133,12 +133,15 @@ export function scanRows(scan: Scan): CsvRow[] {
       status: f.state,
       detail: f.reason,
     })),
-    ...project.skipped.map((s) => ({
-      kind: 'file',
-      file: s.path,
-      status: 'skipped',
-      detail: s.reason,
-    })),
+    // a set-aside file is listed under files too: one row, the one with its id
+    ...project.skipped
+      .filter((s) => !project.files.some((f) => f.path === s.path))
+      .map((s) => ({
+        kind: 'file',
+        file: s.path,
+        status: 'skipped',
+        detail: s.reason,
+      })),
     ...scan.drawings.flatMap(drawingRows),
     ...review.conflicts.map((c) => ({
       kind: 'conflict',

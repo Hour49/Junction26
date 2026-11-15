@@ -566,6 +566,9 @@ describe('edits', () => {
     expect(button).toHaveProperty('disabled', true);
     fireEvent.change(field, { target: { value: '-1' } });
     expect(button).toHaveProperty('disabled', true);
+    fireEvent.change(field, { target: { value: '2.5' } }); // a count takes whole numbers only
+    expect(button).toHaveProperty('disabled', true);
+    expect(field.getAttribute('step')).toBe('1');
     fireEvent.change(field, { target: { value: '3' } });
     fireEvent.click(button);
     await waitFor(() => {

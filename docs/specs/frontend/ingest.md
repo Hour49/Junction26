@@ -265,6 +265,9 @@ Home and upload
   encoded. [component, `info.json`]
 - IN-4: Picking a file over `limits.upload_mb` × 1048576 bytes shows the sentence `uploadTooLarge` returns for it
   and sends no request. [component, `info.json`]
+- IN-93: Picking a file whose name is over 255 characters (counted as the API counts them: an emoji is one) shows
+  "This file name is <n> characters long; the limit is 255. Rename the file and try again." and sends no request;
+  without it the API's 422 read "query.name: String should have at most 255 characters". [component]
 - IN-5: With `/api/info` not loaded (pending or failed), a file of any size is uploaded and the server decides.
   [component]
 - IN-6: Dropping two files shows "Drop one file or one zip at a time." and sends no request; dropping one file
