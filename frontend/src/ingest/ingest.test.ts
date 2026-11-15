@@ -112,7 +112,12 @@ describe('ingest.ts', () => {
   it('IN-61 elapsedMs: ms once ended, now - started_at while live (never below 0), null before it starts', () => {
     const started = Date.parse(must(projectRunning.started_at));
     expect(elapsedMs(project, started + 99_000)).toBe(project.ms);
-    expect(elapsedMs(projectFailed, started + 99_000)).toBe(projectFailed.ms);
+    // the failed fixture is a restart mid-ingest: no finished_at, so its ms is not a duration
+    expect(projectFailed.finished_at).toBeNull();
+    expect(elapsedMs(projectFailed, started + 99_000)).toBeNull();
+    expect(elapsedMs({ ...projectFailed, finished_at: project.finished_at }, 0)).toBe(
+      projectFailed.ms,
+    );
     expect(elapsedMs(projectRunning, started + 5000)).toBe(5000);
     expect(elapsedMs(projectRunning, started - 5000)).toBe(0);
     expect(elapsedMs(variants.queued, started + 5000)).toBeNull();
