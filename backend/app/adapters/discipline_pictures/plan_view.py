@@ -20,7 +20,9 @@ Box = tuple[int, int, int, int]  # x0, y0, x1, y1 in input pixels
 
 SHRINK = 4  # work at 1/4 resolution
 INK = 60  # paper minus grey above this is ink (1-bit and grey scans)
-FRAME_BAND = 0.06  # of the long side, blanked on every edge: the page frame sits 4-5% in
+FRAME_BAND = 0.06  # blanked on every edge, of the page's height at top and bottom and of its
+# width at the sides: the page frame sits 4-5% in (review #557: of the long side it blanked 9%
+# of a landscape page's height, the top and bottom walls of a plan that fills it)
 SPANNING = 0.85  # an ink piece this wide or tall a share of the page is the frame or joined to it
 RUN = 0.04  # a run at least this share of the long side survives (k)
 RUN_MIN = 15  # px at work resolution, whatever the page size
@@ -68,8 +70,8 @@ def _find(gray: np.ndarray, paper: int) -> tuple[list[Box], bool]:
     ink = ((paper - small) > INK).astype(np.uint8)
     h, w = ink.shape
     side = max(h, w)
-    band = round(FRAME_BAND * side)
-    ink[:band], ink[h - band :], ink[:, :band], ink[:, w - band :] = 0, 0, 0, 0
+    across, down = round(FRAME_BAND * h), round(FRAME_BAND * w)
+    ink[:across], ink[h - across :], ink[:, :down], ink[:, w - down :] = 0, 0, 0, 0
     every = int(_runs(ink, side).sum())
     ink = _without_spanning(ink)
     lines = _runs(ink, side)

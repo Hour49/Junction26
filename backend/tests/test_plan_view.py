@@ -126,13 +126,13 @@ def test_two_views_both_returned_the_bigger_first() -> None:
 def test_a_plan_that_fills_the_page_puts_the_whole_page_first() -> None:
     """The outer walls span the page and go with the frame; a block of rooms inside them is
     left as a view, which must not come before the whole page (Bldg 550 West: the finder boxed
-    a sub-region, the whole sheet registered right). The spec's (300, 250, 4200, 2750) put the
-    top and bottom walls inside its own 6% frame band; a real plan sits inside a margin."""
+    a sub-region, the whole sheet registered right). The spec's numbers: the top and bottom
+    walls 250 px from the edges lie outside a frame band of 6% of the height (180 px)."""
     img = blank()
-    the_plan = (300, 300, 4200, 2700)
+    the_plan = (300, 250, 4200, 2750)
     rect(img, *the_plan)
     for x in (800, 2000, 3200):
-        vline(img, x, 300, 2700)
+        vline(img, x, 250, 2750)
     for y in (600, 1500, 2400):  # dashed grid lines: no run
         for x in range(0, W - 40, 60):
             hline(img, y, x, x + 40)
