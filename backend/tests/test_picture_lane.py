@@ -5,13 +5,14 @@ with its spots as evidence. Off (the default), nothing is built and ingest is un
 Every page is drawn in the test: no partner data."""
 
 import io
+import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-from app.adapters.discipline_pictures.lane import PictureLane
+from app.adapters.discipline_pictures.lane import FROM_FILE_NAME, PictureLane
 from app.adapters.discipline_pictures.legend import read_legend
 from app.adapters.raster_ocr import RapidOcrEngine
 from app.composition import build_ingest, build_pipeline
@@ -127,10 +128,10 @@ class _NoDrawings:
         return None
 
 
-def _ask(settings: Settings, files: str, *texts: str) -> list[Answer]:
+def _ask(settings: Settings, files: str, *texts: str, file: str = "heating.png") -> list[Answer]:
     pipeline = build_pipeline(settings, Path(files))
     sink = _Sink()
-    asked = [Question(id=n, file="heating.png", text=t) for n, t in enumerate(texts, 1)]
+    asked = [Question(id=n, file=file, text=t) for n, t in enumerate(texts, 1)]
     pipeline.answer_questions(asked, _NoDrawings(), sink)
     return sink.answers
 
@@ -284,6 +285,56 @@ def test_a_sheet_triage_names_no_discipline_is_not_read(
     [answer] = _ask(settings, files, "How many radiators are there?")
     assert answer.method != FACTS
     assert not any((tmp_path / "facts").glob("*.json"))
+
+
+# --- no sheet-kind reply: the discipline from the file name (sheet code or strong word) ----------
+
+
+def _untriaged(settings: Settings, name: str) -> tuple[Any, str]:
+    """`name` ingested with triage off (no sheet-kind step), as the no-keys backend does."""
+    ingest = build_ingest(settings, settings.projects_dir, background=False)
+    status = ingest.wait(ingest.start(name, heating_scan()))
+    return status, str(settings.projects_dir / status.id / "files")
+
+
+def test_a_picture_no_sheet_kind_step_saw_is_routed_by_its_file_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    _, files = _untriaged(settings, "H-102 heating plan.png")
+    [sheet] = (tmp_path / "facts").glob("*.json")
+    sources = {f["source"] for f in json.loads(sheet.read_text())["facts"]}
+    assert sources and all(FROM_FILE_NAME in s and s.startswith("picture:") for s in sources)
+    # Low, as every picture fact
+    [answer] = _ask(settings, files, "How many radiators are there?", file="H-102 heating plan.png")
+    assert answer.method == FACTS and answer.sure is False
+    assert "confidence is Low" in (answer.explanation or "")
+
+
+def test_a_file_name_that_names_no_discipline_leaves_the_picture_unread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings = _settings(tmp_path, monkeypatch, discipline_pictures="template",
+                         discipline_pictures_cache_dir=tmp_path / "facts")  # fmt: skip
+    _untriaged(settings, "pipe layout 7.png")  # "pipe" is a weak word: plumbing or heating
+    assert not any((tmp_path / "facts").glob("*.json"))
+
+
+def test_off_the_file_name_changes_no_route_flag_or_drawing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: dict[str, tuple[Any, ...]] = {}
+    for mode in ("off", "template"):
+        (tmp_path / mode).mkdir()
+        settings = _settings(tmp_path / mode, monkeypatch, discipline_pictures=mode,
+                             discipline_pictures_cache_dir=tmp_path / mode / "facts")  # fmt: skip
+        status, _ = _untriaged(settings, "H-102 heating plan.png")
+        drawings = sorted(p.read_bytes() for p in (settings.projects_dir / "drawings").glob("*"))
+        flags = [(f.path, f.state, f.route, f.reason) for f in status.files]
+        seen[mode] = (flags, drawings)
+    assert seen["off"] == seen["template"]
+    assert not (tmp_path / "off" / "facts").exists()
 
 
 # --- AC-14: off is the default and changes nothing ----------------------------------------------
