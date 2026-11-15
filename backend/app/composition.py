@@ -325,6 +325,7 @@ def build_pipeline(
                         settings,
                         _raster(settings, scans, decisions, kind_of, use_carbon, took),
                         scans,
+                        kind_of,
                     ),
                     files,
                 ),
@@ -1075,7 +1076,12 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
             return PriorScale(inner)
 
 
-def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extractor:
+def _printed(
+    settings: Settings,
+    inner: Extractor,
+    files: DrawingFiles,
+    kind_of: Callable[[str], str | None],
+) -> Extractor:
     """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/),
     read by gemini-4-carbon on the process's spend guard, cached with the Carbon reader's
     replies (its page reply is shared)."""
@@ -1091,7 +1097,7 @@ def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extra
                 in_flight=settings.carbon_calls_in_flight,
             )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
-            return PrintedScale(inner, reader, files)
+            return PrintedScale(inner, reader, files, kind_of)  # kind: no camera dpi
 
 
 def _raster_component(
