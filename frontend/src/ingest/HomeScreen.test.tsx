@@ -181,9 +181,9 @@ describe('HomeScreen', () => {
         .map((li) => li.textContent),
     ).toEqual([
       'IFC models',
-      'DXF',
+      'DXF with its PDF',
       'PDF, drawn or scanned',
-      'SVG',
+      'SVG with its PDF',
       'PNG · JPG scans and photos',
       'ZIP archives',
     ]);
