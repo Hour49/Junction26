@@ -625,3 +625,32 @@ def test_words_that_are_no_size_filter_still_parse(text: str, subject: str | Non
         assert PARSE(text) != Unsupported(reason=SIZE_FILTER)
     else:
         assert isinstance(found, Query) and found.subject == subject
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many bedrooms with a balcony?",
+        "How many bedrooms with a balcony are there on this plan?",
+        "How many doors next to the kitchen?",
+        "How many toilets without a window?",
+        "What is the area of the rooms between the hall and the kitchen?",
+        "How many rooms near the entrance?",
+    ],
+)
+def test_a_count_of_a_narrowed_thing_is_refused_not_the_whole_class(text: str) -> None:
+    """review-524 should 2 (a confident wrong on main): "How many bedrooms with a balcony?" was
+    the count of all bedrooms. A thing narrowed by what has_qualifier knows is refused, as the
+    yes/no form ("Is there a bedroom with a balcony?") already is."""
+    assert PARSE(text) == Unsupported(reason="a condition on the items (rooms that have...)")
+
+
+def test_a_hint_sentence_after_the_question_is_no_qualifier() -> None:
+    """The dataset's hints ("Count doorways fitted with a door; … without a door leaf …") follow
+    the question: only the question's own first sentence is read for a qualifier."""
+    text = (
+        "How many doors are shown on this floor plan? Count doorways fitted with a door; open "
+        "doorways without a door leaf do not count."
+    )
+    assert PARSE(text) == PARSE("How many doors are shown on this floor plan?")
+    assert isinstance(PARSE(text), Query)

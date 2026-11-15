@@ -298,6 +298,14 @@ SIZE_FILTER_WORDS = re.compile(
     r"|\b(?:over|under|above|below|exceeding|at least|at most)\s+\d"
     r"|\bwith\s+(?:a\s+)?(?:width|height|length|area|size|depth|thickness)\b"
 )
+# The question's own sentence, before a hint ("... on this floor plan? Count doorways fitted with
+# a door; ...")
+FIRST_SENTENCE = re.compile(r"\?|(?<=[a-z0-9²)])\.\s")
+# Qualifiers the parser applies itself, so no reason to refuse: an apartment's rooms "without
+# balconies" (EXCLUDING), a room's "longer side" (its length)
+APPLIED = re.compile(
+    r"\b(?:without|excluding|except)\s+(?:the\s+|its\s+)?balcon\w*|\b(?:longer|shorter)\s+side\b"
+)
 # Where an English count looks ("in the kitchen", "on this floor plan"): a place that is not the
 # sheet itself is a room or part the takeoff can't count in, known or not ("in the kitchn").
 IN_PLACE = re.compile(r"\b(?:in|inside|within|on) (?:the|this|that|a|an|one) ([^\W\d_]+)")
@@ -375,6 +383,10 @@ class TemplateParser:
         measure: Measure | None = next((m for m, cue in MEASURES if cue.search(lower)), None)
         if measure is None:
             return Unsupported(reason="no count, area, length or volume asked for")
+        # "bedrooms with a balcony", "doors next to the kitchen": the takeoff counts whole classes
+        # (review-524 should 2); the hint sentences after the question are not read for it
+        if has_qualifier(APPLIED.sub(" ", FIRST_SENTENCE.split(lower, maxsplit=1)[0])):
+            return Unsupported(reason="a condition on the items (rooms that have...)")
         body, hits = _subjects(lower)
         if any(subject == SPACE_THING for _, subject in hits):
             return Unsupported(reason=NOT_A_ROOM_SPACE)
