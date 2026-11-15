@@ -529,6 +529,50 @@ def test_dampers_and_valves_are_listed_and_counted_by_storey() -> None:
     assert _run(store, "list_services", drawing_id="lft", storey="E00_OKRD")["count"] == 0
 
 
+def test_an_unfiltered_list_names_the_kinds_listed_only_on_request_with_their_counts() -> None:
+    """R2 services row 7 (S1, demo): the chat called list_services with no kind, got the air
+    terminals, and said "0 fire dampers": the unfiltered list left dampers and valves out without
+    saying they exist. It still leaves them out of its count (review-699), and names them with
+    their counts in the same scope."""
+    store = ServicesToolStore(
+        models={"lft": controllers("ventilation"), "hzg": controllers("heating")}, selections={}
+    )
+    e00 = _run(store, "list_services", drawing_id="lft", storey="E00_OKRD")
+    assert e00["count"] == 0 and e00["on_request"] == {"damper": 5}, e00
+    heating = _run(store, "list_services", drawing_id="hzg")
+    assert heating["count"] == 3 and heating["on_request"] == {"valve": 24}, heating
+    assert "valve" not in heating["by_kind"]
+    every = _run(store, "list_services", storey="E00_OKRD")
+    assert {m["drawing_id"]: m["on_request"] for m in every["models"]} == {
+        "lft": {"damper": 5},
+        "hzg": {"valve": 20},
+    }
+    asked = _run(store, "list_services", drawing_id="lft", kind="damper")
+    assert asked["count"] == 12 and "on_request" not in asked, asked
+    plain = _run(_store(), "list_services", drawing_id="d1")  # no controllers: no key
+    assert "on_request" not in plain, plain
+
+
+def test_every_model_s_list_fits_its_share_by_listing_fewer_systems() -> None:
+    """R2 services row 7: three DigitalHub models listed together came to 3823 characters on main
+    (limit 3900) because a model's ten systems never shrank to its share; the on-request counts
+    tipped it over and the whole result was cut to its count. Past the items and the groups, a
+    model lists fewer systems and says how many more it has."""
+
+    def many_systems(lane: str) -> ServicesModel:
+        doc = controllers(lane).model_dump(mode="json", by_alias=True)
+        for n, e in enumerate(doc["elements"][:12]):
+            e["systems"] = [f"{lane} system {n:02d} " + "x" * 80]
+        return ServicesModel.model_validate(doc)
+
+    models = {d: many_systems(d) for d in ("ventilation", "heating", "plumbing")}
+    found = _run(ServicesToolStore(models=models, selections={}), "list_services")
+    assert "cut" not in found and len(found["models"]) == 3, found
+    for m in found["models"]:
+        systems = {s for e in models[m["drawing_id"]].elements for s in e.systems}
+        assert m["systems_more"] > 0 and len(m["systems"]) + m["systems_more"] == len(systems)
+
+
 def test_a_kind_no_listed_element_has_is_an_error_naming_the_kinds_not_a_zero() -> None:
     """R1 services row 7: a kind filter that matches nothing in the model gave count 0 with no
     error, and the chat stated it as a fact. A kind the model has elsewhere is a true 0."""
