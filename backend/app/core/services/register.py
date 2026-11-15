@@ -24,10 +24,14 @@ MIN_SHARE = 0.4  # services lines (pipes, ducts) are no walls: 40% of the sheet'
 MARGIN = 1.3  # the best pose must beat another quarter turn's by this, or it is a guess
 SCALES = np.exp(np.linspace(math.log(0.5), math.log(2.0), 71))  # around the extents' ratio, 2%
 VOTE_M = 0.5  # shift vote bin: wide enough for a 2% scale step across a floor
-POSES = 6  # poses refined by ICP
+POSES = 3  # poses refined by ICP per quarter turn
 ICP_STEPS = 25
+SETTLED = 1e-6  # ICP stops when a step moves the sheet's points less than this share of its size
 TRIM = 0.7  # ICP fits the best 70% of points: missing walls and services lines fall out
 SAMPLES = 5  # points per sheet line, ends included
+LONGEST = 120  # lines kept per side, longest first: the cost grows with lines on both sides
+SPREAD = (5.0, 95.0)  # percentiles of the points a set's extent is taken between: a stray line
+# far off neither sizes the scale search nor the shift vote
 
 
 class Segment(Frozen):
@@ -58,22 +62,24 @@ class Refusal(Frozen):
 
 
 def register(plan_walls: Sequence[Segment], sheet_walls: Sequence[Segment]) -> Place | Refusal:
-    """How the sheet's lines land on the plan's walls, or why they cannot be laid over."""
-    if len(sheet_walls) < MIN_WALLS:
+    """How the sheet's lines land on the plan's walls, or why they cannot be laid over. Lines
+    with a point that is not a finite number are left out; of the rest, the `LONGEST` longest
+    of each side are used (`of_total` counts the sheet's used lines)."""
+    plan, sheet = _ends(plan_walls), _ends(sheet_walls)
+    if len(sheet) < MIN_WALLS:
         return Refusal(
-            reason=f"only {len(sheet_walls)} wall lines on the services sheet ({MIN_WALLS} needed)"
+            reason=f"only {len(sheet)} wall lines on the services sheet ({MIN_WALLS} needed)"
         )
-    if len(plan_walls) < MIN_WALLS:
-        return Refusal(reason=f"only {len(plan_walls)} walls on the plan ({MIN_WALLS} needed)")
-    plan = _ends(plan_walls)
-    sheet = _ends(sheet_walls)
+    if len(plan) < MIN_WALLS:
+        return Refusal(reason=f"only {len(plan)} walls on the plan ({MIN_WALLS} needed)")
     needed = max(MIN_WALLS, math.ceil(MIN_SHARE * len(sheet)))
     best: dict[int, tuple[int, float, float, np.ndarray]] = {}  # turn -> pose, scored
     base = _rotation(plan, sheet)
     for turn in range(4):
         deg = base + 90.0 * turn
-        for scale, shift in _guesses(plan, sheet, deg):
-            pose = _icp(plan, sheet, deg, scale, shift)
+        guesses, searched = _guesses(plan, sheet, deg)
+        for scale, shift in guesses:
+            pose = _icp(plan, sheet, deg, scale, shift, searched)
             hits, _ = _inliers(plan, sheet, *pose)
             if turn not in best or hits > best[turn][0]:
                 best[turn] = (hits, *pose)
@@ -99,8 +105,19 @@ def register(plan_walls: Sequence[Segment], sheet_walls: Sequence[Segment]) -> P
 
 
 def _ends(walls: Sequence[Segment]) -> np.ndarray:
-    """(n, 2, 2): each line's two ends."""
-    return np.array([[w.a, w.b] for w in walls], np.float64)
+    """(n, 2, 2): the `LONGEST` longest lines' two ends, lines with a non-finite point left out."""
+    ends = np.array([[w.a, w.b] for w in walls], np.float64).reshape(-1, 2, 2)
+    ends = ends[np.isfinite(ends).all(axis=(1, 2))]
+    d = ends[:, 1] - ends[:, 0]
+    with np.errstate(over="ignore"):
+        length = np.hypot(d[:, 0], d[:, 1])
+    return ends[np.argsort(-length, kind="stable")[:LONGEST]]
+
+
+def _extent(points: np.ndarray) -> float:
+    """The set's longer side between the `SPREAD` percentiles: strays left out."""
+    lo, hi = np.percentile(points, SPREAD, axis=0)
+    return float((hi - lo).max())
 
 
 def _turn(deg: float) -> np.ndarray:
@@ -129,36 +146,35 @@ def _points(ends: np.ndarray, n: int = 3) -> np.ndarray:
     return (ends[:, :1] * (1 - t) + ends[:, 1:] * t).reshape(-1, 2)
 
 
-def _guesses(plan: np.ndarray, sheet: np.ndarray, deg: float) -> list[tuple[float, np.ndarray]]:
-    """The `POSES` (scale, shift) pairs with the most votes at this turn."""
-    p = _points(plan)
-    q = _points(sheet) @ _turn(deg).T
-    ratio = float(np.ptp(p, axis=0).max() / max(np.ptp(q, axis=0).max(), 1e-12))
+def _guesses(
+    plan: np.ndarray, sheet: np.ndarray, deg: float
+) -> tuple[list[tuple[float, np.ndarray]], tuple[float, float]]:
+    """The `POSES` (scale, shift) pairs with the most votes at this turn, and the scale range
+    searched. Votes are counted per occupied cell, so a far point costs no memory."""
+    p = plan.reshape(-1, 2)  # line ends vote; corners are what two floors' walls share
+    q = sheet.reshape(-1, 2) @ _turn(deg).T
+    ratio = _extent(p) / max(_extent(q), 1e-12)
     found: list[tuple[int, float, np.ndarray]] = []
     for scale in ratio * SCALES:
         diffs = (p[:, None, :] - scale * q[None, :, :]).reshape(-1, 2)
-        cells = np.floor(diffs / VOTE_M).astype(np.int64)
-        cells -= cells.min(axis=0)
-        width = int(cells[:, 1].max()) + 1
-        counts = np.bincount(cells[:, 0] * width + cells[:, 1])
+        cells = np.clip(np.floor(diffs / VOTE_M), -(2.0**30), 2.0**30).astype(np.int64)
+        keys, counts = np.unique((cells[:, 0] << 32) + cells[:, 1], return_counts=True)
         i = int(np.argmax(counts))
-        corner = np.floor(diffs.min(axis=0) / VOTE_M)
-        cell = np.array([i // width, i % width]) + corner
+        cell = np.array([(keys[i] + 2**31) >> 32, ((keys[i] + 2**31) & 0xFFFFFFFF) - 2**31])
         found.append((int(counts[i]), float(scale), (cell + 0.5) * VOTE_M))
     found.sort(key=lambda f: -f[0])
-    return [(s, t) for _, s, t in found[:POSES]]
+    return [(s, t) for _, s, t in found[:POSES]], (ratio * SCALES[0], ratio * SCALES[-1])
 
 
 def _nearest(points: np.ndarray, walls: np.ndarray) -> np.ndarray:
-    """Each point's nearest point on any wall."""
-    a, b = walls[:, 0][None], walls[:, 1][None]
-    ab = b - a
-    t = np.clip(
-        ((points[:, None] - a) * ab).sum(-1) / np.maximum((ab * ab).sum(-1), 1e-12), 0.0, 1.0
-    )
-    near = a + t[..., None] * ab
-    i = np.argmin(((points[:, None] - near) ** 2).sum(-1), axis=1)
-    return near[np.arange(len(points)), i]
+    """Each point's nearest point on any wall (by matrix products: no points x walls x 2)."""
+    a, ab = walls[:, 0], walls[:, 1] - walls[:, 0]
+    length2 = np.maximum((ab * ab).sum(1), 1e-12)
+    pa = points @ ab.T - (a * ab).sum(1)  # (p - a) . ab
+    t = np.clip(pa / length2, 0.0, 1.0)
+    p_a2 = (points * points).sum(1)[:, None] - 2 * points @ a.T + (a * a).sum(1)  # |p - a|^2
+    i = np.argmin(p_a2 - 2 * t * pa + t * t * length2, axis=1)
+    return a[i] + t[np.arange(len(points)), i, None] * ab[i]
 
 
 def _place(q: np.ndarray, deg: float, scale: float, shift: np.ndarray) -> np.ndarray:
@@ -166,16 +182,30 @@ def _place(q: np.ndarray, deg: float, scale: float, shift: np.ndarray) -> np.nda
 
 
 def _icp(
-    plan: np.ndarray, sheet: np.ndarray, deg: float, scale: float, shift: np.ndarray
+    plan: np.ndarray,
+    sheet: np.ndarray,
+    deg: float,
+    scale: float,
+    shift: np.ndarray,
+    searched: tuple[float, float],
 ) -> tuple[float, float, np.ndarray]:
-    """The pose (deg, scale, shift) refined by trimmed ICP with Umeyama's similarity."""
+    """The pose (deg, scale, shift) refined by trimmed ICP with Umeyama's similarity, its scale
+    kept in the `searched` range (left alone, ICP on lines that match nothing shrinks the sheet
+    toward a point, where every line lies on a wall)."""
     q = _points(sheet, SAMPLES)
+    size = _extent(q) * scale
+    moved = _place(q, deg, scale, shift)
     for _ in range(ICP_STEPS):
-        moved = _place(q, deg, scale, shift)
         target = _nearest(moved, plan)
         err = np.hypot(*(moved - target).T)
         keep = err <= np.quantile(err, TRIM)
-        deg, scale, shift = _umeyama(q[keep], target[keep])
+        deg, fitted, shift = _umeyama(q[keep], target[keep])
+        scale = min(max(fitted, searched[0]), searched[1])
+        if scale != fitted:  # the shift that goes with the clamped scale
+            shift = (target[keep] - _place(q[keep], deg, scale, np.zeros(2))).mean(0)
+        before, moved = moved, _place(q, deg, scale, shift)
+        if np.abs(moved - before).max() <= SETTLED * size:
+            break
     return deg, scale, shift
 
 
