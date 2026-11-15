@@ -549,6 +549,9 @@ Acceptance criteria
   under it with Simple's words: "after 64 s waiting for a free slot", or "waiting 12 s for a free slot" under "–"
   while still queued (`queueWaitMs`, `formatWait`). Advanced's own `elapsedMs` is gone. [component
   `AdvancedIngest.test.tsx`; e2e `ingest-detail.spec.ts`]
+- AD-134 (Simple's IN-134 in Advanced, 2026-11-15): A file waiting for the local reader (`step_id` `local_slot`)
+  says the wait in its running form on its Files by stage row, "Now: waiting for the local reader", from Simple's
+  `rowStep` (it said "Now: Waited for the local reader" while still waiting). [component `FileMatrix.test.tsx`]
 
 ## Not in the API
 

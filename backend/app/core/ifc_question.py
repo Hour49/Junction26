@@ -102,7 +102,7 @@ _SPACE = re.compile(
 )
 _MEASURES: tuple[tuple[str, str], ...] = (
     ("count", r"how\s+many|number\s+of|counts?\b|quantit(?:y|ies)|how\s+much|inventory"),
-    ("area", r"area|square\s+met|sq\.?\s*m|m2|m²|gfa|ufa|footprint"),
+    ("area", r"area|square\s+met|sq\.?\s*m|m2|m²|gfa|ufa|footprint|how\s+(?:big|large)\b"),
     ("length", r"length|\blong\b|linear|metres\s+of|meters\s+of|skirting"),
     ("volume", r"volume|cubic"),
     ("thickness", r"thick"),
