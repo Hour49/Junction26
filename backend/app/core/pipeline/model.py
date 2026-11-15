@@ -107,6 +107,15 @@ class StepTrace(Frozen):
     found: dict[str, int] = Field(default_factory=dict[str, int])  # counts by class
 
 
+class PrintedAnswer(Frozen):
+    """A count the sheet prints for exactly what a stage-8 entry counts: its subject, the floor
+    the sheet shows, one value (PRINTED_TOTAL_ANSWERS, app/core/pipeline/printed_answer.py). The
+    entry reports it; `text` is as printed."""
+
+    measurement: Measurement
+    text: str
+
+
 class Extracted(Frozen):
     """Stage 7: what an extractor read, placed on the sheet as page fractions. `method` is how it
     reads, as a conflict names it (`parser`, `detector`, `ifc_model`...)."""
@@ -129,6 +138,8 @@ class Extracted(Frozen):
     # What the sheet prints about this reading (its scale, its printed counts), measured against
     # it at stage 8 next to the second counter's values (app/core/pipeline/printed.py)
     printed: tuple[Measurement, ...] = ()
+    # Which of those printed counts the entry reports (PRINTED_TOTAL_ANSWERS); () when off
+    printed_answers: tuple[PrintedAnswer, ...] = ()
     notes: tuple[str, ...] = ()
     # What ran to read it (decision 0018), `at_ms` after this extract call began; the trace's
     # extract stage shows them. Nothing else reads them, so answers never depend on them.

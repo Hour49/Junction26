@@ -893,6 +893,8 @@ def build_ingest(
         names["scale_carbon_doors"] = settings.scale_carbon_doors
     if settings.raster_printed_scale != "off":  # the same
         names["raster_printed_scale"] = settings.raster_printed_scale
+    if settings.printed_total_answers != "off":  # the same
+        names["printed_total_answers"] = settings.printed_total_answers
     if settings.raster_photo_components:  # the same
         names["raster_photo_components"] = settings.raster_photo_components
     if settings.room_policy != "furniture":  # the same
@@ -1106,7 +1108,8 @@ def _printed(
                 in_flight=settings.carbon_calls_in_flight,
             )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
-            return PrintedScale(inner, reader, files, kind_of)  # kind: no camera dpi
+            answers = settings.printed_total_answers == "on"
+            return PrintedScale(inner, reader, files, kind_of, answers)  # kind: no camera dpi
 
 
 def _raster_component(
