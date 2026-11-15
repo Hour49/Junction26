@@ -383,3 +383,14 @@ def test_a_selection_on_another_drawing_does_not_override_the_named_one() -> Non
     ingest = FakeIngest({"d1": drawing(), "d2": drawing()})
     _, kept = take(ingest, "The kitchen on Plan image 5 is 4 m wide", [pick], names=TWO)
     assert list(kept) == ["d1"]
+
+
+def test_rooms_selected_on_two_drawings_the_named_one_is_scaled() -> None:
+    """review-496: with rooms selected on two drawings, the one on the drawing the message names
+    is used, not the first selection (the scale landed on Plan photo 2)."""
+    picks = [Selection(id="sel_1", kind="room", drawing_id="d2", page=1, ref="r2"),
+             Selection(id="sel_2", kind="room", drawing_id="d1", page=1, ref="r2")]  # fmt: skip
+    ingest = FakeIngest({"d1": drawing(), "d2": drawing()})
+    _, kept = take(ingest, "This room on Plan image 5 is 4 m wide", picks, names=TWO)
+    assert list(kept) == ["d1"]
+    assert kept["d1"].m_per_unit == pytest.approx(4 / 200)
