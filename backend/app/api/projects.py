@@ -6,6 +6,7 @@ import logging
 import threading
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
+from functools import partial
 from pathlib import Path
 from typing import Annotated, Any, Literal, NamedTuple
 
@@ -13,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.adapters.ifc_model.facts_store import StoredFacts
 from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.page_render import render_upload
 from app.api.ask import page_images
@@ -46,6 +48,7 @@ from app.api.views import (
 )
 from app.core.errors import NotFoundError
 from app.core.ingest.model import (
+    FINISHED,
     FileStatus,
     FileTrace,
     Overrule,
@@ -385,11 +388,13 @@ def project(
     settings: SettingsDep,
     credits: CreditsDep,
     models_3d: Models3dDep,
+    answering: AnsweringDep,
 ) -> ProjectView:
     # here, not at the top: plan_tools imports this module (through pipeline_tools)
     from app.adapters.plan_tools import Kept, PipelineStore, not_drawable
 
     status = ingest.status(project_id)
+    start_facts(status, ingest, answering.facts)
     files = {file.path: file for file in status.files}
     kept: KeptReviews = request.app.state.kept_reviews
     store = PipelineStore.of_app(request.app, project_id)
@@ -516,6 +521,17 @@ def preview(
         raise NotFoundError(f"file {file_id} is no image or PDF, so it has no preview")
     png = render_upload(ingest.upload_bytes(project_id, file_id), kind, width)
     return Response(content=png, media_type="image/png", headers={"Cache-Control": IMMUTABLE})
+
+
+def start_facts(status: ProjectStatus, ingest: Ingest, facts: StoredFacts | None) -> None:
+    """IFC_FACTS: the fact sheet of each model ingest is done with starts its build apart (one
+    at a time, once per content), so the first question on it finds the sheet. The screen reads
+    the project until ingest is done; ingest itself has no hook for it."""
+    if facts is None:
+        return
+    for file in status.files:
+        if file.kind == "ifc" and file.state in FINISHED and file.sha256 is not None:
+            facts.start(file.sha256, file.path, partial(ingest.upload_bytes, status.id, file.id))
 
 
 def with_models_3d(status: ProjectStatus, models: GlbModels | None) -> ProjectStatus:

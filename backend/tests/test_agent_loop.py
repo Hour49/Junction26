@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from app.adapters.chat_rules import RulesChatModel
 from app.core.agent.loop import NUDGE, STOPS, UNBACKED, run_turn
 from app.core.agent.model import Caps, Chat, ChatTurn
 from app.core.agent.ports import ChatModelError, Reply
@@ -446,6 +447,21 @@ def test_tudor_nit_a_measured_area_reaches_the_model_as_the_card_shows_it() -> N
     got = turn(model, Tools(ask_drawings=shown))
     assert "7.557" not in model.sent[1][-1]["content"]
     assert got.text == "The kitchen is 7.56 m²."  # 7.557 is no longer backed
+
+
+def test_466_the_lead_cites_every_drawing_the_card_shows_though_parts_are_cut() -> None:
+    """#466 (Mada's look-check): 4 drawings answered, the card showed 4, the rules lead said "The
+    drawing answers this below [1].": the planner read the result cut for the model's window, where
+    `parts` kept 1 drawing. The model's copy now lists every answering drawing in `answered`."""
+    marks = [{"id": f"m{k}", "page": 1, "box": [0.1, 0.1, 0.2, 0.2],
+              "label": f"door {k} " + "x" * 40} for k in range(30)]  # fmt: skip
+    parts = [{"drawing_id": f"{DRAWING[:-1]}{n}", "name": f"{n}.pdf", "answer": {
+        "answer": 30, "unit": "count", "quantity": {"noun": "doors"}, "marks": marks,
+        "explanation": "y" * 900}} for n in range(1, 5)]  # fmt: skip
+    model = RulesChatModel()
+    got = turn(model, Tools(ask_drawings={"question": "how many doors", "parts": parts}))  # pyright: ignore[reportArgumentType]
+    assert len(got.answers[0]["parts"]) == 4  # the card
+    assert got.text == "The answer is below [1][2][3][4]."  # one cite per drawing on the card
 
 
 def test_every_answering_drawing_reaches_the_model_though_parts_are_cut() -> None:

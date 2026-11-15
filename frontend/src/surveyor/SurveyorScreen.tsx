@@ -101,10 +101,18 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
     };
   }, [drawingId, projectId, zeros, attempt]);
 
-  // phone: the detail sits under every row, so a selection brings it into view (surveyor.md "Phone")
+  // the detail sits under every row (the page on a phone, the takeoff column on a desktop): a selection brings it
+  // into view (surveyor.md "Phone", QA fe-ui2)
   useEffect(() => {
-    if (scrollTick > 0)
-      panel.current?.querySelector('.sv-detail')?.scrollIntoView({ block: 'start' });
+    const column = panel.current;
+    const detail = column?.querySelector<HTMLElement>('.sv-detail');
+    if (scrollTick === 0 || !column || !detail) return;
+    if (column.scrollHeight > column.clientHeight) {
+      // desktop: the takeoff column scrolls on its own; scrolling only it keeps the page (and the plan) still.
+      // The column is sticky, so it is the detail's offsetParent; its sticky head stays over the top.
+      const head = column.querySelector<HTMLElement>('.sv-panel-head')?.offsetHeight ?? 0;
+      column.scrollTop = detail.offsetTop - head - 12;
+    } else detail.scrollIntoView({ block: 'start' }); // phone: the page scrolls
   }, [scrollTick]);
 
   useEffect(() => {
@@ -165,8 +173,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       query: new URLSearchParams({ q: key }),
     });
     history.replaceState(history.state, '', href);
-    if (typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 760px)').matches)
-      setScrollTick((n) => n + 1);
+    setScrollTick((n) => n + 1); // the detail sits under every row, on a phone and in the desktop column
   }
 
   async function send(request: () => Promise<Takeoff>) {

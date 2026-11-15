@@ -49,12 +49,12 @@ def test_ac11_a_question_asks_the_drawings_then_answers_from_them() -> None:
         "marks": [{"ev": "ev_1"}, {"ev": "ev_2"}]}}]}  # fmt: skip
     name, args = plan("How many doors?", ("ask_drawings", {}, asked))
     assert name == "final_answer"
-    assert args == {"kind": "answer", "text": "The drawing answers this below [ev_1].",
+    assert args == {"kind": "answer", "text": "The answer is below [ev_1].",
                     "evidence_ids": ["ev_1"]}  # fmt: skip
     model = {"drawing_id": DRAWING, "name": "b.ifc", "answer": {"answer": 2, "marks": []}}
     asked["parts"].append(model)
     _, args = plan("How many doors?", ("ask_drawings", {}, asked))
-    assert args["text"] == "The drawings answer this below [ev_1]."
+    assert args["text"] == "The answer is below [ev_1]."
 
 
 def test_ac11_all_refused_is_dont_know_with_the_reason() -> None:
@@ -456,3 +456,13 @@ def test_which_drawing_has_the_largest_room_is_not_a_drawing_total() -> None:
     """A room word after 'largest' is a room question, not each drawing's total: asked as said."""
     message = "Which drawing has the largest kitchen?"
     assert plan(message) == ("ask_drawings", {"question": message})
+
+
+def test_the_lead_sentence_does_not_count_the_drawings() -> None:
+    """Mada's #430 look-check: "The drawing answers this below" with four drawings answering."""
+    parts = [{"drawing_id": f"{DRAWING[:-1]}{n}", "name": f"{n}.pdf", "answer": {
+        "answer": n, "unit": "count", "quantity": {"noun": "doors"},
+        "marks": [{"ev": f"ev_{n}"}]}} for n in range(1, 5)]  # fmt: skip
+    _, args = plan("How many doors?", ("ask_drawings", {}, {"parts": parts}))
+    assert args["text"] == "The answer is below [ev_1][ev_2][ev_3][ev_4]."
+    assert "drawing" not in args["text"]
