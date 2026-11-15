@@ -154,7 +154,15 @@ describe('advanced.ts', () => {
     const cached: FileTrace = {
       ...trace,
       stages: [
-        { stage: 'cache', did: 'ingested before', ms: 0, output: '', failure: null, cost_usd: 0 },
+        {
+          stage: 'cache',
+          did: 'ingested before',
+          ms: 0,
+          output: '',
+          failure: null,
+          cost_usd: 0,
+          steps: [],
+        },
       ],
     };
     expect(stepLines([trace.file], new Map([[trace.file.id, cached]]), 3)[0]?.text).toBe(
@@ -173,6 +181,7 @@ describe('advanced.ts', () => {
           output: 'a.pdf',
           failure: null,
           cost_usd: 0,
+          steps: [],
         },
         {
           stage: 'identify',
@@ -181,6 +190,7 @@ describe('advanced.ts', () => {
           output: 'pdf_vector',
           failure: null,
           cost_usd: 0,
+          steps: [],
         },
         {
           stage: 'route',
@@ -189,6 +199,7 @@ describe('advanced.ts', () => {
           output: 'vector',
           failure: null,
           cost_usd: 0,
+          steps: [],
         },
       ],
       file: { ...trace.file, path: 'a.pdf' },

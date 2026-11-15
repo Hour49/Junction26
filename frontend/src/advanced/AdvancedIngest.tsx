@@ -18,6 +18,7 @@ import {
 import { useDrawingData } from './useDrawingData';
 import { useProjectTrace } from './useProjectTrace';
 import { CheckPairs, FileStrip, PlanMarks, ReadyList, RouteLanes } from './visuals';
+import { FileMatrix } from './FileMatrix';
 import './advanced.css';
 import { Button } from '@/components/ui/button';
 
@@ -109,7 +110,10 @@ export function AdvancedIngest({
       case 'plan': {
         const c = planCounts(project);
         const expected = project.expected_drawings;
-        const ready = project.drawings.filter((d) => isFinished(d)).length;
+        // a drawing on a route whose reader is `hello` was not read: not ready (AD-123, as Simple's IN-116)
+        const ready = project.drawings.filter(
+          (d) => isFinished(d) && !(d.route != null && project.readers?.[d.route] === 'hello'),
+        ).length;
         return [
           { label: 'Rooms', value: dash(c.room) },
           { label: 'Doors', value: dash(c.door) },
@@ -188,6 +192,7 @@ export function AdvancedIngest({
 
   return (
     <div className="adv">
+      <FileMatrix projectId={projectId} project={project} traces={traces} />
       <nav aria-label="Steps" className="adv-rail">
         {STEPS.map((s, i) => {
           const k = i + 1;

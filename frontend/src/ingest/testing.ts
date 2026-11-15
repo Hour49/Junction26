@@ -112,6 +112,7 @@ export const traceVariants = {
               output: '',
               failure: null,
               cost_usd: 0,
+              steps: [],
             },
           ]
         : [s],
@@ -200,4 +201,22 @@ export const sheet: NonNullable<Triage['sheet']> = {
   sheet_number: 'A-201',
   takeoff_possible: false,
   title: 'South elevation',
+};
+
+/** The demo's readers as ingest records them (tools/qa-env.sh DEMO_ENV, backend composition `names`). */
+export const DEMO_READERS = {
+  bim: 'ifc',
+  cad: 'hello',
+  vector: 'pdf',
+  raster: 'composite',
+  raster_components:
+    'elements=decisions-s1536:region:C-yolo26s-1536,plans=decisions-s1536:region:C-yolo26s-1536,rooms=exp:ocr/G4-regpred-golden',
+  tables: 'pdf',
+  second_counter: 'ifc',
+  rectifier: 'r3',
+  decisions_kind: 'True',
+  raster_printed_scale: 'carbon',
+  carbon_reader: 'large+few3+snap+storey:abc',
+  double_check_readers: 'l1=detector:C-yolo26l,m1=detector:C-yolo26m',
+  carbon_levels: 'demote:abc',
 };

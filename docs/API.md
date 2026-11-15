@@ -4345,6 +4345,14 @@ upload lists the files, instead of one request per file.
           "railing|storey=ground floor": 0,
           "railing|storey=ground floor|model": 0,
           "room": 2,
+          "room:kitchen": 1,
+          "room:kitchen|model": 1,
+          "room:kitchen|storey=ground floor": 1,
+          "room:kitchen|storey=ground floor|model": 1,
+          "room:living": 1,
+          "room:living|model": 1,
+          "room:living|storey=ground floor": 1,
+          "room:living|storey=ground floor|model": 1,
           "room|model": 2,
           "room|storey=ground floor": 2,
           "room|storey=ground floor|model": 2,
@@ -4466,9 +4474,9 @@ upload lists the files, instead of one request per file.
         },
         {
           "stage": "takeoff",
-          "did": "takeoff: 51 quantities, 35 above zero",
+          "did": "takeoff: 59 quantities, 43 above zero",
           "ms": 12.5,
-          "output": "takeoff: 51 quantities, 35 above zero",
+          "output": "takeoff: 59 quantities, 43 above zero",
           "failure": null,
           "cost_usd": 0.0,
           "steps": []
@@ -4477,7 +4485,7 @@ upload lists the files, instead of one request per file.
           "stage": "write",
           "did": "drawing model 1db9bcf1e67e27a3 stored",
           "ms": 12.5,
-          "output": "51 quantities",
+          "output": "59 quantities",
           "failure": null,
           "cost_usd": 0.0,
           "steps": []
@@ -4780,7 +4788,7 @@ many quantities are left to review and how many are signed off, and every confli
       "file": "model/house.ifc",
       "to_review": 0,
       "signed": 0,
-      "quantities": 35
+      "quantities": 43
     }
   ],
   "conflicts": [
@@ -9490,7 +9498,7 @@ an area. `next` is `[]` on a turn with `options` and on every other kind.
   "chat_id": "c4a7c0000001",
   "turn": 1,
   "kind": "answer",
-  "text": "The answer is below [1][2][3].",
+  "text": "Drawn plan 1: 2 [1]; Drawn plan 2: 2 [2]; Drawn plan 3: 1 [3]; Building model 1: 2.",
   "evidence": [
     {
       "n": 1,
