@@ -1,0 +1,159 @@
+"""Decision 0018: each reader that reads a sheet is a step of the extract stage, with what it
+was read for, when it began, how long it ran, what it cost and what it found."""
+
+import threading
+
+from pdf_sheets import SheetPdf
+from test_ifc_model import DEMO, IfcModelExtractor, IfcModels, model_file, stored
+from test_ifc_model import extract as ifc_extract
+from test_pdf_tables import untitled_boxes
+from test_raster_composite import FILE, LEFT, RIGHT, SHEET, Fake, composite, element, room
+from test_vector_pdf import extract as vector_extract
+from test_vector_pdf import swiss_sheet
+
+from app.adapters.raster import assemble, parse_components, source_label
+from app.core import cost
+from app.core.drawing.model import Plan, Scale
+from app.core.ingest.model import StageTrace
+from app.core.ingest.timing import StageClock, TimedExtractor, with_steps
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
+from app.core.pipeline.ports import Extractor
+
+PLANS = (Plan(id="x", page=1, box=(0.0, 0.0, 1.0, 1.0)),)
+
+
+class Meeting(Fake):
+    """A component that waits at `barrier` while it reads, so every component sharing it is
+    reading at the same time; it pays `usd` and has `faults` model calls fail."""
+
+    def __init__(
+        self, barrier: threading.Barrier, usd: float = 0.0, faults: int = 0, **found: object
+    ) -> None:
+        super().__init__(**found)  # type: ignore[arg-type]
+        self.barrier, self.usd, self.faults = barrier, usd, faults
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        self.barrier.wait(timeout=10)
+        cost.charge(self.usd)
+        if self.faults:
+            cost.fail(self.faults)
+        return super().extract(source, sheet)
+
+
+def test_each_source_is_a_step_and_parallel_sources_overlap() -> None:
+    barrier = threading.Barrier(3)
+    readers: dict[str, Extractor] = {
+        "detector-v8:C": Meeting(
+            barrier,
+            elements=[element("door", LEFT), element("door", RIGHT), element("window", LEFT)],
+            read=["door", "window"],
+        ),
+        "gemini": Meeting(barrier, usd=0.004, rooms=[room("kitchen", LEFT)], read=["room"]),
+        "one-plan": Meeting(barrier, plans=PLANS),
+    }
+    got = composite(
+        {"elements": "detector-v8:C", "rooms": "gemini", "plans": "one-plan"}, readers
+    ).extract(FILE, SHEET)
+    by_id = {step.id: step for step in got.steps}
+    assert set(by_id) == {"detector", "rooms", "plans"}
+    detector, rooms, plans = by_id["detector"], by_id["rooms"], by_id["plans"]
+    assert detector.label == "Symbol detector, 8 views"
+    assert detector.found == {"door": 2, "window": 1}
+    assert detector.did.startswith("read for door, window") and "2 doors, 1 window" in detector.did
+    assert (rooms.label, rooms.found) == ("Room reader (Gemini)", {"room": 1})
+    assert rooms.cost_usd == 0.004
+    assert plans.found == {"plan": 1}
+    # all three met at the barrier: each began before every other one ended
+    for one in got.steps:
+        for other in got.steps:
+            assert one.at_ms <= other.at_ms + other.ms
+    assert [step.at_ms for step in got.steps] == sorted(step.at_ms for step in got.steps)
+
+
+def test_a_source_whose_model_calls_failed_is_a_failed_step() -> None:
+    barrier = threading.Barrier(1)
+    readers: dict[str, Extractor] = {
+        "carbon": Meeting(barrier, faults=2, elements=[element("door", LEFT)])
+    }
+    got = composite({"elements": "carbon", "plans": "carbon"}, readers).extract(FILE, SHEET)
+    (step,) = got.steps
+    assert (step.id, step.label, step.state) == ("carbon", "Gemini Carbon reader", "failed")
+    assert step.did.endswith("2 model calls got no answer")
+
+
+def test_a_double_check_reader_is_its_own_step_and_never_counted() -> None:
+    readers = {
+        "detector:A": Fake(elements=[element("door", LEFT)], read=["door"]),
+        "detector:B": Fake(elements=[element("door", LEFT), element("door", RIGHT)], read=["door"]),
+        "one-plan": Fake(plans=PLANS),
+    }
+    built = assemble(
+        parse_components("elements=detector:A,plans=one-plan"),
+        readers.__getitem__,
+        double_check={"l1": "detector:B"},
+    )
+    got = built.extract(FILE, SHEET)
+    check = next(step for step in got.steps if step.id == "double_check")
+    assert check.label == "Double-check reader l1: Symbol detector"
+    assert check.did.startswith("never counted") and check.found == {"door": 2}
+    assert len(got.elements) == 1
+
+
+def test_a_decisions_source_names_the_reader_it_wraps() -> None:
+    assert source_label("decisions-s1536:region:C-yolo26s-1536") == (
+        "decisions",
+        "Gemini Decisions count swap (1536 px) over Symbol detector with region model",
+    )
+    assert source_label("someday:x") == ("reader", "Reader someday:x")
+
+
+def test_the_vector_reader_is_one_step_naming_its_sheet_style() -> None:
+    got = vector_extract(swiss_sheet().pdf())
+    (step,) = got.steps
+    assert (step.id, step.label) == ("vector", "Drawn-PDF reader (Swiss plan rules)")
+    assert step.found["room"] == len(got.rooms) > 0
+    assert step.ms > 0
+
+
+def test_a_drawn_pdf_no_style_matches_is_a_step_saying_so() -> None:
+    sheet = SheetPdf()
+    untitled_boxes(sheet)
+    (step,) = vector_extract(sheet.pdf()).steps
+    assert step.label == "Drawn-PDF reader"
+    assert step.did.startswith("no sheet style we have reading rules for")
+    assert step.found == {}
+
+
+def test_the_ifc_reader_is_one_step_on_a_sheet_and_on_the_model_itself() -> None:
+    (on_sheet,) = ifc_extract().steps
+    assert (on_sheet.id, on_sheet.label) == ("ifc", "IFC model placed on the sheet (SVG twin)")
+    assert on_sheet.found and on_sheet.state == "done"
+    files = stored(DEMO)
+    itself = IfcModelExtractor(files, IfcModels(files)).extract(
+        model_file(), Sheet(file=model_file(), pages=())
+    )
+    (step,) = itself.steps
+    assert step.label == "IFC model reader"
+    assert sum(step.found.values()) == len(itself.model_objects or ())
+
+
+class Stepped:
+    """An extractor that reports one step, `at_ms` 1 after its call began."""
+
+    def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        step = StepTrace(id="vector", label="v", at_ms=1, ms=2)
+        return Extracted(method="parser", scale=Scale(status="no_scale"), steps=(step,))
+
+
+def test_a_second_extract_call_lists_its_steps_after_the_first() -> None:
+    now = iter([0.0, 0.010, 0.010, 0.030])  # the first call ran 10 ms, the second 20 ms
+    timer = StageClock(lambda: next(now))
+    timed = TimedExtractor(Stepped(), timer)
+    timed.extract(FILE, SHEET)
+    timed.extract(FILE, SHEET)
+    steps = timer.steps[FILE.path]["extract"]
+    assert [step.at_ms for step in steps] == [1, 11]
+    stage = StageTrace(stage="extract", did="read", ms=30)
+    other = StageTrace(stage="takeoff", did="t", ms=1)
+    traced = with_steps([stage, other], timer.steps[FILE.path])
+    assert traced[0].steps == tuple(steps) and traced[1].steps == ()

@@ -13,13 +13,19 @@ gets a note per schedule saying which marks the two disagree on (schedule_check.
 
 Only ruled schedules are read (Revit and AutoCAD schedules draw every cell), and only those with
 a title row: title blocks, revision lists and drawings made of boxes have none.
+
+Reading page 1 for schedules is a step after the inner extractor's (`Extracted.steps`, decision
+0018): how many schedules it read, and how long it took.
 """
+
+import time
 
 from app.adapters.pdf_tables.lattice import read_tables
 from app.adapters.pdf_tables.page import read_table_page
 from app.adapters.pdf_tables.schedule_check import checks_of, reads_itself
-from app.core.pipeline.model import DrawingFile, Extracted, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles, Extractor
+from app.core.wording import count
 
 SAME_SHAPE = 0.01  # relative difference of width / height between the PDF page and the sheet
 
@@ -30,9 +36,31 @@ class PdfTables:
         self._files = files
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        began = time.perf_counter()
         found = self._inner.extract(source, sheet)
         if source.kind != "pdf" or not sheet.pages:
             return found
+        tables_began = time.perf_counter()
+        found = self._tables(source, sheet, found)
+        ended = time.perf_counter()
+        read = found.tables or ()
+        step = StepTrace(
+            id="tables",
+            label="Schedule tables (PDF)",
+            did=(
+                f"{count(len(read), 'schedule')} read: "
+                + ", ".join(table.title or table.id for table in read)
+                if read
+                else "no ruled schedule on page 1"
+            ),
+            at_ms=(tables_began - began) * 1000,
+            ms=(ended - tables_began) * 1000,
+            found={"schedule": len(read)} if read else {},
+        )
+        return found.model_copy(update={"steps": (*found.steps, step)})
+
+    def _tables(self, source: DrawingFile, sheet: Sheet, found: Extracted) -> Extracted:
+        """`found` with page 1's schedules and the schedule-check notes added."""
         if reads_itself(source, sheet) and (checked := checks_of(self._files, source)):
             notes = tuple(rule.note() for rule in checked)
             found = found.model_copy(update={"notes": (*found.notes, *notes)})

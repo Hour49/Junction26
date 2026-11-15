@@ -2324,7 +2324,35 @@ that is not an evidence id. `description.detail` is a model's description no per
       "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
       "cost_usd": 0.0,
-      "steps": []
+      "steps": [
+        {
+          "id": "vector",
+          "label": "Drawn-PDF reader (Swiss plan rules)",
+          "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {
+            "door": 2,
+            "window": 2,
+            "toilet": 1,
+            "sink": 1,
+            "bathtub": 1,
+            "room": 5
+          }
+        },
+        {
+          "id": "tables",
+          "label": "Schedule tables (PDF)",
+          "did": "no ruled schedule on page 1",
+          "at_ms": 2.5,
+          "ms": 12.5,
+          "cost_usd": 0.0,
+          "state": "done",
+          "found": {}
+        }
+      ]
     },
     {
       "stage": "second_count",
@@ -2655,7 +2683,35 @@ upload lists the files, instead of one request per file.
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -2924,7 +2980,35 @@ upload lists the files, instead of one request per file.
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -3184,7 +3268,35 @@ upload lists the files, instead of one request per file.
           "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "5 rooms, 2 doors, 2 windows, 1 bathtub, 1 sink, 1 toilet; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 2,
+                "toilet": 1,
+                "sink": 1,
+                "bathtub": 1,
+                "room": 5
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -3396,7 +3508,32 @@ upload lists the files, instead of one request per file.
           "output": "2 elements, 3 rooms, 1 plan, scale read from the sheet",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "vector",
+              "label": "Drawn-PDF reader (Swiss plan rules)",
+              "did": "3 rooms, 1 door, 1 window; scale read from the sheet",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 1,
+                "window": 1,
+                "room": 3
+              }
+            },
+            {
+              "id": "tables",
+              "label": "Schedule tables (PDF)",
+              "did": "no ruled schedule on page 1",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {}
+            }
+          ]
         },
         {
           "stage": "second_count",
@@ -3999,7 +4136,24 @@ upload lists the files, instead of one request per file.
           "output": "12 model objects",
           "failure": null,
           "cost_usd": 0.0,
-          "steps": []
+          "steps": [
+            {
+              "id": "ifc",
+              "label": "IFC model reader",
+              "did": "12 model objects: 4 walls, 3 windows, 2 doors, 2 spaces, 1 slab",
+              "at_ms": 2.5,
+              "ms": 12.5,
+              "cost_usd": 0.0,
+              "state": "done",
+              "found": {
+                "door": 2,
+                "window": 3,
+                "wall": 4,
+                "slab": 1,
+                "space": 2
+              }
+            }
+          ]
         },
         {
           "stage": "takeoff",

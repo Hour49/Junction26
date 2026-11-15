@@ -13,16 +13,25 @@ only the scale was read or nothing was, so a class nobody looked for never count
 
 `SECOND_COUNTER=pdf` is `PdfSecondCounter`: the second readings the same page gives of what the
 extractor measured, for ingest stage 8.
+
+Its reading is one step of the result (`Extracted.steps`, decision 0018): the sheet style it
+matched, what it found and how long it took.
 """
+
+import time
+from types import ModuleType
 
 from app.adapters.vector_pdf import frame, ifc_render, swiss
 from app.adapters.vector_pdf.objects import Bounds, PdfPage, read_page
 from app.adapters.vector_pdf.scale import read_bar, read_ratio, read_scale
 from app.core.drawing.model import Box, MeasuredValue, MeasureMethod, Scale, Subject
-from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import DrawingFiles
+from app.core.pipeline.steps import found_of, found_words
+from app.core.wording import SCALE_WORDS
 
 STYLES = (swiss, ifc_render)
+STYLE_WORDS = {swiss: "Swiss plan rules", ifc_render: "IFC-render rules"}
 SAME_SHAPE = 0.01  # relative difference of width / height between the PDF page and the sheet
 
 
@@ -31,9 +40,29 @@ class PdfVectorExtractor:
         self._files = files
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
+        began = time.perf_counter()
+        found, style = self._read(source, sheet)
+        label = "Drawn-PDF reader" + (f" ({STYLE_WORDS[style]})" if style else "")
+        counted = found_of(
+            found.elements, found.read, rooms=len(found.rooms) if found.rooms else None
+        )
+        did = f"{found_words(counted)}; {SCALE_WORDS[found.scale.status]}"
+        if style is None:
+            did = f"{found.notes[-1]}; {SCALE_WORDS[found.scale.status]}"
+        step = StepTrace(
+            id="vector",
+            label=label,
+            did=did,
+            ms=(time.perf_counter() - began) * 1000,
+            found=counted,
+        )
+        return found.model_copy(update={"steps": (*found.steps, step)})
+
+    def _read(self, source: DrawingFile, sheet: Sheet) -> tuple[Extracted, ModuleType | None]:
+        """What the page gives, and the sheet style whose rules read it (None: none matched)."""
         page = _page_behind(self._files, source, sheet)
         if isinstance(page, str):
-            return _nothing(page)
+            return _nothing(page), None
         target = sheet.pages[0]
         scale, notes = read_scale(page)
         style = next((style for style in STYLES if style.matches(page)), None)
@@ -43,7 +72,7 @@ class PdfVectorExtractor:
                 scale=_per_unit(scale, page.width / target.width),
                 read=(),
                 notes=(*notes, "no sheet style we have reading rules for: only the scale was read"),
-            )
+            ), None
         reading = style.read(page, scale.m_per_unit)
         if page.page_count > 1:
             notes = (*notes, f"only page 1 of {page.page_count} was read")
@@ -56,7 +85,7 @@ class PdfVectorExtractor:
             apartments=reading.apartments,
             read=style.LOOKS_FOR,
             notes=(*notes, *reading.notes),
-        )
+        ), style
 
 
 class PdfSecondCounter:

@@ -28,6 +28,7 @@ from app.core.ingest.timing import (
     TimedCounter,
     TimedExtractor,
     TimedPages,
+    with_steps,
 )
 from app.core.ingest.triage import sheet_flag
 from app.core.pipeline.group import group, key_of
@@ -198,6 +199,7 @@ class Groups:
                     timer.ms.get(file.path, {}),
                     timer.usd.get(file.path, {}),
                 )
+                stages = with_steps(stages, timer.steps.get(file.path, {}))
                 stages = _with_frame(
                     stages, self._frames.get(file.path), run.frame_ms.get(file.path, 0.0)
                 )

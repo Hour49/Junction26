@@ -3621,7 +3621,7 @@ export interface components {
         /**
          * StepTrace
          * @description One thing that ran inside a stage (a reader, a check, a model call), or in the project's
-         *     last phase (decision 0017). Readers that run at the same time have overlapping
+         *     last phase (decision 0018). Readers that run at the same time have overlapping
          *     [at_ms, at_ms + ms) spans.
          */
         StepTrace: {

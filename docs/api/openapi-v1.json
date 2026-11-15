@@ -8829,7 +8829,7 @@
       },
       "StepTrace": {
         "additionalProperties": false,
-        "description": "One thing that ran inside a stage (a reader, a check, a model call), or in the project's\nlast phase (decision 0017). Readers that run at the same time have overlapping\n[at_ms, at_ms + ms) spans.",
+        "description": "One thing that ran inside a stage (a reader, a check, a model call), or in the project's\nlast phase (decision 0018). Readers that run at the same time have overlapping\n[at_ms, at_ms + ms) spans.",
         "properties": {
           "at_ms": {
             "default": 0,

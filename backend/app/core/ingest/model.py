@@ -14,7 +14,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from app.core.discipline import Discipline
 from app.core.model import Frozen
-from app.core.pipeline.model import Route
+from app.core.pipeline.model import Route, StepTrace
 
 FileState = Literal["queued", "running", "ready", "flagged", "text_only", "set_aside"]
 FINISHED: frozenset[FileState] = frozenset({"ready", "flagged", "text_only", "set_aside"})
@@ -377,24 +377,6 @@ class ProjectContext(Frozen):
     plan_text: tuple[str, ...]  # text read on them: room and flat labels, storeys, table titles
     file_names: tuple[str, ...]  # every file's path in the upload
     descriptions: tuple[str, ...]  # the other described files' subjects
-
-
-StepState = Literal["done", "failed", "skipped"]
-
-
-class StepTrace(Frozen):
-    """One thing that ran inside a stage (a reader, a check, a model call), or in the project's
-    last phase (decision 0017). Readers that run at the same time have overlapping
-    [at_ms, at_ms + ms) spans."""
-
-    id: str  # stable machine id of what ran: "detector", "carbon", "vector", ... (docs/API.md)
-    label: str  # plain words for the screen: "Symbol detector, 8 views"
-    did: str = ""  # one readable line of what it found, or the error when it failed
-    at_ms: float = Field(default=0, ge=0)  # when it began, ms after its stage (or phase) began
-    ms: float = Field(default=0, ge=0)  # how long it ran
-    cost_usd: float = Field(default=0.0, ge=0)
-    state: StepState = "done"
-    found: dict[str, int] = Field(default_factory=dict[str, int])  # counts by class
 
 
 class StageTrace(Frozen):

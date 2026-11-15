@@ -8,10 +8,11 @@ from dataclasses import dataclass, field
 
 from app.core import cost
 from app.core.drawing.model import Drawing, Page
-from app.core.ingest.model import Stage
+from app.core.ingest.model import Stage, StageTrace
 from app.core.ingest.ports import Clock
-from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet
+from app.core.pipeline.model import DrawingFile, Extracted, Measurement, Sheet, StepTrace
 from app.core.pipeline.ports import Extractor, PageReader, SecondCounter
+from app.core.pipeline.steps import shifted
 
 
 @dataclass
@@ -25,6 +26,10 @@ class StageClock:
     ms: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
     usd: dict[str, dict[Stage, float]] = field(default_factory=dict[str, dict[Stage, float]])
     faults: dict[str, int] = field(default_factory=dict[str, int])  # model calls that failed
+    # what ran inside each stage (decision 0018), `at_ms` after the stage's first call began
+    steps: dict[str, dict[Stage, list[StepTrace]]] = field(
+        default_factory=dict[str, dict[Stage, list[StepTrace]]]
+    )
     running: tuple[Stage, str] | None = None
     _ended: dict[str, float] = field(default_factory=dict[str, float])
     _spent: int = 0  # cost.mark() when the running call started
@@ -54,6 +59,12 @@ class StageClock:
             usd = self.usd.setdefault(path, {})
             usd[stage] = usd.get(stage, 0.0) + paid
 
+    def add_steps(self, stage: Stage, path: str, steps: Sequence[StepTrace], at_ms: float) -> None:
+        """`steps` of a call to `stage` for `path` that began `at_ms` into the stage's time (a
+        stage called twice, as on a fallback, lists both calls' steps one after the other)."""
+        if steps:
+            self.steps.setdefault(path, {}).setdefault(stage, []).extend(shifted(steps, at_ms))
+
     def since_last(self, path: str) -> float:
         """When the last timed call for `path` returned (the start of the untimed stages)."""
         return self._ended.get(path, self.clock())
@@ -75,9 +86,12 @@ class TimedExtractor:
         self._inner, self._timer = inner, timer
 
     def extract(self, source: DrawingFile, sheet: Sheet) -> Extracted:
-        started = self._timer.start("extract", sheet.file.path)
+        path = sheet.file.path
+        before = self._timer.ms.get(path, {}).get("extract", 0.0)
+        started = self._timer.start("extract", path)
         found = self._inner.extract(source, sheet)
-        self._timer.stop("extract", sheet.file.path, started)
+        self._timer.stop("extract", path, started)
+        self._timer.add_steps("extract", path, found.steps, before)
         return found
 
 
@@ -104,3 +118,17 @@ class CollectingSink:
         started = self._timer.since_last(drawing.file)
         self._timer.stop("takeoff", drawing.file, started)
         self.drawings[drawing.file] = drawing
+
+
+def with_steps(
+    stages: Sequence[StageTrace], steps: dict[Stage, list[StepTrace]]
+) -> list[StageTrace]:
+    """`stages` with the steps that ran inside each, in start order (decision 0018)."""
+    return [
+        stage.model_copy(
+            update={"steps": tuple(sorted(steps[stage.stage], key=lambda step: step.at_ms))}
+        )
+        if steps.get(stage.stage)
+        else stage
+        for stage in stages
+    ]
