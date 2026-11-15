@@ -9,7 +9,8 @@ What is read, and the conventions the facts follow:
 - Element facts: `<entity>.<measure>` with subject "all", "external", "internal",
   "load_bearing", "non_load_bearing" or "predefined:<TYPE>" sums or counts that part of the
   class (e.g. "wall.length" / "external"); `<entity>_type.<measure>` is per type, subject the
-  type's name. Some classes (ONE_BY_ONE) also get one fact per element, subject its name.
+  type's name. Some classes (ONE_BY_ONE) also get one fact per element, subject its name
+  (`<entity>.global_id` among them, for a question that names an element by its GUID).
 - A type's name is its IfcTypeObject's Name, else the element's ObjectType, else the element's
   Name without the trailing Revit id (":123456").
 - Quantities are the file's own (its Qto sets, e.g. Length, NetSideArea, NetVolume), summed
@@ -20,7 +21,8 @@ What is read, and the conventions the facts follow:
   key of the `space_function.*` sums. `space.area` is the footprint of its solid, read by
   objects.py's own `_solid`, so a room has one area wherever it is asked. What the file states
   is kept apart: the Qto areas (`space.net_floor_area`, `space.gross_floor_area`) and the area
-  the authoring tool writes in a property set (`space.stated_area`, STATED_AREAS).
+  the authoring tool writes in a property set (`space.stated_area`, STATED_AREAS). A space's
+  `space.height` is its Qto Height, else the depth of its upright body extrusion.
 - Derived numbers are computed here, never by the answering side (suffixed topics, whole
   building unless a storey is set): `<entity>.<measure>.min|max|average` per part,
   `<entity>.<measure>.per_storey` (the total over the storeys that hold the class),
@@ -144,6 +146,7 @@ class _Element:
     thickness: float | None
     flags: Mapping[str, bool]  # IsExternal, LoadBearing, as the file states them
     fire_rating: str | None
+    global_id: str
 
 
 def arch_facts(file: Any) -> list[Fact]:
@@ -348,6 +351,10 @@ def _spaces(file: Any, scales: Mapping[str, float]) -> Iterator[Fact]:
         if (kind := element_util.get_type(entity)) is not None and kind.Name:
             yield _fact("space.type", name, kind.Name, None, "IfcSpaceType", storey)
         quantities = _quantities(entity)
+        body = None if "Height" in quantities else _extrusion(entity)
+        if body is not None and abs(body.ExtrudedDirection.DirectionRatios[-1]) > 0.99:  # upright
+            height = body.Depth * scales["LENGTHUNIT"]
+            yield _fact("space.height", name, height, "m", "body extrusion depth", storey)
         for quantity in SPACE_QUANTITIES:
             if quantity not in quantities:
                 continue
@@ -491,6 +498,7 @@ def _element(entity: Any, key: str, scales: Mapping[str, float]) -> _Element:
         thickness=thickness,
         flags=flags,
         fire_rating=str(rating) if rating not in (None, "") else None,
+        global_id=entity.GlobalId,
     )
 
 
@@ -737,6 +745,7 @@ def _one_by_one(key: str, discipline: Discipline, elements: Sequence[_Element]) 
         ) -> Fact:
             return _fact(f"{key}.{name}", e.name, value, unit, source, e.storey, discipline)
 
+        yield fact("global_id", e.global_id, None, "GlobalId")
         for name in dict.fromkeys((e.type_name, e.family_name)):
             yield fact("type", name, None, "type name")
         for name, value in e.measures.items():

@@ -353,9 +353,24 @@ def test_elements_in_a_space_the_question_names() -> None:
 
 
 def test_a_ceiling_height_is_the_rooms_height() -> None:
-    assert "Bedroom (Space 002): 14.00 m², height 2.60 m" in text(
-        "What is the ceiling height in room 002?"
-    )
+    """Tudor R4-H1: a named room's height leads, with no count or area (orchestrator 05:03)."""
+    said = text("What is the ceiling height in room 002?")
+    assert said == "Height of Bedroom (Space 002): 2.60 m"
+    assert text("What is the height of the ceiling in room 002?") == said
+
+
+def test_a_room_whose_height_the_file_does_not_state_is_refused_in_words() -> None:
+    said = text("What is the height of the ceiling in room 001?")
+    assert said == "The file states no height for Kitchen (Space 001) (not available)."
+
+
+def test_the_heights_of_rooms_named_by_their_use_are_listed() -> None:
+    said = text("What is the ceiling height of the bedrooms?")
+    assert said.splitlines() == [
+        "Heights of the 2 spaces named 'bedrooms':",
+        "- Bedroom (Space 002): 2.60 m",
+        "- Bedroom (Space 101): the file states no height (not available)",
+    ]
 
 
 def test_foundations_get_the_sheets_foundation_totals() -> None:
@@ -687,3 +702,105 @@ def test_a_fixture_kind_the_question_names_leads_with_its_type_count() -> None:
         "The file does not mark which sanitary fixtures are sinks (not available)."
     )
     assert said("How many sanitary fixtures are there?").startswith("Total sanitary fixtures: 16")
+
+
+GUIDS = FactSheet(
+    model="duplex",
+    disciplines=["architecture"],
+    facts=[
+        fact("door.count", "all", 2, "count"),
+        fact(
+            "door.global_id",
+            "Single-Flush:1250 x 2010:146596",
+            "1hOSvn6df7F8_7GcBWlRGQ",
+            None,
+            "L1",
+        ),
+        fact("door.width", "Single-Flush:1250 x 2010:146596", 1.25, "m", "L1"),
+        fact("door.height", "Single-Flush:1250 x 2010:146596", 2.01, "m", "L1"),
+        fact(
+            "door.global_id",
+            "Single-Flush:0762 x 2032:150173",
+            "2aB3cD4eF5gH6iJ7kL8mN9",
+            None,
+            "L1",
+        ),
+        fact("door.width", "Single-Flush:0762 x 2032:150173", 0.762, "m", "L1"),
+        fact("window.count", "all", 1, "count"),
+        fact("window.global_id", "W:1000 x 1735:9", "0otfaO0qPDAhynjJ6DmgH8", None, "L1"),
+        fact("window.width", "W:1000 x 1735:9", 1.0, "m", "L1"),
+        fact("window.height", "W:1000 x 1735:9", 1.735, "m", "L1"),
+    ],
+)
+
+
+def guid_text(question: str) -> str:
+    query = parse_ifc_question(question)
+    assert query is not None
+    return fact_text(query, GUIDS) or ""
+
+
+def test_an_elements_measure_by_its_guid() -> None:
+    """Tudor R4-H2: "width of the door <GUID>" answered "Total doors: 14"."""
+    said = guid_text("What is the width of the door 1hOSvn6df7F8_7GcBWlRGQ ?")
+    assert (
+        said
+        == "Door Single-Flush:1250 x 2010:146596 (GlobalId 1hOSvn6df7F8_7GcBWlRGQ): width 1.25 m"
+    )
+    said = guid_text("What are the dimensions of the window with guid 0otfaO0qPDAhynjJ6DmgH8?")
+    assert said == (
+        "Window W:1000 x 1735:9 (GlobalId 0otfaO0qPDAhynjJ6DmgH8): width 1.00 m, height 1.74 m"
+    )
+
+
+def test_a_guid_the_file_lacks_or_a_measure_it_does_not_state_is_said() -> None:
+    said = guid_text("What is the width of the door 9zzzzzzzzzzzzzzzzzzzZZ?")
+    assert said == "No door in this file has GlobalId 9zzzzzzzzzzzzzzzzzzzZZ (not available)."
+    said = guid_text("What is the height of the door 2aB3cD4eF5gH6iJ7kL8mN9?")
+    assert said == (
+        "Door Single-Flush:0762 x 2032:150173 (GlobalId 2aB3cD4eF5gH6iJ7kL8mN9): the file states"
+        " no height for it (not available)."
+    )
+
+
+DUPLEX_LEVELS = FactSheet(
+    model="duplex",
+    disciplines=["architecture"],
+    facts=[
+        fact("storey.elevation", "T/FDN", -1.25, "m", "T/FDN"),
+        fact("storey.elevation", "Level 1", 0.0, "m", "Level 1"),
+        fact("storey.elevation", "Level 2", 3.1, "m", "Level 2"),
+        fact("storey.elevation", "Roof", 6.0, "m", "Roof"),
+        fact("storey.height", "T/FDN", 1.25, "m", "T/FDN"),
+        fact("storey.height", "Level 1", 3.1, "m", "Level 1"),
+        fact("storey.height", "Level 2", 2.9, "m", "Level 2"),
+    ],
+)
+
+
+def level_text(question: str) -> str:
+    query = parse_ifc_question(question)
+    assert query is not None
+    return fact_text(query, DUPLEX_LEVELS) or ""
+
+
+def test_a_floor_to_floor_height_between_two_storeys() -> None:
+    """Tudor R4-H2: answered "4 storeys" and a list; truth 3.1 m (ground = Level 1, at 0 m)."""
+    said = level_text("What is the floor-to-floor height between the ground floor and first floor?")
+    assert said == "Floor-to-floor height from Level 1 to Level 2: 3.10 m"
+    said = level_text("What is the floor to floor height between the first and the second floor?")
+    assert said == "Floor-to-floor height from Level 1 to Level 2: 3.10 m"  # named: Level 1, 2
+
+
+def test_storeys_apart_or_missing_are_given_as_stated() -> None:
+    said = level_text(
+        "What is the floor-to-floor height between the ground floor and second floor?"
+    )
+    assert said.splitlines() == [
+        "Level 1 and Level 2 (Roof) are not one storey apart; the file states:",
+        "- Level 1: elevation 0 mm (0.00 m), floor-to-floor height 3.10 m",
+        "- Level 2: elevation 3.10 m, floor-to-floor height 2.90 m",
+        "- Level 2 (Roof): elevation 6.00 m",
+    ]
+    said = level_text("What is the floor-to-floor height between the ground floor and tenth floor?")
+    assert said.startswith("No storey 'tenth floor' in this file; it has 4 storeys:")

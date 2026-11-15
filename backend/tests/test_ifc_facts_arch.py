@@ -200,6 +200,19 @@ def test_a_space_has_the_footprint_area_and_the_stated_one_apart(facts: list[Fac
     assert _value(facts, "space.count", "all", "Ground") == 1
 
 
+def test_a_space_without_a_stated_height_has_its_bodys_height(facts: list[Fact]) -> None:
+    """Tudor R4-H1: duplex A203 states no Qto Height; its body is 2.581 m high (truth 2.58 m)."""
+    assert _value(facts, "space.height", "101", "Ground") == pytest.approx(2.5)
+
+
+def test_an_element_one_by_one_has_its_global_id() -> None:
+    """Tudor R4-H2: "the width of the door <GUID>" needs the door's GlobalId on the sheet."""
+    model = _model(1.0)
+    facts = arch_facts(model)
+    for door in model.by_type("IfcDoor"):
+        assert _value(facts, "door.global_id", door.Name, "Ground") == door.GlobalId
+
+
 def test_every_fact_is_of_its_discipline(facts: list[Fact]) -> None:
     assert {f.discipline for f in facts if f.topic.startswith(("slab", "column"))} == {"structural"}
     assert {f.discipline for f in facts if f.topic.startswith(("wall", "space"))} == {
