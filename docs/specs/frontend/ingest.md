@@ -711,6 +711,10 @@ run and tick it ("ran") after; a label no reader name covers gets its own chip.
   steps sit in two columns. Screenshots in the PR. [browser: e2e `ingest-steps-<width>.png`, `02-ingest-done.png`;
   the running and index states by a scratch script with the API mocked]
 
+Superseded: IN-83's "stage list folded into a closed `<details>`" on the file page is replaced by
+advanced-ingest.md AD-100 (the stages open on one time axis, PR #546); the rest of IN-83 (mono path, back link,
+hairline facts, Route fact as `routeLabel`) stands.
+
 Changed on purpose: IN-86 (Cost is back as the 8th total), IN-89's hint text, the golden path's "no file list on
 Ingest" (v3): file links now appear on Ingest, only inside the route lanes. "Showing `readers` and `counts` on these
 screens" leaves Out of scope.

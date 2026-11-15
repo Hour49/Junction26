@@ -112,6 +112,7 @@ export const traceVariants = {
               output: '',
               failure: null,
               cost_usd: 0,
+              steps: [],
             },
           ]
         : [s],
