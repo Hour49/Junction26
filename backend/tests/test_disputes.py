@@ -81,6 +81,27 @@ def test_doors_point_where_another_reader_disagrees() -> None:
     assert alone is not None and alone.disputed == ()  # no reader ran: nothing to set it against
 
 
+def test_a_disputed_place_says_what_each_reader_sees_in_plain_words() -> None:
+    """R1 plans row 15: the cards showed "l1: nothing · m1: door, score 0.81", our ids and
+    scores; a person reads the readers by number and what they see."""
+    doors = tuple(
+        Element(id=f"e{n}", class_="door", page=1, box=box, attrs={"score": 0.9})
+        for n, box in ((1, (0.1, 0.1, 0.2, 0.2)), (2, (0.3, 0.3, 0.4, 0.4)))
+    )
+    seen = (
+        Element(id="s1", class_="door", page=1, box=(0.1, 0.1, 0.2, 0.2), attrs={"score": 0.7}),
+        Element(id="s2", class_="door", page=1, box=(0.6, 0.6, 0.7, 0.7), attrs={"score": 0.81}),
+    )
+    views = {"l1": ReaderView(read=("door",), elements=seen), "m1": ReaderView(read=("door",))}
+    found = asked("How many doors are there?", sheet(elements=doors, double_check=views))
+    assert found.check is not None
+    said = sorted(tuple(d.readers.items()) for d in found.check.disputed)
+    assert said == sorted(
+        tuple({"answer": answer, "reader 1": first, "reader 2": "nothing"}.items())
+        for answer, first in (("door", "door"), ("door", "nothing"), ("nothing", "door"))
+    )
+
+
 BEDROOMS = (
     Room(id="r1", type="bedroom", page=1, box=(0.05, 0.5, 0.25, 0.7), label="MH"),
     Room(id="r2", type="bedroom", page=1, box=(0.3, 0.5, 0.5, 0.7)),

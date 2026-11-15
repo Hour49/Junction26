@@ -5858,10 +5858,10 @@ tell, and an uncertain answer with the model's check:
         ],
         "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
         "readers": {
-          "answer": "door, score 0.41",
-          "L one view": "nothing",
-          "M one view": "nothing",
-          "seg": "door, score 0.62"
+          "answer": "door",
+          "reader 1": "nothing",
+          "reader 2": "nothing",
+          "reader 3": "door"
         }
       },
       {
@@ -5876,9 +5876,9 @@ tell, and an uncertain answer with the model's check:
         "why": "Not counted, but 2 of the 3 other readers see a door here.",
         "readers": {
           "answer": "nothing",
-          "L one view": "door, score 0.55",
-          "M one view": "door, score 0.48",
-          "seg": "nothing"
+          "reader 1": "door",
+          "reader 2": "door",
+          "reader 3": "nothing"
         }
       }
     ]
@@ -7539,10 +7539,10 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
         ],
         "why": "Counted as a door, but 2 of the 3 other readers see nothing here.",
         "readers": {
-          "answer": "door, score 0.41",
-          "L one view": "nothing",
-          "M one view": "nothing",
-          "seg": "door, score 0.62"
+          "answer": "door",
+          "reader 1": "nothing",
+          "reader 2": "nothing",
+          "reader 3": "door"
         }
       },
       {
@@ -7557,9 +7557,9 @@ medium (doors are Medium from a score of 0.5 here) and low (bedrooms have no Med
         "why": "Not counted, but 2 of the 3 other readers see a door here.",
         "readers": {
           "answer": "nothing",
-          "L one view": "door, score 0.55",
-          "M one view": "door, score 0.48",
-          "seg": "nothing"
+          "reader 1": "door",
+          "reader 2": "door",
+          "reader 3": "nothing"
         }
       }
     ]
