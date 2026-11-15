@@ -272,12 +272,13 @@ def _stem(word: str) -> str:
 
 
 def _named(names: Iterable[str], words: Sequence[str]) -> set[str]:
-    """The names that hold one of the question's subject words (as a word's start)."""
-    stems = [_stem(word) for word in words if len(word) >= 3]
+    """The names that hold one of the question's subject words (as a word's start); a word of
+    parts ("x-ray") holds them in a row ("X-RAY ALCOVE")."""
+    stems = [" ".join(_tokens(_stem(word))) for word in words if len(word) >= 3]
     return {
         name
         for name in names
-        if any(token.startswith(stem) for stem in stems for token in _tokens(name))
+        if any(re.search(rf"(?:^| ){re.escape(stem)}", " ".join(_tokens(name))) for stem in stems)
     }
 
 
@@ -432,6 +433,7 @@ def _storeys(query: FactQuery, facts: _Facts) -> str | None:
 
 # --- spaces ---------------------------------------------------------------------------------
 
+_HOW_MANY = re.compile(r"\s*how\s+many\b", re.I)
 _SPACE_AREAS = ("space.stated_area", "space.net_floor_area", "space.area", "space.gross_floor_area")
 
 
@@ -497,6 +499,9 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     if not chosen:
         return f"No such spaces{where} in this file."
     lines = [missing] if missing else []
+    if len(query.words) == 1 and not picked and _HOW_MANY.match(query.asked):
+        # "How many offices?" and no space is one: said, then every space
+        lines.insert(0, f"No space in this file is named '{query.words[0]}' (not available).")
     if picked:  # how many spaces the question's words name: a count of the listed spaces
         lines.insert(0, f"Spaces matching '{' '.join(query.words)}'{where}: {len(chosen)}")
     else:
@@ -508,7 +513,12 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
             word = "largest" if query.aggregate == "max" else "smallest"
             lines.append(f"The {word} is {line(best)[2:]}")
         return "\n".join(lines)
-    lines += _space_extras(query, facts, storey, topics)
+    extras = _space_extras(query, facts, storey, topics)
+    tail: list[str] = []
+    if picked and extras:  # said last and apart: they would read as the named spaces' own
+        tail = [f"All spaces{where} in this file, not only those named:", *extras]
+    else:
+        lines += extras
     by_type = query.by == "function" and re.search(r"\btypes?\b", query.asked, re.I)
     kinds = {f.subject: str(f.value) for f in facts.get("space.type", anywhere=True)}
     if picked or (query.by == "function" and not (by_type and kinds)):
@@ -542,7 +552,7 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
             lines += ["  " + line(name) for name in groups[at]]
     else:
         lines += [line(name) for name in chosen]
-    return "\n".join(lines)
+    return "\n".join(lines + tail)
 
 
 def _space_extras(
@@ -635,6 +645,8 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
     ]
     if not count and not totals and not runs_only:  # the sheet lacks the kind and its groups
         lines.insert(0, f"No {said}{_plural(noun)}{where} in this file.")
+    if storey is None:  # the type counts are the whole file's
+        lines = _kinds_named(query, facts, noun, count) + lines
     if query.part != part:
         asked = query.part.replace("_", "-")
         lines.insert(0, f"The file does not say which {_plural(noun)} are {asked} (not available).")
@@ -685,6 +697,38 @@ def _elements(query: FactQuery, facts: _Facts, storey: str | None) -> str | None
     if "fire_rating" in query.measures:
         lines += _fire(entity, facts)
     return "\n".join(lines)
+
+
+# The PredefinedTypes a word names, per class: "toilets" are some of the sanitary fixtures
+_KINDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "sanitary_terminal": (
+        (r"toilets?|wcs?", ("WCSEAT", "TOILETPAN")),
+        (r"basins?|lavator", ("WASHHANDBASIN",)),
+        (r"sinks?", ("SINK",)),
+    ),
+}
+
+
+def _kinds_named(query: FactQuery, facts: _Facts, noun: str, count: int) -> list[str]:
+    """The count of the kinds the question's word names, by the file's PredefinedType, first:
+    the class's total would read as theirs."""
+    word = " ".join(query.named)
+    kinds = next(
+        (k for pattern, k in _KINDS.get(query.entity, ()) if re.fullmatch(pattern, word, re.I)),
+        None,
+    )
+    if kinds is None:
+        return []
+    found = [
+        f"{fact.subject} {_num(fact)}"
+        for fact in facts.get(f"{query.entity}.count_by_predefined_type", anywhere=True)
+        if fact.subject in kinds
+    ]
+    if not found:
+        return [f"The file does not mark which {_plural(noun)} are {word} (not available)."]
+    return [
+        f"{word.capitalize()} by the file's type: {', '.join(found)} (of {count} {_plural(noun)})"
+    ]
 
 
 _TOTALS = {"footing": "foundation"}  # the sheet's totals of a wider group than the class

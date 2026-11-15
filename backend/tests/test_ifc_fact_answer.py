@@ -597,3 +597,58 @@ def test_electrical_components_by_level_give_each_storeys_categories_and_share()
     said = storey_text("What is the electrical equipment distribution in level 1?", WIRED)
     assert said.startswith("Level 1 (B): 6 components (60.0% of 10)")
     assert "- Pipes: 1 (16.7%)" in said  # of all the storey's typed elements, whatever discipline
+
+
+def test_a_named_space_gets_no_sums_of_all_spaces() -> None:
+    """QA research-lead: the sums of every space printed under the match count read as the
+    named rooms' area."""
+    said = text("What is the area of the bedroom?")
+    assert said.startswith("Spaces matching 'bedroom': 2")
+    head, _, rest = said.partition("All spaces in this file, not only those named:")
+    assert "42.75" not in head and "Sum of the spaces' stated area: 42.75 m²" in rest
+    assert "Bedroom" in head and "Bedroom" not in rest  # the named spaces come before
+
+
+def test_a_space_name_the_file_lacks_is_said_first() -> None:
+    """QA research-lead: "How many offices" listed every space and never said none is one."""
+    assert text("How many offices are there?").startswith(
+        "No space in this file is named 'offices' (not available)."
+    )
+    assert not text("How many rooms are there?").startswith("No space")
+    xray = FactSheet(model="clinic", disciplines=["architecture"], facts=[
+        fact("space.long_name", "2A12", "X-RAY", None, storey="EG"),
+        fact("space.long_name", "2A13", "OFFICE", None, storey="EG"),
+    ])  # fmt: skip
+    query = parse_ifc_question("How many X-RAY rooms are there in total?")
+    assert query is not None
+    said = fact_text(query, xray) or ""
+    assert said.startswith("Spaces matching 'x-ray': 1") and "OFFICE" not in said
+    assert not text("What is the total gross floor area?").startswith("No space")  # not a name
+    assert "ceiling" not in text("What is the ceiling height in the kitchen?")  # one measure
+
+
+def test_a_fixture_kind_the_question_names_leads_with_its_type_count() -> None:
+    """QA research-lead: "How many toilets" led with all 16 sanitary fixtures; the 4 WC seats
+    were four lines down."""
+    sheet = FactSheet(
+        model="services",
+        disciplines=["plumbing"],
+        facts=[
+            fact("sanitary_terminal.count", "all", 16, "count"),
+            fact("sanitary_terminal.count_by_predefined_type", "WCSEAT", 4, "count"),
+            fact("sanitary_terminal.count_by_predefined_type", "WASHHANDBASIN", 12, "count"),
+        ],
+    )
+
+    def said(question: str) -> str:
+        query = parse_ifc_question(question)
+        assert query is not None
+        return fact_text(query, sheet) or ""
+
+    assert said("How many toilets are there?").startswith(
+        "Toilets by the file's type: WCSEAT 4 (of 16 sanitary fixtures)"
+    )
+    assert said("How many sinks are there?").startswith(
+        "The file does not mark which sanitary fixtures are sinks (not available)."
+    )
+    assert said("How many sanitary fixtures are there?").startswith("Total sanitary fixtures: 16")
