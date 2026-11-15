@@ -58,6 +58,12 @@ def safe_path(name: str) -> str | None:
     return "/".join(parts)
 
 
+def file_name(name: str) -> str | None:
+    """An upload's own name as its one file's path: the last part, or None when that is no usable
+    file name ("", ".", "..", a ":" or a control character), as `safe_path` refuses in a zip."""
+    return safe_path(PurePosixPath(name.replace("\\", "/")).name)
+
+
 class ZipUnpacker:
     def __init__(
         self,
@@ -76,7 +82,7 @@ class ZipUnpacker:
 
     def _files(self, name: str, data: bytes) -> Iterator[Entry]:
         if not is_archive(data):
-            single = PurePosixPath(name.replace("\\", "/")).name or "upload"
+            single = file_name(name) or "upload"
             if len(data) > self._max_file:
                 yield Entry(path=single, size=len(data), refused=self._over_file())
             else:

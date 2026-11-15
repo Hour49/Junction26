@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.adapters.archive.unpack import file_name
 from app.adapters.ifc_model.facts_store import StoredFacts
 from app.adapters.ifc_model.glb import GlbModels
 from app.adapters.page_render import render_upload
@@ -46,7 +47,7 @@ from app.api.views import (
     not_plans_of,
     skipped_of,
 )
-from app.core.errors import NotFoundError
+from app.core.errors import InvalidInputError, NotFoundError
 from app.core.ingest.model import (
     FINISHED,
     FileStatus,
@@ -329,6 +330,9 @@ async def upload(
     name: Annotated[str, Query(min_length=1, max_length=255)],
 ) -> Started:
     """The request body is the file's bytes (a zip or one drawing file); `name` its file name."""
+    if file_name(name) is None:  # a display name, never a path: "..", "." or "C:" is refused
+        await _discard(request)  # as for a 429: read, so the client sees the answer
+        raise InvalidInputError(f"{name!r} is not a usable file name")
     admission: Admission = request.app.state.admission
     try:
         with admission.slot(ingest) as record:
