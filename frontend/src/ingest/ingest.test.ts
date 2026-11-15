@@ -183,8 +183,9 @@ describe('ingest.ts', () => {
     expect(src('ui.ts')).toMatch(/TAP = 'inline-flex min-h-11 items-center'/);
     expect(src('ui.ts')).toMatch(/SUMMARY = 'flex min-h-11 /);
     expect(src('HomeScreen.tsx')).toMatch(/<a className=\{TAP\} href="#\/workspaces">/);
+    // the back link, wherever it goes (IN-79)
     expect(src('FileTraceScreen.tsx')).toMatch(
-      /className=\{cn\(TAP, [^)]*\)\}\s*href=\{`#\/p\/\$\{projectId\}\/documents`\}/,
+      /className=\{cn\(TAP, [^)]*\)\}\s*href=\{backHref\}/,
     );
     expect(src('FileTraceScreen.tsx')).toMatch(/<summary className=\{SUMMARY\}>\s*What it ends as/);
     // IN-81: the chat row's "Open the workspace" too

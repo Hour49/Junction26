@@ -114,7 +114,7 @@ describe('ProgressCard: pipeline view v5', () => {
     // a file links to its own page
     expect(
       within(lane('Image')).getByRole('link', { name: 'plans/img.png' }).getAttribute('href'),
-    ).toBe(`#/p/${project.id}/f/img`);
+    ).toBe(`#/p/${project.id}/f/img?from=ingest`);
   });
 
   it('IN-106 each file row: its stage and the reader running now; once read, what it found', () => {

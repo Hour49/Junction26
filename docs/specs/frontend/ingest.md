@@ -540,8 +540,10 @@ progress card's last row (`ProgressCard` gets a `footer` slot); Advanced places 
   reload. [component]
 - IN-78: `done` with `drawings: []` shows IN-72's card with a link "Every file is listed in Documents." to
   `#/p/<id>/documents`, and no conflicts list and no chat row. [component]
-- IN-79: The file page's back link reads "Back to Documents" and goes to `#/p/<id>/documents` (also on its 404
-  view, IN-43). [component]
+- IN-79: The file page's back link goes where the file was opened from (also on its 404 view, IN-43): from the
+  Ingest lanes (`?from=ingest`) "Back to Ingest" to `#/p/<id>`, from Advanced (`?from=advanced`) "Back to Ingest" to
+  `#/p/<id>?view=advanced`, otherwise (Documents, an old link) "Back to Documents" to `#/p/<id>/documents`
+  (2026-11-15, ingest-ui detail-16). [component]
 - IN-80: With `trace-image` the before/after shows no "Credit" text and no `GET /api/drawings/<id>` is sent.
   [component]
 - IN-81: At 390x844 and 1440x900 the finished Simple screen (sample, no-keys backend) has no horizontal scroll, the

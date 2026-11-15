@@ -61,8 +61,20 @@ def extracted(*rooms: Room) -> Extracted:
     [
         (T2_FACTS, ("TOTAL SECOND FLOOR = 26,562 SF", 2467.68)),  # the largest total
         (gross_m2(300), ("GROSS FLOOR AREA 300 m2", 300.0)),  # GROSS in the text
-        ((PrintedFact(text="1200 m2", subject="floor_area", value=1200, unit="m2"),),
-         ("1200 m2", 1200.0)),  # floor_area alone
+        # golden dev 10036: a room's label "27,5 m2", which Carbon called floor_area, is no total
+        ((PrintedFact(text="27,5 m2", subject="floor_area", value=27.5, unit="m2"),), None),
+        # golden dev 14874: KERROSALA is the Finnish gross floor area; the flat's type and area not
+        ((PrintedFact(text="4H+K+S 85.8m²", subject="apartment_area", value=85.8, unit="m2"),
+          PrintedFact(text="KERROSALA 227", subject="floor_area", value=227, unit="m2")),
+         ("KERROSALA 227", 227.0)),
+        ((PrintedFact(text="Floor area level 2: 300 m²", subject="floor_area", value=300,
+                      unit="m2"),), ("Floor area level 2: 300 m²", 300.0)),
+        ((PrintedFact(text="BRUTTOALA 120 m2", subject="other", value=120, unit="m2"),),
+         ("BRUTTOALA 120 m2", 120.0)),
+        ((PrintedFact(text="GFA 500 m2", subject="other", value=500, unit="m2"),),
+         ("GFA 500 m2", 500.0)),
+        ((PrintedFact(text="TOTAL NET FLOOR AREA 90 m2", subject="floor_area", value=90,
+                      unit="m2"),), None),  # a net total is not the gross
         (T2_FACTS[:2], None),  # a room type's area and a count: no total of the floor
         ((PrintedFact(text="TOTAL 40", subject="other", value=40, unit="other"),), None),
         ((PrintedFact(text="TOTAL 0 m2", subject="floor_area", value=0, unit="m2"),), None),
@@ -141,20 +153,39 @@ def ask(found: Extracted) -> Answer:
                            iter(range(9)).__next__, NoPrior())  # fmt: skip
 
 
-def test_t2_the_indoor_area_keeps_the_net_number_and_is_held_with_the_gross_beside_it() -> None:
-    """Pass line 1: the answer's value stays the rooms' sum, the printed gross is the other
-    value, no rule decides (a person does), and the note says which is which."""
+def test_t2_the_indoor_area_keeps_the_net_number_with_the_gross_beside_it() -> None:
+    """The answer's value stays the rooms' sum, the printed gross is the other value and the note
+    says which is which. A rule keeps the rooms' sum, so the answer is flagged, not held: the
+    ratio cannot tell rooms missed (T2, 0.41) from a total that covers more than the drawing
+    (golden dev 14874, 0.52: KERROSALA of two flats)."""
     gross = 2467.68
     found = gross_net_checked(extracted(room("a", 700.0), room("b", 411.0)), T2_FACTS)
     answer = ask(found)
-    assert answer.answer == 1111.0 and answer.abstain is True
+    assert answer.answer == 1111.0 and answer.abstain is None
     assert [(v.value, v.method) for v in answer.conflicts or ()] == [
         (1111.0, "summed_rooms"),
         (pytest.approx(gross), "printed_total"),
     ]
-    assert "no rule decides" in (answer.explanation or "")
+    assert answer.resolution is not None and answer.resolution.startswith("kept 1111: ")
+    assert "may cover more than this drawing" in (answer.explanation or "")
     assert "the sheet prints a gross area of 2,468 m²" in (answer.explanation or "")
     assert "(inside walls), 45% of it" in (answer.explanation or "")
+
+
+def test_golden_dev_14874_kerrosala_flags_the_answer_without_holding_it() -> None:
+    found = gross_net_checked(extracted(room("a", 85.8), room("b", 32.2)),
+                              (PrintedFact(text="KERROSALA 227", subject="floor_area", value=227,
+                                           unit="m2"),))  # fmt: skip
+    answer = ask(found)
+    assert (answer.answer, answer.abstain) == (118.0, None)
+    assert [v.value for v in answer.conflicts or ()] == [118.0, 227.0]
+
+
+def test_golden_dev_10036_a_room_label_area_is_no_gross() -> None:
+    plain = extracted(room("a", 120.0))
+    label = PrintedFact(text="27,5 m2", subject="floor_area", value=27.5, unit="m2",
+                        box=(0.167, 0.558, 0.206, 0.593))  # fmt: skip
+    assert gross_net_checked(plain, (label,)) is plain
 
 
 def test_inside_the_band_the_answer_is_unchanged() -> None:

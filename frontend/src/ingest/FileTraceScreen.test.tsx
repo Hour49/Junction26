@@ -14,6 +14,7 @@ const GET = `GET /api/projects/${PID}/files/${FID}/trace`;
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.location.hash = '';
 });
 
 const IMG = traceVariants.image.file;
@@ -110,6 +111,22 @@ describe('FileTraceScreen', () => {
     expect(screen.getByRole('link', { name: 'Back to Documents' }).getAttribute('href')).toBe(
       `#/p/${PID}/documents`,
     );
+  });
+
+  it('IN-79 the back link goes where the file was opened from: Ingest lanes, Advanced, else Documents', async () => {
+    mockApi({ [GET]: trace });
+    for (const [from, href, name] of [
+      ['ingest', `#/p/${PID}`, 'Back to Ingest'],
+      ['advanced', `#/p/${PID}?view=advanced`, 'Back to Ingest'],
+      ['documents', `#/p/${PID}/documents`, 'Back to Documents'],
+      [null, `#/p/${PID}/documents`, 'Back to Documents'], // an old link
+    ] as const) {
+      window.location.hash = `#/p/${PID}/f/${FID}${from ? `?from=${from}` : ''}`;
+      render(<FileTraceScreen projectId={PID} fileId={FID} />);
+      await flush();
+      expect(screen.getByRole('link', { name }).getAttribute('href')).toBe(href);
+      cleanup();
+    }
   });
 
   it('IN-44 trace strings render as text', async () => {
