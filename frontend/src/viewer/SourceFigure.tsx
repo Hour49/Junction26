@@ -86,7 +86,17 @@ const firstNumbers = (sources: readonly Source[]) =>
 const pct = (v: number) => `${(v * 100).toFixed(4)}%`;
 
 /** One page image cut to `crop`, with the places outlined and numbered from `first`. */
-function SourceImage({ source, first, crop }: { source: Source; first: number; crop: Box }) {
+function SourceImage({
+  source,
+  first,
+  crop,
+  numbered = true,
+}: {
+  source: Source;
+  first: number;
+  crop: Box;
+  numbered?: boolean; // false: outlines only (a crowded minimized thumbnail, VW-100)
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const [cssWidth, setCssWidth] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
@@ -183,13 +193,16 @@ function SourceImage({ source, first, crop }: { source: Source; first: number; c
             style={{ ...at(b), '--vw-k': String(ks[i] ?? 0) } as CSSProperties}
             aria-hidden="true"
           >
-            <b>{first + i}</b>
+            {numbered && <b>{first + i}</b>}
           </span>
         );
       })}
     </span>
   );
 }
+
+/** A minimized thumbnail numbers at most this many outlined places; above it, outlines and a count line (VW-100). */
+export const THUMB_NUMBERS = 12;
 
 /** A minimized figure lists this many places, then "and N more" (Expand or Show source lists them all). */
 export const MIN_LEGEND = 3;
@@ -315,21 +328,34 @@ export function SourceFigure({ sources, label, defaultOpen = false }: SourceFigu
   const lead = sources[0];
   if (!lead) return null;
   const pictured = lead.page !== null || Boolean(lead.image);
+  const outlined = lead.page ? lead.places.filter((p) => boundsOf(p) !== null).length : 0;
+  const crowded = !open && outlined > THUMB_NUMBERS;
   const toggle = () => {
     setOpen((o) => !o);
   };
   return (
     <figure className={open ? 'vw-src' : 'vw-src vw-src--min'} aria-label={label}>
       {pictured ? (
-        <button
-          type="button"
-          className="vw-src-thumb"
-          aria-expanded={open}
-          aria-label={open ? 'Minimize the drawing' : 'Expand the drawing'}
-          onClick={toggle}
-        >
-          <SourceImage key={String(open)} source={lead} first={1} crop={cropOf(lead.places)} />
-        </button>
+        <div className="vw-src-thumbcol">
+          <button
+            type="button"
+            className="vw-src-thumb"
+            aria-expanded={open}
+            aria-label={open ? 'Minimize the drawing' : 'Expand the drawing'}
+            onClick={toggle}
+          >
+            <SourceImage
+              key={String(open)}
+              source={lead}
+              first={1}
+              crop={cropOf(lead.places)}
+              numbered={!crowded}
+            />
+          </button>
+          {crowded && (
+            <p className="vw-many">{`${String(outlined)} marks, numbered when expanded`}</p>
+          )}
+        </div>
       ) : (
         <span className="vw-src-thumb vw-src-thumb--none">No picture of this file</span>
       )}

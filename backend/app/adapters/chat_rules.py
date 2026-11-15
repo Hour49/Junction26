@@ -218,7 +218,9 @@ def _next(turn: _Turn, offered: set[str]) -> tuple[str, Json]:
     if which and found.get("answered"):
         return _compared(found["answered"], which[1], which[2])
     words = name_words(turn.message)
-    if "find_rooms" in offered and words and _refused_room(found):
+    # the refusal's own rooms of the type asked keep the question; find_rooms only locates rooms
+    # (review-537 M1)
+    if "find_rooms" in offered and words and _refused_room(found) and not _room_choice(found):
         rooms = turn.result("find_rooms")
         if rooms is None:
             return "find_rooms", {"query": " ".join(words)}
@@ -835,6 +837,18 @@ def _metric(answered: Json) -> Json:
     return {**answered, "answer": round(answered["answer"] * factor, 2), "unit": metric}
 
 
+def _room_choice(found: Json) -> list[Json]:
+    """The first drawing's refusal as options when it names several rooms of the type asked
+    about (not-in-drawing, each suggestion one room's question); [] otherwise."""
+    parts: list[Json] = [p for p in found.get("parts") or [] if isinstance(p, dict)]
+    refusal: Json = ((parts[0].get("answer") or {}).get("refusal") if parts else None) or {}
+    suggested: list[Json] = [s for s in refusal.get("can_answer") or [] if isinstance(s, dict)]
+    rooms = [s for s in suggested if str(s.get("quantity")).startswith(ONE_ROOM)]
+    if refusal.get("code") != "not-in-drawing" or len(suggested) < 2 or rooms != suggested:
+        return []
+    return [_option(suggestion) for suggestion in suggested[:4]]
+
+
 def _answer(found: Json) -> tuple[str, Json]:
     if "error" in found:
         return _final("dont_know", f"I could not ask the drawings: {found['error']}")
@@ -844,15 +858,10 @@ def _answer(found: Json) -> tuple[str, Json]:
     if not answering:
         refusal: Json = (parts[0]["answer"].get("refusal") if parts else None) or {}
         why = refusal.get("text") or found.get("why_no_total") or "no drawing answers it"
+        if choice := _room_choice(found):  # several rooms of the type asked about: which one
+            return _final("needs_input", dont_know(why), options=choice)
         suggested: list[Json] = [s for s in refusal.get("can_answer") or [] if isinstance(s, dict)]
         options = [_option(suggestion) for suggestion in suggested[:4]]
-        rooms = [s["quantity"] for s in suggested if s["quantity"].startswith(ONE_ROOM)]
-        if (
-            refusal.get("code") == "not-in-drawing"
-            and len(options) >= 2
-            and len(rooms) == len(suggested)
-        ):  # several rooms of the type asked about: which one
-            return _final("needs_input", dont_know(why), options=options)
         # A refusal's suggestions follow up the question only when it could not be parsed at all;
         # otherwise they are the drawing's generic questions, not answers to this one
         related = refusal.get("code") == "unsupported-question"

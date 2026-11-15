@@ -848,6 +848,40 @@ def test_r1_8_apartments_and_another_thing_still_name_two_kinds() -> None:
 
 
 @pytest.mark.parametrize(
+    "text",
+    ["What is the area of the kitchen in apartment B?", "How big is the kitchen of apartment B?",
+     "Wie gross ist die Nettofläche der Küche von Wohnung B?",
+     # review-688 M1: the flat named first
+     "How large is apartment B's kitchen?", "In apartment B, what is the area of the kitchen?",
+     "What is the area of apartment B's kitchen?"],
+)  # fmt: skip
+def test_r1_11_a_room_type_in_an_apartment_is_that_type_within_the_flat(text: str) -> None:
+    """Big QA R1 row 11 (S1): the kitchen in apartment B was read as apartment B's area."""
+    assert PARSE(text) == Query(measure="area", subject="room:kitchen", apartment="B")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "What is the area of the kitchen in the apartment?",
+        "How big is the kitchen in the apartment?",
+    ],
+)
+def test_r1_11_a_room_type_in_the_apartment_with_no_letter_is_that_room(text: str) -> None:
+    """review-688 M1: site1677 answered the whole flat's 123.137 m² for its kitchen."""
+    assert PARSE(text) == Query(measure="area", subject="room:kitchen")
+
+
+def test_r1_11_room_types_after_except_leave_the_flat_s_area() -> None:
+    """Golden's wording: the types after "except" (past its commas) are left out, not asked."""
+    text = (
+        "What is the net floor area of apartment A in m², summing all its rooms except balconies, "
+        "loggias, terraces and other outdoor spaces?"
+    )
+    assert PARSE(text) == Query(measure="area", subject="apartment", apartment="A")
+
+
+@pytest.mark.parametrize(
     ("text", "storey"),
     [
         ("How many doors are there on P1?", "P1"),
