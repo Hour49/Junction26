@@ -204,6 +204,28 @@
 .tl-step.failed .tl-span.step {
   background: var(--v-danger);
 }
+/* AD-121: a run of steps side by side hangs off a rule under its head; a stretch with no step running is a note */
+.tl-steps-together,
+.tl-steps-idle {
+  padding: 8px 0 4px;
+  font-size: 12px;
+  color: var(--v-muted);
+  overflow-wrap: anywhere;
+}
+.tl-steps-together {
+  font-weight: 600;
+  color: var(--v-text-2);
+}
+.tl-steps-idle {
+  font-style: italic;
+  border-top: 1px dashed var(--v-line);
+  border-bottom: 1px dashed var(--v-line);
+  margin: 4px 0;
+}
+.tl-step.together {
+  padding-left: 12px;
+  box-shadow: inset 2px 0 0 var(--v-accent-soft);
+}
 .tl-step-did {
   grid-area: did;
   margin: 0;

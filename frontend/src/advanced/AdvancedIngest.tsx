@@ -110,7 +110,10 @@ export function AdvancedIngest({
       case 'plan': {
         const c = planCounts(project);
         const expected = project.expected_drawings;
-        const ready = project.drawings.filter((d) => isFinished(d)).length;
+        // a drawing on a route whose reader is `hello` was not read: not ready (AD-123, as Simple's IN-116)
+        const ready = project.drawings.filter(
+          (d) => isFinished(d) && !(d.route != null && project.readers?.[d.route] === 'hello'),
+        ).length;
         return [
           { label: 'Rooms', value: dash(c.room) },
           { label: 'Doors', value: dash(c.door) },

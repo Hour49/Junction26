@@ -9,7 +9,7 @@ import {
   foundLine,
   sideBySide,
   stageSpans,
-  stepSpans,
+  stepRows,
   stepsOf,
   type Disagreement,
   type Span,
@@ -40,11 +40,11 @@ const STEP_ICON = {
   skipped: { icon: '–', word: 'skipped' },
 } as const;
 
-function StepRow({ step, span }: { step: Step; span: Span | null }) {
+function StepRow({ step, span, together }: { step: Step; span: Span | null; together: boolean }) {
   const state = STEP_ICON[step.state];
   const found = foundLine(step.found);
   return (
-    <li className={`tl-step ${step.state}`}>
+    <li className={`tl-step ${step.state}${together ? ' together' : ''}`}>
       <span className="tl-step-icon" role="img" aria-label={state.word}>
         {state.icon}
       </span>
@@ -59,7 +59,10 @@ function StepRow({ step, span }: { step: Step; span: Span | null }) {
   );
 }
 
-/** Steps on one shared axis, one row each: steps that ran at the same time overlap on it. */
+/**
+ * Steps one row each (AD-102, AD-121): steps that ran together sit under one "Side by side" head on their own axis,
+ * and a long stretch with no step running is said in words. The heads are notes, not list items.
+ */
 export function StepList({
   steps,
   ms = 0,
@@ -69,12 +72,38 @@ export function StepList({
   ms?: number;
   label: string;
 }) {
-  const spans = stepSpans(steps, ms);
   return (
     <ol className="tl-steps" aria-label={label}>
-      {steps.map((step, i) => (
-        <StepRow key={`${step.id}-${String(i)}`} step={step} span={spans[i] ?? null} />
-      ))}
+      {stepRows(steps, ms).map((row, i) => {
+        if (row.kind === 'step')
+          return (
+            <StepRow
+              key={`${row.step.id}-${String(i)}`}
+              step={row.step}
+              span={row.span}
+              together={row.together}
+            />
+          );
+        const text =
+          row.kind === 'idle'
+            ? row.from === 0
+              ? `The first step began at ${formatMs(row.to)}`
+              : `No step ran from ${formatMs(row.from)} to ${formatMs(row.to)}`
+            : `Side by side, ${formatMs(row.from)} to ${formatMs(row.to)}: ${
+                row.peak === row.count
+                  ? plural(row.count, 'step')
+                  : `${plural(row.count, 'step')}, up to ${String(row.peak)} at once`
+              }`;
+        return (
+          <li
+            key={`${row.kind}-${String(i)}`}
+            role="presentation"
+            className={`tl-steps-${row.kind}`}
+          >
+            {text}
+          </li>
+        );
+      })}
     </ol>
   );
 }
