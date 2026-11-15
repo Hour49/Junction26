@@ -349,6 +349,15 @@ def _add_model(found: dict[str, Quantity], drawing: Drawing) -> None:
             for model in (True, False) if not drawing.pages else (True,):
                 key = quantity_key("count", subject, storey=storey, model=model)
                 _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
+        if not drawing.pages:  # the model file itself: its spaces of each room type (qa-a)
+            typed: dict[str, list[ModelObject]] = defaultdict(list)
+            for item in items:
+                if item.class_ == SPACE and isinstance(kind := item.attrs.get("room_type"), str):
+                    typed[kind].append(item)
+            for kind, same in sorted(typed.items()):
+                for model in (True, False):
+                    key = quantity_key("count", f"room:{kind}", storey=storey, model=model)
+                    _put(found, key, "count", len(same), marks(same), MODEL_COUNT)
     if not drawing.pages:  # the model file itself: its spaces' areas over every storey too
         spaces = [item for item in objects if item.class_ == SPACE]
         for model in (True, False):

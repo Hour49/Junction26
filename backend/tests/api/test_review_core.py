@@ -1193,6 +1193,30 @@ def test_a_model_space_of_no_area_is_left_out_of_the_ranking_and_named() -> None
     assert asked("Which room is the largest?", alone).refusal is not None
 
 
+def test_a_model_file_counts_its_spaces_of_a_room_type() -> None:
+    """qa-a, 2026-11-15: on the vitoria .ifc alone (spaces "4IZQ-HAB1", "4IZQ-COC"...) "How many
+    bedrooms?" gave no count, so "Which plan has the most bedrooms?" lost to a drawn plan's 7. A
+    model file counts its spaces of each room type (`attrs["room_type"]`, set by the IFC reader)
+    on the rows a sheet's rooms use, for the whole model and each storey."""
+
+    def typed(at: str, storey: str, name: str, kind: str | None) -> dict:
+        found = space(at, storey, name, None, 10.0)
+        return {**found, "attrs": {"room_type": kind}} if kind else found
+
+    drawing = model_file(
+        typed("m1", "P1", "1IZQ-HAB1", "bedroom"),
+        typed("m2", "P1", "1IZQ-HAB2", "bedroom"),
+        typed("m3", "P2", "2IZQ-HAB1", "bedroom"),
+        typed("m4", "P1", "1IZQ-COC", "kitchen"),
+        typed("m5", "P1", "1RELLANO", None),
+    )
+    assert asked("How many bedrooms are there?", drawing).answer.answer == 3
+    assert asked("How many kitchens are there?", drawing).answer.answer == 1
+    assert asked("How many bedrooms are there in the building model?", drawing).answer.answer == 3
+    assert asked("How many bedrooms are on 'P2'?", drawing).answer.answer == 1
+    assert asked("How many rooms are there?", drawing).answer.answer == 5  # unchanged
+
+
 def test_a_schedule_s_largest_room_is_left_to_the_schedule() -> None:
     """golden 89437 asks the finish room schedule which room is largest: not the rooms drawn."""
     drawing = scaled(room("r1", "kitchen", "Küche", 12.0), room("r2", "bathroom", "Bad", 5.0))

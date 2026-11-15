@@ -514,7 +514,11 @@ def test_a_listed_space_has_its_solids_footprint_and_the_room_it_is_drawn_as() -
     assert (kitchen.name, kitchen.storey, kitchen.element) == ("1.2", "Level 1", "r1")
     # 5 x 4 m in the model, whatever the sheet's outline measures (rooms[0].area_m2)
     assert kitchen.quantities == pytest.approx({"area_m2": 20.0})
-    assert kitchen.attrs == {"source_class": "IfcSpace"}
+    # its room type, from its names as a drawn space's label gives it (qa-a: an .ifc alone counts
+    # its bedrooms and kitchens); a space no room word names has none
+    assert kitchen.attrs == {"source_class": "IfcSpace", "room_type": "kitchen"}
+    assert spaces["Corridor"].attrs["room_type"] == "hall"
+    assert "room_type" not in spaces["Void"].attrs
     assert (spaces["Store"].element, spaces["Store"].quantities) == (
         None,
         pytest.approx({"area_m2": 4.0}),
@@ -913,6 +917,7 @@ def test_a_listed_space_says_how_many_windows_it_has_and_which() -> None:
     assert (listed[first].element, listed[second].element) == (None, None)
     assert spaces["Bedroom"].attrs == {
         "source_class": "IfcSpace",
+        "room_type": "bedroom",
         "windows": 2,
         "window_ids": f"{listed[first].id} {listed[second].id}",
     }
