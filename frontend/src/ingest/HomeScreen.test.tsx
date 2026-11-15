@@ -297,9 +297,7 @@ describe('upload: sending, received, failed', () => {
     await flush();
     const alert = screen.getByRole('alert').textContent;
     expect(alert).not.toContain('refused');
-    expect(alert).toContain(
-      'The server could not take site.zip right now (the server answered 502).',
-    );
+    expect(alert).toContain('The server could not take site.zip right now. Retry in a moment.');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 

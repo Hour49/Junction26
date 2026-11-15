@@ -37,7 +37,7 @@ function failedLine(f: Failed): string {
   const name = f.file.name;
   // 5xx: the server (or the proxy in front of it) failed, not the file
   if (f.error instanceof ApiError && f.error.status >= 500)
-    return `The server could not take ${name} right now (${f.error.detail}). Retry in a moment.`;
+    return `The server could not take ${name} right now. Retry in a moment.`; // the gateway's own words (errors.ts) would say it twice
   if (f.error instanceof ApiError && f.error.status > 0) {
     // the server's detail may name the file itself ("site.zip: the upload is empty"): say it once
     const detail = f.error.detail.startsWith(`${name}: `)
