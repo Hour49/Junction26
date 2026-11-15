@@ -32,7 +32,7 @@ def sheet(scale: Scale, factor: float, printed: int = 3) -> Drawing:
             area_m2=round(outline, 2),
             area_status="estimated",
             area_source="geometry_x_scale",
-        )  # fmt: skip
+        )
     )
     return Drawing(file="t4.jpg", pages=(PAGE,), scale=scale, rooms=tuple(rooms))
 

@@ -815,7 +815,7 @@ def label_disputed(drawing: Drawing) -> str | None:
     if m_per_unit is None:
         return None
     pages = {page.page: page for page in drawing.pages}
-    ratios = []
+    ratios: list[float] = []
     for room in drawing.rooms:
         page = pages.get(room.page)
         if room.area_source != "printed" or not room.area_m2 or page is None:
