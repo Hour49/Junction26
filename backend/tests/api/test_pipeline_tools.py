@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from pdf_sheets import rect
 from test_vector_pdf import swiss_sheet
 
+from app.adapters import pipeline_tools
 from app.adapters.pipeline_tools import (
     _RUNNERS,
     PIPELINE_TOOLS,
@@ -21,7 +22,10 @@ from app.adapters.pipeline_tools import (
 from app.adapters.vector_pdf.objects import read_page
 from app.adapters.vector_pdf.scale import read_scale
 from app.adapters.vector_pdf.wall_fills import wall_fills
+from app.api.checks import ProjectChecks
 from app.composition import build_ingest
+from app.core.agent.loop import _for_model
+from app.core.checks.model import RulePack
 from app.core.drawing.model import Drawing
 from app.main import create_app
 from app.settings import Settings
@@ -125,12 +129,62 @@ def test_conflicts_and_issues_are_the_routes_lists(
     assert issues == route["issues"] and issues
 
 
-def test_run_checks_is_the_project_checks_route(
+def test_run_checks_is_the_project_checks_route_failures_first(
     checked: TestClient, store: PipelineStore, project: dict[str, Any]
 ) -> None:
+    """R4-I5: the route's results, the fails and cannot-tells listed with their drawing and rule,
+    the passes only counted per rule (the chat lists the failing rooms, not the passing ones)."""
     found = call(store, "run_checks", pack="test")
     route = checked.get(f"/api/projects/{project['id']}/checks", params={"pack": "test"}).json()
-    assert found == route and found["drawings"]
+    assert {k: found[k] for k in ("project_id", "pack", "note", "status")} == {
+        k: route[k] for k in ("project_id", "pack", "note", "status")
+    }
+    results = [
+        (d["drawing_id"], r["rule_id"], x)
+        for d in route["drawings"] for r in d["rules"] for x in r["results"]
+    ]  # fmt: skip
+    for status, listed in (("fail", "failures"), ("cannot_tell", "cannot_tell")):
+        assert [x["id"] for x in found[listed]] == [x["id"] for _, _, x in results
+                                                    if x["status"] == status]  # fmt: skip
+    rules = [(d["drawing_id"], r["rule_id"], r["status"]) for d in route["drawings"]
+             for r in d["rules"]]  # fmt: skip
+    assert [(r["drawing_id"], r["rule_id"], r["status"]) for r in found["rules"]] == rules
+    passes = sum(r["counts"].get("pass", 0) for r in found["rules"])
+    assert passes == sum(x["status"] == "pass" for _, _, x in results) and found["rules"]
+    assert list(found)[4:6] == ["failures", "cannot_tell"]  # before the per-rule list
+
+
+@pytest.fixture
+def sample(client: TestClient) -> PipelineStore:
+    """The sample project with the app's own rule packs (ch-zh, fi)."""
+    project = client.get(client.post("/api/projects/sample").json()["url"]).json()
+    return PipelineStore.of_app(client.app, project["id"])
+
+
+@pytest.mark.parametrize("times", [1, 8])
+def test_run_checks_keeps_every_failure_when_the_chat_cuts_a_long_result(
+    sample: PipelineStore, monkeypatch: pytest.MonkeyPatch, times: int
+) -> None:
+    """R4-I5 (Tudor's QA round 4): "Which rooms fail the Zürich building rules?" on the sample
+    could not name Zimmer 1.05 on flat-b (8.06 m²): run_checks gave every drawing's every result,
+    the loop halves the longest list to TOOL_CHARS, and the drawings list was cut to flat-a (whose
+    own Zimmer 1.05 passes). times=8: the passing drawings eight times over, ahead of flat-b,
+    so the chat still cuts the result, but not the failure."""
+    real = pipeline_tools.checks_of
+
+    def padded(project_id: str, pack: RulePack, ingest: Any) -> ProjectChecks:
+        found = real(project_id, pack, ingest)
+        failing = [d for d in found.drawings if d.status == "fail"]
+        rest = [d for d in found.drawings if d.status != "fail"]
+        return found.model_copy(update={"drawings": rest * times + failing})
+
+    monkeypatch.setattr(pipeline_tools, "checks_of", padded)
+    text = _for_model(call(sample, "run_checks", pack="ch-zh"))
+    assert ("_more" in text) == (times > 1), text  # x1 now fits; x8 is still cut
+    read = json.loads(text)  # cut by lists, not as text
+    failures = [(x["file"], x["rule_id"], x["subject"]["label"]) for x in read["failures"]]
+    assert failures == [("plans/flat-b.pdf", "ch-zh-room-area", "Zimmer 1.05")], text
+    assert read["failures"][0]["value"] == pytest.approx(8.06, abs=0.01)
 
 
 def drawing(**fields: object) -> Drawing:

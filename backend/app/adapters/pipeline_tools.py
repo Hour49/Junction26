@@ -15,7 +15,7 @@ routes' numbers:
     get_takeoff     GET  /api/drawings/{id}/takeoff?project={id}
     list_conflicts  GET  /api/projects/{id}/review          (its `conflicts`)
     list_issues     GET  /api/projects/{id}/issues
-    run_checks      GET  /api/projects/{id}/checks?pack=
+    run_checks      GET  /api/projects/{id}/checks?pack=    (fails first, passes counted)
     get_plan_geometry  the drawing model's plans, rooms, openings and walls on one page
 
 The names are provisional (the chat side posts the final list); renaming is a change of `NAME`
@@ -25,6 +25,7 @@ guard as the route.
 
 import json
 import logging
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, cast
@@ -34,7 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.adapters.vector_pdf import swiss
 from app.adapters.vector_pdf.objects import read_page
 from app.adapters.vector_pdf.wall_fills import WallFill, wall_fills
-from app.api.checks import checks_of, find_pack
+from app.api.checks import ProjectChecks, checks_of, find_pack
 from app.api.deps import Ingest
 from app.api.issues import issues_of
 from app.api.project_ask import ProjectAnswer, ProjectAskRequest, project_ask
@@ -162,8 +163,9 @@ _TOOLS: list[tuple[str, str, type[_Args]]] = [
     ),
     (
         "run_checks",
-        "Check the project's drawings against a building-code rule pack. Each rule result "
-        "names the clause it comes from. A pre-check, not a compliance certificate.",
+        "Check the project's drawings against a building-code rule pack: every failing and "
+        "cannot-tell result with its drawing, rule and clause, then each rule on each drawing "
+        "with its results counted by status. A pre-check, not a compliance certificate.",
         _ChecksArgs,
     ),
     (
@@ -339,9 +341,44 @@ def _issues(store: PipelineStore, args: Any) -> list[BaseModel]:
     return list(found.issues)
 
 
-def _checks(store: PipelineStore, args: Any) -> BaseModel:
+def _checks(store: PipelineStore, args: Any) -> dict[str, Any]:
     pack = find_pack(store.packs, args.pack)  # NotFoundError names the pack
-    return checks_of(store.project_id, pack, store.ingest)
+    return _failures_first(checks_of(store.project_id, pack, store.ingest))
+
+
+def _failures_first(found: ProjectChecks) -> dict[str, Any]:
+    """The route's checks as the chat reads them: the failing and cannot-tell results first,
+    each with its drawing, rule and clause, then each rule on each drawing with its results
+    counted by status. The passes are only counted, so when the loop cuts a long result to fit
+    (it halves the longest list) the failures are the last thing it reaches (R4-I5: the drawings
+    list was cut before flat-b's failing Zimmer 1.05)."""
+    listed: dict[str, list[dict[str, Any]]] = {"fail": [], "cannot_tell": []}
+    rules: list[dict[str, Any]] = []
+    for drawing in found.drawings:
+        where = {"file": drawing.file, "drawing_id": drawing.drawing_id}
+        for rule in drawing.rules:
+            clause = rule.clause.model_dump(mode="json")
+            for result in rule.results:
+                if result.status in listed:
+                    shown = result.model_dump(mode="json", exclude={"rule_id", "marks"})
+                    listed[result.status].append(
+                        {**where, "rule_id": rule.rule_id, "title": rule.title,
+                         "clause": clause, **shown}
+                    )  # fmt: skip
+            rules.append(
+                {**where, "rule_id": rule.rule_id, "title": rule.title, "status": rule.status,
+                 "why": rule.why, "clause": rule.clause.ref,
+                 "counts": dict(Counter(result.status for result in rule.results))}
+            )  # fmt: skip
+    return {
+        "project_id": found.project_id,
+        "pack": found.pack,
+        "note": found.note,
+        "status": found.status,
+        "failures": listed["fail"],
+        "cannot_tell": listed["cannot_tell"],
+        "rules": rules,
+    }
 
 
 def _geometry(store: PipelineStore, args: Any) -> dict[str, Any]:
