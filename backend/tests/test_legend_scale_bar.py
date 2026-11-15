@@ -83,6 +83,15 @@ def test_a_bar_is_kept_when_any_printed_ratio_agrees_with_it() -> None:
     assert scale_of(rgb, ocr) == pytest.approx(5 / BAR_PX, rel=0.01)
 
 
+@pytest.mark.parametrize("dpi", [72, 96, 100])
+def test_a_true_bar_on_a_screen_export_or_photo_agrees_with_its_ratio(dpi: int) -> None:
+    # 5 m at 1:100 drawn at 72 dpi is 142 px (a screen export; the demo pictures are at 100 dpi)
+    px = round(5 / (100 * 0.0254 / dpi))
+    rgb = page((100, 100 + px, 1300))
+    ocr = FakeOcr([NOTE, label("5 m 1:100", 110 + px, 1300)])
+    assert scale_of(rgb, ocr) == pytest.approx(5 / px, rel=0.01)
+
+
 def test_with_no_ratio_printed_a_bar_is_taken_as_it_reads() -> None:
     rgb = page((100, 100 + BAR_PX, 1300))
     ocr = FakeOcr([NOTE, label("5 m", 110 + BAR_PX, 1300)])
