@@ -23,7 +23,7 @@ from shapely.geometry import LineString, Polygon, box
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
-from app.core.discipline import discipline_from_sheet
+from app.core.discipline import disciplines_named
 from app.core.ifc_facts import Discipline, FactSheet, Spot
 from app.core.model import Frozen
 from app.core.plan_edit.model import Item, Proposal
@@ -100,14 +100,22 @@ _LETTER_LANES: dict[str, frozenset[Discipline]] = {
 }
 _LETTERED = re.compile(r"(?<![A-Za-z])([HPME])[-_ .]?(\d{3,4})\b")
 _YEAR = re.compile(r"19[5-9]\d|20[0-4]\d")  # "E2019" is a year, not a sheet number
+# Names for several services at once, which no one discipline word is: mechanical and HVAC are
+# heating and ventilation (US sets), LVI and HLS add plumbing (FI, DE), MEP and TGA are all four
+_GROUPS: tuple[tuple[re.Pattern[str], frozenset[Discipline]], ...] = (
+    (re.compile(r"\b(?:mechanical|hvac)\b", re.I), frozenset({"heating", "ventilation"})),
+    (re.compile(r"\b(?:lvi|hls)\b", re.I), frozenset({"heating", "ventilation", "plumbing"})),
+    (re.compile(r"\b(?:mep|tga|haustechnik)\b", re.I), frozenset(LANES)),
+)
 
 
 def named_lanes(sheet: Sheet) -> frozenset[Discipline]:
     """The services lanes a sheet names itself, whatever its picture's marks say: the discipline
     triage named, its sheet number's letter (H-101 heating), a discipline word or code in its file
-    name ("heating", "P-101"; strong words only, as the pictures lane reads file names). Empty when
-    it names none. Architecture is not a lane: a services sheet triage could not name by its
-    words is called architecture by its kind, so it never refuses a lane here."""
+    name ("heating", "P-101"; strong words only, each one named) and a name for several
+    ("Mechanical", "HVAC", "LVI": each of them). Empty when it names none.
+    Architecture is not a lane: a services sheet triage could not name by its words is called
+    architecture by its kind, so it never refuses a lane here."""
     named: set[Discipline] = set()
     if sheet.discipline is not None and sheet.discipline in LANES:
         named.add(sheet.discipline)
@@ -116,9 +124,11 @@ def named_lanes(sheet: Sheet) -> frozenset[Discipline]:
         for m in _LETTERED.finditer(text):
             if not _YEAR.fullmatch(m.group(2)):
                 named |= _LETTER_LANES[m.group(1)]
-    word = discipline_from_sheet("mep_plan", stem, None) if stem else None
-    if word is not None and word in LANES:
-        named.add(word)
+    words = stem.replace("_", " ")  # "\b" does not part "dh_hvac"
+    named |= {d for d in disciplines_named(words) if d in LANES}
+    for pattern, lanes in _GROUPS:
+        if pattern.search(words):
+            named |= lanes
     return frozenset(named)
 
 

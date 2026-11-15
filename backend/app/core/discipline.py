@@ -383,6 +383,13 @@ def discipline_from_sheet(
     return _KIND_DISCIPLINE.get(kind) or named
 
 
+def disciplines_named(text: str) -> set[Discipline]:
+    """Every discipline a sheet's title or file name names by a strong word or code, as
+    `discipline_from_sheet` reads them: "Electrical, Mechanical, Plumbing" names electrical and
+    plumbing ("mechanical" is no one discipline); a service named only as a room names none."""
+    return _strong_in(_SERVICE_ROOM.sub(" ", text), codes=True)
+
+
 def sheet_discipline(
     said: Discipline, title: str | None, sheet_number: str | None
 ) -> Discipline | None:

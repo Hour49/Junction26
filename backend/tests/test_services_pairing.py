@@ -556,3 +556,29 @@ def test_a_sheet_marking_two_lanes_is_kept_only_in_the_one_it_names() -> None:
     h, p = pair(PLAN, [both, plumbing])
     assert isinstance(h, Pairing) and isinstance(p, Pairing)
     assert "also offered" not in h.reason and "also offered" not in p.reason
+
+
+def test_a_mechanical_name_is_heating_or_ventilation_besides_the_disciplines_it_lists() -> None:
+    """USCG sets: "Mechanical and Electrical Second Floor Plan" names HVAC as mechanical, a word
+    that is no one discipline; an HVAC, LVI or HLS name lists several. Each keeps all it names."""
+    for name, lane in (
+        ("Building 108 Mechanical and Electrical First Floor Plan.png", "heating"),
+        ("Building 108 Mechanical and Electrical First Floor Plan.png", "ventilation"),
+        ("Building 125 HVAC and Electrical First Floor Plan.png", "ventilation"),
+        ("LVI Floor 1.png", "plumbing"),
+        ("HLS Floor 1.png", "heating"),
+    ):
+        assert isinstance(one(PLAN, sheet(name=name, disciplines=(lane,))), Pairing), (name, lane)
+    found = one(
+        PLAN, sheet(name="Building 125 HVAC First Floor Plan.png", disciplines=("plumbing",))
+    )
+    assert isinstance(found, str)
+
+
+def test_a_name_listing_several_disciplines_keeps_each() -> None:
+    """USCG Building 550: "... Demolition Plan - West Electrical, Mechanical, Plumbing, System"
+    is a plumbing sheet too; read as mechanical only it left the plumbing lane, and a tie of 14
+    alike pictures (refused) became one picture of another floor, paired by geometry."""
+    name = "Building 550 First Floor Demolition Plan - West Electrical, Mechanical, Plumbing.png"
+    for lane in ("plumbing", "electrical", "heating"):
+        assert isinstance(one(PLAN, sheet(name=name, disciplines=(lane,))), Pairing), lane
