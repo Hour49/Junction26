@@ -172,7 +172,7 @@ def sparse(plan, seed: int, walls: int = 12, junk: int = 30, scale: float = 0.01
 
 
 def test_a_sparse_services_sheet_is_placed_right_or_refused_never_wrong() -> None:
-    """Building-140-like: a dense plan, a sheet with a few long walls and many short lines.
+    """A dev building's kind: a dense plan, a sheet with a few long walls and many short lines.
     Line counts let a wrong pose through (seeds 6, 8, 11, 16, 23; seed 16 at 0.56x and a
     quarter turn, like the real pair). Within 5%: axis-aligned walls slide along themselves,
     so on this sheet a pose 2-4% off scores more wall length than the truth."""
@@ -195,7 +195,7 @@ def test_a_plan_alike_turned_half_round_is_refused_or_placed_right() -> None:
 
 
 def test_another_building_s_services_sheet_is_refused() -> None:
-    """407-like: the services sheet of another, similar building."""
+    """The services sheet of another, similar building (as a dev pair was)."""
     for seed in range(3):
         out = register(dense(seed), sparse(dense(seed + 100), seed, walls=40, junk=80))
         assert isinstance(out, Refusal), (seed, out)
@@ -212,7 +212,7 @@ def test_an_expected_scale_narrows_the_search() -> None:
 
 def test_a_lay_off_the_wall_directions_quarter_turns_is_refused(monkeypatch) -> None:
     """The fitted turn must agree (mod 90) with the direction histograms' peak; a fit that ends
-    further off was forced (DigitalHub: 6 wrong lays 7-26 deg off a quarter turn). Here the
+    further off was forced (on rendered dev pairs: wrong lays 7-26 deg off). Here the
     peak is made to read 2 deg, ICP still finds the true 0 deg, and the gate is 1 deg."""
     plan = floor(7)
     monkeypatch.setattr(register_module, "_rotation", lambda plan, sheet: 2.0)
@@ -220,3 +220,20 @@ def test_a_lay_off_the_wall_directions_quarter_turns_is_refused(monkeypatch) -> 
     out = register(plan, plan)
     assert isinstance(out, Refusal), out
     assert out.reason.startswith("the fitted turn is 2.0 deg off"), out
+
+
+def test_sheet_lines_of_no_length_are_refused_and_mixed_ones_still_work() -> None:
+    plan = floor(7)
+    dots = [Segment(a=(float(x), 1.0), b=(float(x), 1.0)) for x in range(10)]
+    out = register(plan, dots)
+    assert out == Refusal(reason="the services sheet's wall lines have no length")
+    sheet = onto_sheet(plan, deg=93.0, scale=0.02, shift=(5.0, -3.0))
+    place = register(plan, [*sheet, *dots])
+    assert isinstance(place, Place) and abs(place.scale / 0.02 - 1) < 0.01, place
+
+
+def test_an_expected_scale_that_is_no_positive_number_is_refused() -> None:
+    plan = floor(7)
+    for bad in (0.0, -1.0, math.nan, math.inf):
+        out = register(plan, plan, expected_scale=bad)
+        assert out == Refusal(reason=f"the expected scale {bad} is not a positive number"), bad

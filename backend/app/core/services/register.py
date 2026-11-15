@@ -79,7 +79,11 @@ def register(
     of each side are used (`of_total` counts the sheet's used lines). `expected_scale` (plan
     units per sheet unit, e.g. from both printed scales and the dpi) keeps the scale within
     -20%/+25% of it."""
+    if expected_scale is not None and not (math.isfinite(expected_scale) and expected_scale > 0):
+        return Refusal(reason=f"the expected scale {expected_scale} is not a positive number")
     plan, sheet = _ends(plan_walls), _ends(sheet_walls)
+    if len(sheet) and float(_lengths(sheet).max()) <= 0.0:
+        return Refusal(reason="the services sheet's wall lines have no length")
     if len(sheet) < MIN_WALLS:
         return Refusal(
             reason=f"only {len(sheet)} wall lines on the services sheet ({MIN_WALLS} needed)"
