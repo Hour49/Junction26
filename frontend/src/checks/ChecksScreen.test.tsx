@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { drawing, info, project, projectRunning } from '../api/fixtures';
 import type { ProjectView } from '../api';
 import { flush, must } from '../ingest/testing';
@@ -61,18 +61,18 @@ describe('ChecksScreen', () => {
     expect(screen.getByText('Choose a country in the header to run its pre-check.')).toBeTruthy();
   });
 
-  it('CK-2 the pack note renders verbatim; the heading names the pack, country and law', async () => {
+  it('CK-2 the heading names the pack; no law line, pack note or summary line above the rules', async () => {
     await show();
-    expect(screen.getByRole('note').textContent).toBe(NOTE);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Pre-check: ${pack.name}`);
-    expect(document.body.textContent).toContain(`${pack.country_name} · ${pack.law}`);
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(document.body.textContent).not.toContain(NOTE);
+    expect(document.body.textContent).not.toContain(`${pack.country_name} · ${pack.law}`);
+    expect(screen.queryByText(FAIL_MEANS)).toBeNull();
+    expect(screen.queryByText(/rules? failed, .* over /)).toBeNull();
   });
 
-  it('CK-4 the summary line counts rules as the conflicts checks row does; the table counts places', async () => {
+  it('CK-4 the table counts places per rule', async () => {
     const { api } = await show();
-    expect(
-      screen.getByText('1 rule failed, 1 cannot tell, 1 passed, over 2 drawings'),
-    ).toBeTruthy();
     expect(checkCalls(api).map((c) => c.url)).toEqual([`/api/projects/${PID}/checks?pack=fi`]);
     const table = screen.getByRole('table', { name: /rules/i });
     const r2 = within(table).getByRole('row', { name: /Rule R2/ });
@@ -87,7 +87,7 @@ describe('ChecksScreen', () => {
     );
   });
 
-  it('CK-5/6/7/8 failed then cannot tell per drawing; the cannot-tell look is its own; why and clause shown', async () => {
+  it('CK-5/6/7/8 failed then cannot tell; the cannot-tell look is its own; file and why shown, no clause', async () => {
     await show();
     const list = cards();
     expect(list).toHaveLength(2); // D1: d cannot tell; D2: f fails (passes are counted, not listed)
@@ -100,12 +100,11 @@ describe('ChecksScreen', () => {
     expect(d2.textContent).toContain('✕ Fails');
     expect(d2.textContent).toContain('0.75 m measured, limit at least 0.80 m');
     expect(d2.textContent).toContain('Why f.');
-    expect(d2.textContent).toContain('Decree 1/2000 § 2');
-    expect(d2.querySelector('blockquote')?.textContent).toBe('Säännös 2.');
-    const link = within(d2).getByRole('link', { name: /Read the clause/ });
-    expect(link.getAttribute('href')).toBe('https://example.org/decree#s2');
-    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(link.getAttribute('target')).toBe('_blank');
+    expect(d2.textContent).toContain(`File: ${fileOf(D2)}`);
+    expect(d1.textContent).toContain(`File: ${fileOf(D1)}`);
+    expect(d2.textContent).not.toContain('Decree 1/2000 § 2');
+    expect(d2.querySelector('blockquote')).toBeNull();
+    expect(within(d2).queryByRole('link')).toBeNull();
   });
 
   it('CK-5 a drawing with only passes is folded into one line', async () => {
@@ -123,12 +122,7 @@ describe('ChecksScreen', () => {
     expect(screen.queryAllByRole('article')).toHaveLength(0);
     expect(screen.getByText('2 drawings pass every checked place')).toBeTruthy();
     expect(screen.getByText('Every checked place passes these rules.')).toBeTruthy();
-    expect(screen.queryByText(FAIL_MEANS)).toBeNull(); // nothing failed: no fail_means
-  });
-
-  it("CK-2 the pack's fail_means is shown with the note when a rule failed", async () => {
-    await show();
-    expect(screen.getByText(FAIL_MEANS)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Findings in your files' })).toBeNull();
   });
 
   it('not_applicable: a drawing no rule applies to is its own line, never folded into "passes"', async () => {
@@ -145,12 +139,9 @@ describe('ChecksScreen', () => {
     expect(screen.getByRole('row', { name: /Rule R4/ }).textContent).toContain(
       'Does not apply to these drawings',
     );
-    expect(
-      screen.getByText('0 rules failed, 0 cannot tell, 1 passed, over 2 drawings'),
-    ).toBeTruthy();
   });
 
-  it('a rule that cannot tell on a drawing without any result gets a "Cannot tell" card with its why and clause', async () => {
+  it('a rule that cannot tell on a drawing without any result gets a "Cannot tell" card with its why', async () => {
     const blind: ProjectChecks = {
       ...checks,
       drawings: [
@@ -167,7 +158,7 @@ describe('ChecksScreen', () => {
     const card = must(cards()[0]);
     expect(card.textContent).toContain('? Cannot tell');
     expect(card.textContent).toContain('No doors were read on this drawing.');
-    expect(card.textContent).toContain('Decree 1/2000 § 1');
+    expect(card.textContent).not.toContain('Decree 1/2000 § 1');
     expect(card.textContent).toContain('Not located on the drawing');
     expect(card.textContent).not.toContain('measured');
     expect(screen.queryByText(/nothing these rules apply to/)).toBeNull();
@@ -177,20 +168,16 @@ describe('ChecksScreen', () => {
     expect(screen.getByRole('row', { name: /Rule R1/ }).textContent).toContain(
       'Cannot tell on 1 drawing: nothing could be read',
     );
-    expect(
-      screen.getByText('0 rules failed, 1 cannot tell, 0 passed, over 1 drawing'),
-    ).toBeTruthy();
   });
 
   it("Bogdan's fixtures (project_checks.json, info.json rule_packs) render: heading, fail card, file from the payload", async () => {
     const fi = must(bogdanInfo.rule_packs.find((p) => p.id === 'fi'));
     await show('fi', { 'GET /api/info': bogdanInfo, [CHECKS]: bogdanChecks });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Pre-check: ${fi.name}`);
-    expect(screen.getByRole('note').textContent).toBe(fi.note);
-    if (fi.fail_means) expect(screen.getByText(fi.fail_means)).toBeTruthy();
+    expect(screen.queryByRole('note')).toBeNull();
     const d = must(bogdanChecks.drawings[0]);
-    expect(screen.getByRole('heading', { name: d.file })).toBeTruthy(); // not in this project's files: the payload's
     const card = must(cards()[0]);
+    expect(card.textContent).toContain(`File: ${d.file}`); // not in this project's files: the payload's
     expect(card.textContent).toContain('✕ Fails');
     expect(card.textContent).toContain('6.03 m² measured');
   });
@@ -208,34 +195,21 @@ describe('ChecksScreen', () => {
     expect(screen.getByText('1 drawing passes every checked place')).toBeTruthy();
   });
 
-  it('"Show on the drawing" scrolls the viewer into view only when it sits under the list; no smooth under reduced motion', async () => {
-    const scroll = vi.fn();
-    Element.prototype.scrollIntoView = scroll;
-    const media = (wide: boolean, reduced: boolean) => {
-      window.matchMedia = vi.fn((q: string) => ({
-        matches: q.includes('min-width: 1024px') ? wide : q.includes('reduce') ? reduced : false,
-      })) as unknown as typeof window.matchMedia;
-    };
-    const tap = async () => {
-      fireEvent.click(
-        within(must(cards()[1])).getByRole('button', { name: /Show on the drawing/ }),
-      );
-      await flush();
-    };
-    media(true, false);
+  it('"Show on the drawing" opens the drawing in a pop-up; Close shuts it', async () => {
     await show();
-    await tap();
-    expect(scroll).not.toHaveBeenCalled();
-    media(false, false);
-    await tap();
-    expect(scroll).toHaveBeenLastCalledWith({ behavior: 'smooth', block: 'start' });
-    expect(scroll.mock.contexts.at(-1)).toBe(document.querySelector('.ck-viewer'));
-    media(false, true);
-    await tap();
-    expect(scroll).toHaveBeenLastCalledWith({ behavior: 'auto', block: 'start' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(within(must(cards()[1])).getByRole('button', { name: /Show on the drawing/ }));
+    await flush();
+    const dialog = screen.getByRole('dialog', { name: fileOf(D2) });
+    expect(
+      within(dialog).getByRole('button', { name: 'Mark 1: Door f, fails the rule' }),
+    ).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await flush();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it("CK-9 the drawing heading is this project's file path, never the payload's", async () => {
+  it("CK-9 the card's file is this project's file path, never the payload's", async () => {
     const p: ProjectView = {
       ...project,
       files: project.files.map((f) => (f.drawing_id === D2 ? { ...f, path: 'mine/plan.pdf' } : f)),
@@ -245,7 +219,7 @@ describe('ChecksScreen', () => {
       drawings: checks.drawings.map((d) => ({ ...d, file: 'someone-else/plan.pdf' })),
     };
     await show('fi', { [`GET /api/projects/${PID}`]: p, [CHECKS]: shared });
-    expect(screen.getByRole('heading', { name: 'mine/plan.pdf' })).toBeTruthy();
+    expect(document.body.textContent).toContain('File: mine/plan.pdf');
     expect(document.body.textContent).not.toContain('someone-else');
   });
 
@@ -274,11 +248,16 @@ describe('ChecksScreen', () => {
 
   it('CK-11 "Show on the drawing" loads the pages once and draws the result toned; no marks: "Not located"', async () => {
     const { api } = await show();
-    const d2 = must(cards()[1]);
-    fireEvent.click(within(d2).getByRole('button', { name: /Show on the drawing/ }));
+    const open = async () => {
+      fireEvent.click(
+        within(must(cards()[1])).getByRole('button', { name: /Show on the drawing/ }),
+      );
+      await flush();
+    };
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     await flush();
-    fireEvent.click(within(d2).getByRole('button', { name: /Show on the drawing/ }));
-    await flush();
+    await open();
     expect(
       api.calls.filter(
         (c) => c.url.startsWith(`/api/drawings/${D2}`) && !c.url.includes('/pages/'),
@@ -304,18 +283,11 @@ describe('ChecksScreen', () => {
     expect(screen.queryByRole('button', { name: /Show on the drawing/ })).toBeNull();
   });
 
-  it('CK-12 surveyor links carry the takeoff row and every link keeps ?pack=', async () => {
+  it('CK-12 one "Findings in your files" section; no surveyor or export links', async () => {
     await show();
-    const d2 = must(cards()[1]);
-    expect(
-      within(d2)
-        .getByRole('link', { name: /Open in the surveyor/ })
-        .getAttribute('href'),
-    ).toBe(`#/p/${PID}/d/${D2}/surveyor?q=door&pack=fi`);
-    expect(screen.getByRole('link', { name: /Export issues and plans/ }).getAttribute('href')).toBe(
-      `#/p/${PID}/issues?pack=fi`,
-    );
-    expect(screen.getByRole('heading', { name: fileOf(D2) })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Findings in your files' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Open in the surveyor/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Export issues and plans/ })).toBeNull();
   });
 
   it('CK-13 a running project asks no checks; a 409 reads the same', async () => {
@@ -368,7 +340,8 @@ describe('ChecksScreen', () => {
         .getAllByRole('columnheader')
         .map((h) => h.textContent),
     ).toEqual(['Rule', 'Passed', 'Failed', 'Cannot tell']);
-    expect(screen.getAllByRole('list', { name: /Places to look at/ }).length).toBeGreaterThan(0);
+    const findings = screen.getByRole('region', { name: 'Findings in your files' });
+    expect(within(findings).getAllByRole('list')).toHaveLength(1);
   });
 
   // The screen is styled with Tailwind classes (shadcn migration): the rules live in the component source.

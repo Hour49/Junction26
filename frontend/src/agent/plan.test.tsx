@@ -8,8 +8,8 @@ import { InfoProvider } from '../shell/info';
 import { mockApi } from '../test/mockApi';
 import type { PageViewer } from '../viewer/PageViewer';
 import { AgentChat } from './AgentChat';
-import { viewMarks } from './PlanPane';
-import { evidenceView, unionBox, viewOf, type ChatTurn, type View } from './agent';
+import { paneFocus, viewMarks } from './PlanPane';
+import { unionBox, viewOf, type ChatTurn, type View } from './agent';
 import { answerTurn, conflictTurn, DID, dontKnowTurn, model } from './fixtures';
 
 type ViewerProps = ComponentProps<typeof PageViewer>;
@@ -103,6 +103,13 @@ async function send(message: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
 }
 
+/** A box as the outline polygon the pane sends for a focused source (W1). */
+const outline = ([x0, y0, x1, y1]: number[]) => [
+  [x0, y0],
+  [x1, y0],
+  [x1, y1],
+  [x0, y1],
+];
 const pane = () => screen.getByRole('complementary', { name: 'Plan' });
 /** The list row of a file, by its name. */
 const row = (name: string) =>
@@ -142,6 +149,15 @@ it("viewMarks: a mark sent without a polygon (optional in the server's schema) i
   expect(m?.box).toEqual(bare.box);
 });
 
+it('W1 the pane never sends a zoom box: the page opens whole, a focused source is an outline', () => {
+  // A box focus makes PageViewer zoom in on a small place (2x/4x), cutting the plan off in the narrow pane.
+  expect(paneFocus(shownView, null)).toEqual({ page: 1 });
+  const f = paneFocus(shownView, [0.31, 0.22, 0.38, 0.29]);
+  expect(f).not.toHaveProperty('box');
+  expect(f?.polygon).toEqual(outline([0.31, 0.22, 0.38, 0.29]));
+  expect(paneFocus(null, null)).toBeNull();
+});
+
 describe('the plan beside the chat (wide window)', () => {
   it("shows the project's first drawing before any turn, with no marks", async () => {
     open(viewTurn);
@@ -157,7 +173,7 @@ describe('the plan beside the chat (wide window)', () => {
     open(viewTurn);
     await send('Where is Bagno 1.01?');
     expect(await within(pane()).findByText('Bagno 1.01 on the plan')).toBeTruthy();
-    expect(viewer().focus).toEqual({ page: 1, box: shownView.box });
+    expect(viewer().focus).toEqual({ page: 1 }); // W1: the whole page, no zoom box
     expect(viewer().marks.map((m) => [m.n, m.label, m.polygon?.length])).toEqual([
       [1, 'Bagno 1.01', 4],
     ]);
@@ -175,7 +191,10 @@ describe('the plan beside the chat (wide window)', () => {
       cite.dispatchEvent(click);
     });
     expect(click.defaultPrevented).toBe(true);
-    expect(viewer().focus).toEqual({ page: 1, box: unionBox([[0.31, 0.22, 0.38, 0.29]]) });
+    expect(viewer().focus).toEqual({
+      page: 1,
+      polygon: outline(unionBox([[0.31, 0.22, 0.38, 0.29]])),
+    });
   });
 
   it('a source on another page opens that page with its own mark', async () => {
@@ -186,8 +205,7 @@ describe('the plan beside the chat (wide window)', () => {
       expect(viewer().focus?.page).toBe(1);
     });
     fireEvent.click(screen.getByRole('link', { name: /^Source 2:/ }));
-    const e = conflictTurn.evidence[1] as ChatTurn['evidence'][number];
-    expect(viewer().focus).toEqual({ page: 2, box: evidenceView(e).box });
+    expect(viewer().focus).toEqual({ page: 2 });
     expect(viewer().marks.map((m) => m.n)).toEqual([2]);
   });
 
@@ -198,7 +216,7 @@ describe('the plan beside the chat (wide window)', () => {
     await within(pane()).findByText('Bagno 1.01 on the plan');
     await send('Which walls carry load?');
     expect(await screen.findByText(/does not say which walls carry load/)).toBeTruthy();
-    expect(viewer().focus).toEqual({ page: 1, box: shownView.box });
+    expect(viewer().focus).toEqual({ page: 1 }); // W1: the whole page, no zoom box
   });
 
   it('a restored thread (back from the workspace) reopens its newest view', async () => {
@@ -223,7 +241,7 @@ describe('the plan beside the chat (wide window)', () => {
     await waitFor(() => {
       expect(within(pane()).getByTestId('viewer')).toBeTruthy();
     });
-    expect(viewer().focus).toEqual({ page: 1, box: shownView.box });
+    expect(viewer().focus).toEqual({ page: 1 }); // W1: the whole page, no zoom box
     expect(viewer().marks.map((m) => m.n)).toEqual([1]);
   });
 
@@ -304,7 +322,10 @@ describe('a narrow window: the plan as a sheet (chat-ux #9)', () => {
     });
     expect(click.defaultPrevented).toBe(true);
     const sheet = dialog() as HTMLElement;
-    expect(viewer().focus).toEqual({ page: 1, box: unionBox([[0.31, 0.22, 0.38, 0.29]]) });
+    expect(viewer().focus).toEqual({
+      page: 1,
+      polygon: outline(unionBox([[0.31, 0.22, 0.38, 0.29]])),
+    });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
     expect(dialog()).toBeNull();
     expect(cite.getAttribute('href')).toContain(`/d/${DID}`); // a modified click still opens the workspace
@@ -418,7 +439,7 @@ describe('the plan beside the chat, from the step stream (chat-ux #2, contract C
     await push('view', shownView);
     expect(screen.getByText('Working on it…')).toBeTruthy();
     expect(within(pane()).getByText('Bagno 1.01 on the plan')).toBeTruthy();
-    expect(viewer().focus).toEqual({ page: 1, box: shownView.box });
+    expect(viewer().focus).toEqual({ page: 1 }); // W1: the whole page, no zoom box
     const last = { ...shownView, caption: 'Bagno 1.01, as answered' };
     await push('answer', { ...answerTurn, view: last });
     expect(await within(pane()).findByText('Bagno 1.01, as answered')).toBeTruthy();

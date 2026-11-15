@@ -1,3 +1,5 @@
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import {
   formatValue,
   methodName,
@@ -69,16 +71,32 @@ export function TakeoffTable({ takeoff, selected, onSelect }: Props) {
   const head = (
     <thead>
       <tr>
-        <th scope="col">Quantity</th>
-        <th scope="col">Value</th>
-        <th scope="col">State</th>
+        <th scope="col">
+          <Tip text={REVIEW_TIPS.colQuantity} wrap>
+            <span>Quantity</span>
+          </Tip>
+        </th>
+        <th scope="col">
+          <Tip text={REVIEW_TIPS.colValue} wrap>
+            <span>Value</span>
+          </Tip>
+        </th>
+        <th scope="col">
+          <Tip text={REVIEW_TIPS.colState} wrap>
+            <span>State</span>
+          </Tip>
+        </th>
       </tr>
     </thead>
   );
   return (
     <>
       <table className="sv-table">
-        <caption>To review</caption>
+        <caption>
+          <Tip text={REVIEW_TIPS.toReview} wrap>
+            <span>To review</span>
+          </Tip>
+        </caption>
         {head}
         <tbody>
           {queue.length ? (
@@ -91,7 +109,11 @@ export function TakeoffTable({ takeoff, selected, onSelect }: Props) {
         </tbody>
       </table>
       <table className="sv-table">
-        <caption>All other quantities</caption>
+        <caption>
+          <Tip text={REVIEW_TIPS.allOther} wrap>
+            <span>All other quantities</span>
+          </Tip>
+        </caption>
         {head}
         <tbody>
           <Rows rows={rest} selected={selected} onSelect={onSelect} />

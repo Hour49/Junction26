@@ -19,6 +19,7 @@ import { pageFlagged } from '../doublecheck/check';
 import { DoubleCheck } from '../doublecheck/DoubleCheck';
 import { ResolverLines } from './Resolver';
 import { routeHref } from '../shell/route';
+import { TIPS } from '../shell/tips';
 import { ChecksPanel } from './ChecksPanel';
 import { MARKER, Suggestions } from './DrawingHeader';
 import {
@@ -348,9 +349,11 @@ function References(props: {
 export function PartialTag(props: { a: AnswerView }) {
   const tip = partialTip(props.a);
   return tip ? (
-    <span className="v-pill v-pill--warn en-partial" role="note" title={tip} aria-label={tip}>
-      May be partial
-    </span>
+    <Tip text={tip} wrap>
+      <span className="v-pill v-pill--warn en-partial" role="note" aria-label={tip}>
+        May be partial
+      </span>
+    </Tip>
   ) : null;
 }
 
@@ -376,6 +379,8 @@ function Answer(props: {
     typeof a.answer === 'number'
       ? shownValue(a.answer, a.unit, Boolean(row?.estimate))
       : (a.answer ?? '');
+  // An IFC model's fact answer is lines of text, not one value: set as text, never in the big value's type.
+  const text = typeof a.answer === 'string' && (a.answer.includes('\n') || a.answer.length > 60);
   const surveyor =
     row &&
     routeHref({
@@ -434,7 +439,9 @@ function Answer(props: {
       {flagged && (
         // A flagged page (EN-84): the doubt about the whole drawing comes first, at every width.
         <section className="en-flag" aria-label="This drawing was flagged">
-          <h4 className="en-label">This drawing was flagged</h4>
+          <Tip text={TIPS.flagged} wrap>
+            <h4 className="en-label">This drawing was flagged</h4>
+          </Tip>
           {a.check && <p>{a.check.reason}</p>}
           {confidence}
         </section>
@@ -448,7 +455,7 @@ function Answer(props: {
         ) : (
           <>
             {row && `${cap(row.label)}: `}
-            <strong>{value}</strong>.
+            <strong>{text ? (value.split('\n')[0] ?? '').replace(/:$/, '') : value}</strong>.
           </>
         )}
         {/* The whole page is in doubt: no generic counting rule (EN-85). */}
@@ -458,7 +465,10 @@ function Answer(props: {
         {/* EN-86: its own grid area, first in the card on phones so the value and the reason are above the fold */}
         <div className="en-head">
           <div className="en-value-row">
-            <span className="en-value" data-testid="answer-value">
+            <span
+              className={text ? 'en-value en-value--text' : 'en-value'}
+              data-testid="answer-value"
+            >
               {value}
             </span>
             {noun && <span className="en-noun">{noun}</span>}
@@ -499,6 +509,9 @@ function Answer(props: {
             <div className="en-planbox">
               <DrawingNav place={place} />
               {a.proof.kind === 'model' && <ModelProof proof={a.proof} />}
+              {a.method === 'facts' && (
+                <p className="en-small">Read from the model data: no sheet to point at.</p>
+              )}
               {overlay}
             </div>
           )}
@@ -517,21 +530,27 @@ function Answer(props: {
           {row && (
             <div className="en-checks">
               <div className="en-labelrow">
-                <h4 className="en-label">Checks</h4>
+                <Tip text={TIPS.checks} wrap>
+                  <h4 className="en-label">Checks</h4>
+                </Tip>
                 <StatusPill status={row.status} />
               </div>
               <ChecksPanel row={row} />
             </div>
           )}
           {score && (
-            <p className="en-score">
-              Second reader's score {formatScore(score.score)} (not a probability)
-            </p>
+            <Tip text={TIPS.secondScore} wrap>
+              <p className="en-score">
+                Second reader's score {formatScore(score.score)} (not a probability)
+              </p>
+            </Tip>
           )}
           {row && (
-            <p className="en-rule">
-              Counting rule: {row.rule.text} <span className="en-small">{row.rule.id}</span>
-            </p>
+            <Tip text={TIPS.rule} wrap>
+              <p className="en-rule">
+                Counting rule: {row.rule.text} <span className="en-small">{row.rule.id}</span>
+              </p>
+            </Tip>
           )}
           <References
             refs={refs}

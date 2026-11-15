@@ -21,6 +21,8 @@ import { MUTED, PAGE, PANEL, SUMMARY, TAP } from './ui';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS, STAGE_TIPS } from '../shell/tips-ingest';
 
 /** The file page as the demo's (files.js traceScreen): mono 28 px path (22 px on a phone), hairline facts (IN-83). */
 const FILE_PAGE = cn(
@@ -84,13 +86,21 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
       {error !== null && <StaleNote error={error} failedAt={failedAt} onRetry={retry} />}
       <TitleRow eyebrow={<StateBadge state={file.state} />} title={file.path}>
         {file.drawing_id && (
-          <Button asChild size="pill" className="no-underline hover:text-primary-foreground">
-            <a href={`#/p/${projectId}/d/${file.drawing_id}/engineer`}>Open the drawing</a>
-          </Button>
+          <Tip text={INGEST_TIPS.openDrawing}>
+            <Button asChild size="pill" className="no-underline hover:text-primary-foreground">
+              <a href={`#/p/${projectId}/d/${file.drawing_id}/engineer`}>Open the drawing</a>
+            </Button>
+          </Tip>
         )}
       </TitleRow>
       {file.reason && <p>{file.reason}</p>}
-      {file.reused && <p>reused: read before, not recomputed</p>}
+      {file.reused && (
+        <p>
+          <Tip text={INGEST_TIPS.reused} wrap>
+            <span>reused: read before, not recomputed</span>
+          </Tip>
+        </p>
+      )}
       <dl className={FACTS}>
         {facts.map(([label, value]) =>
           value ? (
@@ -125,9 +135,11 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
         ) : (
           // folded: the demo's file page shows no stages, and nothing is lost (IN-83)
           <details>
-            <summary className={cn(SUMMARY, 'font-semibold')}>
-              How it was read: {plural(stages.length, 'stage')}
-            </summary>
+            <Tip text={INGEST_TIPS.stages}>
+              <summary className={cn(SUMMARY, 'font-semibold')}>
+                How it was read: {plural(stages.length, 'stage')}
+              </summary>
+            </Tip>
             <ol className="ingest-trace">
               {stages.map((s, i) => (
                 <li
@@ -147,7 +159,9 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
                   >
                     {s.failure ? '✕' : '✓'}
                   </span>
-                  <b>{STAGE_LABEL[s.stage]}</b>
+                  <Tip text={STAGE_TIPS[s.stage]} wrap className="justify-self-start">
+                    <b>{STAGE_LABEL[s.stage]}</b>
+                  </Tip>
                   <span className={MUTED}>{formatMs(s.ms)}</span>
                   <p>{s.stage === 'cache' ? `Cached: ${s.did}` : s.did}</p>
                   {s.stage === 'cache' && (
@@ -168,9 +182,11 @@ export function FileTraceScreen({ projectId, fileId }: { projectId: string; file
       </Card>
       {takeoff.length > 0 && (
         <details className={cn(PANEL, 'ingest-takeoff block')}>
-          <summary className={SUMMARY}>
-            What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}
-          </summary>
+          <Tip text={INGEST_TIPS.endsAs}>
+            <summary className={SUMMARY}>
+              What it ends as: {plural(takeoff.length, 'quantity', 'quantities')}
+            </summary>
+          </Tip>
           <dl className="mt-2 mb-0 grid grid-cols-[minmax(0,1fr)_auto] [&>div]:contents">
             {takeoff.map(([key, value]) => (
               <div key={key}>

@@ -43,6 +43,16 @@ export const TIPS = {
   secondScore:
     'How much a second, independent reader agrees. Higher is better; it is not a probability.',
   flagged: 'Vellum read this drawing, but something looks off. Check the answer against the plan.',
+  photo: 'Add a photo of a plan (png, jpeg, tiff or webp) and ask about it.',
+  sendBusy: 'Wait for the answer to this question first.',
+  sendTooLong: 'The question is too long. Shorten it to send it.',
+  sendDrawing: 'Finish drawing on the plan first, then ask.',
+  prevDrawing: 'Go to the previous drawing of this project.',
+  nextDrawing: 'Go to the next drawing of this project.',
+  rule: 'The written rule Vellum used to count. The small code after it is for engineers.',
+  colClass: 'The kind of object, such as a wall or a door.',
+  colStorey: 'The floor the object is on.',
+  colGlobalId: "The object's unique id inside the building model.",
   // Answer status pill (same words as engineer/format.ts)
   status: {
     signed: statusTip('signed'),
@@ -53,8 +63,7 @@ export const TIPS = {
     single: statusTip('single'),
   },
   // Documents
-  issues:
-    'Something Vellum could not decide alone. Answer it; notes are only for your information.',
+  issues: 'What Vellum could not decide alone and needs your answer now.',
 } as const;
 
 /** The tip for a file's state word ("" for a state without one: no tip is shown). */

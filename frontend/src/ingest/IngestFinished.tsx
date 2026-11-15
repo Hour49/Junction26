@@ -8,6 +8,8 @@ import { plural } from './ingest';
 import { TAP } from './ui';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Tip } from '@/components/ui/tip';
+import { INGEST_TIPS } from '../shell/tips-ingest';
 
 /** What the conflicts list reports after each load or settle (fe-surveyor's `onCounts`). */
 export type { ConflictCounts };
@@ -31,7 +33,14 @@ export function DoneLine({
   return (
     <p className="ingest-done-line m-0 text-[15px] text-text-2 [&_a]:font-semibold [&_a]:text-primary">
       {`${plural(project.drawings.length, 'drawing')} ready.`}
-      {counts !== null && counts.total > 0 && ' Conflicts are below.'}
+      {counts !== null && counts.total > 0 && (
+        <>
+          {' '}
+          <Tip text={INGEST_TIPS.conflicts} wrap>
+            <span>Conflicts are below.</span>
+          </Tip>
+        </>
+      )}
       {/* mounted only once done: the API answers 409 to the issues list until then (IN-87) */}
       <IssuesSentence projectId={projectId} />
     </p>
@@ -123,12 +132,14 @@ export function ChatRow({
             <a href={`#/p/${projectId}/chat`}>Start a new chat</a>
           </Button>
           {first && (
-            <a
-              className={cn(TAP, 'text-[13px] text-primary')}
-              href={`#/p/${projectId}/d/${first.drawing_id}/engineer`}
-            >
-              Open the workspace
-            </a>
+            <Tip text={INGEST_TIPS.openWorkspace}>
+              <a
+                className={cn(TAP, 'text-[13px] text-primary')}
+                href={`#/p/${projectId}/d/${first.drawing_id}/engineer`}
+              >
+                Open the workspace
+              </a>
+            </Tip>
           )}
         </>
       )}

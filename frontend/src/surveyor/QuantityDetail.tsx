@@ -1,3 +1,6 @@
+import { LockTip } from '../shell/LockTip';
+import { Tip } from '@/components/ui/tip';
+import { REVIEW_TIPS } from '../shell/tips-review';
 import { useState } from 'react';
 import { errorText, formatTime, formatValue, methodName, type Edit, type Row } from '../api';
 import { MarkList } from './MarkList';
@@ -44,6 +47,7 @@ export function QuantityDetail(props: Props) {
   const settleValue = typed.trim() === '' ? NaN : Number(typed);
   const canSettle = Number.isFinite(settleValue) && settleValue >= 0;
   const conflict = row.conflict;
+  const signLocked = saving || row.needs_person || name.trim() === '';
   const err = props.error === null ? null : errorText(props.error);
   return (
     <section className="sv-detail" aria-label="Selected quantity">
@@ -61,8 +65,12 @@ export function QuantityDetail(props: Props) {
       </p>
       {row.first && row.second && (
         <p>
-          First method: {methodName(row.first.method)} {fmt(row.first.value)}. Second method:{' '}
-          {methodName(row.second.method)} {fmt(row.second.value)}.
+          <Tip text={REVIEW_TIPS.methods} wrap>
+            <span>
+              First method: {methodName(row.first.method)} {fmt(row.first.value)}. Second method:{' '}
+              {methodName(row.second.method)} {fmt(row.second.value)}.
+            </span>
+          </Tip>
         </p>
       )}
       {conflict && (
@@ -84,16 +92,21 @@ export function QuantityDetail(props: Props) {
           {conflict.derived && <p>{conflict.derived}</p>}
           <div className="sv-tools">
             {conflict.values.map((v, i) => (
-              <Button
+              <LockTip
                 key={`${v.method} ${String(i)}`}
-                className={DETAIL}
-                disabled={locked}
-                onClick={() => {
-                  onEdit({ quantity, action: 'settle', value: v.value });
-                }}
+                text={locked ? REVIEW_TIPS.keepLocked : REVIEW_TIPS.keep}
+                locked={locked}
               >
-                Keep {LETTERS[i]}: {fmt(v.value)} ({methodName(v.method)})
-              </Button>
+                <Button
+                  className={DETAIL}
+                  disabled={locked}
+                  onClick={() => {
+                    onEdit({ quantity, action: 'settle', value: v.value });
+                  }}
+                >
+                  Keep {LETTERS[i]}: {fmt(v.value)} ({methodName(v.method)})
+                </Button>
+              </LockTip>
             ))}
           </div>
         </div>
@@ -113,15 +126,20 @@ export function QuantityDetail(props: Props) {
             }}
           />
         </label>
-        <Button
-          className={DETAIL}
-          disabled={locked || !canSettle}
-          onClick={() => {
-            onEdit({ quantity, action: 'settle', value: settleValue });
-          }}
+        <LockTip
+          text={locked || !canSettle ? REVIEW_TIPS.settleLocked : REVIEW_TIPS.settle}
+          locked={locked || !canSettle}
         >
-          Settle
-        </Button>
+          <Button
+            className={DETAIL}
+            disabled={locked || !canSettle}
+            onClick={() => {
+              onEdit({ quantity, action: 'settle', value: settleValue });
+            }}
+          >
+            Settle
+          </Button>
+        </LockTip>
       </div>
       {row.settled && (
         <p>
@@ -169,7 +187,9 @@ export function QuantityDetail(props: Props) {
       {signed && <p>Undo the sign-off to edit.</p>}
       <div className="sv-tools">
         <label>
-          Signing as{' '}
+          <Tip text={REVIEW_TIPS.signingAs} wrap>
+            <span>Signing as</span>
+          </Tip>{' '}
           <Input
             className={`${FIELD} w-48`}
             type="text"
@@ -181,26 +201,33 @@ export function QuantityDetail(props: Props) {
           />
         </label>
         {signed ? (
-          <Button
-            variant="secondary"
-            className={DETAIL}
-            disabled={saving}
-            onClick={() => {
-              props.onSign(true);
-            }}
-          >
-            Undo sign-off
-          </Button>
+          <LockTip text={REVIEW_TIPS.undoSignOff} locked={saving}>
+            <Button
+              variant="secondary"
+              className={DETAIL}
+              disabled={saving}
+              onClick={() => {
+                props.onSign(true);
+              }}
+            >
+              Undo sign-off
+            </Button>
+          </LockTip>
         ) : (
-          <Button
-            className={DETAIL}
-            disabled={saving || row.needs_person || name.trim() === ''}
-            onClick={() => {
-              props.onSign(false);
-            }}
+          <LockTip
+            text={signLocked ? REVIEW_TIPS.signOffLocked : REVIEW_TIPS.signOff}
+            locked={signLocked}
           >
-            Sign off {fmt(row.value)}
-          </Button>
+            <Button
+              className={DETAIL}
+              disabled={signLocked}
+              onClick={() => {
+                props.onSign(false);
+              }}
+            >
+              Sign off {fmt(row.value)}
+            </Button>
+          </LockTip>
         )}
       </div>
       {signed && (

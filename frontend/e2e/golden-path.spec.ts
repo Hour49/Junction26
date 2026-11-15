@@ -47,7 +47,7 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(card).toContainText('22.40 m²');
     await expect(card).toContainText('30.00 m²');
     // No issues and no file list on Ingest: they are in Documents.
-    await expect(main.getByRole('region', { name: 'Issues' })).toHaveCount(0);
+    await expect(main.getByRole('region', { name: 'Issues on demand' })).toHaveCount(0);
     await expect(main.locator('a[href*="/f/f"]')).toHaveCount(0);
     // GP-45: nothing needs a person, so the chat is open; the workspace link is there.
     await expect(main.getByRole('link', { name: 'Start a new chat' })).toBeVisible();
@@ -144,9 +144,9 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     const files = main.getByRole('region', { name: 'Files' }).getByRole('link');
     await expect(files).toHaveCount(12);
     // A note is shown, never answered.
-    await expect(main.getByRole('region', { name: 'Issues' }).getByRole('textbox')).toHaveCount(
-      toAnswer ? toAnswer : 0,
-    );
+    await expect(
+      main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
+    ).toHaveCount(toAnswer ? toAnswer : 0);
     await shot(page, testInfo, '05-documents', offline);
   });
 

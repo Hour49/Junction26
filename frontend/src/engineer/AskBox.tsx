@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tip } from '@/components/ui/tip';
 import { useInfo } from '../shell/info';
+import { TIPS } from '../shell/tips';
+
+/** The photo kinds the server reads (#425 added TIFF and WebP), by type and by extension for pickers that
+ * only know the file name. */
+export const PHOTO_ACCEPT =
+  'image/png,image/jpeg,image/tiff,image/webp,.png,.jpg,.jpeg,.tif,.tiff,.webp';
 
 /** Why the pen is off for a scan or photo (ui-bugs 1). */
 export const CANT_DRAW =
@@ -117,6 +124,14 @@ export function AskBox(props: {
   const question = text.trim();
   const tooLong = limit !== undefined && question.length > limit;
   const blocked = !question || busy || tooLong || drawing;
+  // Why the send button is greyed out (a disabled button has no hover of its own).
+  const sendReason = drawing
+    ? TIPS.sendDrawing
+    : busy
+      ? TIPS.sendBusy
+      : tooLong
+        ? TIPS.sendTooLong
+        : TIPS.sendDisabled;
   return (
     <form
       className="en-ask"
@@ -153,7 +168,7 @@ export function AskBox(props: {
             <input
               ref={picker}
               type="file"
-              accept="image/png,image/jpeg"
+              accept={PHOTO_ACCEPT}
               hidden
               data-testid="photo-input"
               onChange={(e) => {
@@ -162,24 +177,25 @@ export function AskBox(props: {
                 if (photo) onAttach(photo);
               }}
             />
-            <button
-              type="button"
-              className="en-attach v-press"
-              aria-label="Add a photo"
-              title="Add a photo (png or jpeg)"
-              disabled={attaching}
-              onClick={() => picker.current?.click()}
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                <path
-                  d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.5 3.5 0 015 5l-8.6 8.6a2 2 0 01-2.8-2.8l7.9-7.9"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
+            <Tip text={TIPS.photo}>
+              <button
+                type="button"
+                className="en-attach v-press"
+                aria-label="Add a photo"
+                disabled={attaching}
+                onClick={() => picker.current?.click()}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path
+                    d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.5 3.5 0 015 5l-8.6 8.6a2 2 0 01-2.8-2.8l7.9-7.9"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </Tip>
           </>
         )}
         {pen && <PenButton pen={pen} />}
@@ -187,17 +203,19 @@ export function AskBox(props: {
           {asked} asked
           {limit !== undefined && ` · ${String(question.length)} / ${String(limit)}`}
         </span>
-        <button type="submit" className="en-send v-press" aria-label="Ask" disabled={blocked}>
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path
-              d="M12 19V5M5 12l7-7 7 7"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+        <Tip text={blocked ? sendReason : ''} wrap className="shrink-0">
+          <button type="submit" className="en-send v-press" aria-label="Ask" disabled={blocked}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                d="M12 19V5M5 12l7-7 7 7"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </Tip>
       </div>
       {tooLong && (
         <p id="en-too-long" className="en-warn en-limit" role="alert">

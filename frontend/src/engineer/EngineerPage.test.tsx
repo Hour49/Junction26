@@ -21,6 +21,7 @@ import {
   project,
 } from '../api/fixtures';
 import { InfoProvider } from '../shell/info';
+import { TIPS } from '../shell/tips';
 import { mockApi, never } from '../test/mockApi';
 import { EngineerPage } from './EngineerPage';
 import { formatScore } from './format';
@@ -1270,5 +1271,93 @@ describe('judge path', () => {
     expect(t.querySelector('.en-estimate')?.textContent).toBe(
       'Counted by Gemini Carbon, an AI reader: check its marks on the plan',
     );
+  });
+});
+
+describe('hover tips on the engineer page (docs/ui-tooltips.md)', () => {
+  /** Focus the tip's trigger (the nearest focusable wrapper) and wait for its words. */
+  async function tipOf(el: HTMLElement, text: string) {
+    (el.closest('[tabindex]') as HTMLElement).focus();
+    expect((await screen.findAllByText(text)).length).toBeGreaterThan(0);
+  }
+
+  it('the "how it was read" line says what it is', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    const line = await screen.findByText(/^(.*), read from /);
+    await tipOf(line, TIPS.howRead);
+  });
+
+  it('a suggested question says what the chips are', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    const chip = await screen.findByRole('button', { name: drawing.suggestions[0]?.question });
+    chip.focus();
+    expect((await screen.findAllByText(new RegExp(TIPS.suggested))).length).toBeGreaterThan(0);
+  });
+
+  it('the greyed-out send button says why: type a question first', async () => {
+    open({ [DRAWING_ROUTE]: drawing });
+    const send = await screen.findByRole('button', { name: 'Ask' });
+    expect(send).toHaveProperty('disabled', true);
+    await tipOf(send, TIPS.sendDisabled);
+  });
+
+  it('the checks, second reader score and counting rule explain themselves', async () => {
+    const t = await shownTurn(answerConfidence);
+    await tipOf(within(t).getByText('Checks'), TIPS.checks);
+    await tipOf(within(t).getByText(/^Second reader's score/), TIPS.secondScore);
+    await tipOf(within(t).getByText(/^Counting rule:/), TIPS.rule);
+  });
+
+  it('the flagged box says what a flag means', async () => {
+    const low: AnswerView = { ...answerLow, drawing_id: DRAWING };
+    const flaggedProject = {
+      ...project,
+      drawings: project.drawings.map((d) =>
+        d.drawing_id === DRAWING ? { ...d, state: 'flagged' as const } : d,
+      ),
+    };
+    open({
+      [PROJECT_ROUTE]: flaggedProject,
+      [DRAWING_ROUTE]: drawing,
+      'POST /api/ask': answers(low),
+    });
+    await typeAndAsk(low.question);
+    const t = await turn(low.question);
+    await tipOf(await within(t).findByText('This drawing was flagged'), TIPS.flagged);
+  });
+});
+
+describe('a text answer from a building model (deep QA, research-lead 1)', () => {
+  const text = '5 storeys:\n- Basement: elevation -3.00 m\n- Ground floor: elevation 0.00 m';
+  const facts = (answerText: string): AnswerView => ({
+    ...answerModel,
+    question: 'How many storeys does the building have?',
+    answer: answerText,
+    unit: null,
+    quantity: null,
+    marks: [],
+    method: 'facts',
+    proof: { ...answerModel.proof, kind: 'none', arithmetic: null, objects: null, storeys: null },
+  });
+
+  it('is set as text with its lines kept, not as the big value; its first line is the sentence', async () => {
+    const a = facts(text);
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(a) });
+    await typeAndAsk(a.question);
+    const t = await turn(a.question);
+    const value = await within(t).findByTestId('answer-value');
+    expect(value.className).toBe('en-value en-value--text');
+    expect(value.textContent).toBe(text);
+    expect(t.querySelector('.en-sentence')?.textContent).toBe('5 storeys.');
+    // the drawing pane is not left empty
+    expect(within(t).getByText('Read from the model data: no sheet to point at.')).toBeTruthy();
+  });
+
+  it('a short text answer stays the big value', async () => {
+    const a = facts('Kitchen');
+    open({ [DRAWING_ROUTE]: drawing, 'POST /api/ask': answers(a) });
+    await typeAndAsk(a.question);
+    const value = await within(await turn(a.question)).findByTestId('answer-value');
+    expect(value.className).toBe('en-value');
   });
 });

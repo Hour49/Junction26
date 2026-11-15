@@ -28,6 +28,27 @@ export const viewMarks = (v: View): MarkView[] =>
     value: null,
   }));
 
+/** W1 (look-check, board #404): the pane is narrow and its viewer has no zoom buttons, so it never zooms. A box
+ * focus makes PageViewer zoom in on a small place, cutting the plan off at both sides; here the page opens whole,
+ * fitted to the pane's width, with the marks drawn. A source picked by [n] is outlined (a polygon does not zoom). */
+export function paneFocus(
+  view: View | null,
+  focus: Box | null,
+): { page: number; polygon?: [number, number][] } | null {
+  if (!view) return null;
+  if (!focus) return { page: view.page };
+  const [x0, y0, x1, y1] = focus;
+  return {
+    page: view.page,
+    polygon: [
+      [x0, y0],
+      [x1, y0],
+      [x1, y1],
+      [x0, y1],
+    ],
+  };
+}
+
 /** One file of the list beside the chat, as the pane needs it. */
 export interface PaneFile {
   drawing_id: string;
@@ -137,7 +158,7 @@ function FileRow(props: {
                 file={drawing.file}
                 pages={drawing.pages}
                 marks={view ? viewMarks(view) : []}
-                focus={view ? { page: view.page, box: focus ?? view.box } : null}
+                focus={paneFocus(view, focus)}
                 fixMode={drawing_}
                 onAddMark={
                   drawing_
