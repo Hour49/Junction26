@@ -293,6 +293,53 @@ describe('a discipline picture with the edit drawn on it (AC-40..44)', () => {
     });
   });
 
+  it('AC-45 All sheets: the plan and each picture side by side, the edit on each; Before clears every one', async () => {
+    const { container } = await pictureCard();
+    fireEvent.click(tab('All sheets'));
+    const panels = () => [...container.querySelectorAll<HTMLElement>('.ms-sync-panel')];
+    await waitFor(() => {
+      expect(panels().map((p) => p.querySelector('img')?.getAttribute('src') ?? '')).toEqual([
+        expect.stringContaining(DID),
+        expect.stringContaining(PIC),
+      ]);
+    });
+    expect(panels().map((p) => p.getAttribute('aria-label'))).toEqual([
+      'Plan, with the proposed change',
+      'Heating: heating/EG-heating.png, with the proposed change',
+    ]);
+    const [plan, heating] = panels();
+    expect(plan?.querySelectorAll('.ag-removed')).toHaveLength(1); // the plan's own overlay
+    expect(heating?.querySelector('.ag-strike')).toBeTruthy(); // the edit on the heating sheet
+    expect(heating?.querySelector<HTMLElement>('.ms-dot[title="radiator"]')?.textContent).toBe('!');
+    fireEvent.click(screen.getByRole('button', { name: 'Before' }));
+    expect(container.querySelector('.ms-sync .ag-removed')).toBeNull();
+    expect(container.querySelector('.ms-sync .ag-strike')).toBeNull();
+    // a panel opens its own tab
+    fireEvent.click(within(heating as HTMLElement).getByRole('button', { name: 'Open Heating' }));
+    await waitFor(() => {
+      expect(container.querySelectorAll('.ms-sync-panel')).toHaveLength(0);
+    });
+    expect(tab(/^Heating/).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('AC-45 no All sheets without a picture, nor once its only picture is refused', async () => {
+    await card();
+    expect(
+      within(screen.getByRole('group', { name: 'Discipline' })).queryByRole('button', {
+        name: 'All sheets',
+      }),
+    ).toBeNull();
+    cleanup();
+    await pictureCard();
+    fireEvent.click(tab(/Heating/));
+    fireEvent.click(await screen.findByRole('button', { name: 'Not this sheet' }));
+    expect(
+      within(screen.getByRole('group', { name: 'Discipline' })).queryByRole('button', {
+        name: 'All sheets',
+      }),
+    ).toBeNull();
+  });
+
   it('AC-44 a lane without a picture is drawn over the plan as before', async () => {
     const { container } = await pictureCard();
     fireEvent.click(tab(/Ventilation/));

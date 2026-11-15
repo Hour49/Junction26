@@ -23,6 +23,17 @@ import {
 } from './services';
 
 const pct = (v: number) => `${String(v * 100)}%`;
+const ALL = ' all'; // the All sheets view's tab name: no discipline is spelled so
+
+/** AC-45: one lane's sheet in the All sheets view: where it is, what to zoom to, what to draw on it. */
+export interface SyncSheet {
+  discipline: string;
+  name: string;
+  sheet: { drawing_id: string; page: number };
+  focus: Box | null;
+  layer: ReactNode;
+  open: () => void;
+}
 
 /** The discipline's runs and terminals near the edit, over the page (page fractions). Before: as they are.
  * After: each mark in the status of the action that names it, re-seated terminals at their new place, proposed
@@ -289,6 +300,9 @@ export function useServiceTabs(
   focus: Box | null;
   /** AC-40: the open lane's own services sheet, drawn instead of the plan; null: the plan. */
   sheet: { drawing_id: string; page: number } | null;
+  /** AC-45: All sheets: each lane's picture with the edit on it, for the card to show beside the plan; null: one
+   * view (the card's plan box). */
+  sync: SyncSheet[] | null;
 } | null {
   const [name, setName] = useState<string | null>(null);
   const [pickedId, setPickedId] = useState<string | null>(null);
@@ -296,7 +310,13 @@ export function useServiceTabs(
   const [refused, setRefused] = useState<ReadonlySet<string>>(new Set());
   const services = p.services;
   if (!services) return null;
-  const lane = services.disciplines.find((l) => l.discipline === name) ?? null;
+  // AC-45: the lanes with a picture of their own the user has not refused, for All sheets
+  const pictured = services.disciplines.flatMap((l) => {
+    const own = refused.has(l.discipline) ? null : pictureOf(l);
+    return own ? [{ lane: l, pic: own }] : [];
+  });
+  const all = name === ALL && pictured.length > 0;
+  const lane = all ? null : (services.disciplines.find((l) => l.discipline === name) ?? null);
   const picked = lane?.actions.find((a) => a.id === pickedId) ?? null;
   const said = lane !== null && refused.has(lane.discipline);
   const pic = lane && !said ? pictureOf(lane) : null;
@@ -316,13 +336,24 @@ export function useServiceTabs(
       <div className="v-segmented ms-tabs" role="group" aria-label="Discipline">
         <button
           type="button"
-          aria-pressed={lane === null}
+          aria-pressed={lane === null && !all}
           onClick={() => {
             open(null);
           }}
         >
           Plan
         </button>
+        {pictured.length > 0 && (
+          <button
+            type="button"
+            aria-pressed={all}
+            onClick={() => {
+              open(ALL);
+            }}
+          >
+            All sheets
+          </button>
+        )}
         {services.disciplines.map((l) => {
           const off = refused.has(l.discipline);
           const note = off ? 'not checked' : tabNote(l);
@@ -347,6 +378,23 @@ export function useServiceTabs(
       </div>
     ),
     sheet: pic && { drawing_id: pic.drawing_id, page: pic.page },
+    sync: all
+      ? pictured.map(({ lane: l, pic: own }) => ({
+          discipline: l.discipline,
+          name: laneName(l),
+          sheet: { drawing_id: own.drawing_id, page: own.page },
+          focus: sheetFocus(l, own),
+          layer: (
+            <>
+              {after && <SheetEdit pic={own} />}
+              <Layer lane={onSheet(l, own)} after={after} picked={null} />
+            </>
+          ),
+          open: () => {
+            open(l.discipline);
+          },
+        }))
+      : null,
     head: lane && (pic || said) && (
       <p className="ms-pairing">
         {pic ? (
