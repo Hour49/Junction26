@@ -400,7 +400,10 @@ export function CheckPairs({ pairs, done }: { pairs: readonly Pair[]; done: bool
   );
 }
 
-/** Index: per drawing, how many questions are ready to ask (one per quantity) and the ones it suggests. */
+/**
+ * Index: the drawings with questions ready to ask (one per quantity) and the ones each suggests, then one line for
+ * the rest; a row per drawing read "0 questions ready to ask" on 12 of 13 real drawings (AD-124).
+ */
 export function ReadyList({
   project,
   views,
@@ -410,13 +413,17 @@ export function ReadyList({
 }) {
   const files = drawingFiles(project);
   if (!project.drawings.length) return <p className="adv-missing">No drawing to ask yet.</p>;
+  const rows = project.drawings.map((d) => {
+    const file = files.find((f) => f.path === d.file);
+    return { d, n: Object.keys(file?.takeoff ?? {}).length };
+  });
+  const asked = rows.filter((r) => r.n > 0);
+  const rest = rows.length - asked.length;
   return (
     <div className="adv-visual adv-ready">
       <strong>Questions ready to ask</strong>
       <ul>
-        {project.drawings.map((d) => {
-          const file = files.find((f) => f.path === d.file);
-          const n = Object.keys(file?.takeoff ?? {}).length;
+        {asked.map(({ d, n }) => {
           const ready = d.state === 'ready' || d.state === 'flagged';
           return (
             <li key={d.drawing_id}>
@@ -430,6 +437,11 @@ export function ReadyList({
             </li>
           );
         })}
+        {rest > 0 && (
+          <li className="adv-ready-rest">
+            {plural(rest, 'drawing')} {rest === 1 ? 'has' : 'have'} none yet
+          </li>
+        )}
       </ul>
     </div>
   );
