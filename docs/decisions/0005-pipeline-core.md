@@ -99,14 +99,15 @@ Ports (`core/pipeline/ports.py`, `core/answering/ports.py`) and their adapters:
   (stage 7), not from stage 6, because the prototype reads the scale in the same pass as the rooms
   (`prototypes/pdf-extract/swiss_areas.py`).
 - Not built yet: unpacking, reuse by hash, spotting non-drawings and rendering.
-- The vector route (`EXTRACTOR_VECTOR=pdf`, `app/adapters/vector_pdf/`, 2026-11-13) reads page 1 of a drawn PDF
-  and nothing else: the scale from the sheet's text and scale bar, then the rules of the sheet style it recognises
+- The vector route (`EXTRACTOR_VECTOR=pdf`, `app/adapters/vector_pdf/`, 2026-11-13) reads page 1 of a drawn PDF and
+  nothing else: the scale from the sheet's text and scale bar, then the rules of the sheet style it recognises
   (swiss_dwellings plans; sheets IfcConvert rendered from an IFC model). A PNG of the same sheet gets the same
   fractions and its own metres per pixel. Recorded as `vector-pdf-v1`: swiss element F1 100%, rooms and areas 100%;
-  ifc_models rooms and areas 100%, element F1 80.4%. Not built in it: columns, stairs, railings, slabs and beams
-  on IFC-rendered sheets (the sheet draws columns like walls, so they are listed as walls, and the rest in one
-  shared style), sheets in any other style (only their scale is read), pages after the first, SVG sources, and
-  telling a scanned PDF from a drawn one (stage 5).
+  ifc_models rooms and areas 100%, element F1 80.4%. Not built in it: columns, stairs, railings, slabs and beams on
+  IFC-rendered sheets (the sheet draws columns like walls, so they are listed as walls, and the rest in one shared
+  style; doors are read from drawn shapes, so a door drawn edge-on or over another can be missed; the takeoff makes
+  both counts estimates, #455), sheets in any other style (only their scale is read), pages after the first, SVG
+  sources, and telling a scanned PDF from a drawn one (stage 5).
 - Stage 8 on drawn PDFs (`SECOND_COUNTER=pdf`, 2026-11-14). The second counter re-reads the page and hands over
   the scale as the text prints it and as the bar measures it, and on swiss plans the area printed in each room
   under the extractor's room id. `second_count` adds the extraction's own side (element counts; each room's area,

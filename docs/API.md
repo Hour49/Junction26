@@ -1040,7 +1040,9 @@ Ingest's project status, plus `drawings`:
 - A multi-page PDF: page 1 is read with the file itself, as before. Each later page that holds a drawing (up to 50
   after page 1) is listed as a file of its own, `<name>#p<n>.pdf` next to the PDF (e.g. `plans/set#p3.pdf`), later
   in the list, with its own group, route and drawing; its first stage (`unpack`) says "page 3 of plans/set.pdf, as a
-  PDF of its own". The PDF's `reason` (or its `identify` stage) names those pages. Text pages are not split.
+  PDF of its own". The PDF's `reason` (or its `identify` stage) names those pages. Text pages are not split. A
+  PDF of more than 51 pages is looked at up to page 51: its `reason` ends "; read pages 1-51 of <m>; the rest were
+  not read", and its `identify` stage notes "pages after 51 of <m> were not looked at" (#434).
 - `drawings`: one entry per plan, for the workspace's list. The files of one plan (same folder and name: a PDF and
   its PNG) are one group; its entry is the sheet the drawing was read from when that is a sheet, else PDF before
   PNG before JPEG; the group's other drawings are `other_renderings`. A copy of the same content under another
