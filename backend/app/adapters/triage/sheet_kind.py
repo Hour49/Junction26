@@ -19,7 +19,9 @@ It is a triage `Classifier` around the configured one (`inner`, or none):
    .agents/exp/sheet-kind-live.md, rule N2). The kind it named stays on the record.
 
 PROMPT, SCHEMA, KINDS, PLAN_KINDS, `decide` and `advanced` are prototypes/sheet-kind/contract.py's
-(sheet-kind-2, frozen 2026-11-14 17:29), word for word but for `decide`'s camera-photo case, and
+(sheet-kind-2, frozen 2026-11-14 17:29), word for word but for `decide`'s camera-photo case and the
+`discipline` field (sheet-kind-3, 2026-11-15: the sheet's trade from what is drawn, cross-checked
+against its title and number by `sheet_discipline`; .agents/exp/pics-pic-cls.md), and
 PROMPT_SHA is pinned by a test. The
 model is Carbon (Bogdan, 2026-11-14 17:2x: "Carbon first"; r8 section AS-1). Its price is not
 confirmed (third-party pages: 2 / 10 USD per M tokens in / out, introductory until 2026-11-30,
@@ -41,7 +43,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, Protocol, cast, get_args
 
 from PIL import Image
 
@@ -50,8 +52,9 @@ from app.adapters.raster_ocr.gemini import URL, GeminiError, _status, reply_text
 from app.adapters.triage.gemini_describer import encode
 from app.adapters.whole_file import write_whole
 from app.core import cost
-from app.core.discipline import discipline_from_sheet
+from app.core.discipline import sheet_discipline
 from app.core.errors import InvalidInputError
+from app.core.ifc_facts import Discipline
 from app.core.ingest.model import (
     Classified,
     Probed,
@@ -65,7 +68,7 @@ from app.core.spend import SpendGuard
 
 log = logging.getLogger(__name__)
 
-VERSION = "sheet-kind-2"  # change it with PROMPT, SCHEMA or the image encoding
+VERSION = "sheet-kind-3"  # change it with PROMPT, SCHEMA or the image encoding
 MODEL = "gemini-4-carbon"
 THINKING = "low"
 TEMPERATURE = 0.2
@@ -95,6 +98,7 @@ KINDS = {
     "not_a_drawing": "not a drawing",
     "other": "another kind of drawing",
 }  # the words are the ones a set-aside reason shows
+DISCIPLINES: tuple[Discipline, ...] = get_args(Discipline)
 
 PROMPT = (
     "You are looking at one sheet that someone uploaded to a tool that counts rooms, "
@@ -119,6 +123,18 @@ PROMPT = (
     "Fields:\n"
     "- seen: one sentence on what is drawn.\n"
     "- sheet_kind: the one kind that fits the sheet best.\n"
+    "- discipline: the one trade the sheet is drawn for, judged from what is drawn, not "
+    "from the title alone: architecture (walls, rooms, doors, windows, furniture; floor "
+    "plans, elevations, sections, roof and ceiling plans; also fire exit and evacuation "
+    "plans); structural (foundations, footings, piles, columns, beams, slabs, framing, "
+    "reinforcement); plumbing (WCs, basins, showers, water supply and drain pipes, "
+    "sewage, gas); heating (radiators, heating pipes, boilers, heat pumps, underfloor "
+    "heating); ventilation (ducts, air terminals, diffusers, air handling units, "
+    "cooling); electrical (sockets, lights, switches, cables, distribution boards, data "
+    "and telecom); fire (sprinklers, fire alarms, smoke detectors, hydrants, fire "
+    "extinguishers); site (site plans, maps, landscaping, terrain); other (none of "
+    "these, or not a drawing). A plan with walls in the background and pipes, ducts or "
+    "cables drawn over them is the trade of the pipes, ducts or cables.\n"
     "- floor_plan_on_sheet: true if an architectural floor plan, as defined above, is "
     "drawn anywhere on the sheet, even small, even beside elevations, sections or "
     "details, even inside a site plan when the rooms are drawn. false otherwise.\n"
@@ -145,6 +161,7 @@ SCHEMA = {
     "properties": {
         "seen": {"type": "STRING"},
         "sheet_kind": {"type": "STRING", "enum": list(KINDS)},
+        "discipline": {"type": "STRING", "enum": list(DISCIPLINES)},
         "floor_plan_on_sheet": {"type": "BOOLEAN"},
         "takeoff_possible": {"type": "BOOLEAN"},
         "confidence": {"type": "NUMBER"},
@@ -154,11 +171,12 @@ SCHEMA = {
         "advanced": {"type": "BOOLEAN"},
         "advanced_why": {"type": "STRING", "nullable": True},
     },
-    "required": ["seen", "sheet_kind", "floor_plan_on_sheet", "takeoff_possible", "confidence",
-                 "title", "sheet_number", "printed_scale", "advanced", "advanced_why"],
-    "propertyOrdering": ["seen", "sheet_kind", "floor_plan_on_sheet", "takeoff_possible",
-                         "confidence", "title", "sheet_number", "printed_scale", "advanced",
-                         "advanced_why"],
+    "required": ["seen", "sheet_kind", "discipline", "floor_plan_on_sheet", "takeoff_possible",
+                 "confidence", "title", "sheet_number", "printed_scale", "advanced",
+                 "advanced_why"],
+    "propertyOrdering": ["seen", "sheet_kind", "discipline", "floor_plan_on_sheet",
+                         "takeoff_possible", "confidence", "title", "sheet_number", "printed_scale",
+                         "advanced", "advanced_why"],
 }  # fmt: skip
 
 PROMPT_SHA = hashlib.sha256((PROMPT + json.dumps(SCHEMA, sort_keys=True)).encode()).hexdigest()
@@ -274,6 +292,7 @@ def form_of(answer: dict[str, Any]) -> dict[str, Any]:
     confidence = form["confidence"]
     wrong = (
         form["sheet_kind"] not in KINDS
+        or form["discipline"] not in DISCIPLINES
         or not isinstance(form["floor_plan_on_sheet"], bool)
         or not isinstance(form["takeoff_possible"], bool)
         or isinstance(confidence, bool)
@@ -433,7 +452,7 @@ def sheet_of(
         advanced_why=why,
         seen=form["seen"],
         model=found.model,
-        discipline=discipline_from_sheet(form["sheet_kind"], form["title"], form["sheet_number"]),
+        discipline=sheet_discipline(form["discipline"], form["title"], form["sheet_number"]),
     )
 
 

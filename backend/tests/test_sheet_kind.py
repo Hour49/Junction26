@@ -22,7 +22,9 @@ from app.adapters.triage.sheet_kind import (
     MODEL,
     PLAN_KINDS,
     PNG_SIGNATURE,
+    PROMPT,
     PROMPT_SHA,
+    SCHEMA,
     GeminiSheetKindClient,
     SheetKindClassifier,
     SheetKindReader,
@@ -31,6 +33,7 @@ from app.adapters.triage.sheet_kind import (
     long_side,
     price,
 )
+from app.core.ifc_facts import Discipline
 from app.core.ingest.model import (
     SHEET_PLAN_KINDS,
     Classified,
@@ -52,6 +55,7 @@ def form(kind: str, plan: bool, takeoff: bool, confidence: float, **more: Any) -
     return {
         "seen": "a sheet",
         "sheet_kind": kind,
+        "discipline": "architecture" if kind in PLAN_KINDS else "other",
         "floor_plan_on_sheet": plan,
         "takeoff_possible": takeoff,
         "confidence": confidence,
@@ -63,10 +67,12 @@ def form(kind: str, plan: bool, takeoff: bool, confidence: float, **more: Any) -
     } | more
 
 
-PIPING = form("mep_plan", False, True, 0.98, title="PIPING PLAN", sheet_number="M-101A")
+PIPING = form(
+    "mep_plan", False, True, 0.98, title="PIPING PLAN", sheet_number="M-101A", discipline="plumbing"
+)
 PLAN = form("architectural_floor_plan", True, True, 0.97, printed_scale="1:100")
 SCHEDULE = form("schedule_or_text", False, False, 0.95)
-STRUCTURAL_UNSURE = form("structural_plan", False, False, 0.6)
+STRUCTURAL_UNSURE = form("structural_plan", False, False, 0.6, discipline="structural")
 
 
 def reply(found: dict[str, Any]) -> dict[str, Any]:
@@ -114,10 +120,29 @@ def classifier(
 
 
 def test_the_prompt_is_the_contracts_and_the_kinds_are_the_apis() -> None:
-    assert PROMPT_SHA == "707beba5467d3b42d3ecdc02612e23030994334433c4f84d0bb5569f0b4da166"
+    assert PROMPT_SHA == "3d6f4c28280ed915617668ae51afa4d914875ecbc8409d4ce3df59d2c95297ba"
     assert MODEL == "gemini-4-carbon"
     assert set(KINDS) == set(get_args(SheetKindName))
     assert PLAN_KINDS == SHEET_PLAN_KINDS
+
+
+def test_the_reply_names_one_discipline_of_the_ifc_taxonomy() -> None:
+    field = SCHEMA["properties"]["discipline"]
+    assert field == {"type": "STRING", "enum": list(get_args(Discipline))}
+    assert "discipline" in SCHEMA["required"] and "discipline" in SCHEMA["propertyOrdering"]
+    for name in get_args(Discipline):
+        assert f"{name} (" in PROMPT  # each discipline has its one-line definition
+
+
+@pytest.mark.parametrize("discipline", [None, "hvac", "mep"])
+def test_a_reply_without_a_known_discipline_is_not_the_form(
+    tmp_path: Path, discipline: str | None
+) -> None:
+    bad = {k: v for k, v in PLAN.items() if k != "discipline"}
+    if discipline is not None:
+        bad["discipline"] = discipline
+    found = classifier(tmp_path, FakeModel(reply(bad))).classify(png(), PNG_PROBED)
+    assert isinstance(found, Unavailable)
 
 
 @pytest.mark.parametrize(
@@ -209,7 +234,7 @@ def test_an_mep_plan_is_set_aside_with_its_kind_title_and_number_and_no_register
     assert (found.class_, found.register_, model.calls) == ("other_drawing", None, 1)
     assert found.p_plan == pytest.approx(0.02)  # 1 - confidence: the model says no plan
     assert found.cost_usd == pytest.approx(0.0128)
-    assert found.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
+    assert found.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-3)"
     assert found.sheet is not None
     assert (found.sheet.decision, found.sheet.title, found.sheet.sheet_number) == (
         "set_aside",
@@ -242,7 +267,7 @@ def test_a_doubt_is_read_keeps_the_inner_register_and_its_answers_say_so(tmp_pat
     )
     assert isinstance(found, Classified)
     assert (found.class_, found.register_) == ("floor_plan", register)
-    assert found.method == "fake classifier; Gemini sheet kind (gemini-4-carbon, sheet-kind-2)"
+    assert found.method == "fake classifier; Gemini sheet kind (gemini-4-carbon, sheet-kind-3)"
     triage = triage_of(found)
     assert sheet_doubt(triage) is None  # a non-plan kind: flagged instead, with its kind
     assert sheet_flag(triage) == (
@@ -312,7 +337,7 @@ def test_a_cached_reply_makes_no_call_and_costs_nothing(tmp_path: Path) -> None:
     again = classifier(tmp_path, model).classify(image, PNG_PROBED)
     assert isinstance(first, Classified) and isinstance(again, Classified)
     assert (model.calls, again.cost_usd, again.class_) == (1, 0.0, "other_drawing")
-    assert again.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-2, cached)"
+    assert again.method == "Gemini sheet kind (gemini-4-carbon, sheet-kind-3, cached)"
     cached.write_text("{")  # a cache file that does not parse is a miss
     classifier(tmp_path, model).classify(image, PNG_PROBED)
     assert model.calls == 2
