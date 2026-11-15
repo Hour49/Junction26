@@ -199,6 +199,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
       setTakeoff(await request());
       setReload((n) => n + 1);
     } catch (e) {
+      let shown: unknown = e;
       if (signing !== undefined && e instanceof ApiError && e.status === 409) {
         try {
           const fresh = await getTakeoff(drawingId, zq);
@@ -207,7 +208,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
           setReload((n) => n + 1);
           if (now) {
             const value = formatValue(now.value, now.unit);
-            e = new Error(
+            shown = new Error(
               `The value changed to ${value} since you opened it. Check it, then sign off again.`,
             );
           }
@@ -215,7 +216,7 @@ export function SurveyorScreen({ projectId, drawingId, query }: Props) {
           // the reload failed too: the server's refusal stays the message
         }
       }
-      setEditError(e);
+      setEditError(shown);
     } finally {
       setSaving(false);
     }
