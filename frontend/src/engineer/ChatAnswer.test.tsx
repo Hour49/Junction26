@@ -471,7 +471,14 @@ it('CH-48 a printed-table answer (no quantity) still shows its own answer', () =
 it('CH-49 a partial room total: one tag beside that row value with the counts, none on the other rows', async () => {
   const partial = {
     ...flatA,
-    answer: { ...flatA.answer, partial: true, rooms_counted: 7, rooms_missing: ['Sauna', 'WC 2'] },
+    // a room total (m², it sums its rooms); a room count's tip says "counts" (format.test.ts)
+    answer: {
+      ...flatA.answer,
+      unit: 'm2' as const,
+      partial: true,
+      rooms_counted: 7,
+      rooms_missing: ['Sauna', 'WC 2'],
+    },
   };
   show({ ...projectAsk, parts: [partial, ...projectAsk.parts.slice(1)] });
   const tags = [...(rows()[0] as HTMLElement).querySelectorAll('.en-partial')];

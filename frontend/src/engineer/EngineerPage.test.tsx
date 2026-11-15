@@ -1318,6 +1318,7 @@ describe('judge path', () => {
   it('EN-90 a partial room total has a tag beside its value with the counts', async () => {
     const t = await shownTurn({
       ...answer,
+      unit: 'm2', // a room total sums its rooms (a room count says "counts": format.test.ts)
       partial: true,
       rooms_counted: 7,
       rooms_missing: ['Sauna', 'WC 2'],

@@ -68,6 +68,16 @@ it('CH-49 partialTip: the rooms summed and how many are not in it, no names; nul
   expect(partialTip({ partial: true, rooms_counted: 3, rooms_missing: [] })).toBe(
     'May be partial: sums 3 rooms',
   );
+  // a room count (#600, QA R3-G2/G3) counts its rooms, it does not sum them
+  expect(
+    partialTip({ partial: true, rooms_counted: 4, rooms_missing: ['1.07'], unit: 'count' }),
+  ).toBe('May be partial: counts 4 rooms; 1 not in it');
+  expect(partialTip({ partial: true, rooms_counted: 2, rooms_missing: [], unit: 'rooms' })).toBe(
+    'May be partial: counts 2 rooms',
+  );
+  expect(partialTip({ partial: true, rooms_counted: 2, rooms_missing: [], unit: 'm2' })).toBe(
+    'May be partial: sums 2 rooms',
+  );
   expect(partialTip({ partial: false, rooms_counted: 3, rooms_missing: ['Sauna'] })).toBeNull();
   expect(partialTip({})).toBeNull();
   expect(partialTip(answer)).toBeNull();
