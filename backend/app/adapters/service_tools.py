@@ -25,6 +25,7 @@ from functools import partial
 from pathlib import PurePosixPath
 from typing import Any
 
+from app.adapters.discipline_pictures.lane import PictureFactSheet
 from app.adapters.ifc_services import FILES_KEPT, ServiceFile, ServiceFiles
 from app.adapters.pipeline_tools import (
     PipelineStore,
@@ -226,7 +227,7 @@ class ServiceFollower:
             drawing_id=drawing_id,
             page=page,
             storey=next((f.storey for f in facts.facts if f.storey), None) if facts else None,
-            size_m=(shown.width * m, shown.height * m) if shown and m else None,
+            size_m=(shown.width * m, shown.height * m) if shown and m else _read_size(facts),
             rooms=tuple(
                 (r.label, ((r.box[0] + r.box[2]) / 2, (r.box[1] + r.box[3]) / 2))
                 for r in drawing.rooms
@@ -270,6 +271,12 @@ class ServiceFollower:
             return "the model does not say how high this sheet's storey is"
         above = min((h for _, h in source.storeys if h > floor + 1.0), default=floor + TOP_STOREY_M)
         return _Placed(frame, storey, (floor, above))
+
+
+def _read_size(facts: FactSheet | None) -> Point2 | None:
+    """A picture's page in metres by the scale its lane read (scale bar or printed ratio)."""
+    scale = facts.scale if isinstance(facts, PictureFactSheet) else None
+    return (scale.width_px * scale.m_per_px, scale.height_px * scale.m_per_px) if scale else None
 
 
 def _models(status: Any, source: str | None) -> tuple[list[FileStatus], int]:

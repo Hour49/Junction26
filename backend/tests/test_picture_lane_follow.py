@@ -9,7 +9,7 @@ from typing import Any, Literal
 from test_service_tools_pictures import PLAN, project
 from test_services_picture_follow import WALL, heating
 
-from app.adapters.discipline_pictures.lane import PictureSheets
+from app.adapters.discipline_pictures.lane import PictureFactSheet, PictureSheets
 from app.adapters.service_tools import follower
 from app.core.plan_edit.model import Proposal
 from app.settings import Settings
@@ -17,7 +17,9 @@ from app.settings import Settings
 
 def followed(tmp_path: Path, mode: Literal["off", "template"]) -> Any:
     cache = tmp_path / "pictures"
-    PictureSheets(None, cache).put("sheet", heating())  # the plan file's sha256
+    PictureSheets(None, cache).put(
+        "sheet", PictureFactSheet.model_validate(heating().model_dump())
+    )  # the plan file's sha256
     settings = Settings(discipline_pictures=mode, discipline_pictures_cache_dir=cache)
     pipeline = project()
     pipeline.settings = settings
