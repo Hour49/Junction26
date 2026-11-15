@@ -168,7 +168,8 @@
       "ms": 12.5,
       "output": "plans/flat-a.pdf",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "hash",
@@ -176,7 +177,8 @@
       "ms": 12.5,
       "output": "dd2c1cfd3ebb6523d5d0be38035ecb7ebe6cc74674cd88a7c8aae259b7374ef2",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "identify",
@@ -184,7 +186,8 @@
       "ms": 12.5,
       "output": "drawn PDF",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "group",
@@ -192,7 +195,8 @@
       "ms": 12.5,
       "output": "2 files",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "route",
@@ -200,7 +204,8 @@
       "ms": 12.5,
       "output": "vector",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "normalise",
@@ -208,7 +213,8 @@
       "ms": 12.5,
       "output": "1 page, page 1 is 600 x 400 pt",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "extract",
@@ -216,7 +222,8 @@
       "ms": 12.5,
       "output": "7 elements, 5 rooms, 1 plan, scale read from the sheet",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "second_count",
@@ -224,7 +231,8 @@
       "ms": 12.5,
       "output": "5 quantities measured twice, 0 conflicts",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "takeoff",
@@ -232,7 +240,8 @@
       "ms": 12.5,
       "output": "takeoff: 141 quantities, 81 above zero",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     },
     {
       "stage": "write",
@@ -240,7 +249,8 @@
       "ms": 12.5,
       "output": "141 quantities",
       "failure": null,
-      "cost_usd": 0.0
+      "cost_usd": 0.0,
+      "steps": []
     }
   ],
   "second_count": {
