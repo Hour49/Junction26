@@ -286,8 +286,7 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
         if _other_ifc(turn, found["drawing_id"]):
             return None  # the architecture model may type it
         why = (  # #559 S1, in plain words: not "0 urinals", nor the tool's IFC names
-            f"the services model's {have['untyped']} sanitary fixtures have no type in the model, "
-            f"so it doesn't say which are {word}s"
+            f"the services model's {_untyped(have['untyped'])}, so it doesn't say which are {word}s"
             if set(have) == {"untyped"}
             else f"the services model has no fixture typed as a {word}; its sanitary fixtures "
             f"are {_fixtures(have)}"
@@ -312,15 +311,22 @@ def _in_room(turn: _Turn, words: str, word: str, room: str) -> tuple[str, Json] 
     if untyped and not count:  # R5: never a whole-category number, nor a 0 it can't know
         return _final(
             "dont_know",
-            f"I can't tell: the {untyped} sanitary fixtures in {name} have no type in the model, "
+            f"I can't tell: the {_untyped(untyped, after=f' in {name}')}, "
             f"so it doesn't say which are {word}s.",
         )
     cited = ", ".join(f"{i.get('label')} ({i['id']})" for i in items[:10])
     text = f"{count} {word}{'' if count == 1 else 's'} in {name}"
     if untyped:  # never a silent undercount: there may be more (orchestrator, 03:52)
-        text = f"At least {text} ({untyped} more sanitary fixtures there have no type in the model)"
+        text = f"At least {text} ({_untyped(untyped, ' more', ' there')})"
     text += f": {cited}." if cited else "."
     return _final("answer", text, [str(i["ev"]) for i in items[:10] if i.get("ev")])
+
+
+def _untyped(n: int, before: str = "", after: str = "") -> str:
+    """'1 sanitary fixture has no type in the model', '3 more sanitary fixtures there have ...'."""
+    many = n != 1
+    return (f"{n}{before} sanitary fixture{'s' if many else ''}{after} "
+            f"{'have' if many else 'has'} no type in the model")  # fmt: skip
 
 
 def _cut(groups: Json) -> bool:

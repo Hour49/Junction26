@@ -261,3 +261,11 @@ def test_a_selected_sheet_does_not_take_the_last_ifc_files_turn() -> None:
     ]
     message = "move the radiator\nsel_1: region on plan.pdf page 1, no room"
     assert plan(message, *done) == ("list_services", {"drawing_id": hzg, "kind": "space_heater"})
+
+
+def test_untyped_fixtures_are_counted_in_words_with_their_verb() -> None:
+    """review-559 nit: every 'no type in the model' sentence agrees with its number."""
+    from app.adapters.chat_rules import _untyped
+
+    assert _untyped(1) == "1 sanitary fixture has no type in the model"
+    assert _untyped(3) == "3 sanitary fixtures have no type in the model"
