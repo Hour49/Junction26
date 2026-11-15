@@ -225,7 +225,10 @@ with a plain reason. The input model is never mutated (test: its hash before and
   system), at most 60 with a `more` count. With `room_id`: that room's walls (`id`, length, free length, openings,
   what is mounted on it) and whether a main is in reach. The whole result stays under 4,000 characters. `room_id`
   is an id or a room's name, in any case and word order ("küche 1-3" is "1-3 Küche"), else the one room whose
-  name holds all its words; several or none is an error naming the rooms (2026-11-15, QA #430).
+  name holds all its words; several or none is an error naming the rooms (2026-11-15, QA #430). `by_type` and
+  `by_room` ("<id> <name>") count every match even when the items are cut, the 30 largest groups and the rest under
+  "and K more groups" (fewer when the result would pass 4,000 characters); breakdowns are answered from them
+  (2026-11-15, #430 R2).
 - SV-24 `ask_services(drawing_id, op, element_id?, to_element_id?, system?, storey?, kind?, size?)` with `op` a
   closed list of SV-10's operations → the value, the elements behind it (ids with boxes, at most 30), or
   `{status: "unknown", reason}`.
@@ -238,9 +241,9 @@ with a plain reason. The input model is never mutated (test: its hash before and
   + radiator, socket, outlet, air terminal, diffuser → `list_services` → `propose_move_terminal`; "what feeds",
   "what does … serve", "what is cut off" → `ask_services`; how many / which + a terminal (also sink, basin,
   toilet) + "in <room>" → `list_services(room_id=<room>, kind)` and the count with the items, or the tool's
-  error, only when the project's one drawing is the services model (or none: an IFC set aside); with a plan or
-  another model beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the drawings
-  answer as before (2026-11-15, QA #430, #491 review).
+  error, only when the project's drawings besides the services model are IFC files (or none: an IFC set aside);
+  with a plan or a picture beside it, or a last "in …" naming a floor, a level, the building or "all"/"total", the
+  drawings answer as before (2026-11-15, QA #430, #491 review, #430 R3).
 - SV-27 Cost: no model call beyond the chat's own steps. *Sourced*: at $1.50 in / $7.50 out per million tokens a
   four-step turn is about $0.03-0.06, inside `AGENT_TURN_USD` 0.10. The six tool schemas together stay under
   1,500 tokens (test: a character count).
