@@ -23,6 +23,7 @@ from app.core.answering.answer import (
     answer_question,
     counted_noun,
     noun_forms,
+    number_gaps,
     partial_text,
     printed_rooms,
     rooms_of_type,
@@ -229,6 +230,18 @@ def known_of(drawing: Drawing, flags: Sequence[str], raster: bool) -> Known:
     return Known(kept, unread, unlocated, unsaid, storey_twins(kept))
 
 
+def _counted(measure: str, drawing: Drawing) -> tuple[bool, list[str]]:
+    """For a partial total's sentence: whether it is a count of rooms, and then the room numbers
+    a reader skipped between the ones it found (QA round 3 R3-G3: 1, 4, 20, 28)."""
+    if measure != "count":
+        return False, []
+    numbers = (
+        room.attrs.get(key) for room in drawing.rooms if "reader" in room.attrs
+        for key in rule_pack.ROOM_NUMBERS
+    )  # fmt: skip
+    return True, number_gaps(n for n in numbers if isinstance(n, str))
+
+
 def ask(
     text: str,
     drawing: Drawing,
@@ -402,7 +415,7 @@ def ask(
         reason = held(shown, drawing)
         if reason is None and found is not None and found.partial is not None:
             reason = f"Please double-check the {shown.noun or shown.label}: " + partial_text(
-                found.partial
+                found.partial, *_counted(shown.measure, drawing)
             )
         family = parsed.family()
         score = score_of(
@@ -444,7 +457,11 @@ def ask(
                 level = Level(level="low", basis="unrated", text=MODEL_TYPES_LEVEL)
         if level is not None and found is not None and found.partial is not None:
             # a sum missing rooms is Low whatever its score, in its own words (partial totals)
-            said = "Low confidence: " + partial_text(found.partial) + ASK["low"]
+            said = (
+                "Low confidence: "
+                + partial_text(found.partial, *_counted(shown.measure, drawing))
+                + ASK["low"]
+            )
             level = Level(level="low", basis="held", text=said)
         if not sure and not (level is not None and level.level == "high"):
             disputed = disputes(drawing, shown)  # its own name: `found` keeps the row's partial

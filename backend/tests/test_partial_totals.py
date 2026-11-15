@@ -230,3 +230,14 @@ def test_refused_partial_a_room_refused_at_a_replaced_scale_is_measured_again() 
     larger = Scale(status="scaled", m_per_unit=0.2, evidence=("scale_bar",))  # 0.72 m²: a room
     again, _ = rooms_with_areas(small.rooms, larger, [PAGE])
     assert again[2].area_m2 is not None and AREA_REFUSED not in again[2].attrs
+
+
+def test_room_number_gaps_are_within_a_run_and_never_from_sparse_numbering() -> None:
+    """QA round 3 R3-G3: the room numbers a reader skipped between the ones it found."""
+    from app.core.answering.answer import number_gaps
+
+    assert number_gaps(["2", "3", "5", "6"]) == ["1", "4"]
+    assert number_gaps(["101", "102", "104", "201", "202", "203"]) == ["103"]  # per storey
+    assert number_gaps(["5", "40", "90"]) == []  # sparse: more missing than found
+    assert number_gaps(["1", "2"]) == []  # too few to see a run
+    assert number_gaps(["1.07", "A3", "Stanza"]) == []  # not whole numbers
