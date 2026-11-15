@@ -1,6 +1,14 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { error, fileReadAsPlan, project, projectRunning, triageStarted } from '../api/fixtures';
+import {
+  error,
+  fileReadAsPlan,
+  info,
+  project,
+  projectRunning,
+  triageStarted,
+} from '../api/fixtures';
+import { InfoProvider } from '../shell/info';
 import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
@@ -89,6 +97,32 @@ describe('ProjectScreen', () => {
     expect(must(document.querySelector('.ingest-head')).className).toContain(
       'flex-col items-start',
     ); // ingest-head--stack
+  });
+
+  it('a sample project done: its "Try these" chips open the agent chat with the prompt; none without the agent', async () => {
+    const prompts = ['Move the radiator in Room 2 to the north wall', 'How many doors?'];
+    const agentOn = {
+      ...info,
+      chat: { model: 'gemini', available: true, reason: null, stream: true },
+    };
+    mockApi({ [GET]: { ...project, prompts }, 'GET /api/info': agentOn });
+    render(
+      <InfoProvider>
+        <ProjectScreen projectId={ID} />
+      </InfoProvider>,
+    );
+    const group = await screen.findByRole('region', { name: 'Try these' });
+    const links = within(group).getAllByRole('link');
+    expect(links.map((l) => l.textContent)).toEqual(prompts);
+    expect(links[0]?.getAttribute('href')).toBe(
+      `#/p/${ID}/chat?ask=Move+the+radiator+in+Room+2+to+the+north+wall`,
+    );
+    cleanup();
+    mockApi({ [GET]: { ...project, prompts } }); // no InfoProvider: no agent known, no chips
+    render(<ProjectScreen projectId={ID} />);
+    await flush();
+    expect(screen.getByRole('heading', { level: 1, name: project.name })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Try these' })).toBeNull();
   });
 
   it('IN-114 (QA R2-C3) a 255-character name: the h1 shows 3 lines at most, its name and title stay whole', async () => {

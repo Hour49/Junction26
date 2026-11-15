@@ -3,6 +3,8 @@ import { errorText, formatTime, getProject, type FileStatus, type ProjectView } 
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ErrorView } from '../shell/ErrorView';
 import { Loading } from '../shell/Loading';
+import { useInfo } from '../shell/info';
+import { chatWith, TryThese } from '../engineer/TryThese';
 import { parseRoute, useHash } from '../shell/route';
 import {
   PROJECT_STATE_LABEL,
@@ -228,6 +230,8 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   // the conflicts list's last counts, for the done line inside the card (IN-76)
   const [counts, setCounts] = useState<ConflictCounts | null>(null);
   const [sent] = useState(() => uploaded(projectId));
+  // the agent chat proposes edits; the ask chat (no agent) cannot, so the sample's prompts wait for the agent
+  const agent = useInfo().info?.chat?.available === true;
 
   if (project === null) {
     return (
@@ -303,6 +307,10 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
         // the drawings and files are on Documents now (ingest.md v3); here the card (chat row under "Ready",
         // IN-88), then once done the conflicts
         <>
+          {/* a sample's curated prompts, first so they are seen without scrolling, each opening the agent chat with it (where edits are proposed) */}
+          {project.state === 'done' && agent && (
+            <TryThese prompts={project.prompts} chatHref={chatWith(projectId)} />
+          )}
           <ProgressCard
             project={project}
             now={at}

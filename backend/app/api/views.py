@@ -186,6 +186,9 @@ class ProjectView(ProjectStatus):
     conflicts_picked: int | None = Field(default=None, exclude_if=lambda value: value is None)
     issues_open: int | None = None
     issues_to_answer: int | None = None
+    # The curated prompts of the sample this project was made from ("Try these", Bogdan
+    # 2026-11-15), in the manifest's order; left out of the JSON for any other project
+    prompts: list[str] = Field(default_factory=list, exclude_if=lambda value: not value)
 
 
 def not_plans_of(status: ProjectStatus) -> int | None:

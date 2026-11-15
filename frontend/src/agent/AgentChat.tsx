@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AskBox } from '../engineer/AskBox';
 import { Suggestions } from '../engineer/DrawingHeader';
+import { TryThese } from '../engineer/TryThese';
 import { usePhotoAdd } from '../engineer/photoAdd';
 import { askable, canDraw, followUps, starters } from '../engineer/projectAsk';
 import { ErrorView } from '../shell/ErrorView';
@@ -585,7 +586,10 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         {plans.length === 0 ? (
           <p className="en-empty">No drawing in this project can be asked yet.</p>
         ) : (
-          chips.length > 0 && <Suggestions items={chips} busy={busy} onAsk={ask} />
+          <>
+            <TryThese prompts={project.prompts} busy={busy} onAsk={ask} />
+            {chips.length > 0 && <Suggestions items={chips} busy={busy} onAsk={ask} />}
+          </>
         )}
       </div>,
     );

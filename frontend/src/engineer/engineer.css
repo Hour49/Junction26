@@ -879,3 +879,30 @@ button.en-cref {
   font-size: 13px;
   color: var(--v-muted);
 }
+
+/* "Try these": a sample's curated prompts, above the drawings' suggestions; chips wrap, long ones too. */
+.en-try {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.en-try-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.en-chip--try {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1.5px solid var(--v-accent);
+  background: var(--v-accent-soft);
+  color: var(--v-text);
+  text-align: left;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.en-chat--empty .en-try-title {
+  text-align: center;
+}
