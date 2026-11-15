@@ -93,10 +93,16 @@ UNRATED_BOTH = (
     "Those numbers are read straight from the drawing's takeoff and geometry and have no "
     "confidence level; ask about them directly for a rated answer."
 )
+FOUND_ONLY = (  # find_rooms: the labels a reader found, not every such room (R4-A14)
+    "That count is only the rooms a reader found with that label on the drawing; rooms it "
+    "missed or found without a label are not in it, so it has no confidence level."
+)
 # the model already said it (the prompt asks it to): not said twice (review-342 N3)
 SAID_UNRATED = re.compile(
     r"\b(no|without( a)?|not have a|has no) confidence level|\bunrated\b|\bnot rated\b", re.I
 )
+# the model already said a found-rooms count leaves rooms out: FOUND_ONLY not said twice
+SAID_MISSED = re.compile(r"\b(missed|not (all|every)|only the rooms)\b", re.I)
 # a number the user names a place by ("floor 3", "room 102") is no quantity they state
 NAMED_BY = re.compile(
     r"\b(floors?|levels?|storeys?|stor(y|ies)|rooms?|pages?|sheets?|plans?|drawings?|units?|"
@@ -580,7 +586,7 @@ class _Run:
                     self.printed.add(label)
         if name == ASK:
             self.rated += _values(found)  # the answers' own values (review-342 S2)
-        elif name in UNRATED_TOOLS:
+        elif name in UNRATED_TOOLS or name == FIND_ROOMS:
             self.unrated.append((name, text))
         self.failures.append(failed(found))
         self.chat.results.append({"tool": name, "arguments": arguments, "result": found})
@@ -900,9 +906,9 @@ class _Run:
         included, nor the user's message does), worded for the tools that gave it; None: no
         such number, or the text says so already. A label's number ("LOBBY 104") is a name, and
         so is a drawing's ("Drawn plan 5": qa-a, "which drawing has no scale"), or its file's
-        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516)."""
-        if SAID_UNRATED.search(text):
-            return None
+        ("floor-2.pdf", which the reply swaps for the plain name after this: review-516). A
+        number only find_rooms gives is a count of the rooms a reader found (FOUND_ONLY), said
+        unless the text says rooms were missed: "no confidence level" does not say that."""
         labels = _labels([_json(found) for _, found in self.unrated])
         names = [*labels, *self.names.values(), *(file for _, file in self._files())]
         for label in sorted(names, key=len, reverse=True):  # "Drawn plan 10" before "... 1"
@@ -915,11 +921,13 @@ class _Run:
             for tool, found in self.unrated
             if backed(n, numbers([found]))
         }
-        if not tools:
-            return None
-        if tools == {"get_takeoff"}:
-            return UNRATED_TAKEOFF
-        return UNRATED_BOTH if "get_takeoff" in tools else UNRATED
+        said = [FOUND_ONLY] if FIND_ROOMS in tools and not SAID_MISSED.search(text) else []
+        rest = tools - {FIND_ROOMS} if not SAID_UNRATED.search(text) else set[str]()
+        if rest == {"get_takeoff"}:
+            said.append(UNRATED_TAKEOFF)
+        elif rest:
+            said.append(UNRATED_BOTH if "get_takeoff" in rest else UNRATED)
+        return " ".join(said) or None
 
     def _view(
         self, kind: TurnKind, cited: list[str], number: Mapping[str, int], proposal_id: str | None
