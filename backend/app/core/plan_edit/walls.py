@@ -102,31 +102,47 @@ def walls_of(page: PlanPage) -> list[Wall]:
     shapes = page.room_shapes()
     reach = {rid: shape.buffer(REACH_M) for rid, shape in shapes.items()}
     ids = list(shapes)
-    found: list[tuple[str, str, BaseGeometry, float]] = []
+    doors = [o for o in page.openings if o.kind == "door"]
+    found: list[tuple[str, str, BaseGeometry, float, float]] = []
     for i, a in enumerate(ids):
         for b in ids[i + 1 :]:
             if not reach[a].intersects(reach[b]):
                 continue
             # the closing of the pair keeps the strip between their faces: no nubs into the façade
-            pair = shapely.unary_union([shapes[a], shapes[b]])
-            pair = pair.buffer(REACH_M, join_style="mitre").buffer(-REACH_M, join_style="mitre")
-            strip = mass.intersection(reach[a]).intersection(reach[b]).intersection(pair)
-            length = length_of(strip)
-            if length >= MIN_WALL_M:
-                found.append((a, b, strip, length))
+            rooms = shapely.unary_union([shapes[a], shapes[b]])
+            pair = rooms.buffer(REACH_M, join_style="mitre").buffer(-REACH_M, join_style="mitre")
+            between = reach[a].intersection(reach[b]).intersection(pair)
+            strip = mass.intersection(between)
+            boxes = [page.box_shape(d.box) for d in doors]
+            gap = shapely.unary_union([box for box in boxes if box.intersects(strip)])
+            solid = shapely.unary_union(parts(strip))  # no slivers: GEOS can't cut by them
+            opening = gap.intersection(between).difference(rooms).difference(solid)
+            if length_of(strip) >= MIN_WALL_M:  # which pairs have a wall: as before
+                found.append((a, b, strip, *_dims(strip, opening)))
     found.sort(key=lambda f: (round(f[2].bounds[1], 2), round(f[2].bounds[0], 2)))
-    doors = [o for o in page.openings if o.kind == "door"]
     return [
         Wall(
             id=f"W{n}",
             rooms=(a, b),
             strip=strip,
             length_m=round(length, 2),
-            thickness_m=round(strip.area / length, 2),
+            thickness_m=round(thickness, 2),
             doors=tuple(d.id for d in doors if page.box_shape(d.box).intersects(strip)),
         )
-        for n, (a, b, strip, length) in enumerate(found, start=1)
+        for n, (a, b, strip, length, thickness) in enumerate(found, start=1)
     ]
+
+
+def _dims(strip: BaseGeometry, gap: BaseGeometry) -> tuple[float, float]:
+    """A wall's length and thickness as drawn: each piece of its mass alone (a door gap splits
+    it; the cut leaves zero-area slivers that one rectangle of the whole strip counted), and the
+    door openings along it at its thickness (edits R1: "2.5 m, 0.1 m" for a 3 x 0.12 m wall)."""
+    pieces = parts(strip)
+    run = sum(length_of(piece) for piece in pieces)
+    if run <= 0:
+        return 0.0, 0.0
+    thickness = sum(piece.area for piece in pieces) / run
+    return run + gap.area / thickness, thickness
 
 
 def length_of(strip: BaseGeometry) -> float:
