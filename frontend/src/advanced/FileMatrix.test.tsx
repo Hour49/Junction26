@@ -104,7 +104,14 @@ describe('FileMatrix', () => {
       expect(within(row).getByRole('link', { name: f.path }).getAttribute('href')).toBe(
         `#/p/${PID}/f/${f.id}`,
       );
-      expect(row.textContent).toContain(f.route ? routeLabel(f.route) : 'not routed');
+      // a file read with its group names that file (AD-119), else its route
+      expect(row.textContent).toContain(
+        f.source && f.source !== f.path
+          ? `read with ${f.source}`
+          : f.route
+            ? routeLabel(f.route)
+            : 'not routed',
+      );
       if (f.stage) expect(row.textContent).toContain(formatMs(f.ms));
     });
     const pdf = must(rows[project.files.findIndex((f) => f.takeoff?.room !== undefined)]);
@@ -156,7 +163,7 @@ describe('FileMatrix', () => {
       },
     ];
     render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
-    expect(document.querySelector('.fm-why')?.textContent).toBe('a photo, not of a drawing');
+    expect(document.querySelector('.fm-why')?.textContent).toBe('a photo, not of a drawing.');
     expect(document.querySelector('.fm-found')).toBeNull();
   });
 

@@ -229,12 +229,11 @@ describe('trace view v5', () => {
     expect(seg).not.toContain('background');
     // the five phases are told apart: each its own fill (review of #546: read and store were two dark greens)
     const fills = ['open', 'page', 'read', 'check', 'store'].map(
-      (p) => new RegExp(`\\.phase-${p} \\{([^}]*)\\}`).exec(css)?.[1]?.trim() ?? '',
+      (p) => new RegExp(`\\.phase-${p} \\{[^}]*background: ([^;]*);`).exec(css)?.[1]?.trim() ?? '',
     );
+    expect(fills.every(Boolean)).toBe(true);
     expect(new Set(fills).size).toBe(5);
-    expect(fills.every((f) => f.includes('background'))).toBe(true);
-    expect(fills.filter((f) => /--v-accent(-strong)?\b(?!-)/.test(f)).length).toBeLessThanOrEqual(
-      1,
-    );
+    // one phase at most in the dark accent family (read and store were --v-accent and --v-accent-strong)
+    expect(fills.filter((f) => /--v-accent(-strong)?\)/.test(f))).toHaveLength(1);
   });
 });

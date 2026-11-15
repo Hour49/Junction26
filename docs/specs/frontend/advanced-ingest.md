@@ -460,8 +460,23 @@ Acceptance criteria
 - AD-114: Paths, step labels and `did` render as text. [component]
 - AD-115: A file that found nothing gives its reason on a full-width line; at 390 px the rows stack and nothing
   scrolls sideways. [component; e2e screenshots at 1440 and 390]
-- AD-116: `trace.css` uses only `--v-*` colours; a segment takes its phase's colour; under reduced motion the bars
-  do not grow and nothing pulses. [unit on the CSS text; e2e `animationName` under `reducedMotion: 'reduce'`]
+- AD-116: `trace.css` uses only `--v-*` colours; a segment takes its phase's colour, and the five phases have five
+  fills apart in hue and lightness (grey `--v-line`, outlined pale `--v-accent-soft`, green `--v-accent`, amber
+  `--v-warn-mark`, blue `--v-3d-moved`; review of #546: read and store were two dark greens); the bar also says its
+  stages in words and a failure in text. Under reduced motion the bars do not grow and nothing pulses. [unit on
+  the CSS text; e2e `animationName` under `reducedMotion: 'reduce'`]
+- AD-117 (review of #546): A stage's output shows only when it adds to its did line: not when the did contains it,
+  when it is the route of a "<route> route" did, or when it is the full hash the did starts ("sha256 dd2c…").
+  [unit `repeats`; component IN-33]
+- AD-118 (review of #546): A file's reason reads as plain lines, never two brackets in a row: reasons joined by
+  "; " are one line each, and a trailing bracketed summary with a comma ("(7 elements, 5 rooms, …)") becomes
+  "Found: …". The text is the backend's (`FileStatus.reason`); the frontend only splits it. [unit `reasonLines`]
+- AD-119 (review of #546): A file read with its group's other file (`source` differs from `path`) says "read with
+  <source>" in its matrix row, "Read with <source>" as its route decision, and "read with <source> (<route>)" as
+  its Route fact, never the route alone as if it were read itself. [unit, component]
+- AD-120 (review of #546): The file page's last card, "What it ends as", gives the takeoff's plain class counts
+  (rooms, doors, windows first, at most 8) and "See these on the drawing" (its engineer workspace); the full
+  list stays folded under "What it ends as: N quantities". [unit `keyCounts`; component]
 
 ## Not in the API
 
