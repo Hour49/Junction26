@@ -113,7 +113,10 @@ One JSON document per source file. Lengths in metres, model coordinates, z up.
   not show which runs are joined"}`. It is built from the picture readers' `PictureReading`
   ([discipline-pictures.md](discipline-pictures.md)); v1 lists and counts it, and refuses graph questions and edits.
 - SV-8 **Store**: `<cache>/<sha256>.services.v1.b<builder>.json.gz` beside the fact-sheet cache, written atomically,
-  built at ingest in the background and never at question time. `<builder>` is `services_model.BUILDER_VERSION`,
+  built in the background and never at question time: by the deploy's `python -m app.cli services build`, or,
+  for a project file with no stored model, by a capped child process that the first chat turn starts
+  (`services_store.ServicesBuilds`, one at a time, 3000 MB and 600 s; the tools say it is being built meanwhile;
+  a file with no distribution element stores nothing; 2026-11-15, QA B4). `<builder>` is `services_model.BUILDER_VERSION`,
   bumped on any change to what the builder writes (also stored as `source.builder`): a model an older builder wrote
   is not served but rebuilt with the saved id map, so a deploy picks up builder fixes and ids survive.
   *Measured*: 1,795 elements → 1.2 MB JSON, 111 KB gzipped, build 15.7 s (10.5 s of it door and window geometry),

@@ -1,0 +1,130 @@
+"""A project's services models built off the request (services-model.md SV-8; QA B4, 2026-11-15):
+a services IFC uploaded on its own had no stored model, because only the deploy's
+`app.cli services build` made one, so the chat said "This project has no services model". Now the
+chat turn starts the build of each missing one in a capped child (as facts_store), and the tools
+say it is being built instead of "none"."""
+
+import hashlib
+from collections.abc import Callable
+from pathlib import Path
+
+import pytest
+from test_services_build import _architecture, _services  # pyright: ignore[reportPrivateUsage]
+
+from app.adapters import services_store
+from app.adapters.pipeline_tools import ToolError
+from app.adapters.services_agent_tools import (  # pyright: ignore[reportPrivateUsage]
+    BUILDING,
+    ServicesToolStore,
+    _list,
+    _ListArgs,
+)
+from app.adapters.services_store import (
+    NO_SERVICES,
+    NOT_READ,
+    ServicesBuilds,
+    ServicesStore,
+    _child,  # pyright: ignore[reportPrivateUsage]
+    build_apart,
+)
+from app.core.errors import InvalidInputError
+
+
+class Jobs:
+    """A `start` that keeps the background jobs until the test runs them."""
+
+    def __init__(self) -> None:
+        self.waiting: list[Callable[[], None]] = []
+
+    def __call__(self, job: Callable[[], None]) -> None:
+        self.waiting.append(job)
+
+    def run(self) -> None:
+        while self.waiting:
+            self.waiting.pop(0)()
+
+
+def test_a_missing_model_starts_one_build_and_says_it_is_being_built(tmp_path: Path) -> None:
+    built: list[str] = []
+
+    def build(data: bytes, name: str, cache: Path) -> None:
+        built.append(name)
+        ServicesStore(cache).build(name, data)
+
+    jobs = Jobs()
+    builds = ServicesBuilds(tmp_path / "cache", build=build, start=jobs)
+    data = _services(tmp_path / "s.ifc").read_bytes()
+    sha = hashlib.sha256(data).hexdigest()
+    assert builds.building(sha, "heating.ifc", lambda: data)
+    assert builds.building(sha, "heating.ifc", lambda: data)  # in flight: no second build
+    assert len(jobs.waiting) == 1 and built == []
+    jobs.run()
+    assert built == ["heating.ifc"] and ServicesStore(tmp_path / "cache").load(sha) is not None
+    assert not builds.building(sha, "heating.ifc", lambda: data) and jobs.waiting == []
+
+
+def test_a_build_that_fails_is_not_started_again_and_is_not_said_to_be_building(
+    tmp_path: Path,
+) -> None:
+    def build(data: bytes, name: str, cache: Path) -> None:
+        raise InvalidInputError("no distribution element: not a services model")
+
+    jobs = Jobs()
+    builds = ServicesBuilds(tmp_path, build=build, start=jobs)
+    assert builds.building("abc", "architecture.ifc", lambda: b"x")
+    jobs.run()
+    assert not builds.building("abc", "architecture.ifc", lambda: b"x") and jobs.waiting == []
+
+
+def test_the_child_stores_a_services_model_and_nothing_for_a_building_model(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cache = tmp_path / "cache"
+    services = _services(tmp_path / "s.ifc")
+    assert _child(str(services), "heating.ifc", str(cache)) == 0
+    sha = hashlib.sha256(services.read_bytes()).hexdigest()
+    assert ServicesStore(cache).path(sha).is_file()
+    building = _architecture(tmp_path / "a.ifc")
+    assert _child(str(building), "architecture.ifc", str(cache)) == NO_SERVICES
+    assert "not a services model" in capsys.readouterr().err
+    sha = hashlib.sha256(building.read_bytes()).hexdigest()
+    assert not ServicesStore(cache).path(sha).is_file()
+    (tmp_path / "x.ifc").write_bytes(b"no ifc")
+    assert _child(str(tmp_path / "x.ifc"), "x.ifc", str(cache)) == NOT_READ
+
+
+def test_the_capped_child_builds_the_model_the_api_reads(tmp_path: Path) -> None:
+    data = _services(tmp_path / "s.ifc").read_bytes()
+    build_apart(data, "heating.ifc", tmp_path / "cache")
+    model = ServicesStore(tmp_path / "cache").load(hashlib.sha256(data).hexdigest())
+    assert model is not None and model.elements
+
+
+@pytest.mark.parametrize("scope", [True, False], ids=["systemd-scope", "rlimit"])
+def test_a_build_is_held_to_its_memory_and_time_budget(
+    scope: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if scope and not services_store.has_systemd_scope():
+        pytest.skip("no systemd user manager here")
+    monkeypatch.setattr(services_store, "has_systemd_scope", lambda: scope)
+    data = _services(tmp_path / "s.ifc").read_bytes()
+    with pytest.raises(InvalidInputError, match="needs more than 1 MB"):
+        build_apart(data, "heating.ifc", tmp_path / "cache", memory_mb=1)  # less than Python
+    with pytest.raises(InvalidInputError, match=r"more than 0\.001 s"):
+        build_apart(data, "heating.ifc", tmp_path / "cache", timeout_s=0.001)
+    assert not list((tmp_path / "cache").glob("*.json.gz"))
+
+
+def test_the_tools_say_a_model_is_being_built_not_that_there_is_none() -> None:
+    store = ServicesToolStore({}, building=("a1b2c3d4e5f60708",))
+    with pytest.raises(ToolError, match=BUILDING):
+        store.model("a1b2c3d4e5f60708")
+    with pytest.raises(ToolError, match=f"none; {BUILDING}: a1b2c3d4e5f60708"):
+        _list(store, _list_args())
+    with pytest.raises(ToolError) as nothing:
+        _list(ServicesToolStore({}), _list_args())
+    assert BUILDING not in str(nothing.value)
+
+
+def _list_args() -> _ListArgs:
+    return _ListArgs()

@@ -18,13 +18,20 @@ from jsonschema import Draft202012Validator
 from pdf_sheets import WHITE, SheetPdf, rect
 
 from app.adapters.extraction_v1 import ExtractionV1Writer
-from app.adapters.ifc_model import LOOKS_FOR, IfcModelExtractor, IfcModels, IfcSecondCounter
+from app.adapters.ifc_model import (
+    LOOKS_FOR,
+    MODEL_SCALE,
+    IfcModelExtractor,
+    IfcModels,
+    IfcSecondCounter,
+)
 from app.adapters.ifc_model.objects import read_model
 from app.adapters.ifc_model.svg import read_svg
 from app.adapters.vector_pdf.ifc_render import ROOM_WORDS, room_type
 from app.composition import build_pipeline
-from app.core.drawing.model import MeasuredValue, ModelObject, Page, Subject
+from app.core.drawing.model import Drawing, MeasuredValue, ModelObject, Page, Subject
 from app.core.errors import InvalidInputError, NotFoundError
+from app.core.ingest.judge import judge
 from app.core.pipeline.ingest import NO_SHEET
 from app.core.pipeline.model import DrawingFile, Extracted, FileKind, Measurement, Sheet
 from app.settings import Settings
@@ -756,6 +763,15 @@ def test_a_services_model_uploaded_alone_is_a_model_drawing_not_set_aside(
     ]
     written = json.loads((out / "services" / "heating.ifc.json").read_text())
     assert (written["pages"], written["model_objects"]) == ([], [])
+
+
+def test_a_model_with_none_of_the_plans_classes_says_so_in_words() -> None:
+    """QA B4: the services model alone read "read on the BIM model route: 0 model objects"."""
+    services = Drawing(file=MODEL, pages=(), scale=MODEL_SCALE, read=LOOKS_FOR, model_objects=())
+    state, reason = judge(services, "ifc", "bim", "ifc")
+    assert state == "ready" and reason.endswith(": no wall, door, window or room in the model")
+    listed = services.model_copy(update={"model_objects": extract().model_objects})
+    assert judge(listed, "ifc", "bim", "ifc")[1].endswith(": 14 model objects")
 
 
 # a space's windows (windows.py)

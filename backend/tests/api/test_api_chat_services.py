@@ -4,13 +4,15 @@ model is the two-room fixture (radiators E2 in SR1 and E3 in SR2 on the south wa
 
 import gzip
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.adapters.services_store import ServicesStore
+from app.adapters.services_agent_tools import BUILDING
+from app.adapters.services_store import ServicesBuilds, ServicesStore
 from app.api import chat as chat_api
 from app.composition import build_ingest
 from app.core.agent.ports import Reply
@@ -179,6 +181,38 @@ def test_sv25_a_project_without_a_services_model_says_so(
     model = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
     _turn(client, monkeypatch, model)
     assert "no services model" in model.results[0]
+
+
+def test_sv8_a_project_file_without_a_stored_model_is_built_off_the_request(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """QA B4: a services IFC uploaded alone had no stored model (only the deploy built one), so
+    the chat said "This project has no services model". The turn starts its build, once, and the
+    tool says it is being built; the next turn after the build reads it."""
+    cache = tmp_path / "services"
+    for stored in cache.iterdir():
+        stored.unlink()
+    started: list[Callable[[], None]] = []
+    app: Any = client.app
+    app.state.ingest.upload_bytes = lambda project, file: b"the heating model"
+
+    def build(data: bytes, name: str, folder: Path) -> None:
+        assert (data, name) == (b"the heating model", "heating.ifc")
+        model = two_rooms()
+        ServicesStore(folder).path(model.source.sha256).write_bytes(
+            gzip.compress(model.model_dump_json().encode())
+        )
+
+    app.state.services_builds = ServicesBuilds(cache, build=build, start=started.append)
+    for _ in range(2):
+        asked = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
+        _turn(client, monkeypatch, asked)
+        assert BUILDING in asked.results[0]
+    assert len(started) == 1  # in flight: the second turn starts none
+    started[0]()
+    listed = _dont_know(_call("list_services", 1, drawing_id=MODELLED))
+    _turn(client, monkeypatch, listed)
+    assert '"E2"' in listed.results[0] and BUILDING not in listed.results[0]
 
 
 SIX = {"list_services", "ask_services", "propose_move_terminal", "propose_add_terminal",

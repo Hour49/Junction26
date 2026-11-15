@@ -20,6 +20,7 @@ import json
 import logging
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from typing import Any, Literal, get_args
 
 from pydantic import Field, ValidationError
@@ -36,7 +37,7 @@ from app.adapters.pipeline_tools import (
 )
 from app.adapters.plan_tools import ONE_AT_A_TIME
 from app.adapters.service_tools import _models  # pyright: ignore[reportPrivateUsage]
-from app.adapters.services_store import ServicesStore
+from app.adapters.services_store import ServicesBuilds, ServicesStore
 from app.core.errors import DomainError
 from app.core.ingest.model import FileStatus
 from app.core.plan_edit.model import Flag as PlanFlag
@@ -64,6 +65,7 @@ NO_ROOMS = (
     "this services model has no rooms: its building model is missing or does not line up with it"
 )
 FROM_PICTURE = "a services model read from a picture is listed and counted, not edited"
+BUILDING = "being built from its file now, which takes a minute or a few; ask again then"
 WALL_COVER_M = 0.3  # a wall is on a room side when it covers this much of it (edit.py's rule)
 MOUNTED_M = 0.5  # a terminal this close to a room side is mounted on its wall
 
@@ -101,6 +103,7 @@ class ServicesToolStore:
     proposals: list[Proposal] = field(default_factory=list[Proposal])
     project_id: str | None = None  # for the picture's path (SV-28)
     accepted: Mapping[str, tuple[str, ...]] = field(default_factory=dict[str, tuple[str, ...]])
+    building: tuple[str, ...] = ()  # the models being built from their files now (SV-8)
     made_before: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
@@ -115,16 +118,20 @@ class ServicesToolStore:
             have = ", ".join(self.models) or "none"
             raise ToolError(
                 f"drawing {drawing_id!r} has no services model; the project's services models: "
-                f"{have}"
+                f"{have}{self.building_note()}"
             )
         return found
+
+    def building_note(self) -> str:
+        """What is being built, for a tool that found no model: so "none" is not read as final."""
+        return f"; {BUILDING}: {', '.join(self.building)}" if self.building else ""
 
 
 class _ProjectModels(Mapping[str, ServicesModel]):
     """The stored services models of a project's IFC files by drawing id (the files #333's
     follow-up reads, `service_tools._models`), each with the chat's accepted services patches
     applied in proposal order. Read when first asked for, never built here (SV-8: models are built
-    at ingest or by `python -m app.cli services build`)."""
+    off the request by `ServicesBuilds` or by `python -m app.cli services build`)."""
 
     def __init__(
         self, pipeline: PipelineStore, cache: ServicesStore, accepted: list[Proposal]
@@ -183,9 +190,12 @@ def project_services(
     selections: Sequence[Selection],
     proposals: list[Proposal],
     chat: Mapping[str, Proposal],
+    builds: ServicesBuilds | None = None,
 ) -> ServicesToolStore:
     """The services tools' store for one chat turn: the project's stored models plus the chat's
-    accepted services proposals (`chat`), sharing `proposals` with the plan tools."""
+    accepted services proposals (`chat`), sharing `proposals` with the plan tools. `builds`:
+    a file of the project with no stored model starts its build (SV-8), and the tools say it is
+    being built; None: none is built here."""
     accepted = sorted(
         (p for p in chat.values() if p.state == "accepted" and p.services_change is not None),
         key=lambda p: int(p.proposal_id[1:]) if p.proposal_id[1:].isdigit() else 0,
@@ -200,7 +210,30 @@ def project_services(
         proposals,
         project_id=pipeline.project_id,
         accepted=by_drawing,
+        building=() if builds is None else _building(pipeline, builds),
     )
+
+
+def _building(pipeline: PipelineStore, builds: ServicesBuilds) -> tuple[str, ...]:
+    """The ids of the project's model files whose services model is being built, each missing
+    one's build started. Never raises: the tools then say what they find, as before."""
+    try:
+        files, _ = _models(pipeline.ingest.status(pipeline.project_id), None)
+        return tuple(
+            i
+            for f in files
+            if (i := model_id(f))
+            and f.sha256
+            and builds.building(f.sha256, PurePosixPath(f.path).name, _bytes_of(pipeline, f.id))
+        )
+    except Exception:
+        log.warning("services models not started", exc_info=True)
+        return ()
+
+
+def _bytes_of(pipeline: PipelineStore, file_id: str) -> Callable[[], bytes]:
+    """The file's bytes, read only when a build runs."""
+    return lambda: pipeline.ingest.upload_bytes(pipeline.project_id, file_id)
 
 
 @dataclass(frozen=True)
@@ -371,7 +404,7 @@ def _list(store: ServicesToolStore, args: Any) -> dict[str, Any]:
         have = list(store.models)
         if len(have) != 1:
             raise ToolError(f"name the drawing_id; the project's services models: "
-                            f"{', '.join(have) or 'none'}")  # fmt: skip
+                            f"{', '.join(have) or 'none'}{store.building_note()}")  # fmt: skip
         args = args.model_copy(update={"drawing_id": have[0]})
     model = store.model(args.drawing_id)
     pages = {s.id: i for i, s in enumerate(_storeys(model), 1)}
