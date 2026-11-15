@@ -467,6 +467,18 @@ def test_an_answer_that_leaves_the_value_to_the_card_says_it() -> None:
     assert got.text.endswith(": 156 m².") and got.answers, got.text
 
 
+def test_a_room_label_with_a_digit_is_not_the_text_s_own_number() -> None:
+    """review-656 S1: "The area of Bedroom 2 is shown below [1]." got no value: the 2 of the cited
+    room's label read as the text's own number. The cited places' labels are names, as the
+    drawings' are."""
+    bedroom = json.loads(json.dumps(HALL).replace("Multi-Purpose Hall", "Bedroom 2"))
+    below = "The area of Bedroom 2 is shown below [ev_1]."
+    model = Model(step(call("ask_drawings", question=bedroom["question"])), final(text=below))
+    got = turn(model, Tools(ask_drawings=bedroom))
+    assert got.text.startswith("The area of Bedroom 2 is shown below [1].")
+    assert got.text.endswith(": 156 m²."), got.text
+
+
 def test_an_answer_that_states_its_value_is_left_as_it_is() -> None:
     model = Model(step(call("ask_drawings", question=HALL["question"])),
                   final(text="The Multi-Purpose Hall is 156 m² [ev_1]."))  # fmt: skip

@@ -864,7 +864,7 @@ class _Run:
             # also asked another tool that reports conflicts keeps the model's (review-624 M1)
             kind = "answer"
             answers = self._answers(set(cited) | set(shown), kind)
-        if kind == "answer" and (values := self._values_said(text, answers)):
+        if kind == "answer" and (values := self._values_said(text, answers, cited)):
             text = f"{text.rstrip()} {values}"
         # an earlier answer show_on_plan showed comes back with the turn (its card), as it was
         answers += tuple(a for a in self.reattached if all(a is not b for b in answers))
@@ -915,15 +915,18 @@ class _Run:
             out.append(Option(label=ask[:60], message=ask))
         return tuple(out[:3])
 
-    def _values_said(self, text: str, answers: tuple[Json, ...]) -> str | None:
+    def _values_said(self, text: str, answers: tuple[Json, ...], cited: list[str]) -> str | None:
         """Each answering drawing's value of the ask_drawings answers the turn rests on, as the
         rules lead says them ("Drawn plan 1: 156 m²."), when `text` points at the card (the
         prompt's "The answer is below [ev_1].") and states no number of its own; None: it states
         one, does not point at the card ("The first door is here [1]."), or nothing answered.
-        A drawing's name ("Drawn plan 5") is no number."""
+        A drawing's name ("Drawn plan 5") is no number, nor a cited place's label ("Bedroom 2":
+        review-656 S1)."""
         if not TO_THE_CARD.search(text):
             return None
-        for name in sorted(self.names.values(), key=len, reverse=True):
+        places = {**self.known, **self.ledger}
+        labels = [str(places[ev]["label"]) for ev in cited if places.get(ev, {}).get("label")]
+        for name in sorted([*self.names.values(), *labels], key=len, reverse=True):
             text = text.replace(name, " ")
         if claims(re.sub(r"\[\d+\]", " ", text)):
             return None
