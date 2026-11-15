@@ -273,9 +273,11 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
 
   const last = rows.at(-1);
   const lastKey = last ? `${String(last.id)}:${last.status}` : '';
+  // load.state too: a thread kept over a reload is there before the project loads, so scroll once it renders (QA G2)
+  const ready = load.state === 'ready';
   useEffect(() => {
-    if (lastKey) thread.current?.lastElementChild?.scrollIntoView({ block: 'start' });
-  }, [lastKey]);
+    if (lastKey && ready) thread.current?.lastElementChild?.scrollIntoView({ block: 'start' });
+  }, [lastKey, ready]);
 
   if (load.state === 'loading') return <Loading label="Loading the project…" />;
   if (load.state === 'error') {
@@ -416,7 +418,6 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
       {r.status === 'error' && (
         <div className="v-card en-error" role="alert">
           <p>The message could not be answered: {errorText(r.error).detail}</p>
-          <p className="en-small">code: {errorText(r.error).code}</p>
           <button
             type="button"
             className="en-chip v-press"
@@ -489,7 +490,7 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
         asked={rows.length}
         onAsk={ask}
         onAttach={photo.attach}
-        short="the drawings"
+        short="Ask a question"
         attaching={photo.attaching}
         pen={pen}
       />

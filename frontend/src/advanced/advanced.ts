@@ -1,6 +1,14 @@
 // Pure parts of the Advanced view (docs/specs/frontend/advanced-ingest.md). The step list and the stage-to-step
 // mapping are screen 2's (`STEPS`, `stepOf`, `activeStep` in src/ingest/ingest.ts), so both views agree.
-import type { DrawingView, FileStatus, FileTrace, ProjectView, Row, Takeoff } from '../api';
+import type {
+  DrawingView,
+  FileStatus,
+  FileTrace,
+  ProjectView,
+  Row,
+  StepTrace,
+  Takeoff,
+} from '../api';
 import {
   STAGE_LABEL,
   STEPS,
@@ -165,6 +173,9 @@ export function defaultStep(project: ProjectView): number {
 
 export interface LogLine {
   key: string;
+  /** The line's first word(s): the stage, "Index", or an index step's name. */
+  head: string;
+  /** The file the line is about; "" for a step of the project's index phase. */
   path: string;
   /** What the stage did: `output`, or `did` when empty; a cache line reads "Cached: <did>". */
   what: string;
@@ -173,27 +184,50 @@ export interface LogLine {
   cost: number;
 }
 
-/** Every trace entry of step `k` over the files, in file order then stage order; Index: each file's evidence. */
+/** One step of the project's index phase as a log line, "<label> <did>" (AD-125). */
+function indexStepLine(s: StepTrace, i: number): LogLine {
+  const failed = s.state === 'failed';
+  const what = failed ? '' : s.state === 'skipped' ? `skipped${s.did ? `: ${s.did}` : ''}` : s.did;
+  return {
+    key: `index-${String(i)}-${s.id}`,
+    head: s.label,
+    path: '',
+    what,
+    text: what ? `${s.label} ${what}` : s.label,
+    failure: failed ? s.did || 'no reason given' : null,
+    cost: s.cost_usd,
+  };
+}
+
+/**
+ * Every trace entry of step `k` over the files, in file order then stage order. Index: each file's evidence, then
+ * the steps of the project's index phase (`after`, `index_steps`) in their order, so the last line is the latest.
+ */
 export function stepLines(
   files: readonly FileStatus[],
   traces: ReadonlyMap<string, FileTrace>,
   k: number,
+  after: readonly StepTrace[] = [],
 ): LogLine[] {
   if (isIndex(k))
-    return files.flatMap(({ id, path, evidence }) =>
-      evidence
-        ? [
-            {
-              key: `${id}-index`,
-              path,
-              what: evidence.why,
-              text: `Index ${path} ${evidence.why}`,
-              failure: null,
-              cost: evidence.cost_usd,
-            },
-          ]
-        : [],
-    );
+    return [
+      ...files.flatMap(({ id, path, evidence }) =>
+        evidence
+          ? [
+              {
+                key: `${id}-index`,
+                head: 'Index',
+                path,
+                what: evidence.why,
+                text: `Index ${path} ${evidence.why}`,
+                failure: null,
+                cost: evidence.cost_usd,
+              },
+            ]
+          : [],
+      ),
+      ...after.map(indexStepLine),
+    ];
   return files.flatMap((file) =>
     (traces.get(file.id)?.stages ?? [])
       .filter((s) => stepOf(s.stage) === k)
@@ -209,6 +243,7 @@ export function stepLines(
         const what = shortHashes(s.stage === 'cache' ? `Cached: ${s.did}` : said);
         return {
           key: `${file.id}-${String(i)}-${s.stage}`,
+          head: STAGE_LABEL[s.stage],
           path: file.path,
           what,
           text: `${STAGE_LABEL[s.stage]} ${file.path} ${what}`,

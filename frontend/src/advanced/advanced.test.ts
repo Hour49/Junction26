@@ -122,6 +122,7 @@ describe('advanced.ts', () => {
     expect(stepLines(files, new Map(), index)).toEqual([
       {
         key: `${must(files[0]).id}-index`,
+        head: 'Index',
         path: must(files[0]).path,
         what: why,
         text: `Index ${must(files[0]).path} ${why}`,

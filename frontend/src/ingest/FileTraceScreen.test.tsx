@@ -106,7 +106,7 @@ describe('FileTraceScreen', () => {
     render(<FileTraceScreen projectId={PID} fileId={FID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(error.code, { exact: false })).toBeNull(); // R2-C5: no raw code
     expect(screen.getByRole('link', { name: 'Back to Documents' }).getAttribute('href')).toBe(
       `#/p/${PID}/documents`,
     );

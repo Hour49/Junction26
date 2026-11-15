@@ -299,8 +299,8 @@ line under every drawing (Credit, SH-23-era). Port the demo's shell look and beh
 ### Documents badge (#212)
 
 - The Documents tab shows an orange badge with the number of issues still to answer: the project's
-  `issues_to_answer` (#223), else fe-ingest's `needsYou(issues)` (documents.md DOC-12: not a `conflict`, severity
-  not `note`, `open`, no `Issue.answer`).
+  `issues_to_answer` (#223), else fe-ingest's `needsYou(issues)` (documents.md DOC-12: a `conflict` only with
+  `resolved`, severity not `note`, `open`, no `Issue.answer`); both count the same (R3-G1).
 - Source: `useIssuesToAnswer(projectId, reload?): number | null` in `src/shell/issueCount.ts` (fe-shared):
   `getProject(projectId)`, asked again every 1 s while `queued` or `running` (the issues answer 409 until the ingest
   is done, and the browser logs that as a console error: re-sweep item 9); `failed` → null; `done` → its
@@ -571,7 +571,7 @@ request no route matches with a thrown error naming it, so a test fails on an un
 | No project in route | No view links, no country picker, no Export. | `#/`. |
 | Not found | `NotFound`: heading "Page not found", text "Nothing at `<hash>`" (as text), link "Go to the start" (`#/`). No request is made for it. | `#/nope`, `#/p/XYZ`, `#/p/<pid>/d/<did>` (no role). |
 | Screen loading | `Loading` with the screen's label, e.g. "Loading the project…" (`role="status"`, `aria-live="polite"`). | per screen spec. |
-| Screen error | `ErrorView`: heading, `detail`, "code: `<code>`", HTTP status when not 0, Retry when the screen passes `onRetry` and the error is not a 404; for a 404 (`status` 404) no Retry (asking again finds nothing) and a link "Back to workspaces" to `#/workspaces` (the project list; `#/` lists none since the Vellum round). `role="alert"`. | per screen spec; `error.json` for a 404. |
+| Screen error | `ErrorView`: heading, `detail`, Retry when the screen passes `onRetry` and the error is not a 404; for a 404 (`status` 404) no Retry (asking again finds nothing) and a link "Back to workspaces" to `#/workspaces` (the project list; `#/` lists none since the Vellum round). `role="alert"`. | per screen spec; `error.json` for a 404. |
 
 Refusal and set-aside are screen states (engineer, ingest): `ErrorView` is not used for them, since they come with
 200.
@@ -691,9 +691,10 @@ Generated types
 Common views and text rule
 
 - SH-38 `Loading` renders its label with `role="status"`. [component]
-- SH-39 `ErrorView` with an `ApiError` shows its `detail`, "code: `<code>`" and the status; with `onRetry` a Retry
-  button that calls it, except for a 404 (see SH-48); with a non-`ApiError` it shows the error's
-  message and "code: client". It has `role="alert"`. [component]
+- SH-39 `ErrorView` with an `ApiError` shows its `detail`, never its `code` or HTTP status (QA R2-C5, R3-L7: every
+  error surface shows the sentence only; `code` picks the wording and the 404 link); with `onRetry` a Retry button
+  that calls it, except for a 404 (see SH-48); with a non-`ApiError` it shows the error's message. It has
+  `role="alert"`. [component]
 - SH-40 `Credit` shows "Credit: none recorded for this file" for `drawing.json` (`credit: null`) and
   "Credit: `<text>`" for a string, the string as literal text (a credit `<b>x</b>` shows the tags). [component,
   `drawing.json`]

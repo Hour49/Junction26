@@ -216,7 +216,8 @@ class PictureReader(Protocol):
 
 | Setting | Values | Default |
 | --- | --- | --- |
-| `DISCIPLINE_PICTURES` | `off`, `template`; later `vlm`, `vlm+template` | `off` (the lane writes nothing; triage is unchanged) |
+| `DISCIPLINE_PICTURES` | `off`, `template`, `glyphs`, `gemini` | `off` (the lane writes nothing; triage is unchanged) |
+| `DISCIPLINE_GLYPHS_MODEL` | a folder with `model.onnx` (never committed) | `../data/models/pic-glyphs` |
 | `DISCIPLINE_PICTURES_CACHE_DIR` | a folder | `../data/cache/discipline-pictures` |
 | `DISCIPLINE_PICTURES_PROVIDER` | `gemini`, `eu` (openvlm) | `gemini` |
 | `DISCIPLINE_PICTURES_MAX_USD` | USD per page | `0.15` |
@@ -234,6 +235,25 @@ label, so every fact is held: Low, never sure. Facts are written sheet-wide (no 
 title's storey and each system's copies, so the fact answers (`answering/facts.py`) find them. A class the legend
 does not list is refused ("not read on this picture"), not 0. Not wired yet: vector PDFs (triage gives them no
 `Sheet`), the product's ask (it reads no fact sheet; only `Pipeline.answer_questions` does), the VLM readers.
+
+Built (2026-11-15, pic-det): two more symbol readers, each with its own sheet folder (`lane.kept_in`).
+`DISCIPLINE_PICTURES=gemini` (`gemini.py`, reader `vlm`): one Carbon call per page reads the legend's rows and every
+plan occurrence's box; replies cached by page sha256 + `VERSION` + prompt hash + model (a reply with no legend is not
+kept); a failed call or a reply that is not the asked JSON raises, so the lane keeps no sheet (and keeps the one it
+had). `DISCIPLINE_PICTURES=glyphs` (`glyphs.py`):
+a YOLO26 S glyph-style detector (72 classes: shape x fill x printed number) on 1024 px tiles, the legend binding
+style -> label. Measured on a held-out rendered building (rwth-digitalhub v2, 36 pages, 1,155 symbols; trained or
+tuned on bsc-clinic only; IoU 0.5):
+
+| reader | P | R | counts within 10% | valves P/R | cost/page |
+| --- | --- | --- | --- | --- | --- |
+| template, OCR legend | 0.07 | 0.29 | 8/54 | 0.04/0.06 | 0 |
+| glyphs, OCR legend | 0.92 | 0.38 | 9/54 | 0.80/0.24 | 0 (1.5 s CPU) |
+| glyphs, true legend boxes (bound) | 0.96 | 0.82 | 27/54 | 0.83/0.29 | 0 |
+| gemini (reads its own legend) | 0.95 | 0.92 | 46/54 | 0.80/0.68 | $0.030 |
+
+The OCR legend reader is what sinks both local readers on scans (template 0.01/0.01, glyphs 0.77/0.06 there).
+One synthetic building, legend always printed: not a pass on real sheets, so the facts stay Low.
 
 ## Cost per page
 

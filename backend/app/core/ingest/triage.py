@@ -268,6 +268,23 @@ def sheet_flag(triage: Triage | None) -> str | None:
     return f"the sheet may not be a floor plan: it looks like {triage.sheet.kind_words}"
 
 
+# Over this the step is sure enough that a services sheet's symbols are not doors or fixtures
+# (review-596: 0 of 327 real plans in 892 labelled cached replies; T3 is 0.98)
+SURE_SERVICES = 0.9
+
+
+def symbols_refused(triage: Triage | None) -> str | None:
+    """sheet_flag's flag when the step called the doubted sheet a services (MEP) plan at a
+    confidence over SURE_SERVICES: its door, window and fixture counts are refused (R3-C3: T3, a
+    piping plan, answered "6 toilets" from 1 WC and 5 tanks). None otherwise: every other doubted
+    kind stays warn-only, answered Low with the flag (orchestrator, 2026-11-15 04:39)."""
+    flag = sheet_flag(triage)
+    if flag is None or triage is None or triage.sheet is None:
+        return None
+    sure = triage.sheet.kind == "mep_plan" and triage.sheet.confidence > SURE_SERVICES
+    return flag if sure else None
+
+
 def doubted_not_plan(triage: Triage) -> bool:
     """The sheet-kind step doubted the sheet is a floor plan and called it a non-plan kind (read,
     and flagged until a person has it read as a floor plan)."""

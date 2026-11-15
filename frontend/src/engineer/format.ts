@@ -1,5 +1,5 @@
 // The engineer screen's own words and numbers; values and times use the shared formatValue/formatTime.
-import { formatValue, type AnswerView, type Row } from '../api';
+import { formatValue, isCountUnit, type AnswerView, type Row } from '../api';
 
 export function formatCost(usd: number): string {
   if (usd === 0) return '$0';
@@ -94,13 +94,15 @@ export function estimateLine(a: AnswerView): string | null {
 }
 
 /** CH-49/EN-90: the partial tag's title and accessible name for a room total that may leave rooms out (#350):
- * "May be partial: sums 7 rooms; 2 not in it". The names stay in the explanation, which already lists them. */
+ * "May be partial: sums 7 rooms; 2 not in it"; a room count (unit `count`, #600) "counts 4 rooms". The names stay in
+ * the explanation, which already lists them. */
 export function partialTip(
-  a: Pick<AnswerView, 'partial' | 'rooms_counted' | 'rooms_missing'>,
+  a: Pick<AnswerView, 'partial' | 'rooms_counted' | 'rooms_missing'> & { unit?: string | null },
 ): string | null {
   if (!a.partial) return null;
   const n = a.rooms_counted ?? 0;
   const missing = a.rooms_missing?.length ?? 0;
   const lacks = missing ? `; ${String(missing)} not in it` : '';
-  return `May be partial: sums ${String(n)} room${n === 1 ? '' : 's'}${lacks}`;
+  const verb = isCountUnit(a.unit ?? null) ? 'counts' : 'sums';
+  return `May be partial: ${verb} ${String(n)} room${n === 1 ? '' : 's'}${lacks}`;
 }

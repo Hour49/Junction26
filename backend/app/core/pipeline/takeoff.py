@@ -200,8 +200,12 @@ def _mark_partial(found: dict[str, Quantity], drawing: Drawing) -> None:
 
 
 def _whole_sheet(key: str, rule: str) -> bool:
-    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name)."""
-    return rule in PARTIAL_RULES and "label=" not in key and "name=" not in key
+    """Whether a takeoff key is a whole-sheet room total (not a sum by label or name), or the
+    count of all its rooms: a reader's rooms can miss rooms for both (QA round 3 R3-G2/G3)."""
+    if "label=" in key or "name=" in key:
+        return False
+    count = rule == EACH_ONCE.id and key.split("|")[0] == "room" and "apartment=" not in key
+    return rule in PARTIAL_RULES or count  # count: "room", "room|storey=..."
 
 
 def _room_columns(table: Table) -> tuple[int, int | None] | None:

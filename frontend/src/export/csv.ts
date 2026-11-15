@@ -28,6 +28,14 @@ export const COLUMNS = [
 type Cell = string | number | null | undefined;
 export type CsvRow = Partial<Record<(typeof COLUMNS)[number], Cell>>;
 
+/** R3-L3: the printed room number goes with the name ("Stanza 1.07"), so four "Stanza" rows can be told apart. */
+export function roomLabel(label?: string | null, number?: string | number | null): string | null {
+  const n = number == null ? '' : String(number).trim();
+  if (!n) return label ?? null;
+  if (!label) return n;
+  return label.includes(n) ? label : `${label} ${n}`;
+}
+
 /** extraction_v1 (decision 0004), only the fields the export reads; `getModel` is untyped. */
 interface Model {
   rooms?: {
@@ -37,6 +45,7 @@ interface Model {
     page?: number;
     area_m2?: number | null;
     area_status?: string;
+    attrs?: { number?: string | number | null };
   }[];
   elements?: { id: string; class: string; page?: number }[];
   model_objects?: {
@@ -89,8 +98,8 @@ function drawingRows({ drawing_id, file, takeoff, model }: DrawingScan): CsvRow[
       page: r.page,
       item: r.id,
       type: r.type,
-      label: r.label,
-      value: r.area_m2,
+      label: roomLabel(r.label, r.attrs?.number),
+      value: r.area_m2 == null ? r.area_m2 : Math.round(r.area_m2 * 100) / 100, // 2 decimals, as the engineer page
       unit: r.area_m2 == null ? undefined : 'm2',
       status: r.area_status,
     })),

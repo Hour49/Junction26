@@ -183,6 +183,10 @@
 .tl-step.skipped {
   color: var(--v-muted);
 }
+.tl-step.conflict .tl-step-icon {
+  color: var(--v-warn);
+  font-weight: 700;
+}
 .tl-step.skipped .tl-step-icon {
   color: var(--v-muted);
 }
@@ -315,7 +319,11 @@
 /* Files by stage (the Advanced view's overview) */
 .fm-row {
   display: grid;
-  grid-template-columns: minmax(0, 13fr) minmax(0, 17fr) minmax(0, 11fr);
+  /* as wide as the longest path (--fm-path letters, set on the list; a 13px mono letter is 0.6em, 7.8px), at
+     most 45 % of the row (AD-124) */
+  grid-template-columns:
+    minmax(min(calc(var(--fm-path, 0) * 7.8px + 4px), 45%), 13fr)
+    minmax(0, 17fr) minmax(0, 11fr);
   grid-template-areas: 'file bar facts';
   align-items: center;
   gap: 6px 20px;
@@ -332,13 +340,48 @@
   min-width: 0;
 }
 .fm-file a {
+  display: flex;
+  min-width: 0;
   font-family: var(--v-mono);
   font-size: 13px;
   font-weight: 600;
   color: var(--v-text);
-  overflow-wrap: anywhere;
   text-decoration: none;
   min-height: 24px;
+}
+/* a long path: the folder is muted and gives way first, down to its "…", the file name stays whole (AD-124, as
+   Simple's IN-113) */
+.fm-path {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.fm-folder,
+.fm-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fm-folder {
+  min-width: 1.5ch;
+  color: var(--v-muted);
+  font-weight: 400;
+}
+.fm-name {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+/* "read with <path>": the path takes its own line when the two do not fit on one */
+.fm-with {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+.fm-with-word {
+  flex-shrink: 0;
+  white-space: pre;
 }
 .fm-file a:hover {
   color: var(--v-accent);

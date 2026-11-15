@@ -559,6 +559,98 @@ describe('AdvancedIngest', () => {
     expect(document.body.textContent).not.toContain('answers ready');
   });
 
+  it('AD-124 Index: only drawings with questions get a row, the rest one line', async () => {
+    // only flat-a's file keeps its takeoff: one row, the other five drawings in one line
+    const p: ProjectView = {
+      ...project,
+      files: project.files.map((f) => (f.path === 'plans/flat-a.pdf' ? f : { ...f, takeoff: {} })),
+    };
+    await show(p);
+    const text = document.body.textContent;
+    expect(text).toContain('plans/flat-a.pdf: 141 questions ready to ask');
+    expect(text).not.toContain('0 questions ready to ask');
+    expect(text).toContain('5 drawings have none yet');
+    await show({ ...p, drawings: project.drawings.slice(0, 2) });
+    expect(document.body.textContent).toContain('1 drawing has none yet');
+  });
+
+  it("AD-125 Index: the log ends with the project's index steps, the live line says the latest", async () => {
+    const at = (k: number) => ({ at_ms: k, ms: 1, cost_usd: 0, found: {} });
+    const p: ProjectView = {
+      ...project,
+      files: project.files.map((f, i) =>
+        i === 0
+          ? { ...f, evidence: { indexed: false, why: 'a floor plan: it is read', cost_usd: 0 } }
+          : f,
+      ),
+      index_steps: [
+        { id: 'judge', label: 'Relevance judge', did: '0 files judged', state: 'done', ...at(0) },
+        {
+          id: 'describe',
+          label: 'Files for the evidence index',
+          did: '',
+          state: 'failed',
+          ...at(1),
+        },
+        {
+          id: 'evidence',
+          label: 'Evidence index',
+          did: 'the index is in step with the project',
+          state: 'done',
+          ...at(2),
+        },
+      ],
+    };
+    await show(p);
+    await pick(/^Index/);
+    const items = within(screen.getByRole('list', { name: 'Log' })).getAllByRole('listitem');
+    expect(items.map((li) => li.textContent)).toEqual([
+      `Index ${must(project.files[0]).path} a floor plan: it is read`,
+      'Relevance judge 0 files judged',
+      expect.stringMatching(/^Files for the evidence index ✕ Failed: no reason given$/),
+      'Evidence index the index is in step with the project',
+    ]);
+    expect(must(document.querySelector('.adv-live')).textContent).toBe(
+      'Evidence index: the index is in step with the project',
+    );
+  });
+
+  it('AD-125 a path in the live line, the log and Questions ready: folder muted with breaks after "/", name whole', async () => {
+    const path = 'plans/site1029/site1029_bldg2117_floor9641.pdf';
+    const p: ProjectView = {
+      ...project,
+      files: project.files.map((f, i) => (i === 0 ? { ...f, path } : f)),
+      drawings: project.drawings.map((d, i) => (i === 0 ? { ...d, file: path } : d)),
+    };
+    await show(p, { [TRACE]: traceSet(p.files.slice(0, 1).map(traceOf)) });
+    await pick(/^Takeoff/);
+    const live = must(document.querySelector('.adv-live'));
+    const log = screen.getByRole('list', { name: 'Log' });
+    const name = 'site1029_bldg2117_floor9641.pdf';
+    for (const [where, end] of [
+      [live, ':'],
+      [must(log.querySelector('li')), ''],
+    ] as const) {
+      expect(where.textContent).toContain(`${path}${end}`);
+      const folder = must(where.querySelector('.adv-folder'));
+      expect(folder.textContent).toBe('plans/site1029/');
+      expect(folder.querySelectorAll('wbr')).toHaveLength(1); // after the inner "/"; the name is its own box
+      const box = must(where.querySelector('.adv-name'));
+      expect(box.textContent).toBe(`${name}${end}`);
+      expect(box.querySelectorAll('wbr')).toHaveLength(2); // after each "_", for a name wider than the line
+    }
+    // the Unpack file cards: the same parts
+    await pick(/^Unpack/);
+    const card = must(document.querySelector('.adv-strip .adv-path'));
+    expect(card.textContent).toBe(path);
+    expect(card.querySelector('.adv-name')?.textContent).toBe(name);
+    await pick(/^Takeoff/);
+    // Takeoff's visual is "Questions ready to ask"
+    const ready = must(document.querySelector('.adv-ready .adv-path'));
+    expect(ready.textContent).toBe(`${path}:`);
+    expect(ready.querySelector('.adv-name')?.textContent).toBe(`${name}:`);
+  });
+
   it('AV-21 takeoffs only once a step needs them; a failure shows Retry', async () => {
     const d = must(project.drawings[0]);
     const { api } = await show(project, {

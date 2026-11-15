@@ -88,7 +88,9 @@ export function QuantityDetail(props: Props) {
           <p>
             {conflict.resolution
               ? `Kept by rule: ${conflict.resolution.rule} → ${fmt(conflict.resolution.value)}`
-              : 'No rule decides. Settle a value before signing off.'}
+              : row.settled
+                ? 'No rule decides: you settled it.'
+                : 'No rule decides. Settle a value before signing off.'}
           </p>
           {conflict.note && <p>{conflict.note}</p>}
           {conflict.derived && <p>{conflict.derived}</p>}
@@ -239,11 +241,7 @@ export function QuantityDetail(props: Props) {
         </p>
       )}
       {saving && <p role="status">Saving…</p>}
-      {err && (
-        <div role="alert">
-          {err.detail} (code: {err.code})
-        </div>
-      )}
+      {err && <div role="alert">{err.detail}</div>}
     </section>
   );
 }

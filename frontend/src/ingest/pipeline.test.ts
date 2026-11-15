@@ -3,17 +3,21 @@ import { project } from '../api/fixtures';
 import type { FileStatus } from '../api';
 import {
   busySteps,
+  chipWords,
   foundLine,
+  groupReaders,
   headlineStep,
   lanes,
   readDrawings,
+  readerGroup,
   routeReaders,
   routeSummary,
   stepMatches,
   thingsFound,
+  triageReaders,
   unread,
 } from './pipeline';
-import { DEMO_READERS, must } from './testing';
+import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
 
 const base = must(project.files[0]);
 const file = (id: string, changes: Partial<FileStatus>): FileStatus => ({
@@ -28,19 +32,10 @@ const file = (id: string, changes: Partial<FileStatus>): FileStatus => ({
 describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
   it('IN-101 routeReaders names the readers each route runs, from what ingest recorded', () => {
     expect(routeReaders(DEMO_READERS)).toEqual({
-      bim: ['IFC object reader'],
+      bim: ['IFC model reader'],
       cad: [],
-      vector: ['vector reader', 'schedule reader', 'second count'],
-      raster: [
-        'symbol detector',
-        'count arbiter',
-        'plan finder',
-        'room reader',
-        'Carbon',
-        'printed scale',
-        'second readers (2)',
-        'Carbon level check',
-      ],
+      vector: ['drawn-PDF reader', 'schedule tables', 'second count'],
+      raster: RASTER_CHIPS,
     });
   });
 
@@ -48,11 +43,129 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
     const none = routeReaders(project.readers);
     expect(none.raster).toEqual([]); // the no-keys server: raster=hello
     expect(none.cad).toEqual([]);
-    expect(none.vector).toEqual(['vector reader', 'schedule reader', 'second count']);
-    expect(
-      routeReaders({ ...DEMO_READERS, carbon_reader: 'off', raster_printed_scale: 'off' }).raster,
-    ).not.toContain('Carbon');
+    expect(none.vector).toEqual(['drawn-PDF reader', 'schedule tables', 'second count']);
+    const off = routeReaders({
+      ...DEMO_READERS,
+      carbon_reader: 'off',
+      carbon_levels: 'off',
+      raster_printed_scale: 'off',
+      raster_scale: 'off',
+      rectifier: 'none',
+      double_check_readers: '',
+    }).raster;
+    expect(off).toEqual([
+      'symbol detector',
+      'Gemini count decision',
+      'count arbiter',
+      'room reader',
+    ]);
     expect(routeReaders(undefined)).toEqual({ bim: [], cad: [], vector: [], raster: [] });
+  });
+
+  it('IN-117 the live raster readers: arbiter parts are the detector and arbiter, not "door" or "window"', () => {
+    const raster = routeReaders(DEMO_READERS).raster;
+    for (const part of ['door', 'window', 'sink', 'toilet', 'shower', 'bathtub', 'plan finder'])
+      expect(raster).not.toContain(part);
+    // Gemini Decisions picks counts; the count arbiter is the arbiter-t1 model, not Decisions
+    expect(
+      routeReaders({ ...DEMO_READERS, raster_components: 'elements=decisions:detector-v8:x' })
+        .raster,
+    ).toContain('Gemini count decision');
+    expect(
+      routeReaders({ ...DEMO_READERS, raster_components: 'elements=decisions:detector-v8:x' })
+        .raster,
+    ).not.toContain('count arbiter');
+    // CARBON_READER=all reads every sheet, not only the near-empty ones
+    expect(routeReaders({ ...DEMO_READERS, carbon_reader: 'all+storey:abc' }).raster).toContain(
+      'Gemini reader',
+    );
+  });
+
+  it('IN-118 every step a live file reports lights a chip of its lane (no stray label chips)', () => {
+    const chips = routeReaders(DEMO_READERS);
+    const covered = (route: keyof typeof chips, label: string) =>
+      chips[route].some((c) => stepMatches(label, c));
+    for (const label of LIVE_STEPS.raster)
+      expect([label, covered('raster', label)]).toEqual([label, true]);
+    for (const label of LIVE_STEPS.vector)
+      expect([label, covered('vector', label)]).toEqual([label, true]);
+    for (const label of LIVE_STEPS.bim)
+      expect([label, covered('bim', label)]).toEqual([label, true]);
+    // each label lights the reader it is, not a neighbour
+    expect(
+      stepMatches('Gemini Carbon check (never counted)', 'Gemini cross-check (not counted)'),
+    ).toBe(true);
+    expect(
+      stepMatches('Gemini Carbon check (never counted)', 'Gemini for sheets with few symbols'),
+    ).toBe(false);
+    expect(
+      stepMatches(
+        'Double-check reader m1: Symbol detector',
+        'double check by 2 more readers (not counted)',
+      ),
+    ).toBe(true);
+  });
+
+  it('IN-120 groupReaders: the readers by what they do, groups in run order, each from the reader itself', () => {
+    const raster = routeReaders(DEMO_READERS).raster;
+    const shape = (g: ReturnType<typeof groupReaders>) => g.map((x) => [x.label, x.readers]);
+    expect(shape(groupReaders(raster))).toEqual([
+      ['Prepare', ['photo flattening', 'printed scale (Gemini)']],
+      ['Count', ['symbol detector', 'Gemini count decision', 'count arbiter', 'room reader']],
+      [
+        'Checks, not counted',
+        ['Gemini cross-check (not counted)', 'double check by 2 more readers (not counted)'],
+      ],
+      ['If few symbols', ['Gemini for sheets with few symbols']],
+      ['Scale', ['scale from door sizes']],
+    ]);
+    // the group comes from the reader, not its position: reversed, the same groups in the same order
+    expect(groupReaders([...raster].reverse()).map((g) => g.label)).toEqual(
+      groupReaders(raster).map((g) => g.label),
+    );
+    expect(shape(groupReaders(routeReaders(DEMO_READERS).vector))).toEqual([
+      ['Count', ['drawn-PDF reader', 'schedule tables']],
+      ['Checks, not counted', ['second count']],
+    ]);
+    // one group: no label
+    expect(shape(groupReaders(['IFC model reader']))).toEqual([[null, ['IFC model reader']]]);
+    // a step the server ran that no reader covers: last, "Also ran"
+    expect(shape(groupReaders(['IFC model reader'], ['Wall tracer']))).toEqual([
+      ['Count', ['IFC model reader']],
+      ['Also ran', ['Wall tracer']],
+    ]);
+    expect(groupReaders([])).toEqual([]);
+    // CARBON_READER=all reads every sheet: it counts
+    expect(readerGroup('Gemini reader')).toBe('count');
+  });
+
+  it('IN-120 chipWords leaves out what the group label says; with no label, the full name', () => {
+    expect(chipWords('Gemini cross-check (not counted)', true)).toBe('Gemini cross-check');
+    expect(chipWords('double check by 2 more readers (not counted)', true)).toBe(
+      'double check by 2 more readers',
+    );
+    expect(chipWords('Gemini for sheets with few symbols', true)).toBe('Gemini reader');
+    expect(chipWords('symbol detector', true)).toBe('symbol detector');
+    expect(chipWords('Gemini cross-check (not counted)', false)).toBe(
+      'Gemini cross-check (not counted)',
+    );
+  });
+
+  it('IN-119 triageReaders: what sorts every file before its route, from the recorded triage', () => {
+    expect(triageReaders(DEMO_READERS)).toEqual([
+      'scan or photo (Gemini)',
+      'sheet kind (Gemini)',
+      'describes sheets that are not plans (Gemini)',
+      'keep or set aside (rules)',
+    ]);
+    expect(
+      triageReaders({
+        triage: 'classifier=rules, describer=off, judge=off',
+        decisions_kind: 'False',
+      }),
+    ).toEqual(['plan or not (rules)']);
+    expect(triageReaders(project.readers)).toEqual([]);
+    expect(triageReaders(undefined)).toEqual([]);
   });
 
   it('IN-102 things found: plain counts only, each drawing once (not its other renderings)', () => {
@@ -154,7 +267,7 @@ describe('pipeline.ts (ingest.md "Pipeline view v5")', () => {
   it('IN-105 a step label belongs to the reader it starts with', () => {
     expect(stepMatches('Symbol detector, 8 views', 'symbol detector')).toBe(true);
     expect(stepMatches('Room reader (Gemini)', 'room reader')).toBe(true);
-    expect(stepMatches('Carbon on a large sheet', 'Carbon level check')).toBe(false);
+    expect(stepMatches('Carbon on a large sheet', 'Gemini cross-check (not counted)')).toBe(false);
   });
 
   it('IN-116 a drawing on a route whose reader is `hello` is unread, and not among the drawings read', () => {

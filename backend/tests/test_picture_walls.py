@@ -94,15 +94,24 @@ def test_its_walls_lay_the_picture_over_the_plan() -> None:
     assert math.dist(place.shift, (-ORIGIN[0] / PX_PER_M, -ORIGIN[1] / PX_PER_M)) < 0.2
 
 
-def test_nothing_in_the_app_calls_it_yet() -> None:
-    """With DISCIPLINE_PICTURES off nothing changes: no module of the app imports `walls`."""
+def test_only_the_sheet_walls_reader_calls_it_and_only_when_pictures_are_on() -> None:
+    """With DISCIPLINE_PICTURES off nothing changes: `walls` is imported by the sheet-walls reader
+    alone, and that reader by no module at its top (service_tools.follower imports it inside its
+    DISCIPLINE_PICTURES branch; test_picture_lane_follow checks it is unset when off)."""
     app = Path(__file__).resolve().parents[1] / "app"
     for path in app.rglob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text())):
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module + "." + a.name for a in node.names]
-                assert not any(n.endswith("discipline_pictures.walls") for n in names), path
-                assert not node.module.endswith("discipline_pictures.walls"), path
+                if path.name != "sheet_walls.py":
+                    assert not any(n.endswith("discipline_pictures.walls") for n in names), path
+                    assert not node.module.endswith("discipline_pictures.walls"), path
+        for node in tree.body:  # module level
+            if isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module + "." + a.name for a in node.names]
+                assert not any(n.endswith("discipline_pictures.sheet_walls") for n in names), path
+                assert not node.module.endswith("discipline_pictures.sheet_walls"), path
 
 
 def building(fill: float) -> tuple[np.ndarray, list]:

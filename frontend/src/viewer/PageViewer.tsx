@@ -843,7 +843,8 @@ export function PageViewer({
             if (spot === null) return null; // no free spot: counted in the legend
             const value = valueOf(m);
             const tone = toneOf(m);
-            const name = `${m.label ?? 'item'}, ${said(m)}`;
+            // the value too (R3-C8): a screen reader hears the area the badge shows, even where a narrow frame hides it
+            const name = `${m.label ?? 'item'}${value === null ? '' : `, ${value}`}, ${said(m)}`;
             const isSelected = m.id === selected;
             const doubt = doubtOf.get(m.id);
             const whyId = `${uid}-why-${m.id}`;
@@ -933,6 +934,9 @@ export function PageViewer({
           {!bare && ': zoom in to see their numbers'}
         </p>
       )}
+      {/* bare has no legend, so a mark it can't number still gets said (QA R3-C10) */}
+      {bare && unplaced > 0 && <p className="vw-many">{unplaced} mark(s) could not be placed</p>}
+      {bare && noRoom > 0 && <p className="vw-many">{noRoom} label(s) had no room on the page</p>}
       {!bare && (
         <p className="vw-pagemeta">
           {pageMeta.map((text) => `${text} · `)}

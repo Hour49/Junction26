@@ -429,14 +429,21 @@ def open_count(
     takeoffs: Mapping[str, Takeoff],
 ) -> tuple[int, int]:
     """How many issues of the done project are open, and how many of those still wait for a
-    person's answer (not a note, not answered); no pack: code checks are a screen's choice. For
-    `issues_open` and `issues_to_answer`."""
+    person's answer on Documents: the client's `waitsForYou` (documents.md DOC-12): not a note,
+    not answered, and a conflict only once a model looked at it (`resolved`; one without stays on
+    Ingest). No pack: code checks are a screen's choice. For `issues_open` and
+    `issues_to_answer`."""
     found = [
         issue
         for issue in listed_issues(status, ingest, reviews, settings, takeoffs)
         if issue.state == "open"
     ]
-    to_answer = sum(issue.severity != "note" and issue.answer is None for issue in found)
+    to_answer = sum(
+        issue.severity != "note"
+        and issue.answer is None
+        and (issue.kind != "conflict" or issue.resolved is not None)
+        for issue in found
+    )
     return len(found), to_answer
 
 

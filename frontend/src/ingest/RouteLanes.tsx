@@ -6,11 +6,14 @@ import type { FileStatus, ProjectView } from '../api';
 import { STAGE_LABEL, STATE_LABEL, STEPS, isFinished, isLive, plural, stepOf } from './ingest';
 import {
   PIPELINE_TIPS,
+  chipWords,
   fileStep,
   foundLine,
+  groupReaders,
   lanes,
   routeReaders,
   stepMatches,
+  triageReaders,
   unread,
   type Lane,
 } from './pipeline';
@@ -105,6 +108,8 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
         href={`#/p/${projectId}/f/${file.id}`}
         className="flex min-w-0 font-mono text-[13px] text-foreground no-underline hover:underline"
         title={file.path}
+        // the two flex spans would read "plans/ a.pdf" in Chromium (a space between them): the name is the path
+        aria-label={file.path}
       >
         {/* a long path gives up its folder first: the file name is what tells two rows apart */}
         {folder && (
@@ -116,7 +121,13 @@ function FileRow({ projectId, file }: { projectId: string; file: FileStatus }) {
         <span aria-hidden="true">{icon}</span>
         {word}
       </span>
-      <span className={cn('min-w-0 text-[13px] text-muted-foreground', 'line-clamp-2')}>
+      {/* a flagged or set-aside file's reason is shown whole (IN-122); a running note stays at 2 lines */}
+      <span
+        className={cn(
+          'ingest-note min-w-0 text-[13px] text-muted-foreground [overflow-wrap:anywhere]',
+          !isFinished(file) && 'line-clamp-2',
+        )}
+      >
         {rowNote(file)}
       </span>
       <Track file={file} />
@@ -135,33 +146,48 @@ function ReaderChips({
 }) {
   // a step label seen that no reader name covers is shown too: the server ran it
   const extra = [...seen].filter((l) => !readers.some((r) => stepMatches(l, r)));
-  const chips = [...readers, ...extra];
-  if (chips.length === 0) return null;
+  const groups = groupReaders(readers, extra);
+  if (groups.length === 0) return null;
   return (
     <Tip text={PIPELINE_TIPS.readers} wrap className="justify-self-start">
-      <ul aria-label="Readers" className="flex flex-wrap gap-1.5">
-        {chips.map((c) => {
-          const running = now.some((l) => stepMatches(l, c));
-          const ran = [...seen].some((l) => stepMatches(l, c));
-          return (
-            <li
-              key={c}
-              className={cn(
-                'rounded-full px-2.5 py-0.5 text-xs',
-                running ? 'bg-accent font-semibold text-primary' : 'bg-muted text-text-2',
-              )}
+      {/* by what they do, in the order they run (IN-120): a label column beside the chips, above them on a phone */}
+      <div role="group" aria-label="Readers" className="grid gap-2.5 sm:gap-1.5">
+        {groups.map(({ group, label, readers: chips }) => (
+          <div
+            key={group}
+            className="ingest-readers grid items-baseline gap-x-3 gap-y-1 sm:grid-cols-[9.5rem_1fr]"
+            data-group={group}
+          >
+            {label && <p className="m-0 text-xs font-medium text-muted-foreground">{label}</p>}
+            <ul
+              aria-label={label ?? 'Readers'}
+              className={cn('flex flex-wrap gap-1.5', !label && 'sm:col-span-2')}
             >
-              {running ? <span className="sr-only">running: </span> : null}
-              {c}
-              {ran && !running && (
-                <span aria-label="ran" className="ml-1 text-ok">
-                  ✓
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              {chips.map((c) => {
+                const running = now.some((l) => stepMatches(l, c));
+                const ran = [...seen].some((l) => stepMatches(l, c));
+                return (
+                  <li
+                    key={c}
+                    className={cn(
+                      'rounded-full px-2.5 py-0.5 text-xs',
+                      running ? 'bg-accent font-semibold text-primary' : 'bg-muted text-text-2',
+                    )}
+                  >
+                    {running ? <span className="sr-only">running: </span> : null}
+                    {chipWords(c, label !== null)}
+                    {ran && !running && (
+                      <span aria-label="ran" className="ml-1 text-ok">
+                        ✓
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
     </Tip>
   );
 }
@@ -252,10 +278,25 @@ export function RouteLanes({
   const seen = useSeenSteps(project.files);
   const byRoute = routeReaders(project.readers);
   const all = lanes(project.files);
+  const sorting = triageReaders(project.readers);
   if (all.length === 0) return null;
   return (
     <section aria-label="Routes" className="grid content-start gap-3">
       <h3 className="v-caption m-0">How each file is read</h3>
+      {sorting.length > 0 && (
+        <div className="ingest-sorting grid gap-1.5">
+          <p className={cn(MUTED, 'm-0')}>Every file first, before it takes a route:</p>
+          <Tip text={PIPELINE_TIPS.triage} wrap className="justify-self-start">
+            <ul aria-label="Sorting" className="flex flex-wrap gap-1.5">
+              {sorting.map((c) => (
+                <li key={c} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-text-2">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </Tip>
+        </div>
+      )}
       {all.map((lane) => (
         <LaneView
           key={lane.id}

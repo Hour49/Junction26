@@ -356,8 +356,9 @@ over its drawings (the review queue). `conflicts_open`: the conflicts a person s
 with `needs_person: true` (the two methods disagree, no rule decides, nobody settled it); a conflict a rule
 decided ("settled by a rule") or a person settled is not open. A room's several names count once.
 `issues_open`: the issues in state `open` in `GET /api/projects/{id}/issues` without a pack; null until `done`.
-`issues_to_answer`: of those, the ones that wait for a person's answer: not a `note` and no `answer` yet (an answer
-does not change an issue's `state`); null until `done`.
+`issues_to_answer`: of those, the ones that wait for a person's answer on Documents: not a `note`, no `answer` yet
+(an answer does not change an issue's `state`), and a `conflict` only when it has `resolved` (one without is settled
+on Ingest, not listed on Documents); the client's `needsYou` counts the same; null until `done`.
 `not_plans`: as in `GET /api/projects/{id}` (file triage); left out when the project was ingested with triage off.
 
 <!-- fixture: project_list.json -->
@@ -6282,7 +6283,7 @@ that leaves the list (a refused question answered later) takes its answer with i
 - A failed code check's issue needs its `pack`, as the list does.
 - Errors: an unknown project, pack or issue is 404; a project that is not `done` is 409 `not-allowed`; a body with
   no `text` or `by`, an empty one, or `undo` with either is 422 `validation`.
-- The project's `issues_to_answer` drops by one when an open issue that is not a note gets its first answer.
+- The project's `issues_to_answer` drops by one when an open issue it counts gets its first answer.
 
 <!-- fixture: issue_answer_request.json -->
 ```json

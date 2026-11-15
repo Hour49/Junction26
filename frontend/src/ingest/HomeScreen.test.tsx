@@ -109,7 +109,7 @@ describe('HomeScreen', () => {
     fireEvent.click(sampleButton());
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(code, { exact: false })).toBeNull(); // R2-C5: no raw code
     expect((sampleButton() as HTMLButtonElement).disabled).toBe(false);
     expect(input().disabled).toBe(false);
   });

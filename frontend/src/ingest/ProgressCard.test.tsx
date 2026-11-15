@@ -7,7 +7,7 @@ import type { FileStatus, ProjectView, StepTrace } from '../api';
 import { stubResizeObserver } from '../test/resizeObserver';
 import { LANE_ROWS, splitPath } from './RouteLanes';
 import { ProgressCard } from './ProgressCard';
-import { DEMO_READERS, must } from './testing';
+import { DEMO_READERS, LIVE_STEPS, RASTER_CHIPS, must } from './testing';
 
 beforeEach(stubResizeObserver);
 afterEach(cleanup);
@@ -84,26 +84,29 @@ describe('ProgressCard: pipeline view v5', () => {
         .getAllByRole('heading', { level: 3 })
         .map((h) => h.textContent),
     ).toEqual(['How each file is read', 'Drawn PDF route', 'Image route', 'Not routed yet']);
-    const chips = within(lane('Image')).getByRole('list', { name: 'Readers' });
+    const chips = within(lane('Image')).getByRole('group', { name: 'Readers' });
     expect(
       within(chips)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual([
+      // by what they do, in the order the groups run (IN-120)
+      'photo flattening',
+      'printed scale (Gemini)',
       'running: symbol detector',
+      'Gemini count decision',
       'count arbiter',
-      'plan finder',
       'room reader',
-      'Carbon',
-      'printed scale',
-      'second readers (2)',
-      'Carbon level check',
+      'Gemini cross-check',
+      'double check by 2 more readers',
+      'Gemini reader',
+      'scale from door sizes',
     ]);
     expect(
       within(lane('Drawn PDF'))
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toContain('schedule reader');
+    ).toContain('schedule tables');
     // a file links to its own page
     expect(
       within(lane('Image')).getByRole('link', { name: 'plans/img.png' }).getAttribute('href'),
@@ -137,6 +140,14 @@ describe('ProgressCard: pipeline view v5', () => {
       <ProgressCard project={flagged('a phone photo read without correction')} now={Date.now()} />,
     );
     expect(lane('Image').textContent).toContain('2 doors. a phone photo read without correction');
+    // IN-122 (QA R3-G8): the reason is shown whole, not cut at 2 lines; a running file's note stays at 2
+    const note = must(lane('Image').querySelector('.ingest-note'));
+    expect(note.className).not.toContain('line-clamp');
+    cleanup();
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const live = must(lane('Image').querySelector('.ingest-note'));
+    expect(live.textContent).toBe('Extract: Symbol detector, 8 views');
+    expect(live.className).toContain('line-clamp-2');
     cleanup();
     render(<ProgressCard project={flagged('')} now={Date.now()} />);
     expect(lane('Image').textContent).toContain('2 doors');
@@ -153,7 +164,7 @@ describe('ProgressCard: pipeline view v5', () => {
     render(<ProgressCard project={old} now={Date.now()} />);
     expect(lane('Image').textContent).toContain('Extract');
     expect(lane('Image').textContent).not.toContain('Symbol detector');
-    expect(within(lane('Image')).queryByRole('list', { name: 'Readers' })).toBeNull();
+    expect(within(lane('Image')).queryByRole('group', { name: 'Readers' })).toBeNull();
     // no record of the readers: nothing said about them either way
     expect(lane('Image').textContent).not.toContain('No reader for this route');
     expect(screen.getByText('Step 5 of 9')).toBeTruthy(); // IN-111: where the running file is, not the queued one
@@ -173,13 +184,107 @@ describe('ProgressCard: pipeline view v5', () => {
       files: next.files.map((f) => (f.id === 'img' ? { ...f, step: 'Wall tracer' } : f)),
     };
     rerender(<ProgressCard project={after} now={Date.now()} />);
-    const chips = within(within(lane('Image')).getByRole('list', { name: 'Readers' }))
+    const chips = within(within(lane('Image')).getByRole('group', { name: 'Readers' }))
       .getAllByRole('listitem')
       .map((li) => li.textContent);
     expect(chips).toContain('symbol detector✓');
     expect(chips).toContain('room reader✓');
     expect(chips).toContain('running: Wall tracer');
-    expect(chips).toContain('Carbon'); // configured, not seen: no tick
+    expect(chips).toContain('Gemini reader'); // configured (if few symbols), not seen: no tick
+  });
+
+  it("IN-118 a live file's real steps tick their reader chips; none becomes a chip of its own", () => {
+    const { rerender } = render(<ProgressCard project={running} now={Date.now()} />);
+    for (const label of LIVE_STEPS.raster)
+      rerender(
+        <ProgressCard
+          project={{
+            ...running,
+            files: running.files.map((f) => (f.id === 'img' ? { ...f, step: label } : f)),
+          }}
+          now={Date.now()}
+        />,
+      );
+    const chips = within(within(lane('Image')).getByRole('group', { name: 'Readers' }))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+    expect(chips).toHaveLength(RASTER_CHIPS.length);
+    for (const c of [
+      'printed scale (Gemini)✓',
+      'Gemini cross-check✓',
+      'Gemini count decision✓',
+      'count arbiter✓',
+      'room reader✓',
+      'double check by 2 more readers✓',
+      'running: Gemini reader',
+    ])
+      expect(chips).toContain(c);
+  });
+
+  it('IN-120 each lane with more than one kind of reader shows them in labelled groups, in run order', () => {
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const groups = (name: string) =>
+      within(within(lane(name)).getByRole('group', { name: 'Readers' }))
+        .getAllByRole('list')
+        .map((ul) => [
+          ul.getAttribute('aria-label'),
+          within(ul)
+            .getAllByRole('listitem')
+            .map((li) => li.textContent),
+        ]);
+    expect(groups('Image')).toEqual([
+      ['Prepare', ['photo flattening', 'printed scale (Gemini)']],
+      [
+        'Count',
+        ['running: symbol detector', 'Gemini count decision', 'count arbiter', 'room reader'],
+      ],
+      ['Checks, not counted', ['Gemini cross-check', 'double check by 2 more readers']],
+      ['If few symbols', ['Gemini reader']],
+      ['Scale', ['scale from door sizes']],
+    ]);
+    // the label is shown with its chips
+    for (const label of ['Prepare', 'Count', 'Checks, not counted', 'If few symbols', 'Scale'])
+      expect(within(lane('Image')).getByText(label).tagName).toBe('P');
+    expect(groups('Drawn PDF')).toEqual([
+      ['Count', ['drawn-PDF reader', 'schedule tables']],
+      ['Checks, not counted', ['second count']],
+    ]);
+  });
+
+  it('IN-120 a lane with one kind of reader: its chips with no group label', () => {
+    render(
+      <ProgressCard
+        project={{ ...running, readers: { ...DEMO_READERS, second_counter: 'hello' } }}
+        now={Date.now()}
+      />,
+    );
+    const readers = within(lane('Drawn PDF')).getByRole('group', { name: 'Readers' });
+    expect(
+      within(readers)
+        .getAllByRole('list')
+        .map((ul) => ul.getAttribute('aria-label')),
+    ).toEqual(['Readers']);
+    expect(within(readers).queryByText('Count')).toBeNull();
+  });
+
+  it('IN-119 the sorting every file goes through before its route, from the recorded triage', () => {
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const sorting = within(screen.getByRole('region', { name: 'Routes' })).getByRole('list', {
+      name: 'Sorting',
+    });
+    expect(
+      within(sorting)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      'scan or photo (Gemini)',
+      'sheet kind (Gemini)',
+      'describes sheets that are not plans (Gemini)',
+      'keep or set aside (rules)',
+    ]);
+    cleanup();
+    render(<ProgressCard project={{ ...running, readers: undefined }} now={Date.now()} />);
+    expect(screen.queryByRole('list', { name: 'Sorting' })).toBeNull();
   });
 
   it("IN-101 a route whose reader reads nothing says so (the no-keys server's image route)", () => {
@@ -282,6 +387,9 @@ describe('ProgressCard: pipeline view v5', () => {
     );
     const link = within(lane('Image')).getByRole('link', { name: long }); // the full path is still its name
     expect(link.getAttribute('title')).toBe(long);
+    // jsdom joins the two spans with no space; Chromium puts one between the flex items ("…/ Grundriss_OG3.png"),
+    // so the name is set on the link itself (detail's FileMatrix, #593)
+    expect(link.getAttribute('aria-label')).toBe(long);
     expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
     expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');

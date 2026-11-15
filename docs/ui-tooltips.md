@@ -130,7 +130,7 @@ class names on `TooltipContent`:
 | Answer | `engineer/AnswerCard.tsx:122-148` | Status pill (signed / agree / conflict / estimate / edited / one method) | Use the existing `statusTip` texts via the shared Tip. | P1 |
 | Answer | `engineer/AnswerCard.tsx:325` | "Partial" pill (`title`) | Only part of the project was read, so this answer may be incomplete. | P2 |
 | Answer | `engineer/AnswerCard.tsx:410` | "This drawing was flagged" box | Vellum read this drawing but something looks off. Check the answer against the plan. | P1 |
-| Answer | `engineer/AnswerCard.tsx:494,501-503` | "Checks" label and "Second reader's score 0.91 (not a probability)" | Checks: how the number was verified. Score: how much a second, independent reader agrees; higher is better. | P1 |
+| Answer | `engineer/AnswerCard.tsx:494,501-503` | "Checks" label and "Second reader's score 0.91 (not a probability)" | Checks: how the number was verified. Score: how much a second, independent reader agrees; higher is better. The score line (and so its tip) is absent where the checks say "one method; no second check" (engineer.md EN-93). | P1 |
 | Answer | `engineer/AnswerCard.tsx:506-508` | "Counting rule: ... door_count" | The written rule Vellum used to count. The small id is for engineers. | P2 |
 | Answer | `engineer/ChecksPanel.tsx:14,33,36` | "by room outlines × sheet scale", "Second method ... agrees", "Estimated by one method" | A method is one way of measuring. Two methods agreeing is stronger than one. | P2 |
 | Answer | `engineer/ChatAnswer.tsx:151` | "Signed off" pill | A surveyor checked this value and signed it. | P2 |

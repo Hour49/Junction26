@@ -133,7 +133,7 @@ def test_floor_words_of_several_languages() -> None:
     cases = {
         "EG": "0", "Erdgeschoss": "0", "Ground floor": "0", "1. OG": "1", "OG1": "1",
         "Level 02": "2", "2nd floor": "2", "3F": "3", "2. krs": "2", "KRS1": "1", "Kellari": "-1",
-        "B1": "-1", "ullakko": "roof",
+        "B1": "-1", "ullakko": "attic",
         "plan-02-e00-okrd": "0", "E01_OKRD": "1", "B01": "-1", "A-101 plan.pdf": None,
     }  # fmt: skip
     for words, key in cases.items():
@@ -157,6 +157,7 @@ WALLS_M = (
     ((4, 0), (4, 8)), ((4, 5), (10, 5)), ((7, 5), (7, 8)), ((0, 3), (2, 3)),
 )  # fmt: skip
 PAGE_PX = (500.0, 600.0)
+WHOLE = (0.0, 0.0, 500.0, 600.0)  # the whole page as the sheet-walls reader's crop
 
 
 def on_sheet(p: tuple[float, float]) -> tuple[float, float]:
@@ -178,7 +179,7 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
     plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
     picture = sheet(name="scan.png", rooms=(), size_m=None)
     drawn = segments((on_sheet(a), on_sheet(b)) for a, b in WALLS_M)
-    walls = by_walls(segments(WALLS_M), lambda _: (drawn, PAGE_PX))
+    walls = by_walls(segments(WALLS_M), lambda _: ([(WHOLE, drawn)], PAGE_PX))
     laid = walls(plan, picture)
     assert not isinstance(laid, str), laid
     to_plan, how = laid
@@ -199,6 +200,127 @@ def test_walls_lay_a_turned_half_size_sheet_over_the_plan() -> None:
     blind = by_walls(segments(WALLS_M), lambda _: "no wall lines were read on the sheet")
     [found] = pair(plan, [picture], register=either(by_room_names, blind))
     assert found == ("the services picture has no scale; no wall lines were read on the sheet")
+
+
+# WALLS_M with a few more rooms: 8 lines are too few for a crop's own frame (another quarter
+# turn reaches 80% there, inside register's margin)
+RICH = (
+    *WALLS_M,
+    ((1, 6), (3, 6)), ((8, 1), (8, 3)), ((2, 0), (2, 1.5)), ((5.5, 6.5), (6.5, 6.5)),
+    ((4, 2), (6, 2)), ((8.5, 5), (8.5, 6.5)),
+)  # fmt: skip
+
+
+def cropped(origin: tuple[float, float], lines: list[Segment]) -> list[Segment]:
+    """Lines in a crop's own pixels: the page's less the crop's corner."""
+    ox, oy = origin
+    return [Segment(a=(s.a[0] - ox, s.a[1] - oy), b=(s.b[0] - ox, s.b[1] - oy)) for s in lines]
+
+
+def lands(to_plan: Affine, p: tuple[float, float]) -> bool:
+    x, y = on_sheet(p)
+    fx, fy = to_plan.apply((x / PAGE_PX[0], y / PAGE_PX[1]))
+    return abs(fx - p[0] / 12) < 0.005 and abs(fy - p[1] / 10) < 0.005
+
+
+def test_a_crop_is_laid_with_its_corner_added_back() -> None:
+    """The plan-view finder's crop (the plan without the sheet's legend): its lines are in the
+    crop's pixels, the map is the page's."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))  # a bar that agrees
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    walls = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    to_plan, _ = laid_with(walls, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+
+
+def test_two_crops_that_lay_the_sheet_two_ways_are_refused_unless_one_clearly_wins() -> None:
+    """Twin views (DigitalHub E01's two wings): two crops each fit somewhere; when neither fits
+    clearly better (MARGIN of the wall lines) the lay is a guess and refused."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))  # a bar that agrees
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    right, twin = (40.0, 30.0, 480.0, 580.0), (240.0, 30.0, 500.0, 600.0)  # same lines, other place
+    both = by_walls(
+        segments(RICH),
+        lambda _: (
+            [(right, cropped(right[:2], drawn)), (twin, cropped(right[:2], drawn))],
+            PAGE_PX,
+        ),
+    )
+    refused = both(plan, picture)
+    assert isinstance(refused, str) and "two ways" in refused, refused
+    few = cropped(right[:2], drawn)[:6]  # the twin matches 6 lines, the right crop 8
+    clear = by_walls(
+        segments(RICH),
+        lambda _: ([(twin, few), (right, cropped(right[:2], drawn))], PAGE_PX),
+    )
+    to_plan, _ = laid_with(clear, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+
+
+def test_a_crop_laid_off_the_sheets_own_scale_is_refused() -> None:
+    """A crop has no page to fill (the cover check sees only the crop): bench photo B01 laid a
+    crop 15% off its scale. With a scale bar a crop more than SCALE_SLACK off is refused; the
+    whole page keeps naming it (above)."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    walls = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    agrees = sheet(name="scan.png", rooms=(), size_m=(10.0, 12.0))
+    laid_with(walls, plan, agrees)
+    off = walls(plan, sheet(name="scan.png", rooms=(), size_m=(12.0, 14.4)))
+    assert isinstance(off, str) and "its scale says 24.0 mm a pixel" in off, off
+
+
+def test_a_part_of_a_sheet_with_no_scale_is_laid_only_with_the_whole_page_agreeing() -> None:
+    """Review #580 SHOULD 2: a cut-out part has no page to fill (register's cover check sees the
+    part only). With a scale bar its scale is checked against the bar; without one the whole
+    page's own lay is the only check: the part is laid when the whole page lays within
+    SCALE_SLACK of its scale, else refused (the bench's one wrong part was 15% off)."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    box = (40.0, 30.0, 480.0, 580.0)
+    alone = by_walls(segments(RICH), lambda _: ([(box, cropped(box[:2], drawn))], PAGE_PX))
+    refused = alone(plan, picture)
+    assert isinstance(refused, str) and "no scale" in refused, refused
+    page = by_walls(
+        segments(RICH),
+        lambda _: ([(WHOLE, drawn), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    to_plan, _ = laid_with(page, plan, picture)
+    assert all(lands(to_plan, p) for p in ((0, 0), (10, 0), (10, 8), (4, 5)))
+    big = [Segment(a=(s.a[0] * 1.2, s.a[1] * 1.2), b=(s.b[0] * 1.2, s.b[1] * 1.2)) for s in drawn]
+    off = by_walls(  # the whole page lays at another scale than the part: one of them is wrong
+        segments(RICH),
+        lambda _: ([(WHOLE, big), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    got = off(plan, picture)
+    assert isinstance(got, str), got
+
+
+def test_a_part_whose_whole_page_lays_at_another_scale_is_refused() -> None:
+    """Review #590 MUST: the part clearly wins the wall lines (14 against the page's 8, past
+    CROPS_MARGIN, so the twin-view rule lets it through), but the whole page lays 10% larger:
+    without a scale bar one of the two sizes is wrong, so neither is laid."""
+    plan = PLAN.model_copy(update={"name": "plan.pdf", "rooms": (), "size_m": (12.0, 10.0)})
+    picture = sheet(name="scan.png", rooms=(), size_m=None)
+    drawn = segments((on_sheet(a), on_sheet(b)) for a, b in RICH)
+    middle = (PAGE_PX[0] / 2, PAGE_PX[1] / 2)
+
+    def larger(p: tuple[float, float]) -> tuple[float, float]:
+        return (middle[0] + 1.1 * (p[0] - middle[0]), middle[1] + 1.1 * (p[1] - middle[1]))
+
+    page = [Segment(a=larger(on_sheet(a)), b=larger(on_sheet(b))) for a, b in WALLS_M]
+    box = (40.0, 30.0, 480.0, 580.0)
+    both = by_walls(
+        segments(RICH),
+        lambda _: ([(WHOLE, page), (box, cropped(box[:2], drawn))], PAGE_PX),
+    )
+    got = both(plan, picture)
+    assert isinstance(got, str) and "its whole page at" in got, got
 
 
 def test_the_plans_wall_lines_are_centre_lines() -> None:
@@ -321,3 +443,68 @@ def test_a_project_year_is_not_a_sheet_number() -> None:
     plan = PLAN.model_copy(update={"name": "KOY_2019 plan.pdf", "rooms": ()})
     found = one(plan, sheet(name="KOY_2019 heating.png", rooms=(), size_m=(10.0, 10.0)))
     assert found == "only 0 room names appear on both sheets (3 are needed)"
+
+
+# --- the confirmation run's 10 wrong pairings (pics-answer 2026-11-15, USCG Governors Island) ----
+
+
+def named(plan: str, candidate: str, **change: object) -> Pairing | str:
+    """A plan and one heating sheet named by their titles, no folders, laid over by room names."""
+    return one(
+        PLAN.model_copy(update={"name": plan}),
+        sheet().model_copy(update={"name": candidate} | change),
+    )
+
+
+def test_a_floor_the_name_says_but_pairing_cannot_read_refuses_instead_of_geometry() -> None:
+    # refusal side: "Upper Floors" names floors no rule reads; geometry alone must not pick it
+    found = named("Building 7 Upper Floors Plan.png", "Building 7 Heating First Floor Plan.png")
+    assert found == "the plan names a floor that is not read ('Upper Floors'): no floor to pair on"
+    found = named("Building 7 Plan.png", "Building 7 Heating Typical Floor Plan.png")
+    said = "the services picture names a floor that is not read ('Typical Floor')"
+    assert found == said + ": no floor to pair on"
+    # "Floor Plan" alone names no floor: geometry as before
+    found = named("Building 7 Floor Plan.png", "Building 7 Heating Floor Plan.png")
+    assert isinstance(found, Pairing) and found.paired_by == "geometry"
+
+
+def test_floor_lists_ranges_and_plurals_are_read() -> None:
+    from app.core.services.pairing import _floors  # pyright: ignore[reportPrivateUsage]
+
+    cases = {
+        "Second Thru Seventh Floors": ["2", "3", "4", "5", "6", "7"],
+        "First and Second Floors Plans": ["1", "2"],
+        "Basement, First and Second Floor": ["-1", "1", "2"],
+        "First, Second, and Third Floor Plans": ["1", "2", "3"],
+        "Second and Attic Floor": ["2", "attic"],
+        "2nd floor": ["2"],
+        "Floors 2-4": ["2", "3", "4"],
+    }
+    for words, keys in cases.items():
+        found = _floors(Sheet(drawing_id="d", page=1, name=words + ".png"))
+        assert sorted(found) == sorted(keys), words
+
+
+def test_the_confirmation_runs_wrong_pairings_are_refused() -> None:
+    # building 855: a plan of floors 2-7 against the first floor electrical and the roof plumbing
+    plan = "Capehart Apartment Building 855 New Work Plan - Second Thru Seventh Floors.png"
+    first = "Building 855 Capehart Apartment First Floor Plan - Electrical.png"
+    found = named(plan, first, disciplines=("electrical",))
+    assert isinstance(found, str) and found.startswith("another floor")
+    found = named(plan, "Renovation of Capehart Apartment Building 855 Roof Plan Plumbing.png",
+                  disciplines=("plumbing",))  # fmt: skip
+    assert isinstance(found, str) and found.startswith("another floor")
+    # building 928: a roof plan against first and second floor HVAC
+    found = named(
+        "Building 928 Architectural Equipment, Roof Plans - Shop Building, June 20, 1984.png",
+        "Building 928 Heating, Ventilation, Air Conditioning First and Second Floors Plans Shop "
+        "Building, June 20, 1984.png",
+    )
+    assert isinstance(found, str) and found.startswith("another floor")
+    # building 333: an attic is not the roof
+    found = named(
+        "Building 333 Exterior Rehabilitation Projects Architectural Roof Plan, July 2, 1991.png",
+        "Building 333 Electrical Attic Space Power and Lighting Plan.png",
+        disciplines=("electrical",),
+    )
+    assert found == "another floor: 'Attic' against 'Roof'"

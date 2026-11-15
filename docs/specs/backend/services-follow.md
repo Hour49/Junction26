@@ -252,8 +252,10 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
   folders only refuse: a set's folder such as "B1/" is on every floor's sheet, so floor words in folders that
   differ refuse, as "OG 1/" against "EG/", and equal ones agree on nothing): floor words (EG, Erdgeschoss, ground floor, GF → 0; OG 1, 1. OG, floor 1, level 1, 1st floor, first floor, L1 → 1;
   UG, KG, basement, B1, B01 → -1; level codes E00, E01 → 0, 1, read from the title's floor and from inside a file
-  name, never as a sheet number nor as a file name's first word ("E01 Elektro.png" is the first electrical sheet); DG, roof,
-  attic → roof) and the sheet number's part after its discipline letters
+  name, never as a sheet number nor as a file name's first word ("E01 Elektro.png" is the first electrical sheet); DG,
+  attic, ullakko → attic; roof → roof, a floor of its own; floors listed or ranged in words, "Basement, First and
+  Second Floor" → -1, 1, 2, "Second Thru Seventh Floors" → 2..7, "Floors 2-4" → 2, 3, 4) and the sheet number's
+  part after its discipline letters
   (A-101 / H-101 → 101). A floor word both sides name agrees ("same floor: 'Floor 1' on both"), equal number parts
   agree ("sheet numbers A-101 / H-101"). Floor words that differ refuse ("another floor: 'Floor 2' against
   'Floor 1'"), also when another floor word both name agrees (a building folder "B1/" shared by every floor of the
@@ -264,7 +266,9 @@ the reason it is refused. Metadata first, cheapest first, then geometry:
   (rotation and scale, Madalina's side) plugs in here.
 - Metadata agrees and it is laid over: `metadata`, score 0.9, both reasons. Metadata agrees, not laid over, both
   sheets have a scale and the same size within 2 %: `metadata`, score 0.7, laid over page to page. Metadata agrees
-  and neither: refused, "same floor (…), but it cannot be laid over the plan: <why>". No hint either way and laid
+  and neither: refused, "same floor (…), but it cannot be laid over the plan: <why>". No hint either way, but a sheet's name says a floor that no rule reads ("Upper Floors", "Typical Floor",
+  "Mezzanine Floor"): refused, "the plan names a floor that is not read ('Upper Floors'): no floor to pair on" (or
+  "the services picture names …"), since geometry alone would pick a floor the words may contradict. No hint either way and laid
   over: `geometry`, score 0.6. No hint and not laid over: refused with the register's reason.
 - One set only: when both upload paths sit in a top-level folder and the folders differ, the sheet is refused
   ("another set: folder 'B' against 'A'"), unless both folders are named by discipline (Architektur, HVAC, LVI,
@@ -370,6 +374,16 @@ Pairing (tests in `tests/test_services_pairing.py`):
 - **SFP-28** "Projekt/OG 1/Grundriss.pdf" against "Projekt/EG/Heizung.png" is refused "another floor: 'EG' against
   'OG 1'"; against "Projekt/OG 1/Heizung.png" it pairs by `geometry`, not by the folder
   (`test_floor_words_in_folders_refuse_when_they_differ`).
+- **SFP-29** "Upper Floors Plan" against a first floor heating sheet is refused, the plan naming a floor that is not
+  read; "Typical Floor" on the services picture likewise; "Floor Plan" alone names no floor and pairs by `geometry`
+  (`test_a_floor_the_name_says_but_pairing_cannot_read_refuses_instead_of_geometry`).
+- **SFP-30** Lists, ranges and plurals are read: "Second Thru Seventh Floors" 2..7, "First and Second Floors Plans"
+  1, 2, "Basement, First and Second Floor" -1, 1, 2, "Second and Attic Floor" 2, attic, "Floors 2-4" 2..4
+  (`test_floor_lists_ranges_and_plurals_are_read`).
+- **SFP-31** The confirmation run's 10 wrong pairings (USCG Governors Island) are refused: building 855's floors 2-7
+  plan against its first floor electrical and roof plumbing, building 928's roof plan against first and second floor
+  HVAC, building 333's roof plan against its electrical attic, "another floor: 'Attic' against 'Roof'"
+  (`test_the_confirmation_runs_wrong_pairings_are_refused`).
 
 **The picture's own geometry (W2, `.agents` brief pics-edit-follow).** A lane a picture checked also carries
 `picture`: the discipline sheet it was read from (`drawing_id`, `page`), the `pairing` that took that sheet to be the

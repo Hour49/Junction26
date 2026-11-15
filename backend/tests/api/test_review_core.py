@@ -616,6 +616,7 @@ def asked_flagged(
     *,
     raster: bool = False,
     no_reader: bool = False,
+    no_symbols: str | None = None,
 ) -> Asked:
     return ask(
         text,
@@ -627,6 +628,7 @@ def asked_flagged(
         flags=flags,
         raster=raster,
         no_reader=no_reader,
+        no_symbols=no_symbols,
     )
 
 
@@ -711,6 +713,60 @@ def test_a_flagged_photo_s_answers_carry_the_flag_as_an_estimate() -> None:
         assert found.answer.estimate is True
     plain = asked_flagged("How many doors are there?", drawing, ())
     assert plain.row is not None and plain.row.status == "single" and plain.row.estimate is None
+
+
+# triage.sheet_flag on T3 (USACE M-101A piping plan): what asked_on adds to the page's flags
+SERVICES_FLAG = (
+    "the sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+    "electrical plan"
+)
+
+
+def test_a_sheet_triage_is_sure_is_a_services_plan_refuses_door_and_fixture_counts() -> None:
+    """R3-C3/B7 (Tudor's QA round 3): T3, a piping plan the sheet-kind step flagged, answered
+    "6 toilets" (1 WC + 5 marks on filter-separator tanks) with only an estimate note. When
+    triage is sure it is a services plan (`no_symbols`: triage.symbols_refused), a symbol is not a
+    door or a fixture, so those counts are refused with the flag's words; rooms are still
+    answered, flagged. Any other flag, the sheet flag too, keeps the count, flagged (review-596:
+    refusing on every doubted kind hit 30 of 327 real plans)."""
+    toilets = tuple(Element(id=f"e{at}", class_="toilet", page=1, box=BOX_A) for at in range(1, 7))
+    door = Element(id="d1", class_="door", page=1, box=BOX_B)
+    drawing = photo(
+        Room(id="r1", type="bathroom", page=1, box=BOX_B), elements=(*toilets, door)
+    ).model_copy(update={"read": ("door", "window", "toilet", "sink", "room")})
+    for text in (
+        "How many toilets are there?",
+        "How many doors are there?",
+        "How many sinks are there?",
+        "How many windows are there?",
+    ):
+        for flags in ((SERVICES_FLAG,), (PHOTO_FLAG, SERVICES_FLAG)):
+            found = asked_flagged(text, drawing, flags, raster=True, no_symbols=SERVICES_FLAG)
+            assert found.row is None and found.refusal is not None, (text, flags)
+            assert found.refusal.code == "not-in-drawing", (text, flags)
+            assert found.refusal.text == (
+                "The sheet may not be a floor plan: it looks like a piping, plumbing, "
+                "ventilation or electrical plan, so its symbols are not counted as doors, "
+                'windows or fixtures. If it is a floor plan, use "Read it as a floor plan" on '
+                "its file."
+            ), (text, flags)
+    rooms = asked_flagged(
+        "How many bathrooms are there?", drawing, (SERVICES_FLAG,), raster=True,
+        no_symbols=SERVICES_FLAG,
+    )  # fmt: skip
+    assert rooms.refusal is None and rooms.answer.answer == 1
+    assert rooms.row is not None and rooms.row.estimate is not None
+    assert SERVICES_FLAG in rooms.row.estimate
+    # The sheet flag alone (a doubted evacuation plan, a map): the count, flagged
+    warned = asked_flagged("How many toilets are there?", drawing, (SERVICES_FLAG,), raster=True)
+    assert warned.refusal is None and warned.answer.answer == 6
+    assert warned.row is not None and warned.row.estimate is not None
+    assert SERVICES_FLAG in warned.row.estimate
+    # Another flag (a photo) keeps its counts, flagged; no flag (read as a plan): plain counts
+    photo_only = asked_flagged("How many toilets are there?", drawing, (PHOTO_FLAG,), raster=True)
+    assert photo_only.refusal is None and photo_only.answer.answer == 6
+    plain = asked_flagged("How many toilets are there?", drawing, (), raster=True)
+    assert plain.refusal is None and plain.answer.answer == 6
 
 
 def test_a_printed_label_with_digits_names_its_room_only_as_printed() -> None:
@@ -1530,3 +1586,42 @@ def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
     unlabelled = dining.model_copy(update={"label": None})
     plain = living.model_copy(update={"label": None})
     assert asked("What is the area of the living room?", scaled(plain, unlabelled)).refusal
+
+
+def test_a_room_count_read_off_a_scan_says_it_counts_only_the_rooms_found() -> None:
+    """Tudor's QA round 3 R3-G3/R3-G2: on a scan the room count led with the reader's total (36
+    rooms where 100+ are drawn, room numbers 1, 4, 20, 28 missing; 28 where the sheet prints 48)
+    as if it were all of them. A count of rooms a reader picked off a picture is partial, as the
+    area total over the same rooms already was: Low, in words that say what it counts and which
+    room numbers between the ones found were not read."""
+    rooms = tuple(
+        Room(id=f"r{n}", type="other", label="DORM", page=1, box=BOX_A if n % 2 else BOX_B,
+             attrs={"number": str(n), "reader": "gemini"})
+        for n in (2, 3, 5, 6, 7, 8, 9, 10)
+    )  # fmt: skip
+    drawing = Drawing(
+        file="scan.png", pages=(PAGE,), scale=Scale(status="estimated", m_per_unit=0.05),
+        rooms=rooms, elements=(Element(id="e1", class_="door", page=1, box=BOX_A),),
+    )  # fmt: skip
+    got = ask(
+        "How many rooms are there?", drawing, parser=TemplateParser(), clock=lambda: 0.0,
+        prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=True, route="raster",
+    )  # fmt: skip
+    assert got.answer.answer == 8 and got.answer.sure is False
+    assert got.partial is not None and got.level is not None and got.level.level == "low"
+    said = (
+        "These are the 8 rooms the reader found; rooms it missed are not counted. "
+        "Room numbers it did not find between them: 1 and 4."
+    )
+    assert said in got.level.text
+    assert got.check is not None and said in got.check.reason
+    # rooms drawn on a vector sheet are all of them: no partial, as before
+    drawn = drawing.model_copy(
+        update={"rooms": tuple(r.model_copy(update={"attrs": {"number": r.attrs["number"]}})
+                               for r in rooms)}
+    )  # fmt: skip
+    got = ask(
+        "How many rooms are there?", drawn, parser=TemplateParser(), clock=lambda: 0.0,
+        prior=NoPrior(), state=ReviewState(), check=LOW_POLICY, raster=False, route="vector",
+    )  # fmt: skip
+    assert got.partial is None

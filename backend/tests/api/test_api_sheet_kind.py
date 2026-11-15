@@ -19,14 +19,22 @@ from test_sheet_kind import PIPING, PLAN, STRUCTURAL_UNSURE, reply
 from test_vector_pdf import swiss_sheet
 
 from app.adapters.extraction_v1 import ExtractionV1Writer
+from app.adapters.pipeline_tools import PipelineStore, run_pipeline_tool
 from app.adapters.triage.sheet_kind import MODEL, PROMPT_SHA
 from app.composition import _triage, build_ingest, uses_keys  # pyright: ignore[reportPrivateUsage]
-from app.core.drawing.model import Drawing, Element, Scale
+from app.core.drawing.model import Drawing, Element, Room, Scale
 from app.core.pipeline.model import Page
 from app.main import create_app
 from app.settings import Settings
 
 DOORS = "How many doors are there?"
+KITCHENS = "How many kitchens are there?"
+# What /ask says to DOORS on a sheet the step flagged as a piping plan (R3-C3)
+NOT_COUNTED = (
+    "The sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+    "electrical plan, so its symbols are not counted as doors, windows or fixtures. If it is a "
+    'floor plan, use "Read it as a floor plan" on its file.'
+)
 ROOF = "What colour is the roof?"
 
 
@@ -58,7 +66,8 @@ def network(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 def seeded(settings: Settings, tmp_path: Path, **more: Any) -> TestClient:
     """SHEET_KIND=carbon with the replies of PIPING_PNG, DOUBT_PNG and PLAN_PNG in its cache, and
-    a raster reader that finds one door on every file of NAMES (so an answer has a value)."""
+    a raster reader that finds one door and one kitchen on every file of NAMES (so an answer has
+    a value)."""
     cache = tmp_path / "sheet-kind"
     cache.mkdir()
     for data, found in ((PIPING_PNG, PIPING), (DOUBT_PNG, STRUCTURAL_UNSURE), (PLAN_PNG, PLAN)):
@@ -66,18 +75,20 @@ def seeded(settings: Settings, tmp_path: Path, **more: Any) -> TestClient:
         (cache / name).write_text(json.dumps(reply(found)))
     arm = tmp_path / "arm"
     door = Element(id="d1", class_="door", page=1, box=(0.1, 0.1, 0.2, 0.3))
+    kitchen = Room(id="r1", type="kitchen", page=1, box=(0.3, 0.1, 0.6, 0.6))
     writer = ExtractionV1Writer(arm, dict.fromkeys(NAMES, "dev"))
     for path in NAMES:
         page = Page(page=1, width=800, height=400, unit="px")
         writer.write(Drawing(file=path, pages=(page,), scale=Scale(status="no_scale"),
-                             elements=(door,), read=("door",)))  # fmt: skip
+                             rooms=(kitchen,), elements=(door,),
+                             read=("door", "room")))  # fmt: skip
     changed = settings.model_copy(
         update={
             "sheet_kind": "carbon",
             "sheet_kind_cache_dir": cache,
             "gemini_api_key": SecretStr("test-key-not-real"),
             "extractor_raster": "composite",
-            "raster_components": f"elements=dir:{arm},plans=dir:{arm}",
+            "raster_components": f"elements=dir:{arm},rooms=dir:{arm},plans=dir:{arm}",
             **more,
         }
     )
@@ -143,7 +154,7 @@ def test_a_doubtful_sheet_is_read_and_each_answer_with_a_value_says_so(
     )
     assert files["doubt.png"]["state"] == "flagged" and line in files["doubt.png"]["reason"]
     assert files["doubt.png"]["triage"]["sheet"]["decision"] == "doubt"
-    answer = ask(client, found, "doubt.png", DOORS)
+    answer = ask(client, found, "doubt.png", DOORS)  # not an mep_plan: warn-only (review-596)
     assert answer["answer"] == 1
     assert answer["explanation"] == f"read from a page flagged at upload: {line}"
     assert answer["line"]["explanation"] == answer["explanation"]
@@ -205,7 +216,9 @@ def test_warn_only_reads_the_piping_plan_and_its_answers_name_the_kind(
         "mep_plan",
     )
     assert (sheet["title"], sheet["sheet_number"]) == ("PIPING PLAN", "M-101A")
-    answer = ask(client, found, "piping.png", DOORS)
+    doors = ask(client, found, "piping.png", DOORS)
+    assert doors["answer"] is None and doors["refusal"]["text"] == NOT_COUNTED  # R3-C3
+    answer = ask(client, found, "piping.png", KITCHENS)
     assert answer["answer"] == 1
     assert answer["explanation"] == (
         "read from a page flagged at upload: the sheet may not be a floor plan: it looks like a "
@@ -234,7 +247,8 @@ def test_a_warn_only_non_plan_sheet_is_flagged_so_its_answers_ask_and_are_low(
         "electrical plan"
     )
     assert files["piping.png"]["state"] == "flagged" and flag in files["piping.png"]["reason"]
-    piping = ask(client, found, "piping.png", DOORS)
+    assert ask(client, found, "piping.png", DOORS)["refusal"]["text"] == NOT_COUNTED  # R3-C3
+    piping = ask(client, found, "piping.png", KITCHENS)
     assert piping["answer"] == 1
     assert piping["check"] is not None and piping["level"]["level"] == "low"
     assert piping["level"]["basis"] == "page"
@@ -276,7 +290,7 @@ def test_the_flag_follows_the_projects_triage_when_the_reading_is_reused(
         "electrical plan"
     )
     assert piping["reason"].startswith(f"{flag}; ")
-    answer = ask(on, found, "piping.png", DOORS)
+    answer = ask(on, found, "piping.png", KITCHENS)
     assert answer["explanation"] == f"read from a page flagged at upload: {flag}"
     assert answer["level"]["basis"] == "page" and answer["check"] is not None
     issues = on.get(f"/api/projects/{found['id']}/issues").json()["issues"]
@@ -304,4 +318,34 @@ def test_a_person_reading_a_flagged_doubt_as_a_plan_clears_the_flag(
     assert answer["answer"] == 1 and answer["explanation"] is None
     assert answer["level"]["basis"] != "page"
     assert read_as_plan(client, found, "piping.png").status_code == 409  # once
+    assert network == []
+
+
+def test_list_drawings_gives_the_chat_what_the_sheet_kind_step_called_each_sheet(
+    settings: Settings, tmp_path: Path, network: list[str]
+) -> None:
+    """R3-G4 (Tudor's QA round 3): "What kind of drawing is this?" on T3, a piping plan the step
+    flagged, was answered "a raster floor plan": list_drawings gave triage class floor_plan (a
+    doubt is read) and the raster route, never the step's kind or the sheet's title. It now
+    gives both, with the flag; a plain plan says it looks like one."""
+    client = seeded(settings, tmp_path, sheet_kind_set_aside=False)
+    found = project(client, {"piping.png": PIPING_PNG, "plan.png": PLAN_PNG})
+    store = PipelineStore.of_app(client.app, found["id"])
+    listed = {d["name"]: d for d in json.loads(run_pipeline_tool(store, "list_drawings", "{}"))}
+    piping = listed["piping.png"]["triage"]["sheet"]
+    assert piping == {
+        "looks_like": "a piping, plumbing, ventilation or electrical plan",
+        "decision": "doubt",
+        "title": "PIPING PLAN",
+        "sheet_number": "M-101A",
+        "printed_scale": None,
+        "seen": "a sheet",
+        "flag": (
+            "the sheet may not be a floor plan: it looks like a piping, plumbing, ventilation or "
+            "electrical plan"
+        ),
+    }
+    plan = listed["plan.png"]["triage"]["sheet"]
+    assert plan["looks_like"] == "a floor plan" and plan["flag"] is None
+    assert plan["printed_scale"] == "1:100" and plan["decision"] == "read"
     assert network == []
