@@ -458,6 +458,46 @@ def test_which_drawing_has_the_largest_room_is_not_a_drawing_total() -> None:
     assert plan(message) == ("ask_drawings", {"question": message})
 
 
+def test_review_483_a_number_of_things_is_counted_not_a_floor_area() -> None:
+    """qa-c review of #483 (MUST 2): 'the largest number of rooms' was asked as each drawing's
+    floor area and answered as one. Area wording is asked once as a total (SHOULD 2)."""
+    asks = {
+        "Which drawing has the largest number of rooms?": "How many rooms?",
+        "Which plan has the smallest count of doors?": "How many doors?",
+        "Which drawing has the largest total area?": "What is the total area?",
+        "Which drawing has the least floor area?": "What is the total floor area?",
+        "Which drawing has the most floor area?": "What is the total floor area?",
+    }  # fmt: skip
+    assert {message: plan(message)[1]["question"] for message in asks} == asks
+    rooms = {
+        "answered": [
+            {"drawing": "a.pdf", "answer": 5, "unit": "count", "ev": "ev_1"},
+            {"drawing": "b.pdf", "answer": 9, "unit": "count", "ev": "ev_2"},
+        ]
+    }
+    _, args = plan("Which drawing has the largest number of rooms?", ("ask_drawings", {}, rooms))
+    assert args["text"] == "b.pdf has the largest number of rooms: 9 [ev_2]."
+
+
+def test_review_483_ties_read_as_a_list_and_feet_are_compared_in_metres() -> None:
+    """qa-c review of #483 (SHOULD 1, 3): three tied drawings read "a, b and c"; an answer in ft²
+    is compared in m² (100 ft² = 9.29 m² is smaller than 10 m²), and the unit is said."""
+    tied = {"answered": [{"drawing": d, "answer": 2, "unit": "count", "ev": f"ev_{n}"}
+                         for n, d in enumerate(["a.pdf", "b.pdf", "c.pdf"], 1)]}  # fmt: skip
+    _, args = plan("Which plan has the most doors?", ("ask_drawings", {}, tied))
+    assert args["text"] == "a.pdf, b.pdf and c.pdf have the most doors: 2 [ev_1][ev_2][ev_3]."
+    mixed = {
+        "answered": [
+            {"drawing": "a.pdf", "answer": 100, "unit": "ft2", "ev": "ev_1"},
+            {"drawing": "b.pdf", "answer": 10, "unit": "m2", "ev": "ev_2"},
+        ]
+    }
+    _, args = plan("Which drawing has the largest floor area?", ("ask_drawings", {}, mixed))
+    assert args["text"] == "b.pdf has the largest floor area: 10 m² [ev_2]."
+    _, args = plan("Which drawing has the smallest floor area?", ("ask_drawings", {}, mixed))
+    assert args["text"] == "a.pdf has the smallest floor area: 9.29 m² [ev_1]."
+
+
 def test_the_lead_sentence_does_not_count_the_drawings() -> None:
     """Mada's #430 look-check: "The drawing answers this below" with four drawings answering."""
     parts = [{"drawing_id": f"{DRAWING[:-1]}{n}", "name": f"{n}.pdf", "answer": {

@@ -54,6 +54,10 @@ WHICH = re.compile(
     r"|least)\b(?P<what>[^?]*)"
 )
 BIGGER = {"largest": "largest", "biggest": "largest", "smallest": "smallest"}
+NUMBER_OF = re.compile(r"^(?:total\s+)?(?:number|count|amount)\s+of\s+(?P<things>.+)$")
+# an answer in feet is compared in metres (review-483); the unit said after the winning value
+METRIC = {"ft2": ("m2", 0.09290304), "ft": ("m", 0.3048)}
+SAID_UNIT = {"m2": " m²", "m": " m", "m3": " m³"}
 LOAD = (
     "These drawings do not say which walls carry load. A structural drawing, a building model "
     "that marks load-bearing walls, or a structural engineer would settle it."
@@ -656,11 +660,17 @@ def _which(words: str) -> tuple[str, str, bool] | None:
     word = found["word"]
     what = re.sub(r"^\s*(?:the\s+)?|\s+$", "", found["what"])
     top = word in ("largest", "biggest", "most")
+    said = BIGGER.get(word, word)
+    if number := NUMBER_OF.match(what):
+        things = number["things"]
+        return f"How many {things}?", f"the {said} number of {things}", top
+    if "area" in what:
+        what = re.sub(r"^total\s+", "", what)
+        return f"What is the total {what}?", f"the {said} {what}", top
     if word in BIGGER:
         if ROOM_WORD.search(what):
             return None
-        what = what if what and "area" in what else "floor area"
-        return f"What is the total {what}?", f"the {BIGGER[word]} {what}", top
+        return "What is the total floor area?", f"the {said} floor area", top
     if not what:
         return None
     return f"How many {what}?", f"the {word} {what}", top
@@ -668,20 +678,35 @@ def _which(words: str) -> tuple[str, str, bool] | None:
 
 def _compared(answered: list[Json], named: str, top: bool) -> tuple[str, Json]:
     """The drawing (or tied drawings) with the largest or smallest answer, cited."""
-    given = [a for a in answered if isinstance(a.get("answer"), (int, float))]
+    given = [_metric(a) for a in answered if isinstance(a.get("answer"), (int, float))]
     if not given:
         return _final("dont_know", "No drawing gives a number for it.")
+    units = sorted({str(a.get("unit")) for a in given})
+    if len(units) > 1:
+        return _final("dont_know", f"The drawings answer in different units ({', '.join(units)}).")
     best = (max if top else min)(a["answer"] for a in given)
     winners = [a for a in given if a["answer"] == best]
-    names = " and ".join(str(a["drawing"]) for a in winners)
+    named_all = [str(a["drawing"]) for a in winners]
+    names = (
+        named_all[0] if len(named_all) == 1 else f"{', '.join(named_all[:-1])} and {named_all[-1]}"
+    )
     verb = "have" if len(winners) > 1 else "has"
-    unit = " m²" if winners[0].get("unit") == "m2" else ""
+    unit = SAID_UNIT.get(str(winners[0].get("unit")), "")
     evidence = [str(a["ev"]) for a in winners if a.get("ev")]
     cites = "".join(f"[{ev}]" for ev in evidence)
     text = f"{names} {verb} {named}: {best:g}{unit}{' ' + cites if cites else ''}."
     if len(given) == 1:
         text += " It is the only drawing that answers."
     return _final("answer", text, evidence)
+
+
+def _metric(answered: Json) -> Json:
+    """An `answered` line in metres: ft² and ft converted, rounded as the card shows them."""
+    unit = str(answered.get("unit"))
+    if unit not in METRIC:
+        return answered
+    metric, factor = METRIC[unit]
+    return {**answered, "answer": round(answered["answer"] * factor, 2), "unit": metric}
 
 
 def _answer(found: Json) -> tuple[str, Json]:
