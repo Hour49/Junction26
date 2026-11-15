@@ -231,3 +231,26 @@ def wc_room(untyped: int = 0) -> ServicesModel:
         for i, (kind, name) in enumerate(WC_ROOM_FIXTURES)
     ]  # fmt: skip
     return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *fixtures]})
+
+
+# DigitalHub's flow controllers on B01 and E00 (services models built from its lft and hzg IFCs,
+# 2026-11-15): IfcDamper B01 2 FIREDAMPER + 5 RELIEFDAMPER, E00 5 FIREDAMPER (Brandschutzklappe);
+# IfcValve E00 8 ISOLATING + 12 untyped (B01's 25 valves are 4 here).
+DAMPERS = [("L1", "FIREDAMPER")] * 2 + [("L1", "RELIEFDAMPER")] * 5 + [("L2", "FIREDAMPER")] * 5
+VALVES = [("L1", "STOPCOCK")] * 4 + [("L2", "ISOLATING")] * 8 + [("L2", None)] * 12
+
+
+def controllers(lane: str) -> ServicesModel:
+    """The two-room fixture with DigitalHub's storeys L1 "B01_OKRD" and L2 "E00_OKRD" and its
+    flow controllers: lane "ventilation" its dampers (E400...), else its valves."""
+    doc = two_rooms().model_dump(mode="json", by_alias=True)
+    level = doc["storeys"][0]
+    doc["storeys"] = [{**level, "name": "B01_OKRD"},
+                      {**level, "id": "L2", "name": "E00_OKRD", "elevation_m": 3.5}]  # fmt: skip
+    kind, name = ("damper", "Brandschutzklappe") if lane == "ventilation" else ("valve", "Ventil")
+    more = [
+        _element(f"E{400 + i}", kind, "flow_controller", name, "", storey=storey,
+                 predefined=predefined, at=(1.0 + 0.1 * i, 2.0, 2.5), discipline=lane)
+        for i, (storey, predefined) in enumerate(DAMPERS if lane == "ventilation" else VALVES)
+    ]  # fmt: skip
+    return ServicesModel.model_validate({**doc, "elements": [*doc["elements"], *more]})
