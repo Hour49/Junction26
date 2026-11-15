@@ -491,6 +491,13 @@ Acceptance criteria
   a drawing whose route's reader in `project.readers` is `hello` is not ready (the same rule as the Simple view's
   IN-116). On `project.json` (raster = hello) it reads "4 / 6", was "6 / 6" (AV-17's test changed with it).
   [component `AdvancedIngest.test.tsx`]
+- AD-124 (real-data screenshots, 2026-11-15): A long path in the file matrix (the file's link and "read with <file>")
+  keeps its file name whole and lets the muted folder give way first, as the Simple view's IN-113 (`splitPath` from
+  `RouteLanes.tsx`); the link's name and title stay the full path, and the file column is as wide as the longest
+  path, at most 45 % of the row. The Index step's "Questions ready to ask" lists
+  only the drawings with questions, then one line for the rest ("12 drawings have none yet"); it was one row per
+  drawing, 12 of 13 real ones reading "0 questions ready to ask". [component `FileMatrix.test.tsx`,
+  `AdvancedIngest.test.tsx`; screenshots at 1440 and 390]
 
 ## Not in the API
 
