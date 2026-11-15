@@ -329,5 +329,9 @@ describe('ProgressCard: pipeline view v5', () => {
       [...document.querySelectorAll('.ingest-stats dt')].find((d) => d.textContent === 'Flagged'),
     );
     expect(must(flagged.nextElementSibling).textContent).toBe('0');
+    // the lane headers: the drawn PDF was read, the PNG on the image route was not
+    expect(lane('Drawn PDF').textContent).toContain('1 file · 1 drawing read');
+    expect(lane('Image').textContent).toContain('1 file');
+    expect(lane('Image').textContent).not.toContain('drawing read');
   });
 });
