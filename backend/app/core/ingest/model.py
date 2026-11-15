@@ -22,6 +22,9 @@ ProjectState = Literal["queued", "running", "done", "failed"]
 # What Gemini Carbon read of a raster drawing: its elements (CARBON_READER sent it to Carbon), or
 # another part a composite takes from the `carbon` source (rooms, plans, scale, a class)
 CarbonRead = Literal["elements", "part"]
+# why a second file at a path the upload already used is set aside, at a free name ("plan-2.png"):
+# a name the user never gave, so the evidence index does not list it (fix/dup-path)
+SECOND_PATH = "a second file at a path"
 # The reading flags (judge.reading_flags) that say Carbon read the page. Carbon counted the
 # drawing's elements (CARBON_READER); review/ask.py reads this flag as "a class Carbon counted and
 # found none of is a read 0" (brief r8 BD), so it is never set for a part
@@ -118,6 +121,9 @@ class Probed(Frozen):
     kind: ContentKind
     did: str
     pages: tuple[LaterPage, ...] = ()  # a multi-page PDF's later drawn pages, in page order
+    # A PDF longer than the probe looks at: (the last page looked at, its page count); the file's
+    # reason says the rest were not read. None: every page was looked at.
+    cut: tuple[int, int] | None = None
     # The sheet-kind signal's P(a plan, drawn or photographed) when the probe got a reply for this
     # file; None: not asked, or no reply. Triage's classifier reads it, so it never asks again.
     p_plan_sheet: float | None = Field(default=None, ge=0, le=1)

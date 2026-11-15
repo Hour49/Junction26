@@ -9,6 +9,10 @@ spaces against the centres of the rooms the sheet draws (services.model.fit_fram
 was not drawn from a model, a sheet the model does not fit, or a service model without the
 sheet's storey is not followed, and its lanes say why.
 
+A plan that was not drawn from a model can still be followed on the project's services pictures
+(`pictures`: a drawing's services fact sheet, the picture readers'): a lane such a picture gives
+replaces that lane's "not checked" (services.picture_follow).
+
 `run` never raises: a model that cannot be read leaves its lanes "not checked" with the reason,
 and the edit itself is returned as it was.
 """
@@ -30,7 +34,7 @@ from app.adapters.pipeline_tools import (
 from app.adapters.plan_tools import plan_page
 from app.api.views import drawings_of
 from app.core.errors import DomainError
-from app.core.ifc_facts import Discipline
+from app.core.ifc_facts import Discipline, FactSheet
 from app.core.ingest.model import FileStatus
 from app.core.plan_edit.model import Proposal
 from app.core.plan_edit.walls import PlanPage
@@ -44,6 +48,7 @@ from app.core.services.model import (
     ServicesFollow,
     fit_frame,
 )
+from app.core.services.picture_follow import Sheet, picture_follow
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +72,8 @@ class ServiceFollower:
     pipeline: PipelineStore
     files: ServiceFiles
     credit_of: Callable[[int, str], str | None] = lambda size, sha256: None  # a file's credit
+    # A drawing's services fact sheet read from its picture, by drawing id; None: it has none
+    pictures: Callable[[str], FactSheet | None] = lambda drawing_id: None
 
     def run(self, proposal: Proposal) -> tuple[ServicesFollow, dict[str, Any]]:
         """The follow-up for the proposal and what the model reads of it."""
@@ -76,6 +83,10 @@ class ServiceFollower:
             log.exception("services follow failed for proposal %s", proposal.proposal_id)
             why = f"the service models could not be read ({type(error).__name__})"
             followed = _unchecked(dict.fromkeys(LANES, why))
+        try:  # on its own: a picture that fails must not take the model's lanes with it
+            followed = self._with_pictures(proposal, followed)
+        except Exception:
+            log.exception("services pictures failed for proposal %s", proposal.proposal_id)
         return followed, for_model(followed)
 
     def warm(self) -> None:
@@ -146,6 +157,51 @@ class ServiceFollower:
             f"{'were' if left_out > 1 else 'was'} not read: at most {FILES_KEPT} are followed."
         )
         return followed.model_copy(update={"unknowns": (*followed.unknowns, more)})
+
+    def _with_pictures(self, proposal: Proposal, followed: ServicesFollow) -> ServicesFollow:
+        """On a plan not drawn from a model, the lanes the project's services pictures give."""
+        status = _done(self.pipeline, self.pipeline.project_id)
+        if _entry(status, proposal.drawing_id).route == "bim":
+            return followed
+        sheets: list[tuple[Sheet, FactSheet]] = []
+        for drawing_id in dict.fromkeys(f.drawing_id for f in status.files if f.drawing_id):
+            facts = self.pictures(drawing_id)
+            if facts is not None:  # a picture lane reads page 1; the plan's own sheet its page
+                page = proposal.page if drawing_id == proposal.drawing_id else 1
+                sheets.append((self._sheet(drawing_id, page, facts), facts))
+        if not sheets:
+            return followed
+        plan = self._sheet(proposal.drawing_id, proposal.page, self.pictures(proposal.drawing_id))
+        seen = picture_follow(proposal, plan, sheets)
+        lanes = tuple(
+            mine if mine.status != "no_model" else theirs
+            for mine, theirs in zip(seen.disciplines, followed.disciplines, strict=True)
+        )
+        return followed.model_copy(
+            update={
+                "disciplines": lanes,
+                "storey": followed.storey or seen.storey,
+                "unknowns": (*followed.unknowns, *seen.unknowns),
+            }
+        )
+
+    def _sheet(self, drawing_id: str, page: int, facts: FactSheet | None) -> Sheet:
+        """Where a drawing's page lies: its size in metres when it has a scale, its room names
+        at their boxes' centres, the floor its services facts name."""
+        drawing = self.pipeline.ingest.drawing(drawing_id)
+        shown = next((p for p in drawing.pages if p.page == page), None)
+        m = drawing.scale.m_per_unit
+        return Sheet(
+            drawing_id=drawing_id,
+            page=page,
+            storey=next((f.storey for f in facts.facts if f.storey), None) if facts else None,
+            size_m=(shown.width * m, shown.height * m) if shown and m else None,
+            rooms=tuple(
+                (r.label, ((r.box[0] + r.box[2]) / 2, (r.box[1] + r.box[3]) / 2))
+                for r in drawing.rooms
+                if r.page == page and r.label
+            ),
+        )
 
     def _read(self, model: FileStatus) -> ServiceFile:
         assert model.sha256 is not None
@@ -246,4 +302,10 @@ def follower(app: Any, pipeline: PipelineStore) -> ServiceFollower:
     if files is None:
         files = app.state.service_files = ServiceFiles()
     credits = getattr(app.state, "credits", None)
-    return ServiceFollower(pipeline, files, credits.of if credits is not None else lambda *_: None)
+    made = ServiceFollower(pipeline, files, credits.of if credits is not None else lambda *_: None)
+    if pipeline.settings.discipline_pictures != "off":  # the picture lane's kept sheets
+        from app.adapters.discipline_pictures.lane import PictureSheets
+
+        kept = PictureSheets(None, pipeline.settings.discipline_pictures_cache_dir)
+        made.pictures = kept.of_drawings(lambda: _done(pipeline, pipeline.project_id).files)
+    return made

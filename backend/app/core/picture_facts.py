@@ -185,6 +185,24 @@ def kind_of(label: str, group: str | None) -> tuple[str, Discipline] | None:
     return None
 
 
+# A storey as a sheet's title prints it ("2ND FLOOR", "2. krs", "1. OG", "Level 3", "Kellari")
+_STOREY_WORD = (
+    r"floor|level|storey|story|kerros|krs|geschoss|og|ug|etg|etage|étage|vån(?:ing)?|plan|"
+    r"verdieping|piso|planta|piano|korrus"
+)
+_TITLE_STOREY = re.compile(
+    rf"\b(?:\d+\s*\.?\s*(?:st|nd|rd|th)?\s*(?:{_STOREY_WORD})|(?:{_STOREY_WORD})\s*-?\d+"
+    r"|ground\s+floor|basement|kellari|pohjakerros|erdgeschoss|keller(?:geschoss)?|källare)\b",
+    re.I,
+)
+
+
+def storey_of_title(title: str | None) -> str | None:
+    """The storey a sheet's title names, as printed; None when it names none (never guessed)."""
+    found = _TITLE_STOREY.search(title or "")
+    return None if found is None else found[0].strip()
+
+
 # --- double_check -----------------------------------------------------------------------------
 
 
@@ -292,7 +310,6 @@ class _Unit(Frozen):
     readers: tuple[str, ...]  # those that looked for it, the leading one first
     held: bool
     legend: bool  # the leading reading had a legend
-    storey: str | None
 
 
 def _source(readers: Iterable[str], held: bool, legend: bool) -> str:
@@ -324,7 +341,7 @@ def _fact(
         subject=subject,
         value=round(value, 3) if unit == "m" else value,
         unit=unit,
-        storey=units[0].storey,
+        storey=None,  # sheet-wide; picture_facts adds the storey's copies
         system=system,
         discipline=discipline
         or Counter[Discipline](u.discipline for u in units).most_common(1)[0][0],
@@ -344,7 +361,7 @@ def picture_facts(drawing: str, checked: Checked) -> FactSheet:
     readings = checked.readings
     facts: list[Fact] = []
     counted: list[tuple[_Unit, list[Spot]]] = []
-    runs: dict[tuple[str, str | None], list[tuple[_Unit, Run]]] = defaultdict(list)
+    runs: dict[str, list[tuple[str | None, _Unit, Run]]] = defaultdict(list)  # by kind
     for label in sorted({label for r in readings for label in _labels(r)}):
         looked = [r for r in readings if label in _labels(r)]
         lead = looked[0]
@@ -358,14 +375,13 @@ def picture_facts(drawing: str, checked: Checked) -> FactSheet:
             readers=tuple(r.reader for r in looked),
             held=not checked.agreed.get(label, False),
             legend=lead.legend is not None,
-            storey=next((r.storey for r in readings if r.storey), None),
         )
         spots = [s.spot for s in lead.sightings if s.label == label]
         drawn = [run for run in lead.runs if run.label == label]
         if not line and not drawn and (spots or len(looked) > 1):  # a 0 only when both looked
             counted.append((unit, spots))
         if drawn and NO_SCALE not in lead.notes:
-            runs[(unit.kind or "symbol", group or label)] += [(unit, run) for run in drawn]
+            runs[unit.kind or "symbol"] += [(group or label, unit, run) for run in drawn]
     by_kind: dict[str, list[tuple[_Unit, list[Spot]]]] = defaultdict(list)
     by_group: dict[str, list[tuple[_Unit, list[Spot]]]] = defaultdict(list)
     for unit, spots in counted:
@@ -386,8 +402,13 @@ def picture_facts(drawing: str, checked: Checked) -> FactSheet:
         facts.append(
             _fact("category.count", group, len(spots), units, spots, unit="count", discipline=named)
         )
-    for (kind, system), found in runs.items():
-        facts += _run_facts(kind, system, found)
+    for kind, found in runs.items():  # the sheet's runs of a kind, then each system's
+        facts += _run_facts(kind, None, [(unit, run) for _, unit, run in found])
+        for system in dict.fromkeys(system for system, _, _ in found):
+            part = [(unit, run) for named, unit, run in found if named == system]
+            facts += _run_facts(kind, system, part)
+    if storey := next((r.storey for r in readings if r.storey), None):
+        facts += [fact.model_copy(update={"storey": storey}) for fact in facts]
     ranked = Counter[Discipline](f.discipline for f in facts).most_common()
     return FactSheet(model=drawing, disciplines=[d for d, _ in ranked], facts=facts)
 

@@ -13,10 +13,13 @@ passages and vectors (its verdict and JSON are refreshed when they changed); a c
 and embedded again; one no longer in the status is dropped; a change of embedder re-embeds
 everything. Each write is one transaction, so a reader sees the index before or after it, never
 between; an index already in step is never written, so opening it never waits for a writer.
+Writers of one file queue on an in-process lock, because a write holds SQLite's lock while it
+embeds, longer than the busy timeout (K10).
 """
 
 import json
 import sqlite3
+import threading
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -34,6 +37,8 @@ from app.core.evidence.search import first_per_file, passage_id, words
 from app.core.ingest.model import ProjectStatus
 
 FILE = "evidence.sqlite"
+_WRITERS: dict[Path, threading.Lock] = {}  # one writer per index file (this process)
+_WRITERS_GUARD = threading.Lock()
 SCHEMA_VERSION = "2"  # 2: passages.page (sources v2); an older file is migrated on its next sync
 # (embedder name, schema version, {file id: (content hash, verdict, source JSON)})
 Stored = tuple[str | None, str | None, dict[str, tuple[str, str | None, str]]]
@@ -214,6 +219,14 @@ class SqliteEvidenceIndex:
         if not self._differs(reader.stored(), current):
             return
         path = self.path(status.id)
+        with _WRITERS_GUARD:
+            writer = _WRITERS.setdefault(path, threading.Lock())
+        with writer:  # the write transaction spans embedding: others wait here, not in SQLite
+            self._write_locked(status, current, path)
+
+    def _write_locked(
+        self, status: ProjectStatus, current: dict[str, EvidenceSource], path: Path
+    ) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(path, isolation_level=None)  # transactions spelt out below
         try:

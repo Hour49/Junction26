@@ -163,7 +163,10 @@ def test_a_label_that_maps_to_no_kind_is_a_symbol_count() -> None:
     facts = picture_facts("d1", double_check(first, second)).facts
 
     logo = [f for f in facts if f.subject == "Logo"]
-    assert [(f.topic, f.value) for f in logo] == [("symbol.count", 1)]
+    assert [(f.topic, f.value, f.storey) for f in logo] == [
+        ("symbol.count", 1, None),  # the sheet's, then its storey's copy (the title's storey)
+        ("symbol.count", 1, "2. krs"),
+    ]
 
 
 # --- AC-5 what was read ---------------------------------------------------------------------------

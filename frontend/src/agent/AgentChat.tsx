@@ -512,7 +512,8 @@ export function AgentChat({ projectId, query }: { projectId: string; query?: URL
   }
   return split(
     <div className="en-page en-chat">
-      <h1 className="en-sr">{project.name}</h1>
+      {/* W4 (look-check, board #404): the header no longer names the project; the thread does, small */}
+      <h1 className="m-0 truncate text-sm font-semibold text-muted-foreground">{project.name}</h1>
       {photo.line}
       <section className="en-thread" aria-label="Chat" ref={thread}>
         {rows.map(row)}

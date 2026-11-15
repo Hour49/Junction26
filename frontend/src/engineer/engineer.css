@@ -16,7 +16,8 @@
   flex-direction: column;
   gap: 20px;
 }
-.en-turn {
+.en-turn,
+.en-turn-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -674,7 +675,8 @@ button.en-ref:hover,
 }
 .en-chatcard {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px; /* ui-bugs 9: the image gets the space */
+  /* W2: one column; the one drawing card sits under its image, not in a half-empty side column */
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
 }
 .en-chatcard p {
@@ -779,7 +781,7 @@ button.en-cref {
   font-size: 14px;
 }
 .en-chatcard .en-side {
-  padding: 16px;
+  padding: 0;
   gap: 10px;
 }
 .en-parts li {
