@@ -2,7 +2,7 @@
 0017), in decision 0013's tool form: OpenAI function-calling JSON in `SERVICES_TOOLS`, and
 `run_services_tool(store, name, arguments)` that returns JSON text and never raises.
 
-    list_services           storeys, systems, terminals, controllers and equipment; a room's walls
+    list_services           storeys, systems, terminals and equipment (valves by kind); walls
     ask_services            one graph operation of ops.py (what feeds, what is cut off, ...)
     propose_move_terminal   a terminal onto another wall of its room, rerouted (edit.py)
     propose_add_terminal    a copy of a terminal's type onto a wall
@@ -77,7 +77,7 @@ BUILDING = "being built from its file now, which takes a minute or a few; ask ag
 # German exports name heating systems H_* (Heizung) or Heiz-/Wärme-: words facts_mep's table lacks
 HEATING_MARKS = ("heiz", "wärme", "waerme")
 WALL_COVER_M = 0.3  # a wall is on a room side when it covers this much of it (edit.py's rule)
-LISTED_GROUPS = frozenset({"flow_terminal", "flow_controller"})  # and equipment (_equipment)
+CONTROLLERS = "flow_controller"  # valves, dampers: listed only when a kind asks for them
 MOUNTED_M = 0.5  # a terminal this close to a room side is mounted on its wall
 
 Op = Literal[
@@ -514,11 +514,12 @@ def _list_one(store: ServicesToolStore, args: Any, limit: int) -> dict[str, Any]
     if room is not None:
         found |= _walls(model, room)
     names = {r.id: r.name for r in model.rooms}
-    listed = [e for e in model.elements if _is_listed(e)]
-    if args.kind is not None and not any(args.kind in (e.kind, e.group) for e in listed):
-        kinds = sorted({e.kind for e in listed})  # R1 services row 7: not a confident 0
+    listable = [e for e in model.elements if _listable(e)]
+    if args.kind is not None and not any(args.kind in (e.kind, e.group) for e in listable):
+        kinds = sorted({e.kind for e in listable})  # R1 services row 7: not a confident 0
         raise ToolError(f"no element of kind {args.kind!r} in this model; its kinds: "
                         f"{', '.join(kinds) or 'none'}")  # fmt: skip
+    listed = [e for e in listable if e.group != CONTROLLERS or args.kind is not None]
     matched = [
         e
         for e in listed
@@ -776,10 +777,11 @@ def _room_words(text: str) -> list[str]:
     return [w for w in re.findall(r"\w+", text.casefold()) if w != "the"]
 
 
-def _is_listed(e: Element) -> bool:
-    """What list_services lists: terminals, flow controllers (valves, dampers: R1 services row 7)
-    and equipment; not the pipes, ducts and fittings between them."""
-    return e.group in LISTED_GROUPS or _equipment(e)
+def _listable(e: Element) -> bool:
+    """What list_services lists: terminals and equipment, and flow controllers (valves, dampers)
+    when a kind asks for them (R1 services row 7; review-699: an unfiltered list stays terminals
+    and equipment, as the tool says); not the pipes, ducts and fittings between them."""
+    return e.group in ("flow_terminal", CONTROLLERS) or _equipment(e)
 
 
 def _equipment(e: Element) -> bool:

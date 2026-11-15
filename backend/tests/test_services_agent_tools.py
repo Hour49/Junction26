@@ -507,8 +507,9 @@ def test_dampers_and_valves_are_listed_and_counted_by_storey() -> None:
     assert fire["count"] == 2, fire
     valves = _run(store, "list_services", drawing_id="hzg", kind="valve", storey="E00_OKRD")
     assert valves["count"] == 20 and valves["by_predefined"] == {"ISOLATING": 8, "untyped": 12}
-    heating = _run(store, "list_services", drawing_id="hzg")
-    assert heating["by_kind"]["valve"] == 24, heating
+    heating = _run(store, "list_services", drawing_id="hzg")  # review-699: as the tool says
+    assert heating["count"] == 3 and "valve" not in heating["by_kind"], heating
+    assert _run(store, "list_services", drawing_id="lft", storey="E00_OKRD")["count"] == 0
 
 
 def test_a_kind_no_listed_element_has_is_an_error_naming_the_kinds_not_a_zero() -> None:
