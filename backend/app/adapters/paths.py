@@ -10,5 +10,6 @@ def inside(root: Path, relative: str) -> Path:
     base = root.resolve()
     target = (base / relative).resolve()
     if not target.is_relative_to(base) or target == base:
-        raise InvalidInputError(f"{relative!r} is not a path inside {root}")
+        # never names `root`: the message can reach a user, and the root is a server path
+        raise InvalidInputError(f"{relative!r} is not a path inside its folder")
     return target
