@@ -487,6 +487,10 @@ Acceptance criteria
 - AD-122 (real traces, 2026-11-15): The file page's Cost fact shows only a cost above zero; a file with no paid call
   has no Cost row (was "$0.00" on every file, IN-32), and an odd last fact spans the grid row. [component
   `FileTraceScreen.test.tsx`]
+- AD-123 (QA R2-A1, 2026-11-15): Extract's **Drawings ready** counts only finished drawings something was read off:
+  a drawing whose route's reader in `project.readers` is `hello` is not ready (the same rule as the Simple view's
+  IN-116). On `project.json` (raster = hello) it reads "4 / 6", was "6 / 6" (AV-17's test changed with it).
+  [component `AdvancedIngest.test.tsx`]
 
 ## Not in the API
 
