@@ -43,6 +43,13 @@ GRAPH_SPREAD = (
 # Only the colour readers: `paths` reads a drawn PDF's lines exactly, and an unscored reader's
 # answer is Low with a double-check anyway (review/ask.py FACTS_LEVEL).
 _SPREADS = {"mask": MASK_SPREAD, "graph": GRAPH_SPREAD}
+# A line style's EN 806 water codes, in the words a question uses: P-101's S_PWC is potable
+# water cold, S_PWH_ potable water hot. Only for matching a picture's run styles to the asked
+# system; discipline.py feeds lane routing and pairing, so it stays as it is (orchestrator 06:05)
+_STYLE_CODES = (
+    (re.compile(r"\bpwc\b", re.I), "cold water"),
+    (re.compile(r"\bpwh\b", re.I), "hot water"),
+)
 # a radiator is an IfcSpaceHeater in a model too; a picture names a switch's kind as IFC does
 SAME_KIND = {"heat_exchanger": "space_heater", "switch": "switching_device"}
 # What a question asks about that is not a drawn thing: never refused as not read
@@ -839,7 +846,7 @@ def _runs_by_system(query: FactQuery, facts: _Facts, storey: str | None) -> str 
         and (
             (
                 query.system is not None
-                and system_from_question(f.system.replace("_", " ")) == query.system
+                and system_from_question(_style_words(f.system)) == query.system
             )
             or re.search(rf"(?<![^\W_]){re.escape(f.system)}(?![^\W_])", query.asked, re.I)
         )
@@ -868,6 +875,14 @@ def _runs_by_system(query: FactQuery, facts: _Facts, storey: str | None) -> str 
     else:
         return None
     return "\n".join([*lines, *_spread(systems)])
+
+
+def _style_words(style: str) -> str:
+    """A line style's name as words for system_from_question: "S_PWC" is "S cold water"."""
+    text = style.replace("_", " ")
+    for code, words in _STYLE_CODES:
+        text = code.sub(words, text)
+    return text
 
 
 def _spread(runs: Sequence[Fact]) -> list[str]:
