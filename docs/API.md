@@ -11345,7 +11345,7 @@ without wall fills) gets `dont_know` saying so.
   "chat_id": "c4a7c0000002",
   "turn": 1,
   "kind": "edit",
-  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 2.5 m, 0.1 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
+  "text": "Proposed: Bagno 1.01 + Stanza 1.02: 20.66 → 21.02 m². Removed: Wall W1, 3.0 m, 0.12 m thick; door, no longer needed. Whether wall W1 is load-bearing: this drawing does not say.",
   "evidence": [
     {
       "n": 1,
@@ -11422,7 +11422,7 @@ without wall fills) gets `dont_know` saying so.
             0.25
           ]
         ],
-        "label": "Wall W1, 2.5 m, 0.1 m thick"
+        "label": "Wall W1, 3.0 m, 0.12 m thick"
       },
       {
         "id": "e1",
@@ -11669,7 +11669,7 @@ unchanged.
           0.25
         ]
       ],
-      "label": "Wall W1, 2.5 m, 0.1 m thick"
+      "label": "Wall W1, 3.0 m, 0.12 m thick"
     },
     {
       "id": "e1",
@@ -12213,7 +12213,12 @@ edits, in order: reject, restore, add, settle, reset one quantity, reset the who
 - Recount: the ingest value minus the rejected marks' values plus the added ones'. A sum with a mark of unknown
   value is not recounted: only `settle` changes it.
 - An edit changes that quantity only: rejecting a mark of `shower` does not change `shower+bathtub`, nor the same
-  door under `door|storey=1`.
+  door under `door|storey=1`. One exception for `settle`: a room's area settled on a row of that one room (its
+  number, name or label) is the room's area on its other rows (`area:room|label=küche`, `…|largest`) and is added
+  into the sums the takeoff computes from rooms (`area:room`, `area:room|indoor`, a label's rooms) when their
+  ingest value is their rooms' sum; those rows read `edited` with that `settled`. A row a person edited or signed
+  off keeps its own (a signed-off row shows the value signed); so do an apartment's area (it may be printed), the
+  largest of several rooms, and a sum with its own conflict or estimate.
 - A signed-off quantity is not edited: 409 until the sign-off is undone (or the quantity reset).
 - Edits are kept on disk per drawing id and survive a restart; the same drawing in another project shows them.
 
