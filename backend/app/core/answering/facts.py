@@ -698,9 +698,9 @@ def _flat_unplaced(asked: str, facts: _Facts) -> bool:
     if flat is None:
         return False
     said = " ".join(_tokens(flat.group(0)))
-    labels = (str(f.value) for f in facts.get("space.long_name", anywhere=True))
-    names = (f.subject for f in facts.get("space.long_name", anywhere=True))
-    return not any(f" {said} " in f" {' '.join(_tokens(n))} " for n in (*labels, *names))
+    spaces = facts.get("space.long_name", anywhere=True)
+    names = [*(str(f.value) for f in spaces), *(f.subject for f in spaces)]
+    return not any(f" {said} " in f" {' '.join(_tokens(name))} " for name in names)
 
 
 def _rooms_said(kinds: Iterable[str]) -> str:
@@ -791,6 +791,11 @@ def _spaces(query: FactQuery, facts: _Facts, storey: str | None) -> str | None:
     where = f" on {_label(storey, facts)}" if storey else ""
     if not chosen:
         return f"No such spaces{where} in this file."
+    if kinds is not None and not picked and not _HOW_MANY.match(query.asked):
+        # a room type no space has: never every space as its answer (review-729 M1)
+        named = " ".join(query.words)
+        said = f"named '{named}' or typed as {_rooms_said(kinds)}"
+        return f"No space{where} in this file is {said} (not available)."
     lines = [missing] if missing else []
     if len(query.words) == 1 and not picked and _HOW_MANY.match(query.asked):
         # "How many offices?" and no space is one: said, then every space

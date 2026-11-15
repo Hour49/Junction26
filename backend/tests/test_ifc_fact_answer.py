@@ -1130,3 +1130,25 @@ def test_how_big_and_the_living_room_give_that_room_type_never_every_space(
     assert said is not None, said
     assert said.splitlines()[0] == f"Spaces typed as {kind} by their names: 1 space", said
     assert name in said and "BAÑ" not in said and "Spaces: " not in said, said
+
+
+@pytest.mark.parametrize(
+    ("text", "said"),
+    [
+        ("What is the area of the living room?", "living room"),
+        ("How big is the bedroom?", "bedroom"),
+        ("What is the area of the kitchen on Level 2?", "kitchen"),
+    ],
+)
+def test_a_room_type_the_model_lacks_is_not_available_never_every_space(
+    text: str, said: str
+) -> None:
+    """Review-729 M1: "What is the area of the living room?" on a model with no living room
+    listed every space as if it were the answer (the "No space ... named" line was said for "How
+    many" only). Its room type is not there: said so, and no space listed."""
+    query = parse_ifc_question(text)
+    assert query is not None
+    answer = fact_text(query, ROOMS)
+    assert answer is not None and answer.startswith("No space"), answer
+    assert f"typed as {said} (not available)" in answer, answer
+    assert "BAÑ" not in answer and "COC" not in answer, answer
