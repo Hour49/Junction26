@@ -66,6 +66,12 @@ CARBON_DOORS_REFUSED = (
     "the sheet prints a scale that could not be read; "
     "a scale from door sizes is not used in its place"
 )
+# Why a camera photo of a sheet (`photo_plan`) has no scale (QA R3-B6, T4: 227 m² off a photo)
+PHOTO_SOURCE = "a camera photo: its perspective and the camera's resolution give it no scale"
+PHOTO_NOTE = (
+    "a camera photo of the sheet: no scale is used on it (its perspective changes the scale "
+    "across the page and its resolution is the camera's, not the paper's), so nothing is measured"
+)
 # A Finnish flat type: 4H+K is four rooms and a kitchen, 3h+k+s three rooms, kitchen and sauna. It
 # names the flat; it does not count the rooms a plan draws (live 2026-11-14: 4H+K against 18 read)
 FLAT_TYPE = re.compile(
@@ -342,6 +348,35 @@ def with_printed(
             ),
         }
     return _label_checked(found.model_copy(update=update), pages)
+
+
+def unmeasured_photo(found: Extracted) -> Extracted:
+    """A camera photo's reading with no scale (QA R3-B6): every room area measured at a scale
+    (estimated or printed) and every scale value goes; areas printed in the rooms' labels and the
+    counts stay. A sheet that says it is not to scale stays so."""
+    cleared = {"area_m2": None, "area_status": None, "area_source": None, "area_uncertainty": None}
+    rooms = tuple(
+        room.model_copy(
+            update={**cleared, "attrs": {k: v for k, v in room.attrs.items() if k != AREA_REFUSED}}
+        )
+        if room.area_source in ("geometry_x_estimate", "geometry_x_scale")
+        or AREA_REFUSED in room.attrs
+        else room
+        for room in found.rooms
+    )
+    scale = (
+        found.scale
+        if found.scale.status == "not_to_scale"
+        else Scale(status="no_scale", text=found.scale.text, source=PHOTO_SOURCE)
+    )
+    notes = (
+        *(n for n in found.notes if not n.startswith(("scale", REFUSED_NOTE, "room area:"))),
+        PHOTO_NOTE,
+    )
+    printed = tuple(m for m in found.printed if m.quantity != "scale")
+    return found.model_copy(
+        update={"scale": scale, "rooms": rooms, "printed": printed, "notes": notes}
+    )
 
 
 def _unestimated(rooms: Sequence[Room]) -> tuple[Room, ...]:

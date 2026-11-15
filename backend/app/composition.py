@@ -79,7 +79,7 @@ from app.adapters.printed_scale import PrintedScale
 from app.adapters.printed_scale.carbon import CarbonPrinted
 from app.adapters.question_templates import TemplateParser
 from app.adapters.raster import RoomPolicy, assemble, parse_components, parse_readers
-from app.adapters.raster.photo import PHOTO, PhotoSwitch
+from app.adapters.raster.photo import PHOTO, PhotoSwitch, PhotoUnmeasured
 from app.adapters.raster.precomputed import PrecomputedExtractor, WholePagePlan
 from app.adapters.raster.room_words import room_word, swiss_label_rooms
 from app.adapters.raster_detector import OnnxDetector
@@ -322,6 +322,7 @@ def build_pipeline(
                         settings,
                         _raster(settings, scans, decisions, kind_of, use_carbon, took),
                         scans,
+                        kind_of,
                     ),
                     files,
                 ),
@@ -989,8 +990,8 @@ def _raster(
             elif use_carbon is not None:
                 read = CarbonSwitch(shipped, _carbon(settings, files, policy), use_carbon)
             if settings.carbon_levels != "off":  # Carbon reading on its own, as integ's test
-                return CarbonChecked(read, _carbon(settings, files, policy))
-            return read
+                read = CarbonChecked(read, _carbon(settings, files, policy))
+            return PhotoUnmeasured(read, kind_of)  # a camera photo keeps no scale (QA R3-B6)
 
 
 def _room_policy(name: RoomPolicyName) -> RoomPolicy:
@@ -1051,7 +1052,12 @@ def _scaled(settings: Settings, inner: Extractor) -> Extractor:
             return PriorScale(inner)
 
 
-def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extractor:
+def _printed(
+    settings: Settings,
+    inner: Extractor,
+    files: DrawingFiles,
+    kind_of: Callable[[str], str | None],
+) -> Extractor:
     """RASTER_PRINTED_SCALE=carbon: the printed scale and counts (app/adapters/printed_scale/),
     read by gemini-4-carbon on the process's spend guard, cached with the Carbon reader's
     replies (its page reply is shared)."""
@@ -1067,7 +1073,8 @@ def _printed(settings: Settings, inner: Extractor, files: DrawingFiles) -> Extra
                 in_flight=settings.carbon_calls_in_flight,
             )
             reader = CarbonPrinted(client, files, settings.carbon_cache_dir)
-            return PrintedScale(inner, reader, files)
+            # a camera photo keeps no scale, printed or not (QA R3-B6)
+            return PhotoUnmeasured(PrintedScale(inner, reader, files), kind_of)
 
 
 def _raster_component(
