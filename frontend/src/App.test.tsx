@@ -251,6 +251,19 @@ describe('shell', () => {
     expect(screen.queryByRole('link', { name: 'About and credits' })).toBeNull();
   });
 
+  it('the stats route shows the plain stats page in the shell; the footer links it', async () => {
+    mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
+    render(<App screens={stubs} />);
+    go('#/');
+    expect(screen.getByRole('link', { name: 'How it works' }).getAttribute('href')).toBe('#/stats');
+    go('#/stats');
+    const frame = screen.getByTitle('How Vellum reads a floor plan');
+    expect(frame.tagName).toBe('IFRAME');
+    expect(frame.getAttribute('src')).toBe('/stats.html');
+    expect(screen.queryByRole('link', { name: 'How it works' })).toBeNull();
+    await screen.findByText(OFFLINE);
+  });
+
   it('SH-64 the chat route mounts ProjectChat with its query', async () => {
     mockApi({ 'GET /api/info': info, 'GET /api/projects': projectList, ...noIssues });
     render(<App screens={stubs} />);

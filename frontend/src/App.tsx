@@ -12,6 +12,7 @@ import { Header, isWide } from './shell/Header';
 import { InfoBar } from './shell/InfoBar';
 import { InfoProvider } from './shell/info';
 import { NotFound } from './shell/NotFound';
+import { StatsScreen } from './shell/StatsScreen';
 import { packOf, parseRoute, routeHref, routePath, useHash } from './shell/route';
 import './shell/shell.css';
 import { SurveyorScreen } from './surveyor/SurveyorScreen';
@@ -106,6 +107,9 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
     case 'about':
       body = <AboutScreen key={routeHref(route)} projectId={route.query.get('project')} />;
       break;
+    case 'stats':
+      body = <StatsScreen />;
+      break;
     case 'not-found':
       body = <NotFound hash={hash} />;
   }
@@ -128,9 +132,11 @@ export function App({ screens = builtScreens }: { screens?: Screens }) {
       </main>
       {/* Licence credits are off every screen (Tudor, #204) and reachable here (CC BY): shared.md "Credits".
           Not on Documents (2026-11-15): the other routes keep the link. */}
-      {route.name !== 'about' && route.name !== 'documents' && (
+      {route.name !== 'about' && route.name !== 'documents' && route.name !== 'stats' && (
         <footer className="app-foot">
           <a href={project ? `#/about?project=${project}` : '#/about'}>About and credits</a>
+          {' · '}
+          <a href="#/stats">How it works</a>
         </footer>
       )}
     </InfoProvider>
