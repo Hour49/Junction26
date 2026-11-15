@@ -15,10 +15,12 @@ from app.adapters.carbon.contract import READER_SHA
 from app.adapters.question_templates import TemplateParser
 from app.api import ask as api_ask
 from app.composition import build_answering, build_ingest, build_pipeline
+from app.core.answering.model import Answer
 from app.core.drawing.model import CarbonCheck, Drawing, Element, Plan
 from app.core.review.ask import Asked, ask
 from app.core.review.check import CARBON_AGREED, CheckPolicy, Level, carbon_checked
 from app.core.review.model import ReviewState, Settled
+from app.core.review.proof import Proof
 from tests.test_carbon_levels import MEDIUM, THREE, settings_with
 from tests.test_levels import COUNTS, DOORS, POLICY, SCAN, SIGNED, Scored, made
 
@@ -178,7 +180,18 @@ def test_the_api_passes_the_ladder_to_ask(monkeypatch: pytest.MonkeyPatch, ladde
     """The app's only ladder wiring (api/ask.py asked_on); without it the live app answers as
     demote while CARBON_LEVELS=ladder (codecheck S1, .agents/qa/r9/review-296.md)."""
     seen: dict[str, Any] = {}
-    monkeypatch.setattr(api_ask, "ask", lambda *a, **k: seen.update(k))  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
+
+    def asked(*args: Any, **kwargs: Any) -> Asked:
+        """Records the keywords and returns what a real ask returns (never None: asked_on reads
+        `.refusal` of it), a plain count with no marks."""
+        seen.update(kwargs)
+        answer = Answer(id=1, answer=1, unit="count", evidence=(), method="takeoff",
+                        cost_usd=0.0, latency_s=0.0)  # fmt: skip
+        proof = Proof(kind="none", legend=(), arithmetic=None, objects=None, storeys=None,
+                      schedule=None)  # fmt: skip
+        return Asked(answer=answer, query=None, row=None, marks=(), refusal=None, proof=proof)
+
+    monkeypatch.setattr(api_ask, "ask", asked)
     monkeypatch.setattr(api_ask, "file_of", lambda ingest, named: None)  # pyright: ignore[reportUnknownLambdaType]
     monkeypatch.setattr(api_ask, "as_uploaded", lambda ingest, info, pid: info)  # pyright: ignore[reportUnknownLambdaType]
     monkeypatch.setattr(api_ask, "confidence_of", lambda *a: None)  # pyright: ignore[reportUnknownLambdaType]
