@@ -22,7 +22,7 @@ async function hover(el: Element, text: string) {
 }
 /** The same words on keyboard focus of the trigger (or its focusable wrapper). */
 async function focus(el: HTMLElement, text: string) {
-  (el.closest<HTMLElement>('[tabindex="0"]') ?? el).focus();
+  (el.closest<HTMLElement>('[tabindex]') ?? el).focus();
   expect(within(await screen.findByRole('tooltip')).getByText(text)).toBeTruthy();
 }
 

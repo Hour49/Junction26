@@ -323,6 +323,7 @@ it.each([500, 409])(
     const api = open(status);
     const turn = await ask('How many doors are there?');
     expect(await within(turn).findByText(/The question could not be answered/)).toBeTruthy();
+    expect(turn.textContent).not.toMatch(/code:/); // R3-L7
     fireEvent.click(within(turn).getByRole('button', { name: 'Try again' }));
     await within(turn).findByText(/The question could not be answered/);
     expect(posts(api)).toHaveLength(2);
@@ -578,7 +579,7 @@ it('CH-38 once the thread starts the project name is for screen readers only', a
   );
 });
 
-it('CH-22 on a phone the ask bar says "Ask about the drawings" so the paperclip does not cut it', async () => {
+it('CH-22 on a phone the ask bar says "Ask a question" so the paperclip and pen do not cut it', async () => {
   vi.stubGlobal('matchMedia', (q: string) => ({
     matches: q === '(max-width: 480px)',
     addEventListener: () => undefined,
@@ -587,7 +588,7 @@ it('CH-22 on a phone the ask bar says "Ask about the drawings" so the paperclip 
   try {
     openWithPhoto(added, [project]);
     render(<ProjectChat projectId={PID} />);
-    expect(await screen.findByPlaceholderText('Ask about the drawings')).toBeTruthy();
+    expect(await screen.findByPlaceholderText('Ask a question')).toBeTruthy();
     cleanup();
     render(<AskBox file="plan.pdf" busy={false} asked={0} onAsk={() => undefined} />);
     expect(screen.getByPlaceholderText('Ask about plan.pdf')).toBeTruthy(); // no `short`: unchanged

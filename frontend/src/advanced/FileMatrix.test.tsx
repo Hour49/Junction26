@@ -227,6 +227,33 @@ describe('FileMatrix', () => {
     expect(meta.textContent).not.toContain('drawn PDF route');
   });
 
+  it('AD-124 a long path keeps its file name whole: the folder is its own part, the name the full path', () => {
+    const pdf = 'plans/site1029_bldg2117_floor9641.pdf';
+    const files = [
+      {
+        ...must(project.files[0]),
+        id: 'f2',
+        path: 'plans/site1029_bldg2117_floor9641.png',
+        source: pdf,
+      },
+    ];
+    render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);
+    const link = screen.getByRole('link', { name: 'plans/site1029_bldg2117_floor9641.png' });
+    expect(link.getAttribute('title')).toBe('plans/site1029_bldg2117_floor9641.png');
+    // a browser names flex parts with a space between them ("plans/ site…"): the label keeps the plain path
+    expect(link.getAttribute('aria-label')).toBe('plans/site1029_bldg2117_floor9641.png');
+    expect(must(link.querySelector('.fm-folder')).textContent).toBe('plans/');
+    expect(must(link.querySelector('.fm-name')).textContent).toBe(
+      'site1029_bldg2117_floor9641.png',
+    );
+    const readWith = must(document.querySelector('.fm-with'));
+    expect(readWith.textContent).toBe(`read with ${pdf}`);
+    expect(readWith.getAttribute('title')).toBe(pdf);
+    expect(must(readWith.querySelector('.fm-name')).textContent).toBe(
+      'site1029_bldg2117_floor9641.pdf',
+    );
+  });
+
   it('AD-112 bars compare files: the slowest is full width, the others their share', () => {
     const files = project.files.slice(0, 2).map((f, i) => ({ ...f, ms: i === 0 ? 1000 : 250 }));
     render(<FileMatrix projectId={PID} project={{ ...project, files }} traces={new Map()} />);

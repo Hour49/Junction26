@@ -2,10 +2,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ApiError, errorText } from '../api';
 
-/** A screen's error state: the server's `detail` and `code`, never only a colour. */
+/** A screen's error state: the server's `detail` sentence, never only a colour; no raw code (QA R2-C5). */
 export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const api = error instanceof ApiError ? error : null;
-  const { detail, code } = errorText(error);
+  const { detail } = errorText(error);
   // Asking again for something that is not there finds nothing: a 404 leads back instead of retrying.
   const notFound = api?.status === 404;
   return (
@@ -17,10 +17,6 @@ export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => 
         {notFound ? 'Not found' : 'Something went wrong'}
       </h2>
       <p className="m-0">{detail}</p>
-      <p className="m-0 font-mono text-[13px] text-muted-foreground">
-        code: {code}
-        {api && api.status !== 0 ? ` · HTTP ${String(api.status)}` : ''}
-      </p>
       {notFound ? (
         <a href="#/workspaces">Back to workspaces</a>
       ) : (

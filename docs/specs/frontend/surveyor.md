@@ -127,8 +127,8 @@ Mark rows, by `state`:
 | Ready | Side panel, viewer, takeoff panel as in Layout | `takeoff.json` + `drawing.json` + `project_review.json` |
 | Empty | No rows: "Nothing was counted on this drawing." When `reader.extractor` is `hello`: "This drawing wasn't read: this setup has no reader for this kind of sheet, so nothing on it was counted or measured." When `zeros` is false: also the "Show rows with value 0" control. No sign-off, no CSV link, no reset-all | `takeoff.json` with `quantities: []`, `review_queue: []`; the sample's `scans/` or `photos/` drawing (0 quantities in `project_review.json`) |
 | Nothing to review | The "To review" group says "Nothing left to review." | `takeoff.json` with `review_queue: []` |
-| Load error | The shell's `ErrorView` with `detail`, `code` and Retry, which repeats the failed loads (on a 404 `ErrorView` shows "Back to workspaces" to `#/workspaces` instead of Retry) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
-| Side-panel error | Only the side panel shows `detail`, `code` and Retry; the takeoff still works | Mock a 500 for `GET …/review` |
+| Load error | The shell's `ErrorView` with `detail` (no raw `code`, QA R2-C5) and Retry, which repeats the failed loads (on a 404 `ErrorView` shows "Back to workspaces" to `#/workspaces` instead of Retry) | Mock a 404 `error.json` for the takeoff; an unknown drawing id against the backend |
+| Side-panel error | Only the side panel shows `detail` and Retry; the takeoff still works | Mock a 500 for `GET …/review` |
 | Saving | "Saving…" in a live region; every edit, settle, sign-off and reset control disabled; the table stays readable | Any edit with a delayed response |
 | Edit refused | An alert in the detail with `detail` and `code` (409 `not-allowed`, 422 `invalid`, 422 `validation`, 404 `not-found`); the takeoff stays as it was; the alert clears on the next successful request | Mock 409/422 bodies shaped as `error.json` |
 | Needs a person | Row words "Methods disagree · needs you"; the detail says "No rule decides. Settle a value before signing off."; Sign off disabled | `takeoff.json` row 1 with `needs_person: true` and `conflict.resolution: null` |
@@ -286,7 +286,7 @@ Edits
   `GET …/review` of the project is sent again. [component]
 - SV-26: While a request is in flight, "Saving…" shows in a `role="status"` region and every edit, settle, add,
   reset and sign-off control is disabled. [component] (delayed mock)
-- SV-27: A 409 `{detail, code: "not-allowed"}` or 422 `{detail, code: "invalid"}` answer shows `detail` and `code`
+- SV-27: A 409 `{detail, code: "not-allowed"}` or 422 `{detail, code: "invalid"}` answer shows `detail` (not the code)
   in a `role="alert"` in the detail, and the takeoff on screen is unchanged; the next successful request removes
   the alert. [component] bodies derived from `error.json`
 - SV-28: "Add a missed one" appears on count rows only (`door`), not on area rows. With it pressed the viewer gets
@@ -340,7 +340,7 @@ States, safety, layout
 - SV-44: An empty takeoff shows "Nothing was counted on this drawing."; with `reader.extractor: "hello"` also the
   no-reader sentence; with zeros off also the zeros toggle; there is no Sign off, CSV link or Reset all.
   [component] derived `takeoff.json` (`quantities: []`), derived `drawing.json`
-- SV-45: A 404 on the takeoff shows `ErrorView` with "no drawing 0123456789abcdef" and "code: not-found", a link
+- SV-45: A 404 on the takeoff shows `ErrorView` with "no drawing 0123456789abcdef" (no "code: not-found"), a link
   "Back to workspaces" to `#/workspaces` and no Retry (asking again finds nothing, QA qa-3 (b)); any other load error (a 500)
   shows Retry, which re-sends the loads. [component] `error.json`, derived 500
 - SV-46: A label, mark label, reason, rule text or file name holding `<img src=x onerror=alert(1)>` renders as that

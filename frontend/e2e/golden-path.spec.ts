@@ -453,7 +453,7 @@ test('GP-20: the service is down, then back', async ({ page }) => {
   await page.goto('/#/workspaces');
   const main = page.getByRole('main');
   await expect(main.getByText('internal error').first()).toBeVisible();
-  await expect(main.getByText(/code: internal/).first()).toBeVisible();
+  await expect(main.getByText(/code: internal/)).toHaveCount(0); // R2-C5: no raw code for a person
   await page.unroute('**/api/projects');
   await main.getByRole('button', { name: 'Retry' }).click();
   await expect(page.getByText('internal error')).toHaveCount(0);

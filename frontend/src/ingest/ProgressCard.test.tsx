@@ -140,6 +140,14 @@ describe('ProgressCard: pipeline view v5', () => {
       <ProgressCard project={flagged('a phone photo read without correction')} now={Date.now()} />,
     );
     expect(lane('Image').textContent).toContain('2 doors. a phone photo read without correction');
+    // IN-122 (QA R3-G8): the reason is shown whole, not cut at 2 lines; a running file's note stays at 2
+    const note = must(lane('Image').querySelector('.ingest-note'));
+    expect(note.className).not.toContain('line-clamp');
+    cleanup();
+    render(<ProgressCard project={running} now={Date.now()} />);
+    const live = must(lane('Image').querySelector('.ingest-note'));
+    expect(live.textContent).toBe('Extract: Symbol detector, 8 views');
+    expect(live.className).toContain('line-clamp-2');
     cleanup();
     render(<ProgressCard project={flagged('')} now={Date.now()} />);
     expect(lane('Image').textContent).toContain('2 doors');
@@ -379,6 +387,9 @@ describe('ProgressCard: pipeline view v5', () => {
     );
     const link = within(lane('Image')).getByRole('link', { name: long }); // the full path is still its name
     expect(link.getAttribute('title')).toBe(long);
+    // jsdom joins the two spans with no space; Chromium puts one between the flex items ("…/ Grundriss_OG3.png"),
+    // so the name is set on the link itself (detail's FileMatrix, #593)
+    expect(link.getAttribute('aria-label')).toBe(long);
     expect(must(link.querySelector('.ingest-name')).textContent).toBe('Grundriss_OG3.png');
     expect(must(link.querySelector('.ingest-name')).className).toContain('shrink-0');
     expect(must(link.querySelector('.ingest-folder')).className).toContain('truncate');

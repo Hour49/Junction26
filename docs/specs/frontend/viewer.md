@@ -845,6 +845,9 @@ more brings every badge back; a frame of 600 px or more keeps today's behaviour.
   `.vw-many`. `bare`: no badge, "60 marks, too many to number at this size". 50 marks at 400 px: 50 badges.
   [component]
 - **VW-97** 60 marks in an 800 px frame: 60 badges, no `.vw-many`. [component]
+- **VW-98** `bare` (the chat card) has no legend, so a mark whose number found no free spot, or a mark with no box,
+  is said under the image: "N label(s) had no room on the page" / "N mark(s) could not be placed" (QA R3-C10: 6 of
+  155 door numbers vanished without a word). [component]
 
 ## Not in the API
 

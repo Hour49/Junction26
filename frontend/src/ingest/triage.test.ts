@@ -104,8 +104,8 @@ describe('triage.ts (file-triage.md FT-5)', () => {
       'This file was not described, so there is nothing to judge or overrule.',
     );
     expect(callError(new ApiError(404, 'not-found', 'no such file'))).toBe(
-      'This file is no longer in the project. (no such file, not-found)',
+      'This file is no longer in the project. (no such file)',
     );
-    expect(callError(new ApiError(500, 'internal', 'boom'))).toBe('boom (internal)');
+    expect(callError(new ApiError(500, 'internal', 'boom'))).toBe('boom');
   });
 });

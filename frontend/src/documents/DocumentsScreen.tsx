@@ -141,7 +141,7 @@ export function DocumentsScreen({
           <p className={MUTED}>The issues are listed once the project is read.</p>
         ) : failed ? (
           <p role="alert" className="text-danger">
-            {failed.detail} ({failed.code}){' '}
+            {failed.detail}{' '}
             <Button
               variant="secondary"
               size="pill"

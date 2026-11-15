@@ -165,11 +165,11 @@ Read through the shell (shared.md), not fetched again. `limits.question_chars` s
 | State | How to reach it on purpose | What shows |
 | --- | --- | --- |
 | Loading drawing | throttle the network, or a mocked `GET /api/drawings/{id}` that never resolves | the shared loading view; no ask box |
-| Drawing error | unknown drawing id in the route (`#/p/x/d/0123456789abcdef/engineer`) → 404 `error.json` | the shared `ErrorView` with `detail` and `code` (and its "Go to the start" link for `not-found`), plus a link back to `#/p/<project_id>` |
+| Drawing error | unknown drawing id in the route (`#/p/x/d/0123456789abcdef/engineer`) → 404 `error.json` | the shared `ErrorView` with `detail` (no raw `code`, QA R2-C5) (and its "Go to the start" link for `not-found`), plus a link back to `#/p/<project_id>` |
 | Empty thread | open a drawing, ask nothing | header, page without marks, suggestions, ask box; text "Ask a question about this drawing." |
 | No suggestions | `drawing.json` with `suggestions: []` | instead of the buttons: "No ready questions for this drawing."; with extractor `hello` also "This setup has no reader for this kind of sheet, so nothing on it was counted or measured. You can still ask about the project's other drawings." Ask box stays usable. |
 | Asking | a mocked `POST /api/ask` that never resolves | the question bubble, "Reading <file>…" with a spinner, Ask disabled, input kept for the next question |
-| Ask error | mocked `POST /api/ask` with 404 `error.json`, 422 `validation` or 500 `internal` | in that turn: "The question could not be answered: <detail>" and the `code` in small text, a "Try again" button that sends the same question; Ask re-enabled |
+| Ask error | mocked `POST /api/ask` with 404 `error.json`, 422 `validation` or 500 `internal` | in that turn: "The question could not be answered: <detail>" (no raw `code`, QA R2-C5), a "Try again" button that sends the same question; Ask re-enabled |
 | Refused | `answer_refused.json` | bold "I can't answer that from this drawing.", `refusal.text` (no code line), one button per `can_answer[].question`; no number, no viewer marks, no "Send to surveyor", no picture link |
 | Answer, count | `answer.json` | value `2`, title "door count", viewer with marks 1 and 2, mark list "1 door", "2 door", rule "every element, room and plan the drawing lists counts once", status "One method" |
 | Answer, sum | `answer_area.json` | value `52.27 m²`, rooms shaded, mark list with "Küche 22.40 m²"…, the arithmetic line with what was left out, the viewer's colour key |
@@ -309,7 +309,7 @@ Desktop 1440x900: one centred column, max 1040 px, padding 32 px 24 px, sections
        "Details" (Query, Method, Signal, How), "Picture of this answer", "Send to surveyor".
   5. A refusal turn: the bubble, the read-as note, then a card (`--v-surface`, radius, padding 20 px) with bold
      "I can't answer that from this drawing.", `refusal.text`, and the `can_answer` questions as chips. No plan.
-  6. An error turn: as today (detail, code, "Try again"), in a `.v-card` with `--v-danger` text.
+  6. An error turn: as today (detail, "Try again"; no raw code, QA R3-L7), in a `.v-card` with `--v-danger` text.
 - **Suggestion chips** (`drawing.suggestions`; hidden while the newest turn is a refusal, whose card offers its
   own `can_answer` chips, EN-60): one row of chips (radius 980 px, 14 px, min 44 px tall,
   `--v-fill`, hover `--v-accent-soft`, wrapping) after the thread, outside every article (a refusal's `can_answer` chips are inside

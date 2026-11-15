@@ -5,7 +5,7 @@ import type { ProjectView } from '../api';
 import { mockApi, never, reply } from '../test/mockApi';
 import { AdvancedIngest } from '../advanced/AdvancedIngest';
 import { ConflictsList } from '../surveyor/ConflictsScreen';
-import { formatMs } from './ingest';
+import { formatMs, nameParts } from './ingest';
 import { ProjectScreen } from './ProjectScreen';
 import { flush, must, triaged, variants } from './testing';
 
@@ -99,6 +99,9 @@ describe('ProjectScreen', () => {
     const h1 = screen.getByRole('heading', { level: 1, name });
     expect(h1.getAttribute('title')).toBe(name);
     expect(h1.className).toContain('line-clamp-3');
+    // IN-121: a break opportunity after each of its separators, so it wraps there before inside a word
+    expect(h1.querySelectorAll('wbr')).toHaveLength(nameParts(name).length - 1);
+    expect(must(h1.querySelector('wbr')).previousSibling?.textContent).toBe('Bauprojekt_');
     cleanup();
     // the upload line cuts it in the middle, the extension kept; its title is the whole name
     sessionStorage.setItem(`uploaded:${ID}`, JSON.stringify({ name, bytes: 2048 }));
@@ -165,7 +168,7 @@ describe('ProjectScreen', () => {
     render(<ProjectScreen projectId={ID} />);
     await flush();
     expect(screen.getByText(error.detail, { exact: false })).toBeTruthy();
-    expect(screen.getByText(error.code, { exact: false })).toBeTruthy();
+    expect(screen.queryByText(error.code, { exact: false })).toBeNull(); // R2-C5: no raw code (shared ErrorView)
     expect(screen.getByRole('link', { name: 'Back to workspaces' }).getAttribute('href')).toBe(
       '#/workspaces',
     );
@@ -179,7 +182,7 @@ describe('ProjectScreen', () => {
     );
     render(<ProjectScreen projectId={ID} />);
     await flush();
-    expect(screen.getByText('network', { exact: false })).toBeTruthy();
+    expect(screen.getByText('cannot reach the server', { exact: false })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
     await flush();
     expect(screen.getByRole('heading', { name: project.name })).toBeTruthy();

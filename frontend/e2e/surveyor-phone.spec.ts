@@ -27,3 +27,30 @@ test('K3: on a phone the drawing starts above the fold and the lists open from o
   await shot(page, testInfo, 'surveyor-k3-open', offline);
   expect(errors, 'console or page errors').toEqual([]);
 });
+
+// R3-B8: at 390 px the fixed Value and State columns left the quantity name ~80 px, so names broke inside words
+// ("COMMO" / "N AREA)"). Every word of every name must fit on one line of its cell.
+test('R3-B8: on a phone no quantity name breaks inside a word', async ({ page }, testInfo) => {
+  const offline = await noKeys(page);
+  await openSurveyor(page);
+  const names = page.locator('.sv-table tbody th[scope="row"] button');
+  await expect(names.first()).toBeVisible();
+  const tooWide = await names.evaluateAll((buttons) => {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return ['no canvas'];
+    return buttons.flatMap((b) => {
+      const cs = getComputedStyle(b);
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const room = b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      return b.textContent
+        .split(/\s+/)
+        .filter((w) => ctx.measureText(w).width > room)
+        .map(
+          (w) =>
+            `${w} (${String(Math.round(ctx.measureText(w).width))} > ${String(Math.round(room))} px)`,
+        );
+    });
+  });
+  await shot(page, testInfo, 'surveyor-r3b8-names', offline);
+  expect(tooWide, 'words wider than their cell').toEqual([]);
+});

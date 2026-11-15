@@ -12,11 +12,10 @@ export function InfoBar({ wide = false }: { wide?: boolean }) {
   const { info, error, reload } = useInfo();
   const width = wide ? ' info-bar--wide' : '';
   if (error !== null) {
-    const { detail, code } = errorText(error);
-    const text = `${detail} (${code})`;
+    const { detail } = errorText(error);
     return (
       <div className={`info-bar info-bar-error${width}`} role="alert">
-        <span>The server did not answer: {text}</span>
+        <span>The server did not answer: {detail}</span>
         <Button variant="secondary" size="pill-sm" onClick={reload}>
           Retry
         </Button>

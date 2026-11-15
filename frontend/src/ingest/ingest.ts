@@ -235,3 +235,9 @@ export function sizeText(bytes: number): string {
 export function amount(bytes: number, total: number): string {
   return total < MB ? String(Math.round(bytes / 1024)) : (bytes / MB).toFixed(1);
 }
+
+/** A name cut after each of its own separators (`_`, `-`, `.`, `/`), so a long name with no spaces wraps there
+ * and not inside a word (IN-121): "Bau_Haus.zip" → ["Bau_", "Haus.", "zip"]. Joined, the parts are the name. */
+export function nameParts(name: string): string[] {
+  return name.split(/(?<=[_\-./])/);
+}

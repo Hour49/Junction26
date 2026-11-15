@@ -116,6 +116,13 @@
 .sv-table thead th:nth-child(3) {
   width: 140px;
 }
+/* R3-B8: at 390 px those 224 px left the name ~66 px and it broke inside words; the state pill wraps instead
+   (Value stays: its numbers don't wrap) */
+@media (max-width: 640px) {
+  .sv-table thead th:nth-child(3) {
+    width: 96px;
+  }
+}
 .sv-num {
   text-align: right;
   white-space: nowrap;
