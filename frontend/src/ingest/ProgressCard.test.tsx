@@ -364,7 +364,7 @@ describe('ProgressCard: pipeline view v5', () => {
     });
     const index = must(rows.find((r) => r.textContent.startsWith('◌Index')));
     expect(index.textContent).toContain(
-      'judging what was set aside, describing the rest, indexing it all for the chat',
+      'judging what triage set aside, describing the rest, indexing it all for the chat',
     );
     const last = within(index).getByRole('list', { name: 'Last phase' });
     expect(

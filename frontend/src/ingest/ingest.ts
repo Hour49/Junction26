@@ -140,7 +140,7 @@ export const STEPS: readonly { name: string; hint: string; stages: readonly (Sta
   },
   {
     name: 'Index',
-    hint: 'judging what was set aside, describing the rest, indexing it all for the chat',
+    hint: 'judging what triage set aside, describing the rest, indexing it all for the chat',
     stages: [],
   },
 ];

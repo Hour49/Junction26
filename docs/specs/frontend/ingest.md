@@ -626,7 +626,7 @@ What the backend does, in order:
 | 6 | Second count | `second_count` | drawn PDF: scale text against bar, printed room areas, the sheet against its IFC model; image: the printed scale and printed totals against the reading; a disagreement is a conflict; an IFC model on its own has none |
 | 7 | Takeoff | `takeoff` | the counting rules, then every quantity with its marks (one timed stage in the backend) |
 | 8 | Store | `write` | one drawing model per sheet (or per model) stored by content |
-| 9 | Index | none | once every file is finished, while the project still runs: triage judges whether each set-aside file belongs to the project (`TRIAGE_JUDGE=rules`), every non-plan file is described or its text read (`EVIDENCE_SCOPE=all_non_plan`), and the project's evidence index is updated for the chat |
+| 9 | Index | none | once every file is finished, while the project still runs: triage judges whether each file it set aside as a non-plan belongs to the project (`TRIAGE_JUDGE=rules`; a file set aside for another reason, such as a CAD file with no sheet of its own, a failed read or a second copy, is not judged), every non-plan file is described or its text read (`EVIDENCE_SCOPE=all_non_plan`), and the project's evidence index is updated for the chat |
 
 Not steps, because they do not run at ingest: the conflict resolver (`RESOLVER`, at ask time, off in the demo), the
 IFC fact sheet (`IFC_FACTS`, at ask time), the 3D view's GLB (`MODEL_3D`, converted on the first "View in 3D").
@@ -706,8 +706,9 @@ their reader chip while they run and tick it ("ran") after; a label no reader na
   none), "<open> open of <found>" once some are ("0 open of 1" beside "1 conflict found · 1 settled by a rule").
   Was `conflicts_open`, which read "Conflicts 0" there (QA R4-E6; changed with its test). [component]
 - IN-109: With `phase: "index"` the card names step 9 "Index" even if a file still runs, its hint reads "judging
-  what was set aside, describing the rest, indexing it all for the chat" (was "every file made searchable for
-  questions": IN-89 changed with its test), and its row lists `index_steps` as "<label>: <did>". [component]
+  what triage set aside, describing the rest, indexing it all for the chat" (was "judging what was set aside,
+  ...", which read as if every set-aside file is judged, changed 2026-11-15 with IN-89 and IN-109's tests; before
+  that "every file made searchable for questions"), and its row lists `index_steps` as "<label>: <did>". [component]
 - IN-110: A lane shows at most 6 files; the rest are a link "<n> more files in Documents" to `#/p/<id>/documents`.
   [component]
 - IN-111: While running, the step named is the one most files are read in now (a tie: the later step), not the
