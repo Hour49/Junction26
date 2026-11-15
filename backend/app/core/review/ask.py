@@ -42,10 +42,12 @@ from app.core.answering.model import (
     IN_ONE_ROOM,
     NO_SUBJECT,
     NO_SUCH_FLOOR,
+    NO_SUCH_STOREY,
     NOT_COUNTED,
     SEVERAL_FLOORS,
     SEVERAL_PRINTED,
     SEVERAL_ROOMS,
+    SEVERAL_STOREYS,
     SEVERAL_THINGS,
     SHARED_FLOOR,
     Answer,
@@ -182,6 +184,8 @@ PARTS = {  # an unsupported count that would drop part of the question: which pa
     "drawing. Try one of these instead.",
     SEVERAL_ROOMS: "This question names more than one room, and I answer for one room at a time. "
     "Ask for each room on its own.",
+    SEVERAL_STOREYS: "This question names more than one storey, and I answer for one storey at a "
+    "time. Ask for each storey on its own.",
 }
 
 
@@ -1094,7 +1098,7 @@ def suggestions(
     return tuple(found)
 
 
-FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR)
+FLOOR_REASONS = (NO_SUCH_FLOOR, SEVERAL_FLOORS, SHARED_FLOOR, GLUED_FLOOR, NO_SUCH_STOREY)
 
 
 def _floor_text(
@@ -1112,6 +1116,13 @@ def _floor_text(
     asked = "floor" if found is None else found.group().casefold()
     number = None if found is None else floor_number(found)
     named = storeys(drawing)
+    if reason == NO_SUCH_STOREY:  # "on P1" on the P2 sheet, "on P9" (big QA R1)
+        given = parser.parse(text)
+        storey = given.storey if isinstance(given, Query) else None
+        return (
+            f"This drawing's storeys are {', '.join(named)}; none of them is "
+            f"{storey or 'the storey asked'}, so it does not answer for that storey."
+        )
     if reason == GLUED_FLOOR and found is not None and number is not None:
         n = abs(number)
         if glued(found):
@@ -1440,4 +1451,9 @@ def _refusal(
                 f"Room {parsed.name} has no outline on this drawing, only a box around it, so I "
                 "can't tell what is inside it.",
             )
+    if parsed.storey is not None and not storeys(drawing):  # "on P1" on a plain plan (review-702)
+        return (
+            "not-in-drawing",
+            f"This drawing doesn't name its storeys, so I can't tell if it shows {parsed.storey}.",
+        )
     return "not-in-drawing", f"This drawing doesn't give the {label(query, drawing)}."

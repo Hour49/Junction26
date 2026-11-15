@@ -58,6 +58,7 @@ export function AboutScreen({ projectId }: { projectId: string | null }) {
 
   return (
     <div className="v-page v-page--narrow">
+      {projectId !== null && <a href={`#/p/${projectId}`}>Back to the project</a>}
       <h1 className="v-title">About Vellum</h1>
       <p>
         Vellum reads a project&apos;s floor plans, models and scans, lists the quantities in them

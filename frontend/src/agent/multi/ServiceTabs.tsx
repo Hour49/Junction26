@@ -161,16 +161,16 @@ function SheetEdit({ pic }: { pic: LanePicture }) {
   );
 }
 
-/** The part of the sheet to look at: the lane's focus there, else the edit's outlines plus a margin. */
-function sheetFocus(lane: Lane, pic: LanePicture): Box | null {
-  const edit = {
-    removed: pic.removed.map((polygon) => ({ polygon })),
-    added: pic.added.map((polygon) => ({ polygon })),
-  };
-  const box = focusOf(onSheet(lane, pic), edit);
-  if (box) return box;
+/** The part of the sheet to look at: the edit's own outlines there plus a margin, else (no outline on the
+ * sheet) the lane's focus. Not every mark's: a picture's lane carries every symbol its reader found on the sheet
+ * (562 on DigitalHub's P-101), and their box was nearly the whole sheet, the struck-out wall cut off at its edge
+ * (R1 edits 10c). What sits on the wall is inside the margin. */
+export function sheetFocus(lane: Lane, pic: LanePicture): Box | null {
   const pts = [...pic.removed, ...pic.added].flat();
-  if (pts.length === 0) return null;
+  if (pts.length === 0) {
+    const edit = { removed: [], added: [] };
+    return focusOf(onSheet(lane, pic), edit);
+  }
   const xs = pts.map((q) => q[0]);
   const ys = pts.map((q) => q[1]);
   const [x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
