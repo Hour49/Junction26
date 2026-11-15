@@ -506,3 +506,49 @@ def test_a_room_number_keeps_its_sign_and_a_hyphen_after_a_word_joins() -> None:
     assert PARSE("What is the area of Zimmer-1.05?") == Query(
         measure="area", subject="room", name="1.05"
     )
+
+
+@pytest.mark.parametrize(
+    ("text", "same_as"),
+    [
+        ("How many doors are in each drawing?", "How many doors?"),
+        ("How many doors in each drawing?", "How many doors?"),
+        ("How many windows are there on each sheet?", "How many windows are there?"),
+        ("What is the total floor area of each plan?", "What is the total floor area?"),
+    ],
+)
+def test_each_drawing_is_the_whole_drawing_not_a_breakdown(text: str, same_as: str) -> None:
+    """qa-a cross-drawing walk: the project chat asks every drawing the question as written, and
+    "in each drawing" was refused as a breakdown by 12 of 13 drawings ("per drawing" worked).
+    Asked of one drawing, it is that drawing's own quantity."""
+    assert isinstance(PARSE(same_as), Query)
+    assert PARSE(text) == PARSE(same_as)
+
+
+@pytest.mark.parametrize(
+    ("text", "same_as"),
+    [
+        ("Does this drawing show a kitchen?", "How many kitchens?"),
+        ("Does the plan have any bathrooms?", "How many bathrooms?"),
+        ("Is there a kitchen?", "How many kitchens?"),
+        ("Is there a bathtub on this plan?", "How many bathtubs?"),
+        ("Are there any balconies?", "How many balconies?"),
+    ],
+)
+def test_is_there_a_thing_is_asked_as_its_count(text: str, same_as: str) -> None:
+    """qa-a cross-drawing walk: the agent asked every drawing "Does this drawing show a kitchen?"
+    and every 2D drawing refused it; "How many kitchens?" answers on 11 of 13. The count says it:
+    0 is no, more is yes."""
+    assert isinstance(PARSE(same_as), Query)
+    assert PARSE(text) == PARSE(same_as)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How many doors are in each room?",
+        "Does the kitchen have a window?",
+    ],
+)
+def test_a_breakdown_or_a_yes_no_about_one_thing_stays_unsupported(text: str) -> None:
+    assert isinstance(PARSE(text), Unsupported)
