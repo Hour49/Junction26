@@ -1473,9 +1473,30 @@ def test_a_plain_noun_that_is_a_printed_label_points_at_the_label_count() -> Non
         assert got.refusal.text.endswith(f'ask "{pointed}"'), question
         assert asked(pointed, drawing).answer.answer == value, question
     classrooms = asked("How many classrooms are there?", drawing).refusal
-    assert classrooms is not None and "no room on this drawing is printed classrooms" in (
-        classrooms.text
-    )
+    assert classrooms is not None and "no room on this drawing is printed" not in classrooms.text
+    assert "CLASSROOM 104 (1)" in classrooms.text  # R3-A4: named, not denied
+
+
+def test_a_noun_printed_inside_labels_is_refused_with_those_labels_not_denied() -> None:
+    """R3-A4 (Tudor's QA round 3, T1 DfE special school): "How many classrooms?" said "no room on
+    this drawing is printed classrooms" while listing "Secondary Classroom" among the rooms. The
+    noun is still not counted from labels (vocab-nouns line 3), but the refusal names each label
+    that holds it, with its count, and the question that counts it."""
+    drawing = scaled(
+        *(labelled(n, "Secondary Classroom") for n in range(1, 7)),
+        labelled(7, "Secondary Classroom (Severe Needs)"),
+        labelled(8, "Secondary Classroom (Severe Needs)"),
+        labelled(9, "Group Room"), labelled(10, "Classroomette"),
+    )  # fmt: skip
+    got = asked("How many classrooms are there?", drawing)
+    assert got.answer.answer is None and got.refusal is not None
+    text = got.refusal.text
+    assert "no room on this drawing is printed" not in text, text
+    assert "Secondary Classroom (6)" in text and "Secondary Classroom (Severe Needs) (2)" in text
+    assert "Group Room" not in text and "Classroomette" not in text, text
+    pointed = "How many rooms labelled 'Secondary Classroom' are there?"
+    assert f'"{pointed}"' in text, text
+    assert asked(pointed, drawing).answer.answer == 6
 
 
 def test_a_noun_no_room_is_printed_with_is_refused_by_name() -> None:
@@ -1563,6 +1584,73 @@ def test_a_low_answer_with_or_without_a_partial_total_is_asked() -> None:
         assert got.answer.answer is not None and got.check is not None, text
         assert got.level is not None and got.level.level != "high", text
         assert (got.partial is not None) is partial, text
+
+
+def test_a_printed_name_holding_a_type_word_names_that_room_whatever_its_type() -> None:
+    """R3-A5 (Tudor's QA round 3, T1): "the area of the Multi-Purpose Hall" was refused as "11
+    rooms on this drawing are of the type hall" though one room is printed Multi-Purpose Hall
+    (typed other by the reader). The bare type word with no such name still refuses."""
+    hall = Room(id="r1", type="other", label="Multi-Purpose Hall", page=1, box=BOX_A,
+                area_m2=152.4)  # fmt: skip
+    corridors = [Room(id=f"r{n}", type="hall", label=name, page=1, box=BOX_B, area_m2=float(n))
+                 for n, name in ((2, "Corridor"), (3, "Corridor"), (4, "Lobby"))]  # fmt: skip
+    drawing = scaled(hall, *corridors)
+    found = asked("What is the area of the Multi-Purpose Hall?", drawing)
+    assert found.refusal is None, found.refusal
+    assert found.answer.answer == 152.4
+    assert asked("What is the area of the multi-purpose hall?", drawing).answer.answer == 152.4
+    assert asked("What is the area of the hall?", drawing).refusal is not None
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What is the area of the Multi-Purpose Hall?",
+        "What is the area of the Sports Hall?",
+        "What is the area of the hall?",
+    ],
+)
+def test_a_room_printed_only_the_type_word_answers_no_longer_name(question: str) -> None:
+    """review-595 MUST (qa-a): with one room printed just "Hall" (typed other) among rooms typed
+    hall, "the Multi-Purpose Hall" and "the Sports Hall" found "Hall" inside them and answered
+    its 100 m². A printed name of the type's own words keeps main's rule: it names a room only
+    among the rooms of that type; "the hall" stays refused (decided)."""
+    printed = Room(id="r1", type="other", label="Hall", page=1, box=BOX_A, area_m2=100.0)
+    corridors = [Room(id=f"r{n}", type="hall", label="Corridor", page=1, box=BOX_B,
+                      area_m2=float(n)) for n in (2, 3)]  # fmt: skip
+    found = asked(question, scaled(printed, *corridors))
+    assert found.refusal is not None and found.answer.answer != 100.0, found.answer
+
+
+def test_a_printed_name_with_more_than_the_type_word_answers_among_any_type() -> None:
+    """review-595: "Sports Hall" printed on a room typed other still answers "the Sports Hall"."""
+    sports = Room(id="r1", type="other", label="Sports Hall", page=1, box=BOX_A, area_m2=288.0)
+    corridors = [Room(id=f"r{n}", type="hall", label="Corridor", page=1, box=BOX_B,
+                      area_m2=float(n)) for n in (2, 3)]  # fmt: skip
+    found = asked("What is the area of the Sports Hall?", scaled(sports, *corridors))
+    assert found.refusal is None and found.answer.answer == 288.0, found.refusal
+
+
+@pytest.mark.parametrize("word", ["largest", "smallest"])
+def test_the_largest_room_refusal_names_the_unmeasured_room_not_a_missing_name(word: str) -> None:
+    """R3-G6 (Tudor's QA round 3, T1): one of the rooms printed "Group Room" had no area (its box
+    refused), so none of the Group Rooms could be compared, and the refusal said they "have no
+    name or number to ask their area by". It names the room with no area and why, and says the
+    largest (or the smallest, as asked: review-595) of the rooms printed that way isn't known."""
+    groups = [labelled(n, "Group Room", area=12.0 + n) for n in range(1, 4)]
+    unmeasured = labelled(4, "Group Room", area=None)
+    hall = labelled(5, "Multi-Purpose Hall", area=150.0)
+    library = labelled(6, "Library", area=27.5)
+    drawing = scaled(*groups, unmeasured, hall, library).model_copy(
+        update={"notes": ("room area: r4 not measured, its box is 0.40 x 0.50 m (0.20 m²)",)}
+    )
+    found = asked(f"Which room is the {word}?", drawing)
+    assert found.refusal is not None, found.answer
+    text = found.refusal.text
+    assert "no name or number" not in text, text
+    assert "1 of its rooms (Group Room) has no area measured" in text, text
+    assert "its box is 0.40 x 0.50 m" in text, text
+    assert f"the {word} of the 4 rooms printed Group Room isn't known" in text, text
 
 
 def test_a_type_word_two_rooms_share_names_the_one_printed_with_it() -> None:
