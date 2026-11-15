@@ -143,9 +143,13 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     );
     const files = main.getByRole('region', { name: 'Files' }).getByRole('link');
     await expect(files).toHaveCount(12);
-    // A note is shown, never answered.
+    // A note is shown, never answered (the triage call on a set-aside file, DOC-7, has its own name box)
     await expect(
-      main.getByRole('region', { name: 'Issues on demand' }).getByRole('textbox'),
+      main
+        .getByRole('region', { name: 'Issues on demand' })
+        .getByRole('listitem')
+        .filter({ hasNot: page.getByRole('button', { name: 'It belongs to this project' }) })
+        .getByRole('textbox'),
     ).toHaveCount(toAnswer ? toAnswer : 0);
     await shot(page, testInfo, '05-documents', offline);
   });
