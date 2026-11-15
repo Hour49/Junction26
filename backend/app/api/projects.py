@@ -330,7 +330,7 @@ async def upload(
     name: Annotated[str, Query(min_length=1, max_length=255)],
 ) -> Started:
     """The request body is the file's bytes (a zip or one drawing file); `name` its file name."""
-    if file_name(name) is None:  # a display name, never a path: "..", "." or "C:" is refused
+    if file_name(name) is None:  # a display name, never a path: ".." or "." is refused
         await _discard(request)  # as for a 429: read, so the client sees the answer
         raise InvalidInputError(f"{name!r} is not a usable file name")
     admission: Admission = request.app.state.admission

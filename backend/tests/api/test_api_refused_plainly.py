@@ -27,7 +27,7 @@ def _everything_shown(client: TestClient, project_id: str) -> str:
     return "".join(client.get(url).text for url in urls)
 
 
-@pytest.mark.parametrize("name", ["..", ".", "a/..", "..\\", "", "C:"])
+@pytest.mark.parametrize("name", ["..", ".", "a/..", "..\\", "", "plan\x07.pdf", "plan\x00.pdf"])
 def test_an_upload_named_no_file_name_is_refused_at_the_door(
     client: TestClient, settings: Settings, plan_pdf: bytes, name: str
 ) -> None:
@@ -37,7 +37,9 @@ def test_an_upload_named_no_file_name_is_refused_at_the_door(
     assert client.get("/api/projects").json()["projects"] == []  # nothing was queued
 
 
-@pytest.mark.parametrize("name", ["../x.zip", "/etc/passwd.zip", "..\\..\\plan.pdf"])
+@pytest.mark.parametrize(
+    "name", ["../x.zip", "/etc/passwd.zip", "..\\..\\plan.pdf", "Plan 1:100.pdf", "C:"]
+)
 def test_an_upload_named_as_a_path_is_read_and_no_answer_names_the_server_folder(
     client: TestClient, settings: Settings, plan_pdf: bytes, name: str
 ) -> None:

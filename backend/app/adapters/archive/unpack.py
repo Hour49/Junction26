@@ -60,8 +60,12 @@ def safe_path(name: str) -> str | None:
 
 def file_name(name: str) -> str | None:
     """An upload's own name as its one file's path: the last part, or None when that is no usable
-    file name ("", ".", "..", a ":" or a control character), as `safe_path` refuses in a zip."""
-    return safe_path(PurePosixPath(name.replace("\\", "/")).name)
+    file name ("", ".", ".." or a control character). A ":" is kept ("Plan 1:100.pdf"): the store
+    is Linux, and `paths.inside` guards where the file lands."""
+    last = PurePosixPath(name.replace("\\", "/")).name
+    if last in ("", ".", "..") or any(ord(char) < 32 for char in last):
+        return None
+    return last
 
 
 class ZipUnpacker:
