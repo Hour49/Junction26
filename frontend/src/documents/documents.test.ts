@@ -137,7 +137,7 @@ describe('documents.ts', () => {
     expect(issueSource({ ...aside, file_id: null }, PID, null, photo)).toBeNull();
   });
 
-  it('DOC-17 shortReason: a set-aside reason without its trailing parenthetical; nothing for other states', () => {
+  it('DOC-17 shortReason: a set-aside or flagged reason without its trailing parenthetical; nothing for other states', () => {
     expect(
       shortReason({
         state: 'set_aside',
@@ -148,12 +148,19 @@ describe('documents.ts', () => {
     expect(
       shortReason({ state: 'ready', reason: 'read on the drawn PDF route: 7 elements' }),
     ).toBeNull();
+    // R4-B4: a flagged row says why too
     expect(
       shortReason({
         state: 'flagged',
         reason: 'not read: this setup has no reader for the image route',
       }),
-    ).toBeNull();
+    ).toBe('not read: this setup has no reader for the image route');
+    expect(
+      shortReason({
+        state: 'flagged',
+        reason: '1 conflict between the two methods (room areas) (7 elements, 5 rooms)',
+      }),
+    ).toBe('1 conflict between the two methods (room areas)');
     expect(
       shortReason({ state: 'text_only', reason: 'a text document, not a drawing (page 1)' }),
     ).toBeNull();
