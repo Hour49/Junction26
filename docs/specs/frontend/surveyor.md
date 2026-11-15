@@ -160,6 +160,8 @@ sticky header, no scroll box around the tables). The table keeps its three colum
 At 760px and narrower, selecting a row (click, Enter or a `?q=` change by the user) scrolls the detail into view
 (`scrollIntoView({block: "start"})`, `scroll-margin-top` clears the sticky site header): the detail sits under all
 the rows (63 on the sample), and the row order stays as on the desktop (pre-QA 2026-11-14, SV-53).
+Wider than 760px, a selection scrolls the takeoff column (its own scroll) so the detail sits under the column's
+sticky head; the page itself does not move (QA 2026-11-15: at 1440 the detail was 3781px down the column, unseen).
 
 Selection after an edit or sign-off: the row acted on stays selected, even when it leaves "To review" (it was the
 default selection), so its "Settled at …" / "Signed off by …" line shows (frontend-orch decision, pre-QA, SV-52).

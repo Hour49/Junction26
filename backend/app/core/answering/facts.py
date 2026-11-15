@@ -562,10 +562,10 @@ def _space_extras(
     if storey is None and per_storey and gross:
         lines += ["Gross floor area by storey:", *per_storey]
     for topic, label in (
-        ("space.gross_floor_area", "gross floor area"),
-        ("space.net_floor_area", "net floor area"),
+        ("space.gross_floor_area", "gross floor area as the file states it"),
+        ("space.net_floor_area", "net floor area as the file states it"),
         ("space.stated_area", "stated area"),
-        ("space.area", "footprint area"),
+        ("space.area", "footprint area from the model's geometry"),  # the takeoff's model-spaces
     ):
         if (fact := facts.one(topic, "all", storey)) is not None:
             lines.append(f"Sum of the spaces' {label}: {_num(fact)}")

@@ -20,6 +20,7 @@ from app.adapters.services_agent_tools import (  # pyright: ignore[reportPrivate
     _list,
     _ListArgs,
 )
+from app.adapters.services_agent_tools import NOT_READ as NO_MODEL
 from app.adapters.services_store import (
     NO_SERVICES,
     NOT_READ,
@@ -166,7 +167,7 @@ def test_the_tools_say_a_model_is_being_built_not_that_there_is_none() -> None:
     store = ServicesToolStore({}, building=("a1b2c3d4e5f60708",))
     with pytest.raises(ToolError, match=BUILDING):
         store.model("a1b2c3d4e5f60708")
-    with pytest.raises(ToolError, match=f"none; {BUILDING}: a1b2c3d4e5f60708"):
+    with pytest.raises(ToolError, match=f"{NO_MODEL}; {BUILDING}: a1b2c3d4e5f60708"):
         _list(store, _list_args())
     with pytest.raises(ToolError) as nothing:
         _list(ServicesToolStore({}), _list_args())

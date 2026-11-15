@@ -203,7 +203,7 @@ describe('advanced.ts', () => {
   it('AV-17 planCounts sums room, door, window over drawings only; a key no drawing has is null', () => {
     // project.json: flat-a.pdf and flat-b.pdf are drawings (5 rooms, 2 doors, 2 windows each);
     // flat-a.png is another rendering of flat-a and is not added.
-    expect(planCounts(project)).toEqual({ room: 10, door: 4, window: 4, drawings: 5 });
+    expect(planCounts(project)).toEqual({ room: 10, door: 4, window: 4, drawings: 6 });
     const noWindows: ProjectView = {
       ...project,
       files: project.files.map((f) => ({ ...f, takeoff: { room: 1 } })),

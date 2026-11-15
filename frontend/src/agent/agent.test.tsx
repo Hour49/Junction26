@@ -29,6 +29,7 @@ import {
 } from './fixtures';
 import { selectionOf } from './PlanPane';
 import { TurnCard } from './TurnCard';
+import { followed } from './multi/fixtures';
 
 const PID = project.id;
 const DRAWING = `GET /api/drawings/${DID}`;
@@ -335,6 +336,17 @@ describe('EditCard', () => {
     expect(
       screen.getByText(
         'Proposed from the drawn geometry. Structure, services and permits are not checked.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('QA: with the services followed, the note does not say services are not checked', () => {
+    mockApi({ [DRAWING]: drawing });
+    render(<EditCard proposal={followed} projectId={PID} chatId={editTurn.chat_id} />);
+    expect(screen.queryByText(/services and permits are not checked/)).toBeNull();
+    expect(
+      screen.getByText(
+        'Proposed from the drawn geometry; services followed through their models, as each tab shows. Structure and permits are not checked.',
       ),
     ).toBeTruthy();
   });

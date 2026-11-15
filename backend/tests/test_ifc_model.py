@@ -34,7 +34,7 @@ from app.composition import build_pipeline
 from app.core.drawing.model import Drawing, MeasuredValue, ModelObject, Page, Subject
 from app.core.errors import InvalidInputError, NotFoundError
 from app.core.ingest.judge import judge
-from app.core.pipeline.ingest import NO_SHEET
+from app.core.pipeline.ingest import no_sheet
 from app.core.pipeline.model import DrawingFile, Extracted, FileKind, Measurement, Sheet
 from app.core.review.ask import SERVICES_ONLY, ask
 from app.core.review.model import ReviewState
@@ -736,7 +736,7 @@ def test_without_the_ifc_reader_the_sheet_is_read_alone_and_the_model_is_set_asi
     assert [(sheet.file, sheet.route, sheet.source) for sheet in report.sheets] == [
         (SHEET, "vector", SHEET)
     ]
-    assert [(found.path, found.reason) for found in report.set_aside] == [(MODEL, NO_SHEET)]
+    assert [(found.path, found.reason) for found in report.set_aside] == [(MODEL, no_sheet("ifc"))]
     of_sheet = json.loads((out / "demo" / "house_plan-01-level-1.pdf.json").read_text())
     assert "model_objects" not in of_sheet
     assert not (out / "demo" / "house.ifc.json").exists()
