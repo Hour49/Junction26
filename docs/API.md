@@ -1010,7 +1010,7 @@ Ingest's project status, plus `drawings`:
     },
     {
       "path": "cad/detail.dxf",
-      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on"
+      "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image"
     }
   ],
   "expected_drawings": 6,
@@ -3909,7 +3909,7 @@ upload lists the files, instead of one request per file.
         "sha256": "5fc645fa369f92712910e02f3b11e3fb5a1a7bbda84cbea16bf821134724ff9b",
         "kind": "dxf",
         "state": "set_aside",
-        "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+        "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
         "group": "cad/detail",
         "route": "cad",
         "source": "cad/detail.dxf",
@@ -5405,10 +5405,10 @@ The sample after a door question on its scan (no reader in no-keys mode):
       "box": null,
       "polygon": null,
       "mark_id": null,
-      "why": "Set aside at ingest: no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on.",
+      "why": "Set aside at ingest: this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image.",
       "quantity": null,
       "question": null,
-      "reason": "no PDF, PNG or JPEG in its group, so there is no page to place a drawing model on",
+      "reason": "this DXF file has no sheet to show on its own; upload it with the drawing's PDF or image",
       "check": null,
       "links": {
         "drawing": null,
