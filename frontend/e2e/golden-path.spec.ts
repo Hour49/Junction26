@@ -295,12 +295,6 @@ test('GP-1..GP-13, GP-28, GP-41..GP-52: the golden demo path', async ({ page }, 
     await expect(area).toContainText(`22.40 m² by ${methodName('polygon_x_scale')}`);
     await expect(area).toContainText(`30.00 m² by ${methodName('printed_label')}`);
     await expect(area.getByRole('button', { name: 'Mark 1: Küche, counted' })).toHaveCount(1);
-    // phone grade area 8: the thumbnail opens the full viewer with its zoom, Close returns
-    await area.getByRole('button', { name: 'Enlarge the plan' }).click();
-    const sheet = page.getByRole('dialog', { name: 'The plan' });
-    await expect(sheet.getByRole('button', { name: 'Zoom in' })).toBeVisible();
-    await sheet.getByRole('button', { name: 'Close' }).click();
-    await expect(sheet).toHaveCount(0);
     // EN-43: the newest turn is scrolled into view
     await expect(area).toBeInViewport({ ratio: 0.2 });
     await shot(page, testInfo, '08-area-conflict', offline);

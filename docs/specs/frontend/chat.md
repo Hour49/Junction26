@@ -276,7 +276,7 @@ chips are the choice then, as EN-60) and when none is left; disabled while an as
 - CH-51 (QA 2026-11-15, phone grade area 8) The card's plan thumbnail is the bare viewer (no zoom). A tap on the image
   (not on a mark) or the "Enlarge the plan" button opens the same reference, marks and legend in the full viewer
   (zoom buttons, legend) in the full-window plan sheet (`PlanSheet`); Close or Escape shuts it and focus goes back to
-  the button. [component + e2e golden-path step 6]
+  the button. [component + e2e AC-30, desktop and phone]
 
 ### API asks (for Bogdan's fleet, via frontend-orch; nothing is mocked meanwhile)
 
