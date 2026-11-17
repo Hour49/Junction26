@@ -1,5 +1,5 @@
 // Vellum clickable demo: state, routes, header, and screens 1 (drop), 2 + 9-12 (reading), 3 (conflicts), 5 (workspaces).
-// Screen 4 (ask) is in ask.js. All data and counts come from data.js.
+// Screen 4 (ask) is in ask.js, the recorded examples of the full app (#/example/<id>) in examples.js. All data and counts come from data.js.
 (function () {
   'use strict';
   const V = window.VData, P = window.VPlan, esc = P.esc;
@@ -63,6 +63,7 @@
     const name = parts[0] || 'home';
     if (name === 'ingest' && PANELS.includes(parts[1])) return { name: 'advanced', panel: parts[1] };
     if (name === 'file' && /^\d+$/.test(parts[1] || '')) return { name: 'file', n: parts[1] };
+    if (name === 'example' && window.VExamples.find(parts[1] || '')) return { name: 'example', id: parts[1] };
     if (name === 'conflicts' || name === 'issues') return { name: 'ingest' };  // both live under the finished reading now
     return { name: ['ingest', 'chat', 'documents', 'ask', 'workspaces'].includes(name) ? name : 'home' };
   }
@@ -70,7 +71,7 @@
   function header(r) {
     const views = [['ingest', 'Ingest', '#/ingest'], ['chat', 'Chat', '#/chat'], ['documents', 'Documents', '#/documents']];
     const cur = r.name === 'advanced' || r.name === 'file' ? 'ingest' : r.name;
-    const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
+    const nav = S.p && !['home', 'workspaces', 'example'].includes(r.name)
       ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => {
         const n = k === 'documents' ? needsYou() : 0, inner = n ? `${label}<span class="badge" aria-hidden="true">${n}</span>` : label;
         const aria = n ? ` aria-label="${label}, ${many(n, 'issue')} to answer"` : '';
@@ -87,10 +88,10 @@
   let slots = {};
   function render() {
     const r = route();
-    if (r.name !== 'home' && r.name !== 'workspaces' && !S.p) newProject(true);
+    if (!['home', 'workspaces', 'example'].includes(r.name) && !S.p) newProject(true);
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, documents: documentsScreen,
-      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen}[r.name](r);
+      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen, example: window.VExamples.screen }[r.name](r);
     app.innerHTML = header(r) + screen + srcModal();
     fill();
     if (S.src) app.querySelector('.modal-card .btn-close').focus();
@@ -122,7 +123,31 @@
         </div>
         <div class="row-wrap" style="gap:8px">${tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
       </section>
+      ${window.VExamples.cards()}
+      ${eventResults()}
     </main>`;
+  }
+
+  // What we built at the event and how it scored (README "What we measured", docs/GOLDEN.md).
+  function eventResults() {
+    const nums = [
+      ['93.2%', 'of 2,948 Stoa questions answered right, files in and answers out'],
+      ['95.0%', 'on the 20% of questions we sealed on day one and never tuned on'],
+      ['97%', 'of the wrong answers on scanned plans flagged for a person to check'],
+      ['99%', 'of the answers on scanned plans rated High are exact'],
+    ];
+    return `<section class="results" aria-labelledby="results-title">
+        <h2 id="results-title">Built in 42 hours at Junction 2026</h2>
+        <p>Team Hour49 built Vellum for the Stoa challenge: it reads drawn PDFs, scans, photos and IFC models, answers
+        questions about them with marks on the drawing, and says "I don't know" with the reason when it can't tell.
+        This page is a click-through on real files from the dataset. The full app ran on our own machine during the
+        event and is offline now.</p>
+        <dl class="results-nums">${nums.map(([v, k]) => `<div><dt>${v}</dt><dd>${k}</dd></div>`).join('')}</dl>
+        <div class="row-wrap results-links">
+          <a class="btn btn-primary press" href="../how-it-works.html">How it works</a>
+          <a class="btn btn-plain press" href="https://github.com/Hour49/Junction26">Code and screenshots on GitHub</a>
+        </div>
+      </section>`;
   }
 
   // ---------- 2 reading, simple ----------
@@ -515,7 +540,7 @@
     const el = ev.target.closest('[data-act]');
     if (!el || el.getAttribute('aria-disabled') === 'true') return;
     const act = el.dataset.act;
-    const fn = ACTIONS[act] || window.VAsk.actions[act] || window.VChat.actions[act] || window.VFiles.actions[act] || window.VIssues.actions[act];
+    const fn = ACTIONS[act] || window.VAsk.actions[act] || window.VChat.actions[act] || window.VFiles.actions[act] || window.VIssues.actions[act] || window.VExamples.actions[act];
     if (fn && fn(el, ev) !== false) render();
   });
   app.addEventListener('keydown', (ev) => {

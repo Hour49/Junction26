@@ -46,7 +46,7 @@
     }
     const ck = a.check ? checkOf(t) : null;
     const edits = ck && (ck.state === 'fixing' || ck.state === 'confirm') ? ck : null;
-    const value = a.key ? a.value : ck && ck.state === 'checked' ? ck.value : V.valueOf(a.marks, a.quantity, edits);
+    const value = a.key || a.conflict ? a.value : ck && ck.state === 'checked' ? ck.value : V.valueOf(a.marks, a.quantity, edits);
     const shown = V.formatValue(a.quantity, value);
     const lead = a.quantity === 'area' ? `The net floor area is <strong>${shown}</strong>.` : `There ${value === 1 ? 'is' : 'are'} <strong>${shown}</strong> on this drawing.`;
     const flagged = new Map(ck && ck.state !== 'checked' ? a.check.disputed.map((x) => [x.mark_id || x.place, x.why]) : []);
@@ -80,7 +80,7 @@
           <figcaption class="legend">${legend.join('')}</figcaption></figure>
         <div class="side">
           <div class="value"><b>${V.formatValue(a.quantity, value).split(' ')[0]}</b><span>${a.quantity === 'area' ? 'm² net' : nounOf(a.quantity, value)}</span>${status}</div>
-          ${a.check ? checkHtml(t, a, ck, value) : a.key ? '' : '<p class="small">Certified: exact geometry and nothing in dispute. No person needs to check this.</p>'}
+          ${a.check ? checkHtml(t, a, ck, value) : a.key || a.conflict ? '' : '<p class="small">Certified: exact geometry and nothing in dispute. No person needs to check this.</p>'}
           <div style="display:flex;flex-direction:column;gap:4px"><span class="label">How it was found</span><p class="small">${methodLine(d, a)}</p></div>
           <div style="display:flex;flex-direction:column;gap:8px"><span class="label">References</span><ol class="refs">${refs}</ol></div>
         </div></div></div></article>`;

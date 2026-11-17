@@ -8,13 +8,13 @@
 <style>
 /* Layout: the pipeline diagram is the page; it runs left to right at full width and forks at the classifier. Two small figures sit side by side under it. */
 :root {
-  --bg: #eef1f6;
-  --sheet: #fcfdfe;
+  --bg: #ffffff;
+  --sheet: #ffffff;
   --node: #ffffff;
   --ink: #111a26;
   --ink-2: #47566a;
   --ink-3: #6f7d90;
-  --rule: #d5dce6;
+  --rule: #e4e7ec;
   --accent: #1d4f91;
   --accent-soft: #e6eef9;
   --right: #2a78d6;
@@ -58,7 +58,7 @@ header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content:
 .live { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 0.8rem; color: var(--ink-2); }
 .live i { width: 9px; height: 9px; border-radius: 50%; background: var(--det); animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.75); } }
-section { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding: 22px clamp(16px, 3vw, 26px); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+section { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.04); padding: 22px clamp(16px, 3vw, 26px); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .note { font-size: 0.85rem; color: var(--ink-3); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 0.85rem; color: var(--ink-2); align-items: center; }
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
@@ -123,8 +123,8 @@ h3 { font-family: var(--display); font-size: 0.98rem; font-weight: 600; margin: 
 .arrow { font-size: 1.8rem; color: var(--ink-3); }
 .piles { display: flex; flex-wrap: wrap; gap: 14px 30px; }
 .piles > div { display: flex; flex-direction: column; gap: 8px; }
-.waffle { display: grid; grid-template-columns: repeat(var(--cols), 15px); gap: 3px; }
-.waffle i { width: 15px; height: 15px; border-radius: 3px; background: var(--right); }
+.waffle { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 15px)); gap: 3px; }
+.waffle i { aspect-ratio: 1; border-radius: 3px; background: var(--right); }  /* narrower than 15px on a phone */
 .waffle i.w { background: var(--wrong); }
 .cap2 { font-size: 0.9rem; color: var(--ink-2); max-width: 34ch; }
 .cap2 b { color: var(--ink); font-weight: 600; }
@@ -162,7 +162,7 @@ h3 { font-family: var(--display); font-size: 0.98rem; font-weight: 600; margin: 
     <span><i class="dot d"></i>deterministic, no model</span>
     <span><i class="dot m"></i>local ML model, no LLM</span>
     <span><i class="dot g"></i>LLM</span>
-    <span><i class="sw new"></i>new tonight, off by default; some steps not built yet</span>
+    <span><i class="sw new"></i>dashed: off by default or not built yet</span>
   </div>
   <p class="note">Green steps are plain code: the same file gives the same result every time, and no model is called. Blue steps run a trained vision or text model on our machine, with no LLM. Orange steps call a large language model: Gemini through an outside API, or Qwen3.8-27B on EU infrastructure in place of every orange step, for 1 to 2 points less. A box takes the colour of its most model-heavy step.</p>
   <div class="scroll"><svg id="pipe" viewBox="0 0 1415 890" role="img" aria-label="Pipeline: upload, then a classifier sorts every file three ways and names its discipline from the same reply. Floor plans: vector files are parsed exactly, scans are read by vision models and double-checked, both feed the drawing model and the answer. Discipline drawings and models (piping, heating, ventilation, electrical, structural) follow the same steps: models and vector files are parsed exactly, pictures are read with vision and double-checked (not built yet), and both feed a fact sheet per discipline that answers questions at Low confidence until measured. Everything else is described by Carbon, chunked and stored in a hybrid search index that feeds the answer."></svg></div>
