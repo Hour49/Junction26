@@ -225,6 +225,7 @@ class PictureReader(Protocol):
 | --- | --- | --- |
 | `DISCIPLINE_PICTURES` | `off`, `template`, `glyphs`, `gemini` | `off` (the lane writes nothing; triage is unchanged) |
 | `DISCIPLINE_GLYPHS_MODEL` | a folder with `model.onnx` (never committed) | `../data/models/pic-glyphs` |
+| `DISCIPLINE_GLYPHS_LEGEND` | `ocr`, `glyphs` (glyphs only: the legend read from the detector's own glyphs; sheets in `<cache>/glyphs/legend-glyphs`) | `ocr` |
 | `DISCIPLINE_PICTURES_CACHE_DIR` | a folder | `../data/cache/discipline-pictures` |
 | `DISCIPLINE_PICTURES_PROVIDER` | `gemini`, `eu` (openvlm) | `gemini` |
 | `DISCIPLINE_PICTURES_MAX_USD` | USD per page | `0.15` |
@@ -257,9 +258,15 @@ tuned on bsc-clinic only; IoU 0.5):
 | template, OCR legend | 0.07 | 0.29 | 8/54 | 0.04/0.06 | 0 |
 | glyphs, OCR legend | 0.92 | 0.38 | 9/54 | 0.80/0.24 | 0 (1.5 s CPU) |
 | glyphs, true legend boxes (bound) | 0.96 | 0.82 | 27/54 | 0.83/0.29 | 0 |
+| glyphs (YOLO26 M), legend from its own glyphs (`DISCIPLINE_GLYPHS_LEGEND=glyphs`) | 0.95 | 0.81 | 27/54 | 0.96/0.42 | 0 (2.4 s CPU + OCR of the label bands) |
 | gemini (reads its own legend) | 0.95 | 0.92 | 46/54 | 0.80/0.68 | $0.030 |
 
 The OCR legend reader is what sinks both local readers on scans (template 0.01/0.01, glyphs 0.77/0.06 there).
+`DISCIPLINE_GLYPHS_LEGEND=glyphs` (2026-11-15, pipe-glyph) takes that reader out: a legend row is a detected
+glyph with text-like ink right of it (no OCR text detection, which misses label lines on scans), the rows stacked in
+one column, each label read by OCR recognition of its band; a one-row legend is a legend. With the YOLO26 M weights
+(clinic renders, 4 seeds) it reaches 27/54, the same as that detector with the true legend boxes (scans P 0.95 R
+0.84). A pass of its pre-registered line (>= 27/54, P >= 0.90) with no margin; still far below gemini.
 One synthetic building, legend always printed: not a pass on real sheets, so the facts stay Low.
 
 ## Cost per page
