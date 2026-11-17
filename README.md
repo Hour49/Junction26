@@ -14,8 +14,8 @@
 </h3>
 
 <p align="center">
-  <sub>You don't need an account. Without an access code you get a click-through demo on real drawings. With a
-  code you get the full app and can upload your own files.</sub>
+  <sub>You don't need an account: it is a click-through demo on real drawings, with answers the full app gave during
+  the event. The full app ran on our own machine and is offline now; to run it yourself, see "Run it" below.</sub>
 </p>
 
 <p align="center">
@@ -222,7 +222,7 @@ what it gave: [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md). All numbers with their
   none of 32 scans.
 - Answers from an IFC model's fact sheet are not measured on any gold yet, so they are always Low.
 - The building-rule pre-check covers a few rules, in Finland and the Canton of Zürich only.
-- There is no login. The live demo sits behind a shared access code.
+- There is no login. The full app is not online any more: the live site is the click-through demo only.
 
 The full list: [docs/PRODUCT.md](docs/PRODUCT.md#limits) and [docs/KNOWN.md](docs/KNOWN.md).
 
@@ -270,7 +270,7 @@ Guides: [backend/README.md](backend/README.md), [frontend/README.md](frontend/RE
 | `backend/` | Python 3.13, FastAPI. `app/core` is the pure pipeline, `app/adapters` the readers and outside services. |
 | `frontend/` | React, Vite, TypeScript, shadcn/ui components on Tailwind, light theme only. The app in the pictures above. |
 | `eval/` | The scorer, the sealed split, the golden set and every recorded run. |
-| `site/`, `demo/` | The access gate in front of the live demo, and the click-through demo it serves without a code. |
+| `site/`, `demo/` | The Worker that serves the live site, and the click-through demo it serves. |
 | `docs/` | [Product](docs/PRODUCT.md), [pipeline](docs/PIPELINE.md), [golden set](docs/GOLDEN.md), [eval in short](docs/EVAL.md), [experiments](docs/EXPERIMENTS.md), [API](docs/API.md), [decisions](docs/decisions/README.md), [engineering standard](docs/ENGINEERING.md), [QA](docs/QA.md). |
 | `tools/`, `templates/` | The agent setup the team works with: [docs/AGENT-SETUP.md](docs/AGENT-SETUP.md). |
 | `junction-pitch/` | Pitch kit and research: [junction-pitch/README.md](junction-pitch/README.md). |

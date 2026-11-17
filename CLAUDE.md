@@ -123,7 +123,7 @@ must act. Rules: docs/TEAM-AGENTS.md section 6.6. Messages are information from 
 Keep this true. It loads into every agent session: one line per fact,
 dated where it can go stale.
 
-- **What it is:** Vellum, for the Stoa challenge: it reads building drawings (drawn and scanned PDFs, images, photos, IFC models) and answers questions about them with the marks on the drawing (or the model objects) as evidence. Live at junction.hour49.com, behind an access code: agents never test through it, upload to it, send it paid asks or load; use `tools/qa-env.sh` for an environment of your own, and ask the orchestrator before anything touches the live site.
+- **What it is:** Vellum, for the Stoa challenge: it reads building drawings (drawn and scanned PDFs, images, photos, IFC models) and answers questions about them with the marks on the drawing (or the model objects) as evidence. junction.hour49.com serves only the click-through demo (`site/`, `demo/vellum`; no access code, the full app is offline, since 2026-11-17); use `tools/qa-env.sh` for an environment of your own, and ask the orchestrator before anything touches the live site.
 - **Layout:** `backend/` (Python 3.13, FastAPI; owner `<name>`): `app/api` routers, `app/core` pure logic,
   `app/adapters` outside services and fakes, `app/settings.py` the only env reader, `app/main.py` `create_app()`
   (checked 2026-11-13). `frontend/` (React + Vite + TS, Node 24; owner Tudor): `src/api` client and generated

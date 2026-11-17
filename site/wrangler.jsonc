@@ -1,7 +1,6 @@
-// junction.hour49.com: the access gate (src/index.js) in front of the real app, with the HTML demo as its static
-// assets (built into ./assets by build-assets.sh, gitignored). Deploy from this folder: set CLOUDFLARE_ACCOUNT_ID and
-// CLOUDFLARE_API_TOKEN in the env, run ./build-assets.sh, then `npx wrangler@4.161.0 deploy`. Secrets (ACCESS_CODE,
-// COOKIE_KEY, ORIGIN_URL, ACCESS_CLIENT_ID, ACCESS_CLIENT_SECRET) go in with `--secrets-file`, never here.
+// junction.hour49.com: the HTML demo (src/index.js adds the Credits strip to its pages), served from the static
+// assets that build-assets.sh puts into ./assets (gitignored). Deploy from this folder: set CLOUDFLARE_ACCOUNT_ID and
+// CLOUDFLARE_API_TOKEN in the env, run ./build-assets.sh, then `npx wrangler@4.161.0 deploy`. No secrets.
 // No account id here: the repo is public. `--env preview` deploys a copy to workers.dev, no custom domain.
 {
   "name": "hour49-junction",
