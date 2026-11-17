@@ -1,5 +1,5 @@
 // Vellum clickable demo: state, routes, header, and screens 1 (drop), 2 + 9-12 (reading), 3 (conflicts), 5 (workspaces).
-// Screen 4 (ask) is in ask.js. All data and counts come from data.js.
+// Screen 4 (ask) is in ask.js, the recorded examples of the full app (#/example/<id>) in examples.js. All data and counts come from data.js.
 (function () {
   'use strict';
   const V = window.VData, P = window.VPlan, esc = P.esc;
@@ -63,6 +63,7 @@
     const name = parts[0] || 'home';
     if (name === 'ingest' && PANELS.includes(parts[1])) return { name: 'advanced', panel: parts[1] };
     if (name === 'file' && /^\d+$/.test(parts[1] || '')) return { name: 'file', n: parts[1] };
+    if (name === 'example' && window.VExamples.find(parts[1] || '')) return { name: 'example', id: parts[1] };
     if (name === 'conflicts' || name === 'issues') return { name: 'ingest' };  // both live under the finished reading now
     return { name: ['ingest', 'chat', 'documents', 'ask', 'workspaces'].includes(name) ? name : 'home' };
   }
@@ -70,7 +71,7 @@
   function header(r) {
     const views = [['ingest', 'Ingest', '#/ingest'], ['chat', 'Chat', '#/chat'], ['documents', 'Documents', '#/documents']];
     const cur = r.name === 'advanced' || r.name === 'file' ? 'ingest' : r.name;
-    const nav = S.p && r.name !== 'home' && r.name !== 'workspaces'
+    const nav = S.p && !['home', 'workspaces', 'example'].includes(r.name)
       ? `<nav class="seg" aria-label="Views">${views.map(([k, label, href]) => {
         const n = k === 'documents' ? needsYou() : 0, inner = n ? `${label}<span class="badge" aria-hidden="true">${n}</span>` : label;
         const aria = n ? ` aria-label="${label}, ${many(n, 'issue')} to answer"` : '';
@@ -87,10 +88,10 @@
   let slots = {};
   function render() {
     const r = route();
-    if (r.name !== 'home' && r.name !== 'workspaces' && !S.p) newProject(true);
+    if (!['home', 'workspaces', 'example'].includes(r.name) && !S.p) newProject(true);
     slots = {};
     const screen = { home: homeScreen, ingest: ingestScreen, advanced: advancedScreen, documents: documentsScreen,
-      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen}[r.name](r);
+      chat: window.VChat.screen, ask: window.VAsk.screen, workspaces: workspacesScreen, file: window.VFiles.traceScreen, example: window.VExamples.screen }[r.name](r);
     app.innerHTML = header(r) + screen + srcModal();
     fill();
     if (S.src) app.querySelector('.modal-card .btn-close').focus();
@@ -122,6 +123,7 @@
         </div>
         <div class="row-wrap" style="gap:8px">${tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
       </section>
+      ${window.VExamples.cards()}
       ${eventResults()}
     </main>`;
   }
@@ -538,7 +540,7 @@
     const el = ev.target.closest('[data-act]');
     if (!el || el.getAttribute('aria-disabled') === 'true') return;
     const act = el.dataset.act;
-    const fn = ACTIONS[act] || window.VAsk.actions[act] || window.VChat.actions[act] || window.VFiles.actions[act] || window.VIssues.actions[act];
+    const fn = ACTIONS[act] || window.VAsk.actions[act] || window.VChat.actions[act] || window.VFiles.actions[act] || window.VIssues.actions[act] || window.VExamples.actions[act];
     if (fn && fn(el, ev) !== false) render();
   });
   app.addEventListener('keydown', (ev) => {

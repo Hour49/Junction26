@@ -16,6 +16,15 @@ File triage is a preview (decision 0010): set-aside files with their kind, descr
 person's call and "Read it as a floor plan" (`triage.js`); the project's Drawings and Files lists; the issues list
 (`issues.js`); the project chat with follow-ups and an elevation answer from its description (a preview).
 
+Examples of the full app (`examples.js`, `#/example/<id>`, cards on the start page; added 2026-11-17, Bogdan: "add
+some of the more interesting examples also to the clicky"): answers the app gave during the event, copied from its
+recorded chats with their values, confidence texts, reasons and mark places, on drawings we may publish: the 1973
+HABS scan of the Isaac Franklin House (public domain; 1 toilet High, 19 doors Low with 3 places in dispute), our
+code-drawn flat (8 doors High) and two DigitalHub heating sheets with the heating model (MIT; 29 and 34 radiators).
+They are committed with their pictures in `examples/`, since nothing in them comes from the Stoa dataset; the
+credits page (`site/build-assets.sh`) names each one. The questions are replayed, not answered: only the recorded
+ones can be asked.
+
 Spec and click map: `../../docs/specs/frontend/clicky-demo.md`.
 
 It shows only what the backend has: no country picker, login or user name (a sign-off takes a typed name), no ETA,

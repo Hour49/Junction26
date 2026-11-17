@@ -439,3 +439,17 @@ details.why p { margin: 0; font-size: 14px; color: var(--v-text-2); }
 .c-plan.min figcaption { flex: 1; min-width: 0; }
 .src-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 520px) { .c-plan.min > div { width: 104px; } }
+/* the recorded examples of the full app (examples.js): counted marks green, places in dispute amber */
+.ex-src { max-width: none; }
+.ex-src .hl { border-width: 2px; border-radius: 3px; }
+.ex-src .hl b { width: 16px; height: 16px; font-size: 10px; top: -9px; left: -9px; }
+.hl.ok { border-color: var(--v-accent); background: rgba(61,90,79,0.12); } .hl.ok b { background: var(--v-accent); }
+.hl.open { border-style: dashed; background: none; }
+.num.warn { background: var(--v-warn-mark); }
+.ex-facts { margin: 0; white-space: pre-line; font-size: 14px; color: var(--v-text-2); }
+.ex-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.ex-card { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--v-text); background: #f6f7f6; border-radius: 16px; padding: 10px 10px 14px; }
+.ex-card:hover { background: #e9efec; color: var(--v-text); }
+.ex-card img { width: 100%; height: 110px; object-fit: cover; border-radius: 10px; background: #fff; }
+.ex-card-t { font-size: 15px; font-weight: 600; }
+@media (max-width: 760px) { .ex-cards { grid-template-columns: minmax(0, 1fr); } }

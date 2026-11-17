@@ -36,7 +36,8 @@ place), `files.js` (the project's Drawings and Files lists and the file trace), 
 pure derivation), `data.test.cjs`, `triage.test.cjs` (`node --test demo/vellum/*.test.cjs`), `README.md`, `vellum-logo.png` (the canvas logo asset). Nothing from
 the Stoa dataset is committed; the canvas `.jpg` archive plans are not used: every plan is SVG drawn from `data.js`.
 Stoa mode adds `make_stoa_demo.py`, `stoa.js` and `stoa.test.cjs` (see Stoa mode below); its output folder `stoa/` is
-gitignored.
+gitignored. `examples.js`, `examples/` and `examples.test.cjs` (2026-11-17) replay answers the full app recorded
+during the event, on drawings that are not from the dataset (`README.md`).
 
 ## Data rules
 
