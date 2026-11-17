@@ -142,13 +142,14 @@
     const c = conflictFor(m.q), pick = c && picks ? picks[c.id] : undefined;
     const value = typeof pick === 'number' ? c.variants[pick].value : pick && pick.custom && !Number.isNaN(parseFloat(pick.custom)) ? parseFloat(pick.custom) : m.q.answer;
     return { drawing: d.id, question, quantity: m.q.quantity, refusal: null, marks: [], rooms: [], value, check: null,
-      key: !c, keyQuestion: m.q.question, conflict: c ? c.id : null };
+      key: !c, keyQuestion: m.q.question, conflict: c ? c.id : null, settled: pick !== null && pick !== undefined };
   }
   const parseQuestion = (text) => { const m = match(text); return m.q ? m.q.quantity : null; };
 
   const noun = (quantity, value) => QUANTITIES[quantity].noun[value === 1 ? 0 : 1];
   const formatValue = (quantity, value) => (quantity === 'area' ? `${value.toFixed(2)} m²` : `${value} ${noun(quantity, value)}`);
-  const ruleOf = (a) => QUANTITIES[a.quantity].rule;
+  // once a conflict is settled its answer is the person's or the AI's pick, not the key's count
+  const ruleOf = (a) => (a.settled ? 'As settled in Conflicts.' : QUANTITIES[a.quantity].rule);
   const SUGGEST = ['many doors', 'area of apartment', 'many windows', 'total net floor area', 'many toilets'].map((k) => QS.find((q) => q.question.includes(k)))
     .filter(Boolean).map((q) => q.question);
 

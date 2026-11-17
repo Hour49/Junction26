@@ -97,3 +97,20 @@ test('every conflict and issue preview points at a real file and outlines places
     for (const { box: [x, y, w, h] } of src.marks) assert.ok(x >= vx && y >= vy && x + w <= vx + vw && y + h <= vy + vh, `${x},${y} outside ${src.view}`);
   }
 });
+
+test('the engineer view shows a Stoa answer a conflict decides, settled or open: it has a value and no marks', () => {
+  const V = load();
+  const window = { VData: V, document: { addEventListener() {} } };
+  window.window = window;
+  const ctx = vm.createContext({ window, document: window.document });
+  for (const f of ['plan.js', 'ask.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
+  for (const pick of [0, 1, null]) {
+    const p = { di: 0, turns: [{ id: 1, drawing: 'stoa', question: 'How many doors are there?' }], checks: {}, conflicts: { c1: { mode: 'own' } } };
+    window.VApp = { S: { p, signer: '' }, picks: () => ({ c1: pick }) };
+    const html = window.VAsk.screen();  // "Show it on" from the chat lands here; it threw "no marks in Stoa mode"
+    assert.ok(html.includes(`<strong>${pick === 1 ? 10 : 12} doors</strong>`), String(pick));
+    assert.ok(html.includes(pick === null ? 'Conflict open' : 'Settled in Conflicts'));
+    assert.ok(!html.includes('Certified'));  // a person or the rules settled it; nothing was measured
+    assert.ok(html.includes(pick === null ? 'As the answer key counts them' : 'As settled in Conflicts.'));
+  }
+});
