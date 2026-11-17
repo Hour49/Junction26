@@ -123,8 +123,8 @@ h3 { font-family: var(--display); font-size: 0.98rem; font-weight: 600; margin: 
 .arrow { font-size: 1.8rem; color: var(--ink-3); }
 .piles { display: flex; flex-wrap: wrap; gap: 14px 30px; }
 .piles > div { display: flex; flex-direction: column; gap: 8px; }
-.waffle { display: grid; grid-template-columns: repeat(var(--cols), 15px); gap: 3px; }
-.waffle i { width: 15px; height: 15px; border-radius: 3px; background: var(--right); }
+.waffle { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 15px)); gap: 3px; }
+.waffle i { aspect-ratio: 1; border-radius: 3px; background: var(--right); }  /* narrower than 15px on a phone */
 .waffle i.w { background: var(--wrong); }
 .cap2 { font-size: 0.9rem; color: var(--ink-2); max-width: 34ch; }
 .cap2 b { color: var(--ink); font-weight: 600; }
