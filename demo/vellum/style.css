@@ -94,6 +94,16 @@ h2 { margin: 0; font-size: 34px; line-height: 1.1; letter-spacing: -0.02em; font
 .drop-zone p { margin: 0; }
 .icon-tile { width: 64px; height: 64px; border-radius: 18px; background: var(--v-accent-soft); display: flex; align-items: center; justify-content: center; }
 .row-wrap { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.results { width: 100%; max-width: 760px; background: var(--v-surface); border-radius: 28px; padding: 36px 32px; box-shadow: var(--v-shadow);
+  display: flex; flex-direction: column; gap: 18px; }
+.results h2 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.015em; }
+.results p { margin: 0; color: var(--v-text-2); }
+.results-nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; margin: 4px 0 0; }
+.results-nums dt { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: var(--v-accent); font-variant-numeric: tabular-nums; }
+.results-nums dd { margin: 2px 0 0; font-size: 14px; color: var(--v-muted); }
+.results-links { justify-content: flex-start; }
+.results-links a { text-decoration: none; display: inline-flex; align-items: center; }
+@media (max-width: 760px) { .results { padding: 24px 16px; } .results-nums { grid-template-columns: minmax(0, 1fr); } }
 
 /* 2 ingest */
 .prog-top { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px 32px; }

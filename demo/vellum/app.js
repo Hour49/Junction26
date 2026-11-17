@@ -122,7 +122,30 @@
         </div>
         <div class="row-wrap" style="gap:8px">${tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
       </section>
+      ${eventResults()}
     </main>`;
+  }
+
+  // What we built at the event and how it scored (README "What we measured", docs/GOLDEN.md).
+  function eventResults() {
+    const nums = [
+      ['93.2%', 'of 2,948 Stoa questions answered right, files in and answers out'],
+      ['95.0%', 'on the 20% of questions we sealed on day one and never tuned on'],
+      ['97%', 'of the wrong answers on scanned plans flagged for a person to check'],
+      ['99%', 'of the answers on scanned plans rated High are exact'],
+    ];
+    return `<section class="results" aria-labelledby="results-title">
+        <h2 id="results-title">Built in 42 hours at Junction 2026</h2>
+        <p>Team Hour49 built Vellum for the Stoa challenge: it reads drawn PDFs, scans, photos and IFC models, answers
+        questions about them with marks on the drawing, and says "I don't know" with the reason when it can't tell.
+        This page is a click-through on real files from the dataset. The full app ran on our own machine during the
+        event and is offline now.</p>
+        <dl class="results-nums">${nums.map(([v, k]) => `<div><dt>${v}</dt><dd>${k}</dd></div>`).join('')}</dl>
+        <div class="row-wrap results-links">
+          <a class="btn btn-primary press" href="../how-it-works.html">How it works</a>
+          <a class="btn btn-plain press" href="https://github.com/Hour49/Junction26">Code and screenshots on GitHub</a>
+        </div>
+      </section>`;
   }
 
   // ---------- 2 reading, simple ----------

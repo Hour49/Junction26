@@ -50,4 +50,7 @@ as images of the unchanged PDF pages.</p>
 </div></body></html>
 CREDITS
 cp public/favicon.ico "$out/favicon.ico"
+# the pipeline explainer the app shows at #/stats; the demo's start page links to it
+git -C "$root" ls-files --error-unmatch frontend/public/stats.html > /dev/null
+cp "$root/frontend/public/stats.html" "$out/how-it-works.html"
 echo "built $(find "$out" -type f | wc -l) files, $(du -sk "$out" | cut -f1) KB, in site/$out"
