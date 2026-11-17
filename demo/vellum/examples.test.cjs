@@ -56,6 +56,7 @@ test('the figure shows every mark, or a window around the place in focus, inside
     const boxes = (p.marks || []).concat(((p.check && p.check.disputed) || []).map((x) => x.box));
     const [x, y, w, h] = viewOf(boxes);
     assert.ok(x >= 0 && y >= 0 && x + w <= 1 + 1e-9 && y + h <= 1 + 1e-9);
+    assert.ok(w >= 1 / 3 - 1e-9 && h >= 1 / 3 - 1e-9, `${p.file} ${w} ${h}`);  // a lone mark keeps the rooms around it
     for (const b of boxes) assert.ok(b[0] >= x && b[1] >= y && b[2] <= x + w && b[3] <= y + h, `${p.file} ${b}`);
     for (const b of boxes.slice(0, 3)) {
       const [fx, fy, fw, fh] = viewOf(boxes, b);
@@ -69,7 +70,7 @@ test('the figure shows every mark, or a window around the place in focus, inside
 function browser() {
   const window = { VPlan: { esc: (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`) } };
   window.window = window;
-  const ctx = vm.createContext({ window });
+  const ctx = vm.createContext({ window, requestAnimationFrame: () => {} });
   const src = fs.readFileSync(path.join(__dirname, 'examples.js'), 'utf8').replace("typeof module !== 'undefined' && module.exports", 'false');
   vm.runInContext(src, ctx, { filename: 'examples.js' });
   return window.VExamples;

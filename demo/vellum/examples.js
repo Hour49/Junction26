@@ -140,7 +140,8 @@
        "marks": [[0.07, 0.098, 0.075, 0.114], [0.155, 0.098, 0.16, 0.114], [0.241, 0.098, 0.246, 0.114], [0.326, 0.098, 0.331, 0.114], [0.412, 0.098, 0.417, 0.114], [0.498, 0.098, 0.503, 0.114], [0.583, 0.098, 0.588, 0.114], [0.669, 0.098, 0.674, 0.114], [0.755, 0.098, 0.76, 0.114], [0.029, 0.161, 0.034, 0.177], [0.794, 0.165, 0.799, 0.181], [0.559, 0.431, 0.564, 0.447], [0.265, 0.435, 0.27, 0.451], [0.268, 0.488, 0.273, 0.505], [0.556, 0.492, 0.561, 0.509], [0.559, 0.546, 0.564, 0.562], [0.265, 0.55, 0.27, 0.566], [0.794, 0.577, 0.799, 0.594], [0.029, 0.817, 0.034, 0.833], [0.069, 0.883, 0.074, 0.9], [0.155, 0.883, 0.16, 0.9], [0.24, 0.883, 0.245, 0.9], [0.39, 0.883, 0.395, 0.9], [0.432, 0.883, 0.438, 0.9], [0.475, 0.883, 0.48, 0.9], [0.518, 0.883, 0.523, 0.9], [0.582, 0.883, 0.588, 0.9], [0.668, 0.883, 0.673, 0.9], [0.754, 0.883, 0.759, 0.9]],
        "check": {
         "reason": "Please double-check this answer against the file: it is read from its fact sheet, and such answers are not yet measured."
-       }
+       },
+       "explanation": "read from the file's fact sheet; not yet measured, so confidence is Low"
       },
       {
        "file": "set/H-102 E01 heating.png",
@@ -153,7 +154,8 @@
        "marks": [[0.07, 0.098, 0.076, 0.117], [0.155, 0.098, 0.161, 0.117], [0.22, 0.098, 0.225, 0.117], [0.262, 0.098, 0.267, 0.117], [0.326, 0.098, 0.332, 0.117], [0.412, 0.098, 0.417, 0.117], [0.498, 0.098, 0.503, 0.117], [0.583, 0.098, 0.588, 0.117], [0.669, 0.098, 0.674, 0.117], [0.754, 0.098, 0.76, 0.117], [0.029, 0.162, 0.034, 0.181], [0.794, 0.165, 0.799, 0.184], [0.559, 0.433, 0.564, 0.451], [0.029, 0.434, 0.034, 0.452], [0.794, 0.437, 0.799, 0.455], [0.555, 0.463, 0.56, 0.481], [0.559, 0.49, 0.565, 0.509], [0.265, 0.492, 0.27, 0.511], [0.269, 0.52, 0.274, 0.539], [0.029, 0.545, 0.034, 0.564], [0.794, 0.548, 0.799, 0.567], [0.265, 0.55, 0.27, 0.568], [0.029, 0.817, 0.034, 0.835], [0.794, 0.82, 0.799, 0.838], [0.069, 0.883, 0.074, 0.902], [0.155, 0.883, 0.16, 0.902], [0.24, 0.883, 0.245, 0.902], [0.326, 0.883, 0.331, 0.902], [0.411, 0.883, 0.416, 0.902], [0.497, 0.883, 0.502, 0.902], [0.56, 0.883, 0.565, 0.902], [0.603, 0.883, 0.608, 0.902], [0.668, 0.883, 0.673, 0.902], [0.753, 0.883, 0.759, 0.902]],
        "check": {
         "reason": "Please double-check this answer against the file: it is read from its fact sheet, and such answers are not yet measured."
-       }
+       },
+       "explanation": "read from the file's fact sheet; not yet measured, so confidence is Low"
       },
       {
        "file": "services/rwth-digitalhub_digitalhub-fm-hzg-v2.ifc",
@@ -163,7 +165,8 @@
        "facts": "Space heaters by storey:\n- Basement (B01_OKRD): 0\n- Ground floor (E00_OKRD): 29\n- Level 1 (E01_OKRD): 34\nTotal space heaters: 63\nCount by predefined type:\n- RADIATOR: 63 (100.0%)\nSpace heaters by type:\n- Heizkörper Plan Ventil Unten:Rechts: 63 (100.0%)",
        "check": {
         "reason": "Please double-check this answer against the file: it is read from its fact sheet, and such answers are not yet measured."
-       }
+       },
+       "explanation": "read from the file's fact sheet; not yet measured, so confidence is Low"
       }
      ]
     }
@@ -187,8 +190,9 @@
     if (!boxes.length) return [0, 0, 1, 1];
     const x0 = Math.min(...boxes.map((b) => b[0])), y0 = Math.min(...boxes.map((b) => b[1]));
     const x1 = Math.max(...boxes.map((b) => b[2])), y1 = Math.max(...boxes.map((b) => b[3]));
-    const m = 0.05;
-    return clamp([x0 - m, y0 - m, x1 - x0 + 2 * m, y1 - y0 + 2 * m]);
+    // a margin, and at least a third of the page each way, so a lone mark still shows the rooms around it
+    const w = Math.max(x1 - x0 + 0.1, 1 / 3), h = Math.max(y1 - y0 + 0.1, 1 / 3);
+    return clamp([(x0 + x1 - w) / 2, (y0 + y1 - h) / 2, w, h]);
   }
 
   const API = { EXAMPLES, find, viewOf };
@@ -225,7 +229,7 @@
         <span class="muted">${esc(Object.entries(d.readers).map(([r, s]) => `${r}: ${s}`).join(' · '))}</span></span></button></li>`).join('');
     const check = part.check ? `<div class="dc"><span><span class="pill warn on-surface">Please double-check</span></span><p>${esc(part.check.reason)}</p>
         ${places ? `<ol class="refs" aria-label="Places the readers disagree on">${places}</ol><p class="small">Tap a place to zoom to it on the drawing.</p>` : ''}</div>` : '';
-    const how = [ROUTE[part.route], part.scale && `scale ${part.scale}`, part.rule && `rule: ${part.rule}`].filter(Boolean).join('; ');
+    const how = [part.explanation || ROUTE[part.route], part.scale && `scale ${part.scale}`, part.rule && `rule: ${part.rule}`].filter(Boolean).join('; ');
     const side = `<div class="side">${value}<span><span class="pill ${tone}">${word}</span></span><p class="small">${esc(part.level_text)}</p>${check}
         <div style="display:flex;flex-direction:column;gap:4px"><span class="label">How it was found</span><p class="small">${esc(how)}.</p></div></div>`;
     if (!part.image) {
@@ -233,7 +237,7 @@
     }
     const n = (part.marks || []).length;
     const legend = [n ? '<span><i class="lg" aria-hidden="true"></i>counted</span>' : '', dis.length ? '<span><i class="lg warn" aria-hidden="true"></i>the readers disagree here</span>' : ''].join('');
-    return `<div class="card"><div class="answer"><figure aria-label="${esc(part.file)} with ${n} numbered marks">
+    return `<div class="card"><div class="answer"><figure data-fig="${ex.id}-${key}" aria-label="${esc(part.file)} with ${n} numbered marks">
         <span style="display:flex;flex-direction:column"><span class="mono" style="font-size:14px;font-weight:600">${esc(part.file)}</span><span class="small">${esc(ex.images[part.image].kind)}</span></span>
         ${figure(ex, part, focus === undefined || focus === null ? null : dis[focus].box)}
         <figcaption class="legend">${legend}${focus === undefined || focus === null ? '' : `<button class="btn btn-plain press" data-act="ex-focus" data-x="${ex.id}" data-k="${key}" data-i="${focus}" style="padding:6px 12px;font-size:13px">Show every mark</button>`}</figcaption></figure>
@@ -270,7 +274,12 @@
 
   const actions = {
     'ex-ask': (el) => { const st = state(find(el.dataset.x)); st.asked.push(Number(el.dataset.i)); },
-    'ex-focus': (el) => { const f = state(find(el.dataset.x)).focus, i = Number(el.dataset.i); f[el.dataset.k] = f[el.dataset.k] === i ? null : i; },
+    // on a phone the figure sits above the list of places: bring it into view to show the zoom
+    'ex-focus': (el) => {
+      const f = state(find(el.dataset.x)).focus, i = Number(el.dataset.i), k = el.dataset.k;
+      f[k] = f[k] === i ? null : i;
+      requestAnimationFrame(() => { const fig = document.querySelector(`[data-fig="${el.dataset.x}-${k}"]`); if (fig) fig.scrollIntoView({ block: 'nearest' }); });
+    },
   };
 
   root.VExamples = { ...API, screen, cards, actions };
